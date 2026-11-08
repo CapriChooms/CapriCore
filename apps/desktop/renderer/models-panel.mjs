@@ -25,7 +25,7 @@ export class ModelsPanel {
     this.panel.dataset.hitRegion = '';
     this.panel.setAttribute('aria-label', 'Language model');
     this.panel.innerHTML = `
-      <div class="settings-heading"><h2>Language model <small class="beta-badge">BETA</small></h2><button type="button" id="models-close" aria-label="Close settings">×</button></div>
+      <div class="settings-heading"><h2>Language model</h2><button type="button" id="models-close" aria-label="Close settings">×</button></div>
       <div class="preferences-content">
         <p class="model-current"><span>Current model</span><strong id="models-current" data-untranslated></strong></p>
         <label for="models-choice">Language model</label><select id="models-choice" aria-describedby="models-unavailable models-requirement"></select>

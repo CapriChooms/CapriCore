@@ -3582,19 +3582,7 @@ async function initializeDesktop() {
               });
           } else {
             label = uiText(label, languages.value.interface);
-            if (
-              [
-                'Qwen model…',
-                'Voice effects…',
-                'Languages…',
-                'File access…',
-                'Application access…',
-                'Initiative…',
-                'Screen snapshot…',
-                'Timers and reminders…',
-              ].includes(item.label)
-            )
-              label += ' (BETA)';
+            if (['Initiative…', 'Screen snapshot…'].includes(item.label)) label += ' (BETA)';
           }
         }
         return {

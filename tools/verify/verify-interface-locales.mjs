@@ -162,7 +162,7 @@ try {
     );
     assert.equal(
       await controls.locator('#language-panel h2').textContent(),
-      uiText('Languages', locale.id) + ' (BETA)',
+      uiText('Languages', locale.id),
     );
     assert.equal(
       await controls.locator('label[for="language-interface"]').textContent(),

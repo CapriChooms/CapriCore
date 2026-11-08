@@ -88,8 +88,8 @@ export class CompanionPanel {
           <div class="settings-actions"><button type="button" id="bug-save">Save report</button><button type="button" data-community="issues">Open GitHub issues</button></div>
         </section>
         <section data-companion-tab="settings" hidden>
-          <h3>Qwen model <span class="beta-badge">BETA</span></h3><div class="settings-actions"><button type="button" id="companion-models">Choose Qwen model</button></div>
-          <h3>Updates <span class="beta-badge">BETA</span></h3><div class="settings-actions"><button type="button" id="companion-updates">Check for updates</button></div>
+          <h3>Qwen model</h3><div class="settings-actions"><button type="button" id="companion-models">Choose Qwen model</button></div>
+          <h3>Updates</h3><div class="settings-actions"><button type="button" id="companion-updates">Check for updates</button></div>
           <h3>Interface theme</h3>
           <label class="theme-palette-label" for="theme-preset">Color palette <span class="theme-palette-swatches" aria-hidden="true"><i></i><i></i></span></label>
           <select id="theme-preset"><option value="capri" data-untranslated>Capri</option><option value="blackwall" data-untranslated>Blackwall</option><option value="amethyst">Amethyst</option><option value="overdrive">Overdrive</option><option value="custom">Custom</option></select>
@@ -179,7 +179,7 @@ export class CompanionPanel {
           <h3>Avatar click reactions</h3>
           <label for="avatar-tap-gap">Maximum time between taps (seconds)</label><input id="avatar-tap-gap" type="number" min="1" max="15" value="10" required>
           <p class="settings-help">Ten taps on the same part can trigger a spoken reaction.</p>
-          <h3>Wake acknowledgement <span class="beta-badge">BETA</span></h3>
+          <h3>Wake acknowledgement</h3>
           <label><input type="checkbox" id="wake-restore-from-tray">Restore Capri from the tray on voice activation</label>
           <label for="wake-sound">Sound after Capri hears her name</label>
           <select id="wake-sound"><option value="tone">Signal tone</option><option value="file">My audio file</option><option value="voice">Capri's voice</option><option value="off">Silent</option></select>
@@ -187,7 +187,7 @@ export class CompanionPanel {
           <label for="wake-volume">Acknowledgement volume</label><input id="wake-volume" type="range" min="0" max="1" step="0.05" value="0.7">
           <div class="settings-actions"><button type="button" id="wake-import">Choose audio file</button><button type="button" id="wake-prepare" hidden disabled>Prepare voice response</button></div>
           <p class="settings-help">Use a short sound, up to 10 seconds. Voice responses are prepared once and played instantly. The signal tone is used while audio is unavailable.</p>
-          <h3>Conversation <span class="beta-badge">BETA</span></h3>
+          <h3>Conversation</h3>
           <label for="communication-style">Communication style</label>
           <select id="communication-style"><option value="neutral">Neutral</option><option value="romantic">Romantic</option><option value="business">Business</option><option value="wild">Wild</option></select>
           <p class="settings-help">This style shapes Capri's next reply. Your Personality file remains editable.</p>
@@ -195,7 +195,7 @@ export class CompanionPanel {
           <label for="companion-follow-up-seconds">Follow-up listening time (seconds)</label><input id="companion-follow-up-seconds" type="number" min="5" max="30" value="12">
           <p class="settings-help">After a voice request, a question from Capri opens Listening after she finishes speaking. Text requests never open Listening. The microphone must already be enabled.</p>
           <div class="settings-actions"><button type="button" id="companion-save">Apply settings</button></div>
-          <h3 id="personality-heading">Personality <span class="beta-badge">BETA</span></h3>
+          <h3 id="personality-heading">Personality</h3>
           <p class="settings-help">Customize Capri's character and fictional role-play preferences. Application permissions still apply. Leave empty to restore the original character. Changes apply to the next reply; existing conversation context remains.</p>
           <textarea id="personality-text" rows="9" maxlength="24000" dir="auto" spellcheck="false" aria-labelledby="personality-heading" data-untranslated></textarea>
           <div class="settings-actions"><button type="button" id="personality-save">Save personality</button><button type="button" id="personality-open">Show Personality file</button><button type="button" id="personality-reset">Restore original character</button></div>

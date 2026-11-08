@@ -23,7 +23,7 @@ export class UpdatesPanel {
     this.panel.dataset.hitRegion = '';
     this.panel.setAttribute('aria-label', 'Updates');
     this.panel.innerHTML = `
-      <div class="settings-heading"><h2>Updates <small class="beta-badge">BETA</small></h2><button type="button" id="updates-close" aria-label="Close settings">×</button></div>
+      <div class="settings-heading"><h2>Updates</h2><button type="button" id="updates-close" aria-label="Close settings">×</button></div>
       <div class="preferences-content">
         <p class="update-version"><span>Installed version</span><strong id="updates-current" data-untranslated></strong></p>
         <label class="update-channel"><input id="updates-experimental" type="checkbox">Include experimental updates</label>

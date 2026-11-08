@@ -1,4 +1,4 @@
-# Updates (BETA)
+# Updates
 
 Open **Menu → Updates**, or **Companion settings → Check for updates**.
 Check for updates, download the selected release, then choose **Restart and update**.
@@ -21,7 +21,7 @@ Windows installers are unsigned.
 
 Public releases work without an account, invitation or token, subject to GitHub rate limits. Startup checks and manual checks use the public release channel. A GitHub token is optional; saved tokens remain encrypted for the local OS account, and the renderer receives connection status only. Expired or unreadable optional access does not block anonymous public updates. Rate limits, cancellation and integrity failures remain errors. Capri never distributes the author's credentials or sends GitHub credentials to CDN redirects.
 
-Installations from the former private `CapriChooms/Capri` channel need a one-time full-installer upgrade: download [Capri 1.0.0](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe), select the existing installation folder, and keep its data. Updating the new code does not retrospectively redirect an already installed old updater. The [old private-access guide](private-updates.md) is historical documentation.
+Installations from the former private `CapriChooms/Capri` channel need a one-time full-installer upgrade: download [Capri 1.0.1](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe), select the existing installation folder, and keep its data. Updating the new code does not retrospectively redirect an already installed old updater. The [old private-access guide](private-updates.md) is historical documentation.
 
 ## What is preserved
 
@@ -57,7 +57,7 @@ it does not recognize the eight new `poses-v2` artwork files. The published v0.5
 archive and its file checksums are valid. This happens during preparation, before
 installation, so the failed check does not replace Capri or remove personal data.
 
-Quit Capri, run the [public 1.0.0 installer](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe)
+Quit Capri, run the [public 1.0.1 installer](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe)
 and select the **existing managed installation folder**. Keep that folder and its
 data; an uninstall is not required. The wizard updates application files while keeping
 history, memory, API settings and downloaded models. This recovery was checked against

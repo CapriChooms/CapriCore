@@ -1,6 +1,6 @@
 # Archived: private early-access updates
 
-> Historical guide for pre-1.0.0 early access. Current downloads and updates use the public [CapriChooms/CapriCore releases](https://github.com/CapriChooms/CapriCore/releases) without an account or token. Run [CapriSetup-1.0.0.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe) over the existing installation to switch from the old private channel. Do not create a token or request an invitation for normal public updates. See [current update instructions](updates.md). The instructions below apply only to the former private repository.
+> Historical guide for pre-1.0.1 early access. Current downloads and updates use the public [CapriChooms/CapriCore releases](https://github.com/CapriChooms/CapriCore/releases) without an account or token. Run [CapriSetup-1.0.1.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe) over the existing installation to switch from the old private channel. Do not create a token or request an invitation for normal public updates. See [current update instructions](updates.md). The instructions below apply only to the former private repository.
 
 Anyone who has accepted an invitation to **CapriChooms/Capri** and has Read
 access can update inside Capri. Membership in the CapriChooms organization is

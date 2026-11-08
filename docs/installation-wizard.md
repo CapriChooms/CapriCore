@@ -1,6 +1,6 @@
 # Windows installation wizard
 
-The Capri 1.0.0 wizard is a per-user source bootstrapper for Windows 10 22H2/11 x64. Download [CapriSetup-1.0.0.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe), or start **Install Capri.cmd** from a complete extracted source distribution. Public downloads require no GitHub account or token. The cyberpunk-styled wizard runs with built-in Windows PowerShell and Windows Forms, before Node, npm or Python are installed. The application owns its runtimes; global PATH, drivers and system Python are not modified by the normal installation.
+The Capri 1.0.1 wizard is a per-user source bootstrapper for Windows 10 22H2/11 x64. Download [CapriSetup-1.0.1.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe), or start **Install Capri.cmd** from a complete extracted source distribution. Public downloads require no GitHub account or token. The cyberpunk-styled wizard runs with built-in Windows PowerShell and Windows Forms, before Node, npm or Python are installed. The application owns its runtimes; global PATH, drivers and system Python are not modified by the normal installation.
 
 ## User journey
 

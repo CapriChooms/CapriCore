@@ -137,7 +137,7 @@ models remain unloaded until enabled.
 The startup panel displays real stage completion and an approximate ETA learned
 from previous starts. First starts and CPU fallback can take longer.
 
-The installer shows its exact package version, currently **CAPRI v1.0.0**. Pause downloads
+The installer shows its exact package version, currently **CAPRI v1.0.1**. Pause downloads
 retains partial data; model and dependency downloads resume with HTTP byte ranges
 and still require the pinned checksum. Package-manager operations finish their
 current step before pausing. The initial Node bootstrap may finish a buffered read

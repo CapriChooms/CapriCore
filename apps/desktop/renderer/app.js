@@ -2640,8 +2640,8 @@ function publishRegions() {
   ]
     .filter((element) => getComputedStyle(element).visibility === 'visible')
     .map((element) => ({ hit: element.hasAttribute('data-hit-region'), rect: rectangle(element) }));
-  // Subtitles intentionally have no hit rectangle: reading them must not block
-  // desktop interaction. Full-text selection is available in the history drawer.
+  // Only the actual answer text is interactive for deliberate selection/copy.
+  // The surrounding transparent subtitle stage still passes desktop clicks through.
   const controls = measured
     .filter(({ hit }) => hit)
     .map(({ rect }) => {

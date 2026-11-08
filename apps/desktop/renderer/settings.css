@@ -107,7 +107,6 @@ body.settings-window {
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  user-select: text;
 }
 .saved-memory-source {
   display: flex;

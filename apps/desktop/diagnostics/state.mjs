@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { privateLogRecord } from '../../../packages/runtime/src/privacy-log.mjs';
+import { diagnosticModelId, privateLogRecord } from '../../../packages/runtime/src/privacy-log.mjs';
 
 const PRIVATE_FIELD =
   /(?:prompt|transcript|utterance|messages|history|personality|content|goal|query|parameters|arguments|clipboard|windowTitle|caption|fileName|filePath|executable|url|token|secret|password|headers|environment|recording|screenshot|image|audioData|text)/i;
@@ -222,6 +222,9 @@ export function isDiagnosticControlValue(key, value) {
 /** Diagnostics are technical state, never an extensible arbitrary-text dump. */
 export function diagnosticState(value, key = '', depth = 0) {
   if (depth > 12) return '[DEPTH LIMIT]';
+  if (key === 'receivedText' && typeof value === 'boolean') return value;
+  if (['model', 'modelId'].includes(key) && typeof value === 'string')
+    return diagnosticModelId(value) ?? '[PRIVATE TEXT OMITTED]';
   if (
     PRIVATE_FIELD.test(key) &&
     !(typeof value === 'number' && /(?:Tokens|Bytes|Count|Ms)$/i.test(key))
@@ -233,8 +236,13 @@ export function diagnosticState(value, key = '', depth = 0) {
     if (STATES.has(value) || ERRORS.has(value)) return value;
     if (isDiagnosticControlValue(key, value)) return value;
     if (
-      /^(?:code|startupStage|failureCode|errorCode|lastFailureCode)$/.test(key) &&
+      /^(?:code|networkCode|startupStage|failureCode|errorCode|lastFailureCode)$/.test(key) &&
       /^(?:ASR_|VOICE_|CAPRI_|COMPUTER_|UND_ERR_|ERR_|E[A-Z]{3,})[A-Z0-9_]{0,72}$/.test(value)
+    )
+      return value;
+    if (
+      key === 'stage' &&
+      ['connect', 'upstream', 'response', 'stream', 'probe', 'request'].includes(value)
     )
       return value;
     if (

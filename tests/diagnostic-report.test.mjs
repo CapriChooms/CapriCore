@@ -13,6 +13,7 @@ import { registerCompanionIpc } from '../apps/desktop/main/companion-ipc.mjs';
 import { readFileSync } from 'node:fs';
 import { ACTIVE_AVATAR_CATALOG } from '../apps/desktop/avatar-catalog.mjs';
 import { probeResourceUsage } from '../apps/desktop/diagnostics/resources.mjs';
+import { privateLogRecord, writeModelSelectionLog } from '../packages/runtime/src/privacy-log.mjs';
 
 const parent = path.join(root, '.runtime/diagnostic-unit');
 mkdirSync(parent, { recursive: true });
@@ -43,6 +44,84 @@ const unpack = (buffer) => {
   assert.equal(buffer.readUInt16LE(buffer.length - 12), files.size);
   return files;
 };
+
+test('diagnostic ZIP keeps the active model ID and reply flag without keys, prompts or private paths', async () => {
+  const base = fixture();
+  const model = 'nvidia/nemotron-3.5-super-vl:free';
+  const secret = 'bare-credential-canary-123456789';
+  const privateText = 'PRIVATE_CONVERSATION_CANARY_8492';
+  put(base, 'data/openclaw/gateway-token', secret);
+  assert.equal(writeModelSelectionLog(path.join(base, 'logs'), model), true);
+  put(
+    base,
+    'logs/desktop.stdout.log',
+    JSON.stringify(
+      privateLogRecord(
+        JSON.stringify({
+          schemaVersion: 1,
+          event: 'model-selected',
+          modelId: model,
+          prompt: privateText,
+          token: secret,
+        }),
+        { service: 'desktop', stream: 'stdout' },
+      ),
+    ),
+  );
+  const report = await createDiagnosticReport({
+    root: base,
+    snapshot: {
+      inference: { provider: 'external-api', model, contextTokens: 32768 },
+      response: {
+        lastFailure: {
+          phase: 'model',
+          code: 'CAPRI_GATEWAY_REPORTED_ERROR',
+          receivedText: false,
+          elapsedMs: 20305,
+        },
+      },
+      inferenceTransport: {
+        activeRequests: 0,
+        lastFailure: {
+          stage: 'connect',
+          code: 'CAPRI_API_NETWORK_ERROR',
+          networkCode: 'UND_ERR_CONNECT_TIMEOUT',
+          httpStatus: 502,
+          streaming: true,
+          elapsedMs: 20305,
+        },
+      },
+      prompt: privateText,
+      messages: [{ content: privateText }],
+      apiKey: secret,
+      filePath: 'C:\\Users\\Alice\\private-document.txt',
+    },
+    input: { category: 'model', description: 'Synthetic failure ' + secret },
+    hardware: async () => ({}),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+  });
+  const files = unpack(report.bytes);
+  const session = JSON.parse(files.get('session.json'));
+  assert.equal(session.inference.model, model);
+  assert.equal(session.response.lastFailure.receivedText, false);
+  assert.equal(session.response.lastFailure.code, 'CAPRI_GATEWAY_REPORTED_ERROR');
+  assert.deepEqual(session.inferenceTransport.lastFailure, {
+    stage: 'connect',
+    code: 'CAPRI_API_NETWORK_ERROR',
+    networkCode: 'UND_ERR_CONNECT_TIMEOUT',
+    httpStatus: 502,
+    streaming: true,
+    elapsedMs: 20305,
+  });
+  assert.match(files.get('REPORT.md'), /Model ID: nvidia\/nemotron-3\.5-super-vl:free/);
+  const modelLog = [...files].find(([name]) => name.endsWith('desktop-model.jsonl'))?.[1];
+  assert.ok(modelLog, 'The dedicated model metadata log is included');
+  assert.equal(JSON.parse(modelLog).modelId, model);
+  const all = [...files.values()].join('\n');
+  for (const value of [secret, privateText, 'Alice', 'private-document.txt'])
+    assert.ok(!all.includes(value), value);
+});
 
 test('high system RAM and partial model offload are separate diagnostic evidence, not an attributed Capri leak', async () => {
   const report = await createDiagnosticReport({

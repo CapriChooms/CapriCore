@@ -18,6 +18,10 @@ import { callApplicationBridge } from '../../integrations/desktop-actions/servic
 import discordDefaults from '../../config/discord-presence.json' with { type: 'json' };
 import { DiscordPresence, discordSettings } from './discord-presence.mjs';
 import { loadCommunityLinks } from './community-links.mjs';
+import {
+  diagnosticModelId,
+  writeModelSelectionLog,
+} from '../../packages/runtime/src/privacy-log.mjs';
 import { createSecureWindow } from './main/secure-window.mjs';
 import { wantsVoiceFollowUp } from './voice-follow-up.mjs';
 import { screenFormState } from './main/screen-form-state.mjs';
@@ -331,6 +335,12 @@ async function initializeDesktop() {
     ...(verification ? { config: apiSettings() } : {}),
   });
   rt.remote = inferenceApi.config;
+  const diagnosticModel = diagnosticModelId(rt.remote.enabled ? rt.remote.model : settings.model);
+  if (diagnosticModel)
+    writeModelSelectionLog(
+      path.join(verification ? verificationFolder : root, 'logs'),
+      diagnosticModel,
+    );
   const npuDialogue =
     rt.remote.enabled && isLemonadeNpuEndpoint(new URL(rt.remote.baseUrl), rt.remote.model);
   const screenVisionAvailable = rt.remote.enabled
@@ -880,6 +890,7 @@ async function initializeDesktop() {
   const responseTiming = responsiveness({ ...settings, availableRamBytes: freemem() });
   const internetSearch = new WebSearch();
   const chat = new ChatService({
+    externalInference: rt.remote.enabled,
     prepareThinking,
     searchWeb: (query, options) => internetSearch.search(query, options),
     firstTextTimeoutMs: responseTiming.firstTextTimeoutMs,
@@ -5481,6 +5492,7 @@ async function initializeDesktop() {
       diagnosticSnapshot: () => ({
         artwork: installedAvatar.diagnostics,
         response: chat.diagnostics(),
+        inferenceTransport: inferenceApi.diagnostics(),
         visualResponse,
         modelStartup: { sequential: responseTiming.sequentialModels },
         backend: backendState,

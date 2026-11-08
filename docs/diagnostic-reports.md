@@ -16,6 +16,14 @@ The accompanying JSON files contain system/runtime versions, CPU/RAM/GPU/driver
 information, available disk space, selected model/languages, startup stages, voice
 readiness, recent technical errors and installer state.
 
+The active **model ID** is included as technical metadata in `session.json` and
+the readable `REPORT.md` overview. The desktop's structured `model-selected`
+runtime event retains the same ID in `logs/desktop-model.jsonl`, a bounded file
+containing only the latest selection. General child output is not captured. IDs can distinguish local aliases from an
+API model without exposing the API key, request body or conversation. Credentials,
+URLs with authentication, absolute file paths and arbitrary prose are not accepted
+as model metadata. Ordinary textual session fields remain excluded.
+
 Session diagnostics distinguish cold model preparation from answer generation and
 record the preparation duration, selected context size/keep-alive and muted-voice
 release state. These contain no prompt text. A prepared model is not a promise of

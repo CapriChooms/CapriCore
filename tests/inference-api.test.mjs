@@ -43,6 +43,420 @@ async function fixture(t, fetchImpl, provider = config) {
   return { root, api, id };
 }
 
+test('a provider ignoring streaming is normalized once, preserving choices and tool calls without private traces', async (t) => {
+  const completion = {
+    id: 'synthetic-completion',
+    object: 'chat.completion',
+    model: config.model,
+    choices: [
+      {
+        index: 2,
+        message: {
+          role: 'assistant',
+          content: null,
+          reasoning: 'Private deliberation ' + key,
+          reasoning_content: 'Private deliberation',
+          reasoning_details: [{ text: 'Private deliberation' }],
+          thinking: 'Private deliberation',
+          tool_calls: [
+            { id: 'call-one', type: 'function', function: { name: 'first', arguments: '{"x":1}' } },
+            {
+              id: 'call-two',
+              type: 'function',
+              function: { name: 'second', arguments: JSON.stringify({ value: key }) },
+            },
+          ],
+        },
+        finish_reason: 'tool_calls',
+      },
+      {
+        index: 7,
+        message: {
+          role: 'assistant',
+          content: 'Señal ' + key + '.',
+          reasoning: 'Private deliberation',
+        },
+        finish_reason: 'length',
+      },
+    ],
+    usage: { prompt_tokens: 12, completion_tokens: 3, total_tokens: 15 },
+  };
+  const escapedKey = [...key]
+    .map((character) => '\\u' + character.charCodeAt(0).toString(16).padStart(4, '0'))
+    .join('');
+  const bytes = Buffer.from(JSON.stringify(completion).replaceAll(key, escapedKey));
+  let calls = 0;
+  const { api } = await fixture(t, async (_url, options) => {
+    calls++;
+    assert.equal(JSON.parse(options.body).stream, true);
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          for (const byte of bytes) controller.enqueue(Uint8Array.of(byte));
+          controller.close();
+        },
+      }),
+      { headers: { 'content-type': 'Application/JSON; charset=utf-8' } },
+    );
+  });
+  const response = await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: 'Synthetic request' }],
+      stream: true,
+    }),
+  });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/event-stream/);
+  const text = await response.text();
+  const frames = text.trim().split('\n\n');
+  assert.equal(frames.length, 2);
+  assert.equal(frames[1], 'data: [DONE]');
+  const event = JSON.parse(frames[0].slice(6));
+  assert.equal(event.object, 'chat.completion.chunk');
+  assert.equal(event.id, completion.id);
+  assert.deepEqual(event.usage, completion.usage);
+  assert.deepEqual(
+    event.choices.map(({ index, finish_reason }) => ({ index, finish_reason })),
+    [
+      { index: 2, finish_reason: 'tool_calls' },
+      { index: 7, finish_reason: 'length' },
+    ],
+  );
+  assert.equal(event.choices[0].delta.content, null);
+  assert.deepEqual(event.choices[0].delta.tool_calls, [
+    { ...completion.choices[0].message.tool_calls[0], index: 0 },
+    {
+      id: 'call-two',
+      type: 'function',
+      index: 1,
+      function: { name: 'second', arguments: '{"value":"[REDACTED]"}' },
+    },
+  ]);
+  assert.equal(event.choices[1].delta.content, 'Señal [REDACTED].');
+  assert(event.choices.every((choice) => choice.message === undefined));
+  assert.doesNotMatch(text, /Private deliberation|reasoning|thinking/);
+  assert.equal(text.includes(key), false);
+  assert.equal(calls, 1, 'Normalization must never replay a conversation.');
+});
+
+test('native provider SSE remains incremental and keeps its terminal event', async (t) => {
+  const first =
+    'data: {"choices":[{"index":0,"delta":{"content":"Ready."},"finish_reason":null}]}\n\n';
+  const last =
+    'data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n';
+  let source,
+    calls = 0;
+  const { api } = await fixture(t, async () => {
+    calls++;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          source = controller;
+          controller.enqueue(Buffer.from(first));
+        },
+      }),
+      { headers: { 'content-type': 'text/event-stream' } },
+    );
+  });
+  const response = await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [], stream: true }),
+  });
+  const reader = response.body.getReader();
+  const initial = await reader.read();
+  assert.equal(Buffer.from(initial.value).toString(), first);
+  source.enqueue(Buffer.from(last));
+  source.close();
+  let tail = '';
+  while (true) {
+    const part = await reader.read();
+    if (part.done) break;
+    tail += Buffer.from(part.value).toString();
+  }
+  reader.releaseLock();
+  assert.equal(tail, last);
+  assert.equal(calls, 1);
+});
+
+test('remote availability checks streaming text and terminal success rather than a separate nonstream reply', async (t) => {
+  const event = 'data: {"choices":[{"delta":{"content":"OK"},"finish_reason":null}]}\n\n';
+  let mode = 'stream',
+    calls = 0;
+  const { api, id } = await fixture(t, async (_url, options) => {
+    calls++;
+    const request = JSON.parse(options.body);
+    assert.equal(request.stream, true);
+    assert.equal(request.max_tokens, 256);
+    assert.equal(request.reasoning_effort, undefined);
+    if (mode === 'json')
+      return Response.json({
+        choices: [{ message: { role: 'assistant', content: 'OK' }, finish_reason: 'stop' }],
+      });
+    if (mode === 'json-error') return Response.json({ error: { message: key } });
+    if (mode === 'json-reasoning')
+      return Response.json({ choices: [{ message: { reasoning: 'Private' } }] });
+    if (mode === 'oversized-json')
+      return Response.json({ choices: [{ message: { content: 'é'.repeat(33 * 1024) } }] });
+    const bodies = {
+      stream: event + 'data: [DONE]\n\n',
+      error: event + 'data: {"error":{"message":"Private ' + key + '"}}\n\ndata: [DONE]\n\n',
+      eof: event,
+      empty: 'data: [DONE]\n\n',
+      malformed: 'data: {broken}\n\ndata: [DONE]\n\n',
+      reasoning: 'data: {"choices":[{"delta":{"reasoning":"Private"}}]}\n\ndata: [DONE]\n\n',
+    };
+    return new Response(bodies[mode], { headers: { 'content-type': 'text/event-stream' } });
+  });
+  for (mode of ['stream', 'json']) {
+    const before = calls;
+    assert.ok((await api.testProfile(id)).elapsedMs >= 0);
+    assert.equal(calls - before, 1);
+  }
+  for (mode of [
+    'error',
+    'eof',
+    'empty',
+    'malformed',
+    'reasoning',
+    'json-error',
+    'json-reasoning',
+    'oversized-json',
+  ]) {
+    const before = calls;
+    await assert.rejects(
+      api.testProfile(id),
+      (error) => /API model returned no text/.test(error.message) && !error.message.includes(key),
+    );
+    assert.equal(calls - before, 1, mode + ' must not replay the probe.');
+  }
+});
+
+test('invalid buffered completions fail safely before successful SSE headers and are never replayed', async (t) => {
+  let body,
+    calls = 0;
+  const { api } = await fixture(t, async () => {
+    calls++;
+    return new Response(body, { headers: { 'content-type': 'application/json' } });
+  });
+  for (const packet of [
+    { error: { message: key + ' Private provider response' } },
+    { choices: [] },
+    { choices: {} },
+    { choices: [{ message: { role: 'user', content: 'Private provider response' } }] },
+    { choices: [{ message: { content: '', reasoning: 'Private provider response' } }] },
+    {
+      choices: [
+        { message: { tool_calls: [{ type: 'function', function: { name: 'incomplete' } }] } },
+      ],
+    },
+    '{malformed ' + key,
+  ]) {
+    body = typeof packet === 'string' ? packet : JSON.stringify(packet);
+    const before = calls;
+    const response = await api.localFetch(api.url + '/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ messages: [], stream: true }),
+    });
+    assert.equal(response.status, 502);
+    assert.match(response.headers.get('content-type'), /application\/json/);
+    const result = await response.json();
+    assert.equal(result.error.code, 'CAPRI_API_RESPONSE_INVALID');
+    assert.doesNotMatch(JSON.stringify(result), /Private provider response/);
+    assert.equal(JSON.stringify(result).includes(key), false);
+    assert.equal(api.diagnostics().lastFailure.code, 'CAPRI_API_RESPONSE_INVALID');
+    assert.equal(calls - before, 1);
+  }
+});
+
+test('cancelled buffered normalization releases even a provider body that ignores the fetch signal', async (t) => {
+  let notifyStarted, notifyCancelled;
+  const started = new Promise((resolve) => (notifyStarted = resolve));
+  const cancelled = new Promise((resolve) => (notifyCancelled = resolve));
+  let calls = 0;
+  const { api } = await fixture(t, async () => {
+    calls++;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(Buffer.from('{"choices":['));
+          notifyStarted();
+        },
+        cancel() {
+          notifyCancelled();
+        },
+      }),
+      { headers: { 'content-type': 'application/json' } },
+    );
+  });
+  const controller = new AbortController();
+  const pending = api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    signal: controller.signal,
+    body: JSON.stringify({ messages: [], stream: true }),
+  });
+  await started;
+  controller.abort();
+  await assert.rejects(pending);
+  await Promise.race([
+    cancelled,
+    delay(1000).then(() => {
+      throw new Error('Provider body was not cancelled');
+    }),
+  ]);
+  assert.equal(calls, 1);
+});
+
+test('buffered response normalization enforces the existing byte limit and cancels oversized bodies', async (t) => {
+  let calls = 0,
+    cancelled = false;
+  const { api } = await fixture(t, async () => {
+    calls++;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(Buffer.alloc(16 * 1024 * 1024 + 1, 32));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { headers: { 'content-type': 'application/json' } },
+    );
+  });
+  const response = await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [], stream: true }),
+  });
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).error.code, 'CAPRI_API_RESPONSE_LIMIT');
+  assert.equal(api.diagnostics().lastFailure.code, 'CAPRI_API_RESPONSE_LIMIT');
+  assert.equal(cancelled, true);
+  assert.equal(calls, 1);
+});
+
+test('proxy diagnostics retain only safe failure classification and clear on the next request', async (t) => {
+  let fail = true;
+  const { api } = await fixture(t, async () => {
+    if (fail)
+      throw new TypeError('Private provider response ' + key, {
+        cause: Object.assign(new Error(key), { code: 'ECONNRESET' }),
+      });
+    return Response.json({ choices: [{ message: { role: 'assistant', content: 'Ready.' } }] });
+  });
+  const send = () =>
+    api.localFetch(api.url + '/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ messages: [], stream: true }),
+    });
+  const failed = await send();
+  assert.equal((await failed.json()).error.code, 'CAPRI_API_NETWORK_ERROR');
+  const diagnostics = api.diagnostics();
+  assert.equal(diagnostics.lastFailure.stage, 'connect');
+  assert.equal(diagnostics.lastFailure.networkCode, 'ECONNRESET');
+  assert.equal(diagnostics.lastFailure.httpStatus, 502);
+  assert.equal(diagnostics.lastFailure.streaming, true);
+  assert.ok(diagnostics.lastFailure.elapsedMs >= 0);
+  assert.ok(diagnostics.lastFailure.failedAtMs > 0);
+  assert.ok(diagnostics.lastFailure.monotonicMs >= 0);
+  assert.equal(JSON.stringify(diagnostics).includes(key), false);
+  assert.doesNotMatch(
+    JSON.stringify(diagnostics),
+    /Private provider|provider\.example|messages|headers/,
+  );
+  diagnostics.lastFailure.code = 'tampered';
+  assert.equal(api.diagnostics().lastFailure.code, 'CAPRI_API_NETWORK_ERROR');
+  fail = false;
+  assert.match(await (await send()).text(), /Ready/);
+  assert.equal(api.diagnostics().lastFailure, null);
+});
+
+test('provider body transport failures retain a safe network code without the private cause', async (t) => {
+  const { api } = await fixture(
+    t,
+    async () =>
+      new Response(
+        new ReadableStream({
+          pull(controller) {
+            controller.error(
+              new TypeError('API transport failed with private provider response ' + key, {
+                cause: Object.assign(new Error(key), { code: 'UND_ERR_SOCKET' }),
+              }),
+            );
+          },
+        }),
+        { headers: { 'content-type': 'application/json' } },
+      ),
+  );
+  const response = await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [], stream: true }),
+  });
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.equal(body.error.code, 'CAPRI_API_NETWORK_ERROR');
+  assert.equal(api.diagnostics().lastFailure.stage, 'stream');
+  assert.equal(api.diagnostics().lastFailure.networkCode, 'UND_ERR_SOCKET');
+  assert.equal(JSON.stringify(body).includes(key), false);
+  assert.equal(
+    body.error.message,
+    'API connection failed. Check the provider URL and network. (UND_ERR_SOCKET)',
+  );
+  assert.doesNotMatch(JSON.stringify(api.diagnostics()), /Private provider response/);
+});
+
+test('the final proxy error boundary never trusts API-shaped provider prose', async (t) => {
+  const { api } = await fixture(t, async () => Response.json({}));
+  for (const [message, fields, expected] of [
+    ...['API ', 'Saved API ', 'Invalid API ', 'Enable vision '].map((prefix) => [
+      prefix + 'private provider detail ' + key,
+      {},
+      'API request could not be completed.',
+    ]),
+    ['API private ' + key, { code: 'CAPRI_API_RESPONSE_INVALID' }, 'API model returned no text.'],
+    ['API private ' + key, { code: 'CAPRI_API_RESPONSE_LIMIT' }, 'API response exceeds limits.'],
+    [
+      'API private ' + key,
+      { code: 'CAPRI_API_PROVIDER_ERROR', providerStatus: 429 },
+      'API provider returned HTTP 429. The provider rate limit was reached.',
+    ],
+    [
+      'API private ' + key,
+      { code: 'CAPRI_API_PROVIDER_ERROR', providerStatus: 503 },
+      'API provider returned HTTP 503. Check access, model availability and account balance.',
+    ],
+    [
+      'API private ' + key,
+      { code: 'CAPRI_API_NETWORK_ERROR', networkCode: 'ECONNRESET' },
+      'API connection failed. Check the provider URL and network. (ECONNRESET)',
+    ],
+    [
+      'API private ' + key,
+      { code: 'CAPRI_API_NETWORK_ERROR', networkCode: key },
+      'API connection failed. Check the provider URL and network.',
+    ],
+    ['API key is missing.', {}, 'API key is missing.'],
+    [
+      'API connection to ProxyAPI timed out before HTTPS. Check your VPN or proxy route.',
+      {},
+      'API connection to ProxyAPI timed out before HTTPS. Check your VPN or proxy route.',
+    ],
+  ]) {
+    api.upstream = async () => {
+      throw Object.assign(new Error(message), fields);
+    };
+    const response = await api.localFetch(api.url + '/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ messages: [], stream: true }),
+    });
+    const body = await response.json();
+    assert.equal(body.error.message, expected);
+    assert.equal(JSON.stringify(body).includes(key), false);
+    assert.equal(JSON.stringify(api.diagnostics()).includes(key), false);
+    assert.doesNotMatch(JSON.stringify(body), /private provider detail/);
+  }
+});
+
 test('owner reasoning markers are one-turn controls with a bounded answer budget and private traces removed', async (t) => {
   const requests = [];
   const packet = {
@@ -1013,7 +1427,7 @@ test('legacy connection migrates and selected profiles keep separate keys, even 
     body: {
       model: next.model,
       messages: [{ role: 'user', content: 'Reply with only OK.' }],
-      stream: false,
+      stream: true,
       max_tokens: 256,
     },
   });
@@ -1299,7 +1713,7 @@ test('format, size, access, account and non-image failures retain generic errors
     });
     assert.equal(response.status, failure.status);
     const body = await response.json();
-    assert.equal(body.error.code, undefined);
+    assert.equal(body.error.code, 'CAPRI_API_PROVIDER_ERROR');
     assert.match(body.error.message, /^API provider returned HTTP /);
     assert.equal(JSON.stringify(body).includes(key), false);
     assert.equal(JSON.stringify(body).includes('Unsupported image format'), false);
@@ -1310,7 +1724,7 @@ test('format, size, access, account and non-image failures retain generic errors
     body: JSON.stringify({ messages: [{ role: 'user', content: 'Text only' }] }),
   });
   assert.equal(textOnly.status, 400);
-  assert.equal((await textOnly.json()).error.code, undefined);
+  assert.equal((await textOnly.json()).error.code, 'CAPRI_API_PROVIDER_ERROR');
 });
 
 test('Lemonade Gemma uses the canonical ID, keeps vision and sends a minimal RyzenAI request', async (t) => {

@@ -16,6 +16,7 @@ body {
   overflow: hidden;
   background: transparent;
   pointer-events: none;
+  user-select: none;
 }
 aside {
   --slide: -8px;

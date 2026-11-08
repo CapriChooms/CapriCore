@@ -25,6 +25,27 @@ const DEFAULT = {
 };
 const LEGACY_PROFILE = 'legacy';
 const MAX_PROFILES = 20;
+const API_FAILURE_CODES = new Set([
+  'CAPRI_API_NETWORK_ERROR',
+  'CAPRI_API_PROVIDER_ERROR',
+  'CAPRI_API_RESPONSE_INVALID',
+  'CAPRI_API_RESPONSE_LIMIT',
+  'CAPRI_API_TIMEOUT',
+  'CAPRI_API_CANCELLED',
+  'CAPRI_API_REQUEST_FAILED',
+]);
+const NETWORK_CODE =
+  /^(?:UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ERR_TLS_CERT_ALTNAME_INVALID|CERT_HAS_EXPIRED|UNABLE_TO_VERIFY_LEAF_SIGNATURE)$/u;
+function failureNetworkCode(error) {
+  return [
+    error.networkCode,
+    error.code,
+    error.cause?.code,
+    ...(error.cause instanceof AggregateError
+      ? error.cause.errors.map((cause) => cause?.code)
+      : []),
+  ].find((code) => NETWORK_CODE.test(code));
+}
 const IMAGES_UNSUPPORTED = 'The active model cannot read images or video frames.';
 function imagesUnsupported() {
   return Object.assign(new Error(IMAGES_UNSUPPORTED), {
@@ -164,6 +185,37 @@ const PROVIDER_ERRORS = {
   404: 'API provider returned HTTP 404. Check the base URL and the model ID for this provider.',
   429: 'API provider returned HTTP 429. The provider rate limit was reached.',
 };
+function publicApiError(error, failure) {
+  if (error.code === 'MODEL_IMAGES_UNSUPPORTED') return IMAGES_UNSUPPORTED;
+  if (error.message === PROXYAPI_CONNECT_TIMEOUT) return PROXYAPI_CONNECT_TIMEOUT;
+  for (const message of [
+    'API key is missing.',
+    'Saved API access could not be read. Save your API key again.',
+    'Saved API connections could not be read.',
+    'Invalid API credential.',
+    'Invalid API conversation.',
+    'Invalid API conversation. A text message is required.',
+    'API model returned an invalid tool-free response.',
+  ])
+    if (error.message === message) return message;
+  if (Number.isInteger(failure.providerStatus) && failure.providerStatus >= 400)
+    return (
+      PROVIDER_ERRORS[failure.providerStatus] ??
+      'API provider returned HTTP ' +
+        failure.providerStatus +
+        '. Check access, model availability and account balance.'
+    );
+  if (['CAPRI_API_TIMEOUT', 'CAPRI_API_CANCELLED'].includes(failure.code))
+    return 'API request cancelled or timed out.';
+  if (failure.code === 'CAPRI_API_NETWORK_ERROR')
+    return (
+      'API connection failed. Check the provider URL and network.' +
+      (failure.networkCode ? ' (' + failure.networkCode + ')' : '')
+    );
+  if (failure.code === 'CAPRI_API_RESPONSE_INVALID') return 'API model returned no text.';
+  if (failure.code === 'CAPRI_API_RESPONSE_LIMIT') return 'API response exceeds limits.';
+  return 'API request could not be completed.';
+}
 const validProfileId = (id) => id === LEGACY_PROFILE || /^[a-f0-9-]{36}$/u.test(id);
 const invalidEndpoint =
   'Use HTTPS for remote APIs or HTTP for a loopback address. Omit credentials, query parameters and fragments.';
@@ -371,10 +423,30 @@ function equal(a, b) {
     y = Buffer.from(b);
   return x.length === y.length && timingSafeEqual(x, y);
 }
-async function bounded(body, limit) {
+async function* responseBytes(body, signal) {
+  const reader = body.getReader();
+  try {
+    while (true) {
+      const part = await unlessAborted(reader.read(), signal);
+      if (part.done) return;
+      yield part.value;
+    }
+  } catch (error) {
+    signal?.throwIfAborted();
+    const networkCode = failureNetworkCode(error);
+    throw Object.assign(new Error('API request could not be completed.'), {
+      code: networkCode ? 'CAPRI_API_NETWORK_ERROR' : 'CAPRI_API_RESPONSE_INVALID',
+      ...(networkCode ? { networkCode } : {}),
+    });
+  } finally {
+    void reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+async function bounded(body, limit, signal) {
   let size = 0;
   const chunks = [];
-  for await (const chunk of body) {
+  for await (const chunk of signal ? responseBytes(body, signal) : body) {
     size += chunk.length;
     if (size > limit) throw new Error('API request exceeds limits.');
     chunks.push(Buffer.from(chunk));
@@ -392,10 +464,16 @@ function eventData(frame) {
 }
 
 function streamHasReply(body) {
-  let replied = false;
+  let replied = false,
+    complete = false;
   for (const frame of body.split(/\r?\n\r?\n/u)) {
     const data = eventData(frame);
-    if (!data || data === '[DONE]') continue;
+    if (!data) continue;
+    if (data === '[DONE]') {
+      complete = true;
+      continue;
+    }
+    if (complete) return false;
     const packet = JSON.parse(data);
     if (packet.error) return false;
     if (
@@ -405,7 +483,121 @@ function streamHasReply(body) {
     )
       replied = true;
   }
-  return replied;
+  return replied && complete;
+}
+
+const invalidCompletion = () =>
+  Object.assign(new Error('API model returned no text.'), { code: 'CAPRI_API_RESPONSE_INVALID' });
+const completionLimit = () =>
+  Object.assign(new Error('API response exceeds limits.'), { code: 'CAPRI_API_RESPONSE_LIMIT' });
+function completionEvent(packet) {
+  if (
+    !packet ||
+    typeof packet !== 'object' ||
+    Array.isArray(packet) ||
+    packet.error ||
+    !Array.isArray(packet.choices) ||
+    !packet.choices.length
+  )
+    throw invalidCompletion();
+  const indexes = new Set();
+  const choices = packet.choices.map((choice, position) => {
+    const message = choice?.message;
+    const index = choice?.index ?? position;
+    if (
+      !message ||
+      typeof message !== 'object' ||
+      Array.isArray(message) ||
+      (message.role !== undefined && message.role !== 'assistant') ||
+      (message.content !== undefined &&
+        message.content !== null &&
+        typeof message.content !== 'string') ||
+      (message.refusal !== undefined &&
+        message.refusal !== null &&
+        typeof message.refusal !== 'string') ||
+      !Number.isSafeInteger(index) ||
+      index < 0 ||
+      indexes.has(index) ||
+      (choice.finish_reason !== undefined &&
+        choice.finish_reason !== null &&
+        typeof choice.finish_reason !== 'string')
+    )
+      throw invalidCompletion();
+    indexes.add(index);
+    const calls = message.tool_calls;
+    if (calls != null && !Array.isArray(calls)) throw invalidCompletion();
+    const toolIndexes = new Set();
+    const tools = calls?.map((call, toolPosition) => {
+      const toolIndex = call?.index ?? toolPosition;
+      if (
+        !call ||
+        call.type !== 'function' ||
+        typeof call.id !== 'string' ||
+        !call.id ||
+        typeof call.function?.name !== 'string' ||
+        !call.function.name ||
+        typeof call.function.arguments !== 'string' ||
+        !Number.isSafeInteger(toolIndex) ||
+        toolIndex < 0 ||
+        toolIndexes.has(toolIndex)
+      )
+        throw invalidCompletion();
+      toolIndexes.add(toolIndex);
+      return { ...call, index: toolIndex };
+    });
+    if (!message.content?.trim() && !tools?.length && !message.refusal?.trim())
+      throw invalidCompletion();
+    const { message: _, ...rest } = choice;
+    return {
+      ...rest,
+      index,
+      delta: { ...message, role: 'assistant', ...(tools ? { tool_calls: tools } : {}) },
+    };
+  });
+  return { ...packet, object: 'chat.completion.chunk', choices };
+}
+
+/** Normalize a provider's buffered completion without submitting the conversation again. */
+async function* completionStream(response, { key, signal, limit = 16 * 1024 * 1024 } = {}) {
+  const type = response.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
+  const redact = key ? streamingRedactor(key) : (value) => value;
+  if (type === 'application/json' || type?.endsWith('+json')) {
+    let body;
+    try {
+      body = await bounded(response.body, limit, signal);
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (error.message === 'API request exceeds limits.') throw completionLimit();
+      throw error;
+    }
+    let packet;
+    try {
+      packet = JSON.parse(body);
+    } catch {
+      throw invalidCompletion();
+    }
+    const event = withoutPrivateReasoning(completionEvent(packet));
+    yield redact('data: ' + JSON.stringify(event) + '\n\ndata: [DONE]\n\n', true);
+    return;
+  }
+  let tail = '',
+    total = 0;
+  const decoder = new TextDecoder();
+  for await (const bytes of responseBytes(response.body, signal)) {
+    total += bytes.length;
+    if (total > limit) throw completionLimit();
+    tail += decoder.decode(bytes, { stream: true });
+    const lf = tail.lastIndexOf('\n\n');
+    const crlf = tail.lastIndexOf('\r\n\r\n');
+    const end = crlf > lf ? crlf + 4 : lf >= 0 ? lf + 2 : 0;
+    if (end) {
+      const safe = redact(privateReasoningFreeSse(tail.slice(0, end)));
+      if (safe) yield safe;
+      tail = tail.slice(end);
+    }
+  }
+  const safe = redact(privateReasoningFreeSse(tail + decoder.decode()), true);
+  if (safe) yield safe;
 }
 
 // Withhold frames that could begin a credential echoed over separate SSE deltas.
@@ -480,6 +672,7 @@ export class InferenceApi {
     this.settingsFile = path.join(root, 'data/desktop/inference-api.json');
     this.proxyToken = randomBytes(32).toString('hex');
     this.controllers = new Set();
+    this.lastFailure = null;
     this.verifiedOllamaProbes = new Set();
     if (config.enabled) {
       try {
@@ -491,6 +684,43 @@ export class InferenceApi {
         this.activeCredentialError = true;
       }
     }
+  }
+  diagnostics() {
+    return {
+      activeRequests: this.controllers.size,
+      lastFailure: structuredClone(this.lastFailure),
+    };
+  }
+  recordFailure(error, { stage, streaming, startedAt, signal, httpStatus } = {}) {
+    const networkCode = failureNetworkCode(error);
+    const code = API_FAILURE_CODES.has(error.code)
+      ? error.code
+      : signal?.aborted
+        ? signal.reason?.name === 'TimeoutError'
+          ? 'CAPRI_API_TIMEOUT'
+          : 'CAPRI_API_CANCELLED'
+        : networkCode
+          ? 'CAPRI_API_NETWORK_ERROR'
+          : 'CAPRI_API_REQUEST_FAILED';
+    this.lastFailure = {
+      stage: ['connect', 'upstream', 'response', 'stream', 'probe', 'request'].includes(
+        error.apiStage,
+      )
+        ? error.apiStage
+        : stage,
+      code,
+      streaming: streaming === true,
+      elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)),
+      failedAtMs: Date.now(),
+      monotonicMs: Math.round(performance.now()),
+      ...(networkCode ? { networkCode } : {}),
+      ...(Number.isInteger(error.providerStatus) &&
+      error.providerStatus >= 100 &&
+      error.providerStatus <= 599
+        ? { providerStatus: error.providerStatus }
+        : {}),
+      ...(Number.isInteger(httpStatus) ? { httpStatus } : {}),
+    };
   }
   legacyCredential(config) {
     const value = readRecord(this.file, 8192);
@@ -668,9 +898,14 @@ export class InferenceApi {
     const signal = AbortSignal.timeout(requiresKey(profile.settings) ? 15000 : 60000);
     const started = performance.now();
     const key = await this.decodeKey(profile.credential);
-    const stream = isLemonadeNpuEndpoint(new URL(profile.settings.baseUrl), profile.settings.model);
+    const local = isLocalApiEndpoint(new URL(profile.settings.baseUrl));
+    const lemonade = isLemonadeNpuEndpoint(
+      new URL(profile.settings.baseUrl),
+      profile.settings.model,
+    );
+    const stream = !local || lemonade;
     // Exercise the same streaming path and conversation roles used by the real chat.
-    const messages = stream
+    const messages = lemonade
       ? [
           { role: 'system', content: 'Keep replies short.' },
           { role: 'user', content: 'Reply with only OK.' },
@@ -678,7 +913,6 @@ export class InferenceApi {
         ]
       : [];
     messages.push({ role: 'user', content: 'Reply with only OK.' });
-    const local = isLocalApiEndpoint(new URL(profile.settings.baseUrl));
     const probeId = profile.settings.baseUrl + '\0' + profile.settings.model;
     let noReasoning = local && this.verifiedOllamaProbes.has(probeId);
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -686,7 +920,7 @@ export class InferenceApi {
         {
           messages,
           stream,
-          max_tokens: stream ? 32 : noReasoning ? 64 : 256,
+          max_tokens: lemonade ? 32 : noReasoning ? 64 : 256,
           ...(noReasoning ? { reasoning_effort: 'none' } : {}),
         },
         signal,
@@ -695,7 +929,11 @@ export class InferenceApi {
       );
       let packet, replied;
       try {
-        const body = await bounded(response.body, 64 * 1024);
+        let body = '';
+        if (stream) {
+          for await (const events of completionStream(response, { key, signal, limit: 64 * 1024 }))
+            body += events;
+        } else body = await bounded(response.body, 64 * 1024, signal);
         packet = stream ? null : JSON.parse(body);
         replied = stream
           ? streamHasReply(body)
@@ -703,10 +941,30 @@ export class InferenceApi {
               (choice) =>
                 typeof choice.message?.content === 'string' && choice.message.content.trim(),
             );
-      } catch {
-        throw new Error(
-          signal.aborted ? 'API request cancelled or timed out.' : 'API model returned no text.',
+      } catch (error) {
+        const networkCode = failureNetworkCode(error);
+        const failure = Object.assign(
+          new Error(
+            signal.aborted ? 'API request cancelled or timed out.' : 'API model returned no text.',
+          ),
+          {
+            code: signal.aborted
+              ? 'CAPRI_API_TIMEOUT'
+              : API_FAILURE_CODES.has(error.code)
+                ? error.code
+                : networkCode
+                  ? 'CAPRI_API_NETWORK_ERROR'
+                  : 'CAPRI_API_RESPONSE_INVALID',
+            ...(networkCode ? { networkCode } : {}),
+          },
         );
+        this.recordFailure(failure, {
+          stage: 'probe',
+          streaming: stream,
+          startedAt: started,
+          signal,
+        });
+        throw failure;
       }
       const ollama = local && packet?.system_fingerprint === 'fp_ollama';
       if (replied) {
@@ -726,7 +984,14 @@ export class InferenceApi {
         noReasoning = true;
         continue;
       }
-      throw new Error('API model returned no text.');
+      const failure = invalidCompletion();
+      this.recordFailure(failure, {
+        stage: 'probe',
+        streaming: stream,
+        startedAt: started,
+        signal,
+      });
+      throw failure;
     }
   }
   localFetch = (url, options = {}) => {
@@ -743,6 +1008,7 @@ export class InferenceApi {
     return true;
   }
   async upstream(payload, signal, config = this.config, key = undefined) {
+    const startedAt = performance.now();
     if (hasImageInput(payload)) await this.assertImageSupport(signal, config);
     if (key === undefined) key = await this.key();
     const remote = requiresKey(config);
@@ -775,30 +1041,38 @@ export class InferenceApi {
           ? await postProxyApi(this.proxySession(), this.fetchImpl, url, options)
           : await this.fetchImpl(url, options);
     } catch (error) {
-      const networkCode = [
-        error,
-        error.cause,
-        ...(error.cause instanceof AggregateError ? error.cause.errors : []),
-      ]
-        .map((cause) => cause?.code)
-        .find((code) =>
-          /^(?:UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ERR_TLS_CERT_ALTNAME_INVALID|CERT_HAS_EXPIRED|UNABLE_TO_VERIFY_LEAF_SIGNATURE)$/u.test(
-            code,
-          ),
-        );
-      if (
+      const networkCode = failureNetworkCode(error);
+      const proxyTimeout =
         proxyApi &&
         !signal.aborted &&
         (networkCode === 'UND_ERR_CONNECT_TIMEOUT' ||
-          error.message === 'net::ERR_CONNECTION_TIMED_OUT')
-      )
-        throw new Error(PROXYAPI_CONNECT_TIMEOUT);
-      throw new Error(
-        signal.aborted
-          ? 'API request cancelled or timed out.'
-          : 'API connection failed. Check the provider URL and network.' +
-            (networkCode ? ' (' + networkCode + ')' : ''),
+          error.message === 'net::ERR_CONNECTION_TIMED_OUT');
+      const failure = Object.assign(
+        new Error(
+          signal.aborted
+            ? 'API request cancelled or timed out.'
+            : proxyTimeout
+              ? PROXYAPI_CONNECT_TIMEOUT
+              : 'API connection failed. Check the provider URL and network.' +
+                (networkCode ? ' (' + networkCode + ')' : ''),
+        ),
+        {
+          code: signal.aborted
+            ? signal.reason?.name === 'TimeoutError'
+              ? 'CAPRI_API_TIMEOUT'
+              : 'CAPRI_API_CANCELLED'
+            : 'CAPRI_API_NETWORK_ERROR',
+          apiStage: 'connect',
+          ...(networkCode ? { networkCode } : {}),
+        },
       );
+      this.recordFailure(failure, {
+        stage: 'connect',
+        streaming: payload.stream,
+        startedAt,
+        signal,
+      });
+      throw failure;
     }
     if (!response.ok || !response.body) {
       if (
@@ -809,15 +1083,22 @@ export class InferenceApi {
       )
         throw imagesUnsupported();
       await response.body?.cancel();
-      throw Object.assign(
+      const failure = Object.assign(
         new Error(
           PROVIDER_ERRORS[response.status] ??
             'API provider returned HTTP ' +
               response.status +
               '. Check access, model availability and account balance.',
         ),
-        { providerStatus: response.status },
+        { code: 'CAPRI_API_PROVIDER_ERROR', apiStage: 'upstream', providerStatus: response.status },
       );
+      this.recordFailure(failure, {
+        stage: 'upstream',
+        streaming: payload.stream,
+        startedAt,
+        signal,
+      });
+      throw failure;
     }
     return { response, key };
   }
@@ -826,7 +1107,12 @@ export class InferenceApi {
     if (!(await this.key()) && requiresKey(this.config)) throw new Error('API key is missing.');
     const server = http.createServer(async (req, res) => {
       const controller = new AbortController();
-      let timeout = setTimeout(() => controller.abort(), 180000);
+      const startedAt = performance.now();
+      let stage = 'request',
+        streaming = false;
+      const timedOut = () =>
+        controller.abort(new DOMException('API request cancelled or timed out.', 'TimeoutError'));
+      let timeout = setTimeout(timedOut, 180000);
       this.controllers.add(controller);
       res.on('close', () => controller.abort());
       try {
@@ -838,15 +1124,17 @@ export class InferenceApi {
           res.writeHead(404).end();
           return;
         }
+        this.lastFailure = null;
         const input = JSON.parse(await bounded(req, 8 * 1024 * 1024));
         if (!Array.isArray(input.messages)) throw new Error('Invalid API conversation.');
+        streaming = input.stream === true;
         const ollama = req.url === '/api/chat';
         const selectedReasoning = ollama
           ? input.think === true
           : input.reasoning_effort === 'medium';
         if (selectedReasoning) {
           clearTimeout(timeout);
-          timeout = setTimeout(() => controller.abort(), 300000);
+          timeout = setTimeout(timedOut, 300000);
         }
         const imageRequest = input.messages.some(
           (message) =>
@@ -894,10 +1182,12 @@ export class InferenceApi {
             role: 'system',
             content: 'Return JSON matching this output schema: ' + JSON.stringify(input.format),
           });
+        stage = 'upstream';
         const { response, key } = await this.upstream(payload, controller.signal);
+        stage = streaming && !ollama ? 'stream' : 'response';
         if (ollama || input.stream !== true) {
           const packet = withoutPrivateReasoning(
-            JSON.parse(await bounded(response.body, 16 * 1024 * 1024)),
+            JSON.parse(await bounded(response.body, 16 * 1024 * 1024, controller.signal)),
           );
           const serialized = JSON.stringify(packet);
           const raw = key ? serialized.replaceAll(key, '[REDACTED]') : serialized;
@@ -921,54 +1211,48 @@ export class InferenceApi {
               .end(JSON.stringify(value) + '\n');
           } else res.writeHead(200, { 'content-type': 'application/json' }).end(raw);
         } else {
-          res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' });
-          // Carry a credential-length suffix across chunks so a provider echo
-          // split over network packets cannot leak into Gateway logs/history.
-          let tail = '',
-            total = 0;
-          const decoder = new TextDecoder();
-          const redact = key ? streamingRedactor(key) : (value) => value;
-          for await (const bytes of response.body) {
-            total += bytes.length;
-            if (total > 16 * 1024 * 1024) throw new Error('API response exceeds limits.');
-            tail += decoder.decode(bytes, { stream: true });
-            const lf = tail.lastIndexOf('\n\n');
-            const crlf = tail.lastIndexOf('\r\n\r\n');
-            const end = crlf > lf ? crlf + 4 : lf >= 0 ? lf + 2 : 0;
-            if (end) {
-              const safe = redact(privateReasoningFreeSse(tail.slice(0, end)));
-              if (safe) res.write(safe);
-              tail = tail.slice(end);
-            }
+          for await (const safe of completionStream(response, { key, signal: controller.signal })) {
+            if (!res.headersSent)
+              res.writeHead(200, {
+                'content-type': 'text/event-stream',
+                'cache-control': 'no-store',
+              });
+            res.write(safe);
           }
-          res.end(redact(privateReasoningFreeSse(tail + decoder.decode()), true));
+          if (!res.headersSent)
+            res.writeHead(200, {
+              'content-type': 'text/event-stream',
+              'cache-control': 'no-store',
+            });
+          res.end();
         }
       } catch (error) {
         // Never include provider response bodies, fetch causes or credentials.
         const unsupportedImages = error.code === 'MODEL_IMAGES_UNSUPPORTED';
-        const message = unsupportedImages
-          ? IMAGES_UNSUPPORTED
-          : /^API |^Enable vision|^Saved API|^Invalid API/.test(error.message)
-            ? error.message
-            : 'API request could not be completed.';
+        const httpStatus =
+          Number.isInteger(error.providerStatus) &&
+          error.providerStatus >= 400 &&
+          error.providerStatus < 500
+            ? error.providerStatus
+            : 502;
+        this.recordFailure(error, {
+          stage,
+          streaming,
+          startedAt,
+          signal: controller.signal,
+          httpStatus,
+        });
+        const message = publicApiError(error, this.lastFailure);
         if (!res.headersSent)
-          res
-            .writeHead(
-              Number.isInteger(error.providerStatus) &&
-                error.providerStatus >= 400 &&
-                error.providerStatus < 500
-                ? error.providerStatus
-                : 502,
-              { 'content-type': 'application/json' },
-            )
-            .end(
-              JSON.stringify({
-                error: {
-                  message,
-                  ...(unsupportedImages ? { code: 'model_images_unsupported' } : {}),
-                },
-              }),
-            );
+          res.writeHead(httpStatus, { 'content-type': 'application/json' }).end(
+            JSON.stringify({
+              error: {
+                message,
+                ...(unsupportedImages ? { code: 'model_images_unsupported' } : {}),
+                ...(!unsupportedImages ? { code: this.lastFailure.code } : {}),
+              },
+            }),
+          );
         else res.destroy();
       } finally {
         clearTimeout(timeout);

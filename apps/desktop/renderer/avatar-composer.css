@@ -31,6 +31,12 @@ body {
   width: 100%;
   overflow: hidden;
   background: transparent;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable='true'] {
+  user-select: text;
 }
 body {
   -webkit-app-region: no-drag;

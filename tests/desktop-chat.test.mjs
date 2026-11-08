@@ -1140,6 +1140,69 @@ test('upstream failures never become assistant text and partial output is marked
   }
 });
 
+test('response diagnostics distinguish gateway HTTP, framing, events, EOF and empty answers without private detail', async () => {
+  const cases = [
+    [
+      () => new Response('private-http-body-canary', { status: 429 }),
+      'CAPRI_GATEWAY_HTTP_ERROR',
+      429,
+    ],
+    [() => Response.json({ private: 'private-json-body-canary' }), 'CAPRI_GATEWAY_STREAM_INVALID'],
+    [() => response('', 'data: private-invalid-event-canary\n\n'), 'CAPRI_GATEWAY_EVENT_INVALID'],
+    [
+      () =>
+        response(
+          '',
+          'data: ' +
+            JSON.stringify({ error: { message: 'private-provider-body-canary' } }) +
+            '\n\n',
+        ),
+      'CAPRI_GATEWAY_REPORTED_ERROR',
+    ],
+    [() => response('Partial', ''), 'CAPRI_GATEWAY_STREAM_INCOMPLETE'],
+    [() => response(''), 'CAPRI_GATEWAY_RESPONSE_EMPTY'],
+  ];
+  for (const [reply, code, httpStatus] of cases) {
+    let calls = 0;
+    const events = [],
+      service = client({
+        fetchImpl: async () => {
+          calls++;
+          return reply();
+        },
+      });
+    await service.send({ id: randomUUID(), text: 'Hello' }, (event) => events.push(event));
+    const failure = service.diagnostics().lastFailure;
+    assert.equal(events.at(-1).type, 'turn.failed');
+    assert.equal(failure.code, code);
+    assert.equal(failure.httpStatus, httpStatus);
+    assert.equal(typeof failure.receivedText, 'boolean');
+    assert.doesNotMatch(JSON.stringify({ failure, events }), /private-[a-z-]+-canary/);
+    assert.equal(calls, 1, 'A failed turn must not be replayed.');
+  }
+});
+
+test('empty external-model replies use the existing API message and network diagnostics retain only known codes', async () => {
+  const events = [],
+    service = client({ externalInference: true, fetchImpl: async () => response('') });
+  await service.send({ id: randomUUID(), text: 'Hello' }, (event) => events.push(event));
+  assert.equal(events.at(-1).message, 'API model returned no text.');
+  assert.equal(service.diagnostics().lastFailure.code, 'CAPRI_GATEWAY_RESPONSE_EMPTY');
+  for (const code of ['UND_ERR_CONNECT_TIMEOUT', 'private-network-detail-canary']) {
+    const failed = client({
+      fetchImpl: async () => {
+        throw new TypeError('private-network-message-canary', { cause: { code } });
+      },
+    });
+    await failed.send({ id: randomUUID(), text: 'Hello' }, () => {});
+    assert.equal(
+      failed.diagnostics().lastFailure.networkCode,
+      code.startsWith('UND_') ? code : undefined,
+    );
+    assert.doesNotMatch(JSON.stringify(failed.diagnostics()), /private-network/);
+  }
+});
+
 test('input, output and endpoints are bounded; output overflow still finalizes the turn', async () => {
   for (const text of ['', ' ', 'x'.repeat(8001), 'bad\0text'])
     assert.throws(() => validateInput({ id: randomUUID(), text }));

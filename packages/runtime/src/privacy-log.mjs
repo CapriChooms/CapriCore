@@ -70,6 +70,24 @@ const EVENTS = new Set([
   'activity',
 ]);
 
+/** Public model identifiers are technical metadata, never arbitrary log prose. */
+export function diagnosticModelId(value) {
+  if (
+    typeof value !== 'string' ||
+    value.length > 200 ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$/.test(value) ||
+    /^(?:[A-Za-z]:\/|https?:|file:|sk[-_]|gh[pousr]_|github_pat_|hf_|AIza)/i.test(value) ||
+    value.includes('//') ||
+    value.split('/').some((part) => !part || part === '.' || part === '..') ||
+    /^[^/]+@[^/]+\.[^/]+$/.test(value) ||
+    /(?:^|[/:_-])(?:api[-_]?key|access[-_]?token|refresh[-_]?token|token|secret|password|passwd|bearer)(?:$|[/:_-])/i.test(
+      value,
+    )
+  )
+    return undefined;
+  return value;
+}
+
 export function privateLogRecord(input, { service, stream, stage } = {}) {
   const source = typeof input === 'string' ? input.slice(-16384) : '';
   let parsed;
@@ -97,6 +115,17 @@ export function privateLogRecord(input, { service, stream, stage } = {}) {
       : record.stage
         ? 'stage'
         : 'activity';
+  // Only the desktop host's dedicated event can add model metadata. Unknown
+  // prose and model-looking fields in other log records remain excluded.
+  const modelService = service ?? (parsed?.schemaVersion === 1 ? parsed.service : undefined);
+  if (parsed?.event === 'model-selected' && modelService === 'desktop') {
+    const modelId = diagnosticModelId(parsed.modelId);
+    if (modelId) {
+      record.event = 'model-selected';
+      record.service = 'desktop';
+      record.modelId = modelId;
+    }
+  }
   const codes = source.match(/\b[A-Z][A-Z0-9_]{2,63}\b/g) ?? [];
   const code = codes.find((value) => ERROR_CODES.has(value));
   if (code) record.code = code;
@@ -129,6 +158,28 @@ export function privateLogRecord(input, { service, stream, stage } = {}) {
     )
       record[field] = parsed[field];
   return record;
+}
+
+/** Persist only the latest selected ID; never capture general child stdout. */
+export function writeModelSelectionLog(directory, value) {
+  const modelId = diagnosticModelId(value);
+  if (!modelId) return false;
+  if (typeof directory !== 'string' || !path.isAbsolute(directory)) return false;
+  const record = privateLogRecord(
+    JSON.stringify({ schemaVersion: 1, event: 'model-selected', modelId }),
+    { service: 'desktop' },
+  );
+  record.time = new Date().toISOString();
+  try {
+    writePrivateBytesAtomic(
+      path.join(directory, 'desktop-model.jsonl'),
+      Buffer.from(JSON.stringify(record) + '\n'),
+    );
+    return true;
+  } catch {
+    // Missing diagnostic storage must not prevent the companion from starting.
+    return false;
+  }
 }
 
 /** Diagnostics retain useful error classes/stages, never legacy free text. */

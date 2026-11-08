@@ -1880,11 +1880,5 @@
     "corrections": 50,
     "rejected": []
   },
-  "reviewedIdentical": [
-    "Spotify",
-    "Capri ·",
-    "Hugging Face token",
-    "caching",
-    "Overdrive"
-  ]
+  "reviewedIdentical": ["Spotify", "Capri ·", "Hugging Face token", "caching", "Overdrive"]
 }

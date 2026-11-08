@@ -1880,10 +1880,5 @@
     "corrections": 1,
     "rejected": []
   },
-  "reviewedIdentical": [
-    "Spotify",
-    "Capri ·",
-    "Switch to the meeting tab",
-    "Overdrive"
-  ]
+  "reviewedIdentical": ["Spotify", "Capri ·", "Switch to the meeting tab", "Overdrive"]
 }

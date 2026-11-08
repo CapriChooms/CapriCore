@@ -1880,10 +1880,5 @@
     "corrections": 22,
     "rejected": []
   },
-  "reviewedIdentical": [
-    "Spotify",
-    "idle-surprised_closed",
-    "{label} ({seconds} s)",
-    "Capri ·"
-  ]
+  "reviewedIdentical": ["Spotify", "idle-surprised_closed", "{label} ({seconds} s)", "Capri ·"]
 }

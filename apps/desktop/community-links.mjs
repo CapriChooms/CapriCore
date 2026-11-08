@@ -10,7 +10,7 @@ export const COMMUNITY_LINKS = Object.freeze({
   discord: 'https://discord.gg/capricore',
   github: 'https://github.com/CapriChooms/CapriCore',
   website: 'https://capri-core.com/',
-  issues: 'https://github.com/CapriChooms/CapriCore/issues/new',
+  issues: 'https://github.com/CapriChooms/CapriCore/issues/new/choose',
 });
 
 export function loadCommunityLinks(root) {

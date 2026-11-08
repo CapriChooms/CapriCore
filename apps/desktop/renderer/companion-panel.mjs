@@ -86,7 +86,6 @@ export class CompanionPanel {
           <label><input type="checkbox" id="bug-logs" checked> <span>Include recent diagnostic logs</span></label>
           <p class="settings-help">Chat-history files, memory, recordings and screenshots are excluded. Known secrets and common personal paths are redacted. Review logs before sharing.</p>
           <div class="settings-actions"><button type="button" id="bug-save">Save report</button><button type="button" data-community="issues">Open GitHub issues</button></div>
-          <p class="settings-help">A GitHub account with repository access is required while the project is private.</p>
         </section>
         <section data-companion-tab="settings" hidden>
           <h3>Qwen model <span class="beta-badge">BETA</span></h3><div class="settings-actions"><button type="button" id="companion-models">Choose Qwen model</button></div>

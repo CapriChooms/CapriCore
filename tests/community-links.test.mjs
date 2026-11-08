@@ -53,7 +53,7 @@ test('retained private-era links migrate to public repository and issue reportin
     }),
   );
   assert.equal(links.github, 'https://github.com/CapriChooms/CapriCore');
-  assert.equal(links.issues, 'https://github.com/CapriChooms/CapriCore/issues/new');
+  assert.equal(links.issues, 'https://github.com/CapriChooms/CapriCore/issues/new/choose');
   assert.equal(activity(links).buttons[0].url, links.github);
 });
 
@@ -83,10 +83,15 @@ test('a replacement invite updates presence and Support together without forward
   const open = handlers.get('capri:community-link');
   await open('discord');
   await open('github');
-  assert.deepEqual(opened, [presence.buttons[1].url, presence.buttons[0].url]);
+  await open('issues');
+  assert.deepEqual(opened, [
+    presence.buttons[1].url,
+    presence.buttons[0].url,
+    COMMUNITY_LINKS.issues,
+  ]);
   for (const id of ['futurePrivateMetadata', '__proto__', 'constructor', 'file:///private'])
     await assert.rejects(open(id), /Unknown community link/);
-  assert.equal(opened.length, 2);
+  assert.equal(opened.length, 3);
 });
 
 test('malformed files and destinations outside their approved HTTPS origin use safe defaults', () => {

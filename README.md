@@ -22,7 +22,7 @@ Capabilities depend on the selected model, its tool/image support and your permi
 
 ## Quick installation
 
-On Windows 10 22H2/11 x64, run **CapriSetup-1.0.0.exe** from the release, or extract the source package and double-click **Install Capri.cmd**. The wizard installs per-installation Node/npm runtimes, local inference support where selected, models and optional speech components; the CPU request classifier is included. Choose local LLMs, Hugging Face model selection, or API mode (BETA). API mode skips local conversation-model downloads and, by default, startup loading. No global Python/Node installation or terminal is required.
+On Windows 10 22H2/11 x64, run **CapriSetup-1.0.0.exe** from the release, or extract the source package and double-click **Install Capri.cmd**. The wizard installs per-installation Node/npm/Ollama runtimes, selected models and optional speech components; the CPU request classifier is included. Choose local LLMs, Hugging Face model selection, or API mode (BETA). API mode skips local conversation-model downloads and, by default, startup loading. No global Python/Node installation or terminal is required.
 
 For a first installation, complete this wizard before opening **Capri.exe**. Use
 the same wizard and installation folder to repair missing runtimes or dependencies.

@@ -15,7 +15,7 @@ card. Available memory is lower when the OS, games, browsers or editors use it.
 
 Model weights use dedicated VRAM when Ollama fully offloads inference to a
 supported GPU. CPU inference stores them in RAM; partial offload uses both.
-In the next build, the GPU-path system RAM targets and the more conservative CPU-fallback targets
+The GPU-path system RAM targets and the more conservative CPU-fallback targets
 are separate: see the model and optional-component tables in [README](../README.md#hardware-profiles).
 For example, 16 GiB RAM with a supported 12 GiB GPU is eligible for Qwen 9B.
 The CPU fallback target of 32 GiB RAM is not imposed on that GPU configuration.
@@ -29,12 +29,15 @@ are separate and depend on the selected speech and text components. Leave memory
 headroom for voice, context and other applications; use the smaller profile when
 the computer is already under load.
 
-## Installer memory budget (next build)
+<a id="installer-memory-budget-next-build"></a>
+
+## Installer memory budget
 
 The model selector lists approximate **text-model VRAM consumption** and the
 system RAM target for the detected GPU/CPU configuration. The fixed memory panel
 stays visible as the component list scrolls. It recalculates on model, voice,
-conversation language, recognition and CPU-classifier changes. English and
+conversation language and recognition changes; the CPU request classifier is
+always included. English and
 multilingual speech have separate ranges.
 
 Each RAM/VRAM bar shows memory already occupied in gray, the upper end of the
@@ -65,11 +68,11 @@ not summed. For shared-memory graphics, CPU and GPU compete for system RAM.
 
 Text inference, speech, recognition and visuals are independent capabilities. An Ollama GPU probe is not proof that PyTorch CUDA or a trained voice works.
 
-The planner uses RAM, available CPU capacity and confirmed dedicated VRAM. It does not use Win32_VideoController.AdapterRAM: values can be truncated or shared. NVIDIA memory is queried through nvidia-smi. Unknown AMD/Intel memory stays unknown until an authoritative provider probe is added. Two 6 GiB cards are never treated as one 12 GiB card. Missing probes select conservative text profiles.
+The planner uses RAM, available CPU capacity and confirmed dedicated VRAM. It does not use Win32_VideoController.AdapterRAM: values can be truncated or shared. NVIDIA driver readings use nvidia-smi; Windows DXGI discovery and native PDH counters supply supported AMD/Intel capacity and usage readings. Missing counters remain unknown, and confirmed capacity is retained separately from usage. Two 6 GiB cards are never treated as one 12 GiB card. Missing capacity probes select conservative text profiles. The Local selector reports actual resident-model CPU/GPU placement separately from total system usage; a missing VRAM graph is not proof of CPU-only inference. See [monitoring and qualification](bugs/0.6.4-amd-monitoring.md).
 
 Small CPU models trade quality/tool reliability and latency for lower memory. Context stays at least 8192 because the current compaction contract requires it. ASR/TTS inference threads are capped by the configured budget and CPU capacity. Heavy optional speech consumes additional resources. Background applications can still make a recommended model unsuitable.
 
-Only the current Windows/NVIDIA installation can be physically checked here. CPU-only, AMD/Intel unknown-memory, multi-GPU and low-RAM decisions are fixture-tested, not physical benchmarks. Below 8 GiB RAM is outside the first supported profile. Other desktop OSes and ARM64 remain unqualified.
+The release evidence includes physical Windows/NVIDIA checks and fixture-based CPU-only, AMD/Intel unknown-memory, multi-GPU and low-RAM decisions. These are not physical benchmarks of every card. AMD language-model backend delivery is documented [separately](bugs/0.6.4-amd-llm-runtime.md); [AMD voice](amd-voice.md) has different requirements. Below 8 GiB RAM is outside the first supported profile. Other desktop OSes and ARM64 remain unqualified.
 
 On machines with up to 17 GiB reported physical RAM, desktop startup and wake
 prepare the core, recognition and voice sequentially to avoid simultaneous model

@@ -10,10 +10,10 @@ The experimental-updates checkbox is off by default. Stable mode excludes both G
 prereleases and prerelease version tags. Experimental mode includes them. Versions use
 semantic ordering (v0.3.1 is newer than v0.3.0), not GitHub response order or
 publication timestamps. Drafts, older versions and releases without a verified asset
-are ignored. New release tags use v0.3.0, v0.3.1 and so on. Legacy Preview tags remain
+are ignored. Current public releases start at **v1.0.0**. Legacy Preview tags remain
 readable for upgrade compatibility. Turning the checkbox off never downgrades an installed version.
 
-Downloads use only the fixed CapriChooms/CapriCore GitHub release API and approved GitHub asset
+The default and fixed update source is [CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases), including when old local settings or optional GitHub credentials are retained. Downloads use only its GitHub release API and approved GitHub asset
 hosts. GitHub's asset size and SHA-256 digest are required. Extracted source files are
 checked against SOURCE_MANIFEST.json, and config/release.json must match the release tag.
 This is transport and integrity verification, not a publisher code signature. Current
@@ -57,14 +57,14 @@ it does not recognize the eight new `poses-v2` artwork files. The published v0.5
 archive and its file checksums are valid. This happens during preparation, before
 installation, so the failed check does not replace Capri or remove personal data.
 
-Quit Capri, run the [v0.5.1 installer](https://github.com/CapriChooms/Capri/releases/download/v0.5.1/CapriSetup-0.5.1.exe)
+Quit Capri, run the [public 1.0.0 installer](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe)
 and select the **existing managed installation folder**. Keep that folder and its
 data; an uninstall is not required. The wizard updates application files while keeping
 history, memory, API settings and downloaded models. This recovery was checked against
 the published installer source; it was not run against anyone's private installation.
 
 Already installed old updaters cannot receive this validation fix through a package
-they reject before copying files. They need one full-installer upgrade. This also applies
+they reject before copying files. They need one full-installer upgrade to the current public channel. This also applies
 to published v0.5.1 if a later release adds an artwork family its old verifier does not
 know; adding the fix to the newer source alone cannot unblock that older verifier.
 

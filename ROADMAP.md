@@ -1,8 +1,11 @@
 # Capri — Product and Release Roadmap
 
-Updated 2026-11-04 against the v0.4.6 pre-alpha baseline. The delivery order
-below takes precedence over older planning notes. The [v0.3.7 polish review](docs/plans/next-version-polish.md)
-is retained as a record of the original findings.
+Updated 2026-11-08 against the public **1.0.0** release in
+[CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore).
+The delivery order below takes precedence over older planning notes. Dated
+implementation notes describe the evidence available at that checkpoint; an
+unchecked item can include a shipped subset whose full acceptance criteria
+remain open. The [v0.3.7 polish review](docs/plans/next-version-polish.md) is historical.
 
 Capri is a responsive Windows companion with expressive speech and animation,
 shared conversation and memory across supported interfaces, and user-controlled
@@ -10,10 +13,10 @@ access to desktop actions.
 
 ## Current baseline
 
-- **Desktop and speech.** Electron companion with compact and tray modes, contextual sprites, procedural effects, shared chat, reminders, optional speech recognition and the trained English voice. Multilingual speech is available with per-language quality and hardware qualification still open. [Languages](docs/languages.md)
-- **Inference and memory.** Managed local models and optional external API profiles, configurable local context, native OpenClaw compaction, and a local hybrid memory index. Bounded, tagged recall and shorter maintenance stalls are the next memory milestones. [Context management](docs/context-management.md) · [External API](docs/external-api.md)
-- **Perception and actions.** Screen capture and observation, file scopes and recovery, Spotify, and opt-in computer control in beta. Supported workflows have specific verification paths. General automation and real-app reliability still need qualification. [Screen observation](docs/screen-observation.md) · [Computer control](docs/computer-control.md)
-- **Distribution.** The closed early-access release has a Windows installer, in-app updates and selective uninstall. Broader clean-machine coverage and signing remain release work. [v0.4.6 release notes](docs/releases/v0.4.6.md) · [Installation wizard](docs/installation-wizard.md)
+- **Desktop and speech.** Electron companion with framed and desktop modes, teleport effects, independent mouth animation, music/BPM reactions, compact controls, tray operation, reminders and resource monitoring. The interface has 50 offline languages. Recognition and voice start off; Chatterbox and the Qwen3-TTS CPU beta have separate language/device limits. [Languages](docs/languages.md) · [Music listening](docs/music-listening.md)
+- **Inference and memory.** Bundled local models, Hugging Face GGUF imports and saved OpenAI-compatible API profiles; configurable context, OpenClaw compaction, local hybrid recall, a saved-memory viewer, a document knowledge folder and a separate password-protected memory box. Budgeted free-form tagged recall and shorter maintenance stalls remain future work. Ordinary history and memory are not fully encrypted. [Context management](docs/context-management.md) · [External API](docs/external-api.md) · [Security](SECURITY.md)
+- **Perception and actions.** Opt-in screen observation, scoped files/apps, Discord and Spotify actions, computer control, recorded workflows and isolated user tools. Computer control remains beta: real-application reliability and long combined tasks need continuing qualification. [Screen observation](docs/screen-observation.md) · [Computer control](docs/computer-control.md) · [User tools](docs/user-tools.md)
+- **Distribution.** Public Windows x64 installer, SHA-256 build/source manifests, anonymous update checks, optional experimental releases and selective uninstall. The former private updater needs a one-time full-installer migration. Main is protected and contributions use pull requests. Signing and broader clean-machine/hardware coverage remain open. [1.0.0 release notes](docs/releases/1.0.0.md) · [Updates](docs/updates.md) · [Installation wizard](docs/installation-wizard.md)
 
 ## Priorities and delivery order
 
@@ -28,16 +31,15 @@ access to desktop actions.
 | Parallel · P0 | Qualify installation, updates, recovery, accessibility and hardware profiles for a supported release. [CAP-06](#cap-06--hardware-profiles-lower-vram-and-game-mode--p0-for-baseline-profiles-p2-for-broad-hardware-coverage) · [CAP-10](#cap-10--reliability-accessibility-and-polish--p0) · [CAP-15](#cap-15--guided-installer-and-first-run-wizard--p0) · [CAP-16](#cap-16--updates-recovery-and-uninstallation--p0) | Install, first conversation, upgrade, repair and uninstall pass on supported clean Windows configurations.                                         |
 | Later · P1/P2 | Qualify more desktop workflows and speech backends, then expand perception, animation and remote channels. [CAP-03](#cap-03--scoped-file-and-application-actions--p1-after-permission-foundations) · [CAP-05](#cap-05--optional-screen-and-webcam-perception--p1-screen--p2-webcam) · [CAP-13](#cap-13--telegram-parity--p2)                                                                                           | Each advertised device, workflow and channel passes its own capability, privacy and quality checks.                                                |
 
-Major capability changes stay behind their own acceptance checks. An English
-desktop beta can qualify independently of webcam, Telegram or additional voice
-backends.
+Major capability changes retain their own acceptance checks. The public desktop
+release does not imply webcam support, Telegram parity, universal GPU support or
+equal voice quality in every language.
 
-The next model-platform expansion is [CAP-17](#cap-17--hugging-face-model-and-voice-library--p1-foundation-p2-expansion).
-Its shared catalog and installation contracts can be designed alongside CAP-12A.
-Local GGUF and multilingual TTS qualification follows the context/cancellation
-baseline. The [implementation plan](docs/plans/hugging-face-integration.md)
-covers Hub discovery, downloads, language-specific voices, cloud access and
-hardware qualification.
+The Hugging Face foundation in [CAP-17](#cap-17--hugging-face-model-and-voice-library--p1-foundation-p2-expansion)
+has shipped. Next work expands measured model/language/device coverage and
+runtime adapters; arbitrary Hub architectures and one-click training for every
+voice model are not supported. The [implementation plan](docs/plans/hugging-face-integration.md)
+records the original architecture and remaining expansion work.
 
 ## CAP-01 — Optional voice effects · P1
 
@@ -57,19 +59,20 @@ Implementation status (2026-10-26): shipped code and automated Electron/DSP chec
 
 ## CAP-02 — Independent language settings and validated speech packs · P2
 
-Model discovery, per-language voice selection and additional TTS engines are
-planned in [CAP-17](#cap-17--hugging-face-model-and-voice-library--p1-foundation-p2-expansion).
-The language quality criteria below also apply to imported packs.
+Model discovery, per-language voice selection and the Qwen3-TTS CPU beta are
+available through [CAP-17](#cap-17--hugging-face-model-and-voice-library--p1-foundation-p2-expansion).
+Broader adapter coverage and language qualification remain open. The quality
+criteria below also apply to imported packs.
 
 - [x] Separate **interface language**, **conversation/text language**, **speech recognition language** and **voice/speech language**. Offer an easy “use conversation language” setting where appropriate.
 - [ ] Establish English as the quality reference. Select the next language deliberately and validate it before expanding further.
-- [ ] Support installed language/voice packs with explicit compatibility metadata. Show which voices support which languages and hardware profiles.
+- [x] Support installed language/voice packs with explicit compatibility metadata. Show which voices support which languages and hardware profiles.
 - [ ] Evaluate intelligibility, naturalness, pronunciation, character similarity, emotion and latency for each language. Use blind listening comparisons and held-out transcripts/audio.
 - [ ] Test accents, pauses, noisy rooms, proper names, song titles, dates, numbers and mixed-language phrases in recognition and speech output.
 - [x] Preserve microphone selection, accurate final recognition and shared context when changing recognition models.
 - [ ] Make automatic language detection optional; let users lock a language and explain fallback behavior. Never silently substitute a lower-quality voice or language.
 - [ ] Localize character instructions, output-cleaning rules, tools and the request classifier where necessary. Unsupported classifier languages must retain the ordinary Qwen path.
-- [ ] Remember independent per-language voice settings and permit switching without reinstalling the app or resetting memory.
+- [x] Remember independent per-language voice selections and permit switching compatible installed voices without reinstalling the app or resetting memory.
 
 **Done when:** each advertised language/voice combination passes its documented quality criteria. “Same quality” is a release objective to demonstrate per language, not an assumption that multilingual support guarantees parity.
 
@@ -77,7 +80,7 @@ Implementation status (2026-10-27): separate interface, conversation, recognitio
 
 ## CAP-03 — Scoped file and application actions · P1, after permission foundations
 
-The v0.4.6 baseline includes a configurable app catalog, scoped file actions and
+The 1.0.0 baseline includes a configurable app catalog, scoped file actions and
 Recycle Bin recovery. The separate computer-control beta supports bounded
 observe–act sequences with keyboard and mouse input, a visible indicator and
 Escape cancellation. Its full-computer grant is explicit. [File actions](docs/file-actions.md) · [Computer control](docs/computer-control.md)
@@ -153,13 +156,19 @@ Implementation status (2026-10-26): one-shot window/monitor capture is wired thr
 
 Share the speech adapter contract with [CAP-17](#cap-17--hugging-face-model-and-voice-library--p1-foundation-p2-expansion).
 CAP-06A owns device execution and preservation/export of the trained Capri voice.
-CAP-17 adds Hub packages, alternative model families and per-language selection.
+CAP-17 supplies Hub packages, alternative model families and per-language selection.
 
-Research baseline 2026-10-31. NVIDIA/CUDA remains the supported Windows x64
-speech runtime. The releases include an experimental ROCm path; Radeon synthesis
-still needs physical qualification on the advertised GPU and driver combinations.
-CPU, ONNX and NPU work below remains exploratory. Evaluate text acceleration
-and speech acceleration separately. [ROCm preview release notes](docs/releases/v0.4.4.md)
+**Current 1.0.0 implementation.** Chatterbox uses NVIDIA CUDA or the separately
+pinned experimental ROCm path on selected supported AMD configurations.
+Qwen3-TTS 0.6B Base provides a separate reference-conditioned CPU voice beta;
+it is not an export of the trained Chatterbox adapter and can be slower than
+real time. Text acceleration, ASR and TTS have separate hardware requirements.
+[AMD voice requirements](docs/amd-voice.md)
+
+The portability research below began on 2026-10-31. Whole-pipeline Chatterbox CPU
+export, DirectML/Windows ML and NPU synthesis remain research/qualification work.
+Radeon support still needs physical qualification for each advertised
+GPU/driver combination; no universal GPU or NPU guarantee is made.
 
 **Preserve the voice first.** The English release uses the pinned Chatterbox Turbo
 base plus Capri's trained adapter and reference. Resemble AI also publishes an
@@ -348,7 +357,10 @@ and already summarizes active replay for normal local and API chat. At 32K, the
 CPU embedding index already supports hybrid keyword and semantic search through
 `memory_search` and `memory_get`. Direct Lemonade/NPU dialogue assembles a
 separate short prompt. Existing controls clear context and saved memory
-separately. [Architecture](docs/architecture.md) · [Context management](docs/context-management.md)
+separately. Settings can display saved facts, the Brain folder supplies local
+document retrieval, and the separately password-protected memory box has an
+explicit unlock lifecycle. These are distinct from the tagged recall design
+below and do not encrypt ordinary history. [Architecture](docs/architecture.md) · [Context management](docs/context-management.md) · [Security](SECURITY.md)
 
 ### CAP-12A — Responsive context compaction · P0
 
@@ -440,14 +452,21 @@ calls for simple turns.
 
 ## CAP-14 — Public repository and distribution · P0
 
+Public 1.0.0 is released. The public repository has a clean publication history,
+protected main, pull-request checks, GPL-3.0-only project code, published
+installer/source checksums and private vulnerability reporting. Distribution
+terms for character/model/voice assets remain separate. The installer is
+unsigned; broader clean-machine and device qualification remain acceptance work.
+
 - [ ] Define supported Windows versions and architectures, hardware minimums and the feature/profile compatibility matrix. Advertise only tested configurations.
 - [ ] Remove developer-specific paths and machine assumptions; support user-selected install/model paths, spaces, Unicode and standard user accounts.
 - [ ] Separate the reusable assistant platform from character, sprite and voice packs. Provide an installable public default pack with documented distribution permissions.
 - [ ] Inventory licenses, attribution, redistribution status and training-data provenance for code, models, fonts, sprites, voice samples and adapters. Keep private/reference assets out of public releases unless cleared for distribution.
-- [ ] Select the project license and publish LICENSE, third-party notices, README, quick start, architecture, troubleshooting, contribution and security-reporting guidance.
-- [ ] Audit source, history, examples and release artifacts for credentials, private conversation data, absolute personal paths and accidental media/dataset inclusion.
-- [ ] Add CI for checks that can run without GPU, secrets or the owner's PC; keep GPU/quality integration tests reproducible and separately runnable.
-- [ ] Publish versioned build artifacts, checksums, dependency/model manifests and release notes. Plan signing and verify update/install artifact integrity.
+- [x] Select the project license and publish LICENSE, third-party notices, README, quick start, architecture, troubleshooting, contribution and security-reporting guidance.
+- [x] Audit the initial public source/history and 1.0.0 release artifacts for credentials, private conversation data, absolute personal paths and accidental media/dataset inclusion. Repeat before each publication.
+- [x] Add CI for checks that can run without GPU, secrets or the owner's PC; keep GPU/quality integration tests reproducible and separately runnable.
+- [x] Publish versioned build artifacts, checksums, dependency/model manifests and release notes. Verify update/install artifact integrity.
+- [ ] Sign the Windows installer and application binaries and qualify publisher trust on clean systems.
 - [ ] Test installation from the actual published artifact on a clean supported Windows system without preinstalled development tools.
 
 **Done when:** a new user can obtain a tagged release, understand its requirements, install it and use the documented default configuration. The public package must not depend on the developer's private Capri voice or local runtime files.
@@ -455,11 +474,16 @@ calls for simple turns.
 ## CAP-15 — Guided installer and first-run wizard · P0
 
 The per-user Windows wizard provisions private runtimes and selected models,
-supports local inference or an API profile, bundles the English voice adapter,
+supports local inference, deferred Hugging Face selection or an API profile, bundles the Capri voice reference,
 and registers shortcuts and uninstall. Installer session recovery, retries and
 resumable downloads are available for supported components. Broader hardware
 qualification, device audition, storage choices and signing remain open.
 [Wizard design and limits](docs/installation-wizard.md)
+
+The following is the target guided setup flow; device audition and a guided
+first conversation are not separate steps in the current eight-page installer.
+Current pages are Welcome, License, Location, Hardware, Components, Review,
+Installing and Finish. See the wizard guide for the shipped controls.
 
 | Step                         | What the user selects                                    | What the wizard explains/checks                                                    |
 | ---------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -485,10 +509,13 @@ qualification, device audition, storage choices and signing remain open.
 
 ## CAP-16 — Updates, recovery and uninstallation · P0
 
-In-app updates and selective Windows uninstall are available. Release
-qualification covers private-repository access, update handoff, interrupted
-installs and retained user data. [Update recovery](docs/releases/v0.4.2.md) ·
-[Selective uninstall](docs/releases/v0.4.1.md)
+In-app updates use the public CapriCore channel without requiring an account or
+token. Saved optional credentials remain protected; failed optional access does
+not block anonymous public downloads. Stable/experimental selection, update
+notifications with defer-until-next-launch, verified staging/rollback and
+selective Windows uninstall are implemented. Continuing qualification covers
+interrupted installs, legacy migrations, retained data and wider Windows setups.
+[Updates and recovery](docs/updates.md) · [Installation wizard](docs/installation-wizard.md)
 
 - [ ] Version the app, configuration schemas, model profiles, character packs and voice packs independently with a compatibility matrix.
 - [ ] Offer stable and optional preview channels; allow users to defer updates and choose whether model downloads happen automatically.
@@ -501,14 +528,13 @@ installs and retained user data. [Update recovery](docs/releases/v0.4.2.md) ·
 
 ## CAP-17 — Hugging Face model and voice library · P1 foundation, P2 expansion
 
-Architecture reviewed on 2026-11-04 against local v0.4.6 source. Hugging Face
-already supplies pinned speech artifacts. The proposed integration adds model
-discovery, compatible runtime adapters and a complete installation lifecycle.
+The foundation ships in public 1.0.0: Hub model discovery, compatible GGUF
+imports, encrypted optional Hub credentials and reviewed voice adapters.
 The [detailed implementation plan](docs/plans/hugging-face-integration.md)
 records current code boundaries, compatibility gaps, security requirements,
 candidate TTS engines and acceptance scenarios.
 
-Local experimental implementation now includes Hub search/inspection, encrypted
+The implementation includes Hub search/inspection, encrypted
 tokens, pinned verified downloads, complete GGUF shard imports, model-aware
 capabilities/context, disk estimates, cancellation and removal. An isolated real
 Ollama import produced a short text reply. Wizard can defer model selection to
@@ -521,14 +547,17 @@ Arbitrary HF voice architectures do not yet have automatic fine-tuning recipes.
 Their absence is shown explicitly. Language quality, exact voice similarity and
 unmeasured hardware combinations remain qualification work.
 
-- [ ] **CAP-17A — Shared contracts.** Version model/package descriptors and install plans, migrate current catalog and voice profiles, make text/tools/vision/context checks model-aware, and extend HF-secret release checks.
-- [ ] **CAP-17B — Hub and downloads.** Add search and repository-link import, immutable revision/file resolution, verified resumable downloads, disk accounting, recovery and owned cache inventory.
-- [ ] **CAP-17C — Local language models.** Import qualified GGUF artifacts through the existing Ollama/native lifecycle. Verify templates, context, tools, vision, shards/projectors, switching and rollback. Expose actual capabilities and RAM/VRAM in Settings and Wizard.
-- [ ] **CAP-17D — Multilingual voices.** Extract current Chatterbox adapters, add per-language model/speaker/profile settings and audition, qualify a CPU TTS candidate and a second multilingual family. Evaluate Kokoro and Qwen3-TTS against the current English/Russian baseline.
-- [ ] **CAP-17E — Access and more backends.** Add encrypted gated/private Hub access, optional HF cloud LLM/TTS profiles and an approved local Transformers adapter. Confirm provider availability and explicit data-sharing choices.
+- [x] **CAP-17A — Shared contracts.** Version model/package descriptors and install plans, retain voice selections, validate model-aware text/tools/vision/context capabilities and protect HF credentials.
+- [x] **CAP-17B — Hub and downloads.** Search and repository-link import, immutable revision/file resolution, verified resumable downloads, disk accounting, repair and owned cache inventory.
+- [x] **CAP-17C — Local language-model foundation.** Import complete GGUF weight sets and optional projectors through the managed Ollama lifecycle; support selection, cancellation, repair and removal. Keep requirements unknown before choosing a specific Hub model.
+- [ ] **CAP-17C — Broader model qualification.** Validate templates, context, tools, vision, switching and recovery for each additional advertised architecture and quantization.
+- [x] **CAP-17D — Reviewed voice adapters.** Per-language selections for Chatterbox Turbo, multilingual Chatterbox and Qwen3-TTS CPU (BETA); English Turbo training keeps a separate candidate with audition/rollback.
+- [ ] **CAP-17D — Broader voice qualification.** Measure language/device quality and latency, evaluate further families such as Kokoro and add training recipes only for compatible architectures.
+- [x] **CAP-17E — Hub access and cloud LLM preset.** Encrypted optional gated/private Hub access and a Hugging Face Inference Providers OpenAI-compatible API preset.
+- [ ] **CAP-17E — More backends.** Qualify HF cloud TTS and an approved local Transformers adapter, including explicit provider data-sharing choices.
 - [ ] **CAP-17F — Qualification.** Validate each advertised model/language/device combination, clean installation, upgrade, repair, cancellation, offline use and selective uninstall. Expand the catalog using measured results.
 
-Delivery starts with the shared contracts, public GGUF and voice adapters.
+Future expansion builds on the shipped contracts, public GGUF and voice adapters.
 CAP-12A supplies the context and cancellation baseline for release qualification.
 CAP-02 defines language quality, CAP-06 hardware budgets, CAP-14 artifact/privacy
 checks, and CAP-15/CAP-16 installation and removal. CAP-12B continues as the

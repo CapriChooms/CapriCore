@@ -32,9 +32,14 @@ Hardware/probe failures become report entries instead of preventing export.
 
 For an English voice failure after installation, reproduce it, leave Capri open
 and save a report with recent logs enabled. Send the reviewed ZIP to the maintainer.
-Installing the pack alone does not establish that the trained backend can run on
-the hardware: the current trained English backend requires compatible NVIDIA/CUDA.
-Reports distinguish missing Python/profile/weights, checksum mismatch, CUDA
+Installing the pack alone does not establish that its backend can run on the
+hardware. Chatterbox uses compatible NVIDIA/CUDA or the experimental, separately
+pinned AMD ROCm runtime on qualified Windows 11 Radeon configurations. An AMD GPU
+working for language-model inference does not establish Chatterbox compatibility;
+NPUs are not Chatterbox backends. The separate Qwen3-TTS CPU option has its own
+requirements and can be slower than real time. See [AMD voice requirements](amd-voice.md),
+[voice GPU compatibility](voice-gpu-compatibility.md) and [voice installation](voice-installation.md).
+Reports distinguish missing Python/profile/weights, checksum mismatch, backend
 unavailability, logged architecture/DLL/OOM errors, service readiness and playback
 failures. A finding is evidence, not an automatic repair or a guaranteed diagnosis.
 

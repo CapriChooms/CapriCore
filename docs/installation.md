@@ -1,6 +1,10 @@
 # Installation
 
-For the graphical path, run CapriSetup.exe or double-click Install Capri.cmd from an extracted source package. The wizard automatically provisions its own runtimes; the manual prerequisites below apply to command-line installation. See [the wizard guide](installation-wizard.md).
+Download [CapriSetup-1.0.0.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe) from the public **CapriChooms/CapriCore** release. No GitHub account, invitation or token is required. The unsigned Windows installer provisions its own runtimes; the manual prerequisites below apply to command-line installation. You can also double-click **Install Capri.cmd** from a complete extracted source package. See [the wizard guide](installation-wizard.md).
+
+Choose a bundled local LLM, local Hugging Face GGUF selection, or **Use an API without installing local LLMs (BETA)**. API mode skips local conversation-model downloads and startup loading; its local memory helper and CPU request classifier remain installed. Optional recognition and voice have separate downloads and memory requirements. See [system requirements](../README.md#system-requirements).
+
+To upgrade from private early access, run the public installer and select the existing Capri folder without uninstalling. This preserves data and models and switches future update checks to CapriCore. Older private-channel updaters cannot discover the new repository themselves.
 
 For a ready-to-install download, use the versioned CapriSetup executable under
 GitHub Releases. An extracted source archive must include the reviewed runtime
@@ -53,7 +57,9 @@ environments. `setup-streaming-asr.cmd` installs CPU recognition;
 `setup-request-router.cmd` installs the CPU classifier, which the wizard already
 includes automatically. These commands download locked files.
 
-setup-voice-training.cmd selects NVIDIA CUDA or the experimental supported AMD ROCm runtime. See [AMD voice](amd-voice.md). Both a compatible environment and a valid exported voice profile are required. A release setup can include the trained Capri voice: select the included voice in the wizard and it installs the pack and pinned base weights without user training. Source-only builds do not include weights; import the separate release voice ZIP after extracting it, or build a setup with --voice-pack. AMD hardware synthesis remains unqualified on the NVIDIA development PC; unsupported graphics can still use text mode. See [voice distribution](voice-distribution.md).
+`setup-voice-training.cmd` selects NVIDIA CUDA or the experimental supported AMD ROCm runtime for Chatterbox. Both a compatible environment and a valid exported voice profile are required; support is not universal across AMD cards. A release setup includes Capri's reference profile: select **Chatterbox / Capri / Conversation language** to install its matching backend and pinned base weights without user training. For compatible languages, **Hugging Face · Qwen3-TTS (CPU, BETA)** is a separate option that does not require a dedicated GPU and may synthesize slower than real time. Source-only exports do not include the optional voice pack; use the release setup, import a compatible release pack or build with `--voice-pack`. See [AMD voice](amd-voice.md), [voice installation](voice-installation.md) and [voice distribution](voice-distribution.md).
+
+Capri starts with microphone capture and voice replies off. Their models remain unloaded until you enable the corresponding microphone or speaker button. Installing a pack does not grant microphone permission or automatically enable it at each launch.
 
 The source and setup include the reviewed assets/capri/sprites/v1/runtime-sprite-set.json pack; the original assets/default symbol remains a fallback. Distribute optional packs only with suitable rights. Spotify, screen and OS tools retain separate permissions; setup grants none.
 
@@ -69,7 +75,7 @@ voice. Close Capri before repair, complete setup and restart it. Existing models
 history and settings are retained. `setup-voice-training.cmd` alone downloads the
 base runtime/model but does not supply the Capri adapter/reference pack.
 
-Portable data/, .runtime/ and logs/ remain ignored. data/workspace owns memory, data/openclaw owns conversation/credentials, and data/desktop stores UI settings. Back up private data separately from source. The private pre-refactor archive has a verified checksum manifest; extract rollback source into a separate folder with services stopped, without overwriting live data.
+Portable data/, .runtime/ and logs/ remain ignored. data/workspace owns memory, data/openclaw owns conversation/credentials, and data/desktop stores UI settings. Back up private data separately from source. For rollback, stop Capri and use a separate folder with a verified release source archive; do not overwrite live data or assume an older application can read newer settings. See [updates and recovery](updates.md).
 
 Use npm run doctor for hardware/software/profile diagnostics. Missing models need models:pull; missing optional speech does not require reinstalling the desktop. Redact logs and personal paths before reporting a problem.
 

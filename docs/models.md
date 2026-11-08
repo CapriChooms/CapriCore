@@ -19,7 +19,7 @@ in more languages, then models with lower memory requirements. These short tests
 provide a starting point for model selection. Extended conversation, voice and
 computer control require separate evaluation.
 
-The next installer lists approximate text-model VRAM use separately from the system RAM target for the detected GPU/CPU configuration. A supported GPU with enough dedicated memory lowers the system RAM target; the larger CPU-fallback RAM target applies when GPU capacity is insufficient or unknown. The component page separately estimates the combined RAM/VRAM cost of text, voice and recognition, with remaining headroom. See [memory planning](hardware.md#installer-memory-budget-next-build). These ranges are not measured guarantees: context size, voice and other programs also consume memory.
+The installer lists approximate text-model VRAM use separately from the system RAM target for the detected GPU/CPU configuration. A supported GPU with enough dedicated memory lowers the system RAM target; the larger CPU-fallback RAM target applies when GPU capacity is insufficient or unknown. The component page separately estimates the combined RAM/VRAM cost of text, voice and recognition, with remaining headroom. See [memory planning](hardware.md#installer-memory-budget). These ranges are not measured guarantees: context size, voice and other programs also consume memory.
 
 Capri indicates which weights are already downloaded,
 shows hardware-dependent RAM guidance, and recommends a profile based on detected hardware.
@@ -71,7 +71,8 @@ installer model pulls; normal conversation does not restart a running model.
 When preparation completes, choose **Switch model and restart**. After confirmation,
 Capri stops its owned core/voice services, updates the managed inference fields in
 local/Gateway configuration, and relaunches through the windowless launcher. Startup
-prepares the chosen model and the enabled speech components. The first start can take
+prepares the chosen language model. Microphone recognition and Capri's voice start
+off after relaunch and load only when re-enabled. The first model start can take
 longer than a warm reply. Settings writes restore their previous values if a write
 fails. Downloads and model switches cannot run over an update installation.
 

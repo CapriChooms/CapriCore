@@ -1,0 +1,34 @@
+node_modules/
+.runtime/
+.downloads/
+/vendor/
+/data/
+/logs/
+.env
+*.local.json
+*.local.ps1
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+/NVIDIA Corporation/
+apps/desktop/dist/
+
+# Private backups and local deployment exports
+/archive/
+/release/
+config/*.local.json
+*.log
+
+# Optional private character pack
+/assets/capri/
+
+# Per-user installation ownership metadata
+/.capri-install.json
+/Capri.exe
+/.bundled-voice/
+
+# Local chat attachments and machine-specific verification reports
+/.codex-remote-attachments/
+/docs/audit/*
+!/docs/audit/npm-sbom.cdx.json

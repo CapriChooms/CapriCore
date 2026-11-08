@@ -1,0 +1,65 @@
+@font-face {
+  font-family: 'Exo 2';
+  src: url('fonts/exo2.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+}
+:root {
+  --cyan: #8ef5ed;
+  --theme-panel: #102832;
+  --theme-border: #365f67;
+  --theme-text: #def8f4;
+}
+html,
+body {
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+aside {
+  --slide: -8px;
+  box-sizing: border-box;
+  margin: 6px;
+  padding: 13px 14px 14px;
+  border: 1px solid var(--theme-border);
+  border-inline-start: 2px solid var(--cyan);
+  border-radius: 5px;
+  background: var(--theme-panel);
+  box-shadow: 0 2px 6px #0008;
+  color: var(--theme-text);
+  font:
+    400 13px/1.48 'Exo 2',
+    'Segoe UI',
+    sans-serif;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  transform: translateX(var(--slide));
+  transition:
+    opacity 145ms ease,
+    transform 170ms cubic-bezier(0.2, 0.75, 0.3, 1);
+}
+aside[data-side='left'] {
+  --slide: 8px;
+  border-inline-start: 1px solid var(--theme-border);
+  border-inline-end: 2px solid var(--cyan);
+}
+aside[data-open] {
+  opacity: 1;
+  transform: none;
+}
+h1 {
+  margin: 0 0 6px;
+  color: var(--cyan);
+  font-size: 13px;
+  font-weight: 650;
+}
+p {
+  margin: 0;
+  white-space: pre-line;
+}
+@media (prefers-reduced-motion: reduce) {
+  aside {
+    transition: none;
+  }
+}

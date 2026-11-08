@@ -1,0 +1,21 @@
+# Dialogue repetition
+
+The October 25 review found repeated delivery rather than duplicate HTTP responses: 9 of the last 20 nonempty assistant messages started with the same interjection, with several longer phrases reused verbatim. No fully identical nonempty responses were found in the desktop journal. Some speech recognition errors also led to repeated capability explanations.
+
+The initial temperature was 0.7, also the [Qwen3.5-9B model card's recommendation](https://huggingface.co/Qwen/Qwen3.5-9B) for general non-thinking use. Temperature alone is not a reliable cure for copying patterns from conversation history.
+
+The companion profile uses temperature 0.85 and `repeat_last_n: 512`, set in `config/core.json` under `generation`. The longer repetition window is intended to include earlier replies rather than just the end of the preceding response. Other sampling defaults stay with the installed model. Its manifest specifies presence penalty 1.5, top-k 20 and top-p 0.95. No fixed generation seed is applied to normal dialogue. The separate TTS seed is unchanged.
+
+The native delivery profile preserves that sampling for planning and ordinary dialogue. A completed tool result uses thinking off, temperature 0.2 and presence penalty 0 so short factual confirmations can repeat their actual result accurately. Bounded planning and the version-pinned OpenClaw delivery fixes are described in [performance.md](performance.md) and [openclaw-compat](../integrations/openclaw-compat/README.md). They do not add a second client conversation or a phrase-matching command dispatcher.
+
+The source persona describes conversational behavior rather than supplying ready-made lines. Brief acknowledgements can end without a follow-up question, affection does not require a defensive quip, and speech corrections should revise the preceding request. Desktop instructions distinguish workspace tools from screen control and no longer require every opening to contain 5–9 words.
+
+`dialogue-style.mjs` examines at most 12 recent nonempty completed or interrupted assistant replies for repeated openings and whole sentences. Only a short style observation enters the system prompt. Repeated phrases themselves are not quoted into the prompt; quoting unwanted lines can prime their reuse. User messages are excluded. The request still sends only the new user message to the existing OpenClaw session. There is no output censor, automatic regeneration or second inference pass.
+
+Existing installations apply source sampling explicitly using `npm run configure:dialogue`. This backs up the current runtime configuration in `data/config-backups/` and changes only those two model parameters. Ordinary initialization preserves existing runtime configuration. Restart the desktop after changing its prompt-building code. History and durable memory are retained.
+
+## Validation and limits
+
+`npm test` covers bounded style analysis, input isolation, sampling validation and the single-request/shared-session contract. `npm run verify:dialogue` uses the real local model with a snapshot of recent journal context. It never adds messages to the owner's session. To compare an existing local baseline snapshot, pass `-- --baseline .runtime/dialogue-style/baseline.json`; this is a local development artifact, not bundled user data. Optional `--temperature` and `--repeat-last-n` arguments apply only to the experimental variant.
+
+The historical five-case comparison used the same history and paired test seeds. Reused three-word openings fell from 1/5 to 0/5; all five revised openings differed, and the checked stock phrases were absent. These are narrow style metrics. Several answers still added unnecessary follow-up questions or overexplained, so this is not proof of consistently natural dialogue or perfect instruction following. Current comparisons use synthetic history and the bundled personality by default; an explicit `--baseline` fixture can supply a comparison history. They never read the owner's display journal. Reports are saved under `.runtime/desktop-verification/dialogue-style-verification.json`, outside application logs. A history saturated with earlier assistant wording can still bias the model; this change does not silently truncate, reset or rewrite that history.

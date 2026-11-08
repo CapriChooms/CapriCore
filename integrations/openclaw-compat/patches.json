@@ -1,0 +1,700 @@
+{
+  "version": "2026.10.6",
+  "patches": [
+    {
+      "file": "dist/stream.runtime-DVVOeOOt.mjs",
+      "edits": [
+        {
+          "before": "const requestBody = replacement === void 0 ? body : replacement;",
+          "after": "const requestBody = replacement === void 0 ? body : replacement;\n\t\t\t\t// Capri: apply the delivery phase after provider payload policies.\n\t\t\t\tif (/^capri-qwen3[.]5:(?:0[.]8|2|4|9)b$/.test(model.id) && ollamaMessages.at(-1)?.role === \"tool\" && requestBody && typeof requestBody === \"object\") {\n\t\t\t\t\trequestBody.think = false;\n\t\t\t\t\trequestBody.stream = false;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, temperature: 0.2, presence_penalty: 0 };\n\t\t\t\t}"
+        },
+        {
+          "before": "const thinking = modelInfo.reasoning === false ? \"\" : response.message.thinking ?? response.message.reasoning ?? \"\";\n\tif (thinking) content.push({\n\t\ttype: \"thinking\",\n\t\tthinking\n\t});\n\tconst rawText = response.message.content || \"\";",
+          "after": "let thinking = modelInfo.reasoning === false ? \"\" : response.message.thinking ?? response.message.reasoning ?? \"\";\n\t// Capri: an explicit final-answer protocol was misclassified by native thinking parsing.\n\tconst delivered = /^capri-qwen3[.]5:(?:0[.]8|2|4|9)b$/.test(modelInfo.id) && !response.message.content && !response.message.tool_calls?.length && /^\\[avatar:[a-z][a-z0-9_-]{0,39}\\]/.test(thinking) ? thinking : \"\";\n\tif (delivered) thinking = \"\";\n\tif (thinking) content.push({\n\t\ttype: \"thinking\",\n\t\tthinking\n\t});\n\tconst rawText = response.message.content || delivered;"
+        },
+        {
+          "before": "\t\t\t\t// Capri: apply the delivery phase after provider payload policies.",
+          "after": "\t\t\t\t// Capri: owner-selected reasoning is per request, never a model reload.\n\t\t\t\tif (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"medium\") {\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: 8192 };\n\t\t\t\t\tif (model.reasoning === true) requestBody.think = true;\n\t\t\t\t}\n\t\t\t\tif (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\" && model.reasoning === true) requestBody.think = false;\n\t\t\t\t// Capri: apply the delivery phase after provider payload policies."
+        },
+        {
+          "before": "if (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\" && model.reasoning === true) requestBody.think = false;",
+          "after": "if (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\") {\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Math.min(requestBody.options?.num_predict ?? 2048, 2048) };\n\t\t\t\t\tif (model.reasoning === true) requestBody.think = false;\n\t\t\t\t}"
+        },
+        {
+          "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
+          "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+        }
+      ],
+      "beforeSha256": "8e67d97372d384f2f493a3fd9277e04c60fd09d94af495ec45a2b78f0b182fba",
+      "afterSha256": "b3140f99408c0731dc32d2ba697c6bdb9f9b0017432889342179706c2102aeb7",
+      "upgrades": [
+        {
+          "beforeSha256": "3058230b7cdc17e327edd40b5b6e743006d7b87ffaa153f806851653c2c26ae3",
+          "edits": [
+            {
+              "before": "const requestBody = replacement === void 0 ? body : replacement;\n\t\t\t\t// Capri: apply the delivery phase after provider payload policies.\n\t\t\t\tif (model.id === \"capri-qwen3.5:9b\" && ollamaMessages.at(-1)?.role === \"tool\" && requestBody && typeof requestBody === \"object\") {\n\t\t\t\t\trequestBody.think = false;\n\t\t\t\t\trequestBody.stream = false;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, temperature: 0.2, presence_penalty: 0 };\n\t\t\t\t}",
+              "after": "const requestBody = replacement === void 0 ? body : replacement;\n\t\t\t\t// Capri: apply the delivery phase after provider payload policies.\n\t\t\t\tif (/^capri-qwen3[.]5:(?:0[.]8|2|4|9)b$/.test(model.id) && ollamaMessages.at(-1)?.role === \"tool\" && requestBody && typeof requestBody === \"object\") {\n\t\t\t\t\trequestBody.think = false;\n\t\t\t\t\trequestBody.stream = false;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, temperature: 0.2, presence_penalty: 0 };\n\t\t\t\t}"
+            },
+            {
+              "before": "let thinking = modelInfo.reasoning === false ? \"\" : response.message.thinking ?? response.message.reasoning ?? \"\";\n\t// Capri: an explicit final-answer protocol was misclassified by native thinking parsing.\n\tconst delivered = modelInfo.id === \"capri-qwen3.5:9b\" && !response.message.content && !response.message.tool_calls?.length && /^\\[avatar:[a-z][a-z0-9_-]{0,39}\\]/.test(thinking) ? thinking : \"\";\n\tif (delivered) thinking = \"\";\n\tif (thinking) content.push({\n\t\ttype: \"thinking\",\n\t\tthinking\n\t});\n\tconst rawText = response.message.content || delivered;",
+              "after": "let thinking = modelInfo.reasoning === false ? \"\" : response.message.thinking ?? response.message.reasoning ?? \"\";\n\t// Capri: an explicit final-answer protocol was misclassified by native thinking parsing.\n\tconst delivered = /^capri-qwen3[.]5:(?:0[.]8|2|4|9)b$/.test(modelInfo.id) && !response.message.content && !response.message.tool_calls?.length && /^\\[avatar:[a-z][a-z0-9_-]{0,39}\\]/.test(thinking) ? thinking : \"\";\n\tif (delivered) thinking = \"\";\n\tif (thinking) content.push({\n\t\ttype: \"thinking\",\n\t\tthinking\n\t});\n\tconst rawText = response.message.content || delivered;"
+            },
+            {
+              "before": "\t\t\t\t// Capri: apply the delivery phase after provider payload policies.",
+              "after": "\t\t\t\t// Capri: owner-selected reasoning is per request, never a model reload.\n\t\t\t\tif (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"medium\") {\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: 8192 };\n\t\t\t\t\tif (model.reasoning === true) requestBody.think = true;\n\t\t\t\t}\n\t\t\t\tif (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\" && model.reasoning === true) requestBody.think = false;\n\t\t\t\t// Capri: apply the delivery phase after provider payload policies."
+            },
+            {
+              "before": "if (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\" && model.reasoning === true) requestBody.think = false;",
+              "after": "if (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\") {\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Math.min(requestBody.options?.num_predict ?? 2048, 2048) };\n\t\t\t\t\tif (model.reasoning === true) requestBody.think = false;\n\t\t\t\t}"
+            },
+            {
+              "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
+              "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "96290f05af3a1f6e31ee20eb9a7bc1029349057690b9768c2bedb15595a96cd2",
+          "edits": [
+            {
+              "before": "\t\t\t\t// Capri: apply the delivery phase after provider payload policies.",
+              "after": "\t\t\t\t// Capri: owner-selected reasoning is per request, never a model reload.\n\t\t\t\tif (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"medium\") {\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: 8192 };\n\t\t\t\t\tif (model.reasoning === true) requestBody.think = true;\n\t\t\t\t}\n\t\t\t\tif (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\" && model.reasoning === true) requestBody.think = false;\n\t\t\t\t// Capri: apply the delivery phase after provider payload policies."
+            },
+            {
+              "before": "if (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\" && model.reasoning === true) requestBody.think = false;",
+              "after": "if (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\") {\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Math.min(requestBody.options?.num_predict ?? 2048, 2048) };\n\t\t\t\t\tif (model.reasoning === true) requestBody.think = false;\n\t\t\t\t}"
+            },
+            {
+              "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
+              "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "cbfc1af7d70f4026c4b625f247eb736981d3728bbe9af7eb4c68b83db97dd1e5",
+          "edits": [
+            {
+              "before": "if (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\" && model.reasoning === true) requestBody.think = false;",
+              "after": "if (requestBody && typeof requestBody === \"object\" && options?.reasoning === \"off\") {\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Math.min(requestBody.options?.num_predict ?? 2048, 2048) };\n\t\t\t\t\tif (model.reasoning === true) requestBody.think = false;\n\t\t\t\t}"
+            },
+            {
+              "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
+              "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "5f315e27a8248500ab94765483c8170471820e6829d26c365f55435026451639",
+          "edits": [
+            {
+              "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
+              "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "dist/builtin-openclaw-CcrkVuBH.mjs",
+      "beforeSha256": "01d794f0a8e1eb2407d9ee54973c77c2ed73b0a366a6b38a750f1d634920d5aa",
+      "afterSha256": "7ed9fda24fbb07ac89fa3a8695f4433c0b7f3f42acb133c96346fa7d0276590f",
+      "upgrades": [
+        {
+          "beforeSha256": "736ba7ebd5a014cfc92c5bd618222f6ebb469b2dae6027f49d24e7c0f60b2101",
+          "edits": [
+            {
+              "before": "import { c as normalizeOptionalLowercaseString, g as readStringValue, l as normalizeOptionalString, n as localeLowercasePreservingWhitespace, o as normalizeLowercaseStringOrEmpty, t as hasNonEmptyString } from \"./string-coerce-1VuiLaaR.mjs\";",
+              "after": "import { c as normalizeOptionalLowercaseString, g as readStringValue, l as normalizeOptionalString, n as localeLowercasePreservingWhitespace, o as normalizeLowercaseStringOrEmpty, t as hasNonEmptyString } from \"./string-coerce-1VuiLaaR.mjs\";\nimport { buildLocalCompactionFallback } from \"../../../packages/runtime/src/context-fallback.mjs\";"
+            },
+            {
+              "before": "\t\t\tidentifierPolicy: compactionCfg?.identifierPolicy,",
+              "after": "\t\t\tcapriLocalCompaction: params.agentId === \"capri\" && params.model?.provider === \"ollama\" && /^capri-qwen3[.]5:(?:0[.]8|2|4|9)b$/.test(params.model.id),\n\t\t\tidentifierPolicy: compactionCfg?.identifierPolicy,"
+            },
+            {
+              "before": "\t\t\t\t\treturn cancelCompaction(\"Compaction safeguard finalized summary failed quality checks.\");",
+              "after": "\t\t\t\t\t// Capri: malformed small-model summaries must not permanently block a chat.\n\t\t\t\t\t// This candidate uses source excerpts, never the rejected generated summary.\n\t\t\t\t\tconst capriFallback = runtime?.capriLocalCompaction ? buildLocalCompactionFallback({\n\t\t\t\t\t\tpreviousSummary, messages: oracleMessages, latestAsk: latestUserAsk,\n\t\t\t\t\t\tlatestUnresolvedUserRequest, identifiers\n\t\t\t\t\t}) : null;\n\t\t\t\t\tif (capriFallback) {\n\t\t\t\t\t\tsignal?.throwIfAborted();\n\t\t\t\t\t\tconst recovered = await finalizeSummaryText(capriFallback, { preservedTurnsSection: preservedTurnsSectionLocal }, new Set(), {\n\t\t\t\t\t\t\tauditSummary: capriFallback, identifiers, latestAsk: latestUserAsk,\n\t\t\t\t\t\t\tlatestUnresolvedUserRequest: latestUnresolvedUserRequest ?? void 0, requiredAskContext, identifierPolicy\n\t\t\t\t\t\t});\n\t\t\t\t\t\tconst recoveredQuality = auditSummaryQuality({\n\t\t\t\t\t\t\tsummary: recovered.summary, structuralSummary: recovered.structuralSummary,\n\t\t\t\t\t\t\tsourceSummaries: [capriFallback], identifiers, latestAsk: latestUserAsk,\n\t\t\t\t\t\t\tlatestUnresolvedUserRequest: latestUnresolvedUserRequest ?? void 0, identifierPolicy\n\t\t\t\t\t\t});\n\t\t\t\t\t\tif (!recovered.qualityRetentionInfeasible && recoveredQuality.ok) {\n\t\t\t\t\t\t\tlog.warn(\"Capri: local compaction recovered with audited, bounded history excerpts; original transcript retained.\");\n\t\t\t\t\t\t\treturn compactionResult(recovered.summary);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\treturn cancelCompaction(\"Compaction safeguard finalized summary failed quality checks.\");"
+            },
+            {
+              "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools ? null : buildEmptyExplicitToolAllowlistError({",
+              "after": "\t\t// Capri: chat-only API profiles deliberately omit model-callable tools.\n\t\tconst capriChatOnly = attempt.provider === \"capri-api\" && !toolsEnabled && attempt.model?.compat?.supportsTools === false && !attempt.toolsAllow?.length;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({"
+            },
+            {
+              "before": "// Capri: chat-only API profiles deliberately omit model-callable tools.\n\t\tconst capriChatOnly = attempt.provider === \"capri-api\" && !toolsEnabled && attempt.model?.compat?.supportsTools === false && !attempt.toolsAllow?.length;",
+              "after": "// Capri: deliberately chat-only profiles cannot execute any tool, including a one-turn memory mask.\n\t\tconst capriChatOnly = [\"capri-api\", \"ollama\"].includes(attempt.provider) && !toolsEnabled && attempt.model?.compat?.supportsTools === false &&\n\t\t\t(!attempt.toolsAllow?.length || attempt.toolsAllow.every(tool => tool === \"memory_search\" || tool === \"memory_get\"));"
+            },
+            {
+              "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
+              "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "517488476e067c1cb7e973c0f4a848d73ad61b89d7b774f50bd0aceabd2ce154",
+          "edits": [
+            {
+              "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools ? null : buildEmptyExplicitToolAllowlistError({",
+              "after": "\t\t// Capri: chat-only API profiles deliberately omit model-callable tools.\n\t\tconst capriChatOnly = attempt.provider === \"capri-api\" && !toolsEnabled && attempt.model?.compat?.supportsTools === false && !attempt.toolsAllow?.length;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({"
+            },
+            {
+              "before": "// Capri: chat-only API profiles deliberately omit model-callable tools.\n\t\tconst capriChatOnly = attempt.provider === \"capri-api\" && !toolsEnabled && attempt.model?.compat?.supportsTools === false && !attempt.toolsAllow?.length;",
+              "after": "// Capri: deliberately chat-only profiles cannot execute any tool, including a one-turn memory mask.\n\t\tconst capriChatOnly = [\"capri-api\", \"ollama\"].includes(attempt.provider) && !toolsEnabled && attempt.model?.compat?.supportsTools === false &&\n\t\t\t(!attempt.toolsAllow?.length || attempt.toolsAllow.every(tool => tool === \"memory_search\" || tool === \"memory_get\"));"
+            },
+            {
+              "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
+              "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "452a0fcb91bde07e6eda0f96db76d28115ebb91546e76ea237b2f15fa71fe4f4",
+          "edits": [
+            {
+              "before": "// Capri: chat-only API profiles deliberately omit model-callable tools.\n\t\tconst capriChatOnly = attempt.provider === \"capri-api\" && !toolsEnabled && attempt.model?.compat?.supportsTools === false && !attempt.toolsAllow?.length;",
+              "after": "// Capri: deliberately chat-only profiles cannot execute any tool, including a one-turn memory mask.\n\t\tconst capriChatOnly = [\"capri-api\", \"ollama\"].includes(attempt.provider) && !toolsEnabled && attempt.model?.compat?.supportsTools === false &&\n\t\t\t(!attempt.toolsAllow?.length || attempt.toolsAllow.every(tool => tool === \"memory_search\" || tool === \"memory_get\"));"
+            },
+            {
+              "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
+              "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "a8d7f9b5f5aba79fc655852b412aeec6f94ca67f66a2c00b553d69ea519aafd2",
+          "edits": [
+            {
+              "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
+              "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+            }
+          ]
+        }
+      ],
+      "edits": [
+        {
+          "before": "\t\tthinkLevel: attempt.thinkLevel,\n\t\tfastMode: attempt.fastMode,\n\t\tfastModeAuto: attempt.fastModeAuto,\n\t\toperation: \"settled-tool-finalization\",",
+          "after": "\t\t// Capri: keep delivery instructions, without repeating reasoning or completed tools.\n\t\textraSystemPrompt: attempt.extraSystemPrompt,\n\t\tthinkLevel: attempt.provider === \"ollama\" ? \"off\" : attempt.thinkLevel,\n\t\tfastMode: attempt.fastMode,\n\t\tfastModeAuto: attempt.fastModeAuto,\n\t\toperation: \"settled-tool-finalization\","
+        },
+        {
+          "before": "import { c as normalizeOptionalLowercaseString, g as readStringValue, l as normalizeOptionalString, n as localeLowercasePreservingWhitespace, o as normalizeLowercaseStringOrEmpty, t as hasNonEmptyString } from \"./string-coerce-1VuiLaaR.mjs\";",
+          "after": "import { c as normalizeOptionalLowercaseString, g as readStringValue, l as normalizeOptionalString, n as localeLowercasePreservingWhitespace, o as normalizeLowercaseStringOrEmpty, t as hasNonEmptyString } from \"./string-coerce-1VuiLaaR.mjs\";\nimport { buildLocalCompactionFallback } from \"../../../packages/runtime/src/context-fallback.mjs\";"
+        },
+        {
+          "before": "\t\t\tidentifierPolicy: compactionCfg?.identifierPolicy,",
+          "after": "\t\t\tcapriLocalCompaction: params.agentId === \"capri\" && params.model?.provider === \"ollama\" && /^capri-qwen3[.]5:(?:0[.]8|2|4|9)b$/.test(params.model.id),\n\t\t\tidentifierPolicy: compactionCfg?.identifierPolicy,"
+        },
+        {
+          "before": "\t\t\t\t\treturn cancelCompaction(\"Compaction safeguard finalized summary failed quality checks.\");",
+          "after": "\t\t\t\t\t// Capri: malformed small-model summaries must not permanently block a chat.\n\t\t\t\t\t// This candidate uses source excerpts, never the rejected generated summary.\n\t\t\t\t\tconst capriFallback = runtime?.capriLocalCompaction ? buildLocalCompactionFallback({\n\t\t\t\t\t\tpreviousSummary, messages: oracleMessages, latestAsk: latestUserAsk,\n\t\t\t\t\t\tlatestUnresolvedUserRequest, identifiers\n\t\t\t\t\t}) : null;\n\t\t\t\t\tif (capriFallback) {\n\t\t\t\t\t\tsignal?.throwIfAborted();\n\t\t\t\t\t\tconst recovered = await finalizeSummaryText(capriFallback, { preservedTurnsSection: preservedTurnsSectionLocal }, new Set(), {\n\t\t\t\t\t\t\tauditSummary: capriFallback, identifiers, latestAsk: latestUserAsk,\n\t\t\t\t\t\t\tlatestUnresolvedUserRequest: latestUnresolvedUserRequest ?? void 0, requiredAskContext, identifierPolicy\n\t\t\t\t\t\t});\n\t\t\t\t\t\tconst recoveredQuality = auditSummaryQuality({\n\t\t\t\t\t\t\tsummary: recovered.summary, structuralSummary: recovered.structuralSummary,\n\t\t\t\t\t\t\tsourceSummaries: [capriFallback], identifiers, latestAsk: latestUserAsk,\n\t\t\t\t\t\t\tlatestUnresolvedUserRequest: latestUnresolvedUserRequest ?? void 0, identifierPolicy\n\t\t\t\t\t\t});\n\t\t\t\t\t\tif (!recovered.qualityRetentionInfeasible && recoveredQuality.ok) {\n\t\t\t\t\t\t\tlog.warn(\"Capri: local compaction recovered with audited, bounded history excerpts; original transcript retained.\");\n\t\t\t\t\t\t\treturn compactionResult(recovered.summary);\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\treturn cancelCompaction(\"Compaction safeguard finalized summary failed quality checks.\");"
+        },
+        {
+          "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools ? null : buildEmptyExplicitToolAllowlistError({",
+          "after": "\t\t// Capri: chat-only API profiles deliberately omit model-callable tools.\n\t\tconst capriChatOnly = attempt.provider === \"capri-api\" && !toolsEnabled && attempt.model?.compat?.supportsTools === false && !attempt.toolsAllow?.length;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({"
+        },
+        {
+          "before": "// Capri: chat-only API profiles deliberately omit model-callable tools.\n\t\tconst capriChatOnly = attempt.provider === \"capri-api\" && !toolsEnabled && attempt.model?.compat?.supportsTools === false && !attempt.toolsAllow?.length;",
+          "after": "// Capri: deliberately chat-only profiles cannot execute any tool, including a one-turn memory mask.\n\t\tconst capriChatOnly = [\"capri-api\", \"ollama\"].includes(attempt.provider) && !toolsEnabled && attempt.model?.compat?.supportsTools === false &&\n\t\t\t(!attempt.toolsAllow?.length || attempt.toolsAllow.every(tool => tool === \"memory_search\" || tool === \"memory_get\"));"
+        },
+        {
+          "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
+          "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+        }
+      ]
+    },
+    {
+      "file": "dist/attempt-system-prompt-prepare-BIe9Jay8.mjs",
+      "beforeSha256": "61517fdee306d9a3eeed530605b361258b27e0ca32528f1e61746554149b4bda",
+      "afterSha256": "b87f55c4c9cba6ae3ad4d9a56d28e42ba471c580f724bb25a82c2e417a6c0ee9",
+      "upgrades": [
+        {
+          "beforeSha256": "6a534cde580b1b8383c4634e62d6ca7354dfa560ef69ceec1fa3e39eb8dcac68",
+          "edits": [
+            {
+              "before": "\tconst effectivePromptMode = toolPolicyRestricted ? \"minimal\" : promptMode;",
+              "after": "\t// Capri's desktop already supplies persona/capability instructions. Keep\n\t// the native compact surface and all policy-filtered tools/memory files.\n\tconst capriDesktopPrompt = attempt.agentId === \"capri\" && attempt.provider === \"ollama\" && attempt.extraSystemPrompt?.includes(\"CURRENT DESKTOP INTERFACE:\");\n\tconst effectivePromptMode = capriDesktopPrompt || toolPolicyRestricted ? \"minimal\" : promptMode;"
+            },
+            {
+              "before": "\t\t\tcontextFiles: params.bootstrap.contextFiles,",
+              "after": "\t\t\t// Drop only an exact repeated SOUL body, never the source file or memories.\n\t\t\tcontextFiles: params.bootstrap.contextFiles.filter(file => !(capriDesktopPrompt && /(?:^|[\\\\/])SOUL\\.md$/i.test(file.path ?? \"\") &&\n\t\t\t\ttypeof file.content === \"string\" && file.content.trim() && attempt.extraSystemPrompt.replace(/\\r\\n/g, \"\\n\").includes(file.content.trim().replace(/\\r\\n/g, \"\\n\")))),"
+            },
+            {
+              "before": "\tconst capriDesktopPrompt = attempt.agentId === \"capri\" && attempt.provider === \"ollama\" && attempt.extraSystemPrompt?.includes(\"CURRENT DESKTOP INTERFACE:\");",
+              "after": "\tconst capriDesktopPrompt = attempt.agentId === \"capri\" && attempt.provider === \"ollama\" && attempt.extraSystemPrompt?.includes(\"CURRENT DESKTOP INTERFACE:\");\n\tconst capriPersonalityPrompt = attempt.agentId === \"capri\" && attempt.extraSystemPrompt?.includes(\"CAPRI PERSONALITY (PERSONALITY.md):\\n\");"
+            },
+            {
+              "before": "\t\t\t// Drop only an exact repeated SOUL body, never the source file or memories.\n\t\t\tcontextFiles: params.bootstrap.contextFiles.filter(file => !(capriDesktopPrompt && /(?:^|[\\\\/])SOUL\\.md$/i.test(file.path ?? \"\") &&\n\t\t\t\ttypeof file.content === \"string\" && file.content.trim() && attempt.extraSystemPrompt.replace(/\\r\\n/g, \"\\n\").includes(file.content.trim().replace(/\\r\\n/g, \"\\n\")))),",
+              "after": "\t\t\t// Capri sends its one PERSONALITY.md through extraSystemPrompt. Keep memory, never re-inject retired character files or a second copy.\n\t\t\tcontextFiles: params.bootstrap.contextFiles.filter(file => !(capriPersonalityPrompt && /(?:^|[\\\\/])(?:SOUL|AGENTS|IDENTITY|TOOLS|PERSONALITY)\\.md$/i.test(file.path ?? \"\"))),"
+            },
+            {
+              "before": "\t\tsettingsManager,\n\t\tcfg: params.cfg,\n\t\tcontextTokenBudget: params.contextTokenBudget\n\t});",
+              "after": "\t\tsettingsManager,\n\t\tcfg: params.cfg,\n\t\tmodel: params.model, agentId: params.agentId, thinkLevel: params.thinkLevel,\n\t\tcontextTokenBudget: params.contextTokenBudget\n\t});"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "7e28577b3e9b742d7a0661e0a8438b4b1557a9221cbe2e1d5e04b50f0e4ac3c1",
+          "edits": [
+            {
+              "before": "\tconst capriDesktopPrompt = attempt.agentId === \"capri\" && attempt.provider === \"ollama\" && attempt.extraSystemPrompt?.includes(\"CURRENT DESKTOP INTERFACE:\");",
+              "after": "\tconst capriDesktopPrompt = attempt.agentId === \"capri\" && attempt.provider === \"ollama\" && attempt.extraSystemPrompt?.includes(\"CURRENT DESKTOP INTERFACE:\");\n\tconst capriPersonalityPrompt = attempt.agentId === \"capri\" && attempt.extraSystemPrompt?.includes(\"CAPRI PERSONALITY (PERSONALITY.md):\\n\");"
+            },
+            {
+              "before": "\t\t\t// Drop only an exact repeated SOUL body, never the source file or memories.\n\t\t\tcontextFiles: params.bootstrap.contextFiles.filter(file => !(capriDesktopPrompt && /(?:^|[\\\\/])SOUL\\.md$/i.test(file.path ?? \"\") &&\n\t\t\t\ttypeof file.content === \"string\" && file.content.trim() && attempt.extraSystemPrompt.replace(/\\r\\n/g, \"\\n\").includes(file.content.trim().replace(/\\r\\n/g, \"\\n\")))),",
+              "after": "\t\t\t// Capri sends its one PERSONALITY.md through extraSystemPrompt. Keep memory, never re-inject retired character files or a second copy.\n\t\t\tcontextFiles: params.bootstrap.contextFiles.filter(file => !(capriPersonalityPrompt && /(?:^|[\\\\/])(?:SOUL|AGENTS|IDENTITY|TOOLS|PERSONALITY)\\.md$/i.test(file.path ?? \"\"))),"
+            },
+            {
+              "before": "\t\tsettingsManager,\n\t\tcfg: params.cfg,\n\t\tcontextTokenBudget: params.contextTokenBudget\n\t});",
+              "after": "\t\tsettingsManager,\n\t\tcfg: params.cfg,\n\t\tmodel: params.model, agentId: params.agentId, thinkLevel: params.thinkLevel,\n\t\tcontextTokenBudget: params.contextTokenBudget\n\t});"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "67481bcc7972a5e1604767d33bbeef95f7337d2727f65795d3b17c1ca81bbd24",
+          "edits": [
+            {
+              "before": "\t\tsettingsManager,\n\t\tcfg: params.cfg,\n\t\tcontextTokenBudget: params.contextTokenBudget\n\t});",
+              "after": "\t\tsettingsManager,\n\t\tcfg: params.cfg,\n\t\tmodel: params.model, agentId: params.agentId, thinkLevel: params.thinkLevel,\n\t\tcontextTokenBudget: params.contextTokenBudget\n\t});"
+            }
+          ]
+        }
+      ],
+      "edits": [
+        {
+          "before": "if (attempt.operation === \"settled-tool-finalization\") {\n\t\tparams.setup.prepStages?.mark(\"system-prompt\");\n\t\treturn {\n\t\t\truntimeChannel: void 0,\n\t\t\truntimeInfo: { model: `${attempt.provider}/${attempt.modelId}` },\n\t\t\tsystemPromptReport: void 0,\n\t\t\tsystemPromptText: \"\"",
+          "after": "if (attempt.operation === \"settled-tool-finalization\") {\n\t\tparams.setup.prepStages?.mark(\"system-prompt\");\n\t\treturn {\n\t\t\truntimeChannel: void 0,\n\t\t\truntimeInfo: { model: `${attempt.provider}/${attempt.modelId}` },\n\t\t\tsystemPromptReport: void 0,\n\t\t\t// Capri: the original persona/output contract also applies to recovery.\n\t\t\tsystemPromptText: attempt.extraSystemPrompt ?? \"\""
+        },
+        {
+          "before": "\tconst effectivePromptMode = toolPolicyRestricted ? \"minimal\" : promptMode;",
+          "after": "\t// Capri's desktop already supplies persona/capability instructions. Keep\n\t// the native compact surface and all policy-filtered tools/memory files.\n\tconst capriDesktopPrompt = attempt.agentId === \"capri\" && attempt.provider === \"ollama\" && attempt.extraSystemPrompt?.includes(\"CURRENT DESKTOP INTERFACE:\");\n\tconst effectivePromptMode = capriDesktopPrompt || toolPolicyRestricted ? \"minimal\" : promptMode;"
+        },
+        {
+          "before": "\t\t\tcontextFiles: params.bootstrap.contextFiles,",
+          "after": "\t\t\t// Drop only an exact repeated SOUL body, never the source file or memories.\n\t\t\tcontextFiles: params.bootstrap.contextFiles.filter(file => !(capriDesktopPrompt && /(?:^|[\\\\/])SOUL\\.md$/i.test(file.path ?? \"\") &&\n\t\t\t\ttypeof file.content === \"string\" && file.content.trim() && attempt.extraSystemPrompt.replace(/\\r\\n/g, \"\\n\").includes(file.content.trim().replace(/\\r\\n/g, \"\\n\")))),"
+        },
+        {
+          "before": "\tconst capriDesktopPrompt = attempt.agentId === \"capri\" && attempt.provider === \"ollama\" && attempt.extraSystemPrompt?.includes(\"CURRENT DESKTOP INTERFACE:\");",
+          "after": "\tconst capriDesktopPrompt = attempt.agentId === \"capri\" && attempt.provider === \"ollama\" && attempt.extraSystemPrompt?.includes(\"CURRENT DESKTOP INTERFACE:\");\n\tconst capriPersonalityPrompt = attempt.agentId === \"capri\" && attempt.extraSystemPrompt?.includes(\"CAPRI PERSONALITY (PERSONALITY.md):\\n\");"
+        },
+        {
+          "before": "\t\t\t// Drop only an exact repeated SOUL body, never the source file or memories.\n\t\t\tcontextFiles: params.bootstrap.contextFiles.filter(file => !(capriDesktopPrompt && /(?:^|[\\\\/])SOUL\\.md$/i.test(file.path ?? \"\") &&\n\t\t\t\ttypeof file.content === \"string\" && file.content.trim() && attempt.extraSystemPrompt.replace(/\\r\\n/g, \"\\n\").includes(file.content.trim().replace(/\\r\\n/g, \"\\n\")))),",
+          "after": "\t\t\t// Capri sends its one PERSONALITY.md through extraSystemPrompt. Keep memory, never re-inject retired character files or a second copy.\n\t\t\tcontextFiles: params.bootstrap.contextFiles.filter(file => !(capriPersonalityPrompt && /(?:^|[\\\\/])(?:SOUL|AGENTS|IDENTITY|TOOLS|PERSONALITY)\\.md$/i.test(file.path ?? \"\"))),"
+        },
+        {
+          "before": "\t\tsettingsManager,\n\t\tcfg: params.cfg,\n\t\tcontextTokenBudget: params.contextTokenBudget\n\t});",
+          "after": "\t\tsettingsManager,\n\t\tcfg: params.cfg,\n\t\tmodel: params.model, agentId: params.agentId, thinkLevel: params.thinkLevel,\n\t\tcontextTokenBudget: params.contextTokenBudget\n\t});"
+        }
+      ]
+    },
+    {
+      "file": "dist/openai-http-Ci9f6Cnw.mjs",
+      "beforeSha256": "d0bce0ad39b2b19b5cbc6601813c9916f9397c5ca38c1bad73ae9ccbfd3eee02",
+      "edits": [
+        {
+          "before": "\tconst activeTurnContext = resolveActiveTurnContext(payload.messages);",
+          "after": "\t// Capri: an authenticated owner may disable thinking for this turn only.\n\tconst capriThinkingOnce = req.headers[\"x-capri-thinking-once\"];\n\tif (capriThinkingOnce !== void 0 && (capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner)) {\n\t\tsendInvalidRequest(res, \"Invalid Capri one-shot thinking mode\");\n\t\treturn true;\n\t}\n\tconst activeTurnContext = resolveActiveTurnContext(payload.messages);"
+        },
+        {
+          "before": "\tconst runAgentCommand = () => runOpenAiCompatibleAgentCommand({\n\t\tmessage: prompt.message,",
+          "after": "\tconst runAgentCommand = () => runOpenAiCompatibleAgentCommand({\n\t\tcapriThinkingOnce,\n\t\tmessage: prompt.message,"
+        },
+        {
+          "before": "\tconst activeTurnContext = resolveActiveTurnContext(payload.messages);",
+          "after": "\t// Capri: opt-in progress carries tool identity/phase only, never arguments.\n\tconst capriToolProgress = req.headers[\"x-capri-tool-progress\"];\n\tif (capriToolProgress !== void 0 && (capriToolProgress !== \"1\" || agentId !== \"capri\" || !senderIsOwner)) {\n\t\tsendInvalidRequest(res, \"Invalid Capri tool progress mode\");\n\t\treturn true;\n\t}\n\tconst activeTurnContext = resolveActiveTurnContext(payload.messages);"
+        },
+        {
+          "before": "\tconst unsubscribe = onAgentEventForRun(runId, (evt) => {\n\t\tif (closed) return;\n\t\tif (evt.stream === \"assistant\") {",
+          "after": "\tconst unsubscribe = onAgentEventForRun(runId, (evt) => {\n\t\tif (closed) return;\n\t\tif (capriToolProgress === \"1\" && evt.stream === \"tool\") {\n\t\t\tconst phase = evt.data?.phase === \"end\" ? \"result\" : evt.data?.phase;\n\t\t\tconst name = evt.data?.name;\n\t\t\tconst callId = evt.data?.toolCallId;\n\t\t\tif ((phase === \"start\" || phase === \"result\") && typeof name === \"string\" && /^[a-zA-Z0-9_.-]{1,80}$/.test(name) &&\n\t\t\t\ttypeof callId === \"string\" && callId.length > 0 && callId.length <= 160 && !/[\\x00-\\x1f]/.test(callId)) {\n\t\t\t\twriteSse(res, { capri: { type: \"tool\", phase, name, callId } });\n\t\t\t}\n\t\t\treturn;\n\t\t}\n\t\tif (evt.stream === \"assistant\") {"
+        },
+        {
+          "before": "\tconst capriToolProgress = req.headers[\"x-capri-tool-progress\"];",
+          "after": "\t// Capri: an authenticated one-turn social route retains memory but excludes actions.\n\tconst capriToolsOnce = req.headers[\"x-capri-tools-once\"];\n\tif (capriToolsOnce !== void 0 && (capriToolsOnce !== \"conversation\" || agentId !== \"capri\" || !senderIsOwner)) {\n\t\tsendInvalidRequest(res, \"Invalid Capri one-shot tool mode\");\n\t\treturn true;\n\t}\n\tconst capriToolProgress = req.headers[\"x-capri-tool-progress\"];"
+        },
+        {
+          "before": "\t\tcapriThinkingOnce,\n\t\tmessage: prompt.message,",
+          "after": "\t\tcapriThinkingOnce,\n\t\tcapriToolsOnce,\n\t\tmessage: prompt.message,"
+        },
+        {
+          "before": "capriToolsOnce !== \"conversation\" || agentId !== \"capri\"",
+          "after": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce) || agentId !== \"capri\""
+        },
+        {
+          "before": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce)",
+          "after": "![\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+        },
+        {
+          "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
+          "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+        }
+      ],
+      "afterSha256": "366629f37a54d25ea4db5d2a63780b1a37edd8ab13fb5b32dd127ea3977e480e",
+      "upgrades": [
+        {
+          "beforeSha256": "91fc9bbe7dce6ae3dd02776b28cf201f59a98c016fc4f9df646353cefe01ae40",
+          "edits": [
+            {
+              "before": "\tconst activeTurnContext = resolveActiveTurnContext(payload.messages);",
+              "after": "\t// Capri: opt-in progress carries tool identity/phase only, never arguments.\n\tconst capriToolProgress = req.headers[\"x-capri-tool-progress\"];\n\tif (capriToolProgress !== void 0 && (capriToolProgress !== \"1\" || agentId !== \"capri\" || !senderIsOwner)) {\n\t\tsendInvalidRequest(res, \"Invalid Capri tool progress mode\");\n\t\treturn true;\n\t}\n\tconst activeTurnContext = resolveActiveTurnContext(payload.messages);"
+            },
+            {
+              "before": "\tconst unsubscribe = onAgentEventForRun(runId, (evt) => {\n\t\tif (closed) return;\n\t\tif (evt.stream === \"assistant\") {",
+              "after": "\tconst unsubscribe = onAgentEventForRun(runId, (evt) => {\n\t\tif (closed) return;\n\t\tif (capriToolProgress === \"1\" && evt.stream === \"tool\") {\n\t\t\tconst phase = evt.data?.phase === \"end\" ? \"result\" : evt.data?.phase;\n\t\t\tconst name = evt.data?.name;\n\t\t\tconst callId = evt.data?.toolCallId;\n\t\t\tif ((phase === \"start\" || phase === \"result\") && typeof name === \"string\" && /^[a-zA-Z0-9_.-]{1,80}$/.test(name) &&\n\t\t\t\ttypeof callId === \"string\" && callId.length > 0 && callId.length <= 160 && !/[\\x00-\\x1f]/.test(callId)) {\n\t\t\t\twriteSse(res, { capri: { type: \"tool\", phase, name, callId } });\n\t\t\t}\n\t\t\treturn;\n\t\t}\n\t\tif (evt.stream === \"assistant\") {"
+            },
+            {
+              "before": "\tconst capriToolProgress = req.headers[\"x-capri-tool-progress\"];",
+              "after": "\t// Capri: an authenticated one-turn social route retains memory but excludes actions.\n\tconst capriToolsOnce = req.headers[\"x-capri-tools-once\"];\n\tif (capriToolsOnce !== void 0 && (capriToolsOnce !== \"conversation\" || agentId !== \"capri\" || !senderIsOwner)) {\n\t\tsendInvalidRequest(res, \"Invalid Capri one-shot tool mode\");\n\t\treturn true;\n\t}\n\tconst capriToolProgress = req.headers[\"x-capri-tool-progress\"];"
+            },
+            {
+              "before": "\t\tcapriThinkingOnce,\n\t\tmessage: prompt.message,",
+              "after": "\t\tcapriThinkingOnce,\n\t\tcapriToolsOnce,\n\t\tmessage: prompt.message,"
+            },
+            {
+              "before": "capriToolsOnce !== \"conversation\" || agentId !== \"capri\"",
+              "after": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce) || agentId !== \"capri\""
+            },
+            {
+              "before": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce)",
+              "after": "![\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
+              "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "ca860137004400ec3bdd8d2d663fc2d25ab6a0eedc658de7183a5627177cda54",
+          "edits": [
+            {
+              "before": "\tconst capriToolProgress = req.headers[\"x-capri-tool-progress\"];",
+              "after": "\t// Capri: an authenticated one-turn social route retains memory but excludes actions.\n\tconst capriToolsOnce = req.headers[\"x-capri-tools-once\"];\n\tif (capriToolsOnce !== void 0 && (capriToolsOnce !== \"conversation\" || agentId !== \"capri\" || !senderIsOwner)) {\n\t\tsendInvalidRequest(res, \"Invalid Capri one-shot tool mode\");\n\t\treturn true;\n\t}\n\tconst capriToolProgress = req.headers[\"x-capri-tool-progress\"];"
+            },
+            {
+              "before": "\t\tcapriThinkingOnce,\n\t\tmessage: prompt.message,",
+              "after": "\t\tcapriThinkingOnce,\n\t\tcapriToolsOnce,\n\t\tmessage: prompt.message,"
+            },
+            {
+              "before": "capriToolsOnce !== \"conversation\" || agentId !== \"capri\"",
+              "after": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce) || agentId !== \"capri\""
+            },
+            {
+              "before": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce)",
+              "after": "![\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
+              "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "9835b20362298425835086b07a49f2c16f55c514de261c8e31657101127df797",
+          "edits": [
+            {
+              "before": "capriToolsOnce !== \"conversation\" || agentId !== \"capri\"",
+              "after": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce) || agentId !== \"capri\""
+            },
+            {
+              "before": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce)",
+              "after": "![\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
+              "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "813ce19e899103e3c9c433660d7c393b42e2b62eb17dc53aa461f4b6393cee17",
+          "edits": [
+            {
+              "before": "![\"conversation\", \"spotify\", \"calculator\"].includes(capriToolsOnce)",
+              "after": "![\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
+              "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "f318a8a4f3da55104ee08e54ad2d933928bf82c444495d69f14cabeee91fd5c0",
+          "edits": [
+            {
+              "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
+              "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "dist/openai-tool-choice-DSQ3Tvwq.mjs",
+      "beforeSha256": "5927712eba101dd341050329400152c2b040a4408648acc34ede481749124728",
+      "edits": [
+        {
+          "before": "\t\t\tmodel: params.modelOverride,\n\t\t\tstreamParams: params.streamParams,",
+          "after": "\t\t\tmodel: params.modelOverride,\n\t\t\t// Capri: thinkingOnce does not persist a thinkingLevel in shared memory.\n\t\t\tthinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,\n\t\t\tstreamParams: params.streamParams,"
+        },
+        {
+          "before": "\t\t\tthinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
+          "after": "\t\t\tthinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,\n\t\t\t// Per-run intersection only: never changes persistent permissions or the next turn.\n\t\t\ttoolsAllow: params.capriToolsOnce === \"conversation\" ? [\"memory_search\", \"memory_get\"] : void 0,"
+        },
+        {
+          "before": "toolsAllow: params.capriToolsOnce === \"conversation\" ? [\"memory_search\", \"memory_get\"] : void 0,",
+          "after": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"], spotify: [\"spotify_control\"], calculator: [\"application_control\"] })[params.capriToolsOnce],"
+        },
+        {
+          "before": "calculator: [\"application_control\"] })[params.capriToolsOnce]",
+          "after": "calculator: [\"application_control\"], desktop: [\"desktop_control\"] })[params.capriToolsOnce]"
+        },
+        {
+          "before": "desktop: [\"desktop_control\"]",
+          "after": "desktop: [\"desktop_control\", \"settings_control\"]"
+        },
+        {
+          "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
+          "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+        }
+      ],
+      "afterSha256": "ca55967a21588684acaa6680d5c4bb33a7a2dd001e13fdd10c110660ccc89b26",
+      "upgrades": [
+        {
+          "beforeSha256": "7ea507b5d49303f07099e8f719eedff6f0e88556ce340de68637b7d143840831",
+          "edits": [
+            {
+              "before": "\t\t\tthinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
+              "after": "\t\t\tthinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,\n\t\t\t// Per-run intersection only: never changes persistent permissions or the next turn.\n\t\t\ttoolsAllow: params.capriToolsOnce === \"conversation\" ? [\"memory_search\", \"memory_get\"] : void 0,"
+            },
+            {
+              "before": "toolsAllow: params.capriToolsOnce === \"conversation\" ? [\"memory_search\", \"memory_get\"] : void 0,",
+              "after": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"], spotify: [\"spotify_control\"], calculator: [\"application_control\"] })[params.capriToolsOnce],"
+            },
+            {
+              "before": "calculator: [\"application_control\"] })[params.capriToolsOnce]",
+              "after": "calculator: [\"application_control\"], desktop: [\"desktop_control\"] })[params.capriToolsOnce]"
+            },
+            {
+              "before": "desktop: [\"desktop_control\"]",
+              "after": "desktop: [\"desktop_control\", \"settings_control\"]"
+            },
+            {
+              "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
+              "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "1a143248d908a6c8ec642a49cb4d3c11c35ee1c15828acbbca55d349a187f9bf",
+          "edits": [
+            {
+              "before": "toolsAllow: params.capriToolsOnce === \"conversation\" ? [\"memory_search\", \"memory_get\"] : void 0,",
+              "after": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"], spotify: [\"spotify_control\"], calculator: [\"application_control\"] })[params.capriToolsOnce],"
+            },
+            {
+              "before": "calculator: [\"application_control\"] })[params.capriToolsOnce]",
+              "after": "calculator: [\"application_control\"], desktop: [\"desktop_control\"] })[params.capriToolsOnce]"
+            },
+            {
+              "before": "desktop: [\"desktop_control\"]",
+              "after": "desktop: [\"desktop_control\", \"settings_control\"]"
+            },
+            {
+              "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
+              "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "9bd78264a451b1b1611b9fb65c3da0ffbccadc507daca5a71dbec8b749b1c1a0",
+          "edits": [
+            {
+              "before": "calculator: [\"application_control\"] })[params.capriToolsOnce]",
+              "after": "calculator: [\"application_control\"], desktop: [\"desktop_control\"] })[params.capriToolsOnce]"
+            },
+            {
+              "before": "desktop: [\"desktop_control\"]",
+              "after": "desktop: [\"desktop_control\", \"settings_control\"]"
+            },
+            {
+              "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
+              "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "bfc94e1e3956acaf9ed112031b2bbc27b3228944f160c0e13d3a54362f4b3b3b",
+          "edits": [
+            {
+              "before": "desktop: [\"desktop_control\"]",
+              "after": "desktop: [\"desktop_control\", \"settings_control\"]"
+            },
+            {
+              "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
+              "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "11d2ccb80b258cdb78c8dc9be59659d7440ae56eb7332fee3d824c776e1ce60a",
+          "edits": [
+            {
+              "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
+              "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "dist/chat-transcript-inject-CAAltG4L.mjs",
+      "beforeSha256": "c5b85f2826b45a087f4adbfbeba0468c74250c47328cf7d6e619aa3d3f94b5f7",
+      "afterSha256": "e5975a425fffdf89a33b2e1c68441b6e65f8db65438c70a300850a46df4a0470",
+      "edits": [
+        {
+          "before": "\tconst labelPrefix = params.label ? `[${params.label}]\\n\\n` : \"\";",
+          "after": "\tconst labelPrefix = params.label && !(params.agentId === \"capri\" && params.label?.startsWith(\"Capri initiative / \")) ? `[${params.label}]\\n\\n` : \"\";"
+        },
+        {
+          "before": "model: \"gateway-injected\",",
+          "after": "model: params.agentId === \"capri\" && params.label?.startsWith(\"Capri initiative / \") ? \"capri-initiative\" : \"gateway-injected\",\n\t\t...(params.agentId === \"capri\" && params.label?.startsWith(\"Capri initiative / \")) ? { capriInitiative: { sourceLabel: params.label } } : {},"
+        }
+      ]
+    },
+    {
+      "file": "dist/agent-runner-memory-Dz7Z-Pdn.mjs",
+      "beforeSha256": "a77bdc9cfaaf0acfbfdcf6d76f1959754984230b40ada60c3b35bdcf726081aa",
+      "afterSha256": "f64baf3a1eb5a186e0475d128a97c7cebfd2a031f2d25196019cf3be8abd8f09",
+      "edits": [
+        {
+          "before": "async function runMemoryFlushIfNeeded(params) {\n\tconst abortSignal = resolveFollowupAbortSignal({",
+          "after": "async function runMemoryFlushIfNeeded(params) {\n\t// Capri: optional memory extraction runs after delivery, never ahead of the owner.\n\tif (params.capriForegroundPreflight === true && params.followupRun.run.agentId === \"capri\") return { sessionEntry: params.sessionEntry ?? params.sessionStore?.[params.sessionKey], outcome: \"skipped\" };\n\tconst parentAbortSignal = resolveFollowupAbortSignal({"
+        },
+        {
+          "before": "\tconst assertMemoryFlushCurrent = () => {\n\t\tabortSignal?.throwIfAborted();",
+          "after": "\t// Capri: a silent memory turn must not consume the entire foreground deadline.\n\tlet abortSignal = parentAbortSignal;\n\tlet capriMemoryDeadline;\n\tconst assertMemoryFlushCurrent = () => {\n\t\tabortSignal?.throwIfAborted();"
+        },
+        {
+          "before": "\tconst recordFailure = (error) => recordMemoryFlushFailure(error, params, entry);",
+          "after": "\tconst recordFailure = (error) => recordMemoryFlushFailure(capriMemoryDeadline?.aborted && !parentAbortSignal?.aborted ? new Error(\"Capri memory maintenance reached its 10 second limit; continuing compaction\") : error, params, entry);"
+        },
+        {
+          "before": "\tparams.replyOperation?.setPhase(\"memory_flushing\");",
+          "after": "\tif (params.followupRun.run.agentId === \"capri\") {\n\t\tcapriMemoryDeadline = AbortSignal.timeout(10000);\n\t\tabortSignal = AbortSignal.any([...(parentAbortSignal ? [parentAbortSignal] : []), capriMemoryDeadline]);\n\t}\n\tparams.replyOperation?.setPhase(\"memory_flushing\");"
+        }
+      ]
+    },
+    {
+      "file": "dist/agent-command-DFdm3k6d.mjs",
+      "beforeSha256": "4b4ba8d3800fde7402e38a5e0c5321c52a06af0280f99d5895b87cd1744225e6",
+      "afterSha256": "5207d4a5c80211ab1c9c602c1d890063fdaf617c02238d8da38202fa57467b65",
+      "edits": [
+        {
+          "before": "const flushed = await memory.runMemoryFlushIfNeeded({\n\t\t\t\t...maintenanceParams,",
+          "after": "const flushed = await memory.runMemoryFlushIfNeeded({\n\t\t\t\t...maintenanceParams,\n\t\t\t\tcapriForegroundPreflight: true,"
+        }
+      ]
+    },
+    {
+      "file": "dist/agent-runner-run-B_pIe15I.mjs",
+      "beforeSha256": "d2a0f0cddb3762c8b27d90e4759db64e55ec201651a1ffa86b088b54a3b2b8c1",
+      "afterSha256": "73320e97edbe04e5fad57a9f15edd3db49f7662dd80e37e91d5be7ffd24ef08b",
+      "edits": [
+        {
+          "before": "const flushed = await traceAgentPhase(\"reply.memory_flush\", () => runMemoryFlushIfNeeded({\n\t\t\t...context,",
+          "after": "const flushed = await traceAgentPhase(\"reply.memory_flush\", () => runMemoryFlushIfNeeded({\n\t\t\t...context,\n\t\t\tcapriForegroundPreflight: true,"
+        }
+      ]
+    },
+    {
+      "file": "dist/agent-settings-CZ8x5-4D.mjs",
+      "beforeSha256": "e32c8097683c5a718289d2d5b82526439874548485225e15dbe5759f5ee791a8",
+      "afterSha256": "148f5d7c93ec7262e8c1c562b4fde7bcdc574cb76111a97fa2689e2785313b35",
+      "edits": [
+        {
+          "before": "\tconst requestedReserveTokens = Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);",
+          "after": "\t// The single-agent Capri local profile caps output at 2048 tokens. Reserving\n\t// a quarter of a 16k window needlessly compacts even an empty tool turn.\n\tconst capriPrimary = params.cfg?.agents?.defaults?.model?.primary;\n\tconst capriOnly = /^ollama\\/capri-qwen3[.]5:(?:0[.]8|2|4|9)b$/.test(capriPrimary ?? \"\") && Object.keys(params.cfg?.agents?.entries ?? {}).length === 1 && params.cfg.agents.entries.capri;\n\tconst capriModel = capriOnly ? params.cfg?.models?.providers?.ollama?.models?.find(model => `ollama/${model.id}` === capriPrimary) : void 0;\n\tconst localOutputTokens = capriModel ? toPositiveInt(capriModel.maxTokens) : void 0;\n\tconst requestedReserveTokens = localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);"
+        },
+        {
+          "before": "//#region src/agents/agent-settings.ts",
+          "after": "import { localTurnOutputBudget } from \"../../../packages/runtime/src/config/context-policy.mjs\";\n//#region src/agents/agent-settings.ts"
+        },
+        {
+          "before": "\tconst requestedReserveTokens = localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);",
+          "after": "\tconst turnOutputTokens = localTurnOutputBudget(params.model, { agentId: params.agentId, thinkingLevel: params.thinkLevel });\n\tconst requestedReserveTokens = turnOutputTokens !== void 0 ? Math.max(1024, turnOutputTokens) : localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);"
+        }
+      ],
+      "upgrades": [
+        {
+          "beforeSha256": "9825f075b1b8e1c89e8c4216c5952b547f0776096461ada7f4e6c8a284fcebfe",
+          "edits": [
+            {
+              "before": "\t// The single-agent Capri local profile caps output at 2048 tokens. Reserving\n\t// a quarter of a 16k window needlessly compacts even an empty tool turn.\n\tconst capriOnly = params.cfg?.agents?.defaults?.model?.primary === \"ollama/capri-qwen3.5:9b\" && Object.keys(params.cfg?.agents?.entries ?? {}).length === 1 && params.cfg.agents.entries.capri;\n\tconst capriModel = capriOnly ? params.cfg?.models?.providers?.ollama?.models?.find(model => model.id === \"capri-qwen3.5:9b\") : void 0;\n\tconst localOutputTokens = capriModel ? toPositiveInt(capriModel.maxTokens) : void 0;\n\tconst requestedReserveTokens = localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);",
+              "after": "\t// The single-agent Capri local profile caps output at 2048 tokens. Reserving\n\t// a quarter of a 16k window needlessly compacts even an empty tool turn.\n\tconst capriPrimary = params.cfg?.agents?.defaults?.model?.primary;\n\tconst capriOnly = /^ollama\\/capri-qwen3[.]5:(?:0[.]8|2|4|9)b$/.test(capriPrimary ?? \"\") && Object.keys(params.cfg?.agents?.entries ?? {}).length === 1 && params.cfg.agents.entries.capri;\n\tconst capriModel = capriOnly ? params.cfg?.models?.providers?.ollama?.models?.find(model => `ollama/${model.id}` === capriPrimary) : void 0;\n\tconst localOutputTokens = capriModel ? toPositiveInt(capriModel.maxTokens) : void 0;\n\tconst requestedReserveTokens = localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);"
+            },
+            {
+              "before": "//#region src/agents/agent-settings.ts",
+              "after": "import { localTurnOutputBudget } from \"../../../packages/runtime/src/config/context-policy.mjs\";\n//#region src/agents/agent-settings.ts"
+            },
+            {
+              "before": "\tconst requestedReserveTokens = localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);",
+              "after": "\tconst turnOutputTokens = localTurnOutputBudget(params.model, { agentId: params.agentId, thinkingLevel: params.thinkLevel });\n\tconst requestedReserveTokens = turnOutputTokens !== void 0 ? Math.max(1024, turnOutputTokens) : localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "5140de49e2c9870c9915a33ec3e64f7f93f07fe5257fda9d3590c483f7fc0cde",
+          "edits": [
+            {
+              "before": "//#region src/agents/agent-settings.ts",
+              "after": "import { localTurnOutputBudget } from \"../../../packages/runtime/src/config/context-policy.mjs\";\n//#region src/agents/agent-settings.ts"
+            },
+            {
+              "before": "\tconst requestedReserveTokens = localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);",
+              "after": "\tconst turnOutputTokens = localTurnOutputBudget(params.model, { agentId: params.agentId, thinkingLevel: params.thinkLevel });\n\tconst requestedReserveTokens = turnOutputTokens !== void 0 ? Math.max(1024, turnOutputTokens) : localOutputTokens && localOutputTokens <= 2048 ? Math.max(1024, localOutputTokens) : Math.max(currentReserveTokens, DEFAULT_AGENT_COMPACTION_RESERVE_TOKENS_FLOOR);"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "dist/embedded-agent-CPls2oXD.mjs",
+      "beforeSha256": "05bc69e6c394645cc1bf1839b88ee6a25bcf27bde2d9dc71bf431751c9f7f850",
+      "afterSha256": "8965cf3db16517bb8bc7f3aebcd963160e8b21ecc01eaefbe7398293e6722324",
+      "edits": [
+        {
+          "before": "\tconst { runParams: params, sessionAgentId, resolvedSessionKey, lifecycleGeneration } = input;\n\tlet activeSessionId = params.sessionId;",
+          "after": "\tconst { runParams: params, sessionAgentId, resolvedSessionKey, lifecycleGeneration } = input;\n\t// Capri: a compacted retry must retain the actual owner goal and supplied web references.\n\t// This is an internal non-persisted recovery message, never a replacement owner request.\n\tconst continuationPrompt = params.agentId === \"capri\" && typeof params.prompt === \"string\" && params.extraSystemPrompt?.includes(\"CAPRI PERSONALITY (PERSONALITY.md):\")\n\t\t? `${CONTINUATION_PROMPT} This is an internal recovery note, not a user question. Do not describe this note, the transcript, compaction, hidden reasoning or your tool-selection process. Answer the current owner request below directly in Capri\\'s voice using its supplied references; an empty memory search does not negate web evidence. Preserve verified completed actions and do not repeat them.\\n\\nCURRENT OWNER REQUEST AND CONTEXT (already recorded):\\n${params.prompt}`\n\t\t: CONTINUATION_PROMPT;\n\tlet activeSessionId = params.sessionId;"
+        },
+        {
+          "before": "\t\t\tconst prompt = options?.includeToolFailureInstruction ? `${CONTINUATION_PROMPT} ${TOOL_FAILURE_INSTRUCTION}` : CONTINUATION_PROMPT;",
+          "after": "\t\t\tconst prompt = options?.includeToolFailureInstruction ? `${continuationPrompt} ${TOOL_FAILURE_INSTRUCTION}` : continuationPrompt;"
+        },
+        {
+          "before": "\t\t\telse if (activePrompt.persisted) activateInternalPrompt(CONTINUATION_PROMPT);",
+          "after": "\t\t\telse if (activePrompt.persisted) activateInternalPrompt(continuationPrompt);"
+        },
+        {
+          "before": "import { l as normalizeOptionalString } from \"./string-coerce-1VuiLaaR.mjs\";",
+          "after": "import { l as normalizeOptionalString } from \"./string-coerce-1VuiLaaR.mjs\";\nimport { modelForLocalTurn } from \"../../../packages/runtime/src/config/context-policy.mjs\";"
+        },
+        {
+          "before": "\t\tconst effectiveModel = attachModelProviderRuntimePluginHandle(runtime.effectiveModel, runtime.providerRuntimeHandle);",
+          "after": "\t\t// Capri: budget this request before prompt checks, without editing the stored model.\n\t\tconst effectiveModel = attachModelProviderRuntimePluginHandle(modelForLocalTurn(runtime.effectiveModel, {\n\t\t\tagentId: workspaceResolution.agentId, thinkingLevel: runtime.thinkLevel\n\t\t}), runtime.providerRuntimeHandle);"
+        }
+      ],
+      "upgrades": [
+        {
+          "beforeSha256": "88336339988aab1b0b7db5f934cbf8c65c8bd466088f76eb14facada18d75f55",
+          "edits": [
+            {
+              "before": "import { l as normalizeOptionalString } from \"./string-coerce-1VuiLaaR.mjs\";",
+              "after": "import { l as normalizeOptionalString } from \"./string-coerce-1VuiLaaR.mjs\";\nimport { modelForLocalTurn } from \"../../../packages/runtime/src/config/context-policy.mjs\";"
+            },
+            {
+              "before": "\t\tconst effectiveModel = attachModelProviderRuntimePluginHandle(runtime.effectiveModel, runtime.providerRuntimeHandle);",
+              "after": "\t\t// Capri: budget this request before prompt checks, without editing the stored model.\n\t\tconst effectiveModel = attachModelProviderRuntimePluginHandle(modelForLocalTurn(runtime.effectiveModel, {\n\t\t\tagentId: workspaceResolution.agentId, thinkingLevel: runtime.thinkLevel\n\t\t}), runtime.providerRuntimeHandle);"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

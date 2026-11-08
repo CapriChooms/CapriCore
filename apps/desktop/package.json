@@ -1,0 +1,10 @@
+{
+  "name": "capri-desktop",
+  "productName": "Capri",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "description": "Local Windows companion for Capri Core",
+  "license": "GPL-3.0-only"
+}

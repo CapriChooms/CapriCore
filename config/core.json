@@ -1,0 +1,22 @@
+{
+  "name": "Capri",
+  "agentId": "capri",
+  "sessionKey": "agent:capri:main",
+  "gatewayPort": 18789,
+  "ollamaPort": 11435,
+  "model": "capri-qwen3.5:2b",
+  "upstreamModel": "qwen3.5:2b",
+  "thinkingDefault": "low",
+  "reasoningBudget": 64,
+  "generation": {
+    "temperature": 0.85,
+    "repeat_last_n": 512
+  },
+  "embeddingModel": "capri-embed:latest",
+  "contextTokens": 32768,
+  "keepAlive": 300,
+  "preloadModels": false,
+  "nodeVersion": "24.22.1",
+  "ollamaVersion": "0.40.10",
+  "openclawVersion": "2026.10.6"
+}

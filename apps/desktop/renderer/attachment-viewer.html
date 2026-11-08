@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
+    <title>Capri · Image preview</title>
+    <link rel="stylesheet" href="attachment-viewer.css" />
+    <script type="module" src="attachment-viewer.mjs"></script>
+  </head>
+  <body>
+    <main id="attachment-preview" data-phase="unavailable" aria-busy="false">
+      <header class="preview-header">
+        <div class="preview-caption">
+          <span class="preview-brand" aria-hidden="true">CAPRI <i>//</i></span>
+          <h1 id="attachment-preview-title"><bdi dir="auto"></bdi></h1>
+        </div>
+        <nav class="preview-actions">
+          <button id="attachment-preview-fit" type="button" aria-pressed="true" disabled>
+            Fit to screen
+          </button>
+          <button id="attachment-preview-actual" type="button" aria-pressed="false" disabled>
+            Actual size
+          </button>
+          <button id="attachment-preview-close" type="button" aria-label="Close" title="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </nav>
+      </header>
+      <section class="preview-stage">
+        <div id="attachment-preview-viewport" data-mode="fit" tabindex="0">
+          <img id="attachment-preview-image" alt="" draggable="false" hidden />
+        </div>
+        <p id="attachment-preview-unavailable" role="status">Image preview unavailable</p>
+      </section>
+      <footer class="preview-footer">
+        <span id="attachment-preview-dimensions"></span>
+        <span class="preview-key-hint"
+          ><kbd>Esc</kbd><span id="attachment-preview-close-hint">Close</span></span
+        >
+      </footer>
+    </main>
+  </body>
+</html>

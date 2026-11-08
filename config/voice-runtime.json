@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "default": "legacy",
+  "blackwellMinimumComputeMajor": 10,
+  "profiles": {
+    "legacy": {
+      "torch": "2.6.0+cu124",
+      "torchaudio": "2.6.0+cu124",
+      "backend": "cu124",
+      "transportConstraints": "config/voice-pytorch-cu124.constraints.txt",
+      "requirements": "config/requirements-voice-training.lock"
+    },
+    "blackwell": {
+      "torch": "2.7.1+cu128",
+      "torchaudio": "2.7.1+cu128",
+      "backend": "cu128",
+      "transportConstraints": "config/voice-pytorch-cu128.constraints.txt",
+      "requirements": "config/requirements-voice-blackwell.lock",
+      "overrides": "config/voice-blackwell-overrides.txt"
+    },
+    "amd": {
+      "torch": "2.9.1+rocm7.2.1",
+      "torchaudio": "2.9.1+rocm7.2.1",
+      "backend": "rocm7.2.1",
+      "python": "3.12.12",
+      "requirements": "config/requirements-voice-amd.lock",
+      "overrides": "config/voice-amd-overrides.txt",
+      "experimental": true
+    }
+  }
+}

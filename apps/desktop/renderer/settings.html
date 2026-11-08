@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob: data:; connect-src capri://desktop/index.html capri://desktop/hall-of-fame.json capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
+    <title>Capri Settings</title>
+    <link rel="icon" type="image/svg+xml" href="/brand/capricore.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="cyberpunk.css" />
+    <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="credits.css" />
+    <script type="module" src="settings-app.mjs"></script>
+  </head>
+  <body class="settings-window">
+    <header id="settings-header">
+      <strong>CAPRI <small>SETTINGS</small></strong>
+      <div id="settings-header-actions">
+        <div id="settings-draft-actions" hidden>
+          <button id="settings-stay" type="button">Keep editing</button>
+          <button id="settings-discard" type="button">Discard changes</button>
+          <button id="settings-apply" type="button">Save changes</button>
+        </div>
+        <button id="settings-window-close" type="button" aria-label="Close settings">×</button>
+      </div>
+    </header>
+    <div id="settings-notice" role="status" hidden></div>
+    <div id="settings-layout">
+      <nav aria-label="Settings categories">
+        <input
+          id="settings-search"
+          aria-label="Search settings"
+          aria-controls="settings-search-results"
+          placeholder="Search settings…"
+          type="search"
+        />
+        <div id="settings-navigation"></div>
+        <div id="settings-search-results" hidden>
+          <p id="settings-search-empty" role="status" hidden></p>
+          <div id="settings-search-items"></div>
+        </div>
+      </nav>
+      <main id="companion">
+        <button id="settings-open" class="sr-only">Settings</button>
+        <div id="settings-forms">
+          <section
+            id="call-audio-panel"
+            class="preferences-panel"
+            data-panel-cut="12"
+            aria-label="Voice calls"
+            hidden
+          >
+            <h2>Voice calls</h2>
+            <div class="preferences-content">
+              <div class="settings-card call-setup-card">
+                <h3>Set up virtual microphone</h3>
+                <ol class="call-setup-steps">
+                  <li>Click Set up automatically to combine your microphone and Capri’s voice.</li>
+                  <li>
+                    In Discord, Zoom or your call app, select the virtual microphone shown below.
+                  </li>
+                  <li>Keep the call’s speakers set to your headphones or speakers.</li>
+                </ol>
+                <div id="call-setup-recording" class="call-setup-recording" hidden>
+                  <span>Microphone to select in your call app</span>
+                  <strong id="call-setup-recording-name" data-untranslated></strong>
+                </div>
+                <p id="call-setup-status" role="status" aria-live="polite"></p>
+                <div class="settings-actions">
+                  <button id="call-setup-connect" type="button">Set up automatically</button>
+                  <button id="call-output-disable" type="button" hidden>Stop call output</button>
+                </div>
+                <div id="call-setup-install-options" hidden>
+                  <p data-inline-help>
+                    VB-CABLE by VB-Audio creates the virtual microphone. It is donationware; you can
+                    support its author. Windows will ask permission to install its driver.
+                  </p>
+                  <div class="settings-actions call-vendor-links">
+                    <button id="call-setup-website" type="button">About VB-CABLE / Donate</button>
+                    <button id="call-setup-license" type="button">License terms</button>
+                  </div>
+                  <label
+                    ><input id="call-setup-consent" type="checkbox" /> I agree to install VB-CABLE
+                    under its license terms.</label
+                  >
+                  <div class="settings-actions">
+                    <button id="call-setup-install" type="button" disabled>
+                      Install VB-CABLE and connect
+                    </button>
+                  </div>
+                </div>
+                <label
+                  ><input id="call-output-share-replies" type="checkbox" disabled /> Send replies to
+                  call</label
+                >
+                <p data-inline-help>
+                  While enabled, Capri’s spoken replies are shared with the call. Voice previews
+                  stay local.
+                </p>
+                <div class="call-voice-volume">
+                  <label for="call-voice-volume">Capri’s voice volume in calls</label>
+                  <output id="call-voice-volume-value" for="call-voice-volume" data-untranslated
+                    >50%</output
+                  >
+                  <input
+                    id="call-voice-volume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value="50"
+                    aria-describedby="call-voice-volume-help"
+                  />
+                  <p id="call-voice-volume-help" data-inline-help>
+                    Only changes Capri’s voice in the call. Your microphone and local playback stay
+                    unchanged. 0% mutes Capri in the call.
+                  </p>
+                </div>
+                <label
+                  ><input id="call-output-allow-model" type="checkbox" /> Allow Capri to choose
+                  where to speak</label
+                >
+                <p data-inline-help>
+                  Use Ask Capri in call to send a single request. Capri chooses speakers or speakers
+                  and call.
+                </p>
+              </div>
+              <details id="call-output-advanced" class="settings-card call-audio-advanced">
+                <summary>Advanced: choose a cable manually</summary>
+                <p data-inline-help>
+                  Use this if you already have a different virtual audio cable.
+                </p>
+                <label for="call-output-device">Call output device</label>
+                <select id="call-output-device"></select>
+                <label
+                  ><input id="call-output-mix-mic" type="checkbox" checked /> Share my microphone
+                  with the call</label
+                >
+                <p id="call-output-status" role="status"></p>
+                <div class="settings-actions">
+                  <button id="call-output-refresh" type="button">Refresh devices</button>
+                  <button id="call-output-enable" type="button">Enable call output</button>
+                </div>
+              </details>
+              <div class="settings-card">
+                <h3>Optional: hear the call and system audio</h3>
+                <p data-inline-help>
+                  Turn on Capri’s microphone first, then include system audio. Capri can hear you
+                  and people in the call, and wake when either says her name.
+                </p>
+                <p>
+                  With wake and automatic sending enabled, requests addressed to Capri are sent
+                  automatically. Otherwise, review the text before sending. Use headphones to avoid
+                  feedback.
+                </p>
+                <label
+                  ><input id="call-system-wake" type="checkbox" checked /> Wake from system
+                  audio</label
+                >
+                <p id="call-system-status" role="status"></p>
+                <div class="settings-actions">
+                  <button id="call-system-enable" type="button">Include system audio</button>
+                  <button id="call-system-stop" type="button" hidden>Stop system audio</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

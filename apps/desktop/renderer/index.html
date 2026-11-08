@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
+    <title>Capri</title>
+    <link rel="icon" type="image/svg+xml" href="/brand/capricore.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="cyberpunk.css" />
+    <link rel="stylesheet" href="avatar-headpat.css" />
+    <link rel="stylesheet" href="update-notification.css" />
+    <link rel="stylesheet" href="thinking-mode.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body
+    data-presence="core"
+    data-signal="starting"
+    data-avatar-detach="attached"
+    data-startup-intro="pending"
+  >
+    <div id="window-shade" aria-hidden="true"></div>
+    <main id="companion" aria-label="Capri desktop companion">
+      <header id="handle">
+        <div class="identity" data-hit-region>
+          <span class="status-dot" aria-hidden="true"></span><strong>CAPRI</strong>
+          <button id="inference-label" type="button" data-untranslated hidden>
+            <span id="inference-mode"></span><bdi id="inference-detail"></bdi
+            ><bdi id="inference-model" hidden></bdi>
+          </button>
+          <button id="context-hud" type="button" data-memory="CTX" data-untranslated hidden>
+            <span>CTX</span><strong>—</strong>
+          </button>
+        </div>
+        <div class="window-actions" data-hit-region>
+          <div class="toolbar-group" role="group" aria-label="Community">
+            <button
+              id="support-author"
+              class="support-button"
+              type="button"
+              title="Support the author"
+              aria-label="Support the author"
+            >
+              ♥
+            </button>
+            <button id="report-bug" type="button" title="Report a bug" aria-label="Report a bug">
+              !
+            </button>
+          </div>
+          <div class="toolbar-group window-controls" role="group" aria-label="Window controls">
+            <button
+              id="presence-toggle"
+              type="button"
+              aria-label="Keep Capri visible"
+              aria-pressed="false"
+              title="Keep Capri visible"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M10 3l6 7-6 7-6-7zM10 7v6M7 10h6" />
+              </svg>
+            </button>
+            <button
+              id="avatar-detach"
+              type="button"
+              aria-label="Leave frame"
+              title="Leave frame"
+              disabled
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M10 3H3v14h14v-7M9 11l8-8m-5 0h5v5" />
+              </svg>
+            </button>
+            <button id="hide" type="button" aria-label="Hide Capri to tray" title="Hide to tray">
+              −
+            </button>
+            <button
+              id="quit"
+              type="button"
+              aria-label="Quit and unload models"
+              title="Quit and unload models"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+            </button>
+          </div>
+        </div>
+      </header>
+      <nav id="quick-actions" aria-label="Quick actions" data-hit-region>
+        <div
+          class="toolbar-group conversation-actions"
+          role="group"
+          aria-label="Conversation controls"
+        >
+          <button
+            id="microphone-toggle"
+            type="button"
+            aria-label="Enable microphone (English)"
+            aria-pressed="false"
+            title="Enable microphone (English)"
+            disabled
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <rect x="7" y="2" width="6" height="10" rx="3" />
+              <path d="M4 9v1a6 6 0 0012 0V9M10 16v3M7 19h6" />
+            </svg>
+          </button>
+          <button
+            id="voice-toggle"
+            type="button"
+            aria-label="Mute Capri"
+            aria-pressed="true"
+            title="Mute Capri"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3 8h3l4-4v12l-4-4H3zM13 7q3 3 0 6M15 4q6 6 0 12" />
+            </svg>
+          </button>
+          <button
+            id="music-toggle"
+            type="button"
+            aria-label="Music listening"
+            title="Music listening"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M7 14V4l10-2v10M7 7l10-2" />
+              <ellipse cx="4.5" cy="15" rx="2.5" ry="2" />
+              <ellipse cx="14.5" cy="13" rx="2.5" ry="2" />
+            </svg>
+          </button>
+          <button
+            id="history-toggle"
+            type="button"
+            aria-label="Open conversation history"
+            aria-controls="history-panel"
+            aria-expanded="false"
+            title="Conversation history"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M4 4.5h12v9H9l-4 3v-3H4zM7 7.5h6M7 10h4" />
+            </svg>
+          </button>
+          <button
+            id="subtitle-reveal"
+            type="button"
+            data-hit-region
+            aria-label="Show reply"
+            title="Show reply"
+            aria-controls="subtitle-frame"
+            aria-expanded="false"
+            hidden
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7l5 5 5-5" /></svg>
+          </button>
+        </div>
+        <div class="toolbar-group capability-actions" role="group" aria-label="Capabilities">
+          <button
+            id="screen-indicator"
+            type="button"
+            aria-pressed="false"
+            title="Screen observation (BETA)"
+            aria-label="Screen observation (BETA)"
+          >
+            OBS
+          </button>
+          <button
+            type="button"
+            data-quick="applications"
+            title="Application access (BETA)"
+            aria-label="Application access (BETA)"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            data-quick="time"
+            title="Timers and reminders"
+            aria-label="Timers and reminders"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="10" cy="10" r="7" />
+              <path d="M10 6v4l3 2" />
+            </svg>
+          </button>
+          <button id="stopwatch-hud" type="button" aria-label="Stopwatch controls" hidden></button>
+        </div>
+        <div class="toolbar-group settings-actions-group" role="group" aria-label="Settings">
+          <button type="button" data-quick="languages" title="Languages" aria-label="Languages">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M2 15l4-10 4 10M3.5 11h5M12 6h6M15 3v3M13 8c0 4 3 7 5 8M17 8c0 4-3 7-5 8" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="settings-open"
+            data-quick="companion"
+            title="Companion settings"
+            aria-label="Companion settings"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path
+                d="M8 2h4l.6 3 2 .8 2.5-1.5 2 3.4-2.3 2 .2 2.3 2.1 1.8-2 3.4-2.7-1-2 .8L12 20H8l-.6-3.2-2-.8-2.5 1.2-2-3.4L3 12l-.2-2.3L.7 7.8l2-3.4 2.7 1.4 2-.8z"
+                transform="translate(1 0) scale(.9)"
+              />
+              <circle cx="10" cy="10" r="2.7" />
+            </svg>
+          </button>
+        </div>
+      </nav>
+      <section
+        id="stopwatch-controls"
+        data-hit-region
+        data-panel-cut="10"
+        hidden
+        aria-label="Stopwatch controls"
+      >
+        <strong id="stopwatch-controls-title" data-untranslated></strong>
+        <div class="settings-actions">
+          <button id="stopwatch-toggle" type="button">Pause</button
+          ><button id="stopwatch-reset" type="button">Reset</button
+          ><button id="stopwatch-stop" type="button" class="danger-action">Stop</button>
+        </div>
+        <div class="settings-actions">
+          <button id="stopwatch-all" type="button">Timers and reminders</button
+          ><button id="stopwatch-close" type="button">Close</button>
+        </div>
+      </section>
+      <section id="subtitle-stage" aria-label="Capri's subtitles">
+        <button
+          id="subtitle-collapse"
+          type="button"
+          data-hit-region
+          aria-label="Hide reply"
+          title="Hide reply"
+          aria-controls="subtitle-frame"
+          aria-expanded="true"
+          hidden
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" /></svg>
+        </button>
+        <div id="subtitle-frame" data-panel-cut="12">
+          <div id="packet-context">
+            <span>YOU</span
+            ><span id="last-input" data-untranslated dir="auto">Connection established.</span>
+          </div>
+          <div class="packet-title"><strong>CAPRI</strong><span>INCOMING TRANSMISSION</span></div>
+          <div id="welcome"><p>Hey. I'm here.</p></div>
+          <p id="subtitle-text" dir="auto" aria-live="off"></p>
+          <span id="subtitle-state" hidden></span>
+        </div>
+        <nav id="subtitle-controls" aria-label="Subtitle playback" data-hit-region hidden>
+          <button
+            id="subtitle-previous"
+            type="button"
+            data-panel-cut="0"
+            aria-label="Previous part of this reply"
+            title="Previous part of this reply"
+          >
+            ‹
+          </button>
+          <span id="subtitle-position" aria-live="off"></span>
+          <button
+            id="subtitle-next"
+            type="button"
+            data-panel-cut="0"
+            aria-label="Next part of this reply"
+            title="Next part of this reply"
+          >
+            ›
+          </button>
+        </nav>
+      </section>
+      <div id="portrait-panel" data-panel-cut="0" aria-hidden="true">
+        <span class="portrait-status" data-panel-cut="0"
+          >CAPRI // <span data-signal-label>CONNECTING</span></span
+        >
+        <i class="frame-corner top-left"></i><i class="frame-corner top-right"></i
+        ><i class="frame-corner bottom-left"></i><i class="frame-corner bottom-right"></i>
+        <div class="portrait-foot">
+          <span id="avatar-expression" data-untranslated>Neutral</span
+          ><span>STAY A LITTLE LONGER</span>
+        </div>
+      </div>
+      <div id="avatar-viewport">
+        <div id="sprite-region" title="Drag Capri · Scroll to zoom">
+          <img
+            id="sprite"
+            src="sprite.png"
+            alt="Capri, standing with a small smile"
+            draggable="false"
+          />
+          <canvas id="startup-intro" aria-hidden="true" hidden></canvas>
+        </div>
+        <canvas id="crt-screen" aria-hidden="true"></canvas
+        ><img id="avatar-effect" alt="" aria-hidden="true" hidden />
+      </div>
+      <span id="sleep-indicator" aria-hidden="true" hidden>Zzz.</span>
+      <button
+        id="presence-core"
+        type="button"
+        data-hit-region
+        aria-label="Show Capri"
+        title="Bring Capri closer"
+      >
+        <span class="core-symbol" aria-hidden="true"></span
+        ><span class="core-label" data-panel-cut="0"
+          >CAPRI // <span data-signal-label>CONNECTING</span></span
+        >
+      </button>
+      <canvas id="signal-fx" aria-hidden="true"></canvas>
+      <canvas id="frame-fx" aria-hidden="true"></canvas>
+      <section id="input-dock" aria-label="Message Capri">
+        <div class="dock-notifications" data-hit-region>
+          <p id="internet-status" role="status" aria-live="polite" data-untranslated hidden></p>
+          <section id="thinking-progress" data-hit-region hidden>
+            <p id="thinking-preface" role="status" aria-live="polite" data-untranslated hidden></p>
+            <button
+              id="thinking-approach-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="thinking-approach"
+              hidden
+            >
+              Approach
+            </button>
+            <div id="thinking-approach" data-untranslated hidden></div>
+          </section>
+          <section id="update-notification" data-hit-region hidden></section>
+          <div id="notice" role="status" data-hit-region data-panel-cut="10" hidden>
+            <span id="notice-message"></span>
+            <button id="notice-report" type="button">Report a bug</button>
+            <button id="notice-dismiss" type="button">Dismiss</button>
+          </div>
+          <div id="clip-result" role="status" data-hit-region data-panel-cut="8" hidden>
+            <span>Screenshot saved</span><button id="clip-open" type="button">Open</button
+            ><button id="clip-folder" type="button">Folder</button
+            ><button id="clip-close" type="button" aria-label="Dismiss screenshot confirmation">
+              ×
+            </button>
+          </div>
+          <div id="resource-warnings" class="resource-warnings" aria-live="polite" hidden></div>
+        </div>
+        <div class="dock-telemetry" aria-label="Companion controls">
+          <div id="microphone-preview" hidden>
+            <span id="microphone-label">EN // LISTENING</span
+            ><span id="microphone-text" data-untranslated></span
+            ><span class="microphone-meter" aria-hidden="true"><i></i></span>
+          </div>
+          <div id="process-graphs-hud" data-hit-region data-untranslated hidden></div>
+          <div id="memory-hud" data-hit-region data-untranslated hidden></div>
+          <button
+            id="monitor-display"
+            type="button"
+            data-hit-region
+            data-untranslated
+            aria-controls="process-graphs-hud"
+            aria-keyshortcuts="ArrowDown Shift+F10"
+            aria-pressed="false"
+            aria-haspopup="menu"
+            hidden
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3.5 4v12h13M5.5 12.5l3.2-3.2 3.2 1.7 4.2-5" />
+            </svg>
+            <span data-monitor-menu aria-hidden="true">▾</span>
+          </button>
+        </div>
+        <div id="call-audio-dock" data-hit-region hidden>
+          <span id="call-microphone-indicator" role="status" hidden
+            >Your microphone is live in the call.</span
+          >
+          <span id="system-audio-indicator" role="status" hidden
+            >Listening to mic and system audio</span
+          >
+          <button id="call-speak" type="button" hidden>Speak draft in call</button>
+          <button id="call-speak-last" type="button" hidden>Speak last reply in call</button>
+          <button id="call-ask" type="button" hidden>Ask Capri in call</button>
+          <button id="call-output-stop" type="button" hidden>Stop call output</button>
+        </div>
+        <div id="attachment-drafts" data-hit-region hidden>
+          <div id="attachment-list"></div>
+          <p id="attachment-info" role="status"></p>
+        </div>
+        <div class="composer" data-hit-region data-panel-cut="12">
+          <span class="prompt-mark" aria-hidden="true">⌁</span>
+          <label class="sr-only" for="message">Message Capri</label>
+          <div class="composer-entry">
+            <textarea
+              dir="auto"
+              id="message"
+              rows="1"
+              maxlength="8000"
+              placeholder="Talk to Capri…"
+              spellcheck="false"
+            ></textarea>
+            <div id="wake-feedback" role="status" aria-live="polite" aria-atomic="true" hidden>
+              <span class="wake-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+              <div>
+                <strong data-wake-title>I'M LISTENING</strong><span data-wake-hint>SPEAK NOW</span>
+              </div>
+            </div>
+          </div>
+          <input id="attachment-input" type="file" multiple hidden />
+          <button id="attachment-open" type="button" title="Attach files" aria-label="Attach files">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 12v5a4 4 0 0 0 8 0V7a3 3 0 0 0-6 0v9a1 1 0 0 0 2 0V8" />
+            </svg>
+          </button>
+          <button
+            id="thinking-toggle"
+            type="button"
+            aria-label="Thinking mode: Off"
+            aria-pressed="false"
+            title="Thinking mode"
+            disabled
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path
+                d="M10 3v14M7 3a3 3 0 0 0-3 3v1a3 3 0 0 0-1 5 3 3 0 0 0 4 4h3M13 3a3 3 0 0 1 3 3v1a3 3 0 0 1 1 5 3 3 0 0 1-4 4h-3M5 8h2l1 2M15 8h-2l-1 2M6 13h2M14 13h-2"
+              />
+            </svg>
+          </button>
+          <button
+            id="internet-toggle"
+            type="button"
+            aria-label="Internet mode: Off"
+            aria-pressed="false"
+            title="Internet mode"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M5 7h14M5 17h14M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18" />
+            </svg>
+          </button>
+          <button
+            id="input-microphone"
+            type="button"
+            aria-label="Enable microphone"
+            title="Microphone"
+            disabled
+          >
+            <svg class="mic-reticle" viewBox="0 0 36 32" aria-hidden="true">
+              <path d="M7 1H35V25L29 31H1V7Z" />
+            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 4l2-2h2l2 2v8l-2 2h-2l-2-2zM5 10v3l4 5h6l4-5v-3M12 18v4M8 22h8" />
+            </svg>
+            <span class="mic-live-dot" aria-hidden="true"></span>
+          </button>
+          <button id="send" type="button" aria-label="Send message" title="Send (Enter)" disabled>
+            ↗
+          </button>
+          <button id="stop" type="button" aria-label="Stop reply" title="Stop reply (Esc)" hidden>
+            ■
+          </button>
+        </div>
+        <footer>
+          <span id="status" dir="auto" role="status" aria-live="polite">Starting local core…</span
+          ><button id="reconnect" type="button" data-hit-region hidden>Reconnect</button
+          ><span id="input-hint">ENTER ↵<span class="footer-separator">/</span>ESC ■</span>
+        </footer>
+      </section>
+      <section
+        id="history-panel"
+        aria-label="Conversation history"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="history-heading">
+          <h1>Conversation</h1>
+          <button
+            id="history-close"
+            type="button"
+            aria-label="Close conversation history"
+            title="Close history (Esc)"
+          >
+            ×
+          </button>
+        </div>
+        <div id="messages" role="log" aria-label="Conversation history" aria-live="off"></div>
+        <p id="history-empty" hidden>No messages yet.</p>
+      </section>
+      <section
+        id="dimming-panel"
+        aria-label="Window dimming settings"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>Window dimming</h2>
+          <button id="dimming-close" type="button" aria-label="Close dimming settings">×</button>
+        </div>
+        <label class="dimming-switch"
+          ><input id="dimming-enabled" type="checkbox" checked /> Dim the area behind Capri</label
+        >
+        <label class="dimming-label" for="dimming-level"
+          >Strength <output id="dimming-level-value">35%</output></label
+        >
+        <input id="dimming-level" type="range" min="0" max="85" step="1" value="35" />
+        <label class="dimming-label" for="dimming-softness"
+          >Soft edges <output id="dimming-softness-value">140 px</output></label
+        >
+        <input id="dimming-softness" type="range" min="0" max="320" step="5" value="140" />
+      </section>
+      <div id="announcement" class="sr-only" aria-live="polite"></div>
+      <section
+        id="voice-effects-panel"
+        class="preferences-panel"
+        aria-label="Voice effects"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>Voice effects</h2>
+          <button id="voice-effects-close" type="button" aria-label="Close voice effects">×</button>
+        </div>
+        <div class="preferences-content">
+          <p class="settings-help">
+            Style Capri’s playback. Clean preserves the original voice. Changes apply immediately.
+          </p>
+          <label class="dimming-switch"
+            ><input id="voice-effects-enabled" type="checkbox" /> Enable effects</label
+          >
+          <label for="voice-effects-preset">Preset</label>
+          <select id="voice-effects-preset">
+            <option value="clean">Clean / original</option>
+            <option value="cybernetic">Subtle cybernetic</option>
+            <option value="radio">Radio link</option>
+            <option value="synthetic">Synthetic voice</option>
+            <option value="holographic">Holographic room</option>
+            <option value="custom">Custom</option>
+          </select>
+          <div id="voice-effects-controls"></div>
+          <div class="settings-actions">
+            <button id="voice-effects-preview" type="button">Preview voice</button
+            ><button id="voice-effects-reset" type="button">Reset to clean</button>
+          </div>
+          <p class="settings-help" role="status">
+            Enable Capri’s voice to preview it. Preview never enters conversation history.
+          </p>
+        </div>
+      </section>
+      <section
+        id="speech-panel"
+        class="preferences-panel"
+        aria-label="Microphone settings"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>Microphone settings</h2>
+          <button id="speech-close" type="button" aria-label="Close microphone settings">×</button>
+        </div>
+        <div class="preferences-content">
+          <label class="dimming-label" for="speech-pause"
+            >Pause after speech
+            <output id="speech-pause-value" for="speech-pause">1 s</output></label
+          >
+          <input
+            id="speech-pause"
+            type="range"
+            min="0.5"
+            max="5"
+            step="0.1"
+            value="1"
+            aria-describedby="speech-pause-help"
+          />
+          <p id="speech-pause-help" class="settings-help">
+            Shorter pauses respond sooner. Longer pauses give you more time to continue speaking.
+          </p>
+          <p class="settings-help">
+            Changes apply to the next phrase. Speech already in progress keeps its current pause.
+          </p>
+          <div class="settings-actions">
+            <button id="speech-apply" type="button">Apply</button
+            ><button id="speech-reset" type="button">Reset to 1 s</button>
+          </div>
+        </div>
+      </section>
+      <section
+        id="language-panel"
+        class="preferences-panel"
+        aria-label="Languages"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>Languages</h2>
+          <button id="language-close" type="button" aria-label="Close languages">×</button>
+        </div>
+        <div class="preferences-content">
+          <p class="settings-help">
+            Choose the language of Capri’s replies. Your conversation and memory stay shared when
+            languages change. The interface language is separate.
+          </p>
+          <label class="dimming-label" for="language-interface">Interface language</label>
+          <select id="language-interface" data-untranslated></select>
+          <label class="dimming-label" for="language-conversation">Conversation language</label>
+          <select id="language-conversation" data-untranslated></select>
+          <label id="language-custom-label" class="dimming-label" for="language-custom" hidden
+            >Language name</label
+          >
+          <input
+            id="language-custom"
+            type="text"
+            maxlength="60"
+            placeholder="For example, Tamil"
+            hidden
+          />
+          <label class="dimming-label" for="language-speech">Spoken voice</label>
+          <select
+            id="language-speech"
+            data-untranslated
+            aria-describedby="language-voice-help"
+          ></select>
+          <p id="language-voice-help" class="settings-help" data-untranslated>
+            Choose the conversation language above. Automatic uses the matching Capri voice. Missing
+            voices can be installed here with one button. No separate voice ZIP is needed.
+          </p>
+          <p id="language-status" class="settings-help" role="status" data-untranslated></p>
+          <div class="settings-actions">
+            <button id="language-install-speech" type="button" hidden>Install and enable</button>
+          </div>
+          <details id="language-install-details" class="settings-help" hidden>
+            <summary>Download details</summary>
+            <p id="language-install-help" data-untranslated hidden></p>
+          </details>
+          <div id="language-install-progress" class="speech-install-card" hidden>
+            <p id="language-install-state" role="status" aria-live="polite" data-untranslated></p>
+            <progress
+              id="language-install-bar"
+              max="1"
+              aria-label="Speech installation progress"
+            ></progress>
+            <p id="language-install-keep-open" class="settings-help">
+              Keep Capri open during installation. You can close this panel and return to view
+              progress.
+            </p>
+            <div class="settings-actions">
+              <button id="language-install-cancel" type="button">Cancel installation</button>
+              <button id="language-install-report" type="button" hidden>Report a problem</button>
+            </div>
+          </div>
+          <label class="dimming-label" for="language-recognition">Speech recognition</label>
+          <select id="language-recognition" data-untranslated></select>
+          <p id="language-recognition-status" class="settings-help" data-untranslated></p>
+          <div class="settings-actions">
+            <button id="language-apply" type="button">Apply languages</button>
+          </div>
+        </div>
+      </section>
+      <section
+        id="file-access-panel"
+        class="preferences-panel"
+        aria-label="File access"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>File access</h2>
+          <button id="file-access-close" type="button" aria-label="Close file access">×</button>
+        </div>
+        <div class="preferences-content">
+          <p class="settings-help">
+            Capri can edit its installation folder by default. Additional folders start read-only.
+            You can revoke access below.
+          </p>
+          <p id="file-access-empty" class="settings-help">No folders are shared with Capri.</p>
+          <p id="file-access-warning" class="settings-help" role="status"></p>
+          <div id="file-access-list"></div>
+          <div class="settings-actions">
+            <button id="file-access-add" type="button">Choose a folder…</button
+            ><button id="file-access-clear" type="button">Revoke all access</button>
+          </div>
+          <p class="settings-help">
+            Supported: list, find, read text, create files/folders, copy, move or rename files, and
+            undo supported actions. Creating files never overwrites existing names. Replacing an
+            existing text file requires separate confirmation. Moving a single file to Recycle Bin
+            requires write access and a separate on-screen confirmation.
+          </p>
+          <details>
+            <summary>File recovery</summary>
+            <button id="file-recovery-refresh" type="button">Refresh</button>
+            <div id="file-recovery-list" data-untranslated></div>
+          </details>
+        </div>
+      </section>
+      <section
+        id="applications-panel"
+        class="preferences-panel"
+        aria-label="Application access"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>Application access</h2>
+          <button id="applications-close" type="button" aria-label="Close application access">
+            ×
+          </button>
+        </div>
+        <div class="preferences-content">
+          <p class="settings-help">
+            Allow Capri to open, focus and inspect only the applications you select. Accessible
+            window labels may contain private information. Access is off by default.
+          </p>
+          <label class="dimming-switch"
+            ><input id="application-notepad" type="checkbox" /> Notepad</label
+          >
+          <p class="settings-help">
+            Open or focus one Notepad window and inspect its accessible controls. Editing, saving
+            and sending text are unavailable.
+          </p>
+          <label class="dimming-switch"
+            ><input id="application-calculator" type="checkbox" /> Calculator</label
+          >
+          <p class="settings-help">
+            Open, focus, inspect controls and perform a simple two-number calculation. A calculation
+            clears the current calculator entry.
+          </p>
+          <p class="settings-help">
+            Only supported Windows apps are available. Stop cancels remaining steps; completed
+            actions are not rolled back.
+          </p>
+          <h3>Custom applications <span class="beta-badge">BETA</span></h3>
+          <p class="settings-help">
+            Choose a local application, then grant launch, inspection or text entry separately. Text
+            entry requires a fresh inspection and on-screen confirmation. It never presses Enter or
+            sends messages. Some apps do not expose editable accessible controls.
+          </p>
+          <button id="catalog-add" type="button">Add application</button>
+          <div id="catalog-list" data-untranslated></div>
+          <details>
+            <summary>Action journal</summary>
+            <button id="catalog-journal-refresh" type="button">Refresh</button>
+            <pre id="catalog-journal" data-untranslated></pre>
+          </details>
+          <section class="spotify-access">
+            <h3>Spotify <span class="beta-badge">BETA</span></h3>
+            <p class="settings-help">
+              Allow Capri to control the signed-in Spotify desktop app: search and play music,
+              pause, skip tracks, manage the visible queue and adjust Spotify volume. Other apps and
+              system volume are separate.
+            </p>
+            <p id="spotify-status" role="status"></p>
+            <div class="settings-actions">
+              <button id="spotify-access" type="button">Enable Spotify</button>
+              <button id="spotify-repair" type="button" hidden>Repair Spotify</button>
+              <button id="spotify-check" type="button" disabled>Check connection</button>
+            </div>
+            <p class="settings-help">
+              Open Spotify and sign in before using music control. Setup is local; no Spotify
+              password or API key is requested. Enabling or disabling access restarts Capri.
+            </p>
+            <p id="spotify-result" role="status"></p>
+          </section>
+        </div>
+      </section>
+      <section
+        id="initiative-panel"
+        class="preferences-panel"
+        aria-label="Initiative"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>Initiative</h2>
+          <button id="initiative-close" type="button" aria-label="Close initiative settings">
+            ×
+          </button>
+        </div>
+        <div class="preferences-content">
+          <p class="settings-help">
+            Let Capri occasionally start a conversation. This preview observes app names, fullscreen
+            state, idle/return, lock and power events. It captures no screenshots, window titles,
+            document text or camera images. Hidden Capri pauses observation.
+          </p>
+          <label class="dimming-label" for="initiative-level">Conversation frequency</label
+          ><select id="initiative-level">
+            <option value="off">Off</option>
+            <option value="occasional">Occasional / up to 10 per hour</option>
+            <option value="conversational">Conversational / up to 30 per hour</option>
+          </select>
+          <label for="initiative-hourly-limit"
+            >Maximum conversations per hour (1–30; blank uses the preset)</label
+          ><input
+            id="initiative-hourly-limit"
+            type="number"
+            min="1"
+            max="30"
+            step="1"
+            placeholder="10"
+          />
+          <label class="dimming-switch"
+            ><input id="initiative-return" type="checkbox" /> React when I return after being
+            idle</label
+          >
+          <label class="dimming-switch"
+            ><input id="initiative-apps" type="checkbox" /> React to supported media app
+            changes</label
+          >
+          <p class="settings-help">
+            Supported media apps: VLC, mpv, Spotify and Windows Media Player. Opening an app does
+            not prove that anything is playing. Comments never control music, apps or files.
+          </p>
+          <label
+            ><input id="initiative-quiet-enabled" type="checkbox" checked /> Enable quiet
+            hours</label
+          ><label
+            ><input id="initiative-spontaneous" type="checkbox" checked /> Start a conversation
+            occasionally</label
+          >
+          <label class="dimming-label" for="initiative-quiet-start">Quiet hours start (0–23)</label
+          ><input id="initiative-quiet-start" type="number" min="0" max="23" />
+          <label class="dimming-label" for="initiative-quiet-end">Quiet hours end (0–23)</label
+          ><input id="initiative-quiet-end" type="number" min="0" max="23" />
+          <label class="dimming-label" for="initiative-exclusions"
+            >Exclude apps (process names, comma separated)</label
+          ><input
+            id="initiative-exclusions"
+            type="text"
+            maxlength="1800"
+            spellcheck="false"
+            data-untranslated
+          />
+          <p class="settings-help">
+            Disable quiet hours to allow comments at any time. Fullscreen windows, excluded apps,
+            typing, user speech and active replies suppress comments. Browser-based calls cannot be
+            detected reliably; exclude your browser during calls.
+          </p>
+          <div class="settings-actions">
+            <button id="initiative-test" type="button">Try initiative</button
+            ><button id="initiative-apply" type="button">Apply initiative</button
+            ><button id="initiative-dismiss" type="button">Less of that kind of comment</button
+            ><button id="initiative-restore" type="button">Restore dismissed comment types</button>
+          </div>
+          <p id="initiative-status" class="settings-help" role="status">App awareness is off.</p>
+          <p class="settings-help">
+            Preview comments use the local model and shared history. They can affect model cache and
+            the next response time. Repeated or late comments are skipped.
+          </p>
+        </div>
+      </section>
+      <section
+        id="screen-panel"
+        class="preferences-panel"
+        aria-label="Screen snapshot"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>Screen snapshot</h2>
+          <button id="screen-close" type="button" aria-label="Close screen snapshot">×</button>
+        </div>
+        <div class="preferences-content">
+          <p class="settings-help">
+            Capture once for a single question, or explicitly start bounded observation. No camera
+            or system audio is used.
+          </p>
+          <label class="dimming-label" for="screen-source">Source</label
+          ><select id="screen-source" data-untranslated></select>
+          <div class="settings-actions">
+            <button id="screen-refresh" type="button">Refresh sources</button
+            ><button id="screen-capture" type="button" disabled>Capture once</button>
+          </div>
+          <video
+            id="screen-live-preview"
+            class="screen-preview"
+            muted
+            autoplay
+            playsinline
+            hidden
+          ></video>
+          <canvas
+            id="screen-live-mosaic"
+            class="screen-preview"
+            role="img"
+            aria-label="All monitors"
+            hidden
+          ></canvas>
+          <img id="screen-preview" class="screen-preview" alt="Selected snapshot preview" hidden />
+          <label class="dimming-label" for="screen-question">Ask about this view</label
+          ><textarea
+            dir="auto"
+            id="screen-question"
+            rows="2"
+            maxlength="8000"
+            placeholder="What can you see in this image?"
+            spellcheck="false"
+          ></textarea>
+          <div class="settings-actions">
+            <button id="screen-ask" type="button" disabled>Ask Capri</button>
+          </div>
+          <h3 class="settings-section-title">Screen observation</h3>
+          <div class="settings-actions">
+            <button id="screen-watch-start" type="button" disabled>Start observation</button
+            ><button id="screen-watch-stop" type="button" disabled>Stop observation</button>
+          </div>
+          <p id="screen-watch-status" class="settings-help" role="status">
+            Screen observation is off.
+          </p>
+          <p class="settings-help">
+            Observation stays on when this panel closes. OBS stops it immediately. Hiding Capri,
+            locking Windows or reaching the time limit also stops it. It never resumes
+            automatically.
+          </p>
+          <p id="screen-watch-locked" class="settings-warning" role="status" hidden>
+            <span>Stop observation before changing its interval or duration.</span>
+            <button type="button" id="screen-watch-unlock">Stop observation</button>
+          </p>
+          <details class="screen-watch-settings">
+            <summary>Observation settings</summary>
+            <label class="dimming-label" for="screen-watch-interval"
+              >Minimum analysis interval</label
+            ><input
+              id="screen-watch-interval"
+              aria-describedby="screen-watch-locked"
+              type="number"
+              min="15"
+              max="300"
+              step="1"
+              value="30"
+            />
+            <p class="settings-help">Seconds between analyses: 15–300.</p>
+            <label class="dimming-label" for="screen-watch-duration">Stop observation after</label
+            ><input
+              id="screen-watch-duration"
+              aria-describedby="screen-watch-locked"
+              type="number"
+              min="0.5"
+              max="120"
+              step="0.5"
+              value="10"
+            />
+            <p class="settings-help">
+              Observation duration in minutes: 0.5–120. Access expires automatically.
+            </p>
+            <p class="settings-help">
+              Only changed views are analysed while Capri is idle. Your text and voice take
+              priority. A fresh description joins your next chat message; capture metadata stays in
+              diagnostics; stale views are marked. Images stay temporary. Background vision may
+              affect the next response time.
+            </p>
+          </details>
+          <p id="screen-privacy-help" class="settings-help">
+            The image is processed locally and discarded. Your question and Capri’s text answer stay
+            in shared conversation history. Start a normal conversation before using this preview
+            feature. It cannot click or operate applications.
+          </p>
+        </div>
+      </section>
+      <section
+        id="time-panel"
+        class="preferences-panel"
+        aria-label="Timers and reminders"
+        data-hit-region
+        data-panel-cut="12"
+        hidden
+      >
+        <div class="settings-heading">
+          <h2>Timers and reminders</h2>
+          <button id="time-close" type="button" aria-label="Close timers">×</button>
+        </div>
+        <div class="preferences-content">
+          <p class="settings-help">
+            Timers survive model unloading and are restored after restart. Keep Capri running for
+            notifications. Missed reminders appear next time you open Capri.
+          </p>
+          <label for="time-kind">Type</label
+          ><select id="time-kind">
+            <option value="remind">Reminder</option>
+            <option value="timer">Timer</option>
+            <option value="stopwatch">Stopwatch</option>
+          </select>
+          <label for="time-title">Title or reminder text</label
+          ><input id="time-title" type="text" maxlength="1000" />
+          <div id="time-duration" class="time-dials" role="group" aria-label="Duration"></div>
+          <button id="time-create" type="button">Start</button>
+          <div id="time-list" data-untranslated></div>
+        </div>
+      </section>
+      <button id="computer-control-stop" class="danger-action" type="button" data-hit-region hidden>
+        Stop computer control (Esc)
+      </button>
+      <output
+        id="computer-task-live"
+        class="computer-task-status"
+        aria-live="polite"
+        hidden
+      ></output>
+      <aside id="time-alert" role="status" data-hit-region data-panel-cut="12" hidden>
+        <strong>Reminder</strong>
+        <p id="time-alert-text" data-untranslated></p>
+        <div class="settings-actions">
+          <button id="time-alert-open" type="button">Timers and reminders</button
+          ><button id="time-alert-dismiss" type="button">Dismiss</button>
+        </div>
+      </aside>
+      <aside id="action-approval" data-hit-region data-panel-cut="12" hidden>
+        <strong id="action-approval-title"></strong>
+        <p id="action-approval-detail" data-untranslated></p>
+        <p class="settings-help">
+          Only approve actions you requested. This request expires in 90 seconds.
+        </p>
+        <div class="settings-actions">
+          <button id="action-approve" type="button">Confirm</button
+          ><button id="action-reject" type="button">Cancel</button>
+        </div>
+      </aside>
+    </main>
+  </body>
+</html>

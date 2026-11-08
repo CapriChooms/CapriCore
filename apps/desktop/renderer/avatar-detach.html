@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="avatar-detach.css" />
+    <link rel="stylesheet" href="avatar-headpat.css" />
+    <title>Capri on the desktop</title>
+  </head>
+  <body>
+    <div id="parked-avatar" aria-hidden="true" hidden>
+      <div class="avatar-pose-stage">
+        <svg class="avatar-grip-svg" data-layer="behind" viewBox="0 0 1254 1254"></svg>
+        <div class="avatar-portrait"><img alt="" /></div>
+        <div class="avatar-seat-shins"></div>
+        <svg class="avatar-grip-svg" data-layer="front" viewBox="0 0 1254 1254"></svg>
+      </div>
+    </div>
+    <div id="avatar-hud">
+      <span id="avatar-status" role="status" dir="auto" hidden></span>
+      <div id="avatar-reply" role="status" hidden>
+        <svg id="avatar-reply-surface" aria-hidden="true" preserveAspectRatio="none"><path /></svg>
+        <p id="avatar-reply-text" dir="auto"></p>
+        <nav id="avatar-reply-controls" aria-label="Subtitle playback" hidden>
+          <button id="avatar-reply-previous" type="button" aria-label="Previous part of this reply">
+            ‹
+          </button>
+          <span id="avatar-reply-position" aria-live="off"></span>
+          <button id="avatar-reply-next" type="button" aria-label="Next part of this reply">
+            ›
+          </button>
+        </nav>
+      </div>
+    </div>
+    <button id="avatar-reply-toggle" type="button" aria-label="Hide reply" hidden>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+    </button>
+    <canvas id="teleport-effect" width="1" height="1" aria-hidden="true" hidden></canvas>
+    <script type="module" src="avatar-detach.mjs"></script>
+  </body>
+</html>

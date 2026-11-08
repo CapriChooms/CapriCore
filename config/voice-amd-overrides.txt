@@ -1,0 +1,7 @@
+# Reviewed override of Chatterbox's upstream torch 2.6 pins for AMD ROCm inference (no training support).
+# All model/source/adapter pins and other dependency pins remain unchanged.
+torch @ https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl
+torchaudio @ https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torchaudio-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl
+sympy==1.14.0
+# Preserve the same reviewed Perth source when resolving Chatterbox's moving ref.
+resemble-perth @ git+https://github.com/resemble-ai/Perth.git@ff1c8ac55a976971245cdd53c18d6131ca00d993

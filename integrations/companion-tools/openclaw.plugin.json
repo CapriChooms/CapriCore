@@ -1,0 +1,46 @@
+{
+  "id": "capri-companion-tools",
+  "name": "Capri Companion Tools",
+  "description": "Owner-only desktop reminders, explicit settings and scoped app actions.",
+  "version": "0.1.0",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "time_control",
+      "settings_control",
+      "desktop_control",
+      "workflow_control",
+      "capri_tool_01",
+      "capri_tool_02",
+      "capri_tool_03",
+      "capri_tool_04",
+      "capri_tool_05",
+      "capri_tool_06",
+      "capri_tool_07",
+      "capri_tool_08",
+      "capri_tool_09",
+      "capri_tool_10",
+      "capri_tool_11",
+      "capri_tool_12",
+      "capri_tool_13",
+      "capri_tool_14",
+      "capri_tool_15",
+      "capri_tool_16",
+      "capri_tool_17",
+      "capri_tool_18",
+      "capri_tool_19",
+      "capri_tool_20"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "endpointRoot": {
+        "type": "string"
+      }
+    }
+  }
+}

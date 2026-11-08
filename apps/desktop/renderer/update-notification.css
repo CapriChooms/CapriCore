@@ -1,0 +1,174 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+.update-notification {
+  --update-card-ink: var(--ui-accent, var(--cyan, #b3f6f3));
+  --update-card-surface: var(--ui-raised, var(--theme-panel, #0b2029));
+  --update-card-line: color-mix(in srgb, var(--update-card-ink) 50%, transparent);
+  --frame-color: var(--update-card-ink);
+  --frame-alpha: 0.6;
+  --outline: 1px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px 10px;
+  flex: 0 0 auto;
+  inline-size: 100%;
+  min-inline-size: 0;
+  margin-block: 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--update-card-line);
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+  color: var(--ui-text, var(--theme-text, #f5f9fa));
+  background:
+    linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--update-card-ink) 8%, transparent),
+      transparent 65%
+    ),
+    var(--update-card-surface);
+  text-shadow: none;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+.update-notification:not([hidden]) {
+  animation: update-card-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.update-notification::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 16px;
+  inline-size: 38px;
+  block-size: 2px;
+  background: var(--update-card-ink);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--update-card-ink) 28%, transparent);
+  pointer-events: none;
+}
+.update-notification-icon {
+  grid-area: 1 / 1;
+  align-self: center;
+  inline-size: 28px;
+  block-size: 28px;
+  overflow: visible;
+  fill: none;
+  stroke: var(--update-card-ink);
+  stroke-width: 1.4;
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
+  pointer-events: none;
+}
+.update-notification-circuit {
+  opacity: 0.45;
+}
+.update-notification-arrow {
+  transform-origin: center;
+  animation: update-card-signal 3.2s ease-in-out 2;
+}
+.update-notification-content {
+  min-inline-size: 0;
+  align-self: center;
+}
+.update-notification-label {
+  display: block;
+  margin-block-end: 3px;
+  color: var(--update-card-ink);
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.update-notification-headline {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  unicode-bidi: plaintext;
+}
+.update-notification-actions {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  min-inline-size: 0;
+}
+.update-notification-actions button {
+  min-inline-size: 0;
+  min-block-size: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--update-card-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ui-text, var(--theme-text, #f5f9fa));
+  font: inherit;
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+  -webkit-app-region: no-drag;
+}
+.update-notification-actions .update-notification-update {
+  border-color: var(--update-card-ink);
+  background: color-mix(in srgb, var(--update-card-ink) 13%, var(--update-card-surface));
+  color: var(--update-card-ink);
+}
+.update-notification-actions .update-notification-later {
+  color: var(--ui-muted, var(--muted, #d5e4e7));
+}
+.update-notification-actions button:is(:hover, :focus-visible):not(:disabled) {
+  border-color: var(--update-card-ink);
+  background: color-mix(in srgb, var(--update-card-ink) 20%, var(--update-card-surface));
+}
+.update-notification-actions button:focus-visible {
+  outline: 1px solid var(--update-card-ink);
+  outline-offset: -4px;
+}
+.update-notification-actions button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.update-notification[data-busy='update'] .update-notification-arrow {
+  animation: update-card-signal 1.2s ease-in-out infinite;
+}
+@keyframes update-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes update-card-signal {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(1.5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-notification:not([hidden]),
+  .update-notification .update-notification-arrow {
+    animation: none;
+  }
+  .update-notification-actions button {
+    transition: none;
+  }
+}

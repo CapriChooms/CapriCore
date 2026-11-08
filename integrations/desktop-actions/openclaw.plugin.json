@@ -1,0 +1,13 @@
+{
+  "id": "capri-applications",
+  "name": "Capri Fixed Applications",
+  "description": "Owner-enabled bounded Windows application actions.",
+  "version": "0.1.0",
+  "activation": { "onStartup": true },
+  "contracts": { "tools": ["application_control"] },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": { "stateDirectory": { "type": "string" } }
+  }
+}

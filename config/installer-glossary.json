@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "note": "Curated installer terminology. The review page summarizes installation choices; it is not a product review.",
+  "overrides": {
+    "de": {
+      "pages.5": "Zusammenfassung",
+      "next": "Weiter",
+      "intro": "Der Assistent installiert Capri, eigene Laufzeitumgebungen und die ausgewählten Modelle. Eine Konsole oder eine systemweite Installation von Python oder Node ist nicht nötig. Für Downloads wird eine Internetverbindung benötigt. Erforderlich sind Windows 10 22H2/11 x64 und mindestens 8 GB RAM."
+    },
+    "fr": {
+      "pages.5": "Récapitulatif"
+    },
+    "es": {
+      "pages.5": "Resumen"
+    },
+    "it": {
+      "pages.5": "Riepilogo"
+    },
+    "pt": {
+      "pages.5": "Resumo"
+    },
+    "nl": {
+      "pages.5": "Overzicht"
+    },
+    "pl": {
+      "pages.5": "Podsumowanie"
+    },
+    "uk": {
+      "pages.5": "Підтвердження"
+    },
+    "cs": {
+      "pages.5": "Souhrn"
+    },
+    "sk": {
+      "pages.5": "Súhrn",
+      "info.components": "Vyberte rečové funkcie, jazyky aplikácie a odkazy, ktoré sa majú vytvoriť. Klasifikátor na CPU je súčasťou každej inštalácie.",
+      "info.voiceMode": "Režim iba textových odpovedí vynechá TTS. Pribalený hlas Capri alebo kompatibilný hlasový balík používa podporovanú grafickú kartu NVIDIA alebo AMD. Hugging Face Qwen3-TTS používa pribalenú hlasovú ukážku Capri, beží na CPU a je dostupný pre kompatibilné jazyky. Tvorba reči na CPU môže byť pomalšia než jej prehrávanie."
+    },
+    "bg": {
+      "pages.5": "Обобщение"
+    },
+    "hr": {
+      "pages.5": "Sažetak",
+      "voiceGpuHelp": "Za glas su potrebni NVIDIA CUDA ili podržana AMD ROCm grafička kartica na sustavu Windows 11 (eksperimentalno). Tekstualni odgovori i prepoznavanje govora ostaju dostupni. Integrirana grafika i ubrzanje glasa na Intel karticama nisu podržani.",
+      "info.conversationLanguage": "Određuje jezik na kojem Capri odgovara. Opcije mikrofona i glasa prilagođavaju se modelima dostupnima za taj jezik.",
+      "info.recognition": "Instalira izvanmrežno prepoznavanje govora s mikrofona. Potrebne su datoteke modela, a kada je uključeno, koristi RAM i CPU. Kada je isključeno, i dalje možete pisati Capri."
+    },
+    "sr": {
+      "pages.5": "Преглед"
+    },
+    "sl": {
+      "pages.5": "Povzetek"
+    },
+    "ro": {
+      "pages.5": "Rezumat"
+    },
+    "hu": {
+      "pages.5": "Összegzés"
+    },
+    "el": {
+      "pages.5": "Σύνοψη",
+      "info.huggingface": "Μετά την εγκατάσταση επιλέξτε στο Capri ένα συμβατό γλωσσικό μοντέλο από το Hugging Face. Τώρα εγκαθίσταται το τοπικό περιβάλλον εκτέλεσης. Το μοντέλο, το μέγεθος λήψης και η χρήση μνήμης εξαρτώνται από την επιλογή σας αργότερα."
+    },
+    "da": {
+      "pages.5": "Oversigt"
+    },
+    "no": {
+      "pages.5": "Sammendrag"
+    },
+    "sv": {
+      "pages.5": "Sammanfattning"
+    },
+    "fi": {
+      "pages.5": "Yhteenveto"
+    },
+    "et": {
+      "pages.5": "Kokkuvõte"
+    },
+    "lv": {
+      "pages.5": "Kopsavilkums",
+      "info.huggingface": "Pēc instalēšanas izvēlieties Capri saderīgu Hugging Face valodas modeli. Tagad tiks instalēta lokālā izpildvide. Modeli, lejupielādes lielumu un atmiņas patēriņu noteiks jūsu vēlākā izvēle.",
+      "info.profile": "Izvēlieties valodas modeli no kataloga. Izvēlnē norādītas modeļa svaru prasības jūsu aparatūrai. Lielākam modelim var būt vajadzīgs vairāk laika un atmiņas. BETA modeļi ir eksperimentāli.",
+      "info.recognition": "Instalē bezsaistes runas atpazīšanu mikrofonam. Tai vajadzīgi modeļa faili, un darbības laikā tā izmanto RAM un CPU. Ja atpazīšana ir izslēgta, joprojām varat rakstīt Capri.",
+      "info.finish": "Pēc instalēšanas varat palaist Capri un iestatīt vēl neielādētu modeli vai API pakalpojumu sniedzēju. Ja instalēšana neizdodas, izmantojiet instalēšanas atskaiti problēmas noteikšanai.",
+      "info.preloadOnFirstLaunch": "Pirmajā Capri palaišanas reizē ielādē instalēto lokālo valodas modeli atmiņā. Izslēdziet, lai to ielādētu tikai pēc pirmā pieprasījuma."
+    },
+    "lt": {
+      "pages.5": "Santrauka"
+    },
+    "is": {
+      "pages.5": "Yfirlit"
+    },
+    "ca": {
+      "pages.5": "Resum"
+    },
+    "ar": {
+      "pages.5": "ملخص"
+    },
+    "he": {
+      "pages.5": "סיכום",
+      "info.progress": "הפס מאחד את שלבי ההתקנה שנבחרו. הזמן שנותר הוא משוער ומתעדכן לפי מדידות ההורדות והעבודה. השהיה שומרת קבצים שכבר הושלמו."
+    },
+    "fa": {
+      "pages.5": "خلاصه"
+    },
+    "ur": {
+      "pages.5": "خلاصہ",
+      "info.preloadOnFirstLaunch": "Capri پہلی بار کھلنے پر نصب شدہ مقامی زبان کے ماڈل کو میموری میں لوڈ کرتی ہے۔ اسے بند کریں تاکہ ماڈل پہلے سوال پر لوڈ ہو۔"
+    },
+    "hi": {
+      "pages.5": "सारांश"
+    },
+    "bn": {
+      "pages.5": "সারসংক্ষেপ"
+    },
+    "ta": {
+      "pages.5": "சுருக்கம்",
+      "voicePack": "விருப்பத்தேர்வு: இணக்கமான குரல் தொகுப்புக் கோப்புறை",
+      "info.recognition": "மைக்ரோஃபோன் பேச்சை இணையமின்றி அறியும் வசதியை நிறுவுகிறது. இதற்கு மாதிரிக் கோப்புகள் தேவை; இயக்கப்படும்போது RAM மற்றும் CPU பயன்படும். இது அணைக்கப்பட்டிருந்தாலும் Capri-க்கு தட்டச்சு செய்யலாம்.",
+      "info.finish": "நிறுவிய பிறகு Capri-ஐத் தொடங்கி, பின்னர் அமைக்கத் தேர்ந்தெடுத்த மாதிரி அல்லது API வழங்குநரை அமைக்கலாம். நிறுவல் தோல்வியைச் சரிசெய்ய நிறுவல் அறிக்கையைப் பயன்படுத்தவும்."
+    },
+    "te": {
+      "pages.5": "సారాంశం",
+      "inferenceMemory": "స్థానిక మెమరీ మోడల్‌ను డౌన్‌లోడ్ చేస్తోంది"
+    },
+    "mr": {
+      "pages.5": "सारांश"
+    },
+    "gu": {
+      "pages.5": "સારાંશ",
+      "diagnosticsFailed": "રિપોર્ટ સાચવી શકાયો નહીં. કૃપા કરીને ફરી પ્રયાસ કરો."
+    },
+    "pa": {
+      "pages.5": "ਸਾਰ",
+      "programFilesPermission": "Windows, Program Files\\Capri ਨੂੰ ਤਿਆਰ ਨਹੀਂ ਕਰ ਸਕਿਆ। Windows ਦੀ ਇਜਾਜ਼ਤ ਦੀ ਬੇਨਤੀ ਨੂੰ ਮਨਜ਼ੂਰ ਕਰੋ ਜਾਂ ਕੋਈ ਹੋਰ ਫੋਲਡਰ ਚੁਣੋ ਜਿਸ ਵਿੱਚ ਤੁਸੀਂ ਲਿਖ ਸਕਦੇ ਹੋ।",
+      "info.accept": "ਅੱਗੇ ਵਧਣ ਲਈ ਲਾਇਸੈਂਸ ਸਵੀਕਾਰ ਕਰੋ। GPL, Capri ਦੇ ਕੋਡ ਉੱਤੇ ਲਾਗੂ ਹੁੰਦਾ ਹੈ। ਨਿਰਭਰਤਾਵਾਂ ਅਤੇ ਮਾਡਲ ਵੇਟਸ ਦੀਆਂ ਸ਼ਰਤਾਂ ਵੱਖਰੀਆਂ ਹਨ।",
+      "info.recognition": "ਮਾਈਕ੍ਰੋਫੋਨ ਤੋਂ ਬੋਲੀ ਨੂੰ ਬਿਨਾਂ ਇੰਟਰਨੈੱਟ ਪਛਾਣਨ ਦੀ ਸਹੂਲਤ ਸਥਾਪਤ ਕਰਦਾ ਹੈ। ਇਸ ਲਈ ਮਾਡਲ ਫਾਈਲਾਂ ਚਾਹੀਦੀਆਂ ਹਨ ਅਤੇ ਚਾਲੂ ਹੋਣ ਉੱਤੇ RAM ਅਤੇ CPU ਵਰਤਦਾ ਹੈ। ਇਹ ਬੰਦ ਹੋਣ ਉੱਤੇ ਵੀ ਤੁਸੀਂ Capri ਨੂੰ ਲਿਖ ਸਕਦੇ ਹੋ।",
+      "info.preloadOnFirstLaunch": "Capri ਪਹਿਲੀ ਵਾਰ ਖੁੱਲ੍ਹਣ ਉੱਤੇ ਸਥਾਪਤ ਸਥਾਨਕ ਭਾਸ਼ਾ ਮਾਡਲ ਨੂੰ ਮੈਮਰੀ ਵਿੱਚ ਲੋਡ ਕਰਦਾ ਹੈ। ਇਸਨੂੰ ਬੰਦ ਕਰੋ ਤਾਂ ਜੋ ਮਾਡਲ ਪਹਿਲੇ ਸਵਾਲ ਉੱਤੇ ਲੋਡ ਹੋਵੇ।"
+    },
+    "zh": {
+      "pages.5": "摘要"
+    },
+    "ja": {
+      "pages.5": "確認"
+    },
+    "ko": {
+      "pages.5": "설치 요약"
+    },
+    "vi": {
+      "pages.5": "Tóm tắt"
+    },
+    "th": {
+      "pages.5": "สรุป"
+    },
+    "id": {
+      "pages.5": "Ringkasan"
+    },
+    "ms": {
+      "pages.5": "Ringkasan"
+    },
+    "tl": {
+      "pages.5": "Buod"
+    },
+    "tr": {
+      "pages.5": "Özet"
+    },
+    "sw": {
+      "pages.5": "Muhtasari"
+    },
+    "af": {
+      "pages.5": "Opsomming"
+    },
+    "ru": {
+      "voicePack": "Необязательная папка совместимого голосового пакета",
+      "voiceBundledHelp": "Мастер автоматически установит голос для языка общения. Для английского используется готовый голос Capri, для других поддерживаемых языков — единая многоязычная модель (BETA). Отдельный ZIP с голосом не нужен. Требуется NVIDIA CUDA или совместимая видеокарта AMD с ROCm на Windows 11. Поддержка AMD экспериментальная.",
+      "voiceGpuHelp": "Для голоса нужна видеокарта с NVIDIA CUDA или поддержкой AMD ROCm на Windows 11 (экспериментально). Текстовые ответы и распознавание речи с микрофона остаются доступны. Встроенная графика и ускорение голоса на Intel не поддерживаются.",
+      "voiceProfileInvalid": "Это несовместимый пакет английского голоса Capri. Выберите voice-profile.json из подходящего экспортированного пакета или выключите импорт голоса."
+    }
+  }
+}

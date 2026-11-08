@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "engine": "chatterbox-turbo",
+  "enabled": true,
+  "port": 8101,
+  "profileDir": "data/voices/capri/en/exports/capri-en-v1",
+  "precision": "float32",
+  "decoderDevice": "auto",
+  "mergeAdapter": true,
+  "cudaGraph": true,
+  "cpuThreads": 8,
+  "maxSpeechTokens": 800,
+  "seed": 417
+}

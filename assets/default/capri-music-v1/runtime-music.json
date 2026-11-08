@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "canvas": {
+    "width": 1254,
+    "height": 1254
+  },
+  "frames": [
+    {
+      "id": "music-window",
+      "file": "capri-music-window.png",
+      "pose": "music_seat",
+      "label": "Listening to music",
+      "description": "Listening with headphones while sitting on a window edge.",
+      "anchor": {
+        "name": "seat",
+        "x": 628,
+        "y": 771
+      },
+      "visibleBounds": {
+        "x": 194,
+        "y": 76,
+        "width": 889,
+        "height": 1090
+      },
+      "face": {
+        "x": 639,
+        "y": 375
+      },
+      "mouth": [655, 403, -0.46, 36],
+      "emitters": [
+        [533, 402],
+        [764, 365]
+      ],
+      "sha256": "dedf301392e1784e08ef565200530d296c79dd84269bc68eceef3f2e923e4b97"
+    },
+    {
+      "id": "music-floor",
+      "file": "capri-music-floor.png",
+      "pose": "music_ground",
+      "label": "Listening to music",
+      "description": "Listening with headphones while sitting cross-legged.",
+      "anchor": {
+        "name": "ground",
+        "x": 641,
+        "y": 1164
+      },
+      "visibleBounds": {
+        "x": 199,
+        "y": 296,
+        "width": 883,
+        "height": 871
+      },
+      "face": {
+        "x": 645,
+        "y": 615
+      },
+      "mouth": [661, 642, -0.47, 39],
+      "emitters": [
+        [522, 642],
+        [775, 591]
+      ],
+      "sha256": "c2ade3c79770565ca4be45371d6dbab213da2359f2844c50a3628f4e0e254181"
+    }
+  ],
+  "notes": [
+    {
+      "id": "01-eighth-cyan",
+      "file": "01-eighth-cyan.png",
+      "width": 256,
+      "height": 256,
+      "sha256": "6427b4c2e40b24a47031d4f9e504e520c81bab43a3cdc12fe865ab9c9090b32c"
+    },
+    {
+      "id": "02-beamed-lime",
+      "file": "02-beamed-lime.png",
+      "width": 256,
+      "height": 256,
+      "sha256": "ccf3909a17c998aeb99203789e4bb8e1ad3093f7e8a4d07fc06822076eb59760"
+    },
+    {
+      "id": "03-quarter-pink",
+      "file": "03-quarter-pink.png",
+      "width": 256,
+      "height": 256,
+      "sha256": "34fca2e4a0db46b22b00c73d6f1f889d739d5c6f233071b9ceb3ac985d308fc0"
+    },
+    {
+      "id": "04-sixteenth-violet",
+      "file": "04-sixteenth-violet.png",
+      "width": 256,
+      "height": 256,
+      "sha256": "8d6426bbe157e06572721f7d46de79998233c9c78f35e06f842c88da449133c1"
+    }
+  ]
+}

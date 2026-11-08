@@ -1,0 +1,11 @@
+{
+  "name": "capri-filesystem",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./index.mjs"
+    ]
+  }
+}

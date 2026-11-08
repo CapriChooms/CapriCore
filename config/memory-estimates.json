@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "contextTokens": 32768,
+  "basis": "Planning ranges for the bundled quantized models, one active conversation. Not measured guarantees; loading, long audio and image analysis may peak higher.",
+  "base": { "ram": [2, 4], "vram": [0.2, 1.2] },
+  "recognitionEnglish": { "ram": [1, 3], "vram": [0, 0] },
+  "recognitionMultilingual": { "ram": [2, 5], "vram": [0, 0] },
+  "voiceEnglish": { "ram": [2, 4], "vram": [2.5, 4] },
+  "voiceMultilingual": { "ram": [3, 6], "vram": [3, 6] },
+  "voiceQwenCpu": { "ram": [4, 8], "vram": [0, 0] },
+  "router": { "ram": [0.1, 0.5], "vram": [0, 0] },
+  "models": {
+    "minimal": {
+      "vram": [1.3, 2.2],
+      "cpuRam": [2, 3.5],
+      "hostRam": [0.5, 1],
+      "gpuSystemRamGiB": 8
+    },
+    "balanced": { "vram": [2.8, 4], "cpuRam": [3, 5], "hostRam": [0.5, 1.5], "gpuSystemRamGiB": 8 },
+    "desktop": { "vram": [4, 6], "cpuRam": [4.5, 7], "hostRam": [1, 2], "gpuSystemRamGiB": 12 },
+    "quality": { "vram": [7, 10], "cpuRam": [8, 12], "hostRam": [1.5, 3], "gpuSystemRamGiB": 16 },
+    "ministral-3-3b": {
+      "vram": [3.5, 6],
+      "cpuRam": [4, 7],
+      "hostRam": [1, 2],
+      "gpuSystemRamGiB": 12
+    },
+    "gemma4-e2b": { "vram": [8, 12], "cpuRam": [9, 14], "hostRam": [1.5, 3], "gpuSystemRamGiB": 16 }
+  }
+}

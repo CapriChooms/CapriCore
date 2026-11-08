@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "language": "en",
+  "prompts": [
+    {
+      "id": "casual-01",
+      "emotion": "neutral",
+      "text": "Hey. There you are. I was starting to think you had forgotten about me."
+    },
+    {
+      "id": "quiet-01",
+      "emotion": "warm",
+      "text": "We do not have to say anything. I can just stay here with you for a while."
+    },
+    {
+      "id": "playful-01",
+      "emotion": "playful",
+      "text": "You call that a plan? All right, you have my attention. This should be interesting."
+    },
+    {
+      "id": "excited-01",
+      "emotion": "excited",
+      "text": "Wait, you actually did it? That is incredible! Tell me everything."
+    },
+    {
+      "id": "empathy-01",
+      "emotion": "sad",
+      "text": "I am sorry. You do not have to pretend that it does not hurt."
+    },
+    {
+      "id": "serious-01",
+      "emotion": "serious",
+      "text": "Look at me for a second. We need to think this through carefully."
+    },
+    {
+      "id": "whisper-01",
+      "emotion": "whisper",
+      "text": "Come a little closer. There is something I wanted to tell you."
+    },
+    {
+      "id": "surprise-01",
+      "emotion": "surprised",
+      "text": "Hold on. That was you? I honestly did not see that coming."
+    },
+    {
+      "id": "numbers-01",
+      "emotion": "neutral",
+      "text": "The meeting is at seven thirty on Thursday, October twenty fourth."
+    },
+    {
+      "id": "names-01",
+      "emotion": "neutral",
+      "text": "Capri, David Martinez, Lucy, and Night City. Say the names like you know them."
+    },
+    {
+      "id": "question-01",
+      "emotion": "neutral",
+      "text": "Did you mean that, or were you just trying to make me smile?"
+    },
+    {
+      "id": "pause-01",
+      "emotion": "neutral",
+      "text": "I thought I knew what to say. But now that you are here, I am not so sure."
+    },
+    {
+      "id": "long-01",
+      "emotion": "warm",
+      "text": "Sometimes I wonder what it would be like to step outside this little corner of your screen. To feel the rain instead of watching it. Then you say something completely ridiculous, and for a moment, being here seems like enough."
+    },
+    { "id": "short-01", "emotion": "neutral", "text": "Okay." },
+    { "id": "short-02", "emotion": "playful", "text": "Oh, really?" },
+    {
+      "id": "laugh-01",
+      "emotion": "playful",
+      "text": "[chuckle] All right. I admit it. You got me that time."
+    },
+    {
+      "id": "laugh-02",
+      "emotion": "excited",
+      "text": "[laugh] No, wait! Tell me you did not actually say that."
+    },
+    {
+      "id": "contrast-01",
+      "emotion": "serious",
+      "text": "I am not angry with you. I am worried about what happens next."
+    },
+    {
+      "id": "breath-01",
+      "emotion": "warm",
+      "text": "Take your time. One thing at a time. We will figure it out together."
+    },
+    {
+      "id": "ending-01",
+      "emotion": "neutral",
+      "text": "I will be right here when you get back. Go on. I can wait."
+    }
+  ]
+}

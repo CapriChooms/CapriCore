@@ -1,0 +1,21 @@
+# Architecture
+
+The renderer is a presentation client. Sandboxed Electron exposes narrow IPC from the current local main frame. An explicit resource allowlist and restrictive CSP replace directory serving. Window security and native pointer/drag handling are separate controllers. Dimming is part of the same transparent window.
+
+packages/runtime owns validated configuration, local overrides, executable discovery, bounded HTTP, atomic JSON writes, initialization and process ownership. It imports no Electron. The CLI composes runtime APIs. scripts/lib.mjs is a compatibility re-export during migration; archived code is never imported.
+
+OpenClaw owns the shared session/memory. Ollama owns local inference. The optional external API boundary keeps the real key in Electron main, uses encrypted Windows storage and a per-process authenticated loopback proxy; OpenClaw receives only its separate proxy credential. The local CPU embedding index stays independent. See [external API](external-api.md). Speech/routing use optional isolated Python workers. Platform/model integrations remain explicit provider boundaries. Training is not a startup dependency. See REFACTORING.md for the complete target tree, remaining large modules and migration gates.
+
+The Qwen settings panel exposes a 32K/64K/128K/256K context window (K = 1024 tokens). Applying it restarts the models through the normal shutdown path; validated local and Gateway settings are written with rollback. Model switching retains this choice. Bigger windows consume more RAM/VRAM and can slow prefill or force CPU offload; 32K remains the default. The window includes instructions and tools as well as dialogue, and is not the size of permanent memory.
+
+Desktop instructions have a stable system prefix. Live microphone, observation, clock and repetition state travels with the current user turn; only the original user text enters the visible transcript. Tools still enforce real permissions. Native compaction summarizes the active replay before it fills the context window, retaining recent turns and the stored original transcript. At 32K its active-transcript guard is 24 KiB and scales with the chosen window. This byte threshold is a maintenance trigger, not a hard token cap. Automatic Activity recap calls are disabled on Capri's default utility route because this UI does not consume them; explicit custom utility models are retained. Dialogue, memory lookup and semantic compaction remain enabled.
+
+The runtime time service owns durable reminder/stopwatch clocks and a delivery outbox; the desktop composes it independently of model residency. The main-process action broker accepts only three fixed owner tools with a per-run loopback credential. The desktop owns temporary approval cards and the separately granted app catalog. Credentials never cross into renderer/model data. File recovery and action journals remain private. [Behavior and limits](timers-and-actions.md).
+
+Public defaults are versioned; credentials, weights and local settings stay private. Source export is allowlisted, rejects links, scans candidate content and creates a SHA-256 manifest. It is a reviewable artifact, not an automatic GitHub publication.
+
+Production dependency checks reject runtime imports from application/developer/archive directories and Node imports from the renderer. Developer tools are separated by purpose; legacy command files are compatibility shims only. Subtitle timers belong to the subtitle controller, native drag/hit testing to the pointer controller, and durable JSON writes to the runtime.
+
+Screen capture and filesystem/application grants register through separate main-process adapters. They receive only their explicit capabilities; all routes still pass through the same current-main-frame IPC admission gate. Screen requests recheck the current capture lease and conversation state on each invocation.
+
+Computer-control sessions are owned by Electron and the native Windows bridge, with painted indicators, Escape cancellation, foreground/process fencing and bounded input. Full-computer access is an explicit three-second owner grant, off by default; revocation removes virtual drive scopes immediately. [Control contract](computer-control.md). The optional Discord RPC connection sends generic presence only. [Next animation production plan](ANIMATION-V2.md).

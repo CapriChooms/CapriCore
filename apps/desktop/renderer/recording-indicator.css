@@ -1,0 +1,39 @@
+html,
+body {
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-sizing: border-box;
+  width: 100vw;
+  height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #ff5d87;
+  color: #ffe0e9;
+  background: #25111cf5;
+  font: 700 11px system-ui;
+  cursor: pointer;
+}
+i {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: #ff426d;
+}
+span {
+  flex: 1;
+  min-width: 0;
+  -webkit-app-region: drag;
+}
+button:hover {
+  background: #492034;
+}
+button:focus-visible {
+  outline: 2px solid #f9e75b;
+  outline-offset: -3px;
+}

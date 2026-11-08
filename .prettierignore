@@ -1,0 +1,13 @@
+node_modules
+.runtime
+/data
+/logs
+/archive
+/release
+/vendor
+/NVIDIA Corporation
+/assets/capri
+config/*.local.json
+package-lock.json
+config/*lock*
+config/workspace/AGENTS.md

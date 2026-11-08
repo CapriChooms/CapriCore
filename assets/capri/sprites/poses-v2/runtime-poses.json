@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "sprites": [
+    {
+      "id": "pose-ceiling",
+      "file": "capri-ceiling.png",
+      "pose": "ceiling_hands",
+      "anchor": {
+        "name": "ceiling",
+        "x": 626,
+        "y": 119
+      },
+      "visibleBounds": {
+        "x": 186,
+        "y": 76,
+        "width": 881,
+        "height": 1102
+      },
+      "label": "Ceiling grip",
+      "description": "Hanging from an edge by both hands.",
+      "sha256": "2a90ca00f62ce6ad3e455ba083fac0636b39245c800ee55cdcd2ce3969320e11"
+    },
+    {
+      "id": "pose-dock-left",
+      "file": "capri-dock-left.png",
+      "pose": "wall_left",
+      "anchor": {
+        "name": "dock-left",
+        "x": 215,
+        "y": 458
+      },
+      "visibleBounds": {
+        "x": 195,
+        "y": 76,
+        "width": 863,
+        "height": 1102
+      },
+      "label": "Left wall grip",
+      "description": "Holding a vertical edge to her left.",
+      "sha256": "2eb4fecbce035bcc528c3bf6ab06e83bf65536e25647ee208841913ed502f7e8"
+    },
+    {
+      "id": "pose-dock-right",
+      "file": "capri-dock-right.png",
+      "pose": "wall_right",
+      "anchor": {
+        "name": "dock-right",
+        "x": 1038,
+        "y": 425
+      },
+      "visibleBounds": {
+        "x": 198,
+        "y": 76,
+        "width": 859,
+        "height": 1102
+      },
+      "label": "Right wall grip",
+      "description": "Holding a vertical edge to her right.",
+      "sha256": "7d7030a85efd9d7a0232b53f79388442d1ad22c6b10dd951e07330be9110b40c"
+    },
+    {
+      "id": "pose-sit-edge",
+      "file": "capri-sit-edge.png",
+      "pose": "seat",
+      "anchor": {
+        "name": "seat",
+        "x": 609,
+        "y": 787
+      },
+      "visibleBounds": {
+        "x": 182,
+        "y": 111,
+        "width": 891,
+        "height": 1067
+      },
+      "label": "Sitting on an edge",
+      "description": "Resting on the top edge of an open window.",
+      "sha256": "e9a487ce91a391045b5e8f4ba2a3a00b85483ceedd6911b00a9be2442cc96c5d"
+    },
+    {
+      "id": "pose-ceiling-upside-down",
+      "file": "capri-ceiling-upside-down.png",
+      "pose": "ceiling_feet",
+      "anchor": {
+        "name": "ceiling-upside-down",
+        "x": 626,
+        "y": 88
+      },
+      "visibleBounds": {
+        "x": 182,
+        "y": 84,
+        "width": 889,
+        "height": 933
+      },
+      "label": "Upside-down hang",
+      "description": "Hanging from the top of the display by her feet.",
+      "sha256": "3604f4d9804db90bbc546fa473d18efd644d4f6260d631a6cba6d0a40d56402c"
+    },
+    {
+      "id": "pose-sit-floor",
+      "file": "capri-sit-floor.png",
+      "pose": "sit_floor",
+      "anchor": {
+        "name": "ground",
+        "x": 643,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 185,
+        "y": 247,
+        "width": 884,
+        "height": 920
+      },
+      "label": "Sitting on the floor",
+      "description": "Relaxed and seated on the ground.",
+      "sha256": "111377a8486400569a70d088f83bb076cb182532f9780a3e78159d73d8cfca67"
+    },
+    {
+      "id": "pose-crouch",
+      "file": "capri-crouch.png",
+      "pose": "crouch",
+      "anchor": {
+        "name": "ground",
+        "x": 625,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 185,
+        "y": 339,
+        "width": 883,
+        "height": 832
+      },
+      "label": "Crouching",
+      "description": "Low, attentive crouch.",
+      "sha256": "83bc69576286372a428bcc00704a973b5b47de1b3f6e59921ff20dc6a30adc31"
+    }
+  ]
+}

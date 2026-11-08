@@ -1,0 +1,17 @@
+name: Bug report
+description: Report a reproducible problem without personal data.
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Reproduction, expected behavior and selected profile.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Hardware and software
+      description: Windows, CPU, RAM, GPU/VRAM, driver and optional packs. Redact personal paths.
+  - type: textarea
+    attributes:
+      label: Minimal diagnostics
+      description: No tokens, personal conversations, recordings or model weights. Security reports need a private channel.

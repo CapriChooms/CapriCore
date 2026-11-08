@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "cpuThreads": 4,
+  "timeoutMs": 150,
+  "modelDir": "data/models/request-router/minilm-int8",
+  "headFile": "config/request-router-head.json"
+}

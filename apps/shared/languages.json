@@ -1,0 +1,802 @@
+[
+  {
+    "id": "en",
+    "name": "English",
+    "label": "English",
+    "recognizer": "parakeet-v2",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "af",
+    "name": "Afrikaans",
+    "label": "Afrikaans",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "sq",
+    "name": "Albanian",
+    "label": "Albanian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "am",
+    "name": "Amharic",
+    "label": "Amharic",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ar",
+    "name": "Arabic",
+    "label": "العربية",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "hy",
+    "name": "Armenian",
+    "label": "Armenian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "as",
+    "name": "Assamese",
+    "label": "Assamese",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "az",
+    "name": "Azerbaijani",
+    "label": "Azerbaijani",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "bn",
+    "name": "Bangla",
+    "label": "Bangla",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "ba",
+    "name": "Bashkir",
+    "label": "Bashkir",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "eu",
+    "name": "Basque",
+    "label": "Basque",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "be",
+    "name": "Belarusian",
+    "label": "Belarusian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "bs",
+    "name": "Bosnian",
+    "label": "Bosnian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "br",
+    "name": "Breton",
+    "label": "Breton",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "bg",
+    "name": "Bulgarian",
+    "label": "Bulgarian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "my",
+    "name": "Burmese",
+    "label": "Burmese",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "yue",
+    "name": "Cantonese",
+    "label": "Cantonese",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ca",
+    "name": "Catalan",
+    "label": "Catalan",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "zh",
+    "name": "Chinese",
+    "label": "中文",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "hr",
+    "name": "Croatian",
+    "label": "Croatian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "cs",
+    "name": "Czech",
+    "label": "Czech",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "da",
+    "name": "Danish",
+    "label": "Danish",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "nl",
+    "name": "Dutch",
+    "label": "Dutch",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "et",
+    "name": "Estonian",
+    "label": "Estonian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "fo",
+    "name": "Faroese",
+    "label": "Faroese",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "tl",
+    "name": "Filipino",
+    "label": "Filipino",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "fi",
+    "name": "Finnish",
+    "label": "Finnish",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "fr",
+    "name": "French",
+    "label": "Français",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "gl",
+    "name": "Galician",
+    "label": "Galician",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ka",
+    "name": "Georgian",
+    "label": "Georgian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "de",
+    "name": "German",
+    "label": "Deutsch",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "el",
+    "name": "Greek",
+    "label": "Greek",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "gu",
+    "name": "Gujarati",
+    "label": "Gujarati",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "ht",
+    "name": "Haitian Creole",
+    "label": "Haitian Creole",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ha",
+    "name": "Hausa",
+    "label": "Hausa",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "haw",
+    "name": "Hawaiian",
+    "label": "Hawaiian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "he",
+    "name": "Hebrew",
+    "label": "Hebrew",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "hi",
+    "name": "Hindi",
+    "label": "हिन्दी",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "hu",
+    "name": "Hungarian",
+    "label": "Hungarian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "is",
+    "name": "Icelandic",
+    "label": "Icelandic",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "id",
+    "name": "Indonesian",
+    "label": "Indonesian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "it",
+    "name": "Italian",
+    "label": "Italian",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "ja",
+    "name": "Japanese",
+    "label": "日本語",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "jw",
+    "name": "Javanese",
+    "label": "Javanese",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "kn",
+    "name": "Kannada",
+    "label": "Kannada",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "kk",
+    "name": "Kazakh",
+    "label": "Kazakh",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "km",
+    "name": "Khmer",
+    "label": "Khmer",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ko",
+    "name": "Korean",
+    "label": "한국어",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "lo",
+    "name": "Lao",
+    "label": "Lao",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "la",
+    "name": "Latin",
+    "label": "Latin",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "lv",
+    "name": "Latvian",
+    "label": "Latvian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "ln",
+    "name": "Lingala",
+    "label": "Lingala",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "lt",
+    "name": "Lithuanian",
+    "label": "Lithuanian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "lb",
+    "name": "Luxembourgish",
+    "label": "Luxembourgish",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "mk",
+    "name": "Macedonian",
+    "label": "Macedonian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "mg",
+    "name": "Malagasy",
+    "label": "Malagasy",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ms",
+    "name": "Malay",
+    "label": "Malay",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "ml",
+    "name": "Malayalam",
+    "label": "Malayalam",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "mt",
+    "name": "Maltese",
+    "label": "Maltese",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "mi",
+    "name": "Māori",
+    "label": "Māori",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "mr",
+    "name": "Marathi",
+    "label": "Marathi",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "mn",
+    "name": "Mongolian",
+    "label": "Mongolian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ne",
+    "name": "Nepali",
+    "label": "Nepali",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "no",
+    "name": "Norwegian",
+    "label": "Norwegian",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "nn",
+    "name": "Norwegian Nynorsk",
+    "label": "Norwegian Nynorsk",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "oc",
+    "name": "Occitan",
+    "label": "Occitan",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ps",
+    "name": "Pashto",
+    "label": "Pashto",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "fa",
+    "name": "Persian",
+    "label": "Persian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "pl",
+    "name": "Polish",
+    "label": "Polish",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "pt",
+    "name": "Portuguese",
+    "label": "Português",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "pa",
+    "name": "Punjabi",
+    "label": "Punjabi",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "ro",
+    "name": "Romanian",
+    "label": "Romanian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "ru",
+    "name": "Russian",
+    "label": "Русский",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "sa",
+    "name": "Sanskrit",
+    "label": "Sanskrit",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "sr",
+    "name": "Serbian",
+    "label": "Serbian",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "sn",
+    "name": "Shona",
+    "label": "Shona",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "sd",
+    "name": "Sindhi",
+    "label": "Sindhi",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "si",
+    "name": "Sinhala",
+    "label": "Sinhala",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "sk",
+    "name": "Slovak",
+    "label": "Slovak",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "sl",
+    "name": "Slovenian",
+    "label": "Slovenian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "so",
+    "name": "Somali",
+    "label": "Somali",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "es",
+    "name": "Spanish",
+    "label": "Español",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "su",
+    "name": "Sundanese",
+    "label": "Sundanese",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "sw",
+    "name": "Swahili",
+    "label": "Swahili",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "sv",
+    "name": "Swedish",
+    "label": "Swedish",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "tg",
+    "name": "Tajik",
+    "label": "Tajik",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "ta",
+    "name": "Tamil",
+    "label": "Tamil",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "tt",
+    "name": "Tatar",
+    "label": "Tatar",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "te",
+    "name": "Telugu",
+    "label": "Telugu",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "th",
+    "name": "Thai",
+    "label": "Thai",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "bo",
+    "name": "Tibetan",
+    "label": "Tibetan",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "tr",
+    "name": "Turkish",
+    "label": "Turkish",
+    "recognizer": "whisper",
+    "speech": true,
+    "interface": true
+  },
+  {
+    "id": "tk",
+    "name": "Turkmen",
+    "label": "Turkmen",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "uk",
+    "name": "Ukrainian",
+    "label": "Ukrainian",
+    "recognizer": "parakeet-v3",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "ur",
+    "name": "Urdu",
+    "label": "Urdu",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "uz",
+    "name": "Uzbek",
+    "label": "Uzbek",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "vi",
+    "name": "Vietnamese",
+    "label": "Vietnamese",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": true
+  },
+  {
+    "id": "cy",
+    "name": "Welsh",
+    "label": "Welsh",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "yi",
+    "name": "Yiddish",
+    "label": "Yiddish",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  },
+  {
+    "id": "yo",
+    "name": "Yoruba",
+    "label": "Yoruba",
+    "recognizer": "whisper",
+    "speech": false,
+    "interface": false
+  }
+]

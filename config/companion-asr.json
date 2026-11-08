@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "engine": "parakeet-tdt-0.6b-v2",
+  "language": "en",
+  "sampleRate": 16000,
+  "chunkMs": 100,
+  "cpuThreads": 8,
+  "decodingMethod": "modified_beam_search",
+  "maxActivePaths": 4,
+  "trailingSilenceSeconds": 1,
+  "maxUtteranceSeconds": 30,
+  "modelDir": "data/speech/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
+  "autoSend": true,
+  "bargeIn": true,
+  "wakeWord": {
+    "enabled": true,
+    "commandWindowMs": 10000,
+    "ambiguityHoldMs": 120
+  },
+  "vad": {
+    "modelDir": "data/speech/silero-vad-v5",
+    "threshold": 0.5,
+    "minSpeechSeconds": 0.12,
+    "wakeProbeSeconds": 0.8
+  }
+}

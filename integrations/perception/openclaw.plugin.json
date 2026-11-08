@@ -1,0 +1,11 @@
+{
+  "id": "capri-perception",
+  "name": "Capri Visual Context",
+  "description": "Text-only commits for ephemeral local visual conversations; no model action tool.",
+  "activation": { "onStartup": true },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": { "stateDirectory": { "type": "string" }, "sessionKey": { "type": "string" } }
+  }
+}

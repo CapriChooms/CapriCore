@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/resemble-ai/chatterbox.git",
+    "revision": "5de7a54aa4e5e2baadb0182dde554908b48b85c2",
+    "directory": "vendor/chatterbox-voice",
+    "license": "MIT"
+  },
+  "model": {
+    "repository": "ResembleAI/chatterbox-turbo",
+    "revision": "749d1c1a46eb10492095d68fbcf55691ccf137cd",
+    "license": "MIT",
+    "files": [
+      "t3_turbo_v1.safetensors",
+      "s3gen_meanflow.safetensors",
+      "ve.safetensors",
+      "conds.pt",
+      "tokenizer_config.json",
+      "special_tokens_map.json",
+      "added_tokens.json",
+      "vocab.json",
+      "merges.txt",
+      "README.md"
+    ]
+  }
+}

@@ -1,0 +1,310 @@
+@font-face {
+  font-family: 'Exo 2';
+  src: url('fonts/exo2.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+html,
+body {
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+
+body {
+  min-height: 100vh;
+}
+
+:root[data-interface-theme]:not([data-interface-theme='capri']) {
+  --reply-surface: var(--theme-panel);
+  --reply-line: var(--cyan);
+  --reply-text: var(--theme-text);
+}
+
+#teleport-effect {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#parked-avatar,
+.avatar-pose-stage,
+.avatar-portrait,
+.avatar-grip-svg,
+.avatar-pose-motion,
+#parked-avatar img {
+  position: absolute;
+}
+
+.avatar-pose-stage,
+.avatar-portrait,
+.avatar-grip-svg,
+.avatar-pose-motion {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+}
+
+.avatar-pose-stage[data-mirror] {
+  transform: translateX(100%) scaleX(-1);
+}
+
+.avatar-grip-svg {
+  display: none;
+}
+
+.avatar-pose-motion:not([data-active]) {
+  display: none;
+}
+
+#parked-avatar[data-grip] .avatar-grip-svg {
+  display: block;
+}
+
+.avatar-grip-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  clip-path: polygon(
+    45.5% 31.1%,
+    48.4% 28%,
+    50.4% 30.8%,
+    52.2% 27.4%,
+    56.8% 26%,
+    57% 32%,
+    55.5% 32.3%,
+    48% 32.3%,
+    46% 32.2%
+  );
+}
+
+.avatar-grip-face[data-registered-face] {
+  clip-path: none;
+}
+
+.avatar-seat-shins {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #parked-avatar[data-legacy-seat] .avatar-portrait > :is(img, canvas) {
+    clip-path: inset(0 0 31.7% 0);
+  }
+
+  #parked-avatar[data-legacy-seat] .avatar-seat-shins {
+    display: block;
+    position: absolute;
+    inset: 0;
+    clip-path: inset(67.8% 0 0 0);
+    background-size: 100% 100%;
+    transform-origin: var(--seat-shin-pivot, 58% 68%);
+    transform: rotate(var(--seat-shin-angle, 0deg));
+  }
+}
+
+#parked-avatar img {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+#avatar-hud {
+  position: absolute;
+  z-index: 3;
+  display: block;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+}
+
+#avatar-status {
+  position: absolute;
+  box-sizing: border-box;
+  flex: none;
+  max-width: 100%;
+  padding: 4px 9px;
+  border: 1px solid currentColor;
+  background: var(--reply-surface, #091218);
+  color: var(--avatar-signal, #8ef5ed);
+  font:
+    650 9px/10px 'Exo 2',
+    'Segoe UI',
+    'Nirmala UI',
+    'Yu Gothic UI',
+    sans-serif;
+  letter-spacing: 1.6px;
+  overflow-wrap: anywhere;
+}
+
+#avatar-reply {
+  position: absolute;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: 0;
+  background: none;
+  isolation: isolate;
+  color: var(--reply-text, #e5edf0);
+  font:
+    500 16px/1.35 'Exo 2',
+    'Segoe UI',
+    'Nirmala UI',
+    'Yu Gothic UI',
+    sans-serif;
+  animation: avatar-reply-in 140ms ease-out;
+}
+
+#avatar-reply[hidden] {
+  display: none;
+}
+
+#avatar-reply-toggle {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 0;
+  background: var(--reply-surface, #091218);
+  color: var(--avatar-signal, #8ef5ed);
+  pointer-events: auto;
+}
+#avatar-reply-toggle[hidden] {
+  display: none;
+}
+#avatar-reply-toggle svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  transform: rotate(var(--reply-direction, 0deg));
+}
+#avatar-reply-toggle[data-side='above'] {
+  --reply-direction: -90deg;
+}
+#avatar-reply-toggle[data-side='below'] {
+  --reply-direction: 90deg;
+}
+#avatar-reply-toggle[data-side='left'] {
+  --reply-direction: 180deg;
+}
+#avatar-reply-toggle[data-side='right'] {
+  --reply-direction: 0deg;
+}
+#avatar-reply-toggle[data-expanded] svg {
+  transform: rotate(calc(var(--reply-direction) + 180deg));
+}
+#avatar-reply-toggle:hover,
+#avatar-reply-toggle:focus-visible {
+  filter: brightness(1.25);
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
+#avatar-reply-text {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: min(150px, calc(100vh - 88px));
+  margin: 0;
+  padding: 9px 12px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+#avatar-reply-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: none;
+  gap: 4px;
+  padding: 0 8px 6px;
+  height: 26px;
+  color: var(--reply-text, #c8fff4);
+}
+#avatar-reply-controls[hidden] {
+  display: none;
+}
+#avatar-reply-controls button {
+  box-sizing: border-box;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--reply-line, #8ef5ed9e);
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font:
+    600 17px/1 'Exo 2',
+    sans-serif;
+}
+#avatar-reply-controls button:disabled {
+  opacity: 0.3;
+}
+#avatar-reply-position {
+  min-width: 40px;
+  text-align: center;
+  font:
+    500 9px/1 'Exo 2',
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+#avatar-reply-surface {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  fill: var(--reply-surface, #101820f5);
+  stroke: var(--reply-line, #8ef5ed9e);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 3px 6px #020810a0);
+}
+#avatar-reply-surface path {
+  vector-effect: non-scaling-stroke;
+}
+
+@keyframes avatar-reply-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #avatar-reply {
+    animation: none;
+  }
+}
+body[data-presentation='dialogue'] #parked-avatar {
+  visibility: hidden;
+}
+body[data-presentation='dialogue'] #avatar-hud,
+body[data-presentation='dialogue'] #avatar-reply-toggle {
+  --reply-surface: #092316f5;
+  --reply-line: #59ed91;
+  --reply-text: #c8ffdc;
+}
+body[data-presentation='dialogue'] :is(#avatar-status, #avatar-reply-toggle) {
+  color: #91f7b5 !important;
+}

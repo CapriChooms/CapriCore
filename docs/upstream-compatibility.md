@@ -1,0 +1,13 @@
+# Pinned OpenClaw compatibility
+
+`integrations/openclaw-compat/patches.json` contains exact edits, original/final SHA-256 checksums and the supported OpenClaw version. `scripts/openclaw-compat.mjs` verifies every file before writing any. It accepts only the reviewed original or final content, supports an interrupted partial installation and refuses unknown versions/source changes. Installation and Gateway startup apply/check the manifest. Do not edit installed dependencies without updating this reviewed manifest and regression checks.
+
+The existing patches preserve final tool replies, the local Qwen avatar delivery protocol, delivery-stage instructions and the authenticated owner-only one-turn thinking override. Their transport behavior has unit/integration coverage in `tests/openclaw-compat.test.mjs`, `tests/native-model.test.mjs` and request-routing checks.
+
+The initiative patch changes only explicit Capri commits whose label starts with `Capri initiative / `. OpenClaw normally treats `gateway-injected` assistant entries as display-only and excludes them from provider history. A genuine locally generated Capri comment instead uses model provenance `capri-initiative`, retains the source label as private `capriInitiative` metadata and keeps that technical label out of the spoken/model-facing content. Other agents and ordinary injected/delivery-mirror messages retain upstream behavior. This avoids a second context or replaying the whole desktop journal on each user turn.
+
+The marker is supplied by the trusted desktop backend through authenticated Gateway metadata RPC. It is not a renderer/model-selected tool parameter. It grants no action tools or new filesystem permission. The optional generator itself exposes no tools. `scripts/verify-initiative-model.mjs` verifies shared-session commit, absence of a forged user turn and recall through the ordinary agent, in an isolated runtime.
+
+Reassess these edits when upgrading OpenClaw. Prefer an upstream API for a real assistant-context append if one becomes available, and retire this narrow patch rather than maintaining duplicate transcript logic.
+
+For context maintenance, the two foreground call sites explicitly identify their optional memory checkpoint. Capri skips only that optional extraction step; required compaction stays active and other agents retain upstream behavior. Post-delivery extraction receives a separate ten-second cancellation signal, with parent cancellation/authority checks preserved and failures recorded honestly. The patches are version/hash pinned like the transport fixes. [Policy, migration and verification](context-management.md).

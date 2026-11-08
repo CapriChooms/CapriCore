@@ -1,0 +1,1552 @@
+{
+  "en": {
+    "updatingTo": "Updating to {0}",
+    "progressOverall": "Overall progress {0}%",
+    "progressEta": "About {0} remaining",
+    "progressEstimating": "Estimating time remaining…",
+    "progressTransferred": "Downloaded {0}",
+    "progressStageComplete": "Finished · {0}",
+    "progressStillWorking": "Still in progress after {0} · {1}",
+    "stages": {
+      "finalize": "Saving first-launch settings and finishing Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Checking this PC and the selected installation folder",
+      "checkRuntime": "Checking for an existing verified copy of {0}",
+      "fetchRuntime": "Looking for a cached copy of {0} or connecting to its download server",
+      "connectRuntime": "Connecting to the download server for {0}",
+      "downloadRuntime": "Receiving files for {0}",
+      "extractRuntime": "Extracting verified files for {0}",
+      "verifyRuntime": "Verifying the integrity and readiness of {0}",
+      "checkSource": "Checking the application package and file checksums",
+      "copySource": "Comparing existing files and installing verified application files",
+      "installDependencies": "Installing packages from the lockfile and reusing the local cache"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ru": {
+    "updatingTo": "Обновление до {0}",
+    "progressOverall": "Общий прогресс {0}%",
+    "progressEta": "Примерно осталось {0}",
+    "progressEstimating": "Оцениваем оставшееся время…",
+    "progressTransferred": "Скачано {0}",
+    "progressStageComplete": "Готово · {0}",
+    "progressStillWorking": "В работе уже {0} · {1}",
+    "stages": {
+      "finalize": "Сохраняем настройки первого запуска и завершаем установку"
+    },
+    "progressActivity": {
+      "checkTarget": "Проверяем компьютер и выбранную папку установки",
+      "checkRuntime": "Ищем ранее проверенную копию {0}",
+      "fetchRuntime": "Ищем {0} в кэше или подключаемся к серверу загрузки",
+      "connectRuntime": "Подключаемся к серверу загрузки {0}",
+      "downloadRuntime": "Получаем файлы {0}",
+      "extractRuntime": "Распаковываем проверенные файлы {0}",
+      "verifyRuntime": "Проверяем целостность и готовность {0}",
+      "checkSource": "Проверяем пакет приложения и контрольные суммы файлов",
+      "copySource": "Сравниваем существующие файлы и устанавливаем проверенные файлы приложения",
+      "installDependencies": "Устанавливаем закреплённые версии пакетов и используем локальный кэш"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "de": {
+    "updatingTo": "Aktualisiere auf {0}",
+    "progressOverall": "Gesamtfortschritt {0}%",
+    "progressEta": "Noch ungefähr {0}",
+    "progressEstimating": "Geschätzte Restzeit…",
+    "progressTransferred": "{0} heruntergeladen",
+    "progressStageComplete": "Fertig · {0}",
+    "progressStillWorking": "Noch in Bearbeitung nach {0} · {1}",
+    "stages": {
+      "finalize": "Speichere Erstlauf-Einstellungen und beende Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Überprüfe diesen PC und den ausgewählten Installationsordner",
+      "checkRuntime": "Suche nach einer vorhandenen verifizierten Kopie von {0}",
+      "fetchRuntime": "Suche nach einer gecachten Kopie von {0} oder verbinde dich mit seinem Download-Server",
+      "connectRuntime": "Verbinde dich mit dem Download-Server für {0}",
+      "downloadRuntime": "Empfang von Dateien für {0}",
+      "extractRuntime": "Extrahieren verifizierter Dateien für {0}",
+      "verifyRuntime": "Überprüfe die Integrität und Bereitschaft von {0}",
+      "checkSource": "Installationspaket und Prüfsummen der Dateien werden überprüft",
+      "copySource": "Vergleiche vorhandene Dateien und installiere verifizierte Anwendungsdateien",
+      "installDependencies": "Installiere Pakete aus der Lockdatei und nutze den lokalen Cache"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "fr": {
+    "updatingTo": "Mise à jour vers {0}",
+    "progressOverall": "Progression globale {0}%",
+    "progressEta": "Il reste environ {0}",
+    "progressEstimating": "Estimation du temps restant…",
+    "progressTransferred": "Téléchargé {0}",
+    "progressStageComplete": "Terminé · {0}",
+    "progressStillWorking": "Toujours en cours après {0} · {1}",
+    "stages": {
+      "finalize": "Sauvegarde des paramètres de première exécution et finalisation de Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Vérification de cet PC et du dossier d'installation sélectionné",
+      "checkRuntime": "Recherche d'une copie vérifiée existante de {0}",
+      "fetchRuntime": "Recherche d'une copie mise en cache de {0} ou connexion à son serveur de téléchargement",
+      "connectRuntime": "Connexion au serveur de téléchargement pour {0}",
+      "downloadRuntime": "Réception des fichiers pour {0}",
+      "extractRuntime": "Extraction des fichiers vérifiés pour {0}",
+      "verifyRuntime": "Vérification de l'intégrité et de la préparation de {0}",
+      "checkSource": "Vérification du paquet d’installation et des sommes de contrôle des fichiers",
+      "copySource": "Comparaison des fichiers existants et installation des fichiers d'application vérifiés",
+      "installDependencies": "Installation des paquets depuis le fichier de verrouillage et réutilisation du cache local"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "es": {
+    "updatingTo": "Actualizando a {0}",
+    "progressOverall": "Progreso general {0}%",
+    "progressEta": "Quedan aproximadamente {0}",
+    "progressEstimating": "Estimando tiempo restante…",
+    "progressTransferred": "Descargado {0}",
+    "progressStageComplete": "Terminado · {0}",
+    "progressStillWorking": "Aún en progreso después de {0} · {1}",
+    "stages": {
+      "finalize": "Guardando configuraciones de primer inicio y finalizando Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Verificando este PC y la carpeta de instalación seleccionada",
+      "checkRuntime": "Buscando una copia verificada existente de {0}",
+      "fetchRuntime": "Buscando una copia en caché de {0} o conectándose a su servidor de descarga",
+      "connectRuntime": "Conectando al servidor de descarga para {0}",
+      "downloadRuntime": "Recibiendo archivos para {0}",
+      "extractRuntime": "Extrayendo archivos verificados para {0}",
+      "verifyRuntime": "Verificando la integridad y preparación de {0}",
+      "checkSource": "Comprobando el paquete de instalación y las sumas de verificación de los archivos",
+      "copySource": "Comparando archivos existentes e instalando archivos de la aplicación verificados",
+      "installDependencies": "Instalando paquetes desde el archivo de bloqueo y reutilizando la caché local"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "it": {
+    "updatingTo": "Aggiornamento a {0}",
+    "progressOverall": "Progresso generale {0}%",
+    "progressEta": "Tempo rimanente: circa {0}",
+    "progressEstimating": "Stima tempo rimanente…",
+    "progressTransferred": "Scaricato {0}",
+    "progressStageComplete": "Finito · {0}",
+    "progressStillWorking": "Ancora in corso dopo {0} · {1}",
+    "stages": {
+      "finalize": "Salvataggio impostazioni primo avvio e completamento Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Verifica PC e cartella installazione selezionata",
+      "checkRuntime": "Verifica copia verificata esistente di {0}",
+      "fetchRuntime": "Ricerca copia in cache di {0} o connessione al suo server di download",
+      "connectRuntime": "Connessione al server di download per {0}",
+      "downloadRuntime": "Ricezione file per {0}",
+      "extractRuntime": "Estrazione file verificati per {0}",
+      "verifyRuntime": "Verifica integrità e prontezza di {0}",
+      "checkSource": "Verifica del pacchetto di installazione e dei checksum dei file",
+      "copySource": "Confronto file esistenti e installazione file applicazione verificati",
+      "installDependencies": "Installazione pacchetti dal lockfile e riutilizzo della cache locale"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "pt": {
+    "updatingTo": "Atualizando para {0}",
+    "progressOverall": "Progresso geral {0}%",
+    "progressEta": "Restam aproximadamente {0}",
+    "progressEstimating": "Estimando tempo restante…",
+    "progressTransferred": "Baixado {0}",
+    "progressStageComplete": "Concluído · {0}",
+    "progressStillWorking": "Ainda em progresso após {0} · {1}",
+    "stages": {
+      "finalize": "Salvando configurações de primeira inicialização e finalizando Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Verificando este PC e a pasta de instalação selecionada",
+      "checkRuntime": "Verificando cópia verificada existente de {0}",
+      "fetchRuntime": "Procurando cópia em cache de {0} ou conectando ao servidor de download",
+      "connectRuntime": "Conectando ao servidor de download para {0}",
+      "downloadRuntime": "Recebendo arquivos para {0}",
+      "extractRuntime": "Extraindo arquivos verificados para {0}",
+      "verifyRuntime": "Verificando a integridade e prontidão de {0}",
+      "checkSource": "Verificando o pacote de instalação e as somas de verificação dos arquivos",
+      "copySource": "Comparando arquivos existentes e instalando arquivos do aplicativo verificados",
+      "installDependencies": "Instalando pacotes do lockfile e reutilizando o cache local"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "nl": {
+    "updatingTo": "Update naar {0}",
+    "progressOverall": "Algemene voortgang {0}%",
+    "progressEta": "Nog ongeveer {0}",
+    "progressEstimating": "Tijd resterend schatten…",
+    "progressTransferred": "Gedownload {0}",
+    "progressStageComplete": "Voltooid · {0}",
+    "progressStillWorking": "nog bezig na {0} · {1}",
+    "stages": {
+      "finalize": "Opslaan eerste-installatiestellingen en voltooien Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Controleer deze PC en de geselecteerde installatiemap",
+      "checkRuntime": "Zoeken naar een bestaande geverifieerde kopie van {0}",
+      "fetchRuntime": "Zoeken naar een gecachte kopie van {0} of verbinden met zijn downloadserver",
+      "connectRuntime": "Verbinden met de downloadserver voor {0}",
+      "downloadRuntime": "Bestanden ontvangen voor {0}",
+      "extractRuntime": "Bestanden voor {0} extraheren",
+      "verifyRuntime": "Integriteit en klaarheid van {0} verifiëren",
+      "checkSource": "Installatiepakket en controlesommen van bestanden controleren",
+      "copySource": "Bestanden vergelijken en geverifieerde applicatiebestanden installeren",
+      "installDependencies": "Pakketten installeren uit de lockfile en de lokale cache hergebruiken"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "pl": {
+    "updatingTo": "Aktualizacja do {0}",
+    "progressOverall": "Ogólny postęp {0}%",
+    "progressEta": "Pozostało około {0}",
+    "progressEstimating": "Szacowanie czasu pozostałego…",
+    "progressTransferred": "Pobrane {0}",
+    "progressStageComplete": "Zakończono · {0}",
+    "progressStillWorking": "Wciąż w trakcie po {0} · {1}",
+    "stages": {
+      "finalize": "Zapisywanie ustawień pierwszego uruchomienia i zakończenie Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Sprawdzanie tego komputera i wybranej folderu instalacji",
+      "checkRuntime": "Sprawdzanie w celu znalezienia istniejącej zweryfikowanej kopii {0}",
+      "fetchRuntime": "Szukanie kopii podręcznej {0} lub połączenie z jego serwerem pobierania",
+      "connectRuntime": "Łączenie się z serwerem pobierania dla {0}",
+      "downloadRuntime": "Otrzymywanie plików dla {0}",
+      "extractRuntime": "Ekstrakcja zweryfikowanych plików dla {0}",
+      "verifyRuntime": "Weryfikacja integralności i gotowości {0}",
+      "checkSource": "Sprawdzanie pakietu instalacyjnego i sum kontrolnych plików",
+      "copySource": "Porównywanie istniejących plików i instalowanie zweryfikowanych plików aplikacji",
+      "installDependencies": "Instalowanie pakietów z pliku blokującego i ponowne użycie lokalnej pamięci podręcznej"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "uk": {
+    "updatingTo": "Оновлення до {0}",
+    "progressOverall": "Загальний прогрес {0}%",
+    "progressEta": "Залишилося приблизно {0}",
+    "progressEstimating": "Оцінка часу до завершення…",
+    "progressTransferred": "Завантажено {0}",
+    "progressStageComplete": "Завершено · {0}",
+    "progressStillWorking": "Продовжує роботу після {0} · {1}",
+    "stages": {
+      "finalize": "Збереження налаштувань першого запуску та завершення Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Перевірка цього ПК та обраної папки встановлення",
+      "checkRuntime": "Перевірка наявності перевіреної копії {0}",
+      "fetchRuntime": "Пошук кешованої копії {0} або підключення до його сервера завантаження",
+      "connectRuntime": "Підключення до сервера завантаження для {0}",
+      "downloadRuntime": "Отримання файлів для {0}",
+      "extractRuntime": "Вилучення перевірених файлів для {0}",
+      "verifyRuntime": "Перевірка цілісності та готовності {0}",
+      "checkSource": "Перевірка пакета встановлення та контрольних сум файлів",
+      "copySource": "Порівняння існуючих файлів та встановлення перевірених файлів програми",
+      "installDependencies": "Встановлення пакетів з lockfile та повторне використання локального кешу"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "cs": {
+    "updatingTo": "Aktualizace na {0}",
+    "progressOverall": "Celkový pokrok {0}%",
+    "progressEta": "Zbývá přibližně {0}",
+    "progressEstimating": "Odhadování zbývajícího času…",
+    "progressTransferred": "Stáhnuto {0}",
+    "progressStageComplete": "Dokončeno · {0}",
+    "progressStillWorking": "Stále v procesu po {0} · {1}",
+    "stages": {
+      "finalize": "Ukládání nastavení prvního spuštění a dokončení Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Kontrola tohoto PC a vybrané složky instalace",
+      "checkRuntime": "Prohledávání existující ověřené kopie {0}",
+      "fetchRuntime": "Hledání cache kopie {0} nebo připojení k jeho serveru stahování",
+      "connectRuntime": "Připojení k serveru stahování pro {0}",
+      "downloadRuntime": "Odbírání souborů pro {0}",
+      "extractRuntime": "Rozbalování ověřených souborů pro {0}",
+      "verifyRuntime": "Ověřování integrity a připravenosti {0}",
+      "checkSource": "Kontrola instalačního balíčku a kontrolních součtů souborů",
+      "copySource": "Porovnávání existujících souborů a instalace ověřených souborů aplikace",
+      "installDependencies": "Instalace balíčků z lockfile a opětovné použití lokálního cache"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "sk": {
+    "updatingTo": "Aktualizácia na {0}",
+    "progressOverall": "Celkový pokrok {0}%",
+    "progressEta": "Zostáva približne {0}",
+    "progressEstimating": "Odhadnutý čas pozostávajúci…",
+    "progressTransferred": "Stiahnuté {0}",
+    "progressStageComplete": "Hotovo · {0}",
+    "progressStillWorking": "Stále v priebehu po {0} · {1}",
+    "stages": {
+      "finalize": "Uloženie nastavení prvého spustenia a dokončenie Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Skontrolovanie počítača a vybraného adresára instalácie",
+      "checkRuntime": "Hľadanie existujúcej overenej kópie {0}",
+      "fetchRuntime": "Hľadanie cache kópie {0} alebo pripojenie na jeho server stiahnutia",
+      "connectRuntime": "Pripojenie na server stiahnutia pre {0}",
+      "downloadRuntime": "Príjemné súborov pre {0}",
+      "extractRuntime": "Vytieranie overených súborov pre {0}",
+      "verifyRuntime": "Overenie integrity a pripravenosti {0}",
+      "checkSource": "Kontrola inštalačného balíka a kontrolných súčtov súborov",
+      "copySource": "Porovnanie existujúcich súborov a instalácia overených súborov aplikácie",
+      "installDependencies": "Instalácia balíkov z lockfílu a použitie lokálneho cache"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "bg": {
+    "updatingTo": "Актуализиране до {0}",
+    "progressOverall": "Общ напредък {0}%",
+    "progressEta": "Остават около {0}",
+    "progressEstimating": "Оценяване на оставащо време…",
+    "progressTransferred": "Изтегляне на {0}",
+    "progressStageComplete": "Готово · {0}",
+    "progressStillWorking": "Очаквам след {0} · {1}",
+    "stages": {
+      "finalize": "Записване на настройки за първоначално стартиране и завършване на Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Проверка на този компютър и избраната папка за инсталация",
+      "checkRuntime": "Проверка за съществуваща верифицирана копия на {0}",
+      "fetchRuntime": "Търсене на кеширано копие на {0} или свързване към сървъра за изтегляне",
+      "connectRuntime": "Свързване към сървъра за изтегляне за {0}",
+      "downloadRuntime": "Получаване на файлове за {0}",
+      "extractRuntime": "Извличане на верифицирани файлове за {0}",
+      "verifyRuntime": "Верифициране на цялост и готовност на {0}",
+      "checkSource": "Проверка на инсталационния пакет и контролните суми на файловете",
+      "copySource": "Сравняване на съществуващите файлове и инсталиране на верифицираните файлове на приложението",
+      "installDependencies": "Инсталиране на пакети от lockfile и повторно използване на локачния кеш"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "hr": {
+    "updatingTo": "Ažuriranje na {0}",
+    "progressOverall": "Ukupni napred {0}%",
+    "progressEta": "Preostalo je oko {0}",
+    "progressEstimating": "Procjenjivanje preostalog vremena…",
+    "progressTransferred": "Preuzeto {0}",
+    "progressStageComplete": "Završeno · {0}",
+    "progressStillWorking": "I dalje u procesu nakon {0} · {1}",
+    "stages": {
+      "finalize": "Spremanje postavki za prvi pokret i završetak Setupa"
+    },
+    "progressActivity": {
+      "checkTarget": "Provjera ovog računala i odabrane mapi za instalaciju",
+      "checkRuntime": "Provjera postojećeg provjerenog kopije {0}",
+      "fetchRuntime": "Potraga za keširanom kopijom {0} ili povezivanje na njegov server za preuzimanje",
+      "connectRuntime": "Povezivanje na server za preuzimanje za {0}",
+      "downloadRuntime": "Primanje datoteka za {0}",
+      "extractRuntime": "Izvlačenje provjerenih datoteka za {0}",
+      "verifyRuntime": "Provjera integriteta i spremnosti {0}",
+      "checkSource": "Provjera instalacijskog paketa i kontrolnih zbrojeva datoteka",
+      "copySource": "Poređenje postojećih datoteka i instalacija provjerenih datoteka aplikacije",
+      "installDependencies": "Instalacija paketa iz lockfilea i ponovno korištenje lokalnog keša"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "sr": {
+    "updatingTo": "Ažuriranje na {0}",
+    "progressOverall": "Ukupni napred {0}%",
+    "progressEta": "Preostalo je oko {0}",
+    "progressEstimating": "Procenjujem preostalo vreme…",
+    "progressTransferred": "Preuzeto {0}",
+    "progressStageComplete": "Završeno · {0}",
+    "progressStillWorking": "Još u toku nakon {0} · {1}",
+    "stages": {
+      "finalize": "Spremanje podešavanja za prvi pokretanja i završetak Setupa"
+    },
+    "progressActivity": {
+      "checkTarget": "Provera ovog računara i odabrane foldera za instalaciju",
+      "checkRuntime": "Provera postojećeg proverenog kopije {0}",
+      "fetchRuntime": "Pronađim keš kopiju {0} ili se povezujem na njegov server za preuzimanje",
+      "connectRuntime": "Povezivanje na server za preuzimanje {0}",
+      "downloadRuntime": "Primanje datoteka za {0}",
+      "extractRuntime": "Izvlačenje proverenih datoteka za {0}",
+      "verifyRuntime": "Provera integriteta i spremnosti {0}",
+      "checkSource": "Provera instalacionog paketa i kontrolnih suma datoteka",
+      "copySource": "Poređenje postojećih datoteka i instalacija proverenih datoteka aplikacije",
+      "installDependencies": "Instalacija paketa iz lockfile-a i ponovno korišćenje lokalnog keša"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "sl": {
+    "updatingTo": "Posodabljanje na {0}",
+    "progressOverall": "Skupni napredek {0}%",
+    "progressEta": "Preostane približno {0}",
+    "progressEstimating": "Ocenjevanje preostalega časa…",
+    "progressTransferred": "Preneseno {0}",
+    "progressStageComplete": "Končano · {0}",
+    "progressStillWorking": "Še vedno poteka po {0} · {1}",
+    "stages": {
+      "finalize": "Shranjevanje nastavitev za prvi zagon in dokončanje namestitve"
+    },
+    "progressActivity": {
+      "checkTarget": "Preverjanje računalnika in izbrane namestitvene mape",
+      "checkRuntime": "Iskanje obstoječe preverjene kopije programa {0}",
+      "fetchRuntime": "Iskanje kopije programa {0} v predpomnilniku ali povezovanje s strežnikom za prenos",
+      "connectRuntime": "Povezovanje s strežnikom za prenos programa {0}",
+      "downloadRuntime": "Prejemanje datotek za {0}",
+      "extractRuntime": "Razširjanje preverjenih datotek za {0}",
+      "verifyRuntime": "Preverjanje celovitosti in pripravljenosti programa {0}",
+      "checkSource": "Preverjanje namestitvenega paketa in kontrolnih vsot datotek",
+      "copySource": "Primerjava obstoječih datotek in namestitev preverjenih datotek programa",
+      "installDependencies": "Nameščanje paketov iz datoteke z zaklenjenimi različicami in uporaba lokalnega predpomnilnika"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ro": {
+    "updatingTo": "Actualizare la {0}",
+    "progressOverall": "Progres general {0}%",
+    "progressEta": "Au mai rămas aproximativ {0}",
+    "progressEstimating": "Estimare timp rămas…",
+    "progressTransferred": "Descărcat {0}",
+    "progressStageComplete": "Finalizat · {0}",
+    "progressStillWorking": "În proces după {0} · {1}",
+    "stages": {
+      "finalize": "Salvare setări lansare inițială și finalizarea Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Verificare PC și folderul de instalare selectat",
+      "checkRuntime": "Verificare o copie verificată existentă a {0}",
+      "fetchRuntime": "Căutare o copie în cache a {0} sau conectare la serverul său de descărcare",
+      "connectRuntime": "Conectare la serverul de descărcare pentru {0}",
+      "downloadRuntime": "Primire fișiere pentru {0}",
+      "extractRuntime": "Extragere fișiere verificate pentru {0}",
+      "verifyRuntime": "Verificare integrită și pregătire a {0}",
+      "checkSource": "Se verifică pachetul de instalare și sumele de control ale fișierelor",
+      "copySource": "Comparare fișierelor existente și instalare fișierelor aplicației verificate",
+      "installDependencies": "Instalare pachetelor din fișierul de blocare și reutilizarea cache-ului local"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "hu": {
+    "updatingTo": "Frissítés erre a verzióra: {0}",
+    "progressOverall": "Teljes folyamat: {0}%",
+    "progressEta": "Körülbelül {0} van hátra",
+    "progressEstimating": "A hátralévő idő becslése…",
+    "progressTransferred": "Letöltve: {0}",
+    "progressStageComplete": "Befejezve · {0}",
+    "progressStillWorking": "Még folyamatban, eltelt idő: {0} · {1}",
+    "stages": {
+      "finalize": "Az első indítás beállításainak mentése és a telepítés befejezése"
+    },
+    "progressActivity": {
+      "checkTarget": "A számítógép és a kiválasztott telepítési mappa ellenőrzése",
+      "checkRuntime": "A(z) {0} meglévő, ellenőrzött példányának keresése",
+      "fetchRuntime": "A(z) {0} keresése a gyorsítótárban vagy csatlakozás a letöltési kiszolgálóhoz",
+      "connectRuntime": "Csatlakozás a(z) {0} letöltési kiszolgálójához",
+      "downloadRuntime": "A(z) {0} fájljainak letöltése",
+      "extractRuntime": "A(z) {0} ellenőrzött fájljainak kibontása",
+      "verifyRuntime": "A(z) {0} sértetlenségének és használatra kész állapotának ellenőrzése",
+      "checkSource": "Az alkalmazáscsomag és a fájlok ellenőrzőösszegeinek ellenőrzése",
+      "copySource": "A meglévő fájlok összehasonlítása és az ellenőrzött alkalmazásfájlok telepítése",
+      "installDependencies": "Csomagok telepítése a rögzített verziók szerint, a helyi gyorsítótár használatával"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "el": {
+    "updatingTo": "Ενημέρωση σε {0}",
+    "progressOverall": "Συνολική πρόοδος {0}%",
+    "progressEta": "Απομένουν περίπου {0}",
+    "progressEstimating": "Εκτίμηση χρόνου που απομένει…",
+    "progressTransferred": "Κατέβασμα {0}",
+    "progressStageComplete": "Ολοκληρώθηκε · {0}",
+    "progressStillWorking": "Είμαι ακόμα σε διαδικασία μετά το {0} · {1}",
+    "stages": {
+      "finalize": "Αποθήκευση ρυθμίσεων πρώτης εκκίνησης και ολοκλήρωση Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Έλεγχος του υπολογιστή και του επιλεγμένου φακέλου εγκατάστασης",
+      "checkRuntime": "Έλεγχος για αντίγραφο επιβεβαιωμένης {0}",
+      "fetchRuntime": "Αναζήτηση προσωρινής αντιγραφής {0} ή σύνδεση με τον διακομιστή λήψης του",
+      "connectRuntime": "Σύνδεση στον διακομιστή λήψης για {0}",
+      "downloadRuntime": "Λήψη αρχείων για {0}",
+      "extractRuntime": "Αποσυμπίεση επιβεβαιωμένων αρχείων για {0}",
+      "verifyRuntime": "Επαλήθευση της ακεραιότητας και της ετοιμότητας του {0}",
+      "checkSource": "Έλεγχος του πακέτου εγκατάστασης και των αθροισμάτων ελέγχου των αρχείων",
+      "copySource": "Σύγκριση των υπαρχόντων αρχείων και εγκατάσταση επιβεβαιωμένων αρχείων εφαρμογής",
+      "installDependencies": "Εγκατάσταση πακέτων από το lockfile και επαναχρησιμοποίηση του τοπικού προσωρινό αποθηκευμένου"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "da": {
+    "updatingTo": "Opdaterer til {0}",
+    "progressOverall": "Samlet fremgang {0}%",
+    "progressEta": "Cirka {0} tilbage",
+    "progressEstimating": "Estimerer resttid…",
+    "progressTransferred": "Downloadet {0}",
+    "progressStageComplete": "Færdig · {0}",
+    "progressStillWorking": "Fortsat i gang efter {0} · {1}",
+    "stages": {
+      "finalize": "Gemmer første-kørselsindstillinger og afslutter Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Tjekker dette PC og den valgte installationsmappe",
+      "checkRuntime": "Tjekker efter en eksisterende verificeret kopi af {0}",
+      "fetchRuntime": "Søger efter en cachekopi af {0} eller forbinder til dens downloadserver",
+      "connectRuntime": "Forbinder til downloadserveren for {0}",
+      "downloadRuntime": "Modtager filer for {0}",
+      "extractRuntime": "Ekstraherer verificerede filer for {0}",
+      "verifyRuntime": "Verificerer integriteten og klarheden af {0}",
+      "checkSource": "Kontrollerer installationspakken og filernes kontrolsummer",
+      "copySource": "Sammenligner eksisterende filer og installerer verificerede applikationsfiler",
+      "installDependencies": "Installer pakker fra lockfilen og genbruger den lokale cache"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "no": {
+    "updatingTo": "Oppdaterer til {0}",
+    "progressOverall": "Samlet fremdrift {0}%",
+    "progressEta": "Omtrent {0} igjen",
+    "progressEstimating": "Anslår gjenværende tid…",
+    "progressTransferred": "Last ned {0}",
+    "progressStageComplete": "Fullført · {0}",
+    "progressStillWorking": "Fortsatt i gang etter {0} · {1}",
+    "stages": {
+      "finalize": "Lagrer første oppstartsinnstillinger og fullfører Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Sjekker PC-en og den valgte installasjonsmappen",
+      "checkRuntime": "Søker etter en eksisterende verifisert kopi av {0}",
+      "fetchRuntime": "Leter etter en oppbevart kopi av {0} eller kobler til nedlastingsserveren",
+      "connectRuntime": "Kobler til nedlastingsserveren for {0}",
+      "downloadRuntime": "Mottar filer for {0}",
+      "extractRuntime": "Ekstraherer verifiserte filer for {0}",
+      "verifyRuntime": "Verifiserer integriteten og beredskapen til {0}",
+      "checkSource": "Kontrollerer installasjonspakken og filenes kontrollsummer",
+      "copySource": "Sammenligner eksisterende filer og installerer verifiserte applikasjonsfiler",
+      "installDependencies": "Installer pakker fra lockfilen og gjenbruker lokal cache"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "sv": {
+    "updatingTo": "Uppdaterar till {0}",
+    "progressOverall": "Övergripande framsteg {0}%",
+    "progressEta": "Cirka {0} kvar",
+    "progressEstimating": "Uppskattar återstående tid…",
+    "progressTransferred": "Nedladdat {0}",
+    "progressStageComplete": "Klar · {0}",
+    "progressStillWorking": "Fortfarande i process efter {0} · {1}",
+    "stages": {
+      "finalize": "Sparar första startinställningar och avslutar Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Kontrollerar denna PC och den valda installationsmappen",
+      "checkRuntime": "Letar efter en befintlig verifierad kopia av {0}",
+      "fetchRuntime": "Letar efter en sparad kopia av {0} eller ansluter till dess nedladdningsserver",
+      "connectRuntime": "Ansluter till nedladdningsservern för {0}",
+      "downloadRuntime": "Mottar filer för {0}",
+      "extractRuntime": "Extraherar verifierade filer för {0}",
+      "verifyRuntime": "Verifierar integriteten och beredskapen för {0}",
+      "checkSource": "Kontrollerar installationspaketet och filernas kontrollsummor",
+      "copySource": "Jämför befintliga filer och installerar verifierade applikationsfiler",
+      "installDependencies": "Installerar paket från lockfilen och återanvänder den lokala cachen"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "fi": {
+    "updatingTo": "Päivitetään {0}",
+    "progressOverall": "Kokonaisprosentti {0}%",
+    "progressEta": "Jäljellä noin {0}",
+    "progressEstimating": "Arvioin aikaa jäljellä…",
+    "progressTransferred": "Lataus {0}",
+    "progressStageComplete": "Valmis · {0}",
+    "progressStillWorking": "Edelleen käynnissä {0} · {1}",
+    "stages": {
+      "finalize": "Tallennetaan ensimmäisen käynnistyksen asetukset ja viimeistellään Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Tarkistetaan tämä tietokone ja valittu asennus-/tiedostokansio",
+      "checkRuntime": "Tarkistetaan olemassa oleva vahvistettu kopio {0}",
+      "fetchRuntime": "Etsitään välimuistikopio {0} tai yhdistetään sen lataussovellussivustoon",
+      "connectRuntime": "Yhdistetään lataussovellussivustoon {0}",
+      "downloadRuntime": "Vastaanotetaan tiedostoja {0}",
+      "extractRuntime": "Poistetaan vahvistetut tiedostot {0}",
+      "verifyRuntime": "Vahvistetaan {0}:n eheys ja valmius",
+      "checkSource": "Tarkistetaan asennuspaketti ja tiedostojen tarkistussummat",
+      "copySource": "Verrataan olemassa olevia tiedostoja ja asennetaan vahvistetut sovellus tiedostot",
+      "installDependencies": "Asennetaan paketit lukotiedostosta ja käytetään paikallista välimuistia"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "et": {
+    "updatingTo": "Värskendamine versioonile {0}",
+    "progressOverall": "Üldine edenemine {0}%",
+    "progressEta": "Jäänud on umbes {0}",
+    "progressEstimating": "Järelejäänud aja hindamine…",
+    "progressTransferred": "Alla laaditud {0}",
+    "progressStageComplete": "Lõpetatud · {0}",
+    "progressStillWorking": "Pärast {0} on toiming veel pooleli · {1}",
+    "stages": {
+      "finalize": "Esmakäivituse seadete salvestamine ja paigalduse lõpetamine"
+    },
+    "progressActivity": {
+      "checkTarget": "Arvuti ja valitud paigalduskausta kontrollimine",
+      "checkRuntime": "Komponendi {0} olemasoleva kontrollitud koopia otsimine",
+      "fetchRuntime": "Komponendi {0} koopia otsimine vahemälust või ühenduse loomine allalaadimisserveriga",
+      "connectRuntime": "Ühenduse loomine komponendi {0} allalaadimisserveriga",
+      "downloadRuntime": "Komponendi {0} failide allalaadimine",
+      "extractRuntime": "Komponendi {0} kontrollitud failide lahtipakkimine",
+      "verifyRuntime": "Komponendi {0} tervikluse ja valmisoleku kontrollimine",
+      "checkSource": "Paigalduspaketi ja failide kontrollsummade kontrollimine",
+      "copySource": "Olemasolevate failide võrdlemine ja kontrollitud rakendusefailide paigaldamine",
+      "installDependencies": "Pakettide paigaldamine fikseeritud versioonidega ja kohaliku vahemälu kasutamine"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "lv": {
+    "updatingTo": "Atjaunināšana uz versiju {0}",
+    "progressOverall": "Kopējā norise {0}%",
+    "progressEta": "Atlicis aptuveni {0}",
+    "progressEstimating": "Tiek aprēķināts atlikušais laiks…",
+    "progressTransferred": "Lejupielādēts {0}",
+    "progressStageComplete": "Pabeigts · {0}",
+    "progressStillWorking": "Darbība vēl turpinās pēc {0} · {1}",
+    "stages": {
+      "finalize": "Pirmās palaišanas iestatījumu saglabāšana un instalēšanas pabeigšana"
+    },
+    "progressActivity": {
+      "checkTarget": "Datora un izvēlētās instalēšanas mapes pārbaude",
+      "checkRuntime": "Tiek meklēta pārbaudīta komponenta {0} kopija",
+      "fetchRuntime": "Tiek meklēta komponenta {0} kopija kešatmiņā vai izveidots savienojums ar lejupielādes serveri",
+      "connectRuntime": "Savienojuma izveide ar komponenta {0} lejupielādes serveri",
+      "downloadRuntime": "Komponenta {0} failu lejupielāde",
+      "extractRuntime": "Pārbaudīto komponenta {0} failu atpakošana",
+      "verifyRuntime": "Komponenta {0} integritātes un gatavības pārbaude",
+      "checkSource": "Instalācijas pakotnes un failu kontrolsummu pārbaude",
+      "copySource": "Esošo failu salīdzināšana un pārbaudīto lietotnes failu instalēšana",
+      "installDependencies": "Pakotņu instalēšana atbilstoši fiksētajām versijām, izmantojot lokālo kešatmiņu"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "lt": {
+    "updatingTo": "Naujinama į versiją {0}",
+    "progressOverall": "Bendra eiga: {0}%",
+    "progressEta": "Liko maždaug {0}",
+    "progressEstimating": "Skaičiuojamas likęs laikas…",
+    "progressTransferred": "Atsisiųsta {0}",
+    "progressStageComplete": "Baigta · {0}",
+    "progressStillWorking": "Veiksmas vis dar vykdomas, praėjo {0} · {1}",
+    "stages": {
+      "finalize": "Išsaugomi pirmojo paleidimo nustatymai ir baigiamas diegimas"
+    },
+    "progressActivity": {
+      "checkTarget": "Tikrinamas kompiuteris ir pasirinktas diegimo aplankas",
+      "checkRuntime": "Ieškoma patikrintos komponento {0} kopijos",
+      "fetchRuntime": "Ieškoma komponento {0} kopijos talpykloje arba jungiamasi prie atsisiuntimo serverio",
+      "connectRuntime": "Jungiamasi prie komponento {0} atsisiuntimo serverio",
+      "downloadRuntime": "Atsisiunčiami komponento {0} failai",
+      "extractRuntime": "Išskleidžiami patikrinti komponento {0} failai",
+      "verifyRuntime": "Tikrinamas komponento {0} vientisumas ir parengtis",
+      "checkSource": "Tikrinamas diegimo paketas ir failų kontrolinės sumos",
+      "copySource": "Lyginami esami failai ir diegiami patikrinti programos failai",
+      "installDependencies": "Diegiami nustatytų versijų paketai ir naudojama vietinė talpykla"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "is": {
+    "updatingTo": "Uppfæri í {0}",
+    "progressOverall": "Heildarframvinda {0}%",
+    "progressEta": "Um {0} eftir",
+    "progressEstimating": "Áætla tíma sem eftir er…",
+    "progressTransferred": "Sótt: {0}",
+    "progressStageComplete": "Lokið · {0}",
+    "progressStillWorking": "Enn í vinnslu eftir {0} · {1}",
+    "stages": {
+      "finalize": "Vista stillingar fyrir fyrstu ræsingu og lýk uppsetningu"
+    },
+    "progressActivity": {
+      "checkTarget": "Athuga tölvuna og valda uppsetningarmöppu",
+      "checkRuntime": "Leita að staðfestu eintaki af {0}",
+      "fetchRuntime": "Leita að {0} í skyndiminni eða tengist niðurhalsþjóni",
+      "connectRuntime": "Tengist niðurhalsþjóni fyrir {0}",
+      "downloadRuntime": "Sæki skrár fyrir {0}",
+      "extractRuntime": "Afþjappa staðfestum skrám fyrir {0}",
+      "verifyRuntime": "Athuga heilleika og viðbúnað {0}",
+      "checkSource": "Athuga uppsetningarpakkann og gátsummur skráa",
+      "copySource": "Ber saman fyrirliggjandi skrár og set upp staðfestar forritsskrár",
+      "installDependencies": "Set upp tilgreindar útgáfur pakka og nýti staðbundið skyndiminni"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ca": {
+    "updatingTo": "Actualitzant a {0}",
+    "progressOverall": "Progress general {0}%",
+    "progressEta": "Queden uns {0}",
+    "progressEstimating": "Estimat temps restant…",
+    "progressTransferred": "Descarregat {0}",
+    "progressStageComplete": "Finalitzat · {0}",
+    "progressStillWorking": "A encara en procés després de {0} · {1}",
+    "stages": {
+      "finalize": "Guardant configuracions de primera lanca i finalitzant Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Comprueba aquest PC i la carpeta d'instal·lació seleccionada",
+      "checkRuntime": "Comprueba una còpia verificada existente de {0}",
+      "fetchRuntime": "Buscant una còpia en cache de {0} o connectant-se al seu servidor de descàrregues",
+      "connectRuntime": "Connectant-se al servidor de descàrregues per a {0}",
+      "downloadRuntime": "Rebreix fitxers per a {0}",
+      "extractRuntime": "Extreure fitxers verificats per a {0}",
+      "verifyRuntime": "Verificar la integració i la preparació de {0}",
+      "checkSource": "S’estan comprovant el paquet d’instal·lació i les sumes de verificació dels fitxers",
+      "copySource": "Comparar fitxers existents i instal·lar fitxers d'aplicació verificats",
+      "installDependencies": "Instalar paquets des del lockfile i reutilitzar la cache local"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ar": {
+    "updatingTo": "جاري التحديث إلى {0}",
+    "progressOverall": "التقدم الإجمالي {0}%",
+    "progressEta": "الوقت المتبقي: نحو {0}",
+    "progressEstimating": "تقدير الوقت المتبقي…",
+    "progressTransferred": "تم تنزيل {0}",
+    "progressStageComplete": "اكتمل · {0}",
+    "progressStillWorking": "لا يزال قيد التقدم بعد {0} · {1}",
+    "stages": {
+      "finalize": "حفظ إعدادات الإطلاق الأول وإنهاء الإعداد"
+    },
+    "progressActivity": {
+      "checkTarget": "التحقق من هذا الكمبيوتر ومجلد التثبيت المحدد",
+      "checkRuntime": "البحث عن نسخة موثقة موجودة من {0}",
+      "fetchRuntime": "البحث عن نسخة مخزنة من {0} أو الاتصال بخادم التنزيل الخاص بها",
+      "connectRuntime": "الاتصال بخادم التنزيل لـ {0}",
+      "downloadRuntime": "استلام الملفات لـ {0}",
+      "extractRuntime": "استخراج الملفات الموثقة لـ {0}",
+      "verifyRuntime": "التحقق من سلامة وجاهزية {0}",
+      "checkSource": "التحقق من حزمة التثبيت والمجاميع الاختبارية للملفات",
+      "copySource": "مقارنة الملفات الموجودة وتثبيت ملفات التطبيق الموثقة",
+      "installDependencies": "تثبيت الحزم من ملف القفل وإعادة استخدام ذاكرة التخزين المؤقت المحلية"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "he": {
+    "updatingTo": "עדכון ל-{0}",
+    "progressOverall": "התקדמות כוללת {0}%",
+    "progressEta": "נותרו כ־{0}",
+    "progressEstimating": "הערכת זמן שנותר…",
+    "progressTransferred": "הורדת {0}",
+    "progressStageComplete": "הושלם · {0}",
+    "progressStillWorking": "עדיין בתהליך לאחר {0} · {1}",
+    "stages": {
+      "finalize": "שמירת הגדרות הפעלה ראשונה וסיום Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "בדיקה של המחשב וספריית ההתקנה הנבחרת",
+      "checkRuntime": "בדיקה עבור עותק מאומת קיים של {0}",
+      "fetchRuntime": "חיפוש עותק שמור של {0} או חיבור לשרת ההורדות שלו",
+      "connectRuntime": "חיבור לשרת ההורדות עבור {0}",
+      "downloadRuntime": "קבלת קבצים עבור {0}",
+      "extractRuntime": "חלץ קבצים מאומתים עבור {0}",
+      "verifyRuntime": "אימות של שלמות ומוכנות של {0}",
+      "checkSource": "בודק את חבילת ההתקנה ואת סכומי הביקורת של הקבצים",
+      "copySource": "השוואה לקבצים קיימים והתקנת קבצי אפליקציה מאומתים",
+      "installDependencies": "התקנת חבילות מתוך קובץ הנעילה ושימוש במטמון המקומי"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "fa": {
+    "updatingTo": "در حال به‌روزرسانی به {0}",
+    "progressOverall": "پیشرفت کلی {0}%",
+    "progressEta": "حدود {0} باقی مانده است",
+    "progressEstimating": "زمان باقی‌مانده تخمین زده می‌شود…",
+    "progressTransferred": "دانلود شده {0}",
+    "progressStageComplete": "تمام شد · {0}",
+    "progressStillWorking": "هنوز در حال پیشرفت پس از {0} · {1}",
+    "stages": {
+      "finalize": "ذخیره تنظیمات اجرای اولیه و تکمیل Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "بررسی این رایانه و پوشه نصب انتخاب شده",
+      "checkRuntime": "جستجوی نسخه تأیید شده موجود از {0}",
+      "fetchRuntime": "جستجوی نسخه کش شده از {0} یا اتصال به سرور دانلود آن",
+      "connectRuntime": "اتصال به سرور دانلود برای {0}",
+      "downloadRuntime": "دریافت فایل‌ها برای {0}",
+      "extractRuntime": "استخراج فایل‌های تأیید شده برای {0}",
+      "verifyRuntime": "تأیید یکپارچگی و آمادگی {0}",
+      "checkSource": "در حال بررسی بستهٔ نصب و جمع‌های کنترلی فایل‌ها",
+      "copySource": "مقایسه فایل‌های موجود و نصب فایل‌های برنامه تأیید شده",
+      "installDependencies": "نصب بسته‌ها از فایل قفل و استفاده مجدد از کش محلی"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ur": {
+    "updatingTo": "{0} پر اپ ڈیٹ ہو رہا ہے",
+    "progressOverall": "کل پیشرفت {0}%",
+    "progressEta": "تقریباً {0} باقی ہے",
+    "progressEstimating": "باقی وقت کا اندازہ لگا رہا ہے…",
+    "progressTransferred": "{0} ڈاؤن لوڈ ہوا",
+    "progressStageComplete": "مکمل · {0}",
+    "progressStillWorking": "{0} کے بعد ابھی بھی عمل میں ہے · {1}",
+    "stages": {
+      "finalize": "پہلی لانچ سیٹنگز محفوظ کر رہا ہے اور Setup مکمل کر رہا ہے"
+    },
+    "progressActivity": {
+      "checkTarget": "اس PC اور منتخب انسٹالیشن فولڈر کی جانچ کر رہا ہے",
+      "checkRuntime": "{0} کی موجودہ تصدیق شدہ کاپی کی تلاش کر رہا ہے",
+      "fetchRuntime": "{0} کی کیش شدہ کاپی تلاش کر رہا ہے یا اس کے ڈاؤن لوڈ سرور سے منسلک ہو رہا ہے",
+      "connectRuntime": "{0} کے لیے ڈاؤن لوڈ سرور سے منسلک ہو رہا ہے",
+      "downloadRuntime": "{0} کے لیے فائلیں وصول کر رہا ہے",
+      "extractRuntime": "تصدیق شدہ فائلوں کو {0} کے لیے نکال رہا ہے",
+      "verifyRuntime": "{0} کی سالمیت اور تیاری کی تصدیق کر رہا ہے",
+      "checkSource": "تنصیب کے پیکیج اور فائلوں کے چیک سمز کی جانچ ہو رہی ہے",
+      "copySource": "موجودہ فائلوں کا موازنہ اور تصدیق شدہ ایپلیکیشن فائلوں کو انسٹال کر رہا ہے",
+      "installDependencies": "لاک فائل سے پیکیجز انسٹال کر رہا ہے اور مقامی کیش کا دوبارہ استعمال"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "hi": {
+    "updatingTo": "{0} में अपडेट हो रहा है",
+    "progressOverall": "कुल प्रगति {0}%",
+    "progressEta": "लगभग {0} बाकी है",
+    "progressEstimating": "शेष समय का अनुमान लगाया जा रहा है…",
+    "progressTransferred": "{0} डाउनलोड किया गया",
+    "progressStageComplete": "समाप्त · {0}",
+    "progressStillWorking": "{0} के बाद अभी भी प्रगति पर · {1}",
+    "stages": {
+      "finalize": "पहले लॉन्च सेटिंग्स सहेज रहा है और Setup समाप्त कर रहा है"
+    },
+    "progressActivity": {
+      "checkTarget": "इस PC और चयनित इंस्टॉलेशन फ़ोल्डर की जाँच कर रहा है",
+      "checkRuntime": "{0} की मौजूदा सत्यापित प्रति की जाँच कर रहा है",
+      "fetchRuntime": "{0} की कैश की गई प्रति ढूंढ रहा है या इसके डाउनलोड सर्वर से जुड़ रहा है",
+      "connectRuntime": "{0} के लिए डाउनलोड सर्वर से जुड़ रहा है",
+      "downloadRuntime": "{0} के लिए फ़ाइलें प्राप्त कर रहा है",
+      "extractRuntime": "{0} के लिए सत्यापित फ़ाइलें निकाल रहा है",
+      "verifyRuntime": "{0} की अखंडता और तैयारी की जाँच कर रहा है",
+      "checkSource": "इंस्टॉलेशन पैकेज और फ़ाइलों के चेकसम की जाँच हो रही है",
+      "copySource": "मौजूदा फ़ाइलों की तुलना कर रहा है और सत्यापित एप्लिकेशन फ़ाइलें स्थापित कर रहा है",
+      "installDependencies": "लॉकफ़ाइल से पैकेज स्थापित कर रहा है और स्थानीय कैश का पुन: उपयोग कर रहा है"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "bn": {
+    "updatingTo": "{0} এ আপডেট করা হচ্ছে",
+    "progressOverall": "সামগ্রিক অগ্রগতি {0}%",
+    "progressEta": "প্রায় {0} বাকি",
+    "progressEstimating": "বাকি সময় অনুমান করা হচ্ছে…",
+    "progressTransferred": "{0} ডাউনলোড করা হয়েছে",
+    "progressStageComplete": "সম্পন্ন · {0}",
+    "progressStillWorking": "{0} এর পরে এখনও চলছে · {1}",
+    "stages": {
+      "finalize": "প্রথম-চালু সেটিংস সংরক্ষণ করা এবং Setup শেষ করা হচ্ছে"
+    },
+    "progressActivity": {
+      "checkTarget": "এই পিসি এবং নির্বাচিত ইনস্টলেশন ফোল্ডার পরীক্ষা করা হচ্ছে",
+      "checkRuntime": "{0} এর বিদ্যমান যাচাইকৃত কপি পরীক্ষা করা হচ্ছে",
+      "fetchRuntime": "{0} এর ক্যাশ কপি খোঁজা বা এর ডাউনলোড সার্ভারে সংযোগ করা হচ্ছে",
+      "connectRuntime": "{0} এর জন্য ডাউনলোড সার্ভারে সংযোগ করা হচ্ছে",
+      "downloadRuntime": "{0} এর জন্য ফাইল গ্রহণ করা হচ্ছে",
+      "extractRuntime": "যাচাইকৃত ফাইলগুলি {0} এক্সট্র্যাক্ট করা হচ্ছে",
+      "verifyRuntime": "{0} এর অখণ্ডতা এবং প্রস্তুতি যাচাই করা হচ্ছে",
+      "checkSource": "ইনস্টলেশন প্যাকেজ ও ফাইলের চেকসাম যাচাই করা হচ্ছে",
+      "copySource": "বিদ্যমান ফাইলগুলির সাথে তুলনা করা এবং যাচাইকৃত অ্যাপ্লিকেশন ফাইল ইনস্টল করা হচ্ছে",
+      "installDependencies": "লকফাইল থেকে প্যাকেজ ইনস্টল করা এবং স্থানীয় ক্যাশ পুনরায় ব্যবহার করা"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ta": {
+    "updatingTo": "{0} க்கு புதுப்பித்தல்",
+    "progressOverall": "மொத்த முன்னேற்றம் {0}%",
+    "progressEta": "சுமார் {0} மீதமுள்ளது",
+    "progressEstimating": "மீதமுள்ள நேரத்தை மதிப்பிடுதல்…",
+    "progressTransferred": "{0} பதிவிறக்கம் செய்யப்பட்டது",
+    "progressStageComplete": "முடிந்தது · {0}",
+    "progressStillWorking": "{0} க்குப் பிறகு இன்னும் முன்னேறுகிறது · {1}",
+    "stages": {
+      "finalize": "முதல் துவக்க அமைப்புகளைச் சேமித்து Setup முடித்தல்"
+    },
+    "progressActivity": {
+      "checkTarget": "இந்த PC மற்றும் தேர்ந்தெடுக்கப்பட்ட நிறுவல் கோப்பகத்தை சரிபார்த்தல்",
+      "checkRuntime": "{0} இன் ஏற்கனவே உள்ள சரிபார்க்கப்பட்ட நகலைத் தேடுதல்",
+      "fetchRuntime": "{0} இன் கேச் நகலைத் தேடுதல் அல்லது அதன் பதிவிறக்க சேவையகத்துடன் இணைத்தல்",
+      "connectRuntime": "{0} க்கான பதிவிறக்க சேவையகத்துடன் இணைத்தல்",
+      "downloadRuntime": "{0} க்கான கோப்புகளைப் பெறுதல்",
+      "extractRuntime": "சரிபார்க்கப்பட்ட கோப்புகளை {0} பிரித்தெடுத்தல்",
+      "verifyRuntime": "{0} இன் ஒருமைப்பாடு மற்றும் தயார்நிலையைச் சரிபார்த்தல்",
+      "checkSource": "நிறுவல் தொகுப்பும் கோப்புகளின் சரிபார்ப்புத் தொகைகளும் சரிபார்க்கப்படுகின்றன",
+      "copySource": "தற்போதைய கோப்புகளை ஒப்பிட்டு சரிபார்க்கப்பட்ட பயன்பாட்டு கோப்புகளை நிறுவுதல்",
+      "installDependencies": "பூட்டு கோப்பிலிருந்து தொகுப்புகளை நிறுவுதல் மற்றும் உள்ளூர் கேச்சை மீண்டும் பயன்படுத்துதல்"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "te": {
+    "updatingTo": "{0}కి అప్‌డేట్ చేస్తోంది",
+    "progressOverall": "మొత్తం పురోగతి {0}%",
+    "progressEta": "సుమారు {0} మిగిలి ఉంది",
+    "progressEstimating": "మిగిలిన సమయాన్ని అంచనా వేస్తోంది…",
+    "progressTransferred": "{0} డౌన్‌లోడ్ చేయబడింది",
+    "progressStageComplete": "పూర్తయింది · {0}",
+    "progressStillWorking": "{0} తర్వాత ఇంకా పురోగతిలో ఉంది · {1}",
+    "stages": {
+      "finalize": "మొదటిసారి ప్రారంభించే సెట్టింగ్‌లను సేవ్ చేసి Setup పూర్తి చేస్తోంది"
+    },
+    "progressActivity": {
+      "checkTarget": "ఈ PC మరియు ఎంచుకున్న ఇన్‌స్టాలేషన్ ఫోల్డర్‌ను తనిఖీ చేస్తోంది",
+      "checkRuntime": "{0} యొక్క ఇప్పటికే ఉన్న ధృవీకరించబడిన కాపీ కోసం తనిఖీ చేస్తోంది",
+      "fetchRuntime": "{0} యొక్క కాష్ చేసిన కాపీ కోసం చూస్తోంది లేదా దాని డౌన్‌లోడ్ సర్వర్‌కు కనెక్ట్ అవుతోంది",
+      "connectRuntime": "{0} కోసం డౌన్‌లోడ్ సర్వర్‌కు కనెక్ట్ అవుతోంది",
+      "downloadRuntime": "{0} కోసం ఫైల్‌లను స్వీకరిస్తోంది",
+      "extractRuntime": "ధృవీకరించబడిన ఫైల్‌లను {0} కోసం సంగ్రహిస్తోంది",
+      "verifyRuntime": "{0} యొక్క సమగ్రత మరియు సిద్ధంగా ఉన్నదనాన్ని ధృవీరిస్తోంది",
+      "checkSource": "ఇన్‌స్టాలేషన్ ప్యాకేజీని, ఫైళ్ల చెక్‌సమ్‌లను తనిఖీ చేస్తోంది",
+      "copySource": "ఇప్పటికే ఉన్న ఫైల్‌లతో పోల్చి, ధృవీకరించబడిన అప్లికేషన్ ఫైల్‌లను ఇన్‌స్టాల్ చేస్తోంది",
+      "installDependencies": "లాక్‌ఫైల్ నుండి ప్యాకేజీలను ఇన్‌స్టాల్ చేసి, స్థానిక కాష్‌ను తిరిగి ఉపయోగిస్తోంది"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "mr": {
+    "updatingTo": "{0} मध्ये अद्यतनित करत आहे",
+    "progressOverall": "एकूण प्रगती {0}%",
+    "progressEta": "सुमारे {0} शिल्लक",
+    "progressEstimating": "उरलेला वेळ अंदाजित करत आहे…",
+    "progressTransferred": "{0} डाउनलोड केले",
+    "progressStageComplete": "पूर्ण झाले · {0}",
+    "progressStillWorking": "{0} नंतर अजूनही प्रगतीपथावर आहे · {1}",
+    "stages": {
+      "finalize": "पहिले लॉन्च सेटिंग्ज सेव्ह करत आहे आणि Setup पूर्ण करत आहे"
+    },
+    "progressActivity": {
+      "checkTarget": "या PC आणि निवडलेला इंस्टॉलेशन फोल्डर तपासत आहे",
+      "checkRuntime": "{0} ची अस्तित्वात असलेली सत्यापित प्रत तपासत आहे",
+      "fetchRuntime": "{0} ची कॅश्ड प्रत शोधत आहे किंवा त्याच्या डाउनलोड सर्व्हरशी कनेक्ट करत आहे",
+      "connectRuntime": "{0} साठी डाउनलोड सर्व्हरशी कनेक्ट करत आहे",
+      "downloadRuntime": "{0} साठी फाइल्स प्राप्त करत आहे",
+      "extractRuntime": "सत्यापित फाइल्स {0} मधून काढत आहे",
+      "verifyRuntime": "{0} ची अखंडता आणि तयारी सत्यापित करत आहे",
+      "checkSource": "इंस्टॉलेशन पॅकेज आणि फाइलचे चेकसम तपासत आहे",
+      "copySource": "अस्तित्वात असलेल्या फाइल्सची तुलना करत आहे आणि सत्यापित ॲप्लिकेशन फाइल्स स्थापित करत आहे",
+      "installDependencies": "लॉकफाईलमधून पॅकेजेस स्थापित करत आहे आणि स्थानिक कॅशेचा पुनर्वापर करत आहे"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "gu": {
+    "updatingTo": "{0} માં અપડેટ કરી રહ્યું છે",
+    "progressOverall": "કુલ પ્રગતિ {0}%",
+    "progressEta": "લગભગ {0} બાકી છે",
+    "progressEstimating": "બાકી રહેલો સમય અંદાજિત કરી રહ્યું છે…",
+    "progressTransferred": "{0} ડાઉનલોડ થઈ રહ્યું છે",
+    "progressStageComplete": "સમાપ્ત · {0}",
+    "progressStillWorking": "{0} પછી હજી પણ પ્રક્રિયામાં · {1}",
+    "stages": {
+      "finalize": "પ્રથમ-પ્રારંભ સેટિંગ્સ સાચવી રહ્યું છે અને Setup પૂર્ણ કરી રહ્યું છે"
+    },
+    "progressActivity": {
+      "checkTarget": "આ PC અને પસંદ કરેલ ઇન્સ્ટોલેશન ફોલ્ડર તપાસી રહ્યું છે",
+      "checkRuntime": "{0} ની હાલની ચકાસાયેલ નકલ શોધી રહ્યું છે",
+      "fetchRuntime": "{0} ની કેશ નકલ શોધી રહ્યું છે અથવા તેના ડાઉનલોડ સર્વર સાથે જોડાણ કરી રહ્યું છે",
+      "connectRuntime": "{0} માટે ડાઉનલોડ સર્વર સાથે જોડાણ કરી રહ્યું છે",
+      "downloadRuntime": "{0} માટે ફાઇલો પ્રાપ્ત કરી રહ્યું છે",
+      "extractRuntime": "ચકાસાયેલ ફાઇલો માટે {0} કાઢી રહ્યું છે",
+      "verifyRuntime": "{0} ની અખંડિતતા અને તૈયારી ચકાસી રહ્યું છે",
+      "checkSource": "ઇન્સ્ટોલેશન પેકેજ અને ફાઇલના ચેકસમ તપાસી રહ્યાં છીએ",
+      "copySource": "અસ્તિત્વમાં રહેલી ફાઇલોની તુલના કરી રહ્યું છે અને ચકાસાયેલ એપ્લિકેશન ફાઇલો ઇન્સ્ટોલ કરી રહ્યું છે",
+      "installDependencies": "લોકફાઇલમાંથી પેકેજો ઇન્સ્ટોલ કરી રહ્યું છે અને સ્થાનિક કેશનો પુનઃઉપયોગ કરી રહ્યું છે"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "pa": {
+    "updatingTo": "{0} ਵਿੱਚ ਅਪਡੇਟ ਕਰ ਰਹੇ ਹਾਂ",
+    "progressOverall": "ਕੁੱਲ ਪ੍ਰਗਤੀ {0}%",
+    "progressEta": "ਲਗਭਗ {0} ਬਾਕੀ ਹੈ",
+    "progressEstimating": "ਬਾਕੀ ਸਮਾਂ ਅਨੁਮਾਨਿਤ ਕਰ ਰਿਹਾ ਹੈ…",
+    "progressTransferred": "{0} ਡਾਊਨਲੋਡ ਕੀਤਾ",
+    "progressStageComplete": "ਖਤਮ ਹੋ ਗਿਆ · {0}",
+    "progressStillWorking": "{0} ਤੋਂ ਬਾਅਦ ਅਜੇ ਵੀ ਪ੍ਰਗਤੀ ਵਿੱਚ · {1}",
+    "stages": {
+      "finalize": "ਪਹਿਲੀ ਲਾਂਚ ਸੈਟਿੰਗਾਂ ਸੇਵ ਕਰ ਰਿਹਾ ਹੈ ਅਤੇ Setup ਖਤਮ ਕਰ ਰਿਹਾ ਹੈ"
+    },
+    "progressActivity": {
+      "checkTarget": "ਇਸ PC ਅਤੇ ਚੁਣੇ ਹੋਏ ਇੰਸਟਾਲੇਸ਼ਨ ਫੋਲਡਰ ਦੀ ਜਾਂਚ ਕਰ ਰਿਹਾ ਹੈ",
+      "checkRuntime": "{0} ਦੀ ਮੌਜੂਦ ਪ੍ਰਮਾਣਿਤ ਕਾਪੀ ਦੀ ਜਾਂਚ ਕਰ ਰਿਹਾ ਹੈ",
+      "fetchRuntime": "{0} ਦੀ ਕੈਸ਼ੀਡ ਕਾਪੀ ਲੱਭ ਰਿਹਾ ਹੈ ਜਾਂ ਇਸਦੇ ਡਾਊਨਲਡ ਸਰਵਰ ਨਾਲ ਜੁੜ ਰਿਹਾ ਹੈ",
+      "connectRuntime": "{0} ਲਈ ਡਾਊਨਲਡ ਸਰਵਰ ਨਾਲ ਜੁੜ ਰਿਹਾ ਹੈ",
+      "downloadRuntime": "{0} ਲਈ ਫਾਈਲਾਂ ਪ੍ਰਾਪਤ ਕਰ ਰਿਹਾ ਹੈ",
+      "extractRuntime": "ਪ੍ਰਮਾਣਿਤ ਫਾਈਲਾਂ ਲਈ {0} ਐਕਸਟ੍ਰੈਕਟ ਕਰ ਰਿਹਾ ਹੈ",
+      "verifyRuntime": "{0} ਦੀ ਅਖੰਡਤਾ ਅਤੇ ਤਿਆਰਤਾ ਦੀ ਜਾਂਚ ਕਰ ਰਿਹਾ ਹੈ",
+      "checkSource": "ਇੰਸਟਾਲੇਸ਼ਨ ਪੈਕੇਜ ਅਤੇ ਫ਼ਾਈਲਾਂ ਦੇ ਚੈੱਕਸਮ ਦੀ ਜਾਂਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ",
+      "copySource": "ਮੌਜੂਦ ਫਾਈਲਾਂ ਦੀ ਤੁਲਨਾ ਕਰ ਰਿਹਾ ਹੈ ਅਤੇ ਪ੍ਰਮਾਣਿਤ ਐਪਲੀਕੇਸ਼ਨ ਫਾਈਲਾਂ ਇੰਸਟਾਲ ਕਰ ਰਿਹਾ ਹੈ",
+      "installDependencies": "ਲੌਕਫਾਈਲ ਤੋਂ ਪੈਕੇਜ ਇੰਸਟਾਲ ਕਰ ਰਿਹਾ ਹੈ ਅਤੇ ਸਥਾਨਕ ਕੈਸ਼ ਨੂੰ ਦੁਬਾਰਾ ਵਰਤ ਰਿਹਾ ਹੈ"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "zh": {
+    "updatingTo": "正在更新至 {0}",
+    "progressOverall": "整体进度 {0}%",
+    "progressEta": "预计剩余 {0}",
+    "progressEstimating": "估计剩余时间…",
+    "progressTransferred": "已下载 {0}",
+    "progressStageComplete": "完成 · {0}",
+    "progressStillWorking": "在 {0} 之后仍在进行 · {1}",
+    "stages": {
+      "finalize": "保存首次启动设置并完成 Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "检查此电脑和选定的安装文件夹",
+      "checkRuntime": "检查 {0} 的现有验证副本",
+      "fetchRuntime": "查找 {0} 的缓存副本或连接到其下载服务器",
+      "connectRuntime": "连接到 {0} 的下载服务器",
+      "downloadRuntime": "接收 {0} 的文件",
+      "extractRuntime": "解压 {0} 的验证文件",
+      "verifyRuntime": "验证 {0} 的完整性和就绪状态",
+      "checkSource": "正在检查安装包和文件校验和",
+      "copySource": "比较现有文件并安装验证过的应用程序文件",
+      "installDependencies": "从锁文件中安装软件包并重用本地缓存"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ja": {
+    "updatingTo": "{0}に更新中",
+    "progressOverall": "全体の進捗 {0}%",
+    "progressEta": "残り約 {0}",
+    "progressEstimating": "残り時間を推定中…",
+    "progressTransferred": "{0}をダウンロード中",
+    "progressStageComplete": "完了 · {0}",
+    "progressStillWorking": "{0}の後、{1}でまだ進行中",
+    "stages": {
+      "finalize": "初回起動設定を保存し、Setupを完了中"
+    },
+    "progressActivity": {
+      "checkTarget": "このPCと選択したインストールフォルダを確認中",
+      "checkRuntime": "{0}の既存の検証済みコピーを検索中",
+      "fetchRuntime": "{0}のキャッシュコピーを探すか、ダウンロードサーバーに接続中",
+      "connectRuntime": "{0}のダウンロードサーバーに接続中",
+      "downloadRuntime": "{0}のファイルを受信中",
+      "extractRuntime": "{0}の検証済みファイルを展開中",
+      "verifyRuntime": "{0}の整合性と準備状況を確認中",
+      "checkSource": "インストールパッケージとファイルのチェックサムを確認中",
+      "copySource": "既存のファイルと検証済みアプリケーションファイルを比較し、インストール中",
+      "installDependencies": "ロックファイルからパッケージをインストールし、ローカルキャッシュを再利用中"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ko": {
+    "updatingTo": "{0}으로 업데이트 중",
+    "progressOverall": "전체 진행률 {0}%",
+    "progressEta": "약 {0} 남음",
+    "progressEstimating": "남은 시간 추정 중…",
+    "progressTransferred": "{0} 다운로드됨",
+    "progressStageComplete": "완료 · {0}",
+    "progressStillWorking": "{0} 후에도 진행 중 · {1}",
+    "stages": {
+      "finalize": "첫 실행 설정을 저장하고 Setup 완료 중"
+    },
+    "progressActivity": {
+      "checkTarget": "이 PC와 선택한 설치 폴더 확인 중",
+      "checkRuntime": "{0}의 기존 확인된 복사본 확인 중",
+      "fetchRuntime": "{0}의 캐시 복사본을 찾거나 다운로드 서버에 연결 중",
+      "connectRuntime": "{0}의 다운로드 서버에 연결 중",
+      "downloadRuntime": "{0} 파일 수신 중",
+      "extractRuntime": "{0} 확인된 파일 추출 중",
+      "verifyRuntime": "{0}의 무결성과 준비 상태 확인 중",
+      "checkSource": "설치 패키지와 파일 체크섬 확인 중",
+      "copySource": "기존 파일과 비교 및 확인된 애플리케이션 파일 설치",
+      "installDependencies": "잠금 파일에서 패키지 설치 및 로컬 캐시 재사용"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "vi": {
+    "updatingTo": "Đang cập nhật {0}",
+    "progressOverall": "Tiến độ tổng thể {0}%",
+    "progressEta": "Còn khoảng {0}",
+    "progressEstimating": "Ước tính thời gian còn lại…",
+    "progressTransferred": "Đã tải xuống {0}",
+    "progressStageComplete": "Hoàn tất · {0}",
+    "progressStillWorking": "Vẫn đang tiến hành sau {0} · {1}",
+    "stages": {
+      "finalize": "Lưu cài đặt lần chạy đầu tiên và hoàn tất Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Kiểm tra PC và thư mục cài đặt đã chọn",
+      "checkRuntime": "Kiểm tra bản sao đã xác minh của {0}",
+      "fetchRuntime": "Tìm kiếm bản sao lưu của {0} hoặc kết nối với máy chủ tải xuống của nó",
+      "connectRuntime": "Kết nối với máy chủ tải xuống cho {0}",
+      "downloadRuntime": "Đang nhận tệp cho {0}",
+      "extractRuntime": "Giải nén các tệp đã xác minh cho {0}",
+      "verifyRuntime": "Xác minh tính toàn vẹn và sẵn sàng của {0}",
+      "checkSource": "Đang kiểm tra gói cài đặt và tổng kiểm tra của các tệp",
+      "copySource": "So sánh các tệp hiện có và cài đặt các tệp ứng dụng đã xác minh",
+      "installDependencies": "Cài đặt các gói từ tệp khóa và sử dụng bộ nhớ đệm cục bộ"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "th": {
+    "updatingTo": "กำลังอัปเดตเป็น {0}",
+    "progressOverall": "ความคืบหน้าโดยรวม {0}%",
+    "progressEta": "เหลือประมาณ {0}",
+    "progressEstimating": "ประมาณเวลาที่เหลือ…",
+    "progressTransferred": "ดาวน์โหลด {0}",
+    "progressStageComplete": "เสร็จสิ้น · {0}",
+    "progressStillWorking": "ยังคงดำเนินการหลังจาก {0} · {1}",
+    "stages": {
+      "finalize": "บันทึกการตั้งค่าการเปิดครั้งแรกและเสร็จสิ้น Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "กำลังตรวจสอบพีซีนี้และโฟลเดอร์ติดตั้งที่เลือก",
+      "checkRuntime": "กำลังตรวจสอบสำเนาที่ผ่านการตรวจสอบแล้วของ {0}",
+      "fetchRuntime": "กำลังค้นหาสำเนาที่แคชของ {0} หรือเชื่อมต่อกับเซิร์ฟเวอร์ดาวน์โหลดของมัน",
+      "connectRuntime": "กำลังเชื่อมต่อกับเซิร์ฟเวอร์ดาวน์โหลดสำหรับ {0}",
+      "downloadRuntime": "กำลังรับไฟล์สำหรับ {0}",
+      "extractRuntime": "กำลังแตกไฟล์ที่ผ่านการตรวจสอบสำหรับ {0}",
+      "verifyRuntime": "กำลังตรวจสอบความสมบูรณ์และความพร้อมของ {0}",
+      "checkSource": "กำลังตรวจสอบแพ็กเกจติดตั้งและค่าผลรวมตรวจสอบของไฟล์",
+      "copySource": "กำลังเปรียบเทียบไฟล์ที่มีอยู่และติดตั้งไฟล์แอปพลิเคชันที่ผ่านการตรวจสอบ",
+      "installDependencies": "กำลังติดตั้งแพ็คเกจจากไฟล์ lockfile และใช้แคชในเครื่อง"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "id": {
+    "updatingTo": "Memperbarui ke {0}",
+    "progressOverall": "Progres keseluruhan {0}%",
+    "progressEta": "Tersisa sekitar {0}",
+    "progressEstimating": "Memperkirakan waktu tersisa…",
+    "progressTransferred": "Mengunduh {0}",
+    "progressStageComplete": "Selesai · {0}",
+    "progressStillWorking": "Masih dalam proses setelah {0} · {1}",
+    "stages": {
+      "finalize": "Menyimpan pengaturan peluncuran pertama dan menyelesaikan Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Memeriksa PC ini dan folder instalasi yang dipilih",
+      "checkRuntime": "Memeriksa salinan terverifikasi yang ada dari {0}",
+      "fetchRuntime": "Mencari salinan tersimpan dari {0} atau terhubung ke server unduhannya",
+      "connectRuntime": "Menghubungkan ke server unduhan untuk {0}",
+      "downloadRuntime": "Menerima file untuk {0}",
+      "extractRuntime": "Mengekstrak file terverifikasi untuk {0}",
+      "verifyRuntime": "Memverifikasi integritas dan kesiapan {0}",
+      "checkSource": "Memeriksa paket instalasi dan checksum berkas",
+      "copySource": "Membandingkan file yang ada dan menginstal file aplikasi yang terverifikasi",
+      "installDependencies": "Menginstal paket dari lockfile dan menggunakan kembali cache lokal"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "ms": {
+    "updatingTo": "Mengemas kini ke {0}",
+    "progressOverall": "Kemajuan keseluruhan {0}%",
+    "progressEta": "Berbaki kira-kira {0}",
+    "progressEstimating": "Menganggarkan masa yang tinggal…",
+    "progressTransferred": "Muat turun {0}",
+    "progressStageComplete": "Selesai · {0}",
+    "progressStillWorking": "Masih dalam proses selepas {0} · {1}",
+    "stages": {
+      "finalize": "Menyimpan tetapan pelancaran pertama dan menyelesaikan Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Memeriksa PC ini dan folder pemasangan yang dipilih",
+      "checkRuntime": "Memeriksa salinan yang disahkan sedia ada bagi {0}",
+      "fetchRuntime": "Mencari salinan yang disimpan bagi {0} atau menyambung ke pelayan muat turunnya",
+      "connectRuntime": "Menyambung ke pelayan muat turun untuk {0}",
+      "downloadRuntime": "Menerima fail untuk {0}",
+      "extractRuntime": "Mengekstrak fail yang disahkan untuk {0}",
+      "verifyRuntime": "Mengesahkan integriti dan kesediaan {0}",
+      "checkSource": "Menyemak pakej pemasangan dan checksum fail",
+      "copySource": "Membandingkan fail sedia ada dan memasang fail aplikasi yang disahkan",
+      "installDependencies": "Memasang pakej daripada fail kunci dan menggunakan semula cache tempatan"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "tl": {
+    "updatingTo": "Nag-a-update sa {0}",
+    "progressOverall": "Pangkalahatang progreso {0}%",
+    "progressEta": "Mga {0} pa ang natitira",
+    "progressEstimating": "Tinantya ang natitirang oras…",
+    "progressTransferred": "Na-download ang {0}",
+    "progressStageComplete": "Tapos na · {0}",
+    "progressStillWorking": "Patuloy sa pagproseso pagkatapos ng {0} · {1}",
+    "stages": {
+      "finalize": "Nagsasa-save ng mga setting para sa unang paglunsad at tinatapos ang Setup"
+    },
+    "progressActivity": {
+      "checkTarget": "Tinitingnan ang PC at ang napiling folder ng instalasyon",
+      "checkRuntime": "Naghahanap ng umiiral na beripikadong kopya ng {0}",
+      "fetchRuntime": "Naghahanap ng naka-cache na kopya ng {0} o kumokonekta sa server ng pag-download nito",
+      "connectRuntime": "Kumokonekta sa server ng pag-download para sa {0}",
+      "downloadRuntime": "Tumatanggap ng mga file para sa {0}",
+      "extractRuntime": "Nag-e-extract ng mga beripikadong file para sa {0}",
+      "verifyRuntime": "Sinusuri ang integridad at kahandaan ng {0}",
+      "checkSource": "Sinusuri ang package ng installer at ang mga checksum ng file",
+      "copySource": "Inihahambing ang mga umiiral na file at nag-iinstala ng mga beripikadong file ng aplikasyon",
+      "installDependencies": "Nag-iinstala ng mga package mula sa lockfile at muling ginagamit ang lokal na cache"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "tr": {
+    "updatingTo": "{0} ile güncelleniyor",
+    "progressOverall": "Genel ilerleme {0}%",
+    "progressEta": "Yaklaşık {0} kaldı",
+    "progressEstimating": "Kalan süreyi tahmin ediyorum…",
+    "progressTransferred": "{0} indirildi",
+    "progressStageComplete": "Tamamlandı · {0}",
+    "progressStillWorking": "{0} sonrası hala devam ediyor · {1}",
+    "stages": {
+      "finalize": "İlk başlatma ayarlarını kaydediyor ve Setup'ı bitiriyor"
+    },
+    "progressActivity": {
+      "checkTarget": "Bu bilgisayarı ve seçilen kurulum klasörünü kontrol ediyor",
+      "checkRuntime": "{0} için mevcut doğrulanmış bir kopya arıyor",
+      "fetchRuntime": "{0} için önbelleğe alınmış bir kopya arıyor veya indirme sunucusuna bağlanıyor",
+      "connectRuntime": "{0} için indirme sunucusuna bağlanılıyor",
+      "downloadRuntime": "{0} için dosyalar alınıyor",
+      "extractRuntime": "Doğrulanmış dosyalar için {0} çıkarılıyor",
+      "verifyRuntime": "{0} bütünlüğünü ve hazırlığını doğruluyor",
+      "checkSource": "Kurulum paketi ve dosyaların sağlama toplamları denetleniyor",
+      "copySource": "Mevcut dosyaları karşılaştırıyor ve doğrulanmış uygulama dosyalarını kuruyor",
+      "installDependencies": "Kilit dosyasından paketleri kuruyor ve yerel önbelleği yeniden kullanıyor"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "sw": {
+    "updatingTo": "Inasasisha hadi {0}",
+    "progressOverall": "Maendeleo ya jumla: {0}%",
+    "progressEta": "Takriban {0} zimebaki",
+    "progressEstimating": "Inakadiria muda uliobaki…",
+    "progressTransferred": "Imepakua {0}",
+    "progressStageComplete": "Imekamilika · {0}",
+    "progressStillWorking": "Bado inaendelea baada ya {0} · {1}",
+    "stages": {
+      "finalize": "Inahifadhi mipangilio ya uzinduzi wa kwanza na kukamilisha usakinishaji"
+    },
+    "progressActivity": {
+      "checkTarget": "Inakagua kompyuta hii na folda iliyochaguliwa ya usakinishaji",
+      "checkRuntime": "Inatafuta nakala iliyothibitishwa ya {0}",
+      "fetchRuntime": "Inatafuta nakala ya {0} kwenye akiba au inaunganisha kwenye seva ya kupakua",
+      "connectRuntime": "Inaunganisha kwenye seva ya kupakua {0}",
+      "downloadRuntime": "Inapakua faili za {0}",
+      "extractRuntime": "Inafungua faili zilizobanwa na kuthibitishwa za {0}",
+      "verifyRuntime": "Inathibitisha uadilifu na utayari wa {0}",
+      "checkSource": "Inakagua kifurushi cha programu na thamani za ukaguzi wa faili",
+      "copySource": "Inalinganisha faili zilizopo na kusakinisha faili za programu zilizothibitishwa",
+      "installDependencies": "Inasakinisha matoleo yaliyobainishwa ya vifurushi na kutumia akiba ya ndani"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
+  "af": {
+    "updatingTo": "Werk by na {0}",
+    "progressOverall": "Algehele vordering: {0}%",
+    "progressEta": "Ongeveer {0} oor",
+    "progressEstimating": "Skat die oorblywende tyd…",
+    "progressTransferred": "{0} afgelaai",
+    "progressStageComplete": "Voltooi · {0}",
+    "progressStillWorking": "Steeds aan die gang ná {0} · {1}",
+    "stages": {
+      "finalize": "Stoor instellings vir die eerste gebruik en voltooi installasie"
+    },
+    "progressActivity": {
+      "checkTarget": "Kontroleer hierdie rekenaar en die gekose installasiegids",
+      "checkRuntime": "Soek na ’n bestaande geverifieerde kopie van {0}",
+      "fetchRuntime": "Soek na {0} in die kasgeheue of koppel aan die aflaaibediener",
+      "connectRuntime": "Koppel aan die aflaaibediener vir {0}",
+      "downloadRuntime": "Laai lêers vir {0} af",
+      "extractRuntime": "Pak geverifieerde lêers vir {0} uit",
+      "verifyRuntime": "Kontroleer die integriteit en gereedheid van {0}",
+      "checkSource": "Kontroleer die installasiepakket en die kontrolesomme van lêers",
+      "copySource": "Vergelyk bestaande lêers en installeer geverifieerde programlêers",
+      "installDependencies": "Installeer die vasgelegde pakketweergawes en gebruik die plaaslike kasgeheue"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "Ollama",
+      "uv": "uv",
+      "git": "Git"
+    }
+  }
+}

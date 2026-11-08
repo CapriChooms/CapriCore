@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    {
+      "id": "qwen3-tts-0.6b-base",
+      "name": "Capri · Qwen3-TTS 0.6B (BETA)",
+      "repository": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+      "backend": "qwen3-tts",
+      "languages": ["en", "zh", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"],
+      "voiceIdentity": "capri-reference",
+      "training": null,
+      "devices": ["cpu"],
+      "installLanguage": "en",
+      "downloadBytes": 2516100892,
+      "minimumFreeBytes": 8589934592,
+      "experimental": true
+    },
+    {
+      "id": "chatterbox-turbo",
+      "name": "Capri · Chatterbox Turbo",
+      "repository": "ResembleAI/chatterbox-turbo",
+      "backend": "chatterbox-turbo",
+      "languages": ["en"],
+      "voiceIdentity": "trained-capri-adapter",
+      "training": "capri-turbo-lora",
+      "devices": ["cuda", "rocm"],
+      "installLanguage": "en"
+    },
+    {
+      "id": "chatterbox-multilingual-v3",
+      "name": "Capri · Chatterbox Multilingual v3",
+      "repository": "ResembleAI/chatterbox",
+      "backend": "chatterbox-multilingual-v3",
+      "languages": [
+        "en",
+        "ar",
+        "zh",
+        "da",
+        "nl",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "he",
+        "hi",
+        "it",
+        "ja",
+        "ko",
+        "ms",
+        "no",
+        "pl",
+        "pt",
+        "ru",
+        "es",
+        "sw",
+        "sv",
+        "tr"
+      ],
+      "voiceIdentity": "capri-reference",
+      "training": null,
+      "devices": ["cuda", "rocm"],
+      "installLanguage": "ru"
+    }
+  ]
+}

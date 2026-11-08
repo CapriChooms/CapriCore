@@ -1,0 +1,602 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+#credits-panel {
+  --credits-text: var(--theme-text, #d7eeed);
+  --credits-muted: color-mix(in srgb, var(--credits-text) 68%, var(--theme-background, #07131c));
+  --credits-border: color-mix(in srgb, var(--cyan, #8ef5ed) 27%, transparent);
+  --credits-accent: var(--cyan, #8ef5ed);
+  color: var(--credits-text);
+  container-type: inline-size;
+}
+#credits-panel .credits-content {
+  min-inline-size: 0;
+  padding-block-end: 12px;
+  /* Light may cross nickname cells, but must not create a horizontal scroll page. */
+  overflow: clip;
+}
+#credits-panel :is(h3, p, ul) {
+  margin: 0;
+}
+#credits-panel [hidden] {
+  display: none !important;
+}
+#credits-panel .credits-hero {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 5px 0 18px;
+  background: none;
+  border: 0;
+  position: relative;
+}
+#credits-panel .credits-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  block-size: 1px;
+  background: linear-gradient(90deg, var(--credits-accent), var(--pink, #ff3c68) 40%, transparent);
+  opacity: 0.45;
+}
+#credits-panel .credits-emblem {
+  flex: 0 0 35px;
+  color: var(--credits-accent);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--credits-accent) 45%, transparent));
+}
+#credits-panel .credits-emblem svg {
+  display: block;
+  inline-size: 35px;
+  block-size: 35px;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+#credits-panel .credits-emblem path:last-child {
+  stroke: var(--pink, #ff3c68);
+}
+#credits-panel .credits-heading-copy {
+  min-inline-size: 0;
+}
+#credits-panel .credits-eyebrow {
+  color: var(--credits-muted);
+  font-size: 8px;
+  letter-spacing: 0.26em;
+  line-height: 1.5;
+}
+#credits-panel .credits-hero h3 {
+  margin-block: 2px 5px;
+  font-size: clamp(21px, 6cqi, 28px);
+  line-height: 1.1;
+  font-weight: 750;
+  color: var(--credits-text);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--credits-accent) 25%, transparent);
+  text-wrap: balance;
+}
+#credits-panel .credits-hero-description {
+  color: var(--credits-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+#credits-panel .credits-section {
+  margin-block-start: 21px;
+  min-inline-size: 0;
+}
+#credits-panel .credits-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-block-end: 13px;
+}
+#credits-panel .credits-section-heading h3 {
+  color: var(--credits-muted);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+#credits-panel .credits-section-code {
+  direction: ltr;
+  unicode-bidi: isolate;
+  flex: none;
+  color: var(--credits-muted);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+/* Every nickname keeps its palette and phase as the list is searched/scrolled. */
+#credits-panel .credits-floating-item {
+  --name-a: #b7fff5;
+  --name-b: #59c6ff;
+  --name-glow: #49ddf0;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+}
+#credits-panel [data-tone='1'] {
+  --name-a: #ffe0f5;
+  --name-b: #ff72af;
+  --name-glow: #ff549d;
+}
+#credits-panel [data-tone='2'] {
+  --name-a: #fff4ba;
+  --name-b: #ffb45e;
+  --name-glow: #ffbd46;
+}
+#credits-panel [data-tone='3'] {
+  --name-a: #e9d5ff;
+  --name-b: #aa96ff;
+  --name-glow: #b583ff;
+}
+#credits-panel [data-tone='4'] {
+  --name-a: #c8ffdc;
+  --name-b: #67e6b9;
+  --name-glow: #4ff2bd;
+}
+#credits-panel [data-tone='5'] {
+  --name-a: #ffe3cb;
+  --name-b: #ff919e;
+  --name-glow: #ff878d;
+}
+#credits-panel .credits-drift {
+  display: inline-block;
+  max-inline-size: 100%;
+  vertical-align: middle;
+}
+#credits-panel .credits-name-gradient {
+  display: inline-block;
+  max-inline-size: 100%;
+  color: var(--name-a);
+  background: linear-gradient(
+    110deg,
+    var(--name-a) 5%,
+    var(--name-b) 25%,
+    color-mix(in srgb, var(--name-a) 65%, white) 45%,
+    var(--name-b) 70%,
+    var(--name-a) 95%
+  );
+  background-size: 240% 100%;
+  background-position: 0% 50%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 0 3px color-mix(in srgb, var(--name-glow) 60%, transparent),
+    0 0 9px color-mix(in srgb, var(--name-glow) 28%, transparent);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+#credits-panel .credits-floating-item[data-in-view] .credits-drift {
+  will-change: transform;
+  animation: credits-drift var(--credits-drift-time, 6s) ease-in-out var(--credits-drift-delay, 0s)
+    infinite;
+}
+#credits-panel .credits-floating-item[data-in-view] .credits-name-gradient {
+  /* Only nearby ink repaints, at no more than 20 colour steps per second. */
+  animation: credits-spectrum var(--credits-gradient-time, 8s) steps(160, end)
+    var(--credits-drift-delay, 0s) infinite alternate;
+}
+#credits-panel[data-scrolling] .credits-drift,
+#credits-panel[data-scrolling] .credits-name-gradient,
+#credits-panel[data-scrolling] .credits-ray-sheet,
+#credits-panel[data-scrolling] .credits-glyph-sheen::before {
+  animation-play-state: paused !important;
+}
+#credits-panel .credits-team {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 15px;
+  row-gap: 22px;
+  padding: 9px 0 13px;
+  list-style: none;
+}
+#credits-panel .credits-team-card {
+  position: relative;
+  isolation: isolate;
+  text-align: center;
+  padding: 6px 0;
+}
+#credits-panel .credits-team-identity {
+  position: relative;
+  z-index: 1;
+}
+#credits-panel .credits-team-light {
+  position: relative;
+  display: inline-block;
+  max-inline-size: 100%;
+  isolation: isolate;
+  overflow: visible;
+  font-size: clamp(19px, 5.5cqi, 25px);
+  line-height: 1.4;
+  font-weight: 800;
+  letter-spacing: 0.015em;
+}
+#credits-panel .credits-god-rays {
+  position: absolute;
+  inset: -72px -96px;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  overflow: visible;
+  /* Fade fully before the generous surface edge, rather than clipping rays. */
+  mask-image: radial-gradient(ellipse at center, #000 8%, #000b 28%, transparent 67%);
+}
+#credits-panel .credits-ray-sheet {
+  display: none;
+  position: absolute;
+  inset: 0;
+  --ray-colour: var(--name-a);
+  --ray-time: 7.4s;
+  --ray-phase: 0s;
+  --ray-lean: -1.5deg;
+  filter: blur(0.7px);
+  opacity: 0.55;
+}
+#credits-panel .credits-ray-sheet[data-ray-tone='1'] {
+  --ray-colour: var(--name-b);
+  --ray-time: 9.7s;
+  --ray-phase: -3.2s;
+  --ray-lean: 1.8deg;
+  filter: blur(1.1px);
+}
+#credits-panel .credits-ray-sheet[data-ray-tone='2'] {
+  --ray-colour: color-mix(in srgb, var(--name-glow) 45%, white);
+  --ray-time: 11.3s;
+  --ray-phase: -6.1s;
+  --ray-lean: 0.8deg;
+  filter: blur(1.5px);
+}
+#credits-panel .credits-glyph-ray {
+  position: absolute;
+  inset: 72px 96px;
+  transform: translate(var(--ray-x), var(--ray-y)) scale(var(--ray-scale-x), var(--ray-scale-y));
+  transform-origin: center;
+  opacity: var(--ray-alpha);
+  color: var(--ray-colour);
+  -webkit-text-fill-color: currentColor;
+}
+#credits-panel :is(.credits-glyph-ray, .credits-glyph-sheen)::before {
+  content: attr(data-text);
+  display: block;
+  font: inherit;
+  letter-spacing: inherit;
+  overflow-wrap: anywhere;
+}
+#credits-panel .credits-team-card[data-in-view] .credits-ray-sheet {
+  display: block;
+  will-change: transform, opacity;
+  animation: credits-glyph-rays var(--ray-time) ease-in-out
+    calc(var(--credits-drift-delay, 0s) + var(--ray-phase)) infinite;
+}
+#credits-panel .credits-team-name {
+  position: relative;
+  z-index: 1;
+  font: inherit;
+  letter-spacing: inherit;
+}
+#credits-panel .credits-glyph-sheen {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  user-select: none;
+}
+#credits-panel .credits-team-card[data-in-view] .credits-glyph-sheen {
+  display: block;
+}
+#credits-panel .credits-glyph-sheen::before {
+  background: linear-gradient(
+    110deg,
+    transparent 42%,
+    color-mix(in srgb, var(--name-a) 50%, transparent) 47%,
+    #fff9 50%,
+    color-mix(in srgb, var(--name-b) 60%, transparent) 53%,
+    transparent 58%
+  );
+  background-size: 300% 100%;
+  background-position: 200% 50%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: credits-glyph-sheen var(--credits-gradient-time, 8s) steps(160, end)
+    var(--credits-drift-delay, 0s) infinite;
+}
+#credits-panel .credits-team-role {
+  display: block;
+  margin-block-start: 4px;
+  color: var(--credits-muted);
+  font-size: 10px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+#credits-panel .credits-epithet {
+  display: block;
+  margin-block-start: 3px;
+  color: color-mix(in srgb, var(--name-a) 63%, var(--credits-muted));
+  font-size: 9px;
+  font-weight: 450;
+  letter-spacing: 0.025em;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+#credits-panel .credits-team-identity .credits-epithet {
+  font-size: 10px;
+}
+#credits-panel .credits-future-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+#credits-panel .credits-future-card {
+  position: relative;
+  padding: 0;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+}
+#credits-panel .credits-future-card h3 {
+  color: var(--credits-muted);
+  font-size: 11px;
+  font-weight: 550;
+  padding-inline-start: 17px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+#credits-panel .credits-reserved-icon {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0;
+  color: var(--credits-accent);
+  opacity: 0.55;
+  font-size: 13px;
+}
+#credits-panel .credits-reserved-list {
+  display: grid;
+  gap: 8px;
+  margin-block-start: 12px;
+  padding: 0 4px;
+  list-style: none;
+}
+#credits-panel .credits-reserved-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 7px;
+  padding-block: 2px;
+  color: var(--credits-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.65;
+}
+#credits-panel .credits-reserved-index {
+  flex: none;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+#credits-panel .credits-featured-list {
+  display: grid;
+  gap: 13px;
+  margin-block-start: 14px;
+  padding: 0 4px;
+  list-style: none;
+}
+#credits-panel .credits-featured-name {
+  padding-block: 3px;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.6;
+}
+#credits-panel .credits-future-note {
+  margin-block-start: 14px;
+  color: var(--credits-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+#credits-panel .credits-supporters-section {
+  margin-block-start: 26px;
+}
+#credits-panel .credits-roster-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-block: 12px 16px;
+}
+#credits-panel .credits-count {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+#credits-panel .credits-count strong {
+  color: var(--credits-accent);
+  font-size: 23px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+#credits-panel .credits-count span {
+  font-size: 10px;
+  color: var(--credits-muted);
+}
+#credits-panel .credits-search-field {
+  flex: 1 1 140px;
+  min-inline-size: 0;
+}
+#credits-panel .credits-search-field label {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--credits-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+#credits-panel #credits-search {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 32px;
+  margin: 0;
+  padding: 7px 9px;
+  box-sizing: border-box;
+  border: 1px solid var(--credits-border);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--theme-panel, #102630) 60%, transparent);
+  color: var(--credits-text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+}
+#credits-panel :is(#credits-search, .credits-retry):focus-visible {
+  outline: 2px solid var(--credits-accent);
+  outline-offset: 3px;
+}
+#credits-panel .credits-supporters {
+  contain: layout style;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 18px 23px;
+  padding: 12px 4px;
+  list-style: none;
+}
+#credits-panel .credits-supporter {
+  flex: 0 1 auto;
+  max-inline-size: 100%;
+  padding: 4px 0;
+  box-sizing: border-box;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.65;
+  text-align: center;
+}
+#credits-panel .credits-list-state {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding-block: 12px;
+}
+#credits-panel .credits-state-light {
+  inline-size: 4px;
+  block-size: 4px;
+  background: var(--credits-accent);
+}
+#credits-panel .credits-list-state[data-state='loading'] .credits-state-light {
+  animation: credits-signal 1.8s ease-in-out infinite;
+}
+#credits-panel :is(.credits-list-state p, .credits-no-matches) {
+  color: var(--credits-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+#credits-panel .credits-no-matches {
+  padding-block: 14px;
+}
+#credits-panel .credits-retry {
+  min-block-size: 32px;
+  padding: 7px 14px;
+  border: 1px solid var(--credits-border);
+  color: var(--credits-accent);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+@container (max-width: 335px) {
+  #credits-panel .credits-team {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #credits-panel .credits-section-code {
+    display: none;
+  }
+  #credits-panel .credits-supporters {
+    column-gap: 18px;
+  }
+}
+@container (max-width: 240px) {
+  #credits-panel .credits-future-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #credits-panel .credits-hero {
+    gap: 9px;
+  }
+  #credits-panel .credits-emblem {
+    flex-basis: 26px;
+  }
+  #credits-panel .credits-emblem svg {
+    inline-size: 26px;
+    block-size: 26px;
+  }
+}
+@keyframes credits-drift {
+  0%,
+  100% {
+    transform: translateY(calc(-1 * var(--credits-drift-rise, 3px)));
+  }
+  50% {
+    transform: translateY(var(--credits-drift-rise, 3px));
+  }
+}
+@keyframes credits-spectrum {
+  to {
+    background-position: 100% 50%;
+  }
+}
+@keyframes credits-glyph-rays {
+  0%,
+  100% {
+    transform: rotate(calc(-1 * var(--ray-lean))) scale(0.98);
+    opacity: 0.38;
+  }
+  45% {
+    transform: rotate(var(--ray-lean)) scale(1.04);
+    opacity: 0.9;
+  }
+  72% {
+    transform: rotate(0deg) scale(1.01);
+    opacity: 0.6;
+  }
+}
+@keyframes credits-glyph-sheen {
+  0%,
+  15% {
+    background-position: 200% 50%;
+  }
+  85%,
+  100% {
+    background-position: -100% 50%;
+  }
+}
+@keyframes credits-signal {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+#credits-panel:is([hidden], [data-page-hidden]) *,
+#credits-panel:is([hidden], [data-page-hidden]) *::before,
+#credits-panel:is([hidden], [data-page-hidden]) *::after {
+  animation: none !important;
+  will-change: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  #credits-panel *,
+  #credits-panel *::before,
+  #credits-panel *::after {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  #credits-panel .credits-name-gradient {
+    animation: none !important;
+    background: none;
+    -webkit-text-fill-color: CanvasText;
+    color: CanvasText;
+    text-shadow: none;
+  }
+  #credits-panel :is(.credits-god-rays, .credits-glyph-sheen) {
+    display: none;
+  }
+}

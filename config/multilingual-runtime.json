@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "tts": {
+    "model": "ResembleAI/chatterbox",
+    "revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+    "source": "https://github.com/resemble-ai/chatterbox",
+    "license": "MIT",
+    "directory": "data/speech/chatterbox-multilingual-v3",
+    "files": [
+      {
+        "file": "t3_mtl23ls_v3.safetensors",
+        "bytes": 2143989928,
+        "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+      },
+      {
+        "file": "s3gen.pt",
+        "bytes": 1057165844,
+        "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+      },
+      {
+        "file": "ve.pt",
+        "bytes": 5698626,
+        "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+      },
+      {
+        "file": "grapheme_mtl_merged_expanded_v1.json",
+        "bytes": 69989,
+        "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+      },
+      {
+        "file": "Cangjie5_TC.json",
+        "bytes": 1920163,
+        "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+      }
+    ],
+    "variant": "v3"
+  },
+  "whisper": {
+    "model": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+    "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+    "license": "MIT",
+    "source": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+    "directory": "data/speech/faster-whisper-large-v3-turbo",
+    "files": [
+      {
+        "file": "config.json",
+        "bytes": 2263,
+        "sha256": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e"
+      },
+      {
+        "file": "model.bin",
+        "bytes": 1617884929,
+        "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+      },
+      {
+        "file": "preprocessor_config.json",
+        "bytes": 340,
+        "sha256": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711"
+      },
+      {
+        "file": "tokenizer.json",
+        "bytes": 2710337,
+        "sha256": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd"
+      },
+      {
+        "file": "vocabulary.json",
+        "bytes": 1068114,
+        "sha256": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1"
+      }
+    ]
+  },
+  "chinese": {
+    "directory": "data/speech/pkuseg/spacy_ontonotes",
+    "url": "https://github.com/explosion/spacy-pkuseg/releases/download/v0.0.26/spacy_ontonotes.zip",
+    "fallbackUrls": [
+      "https://api.github.com/repos/explosion/spacy-pkuseg/releases/assets/26571012"
+    ],
+    "archiveBytes": 34567143,
+    "archiveSha256": "b216e7f92de7ae285aeab8feba2faa8ea8216e5995ff6fb3d391cc8356db1bfe",
+    "files": [
+      {
+        "file": "features.msgpack",
+        "bytes": 22685181,
+        "sha256": "fd4322482a7018b9bce9216173ae9d2848efe6d310b468bbb4383fb55c874a18"
+      },
+      {
+        "file": "weights.npz",
+        "bytes": 37508754,
+        "sha256": "5ada075eb25a854f71d6e6fa4e7d55e7be0ae049255b1f8f19d05c13b1b68c9e"
+      }
+    ]
+  }
+}

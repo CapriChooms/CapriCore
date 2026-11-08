@@ -17,9 +17,10 @@ Enable tool calls and images only if the selected model supports them.
 
 Choose **Google Gemini**, or **Custom** on an older build, with this base URL:
 `https://generativelanguage.googleapis.com/v1beta/openai/`.
-Use a Gemini API key copied from Google AI Studio. For the model ID, Google's
-current compatibility example uses `gemini-3.8-flash`; confirm availability in
-your Google project. Save the connection, test it, then choose **Use connection**.
+Use a Gemini API key copied from Google AI Studio and a current model ID available
+to that same Google project. Model names and availability change independently of
+Capri; copy the exact ID from the provider's current catalog. Save the connection,
+test it, then choose **Use connection**.
 See Google's [OpenAI compatibility guide](https://ai.google.dev/gemini-api/docs/openai).
 
 The `gemini-1.5-pro` model in older examples has been retired. An unavailable
@@ -52,7 +53,8 @@ Remote API connections still require HTTPS and a key. See the
 This replaces local **language-model inference**, including enabled vision and
 initiative. It does not replace speech recognition, voice synthesis or the local
 CPU embedding index. Downloaded language models stay on disk; they are not loaded
-for API chat. Choose **Use local model** to switch back. Keep enough RAM/VRAM
+for API chat by default. Open **Settings → Language model → Use local model**, or
+use the **Local/API** selector in the main header, to switch back. Keep enough RAM/VRAM
 for any local voice you enable.
 
 The provider receives conversation context, personality, relevant memories and

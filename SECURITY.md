@@ -1,5 +1,10 @@
 # Security
 
+This policy describes the public **CapriCore 1.0.0** release. When reporting a
+problem, include the installed version and whether it also occurs on the latest
+public release. Historical early-access notes are not a statement of current
+protection.
+
 Permission bypass, malformed IPC, path traversal, unwanted capture, credential leakage and unsafe process termination are security issues.
 
 The default installation scope intentionally gives Capri read/write access to its own source, configuration and data. It can be revoked in File access. This permits self-modification and is not a security boundary against altered application code or configuration. Additional folder grants and screen/microphone permissions remain separate capabilities in the shipped implementation.
@@ -12,9 +17,32 @@ The [reviewed dependency backports](docs/security-backports.md) document two ups
 
 ## Personal data at rest
 
-Full encryption of conversation history, attachments and ordinary memory is deferred. This beta uses the existing local file storage and does not require EFS, WinFsp or Dokany. It must not be described as fully encrypted. Existing API credential protection and the separately password-protected private memory feature are retained.
+Full encryption of conversation history, attachments and ordinary memory is deferred. Capri 1.0.0 uses the existing local file storage and does not require EFS, WinFsp or Dokany. It must not be described as fully encrypted. Existing API credential protection and the separately password-protected private memory feature are retained. Stored API credentials use Electron safeStorage/Windows DPAPI for the current Windows account; this is not protection against a compromised account, administrator or process-memory access. The private memory box does not encrypt ordinary conversation history or other copies of information already shared.
 
 A read-only compatibility decoder can recover dialogue and image previews from the withdrawn local encryption experiment using the original Windows account and saved key. It never creates a key or encrypts new files. Unreadable history is preserved instead of being overwritten by new messages.
+
+## External providers and enabled tools
+
+Local inference and an external API have different data boundaries. When an
+external API is selected, the configured provider receives the conversation
+context, personality, relevant memory and tool results needed for a request.
+Enabled vision can also send selected screen images. A server running on this
+PC may keep that inference local, but its configuration and logs are controlled
+by that server. Provider retention, pricing and privacy policies apply; see
+[external AI providers](docs/external-api.md).
+
+Screen, microphone, file access and computer actions require their applicable
+permissions. Review grants before enabling full computer control or a third-party
+user tool. A local tool can have its own network and file behavior; declaring a
+permission does not establish that its script is trustworthy. Stop an active
+computer-control session with **Escape**.
+
+Public downloads and update checks use
+[CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases) without
+a GitHub account or token. Optional saved GitHub access stays protected by the
+existing account-bound credential storage. Download hashes and manifests detect
+integrity problems; they do not replace publisher code signing. The current
+Windows installer is unsigned.
 
 ## Logs and diagnostic exports
 

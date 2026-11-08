@@ -1,17 +1,50 @@
 name: Bug report
 description: Report a reproducible problem without personal data.
+title: '[Bug]: '
 body:
-  - type: textarea
+  - type: markdown
     attributes:
-      label: What happened?
-      description: Reproduction, expected behavior and selected profile.
+      value: |
+        Please search existing issues first. Do not paste API keys, tokens, personal conversations, recordings or private model weights.
+        Use [private vulnerability reporting](https://github.com/CapriChooms/CapriCore/security/advisories/new) for a security issue.
+  - type: input
+    id: version
+    attributes:
+      label: Capri version
+      description: Copy the exact installed version from Settings → Updates. Say if this is a source checkout.
+      placeholder: '1.0.0'
     validations:
       required: true
   - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Describe the actual result and what you expected instead. Use a made-up example if the task involved private data.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: List the actions, settings and application involved, including whether this follows an update, restart or clean installation.
+      placeholder: |
+        1. Open ...
+        2. Enable ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: inference
+    attributes:
+      label: Model and optional components
+      description: Local model or API provider, exact model ID, CPU/GPU/NPU backend, conversation language, and enabled recognition/TTS packs. Never include a key, account details or a URL containing credentials.
+  - type: textarea
+    id: environment
     attributes:
       label: Hardware and software
       description: Windows, CPU, RAM, GPU/VRAM, driver and optional packs. Redact personal paths.
   - type: textarea
+    id: diagnostics
     attributes:
       label: Minimal diagnostics
-      description: No tokens, personal conversations, recordings or model weights. Security reports need a private channel.
+      description: Attach a reviewed Capri diagnostic ZIP or a small redacted screenshot if useful. Reports are saved locally and are not submitted automatically. Review REPORT.md and the files before sharing; remove personal details. Do not upload your installation/data directory, raw logs, recordings or model files.

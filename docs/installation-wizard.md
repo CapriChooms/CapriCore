@@ -1,34 +1,34 @@
 # Windows installation wizard
 
-The wizard is a per-user source bootstrapper for Windows 10 22H2/11 x64. It runs with built-in Windows PowerShell and Windows Forms, before Node, npm or Python are installed. Start **Install Capri.cmd** from an extracted source distribution. The application owns its runtimes; global PATH, drivers and system Python are not modified.
+The Capri 1.0.0 wizard is a per-user source bootstrapper for Windows 10 22H2/11 x64. Download [CapriSetup-1.0.0.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe), or start **Install Capri.cmd** from a complete extracted source distribution. Public downloads require no GitHub account or token. The cyberpunk-styled wizard runs with built-in Windows PowerShell and Windows Forms, before Node, npm or Python are installed. The application owns its runtimes; global PATH, drivers and system Python are not modified by the normal installation.
 
 ## User journey
 
 On the model selection page, choose **Use local LLMs** to select a model for
 this PC, or **Use an API without installing local LLMs** to skip local language
-model downloads. API mode keeps the small CPU model for the local memory index.
-On first launch, Capri opens **Settings → External AI provider**, where you
+model downloads. The third choice, **Choose a local model from Hugging Face after installation**, defers GGUF selection to Settings. API mode keeps the small CPU model for the local memory index and the mandatory CPU request classifier, but skips startup loading of a local conversation LLM.
+In API mode, Capri opens **Settings → External AI provider** on first launch, where you
 enter the provider URL, model ID and key. Speech options are separate.
 
-The next build adds a fixed memory estimate panel on Hardware, Components and
+The fixed memory estimate panel appears on Hardware, Components and
 Review. It separates system RAM from dedicated VRAM and stays visible while the
-component list scrolls. Changing the text model, voice, recognition, conversation
-language or CPU classifier updates the approximate usage and remaining memory.
+component list scrolls. Changing the text model, voice, recognition or conversation
+language updates the approximate usage and remaining memory. The CPU classifier is always included. A not-yet-selected Hugging Face model shows **?** instead of a misleading API-sized estimate or memory bar.
 Refresh takes another snapshot of current free memory without loading models.
 Unknown GPU memory is labeled unknown; over-budget choices show a warning. The
 GPU-path RAM requirement and conservative CPU fallback target are distinct.
 See [the calculation and limits](hardware.md#installer-memory-budget-next-build).
 
-| Page                     | Contents and defaults                                                                                                                                                                                                                                                                                                                |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Welcome                  | Installer language (all 50 Capri interface languages), supported platform, local inference and network requirement.                                                                                                                                                                                                                  |
-| License                  | GPL-3.0 text, third-party notices and explicit acceptance. No forced reading timers.                                                                                                                                                                                                                                                 |
-| Location                 | Browse selects a parent and proposes its Capri subfolder, created automatically when installation starts. The full path is visible and editable. Existing managed folders are reused; unrelated files are preserved.                                                                                                                 |
-| Hardware and model       | RAM/CPU/GPU evidence, recommended model, manual override, approximate storage budget and quality/speed tradeoff. Unknown VRAM is not guessed.                                                                                                                                                                                        |
-| Languages and components | Independent UI and conversation language. Recognition, CPU classifier, model downloads and both shortcuts are selected by default; each can be deselected. A voice-enabled setup recommends its included trained Capri voice on NVIDIA; text mode and custom import remain available. No microphone or screen permission is granted. |
-| Review                   | Exact folder, model, components, approximate download/disk budget, data location and download consent. Back remains available.                                                                                                                                                                                                       |
-| Install                  | Current component, actual byte progress when available, indeterminate progress for package installation, cancellation, bounded diagnostics and retry. Verified downloads and successfully verified stages can be reused.                                                                                                             |
-| Finish                   | Installed/ready/deferred components, shortcuts, data/log locations, optional launch and next steps. Failure never becomes a success screen.                                                                                                                                                                                          |
+| Page                     | Contents and defaults                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Welcome                  | Installer language (all 50 Capri interface languages), supported platform, local inference and network requirement.                                                                                                                                                                                                                                                                                                       |
+| License                  | GPL-3.0 text, third-party notices and explicit acceptance. No forced reading timers.                                                                                                                                                                                                                                                                                                                                      |
+| Location                 | Browse selects a parent and proposes its Capri subfolder, created automatically when installation starts. The full path is visible and editable. Existing managed folders are reused; unrelated files are preserved.                                                                                                                                                                                                      |
+| Hardware and model       | RAM/CPU/GPU evidence, recommended model, manual override, approximate storage budget and quality/speed tradeoff. Unknown VRAM is not guessed.                                                                                                                                                                                                                                                                             |
+| Languages and components | Independent UI and conversation language. The CPU request classifier is always included. Recognition, local model downloads and shortcuts are optional; API/Hugging Face mode disables bundled conversation-model downloads. Voice choices include supported GPU Chatterbox, CPU Qwen3-TTS for compatible languages, text-only mode and compatible-pack import. Microphone and screen access remain separate permissions. |
+| Review                   | Exact folder, model, components, approximate download/disk budget, data location and download consent. Back remains available.                                                                                                                                                                                                                                                                                            |
+| Install                  | One overall progress bar, the current stage and activity, per-file transfer details when available, approximate ETA, pause/cancel, bounded diagnostics and retry. Verified downloads and successfully verified stages can be reused.                                                                                                                                                                                      |
+| Finish                   | Installed/ready/deferred components, shortcuts, data/log locations, optional launch and next steps. Bundled-local mode also offers first-launch model preloading, checked by default; API/Hugging Face mode does not offer this checkbox. Failure never becomes a success screen.                                                                                                                                         |
 
 ## Engineering contract
 
@@ -36,21 +36,21 @@ Location discovery reads Capri's per-user uninstall registrations and standard i
 
 Finish opens the installed `Capri.exe` with a fresh launch nonce. A new or existing desktop publishes a matching window-ready receipt; a failed/missing acknowledgement leaves Finish open for retry and records the launch error. Model readiness remains separate from window readiness, including when models were intentionally deferred.
 
-All component checkboxes start checked, including on lower-memory hardware; the
-hardware profile still controls the recommended language model. License acceptance
+Recognition and shortcut checkboxes start checked, including on lower-memory hardware; bundled-local mode initially selects model downloads. The CPU classifier cannot be deselected. The
+hardware profile still controls the recommended language model, and compatible voices depend on the selected language and hardware. License acceptance
 and download consent require explicit user action. Repair retains the hardware
 profile and languages without silently deselecting components. Back/Next keeps the
 user's current component choices; reconnecting to an active installation restores
 that session's exact request instead of changing its components.
 
 - Pinned HTTPS artifacts with reviewed SHA-256 before execution/extraction. ZIP extraction rejects escapes, links and duplicate names. npm uses the existing package lock and lifecycle allowlist.
-- Installation identity and journal are local, durable and bounded. A single worker owns a target. Repair retains data and local settings; changed source files are backed up before replacement. Different installed versions require a deliberate future update flow.
+- Installation identity and journal are local, durable and bounded. A single worker owns a target. Repair and supported upgrades retain data and local settings; changed source files are backed up before replacement. Setup can repair the same version or upgrade an older one. Use a separate folder for deliberate downgrades.
 - A cancelled/failed component remains incomplete. A repeat install revalidates outputs; a journal entry alone is not readiness evidence. Partial models are never marked ready.
 - Per-user Start menu and Installed Apps registration; no administrator prompt, startup entry, analytics, firewall changes or driver installation by default.
 - Open `uninstall.exe` from the installed folder or use Windows Installed apps. The three checkboxes select Capri and its dependencies, downloaded models, and personal data. The window measures disk allocation and updates the total for the current selection. Selecting all three also removes Capri-owned setup files and media stored inside the managed installation. Shared setup caches are retained while another installation uses them.
 - Headless installation uses the same validated request and engine. The GUI and optional components do not have separate installation semantics.
 
-Hardware estimates are planning budgets, not measured performance guarantees. AMD/Intel speech acceleration, signed Setup.exe/MSIX, automatic updates, independent model/data locations and device audition remain separate qualification work. Sources: [Microsoft application installation guidance](https://learn.microsoft.com/en-us/windows/apps/get-started/best-practices), [Ollama standalone distribution](https://docs.ollama.com/windows), [uv standalone distribution](https://docs.astral.sh/uv/getting-started/installation/).
+Hardware estimates are planning budgets, not measured performance guarantees. In-app public update checks are implemented; installing an update remains an explicit user action. Chatterbox supports compatible NVIDIA hardware and selected experimental AMD ROCm configurations; CPU Qwen3-TTS is a separate adapter. Broader GPU qualification, publisher signing, independent model/data locations and device audition remain follow-up work. Sources: [Microsoft application installation guidance](https://learn.microsoft.com/en-us/windows/apps/get-started/best-practices), [Ollama standalone distribution](https://docs.ollama.com/windows), [uv standalone distribution](https://docs.astral.sh/uv/getting-started/installation/).
 
 ## Build and verify
 
@@ -69,7 +69,7 @@ A small per-user recovery uninstaller cache remains available until removal comp
 
 ## Voice-source preflight fix
 
-The spoken-voice selector offers an included trained voice when available, text mode, and explicit custom import on supported hardware. The custom file picker selects an existing voice-profile.json from a prepared English export; an empty download/driver folder cannot be selected as a voice package. Basic manifest and required-file checks run in the GUI and worker before any bootstrap download. Detailed compatibility and SHA-256 checks still run before installing voice dependencies or copying a pack. Text mode clears any stale source path. Missing source errors carry stable codes and localized guidance.
+The spoken-voice selector offers an included trained Chatterbox voice and explicit compatible-pack import on supported GPU hardware, a CPU Qwen3-TTS option for compatible languages, and text mode. The custom file picker selects an existing voice-profile.json from a prepared English export; an empty download/driver folder cannot be selected as a voice package. Basic manifest and required-file checks run in the GUI and worker before any bootstrap download. Detailed compatibility and SHA-256 checks still run before installing voice dependencies or copying a pack. Text mode clears any stale source path. Missing source errors carry stable codes and localized guidance.
 
 The Node bootstrap retries transient transport/EOF/timeout failures up to three times. It does not retry integrity failures or an explicit cancellation. A previously verified Node installation remains reusable when correcting a voice selection.
 
@@ -110,7 +110,7 @@ The bootstrap resolves the owned interpreter path directly instead of decoding a
 
 ## Model download progress and continuation
 
-The explicit Parakeet, Silero, multilingual speech and request-classifier provisioners share a verified downloader. During transfer it reports each file's percentage, transferred/total MB, recent throughput and estimated seconds remaining about once per second. These lines drive the wizard's existing progress bar. Connection and final verification messages distinguish network setup, transfer and cached files. This is per-file progress, not an overall installation percentage.
+The explicit Parakeet, Silero, multilingual speech and request-classifier provisioners share a verified downloader. During transfer it reports each file's percentage, transferred/total MB, recent throughput and estimated seconds remaining about once per second. Connection and final verification messages distinguish network setup, transfer and cached files. The wizard maps this detail into one overall, nondecreasing installation bar: bootstrap occupies the first 10%, and the selected remaining stages divide the rest into rounded boundaries. Only successful completion reaches 100%. Its overall ETA is approximate and is withheld when progress is too early or stale, or while paused; it is not a frozen countdown or a claim that every stage takes equal time.
 
 The installation warning occupies its own wrapped label between progress text and
 the journal, with gaps that remain after text reflow and DPI scaling. Native UI
@@ -135,7 +135,7 @@ The Chinese-only segmentation archive is installed when Chinese is selected. Oth
 
 The locked voice environment uses PyPI as its default package source and an explicit PyTorch backend for the CUDA package family: cu124 for legacy GPUs, cu128 for Blackwell/RTX 50. Hardware selection and reviewed version overrides are described in [GPU voice compatibility](voice-gpu-compatibility.md). First-index resolution and isolation from inherited index/override settings are preserved. A general PyTorch index must not shadow unrelated packages such as certifi. Model, adapter and source pins remain unchanged. See [uv's PyTorch integration](https://docs.astral.sh/uv/guides/integration/pytorch/) and [index behavior](https://docs.astral.sh/uv/concepts/indexes/).
 
-The setup script's -PlanOnly switch creates a private Python/empty voice environment and resolves the real lock without installing voice packages or downloading model weights; it can run on a CI machine without NVIDIA. GitHub Actions now runs this check on a fresh checkout using the pinned uv version. -DependenciesOnly installs packages and returns before model provisioning. Normal setup still requires NVIDIA and checks the voice model and CUDA readiness before success.
+The setup script's -PlanOnly switch creates a private Python/empty voice environment and resolves the real lock without installing voice packages or downloading model weights; it can run on a CI machine without NVIDIA. GitHub Actions runs this check on a fresh checkout using the pinned uv version. -DependenciesOnly installs packages and returns before model provisioning. Normal Chatterbox setup checks the selected supported CUDA/ROCm backend and model before success; the separate CPU Qwen3-TTS option has its own setup path.
 
 Voice dependency setup streams uv output and retries explicit transient package/Git
 transfer failures up to three total attempts, with 2- and 4-second backoff. A Git

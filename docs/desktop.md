@@ -1,177 +1,136 @@
 # Capri Desktop
 
-Собственная оболочка для Windows: процедурное цифровое ядро, появление Capri через помехи, 39 сочетаний поз и эмоций, девять коротких жестов и самостоятельные визуальные занятия между сообщениями. Диалог использует существующее ядро OpenClaw; английские ответы озвучиваются выбранным голосом Chatterbox Turbo + LoRA. Подключён потоковый микрофон; самостоятельные комментарии доступны как выключенный по умолчанию тестовый режим Initiative. В настройках Screen snapshot можно передать один кадр выбранного окна или монитора с предпросмотром. Камера не подключена; временное наблюдение выбранного источника включается отдельно. Установка и ограничения озвучки: [desktop-voice.md](desktop-voice.md), [разовый снимок](screen-snapshot.md).
+Capri 1.0.0 is a Windows x64 desktop companion with shared conversation and
+memory, optional local speech, floating character animations and explicitly
+enabled tools. Language-model inference can use bundled local models, compatible
+Hugging Face GGUF imports or an OpenAI-compatible API. See the
+[system requirements](../README.md#system-requirements) before enabling speech or
+a larger local model.
 
-Настройки открываются шестерёнкой в отдельной панели слева: 17 категорий, поиск, подтверждение несохранённых изменений. Подробности текущих локальных изменений: [22 пункта доводки](local-polish-22.md).
+## Start and talk
 
-## Использование
+Complete the [installation wizard](installation-wizard.md), then open
+**Capri.exe** or its shortcut. A first model load can take longer than subsequent
+replies. The microphone and Capri's voice start **off**; installing their packs
+does not enable or load them automatically.
 
-- `capri.cmd` запускает компаньона. Окно появляется справа внизу в рабочей области основного монитора; локальное ядро запускается в фоне. Первое включение модели может занять время.
-- Введите сообщение и нажмите Enter. Shift+Enter добавляет строку. Ответ приходит постепенно.
-- В ожидании виден вращающийся процедурный символ с глазом Capri. При вводе текста он показывает TEXT INPUT, после отправки — THINKING. Первый текст ответа запускает материализацию портрета через полосы изображения, RGB-сдвиги и помехи.
-- С новым набором Capri по умолчанию остаётся видимой и занимается своими делами. Кнопка ромба вручную сворачивает её в цифровое ядро и раскрывает обратно. Если отключить `autonomy.enabled` в рабочем каталоге, возвращается прежнее автоматическое сворачивание через 45 секунд без закрепления.
-- SPEAKING включается только при настоящем воспроизведении звука; мини-индикатор использует RMS из Web Audio AnalyserNode. Между текстом и началом речи возможен VOICE PENDING. LISTENING показывает включённое потоковое распознавание; ввод текста его не включает. Устройство ввода выбирается в меню Microphone input.
-- Кнопка динамика включает и выключает голос Capri. Остановка или Esc прекращает речь, а новое сообщение прерывает предыдущую озвучку. Голосовые файлы для обычного диалога не сохраняются.
-- Ответы показаны над персонажем в полупрозрачной панели со срезанными углами, последней пользовательской репликой и акцентами cyan/magenta/yellow. Локальный шрифт Exo 2 поддерживает латиницу и кириллицу, не требует сети или установки в Windows; исходник и лицензия SIL OFL 1.1 находятся в `assets/fonts/exo2/`.
-- Субтитры вмещают до трёх строк с учётом реального шрифта и ширины окна. Новое предложение добавляется на текущую страницу целиком, если помещается; иначе начинается новая. При включённом голосе страницы следуют за настоящим началом воспроизведения предложений, а не за скоростью генерации текста или готовностью очереди. Если одно предложение длиннее страницы, его страницы переключаются приблизительно по доле текста в известной длительности аудио. Во время ожидания следующей озвучки текущая страница остаётся на экране. Без голоса действует таймер чтения. Стрелки приостанавливают автоматическое перелистывание; кнопка возобновления возвращает к текущему месту речи. Последняя страница остаётся видимой, новый ответ сбрасывает старое расписание.
-- Кнопка истории возле имени открывает полную переписку с возможностью выделять и копировать текст. Закройте её крестиком, той же кнопкой или Esc. Во время чтения истории субтитры не перелистываются. Если история открыта, первое нажатие Esc закрывает её, следующее останавливает ответ.
-- Кнопка остановки или Esc прекращает получение текущего ответа в оболочке. Уже начатая серверная генерация может завершиться в фоне: клиентская отмена не гарантирует немедленной остановки вычислений OpenClaw.
-- Перетаскивайте Capri за рисунок, чтобы изменить её положение **внутри** невидимого окна. Перетаскивание за имя **CAPRI** двигает **всё окно** по рабочему столу. Эти два положения сохраняются независимо.
-- Портрет использует существующие спрайты: при 115% кадр укрупнён до верхней части фигуры, при 60% обычно виден полный рост. Колёсико над персонажем приближает/отдаляет его вокруг точки под курсором. Кнопки **− / +** также меняют масштаб от 60% до 300%. Нажатие на процент возвращает центр, исходное положение по высоте и 115%; то же действие доступно в меню **Reset Capri position and zoom**.
-- На больших масштабах изображение обрезается по области персонажа; его можно сдвигать, чтобы рассмотреть нужную часть. Клики по прозрачным пикселям по-прежнему проходят насквозь: при обрезке маска вычисляется по правильной части исходного PNG. Прозрачные части фигуры и свободные области окна пропускают мышь к обычным приложениям.
-- Сам текст субтитров также пропускает мышь. Нажатия принимают только персонаж, его имя, кнопки, строка ввода и открытая история или предупреждение. Невидимой прямоугольной панели над рабочим столом нет.
-- Кнопка `−` скрывает окно в трей. Нажмите значок Capri в трее или повторно запустите `capri.cmd`, чтобы вернуть её. Ctrl+Shift+Space также переключает видимость, если сочетание удалось зарегистрировать.
-- Alt+F4 также скрывает компаньона в трей; для полной остановки используйте меню завершения или `stop.cmd`.
-- Меню `···` и правый клик по значку трея позволяют вернуть окно в исходный угол, переключить отображение поверх окон, переподключиться или завершить работу.
-- **Settings → Window** открывает настройку затемнения под Capri: включение, сила 0–85% и мягкость краёв 0–320 px. Начальные значения — 35% и 140 px. Границы слоя точно совпадают с границами окна Capri; затемнение плавно ослабевает по краям и следует за окном при перемещении и изменении размера. Края растушёвываются гауссовым профилем по обеим осям; ширина растушёвки ограничивается половиной меньшей стороны, чтобы центр компактного окна сохранял заданную плотность. Здесь же настраивается движение окна. Остальная часть экрана не затемняется. Клики проходят к приложениям, а при скрытии Capri затемнение также скрывается. Значения сохраняются в `data/desktop/dimming.json`.
-- **Quit and unload models** завершает компаньона и штатно останавливает управляемые службы и модели. `stop.cmd` делает то же из проекта. Простое скрытие в трей оставляет ядро работающим.
+Type in **Talk to Capri…** and press **Enter** to send; **Shift+Enter** inserts a
+line. Use the attachment button, drag and drop, or paste supported files/images
+from the clipboard. Unsupported file types or model capabilities produce an
+informational message instead of being sent as unsupported input.
 
-Отображение поверх эксклюзивного полноэкранного приложения не гарантируется. Приложение не запускается с правами администратора; взаимодействие с окнами повышенного уровня привилегий может отличаться от обычных окон.
+The microphone beside Send starts direct voice input. The toolbar microphone
+controls persistent wake-phrase listening; stopping direct capture does not
+unload an already enabled recognition model. The speaker button enables or mutes
+Capri's replies. Language, input-device, voice and wake-acknowledgement choices
+are separate settings. See [microphone](desktop-microphone.md),
+[wake phrase](wake-phrase.md) and [voice installation](voice-installation.md).
 
-## Что принадлежит памяти
+The status indicator distinguishes connecting, listening, thinking and actual
+speech playback. Use **Stop reply** or **Escape** to cancel the active reply.
+Cancellation is requested from the backend; an external provider or a busy local
+service can take time to finish releasing its work.
 
-OpenClaw хранит общий диалог и долговременную память. Оболочка использует прежние `agentId` и `sessionKey` из `config/core.json`; отдельного агента или нового контекста пользователя не создаётся. В каждый запрос отправляются текущая личность из `data/workspace/PERSONALITY.md`, описание реально доступного интерфейса и только новое пользовательское сообщение. Локальный журнал не пересылается как история.
+## Toolbar and conversation
 
-`data/desktop/transcript.json` — журнал отображения этой оболочки. Он восстанавливает последние 200 записей, с общим ограничением размера. При аварийном выходе незаконченный ответ помечается как прерванный. Старые сообщения из журналов VTuber не импортируются автоматически; их отсутствие на экране не удаляет память OpenClaw. Сообщения другого интерфейса могут быть известны модели, хотя их нет в локальном журнале.
+- The **Local/API** selector identifies the active inference connection and
+  offers saved connections and local model settings. Switching during an active
+  reply requires waiting for that reply to finish.
+- **CTX** shows context use and opens the context settings. RAM/VRAM displays
+  and optional graphs are configured under **Appearance and animations**.
+- **Thinking mode** and **Internet mode** are beside the main input. The former
+  requests a more considered answer with a short spoken introduction; the latter
+  enables ordinary web research. Internet mode alone does not grant computer
+  control.
+- **Music listening** is next to the speaker control. It uses permitted system
+  audio, with optional BPM-driven animation; see [music listening](music-listening.md).
+- **Conversation history** opens the full conversation, including supported
+  attachments and image previews. Its active state is highlighted. Close it with
+  its button, cross or Escape; Escape can then stop the current reply.
+- Reply arrows browse the available pages or replies. The reply can be collapsed
+  without clearing conversation history. Optional automatic dismissal and
+  floating-dialogue preferences are in Settings.
 
-`data/desktop/window.json` хранит положение окна и настройку поверх окон. `data/desktop/avatar.json` хранит последнее успешно показанное выражение. `data/desktop/avatar-layout.json` хранит нормализованное положение персонажа внутри окна и масштаб; при изменении доступного пространства фигура остаётся в доступной области. `data/desktop/profile/` — изолированный профиль Electron. Вся папка `data/` исключена из Git. Пользовательский профиль браузера не используется.
+Screen observation and application access have independent controls and grants.
+Their toolbar state does not grant unrestricted access to other files or desktop
+actions. Read [screen observation](screen-observation.md),
+[application access](application-actions.md) and [computer control](computer-control.md)
+when enabling these features.
 
-Субтитры — только представление ответа: переносы и интервалы нормализуются для чтения, но исходный текст остаётся в журнале целиком. Текущий фрагмент и пауза не записываются в память модели. Последний ответ доступен при открытии портрета и в истории, без повторной озвучки. Размер обычного окна — 480×660 DIP; при переходе со старой панели сохранено положение его правого нижнего угла. На маленьком экране графика и текст уменьшаются.
+## Character, frame and floating controls
 
-## Процедурная графика
+Drag the **CAPRI** title to move the home panel. Drag Capri inside the home frame
+to reposition the character; use the mouse wheel over her to change zoom.
+**Settings → General → Reset Capri position and zoom** restores the character
+placement, while **Reset to bottom-right corner** moves the panel.
 
-`renderer/presence-model.mjs` управляет состояниями и таймером простоя; события старого turnId не раскрывают портрет. `renderer/signal-fx.mjs` рисует глаз, вращающиеся грани, орбиты, цветные срывы изображения, помехи рамок и звуковой индикатор. Фоновые всплески продолжаются и при закреплённом портрете: один короткий пакет на нерегулярно смещённый интервал 8,5 секунды. Смена выражения, начало ответа, начало и возобновление речи, раскрытие, масштабирование и открытие панелей вызывают усиленные всплески до 820 мс. Текст остаётся стабильным; рамки, цветовые каналы и полосы спрайта смещаются отдельно. На весь экран эффект не распространяется.
+**Leave frame** places Capri on the desktop. Outside the frame, the compact
+panel provides microphone, keyboard and menu controls; the keyboard button opens
+a small input and the menu returns to the full controls. Dragging can teleport
+Capri or return her to the home frame, with a configurable movement dead zone.
+Teleport and attachment-to-window behavior depend on the current layout and
+permissions. A report about lost interaction after minimizing/restoring a window
+with Capri sitting on it is still awaiting confirmation on affected setups;
+1.0.0 does not promise that every desktop/window combination is qualified.
 
-`renderer/panel-frames.mjs` создаёт замкнутые SVG-контуры толщиной 2,5 DIP для панелей и небольших рамок. Контур отступает внутрь поверхности с учётом диагоналей: `clip-path` не срезает скошенную часть обводки. Габариты пересчитываются через ResizeObserver. Цветные копии и фрагменты контура участвуют в glitch; декоративные слои не перехватывают ввод.
+Floating replies appear near the character. A nearby arrow can reveal a hidden
+reply; it should not require expanding the home panel. Appearance settings
+control effects, dialogue presentation, automatic closing, movement and reactions.
+The animation system keeps mouth playback separate from body poses. Not every
+pose, model or application has equal coverage.
 
-`renderer/crt-screen.mjs` выполняет один ограниченный областью портрета WebGL-проход: лёгкая выпуклость кинескопа, RGB-разделение, строки развёртки, люминофор и виньетка. Поверх него Canvas добавляет медленную полосу развёртки и помехи. `renderer/screen-geometry.mjs` задаёт общую геометрию линзы для шейдера и альфа-маски кликов. При недоступном WebGL или потере контекста возвращается исходный PNG с обычным ЭЛТ-слоем; персонаж не исчезает.
+## Settings
 
-Интерфейс плавно плавает не более чем на 2,45 DIP внутри своего прозрачного окна. Нативное окно Windows при этом не перемещается и не перезаписывает сохранённое положение. Во время наведения, перетаскивания и ввода покачивание замирает; области кликов учитывают смещение. Эффекты не используют видео, GIF или готовые кадры; персонаж остаётся PNG из каталога. Копии цветовых каналов кэшируются, DPR ограничен 1,25, рисование — 24 FPS для ядра и 30 FPS для портрета. При скрытом/перекрытом окне цикл приостанавливается. Системное «уменьшение движения» отключает glitch и плавание, сохраняя статический ЭЛТ и реальные статусы.
+The gear opens a separate Settings window with search and these groups:
 
-`npm run verify:visuals` проверяет реальный шейдер, контуры по всему периметру, периодические и событийные всплески, покачивание, уменьшение движения и восстановление изображения при потере GPU-контекста. `npm run verify:visuals -- --record` дополнительно сохраняет короткий MP4-предпросмотр при установленном FFmpeg. Проверка использует отдельный тестовый диалог, без сообщений в память владельца. Отчёт — `logs/visual-verification-latest.json`, снимки и видео — в указанном там каталоге `.runtime/visual-verification/`.
+| Group                | Sections                                                                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Capri                | General, Appearance and animations, Window                                                                                                      |
+| Conversation / Voice | Conversation and personality, Brain and private memory, Initiative, Languages, Microphone settings, Voice effects, Voice calls, Music listening |
+| Language model       | Language model, External AI provider, voice-model selection within the model settings                                                           |
+| Capabilities         | Computer control, Task training, User tools, Screen snapshot, Application access, File access, Timers and reminders                             |
+| Updates / Community  | Updates, Discord presence, Report a bug, Support the author, Credits                                                                            |
 
-Скрытый портрет имеет выключенную маску кликов. Декоративные рамки и Canvas не перехватывают ввод; ядро и кнопки интерактивны. Затемнение — неподвижный декоративный слой внутри того же прозрачного окна, под интерфейсом. Оно действует и в signal core, и с открытым портретом, следует за нативным окном без синхронизации координат и исчезает вместе с ним. Отдельных окон затемнения и связей parent/child больше нет; покачивание интерфейса не смещает границы слоя. Нулевые сила или выключенное затемнение делают слой прозрачным; нулевая мягкость даёт ровную границу. Изменение размеров и масштаба экрана автоматически пересчитывает мягкие края.
+The selected section and scroll position are remembered. Search locates matching
+settings. Many appearance and audio changes preview immediately; **Save changes**
+keeps the pending changes, and discarding restores the saved values. Closing with
+unsaved changes brings attention to the save/discard controls. Switching sections
+does not require confirming each change. Some operations, such as installing a
+model or enabling a capability, are explicit actions rather than previews.
 
-`npm run verify:dimming` использует отдельное тестовое окно без моделей и пользовательских данных: проверяет затемнение в signal core и с портретом, перемещение между углами, отсутствие отдельного окна, прохождение кликов, прозрачность и мягкие края по пикселям PNG, скрытие и сохранение настроек после перезапуска. Отчёт — `logs/dimming-verification.json`.
+Long explanations are available from their adjacent information buttons. Voice
+preview, themes, interface language and conversation language are independent
+choices. The **Credits** section contains the Hall of Fame; the support section
+links to the project website and community.
 
-Проверки: `tests/desktop-presence.test.mjs`, `scripts/verify-visuals.mjs` и `scripts/verify-desktop.mjs`. Демонстрационная запись из тестового окна — только результат проверки, не ресурс анимации приложения.
+## Hide, focus, sleep and quit
 
-## Контекстные выражения
+**Hide to tray** keeps Capri running without retaining the main window on the
+Windows taskbar. Restore her from the system tray. The optional floating chip
+provides another way to reopen the panel. When Capri is outside the home frame,
+hiding the panel can leave the character visible independently.
 
-Выражение лица или короткую мимическую реакцию выбирает языковая модель в том же запросе, который генерирует ответ. В системную инструкцию передаются 17 доступных вариантов из `assets/capri/sprites/v1/runtime-sprite-set.json` с краткими описаниями. Промежуточные кадры рта, век и взгляда выбирает локальный контроллер.
+**Focus mode** in General or the tray menu hides the companion and Settings
+until you bring Capri back. Enabled microphone/voice services can continue;
+focus mode is not a privacy or model-unloading control.
 
-| ID спрайта  | Выражение в протоколе | Смысл                           |
-| ----------- | --------------------- | ------------------------------- |
-| `neutral`   | `neutral_small_smile` | Спокойная небольшая улыбка      |
-| `attentive` | `attentive`           | Внимание и интерес              |
-| `thinking`  | `thinking`            | Размышление                     |
-| `smirk`     | `smirk`               | Игривость, шутка, озорство      |
-| `happy`     | `happy`               | Радость и тёплая реакция        |
-| `focused`   | `focused`             | Сосредоточенность и серьёзность |
-| `concerned` | `concerned`           | Сочувствие и беспокойство       |
-| `surprised` | `surprised`           | Удивление                       |
+The cross offers **Sleep**, **Restart**, and **Quit and unload models**, with a
+**Cancel** choice. Sleep releases the managed models and suspends normal
+activity without removing installed files. Quit closes Capri and releases its
+managed services; restart performs an orderly shutdown and relaunch. Do not
+force-terminate a busy installation or model operation.
 
-В приложении активны 28 кадров стоящего портрета. Модели доступны 14 выражений, а также подмигивание, смех и радость. Короткие реакции заканчиваются автоматически и возвращаются к устойчивому выражению. Старые позы и жесты выключены до переработки. При открытии профиля с сохранённой старой позой Capri возвращается к нейтральному выражению.
+## Development and limits
 
-Установочный пакет сохраняет и проверяет 68 PNG. `npm run build:sprites` собирает его каталог из `complete-sprite-set.json` с английскими описаниями и контрольными суммами. Старый `sprite-set.json` сохранён для совместимости и сравнения.
+Use `npm run desktop` for a configured source checkout; `npm start` runs the
+backend rather than the desktop. The renderer has no Node.js access: host
+capabilities use the reviewed preload/IPC boundary. Platform/model work belongs
+behind adapters. See [architecture](architecture.md),
+[contributing](../CONTRIBUTING.md) and the [documentation index](README.md).
 
-Кадры используют общий холст 1254 × 1254 и опорные точки из каталога. Начальное кадрирование рассчитано на фигуру целиком. Масштаб портрета можно менять колёсиком мыши.
-
-`renderer/animation-director.mjs` разделяет выбранное моделью выражение, короткие реакции и фоновый взгляд. Примерно через 18 секунд покоя Capri с нейтральным выражением может посмотреть по сторонам. Ввод и новый запрос прерывают эту анимацию. Взгляд работает локально.
-
-Моргание и формы рта принадлежат нейтральному выражению. Во время воспроизведения речи раскрытие рта зависит от уровня звука, а в паузе рот закрывается. Остальные выражения сохраняют свои рисунки во время речи.
-
-Модель начинает ответ служебной строкой, например:
-
-```text
-[avatar:thinking]
-Well, that sounds like my kind of trouble.
-```
-
-Потоковый парсер отделяет метку до вывода текста, даже если она пришла несколькими частями. Допускается одно корректное решение на ответ; повторные метки удаляются и не вызывают мерцания. Неизвестные, незавершённые и слишком длинные служебные команды не исполняются. Если модель завершила ответ без допустимого выбора, применяется нейтральное выражение. Неполученную команду программа не угадывает по тексту ответа.
-
-Main проверяет выбор по каталогу, renderer предварительно декодирует изображение и подтверждает его ревизию. Только после подтверждения обновляются спрайт и соответствующая альфа-маска кликов. Отмена и начало нового сообщения аннулируют незавершённое переключение, чтобы старый ответ не изменил лицо позже. Показанное выражение сохраняется до следующего выбора, включая перезапуск приложения.
-
-В локальном журнале текст остаётся чистым, а метаданные сохраняются отдельно: `avatar: { id, pose, expression }`. Внутренняя история OpenClaw может содержать исходную служебную строку; это протокол конкретного интерфейса, а не новая долговременная память. Если другой клиент выводит сырые ответы из той же сессии, ему также нужен фильтр служебных меток.
-
-## Архитектура
-
-```text
-Renderer: HTML/CSS/JavaScript, спрайт и текст
-    │ ограниченный IPC через contextBridge
-Electron main: очередь диалога, отмена, история, окно и трей
-    │ HTTP/SSE, локальный токен остаётся здесь
-OpenClaw: общая сессия и память
-    │
-Ollama: Qwen3.5-9B
-```
-
-Отдельный HTTP-сервер интерфейсу не нужен. Electron main играет роль локального моста. Компоненты диалога, журнала и геометрии не зависят от Electron и проверяются обычным Node.js.
-
-| Файл                                              | Назначение                                                                        |
-| ------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `apps/desktop/main.mjs`                           | Оконный процесс, трей, проверка IPC, локальные ресурсы, управление ядром          |
-| `apps/desktop/preload.cjs`                        | Только явно перечисленные возможности renderer                                    |
-| `apps/desktop/chat-service.mjs`                   | Потоковый HTTP-клиент, общая сессия, лимиты и отмена                              |
-| `apps/desktop/avatar-catalog.mjs`                 | Проверенный каталог локальных PNG и доступных сочетаний                           |
-| `apps/desktop/avatar-protocol.mjs`                | Инструкция выбора для модели и потоковый парсер служебных меток                   |
-| `apps/desktop/avatar-state.mjs`                   | Подтверждение переключения, ревизии и защита от старых событий                    |
-| `apps/desktop/avatar-layout.mjs`                  | Положение и масштаб персонажа, привязка увеличения к курсору, координаты обрезки  |
-| `apps/desktop/renderer/animation-director.mjs`    | Очередь реакций, микродвижения, самостоятельные занятия и ограниченный кэш кадров |
-| `assets/capri/sprites/v1/runtime-sprite-set.json` | Проверяемый рабочий набор, контакты поз, жесты и последовательности без ходьбы    |
-| `scripts/build-sprite-catalog.mjs`                | Воспроизводимая сборка рабочего набора из полного авторского каталога             |
-| `apps/desktop/storage.mjs`                        | Ограниченный журнал и атомарное сохранение                                        |
-| `apps/desktop/geometry.mjs`                       | Положение на мониторах и проверка попадания в непрозрачные пиксели                |
-| `apps/desktop/renderer/`                          | Спрайт, поле ввода, сообщения, состояния и обработка ввода                        |
-| `apps/desktop/renderer/subtitles.mjs`             | Разбиение ответа на короткие фрагменты и задержки для чтения                      |
-| `assets/fonts/exo2/`                              | Закреплённый локальный шрифт, происхождение и лицензия                            |
-| `scripts/desktop.mjs`                             | Запуск одного управляемого экземпляра                                             |
-| `scripts/core-services.mjs`                       | Общий запуск/остановка текстового ядра                                            |
-| `assets/capri/sprites/v1/`                        | Восемь выражений на общей стойке и манифест серии                                 |
-
-Проверка готовности агента выполняется через read-only `session_status` у работающего Gateway. Дополнительный CLI для этого не запускается: на чистом состоянии он способен конкурировать за lease жизненного цикла плагинов.
-
-## Границы безопасности
-
-- Renderer работает с `sandbox`, `contextIsolation`, без Node.js и без токена OpenClaw. Через preload доступны отдельные методы, а не произвольные IPC-каналы, файловые пути или команды.
-- Каждый IPC-запрос проверяется по окну, главному frame и точному локальному адресу страницы. Длина текста, идентификаторы и области взаимодействия проверяются повторно в main.
-- Ресурсы выдаются через `capri://desktop/` из фиксированного списка. Навигация, новые окна, webview и запросы разрешений запрещены. CSP не разрешает renderer сетевые соединения, сторонние скрипты, фреймы или встроенный HTML-код.
-- CSP разрешает загрузку шрифта только из собственного протокола; внешних служб шрифтов нет.
-- Модель выбирает только зарегистрированные сочетания позы и выражения. Она не передаёт пути, URL, CSS или команды Windows. Манифест проверяется на дубликаты, выход из папки ресурсов, размер и общий холст PNG; неизвестные ресурсы не выдаются.
-- Текст модели выводится через `textContent`. HTML и JavaScript в ответе остаются текстом. Это первый выпуск без HTML/Markdown-рендерера.
-- HTTP-клиент обращается только к IPv4 loopback и не следует перенаправлениям. Он ограничивает вход, выход и размер SSE-события. Одновременно разрешён один запрос этой оболочки.
-- Ошибки Gateway не выдаются за ответы Capri и не отображают сырой ответ с внутренними данными. Содержимое разговоров не записывается в диагностический stdout; журнал находится в исключённой из Git папке.
-
-Эти меры защищают границы оболочки. Права самого OpenClaw и его инструментов настраиваются отдельно; это не аудит всей цепочки зависимостей и не изоляция от других программ того же пользователя Windows.
-
-## Разработка и воспроизводимость
-
-Требуется уже настроенное текстовое ядро проекта: Windows x64, переносимый Node.js версии из `config/core.json`, Ollama и локальные модели. Python, Live2D, ASR и TTS для запуска нового компаньона не требуются. Отдельного автономного установщика всего ядра этот этап не добавляет.
-
-Установка зависимостей из закреплённого `package-lock.json`:
-
-```powershell
-& '.\.runtime\node-v24.22.1-win-x64\node.exe' '.\.runtime\node-v24.22.1-win-x64\node_modules\npm\bin\npm-cli.js' ci
-```
-
-Install-script Electron должен быть разрешён: он загружает официальный бинарный runtime. Кэш загрузки при необходимости задаётся через `ELECTRON_CACHE`; для работы offline бинарные зависимости и модели должны быть установлены заранее. `capri.cmd` или `npm run desktop` открывают компаньона. `npm start` запускает только текстовое ядро.
-
-Проверки:
-
-```powershell
-& '.\.runtime\node-v24.22.1-win-x64\node.exe' --test tests/*.test.mjs
-& '.\.runtime\node-v24.22.1-win-x64\node.exe' scripts/verify-desktop.mjs
-& '.\.runtime\node-v24.22.1-win-x64\node.exe' scripts/verify-desktop.mjs --real
-```
-
-Первый набор проверяет протоколы SSE и аватара, каталог, отмену, границы данных, сохранение, геометрию и сохранность текста при разбиении субтитров. Отдельно проверяются перемещение, увеличение вокруг курсора и альфа-маска обрезанного спрайта. Второй запускает настоящий Electron с тестовым Gateway и проверяет все восемь выражений, защиту от устаревших ревизий, поток, буквальный вывод HTML, остановку, следующий ответ и восстановление. Также проверяет локальный шрифт, прозрачность, перелистывание, паузу, историю, компактные размеры окна, перетаскивание персонажа, колёсико, кнопки масштаба, сброс и сохранение размещения. Снимки на светлом и тёмном фоне сохраняются в проверочную папку. Третий использует настоящую модель с отдельным состоянием OpenClaw на порту 18790: проверяет общий контекст API-каналов и самостоятельный выбор радостного и сочувствующего выражений в разных разговорах. Это не проверка установленного Telegram-бота.
-
-Отчёты: `logs/desktop-verification-latest.json` и `logs/desktop-verification-real-latest.json`. Проверочные диалоги и снимки находятся в `.runtime/desktop-verification/`. Обычная переписка не получает тестовые сообщения. Реальную проверку и другие сценарии на порту 18790 не следует запускать одновременно.
-
-Актуальные результаты автоматических сценариев находятся в указанных JSON-отчётах; каждый содержит перечень успешных шагов и общий статус. Полный жизненный цикл запуска и остановки дополнительно проверялся при создании оболочки: `logs/desktop-lifecycle-verification.json`.
-
-Все версии зафиксированы в manifest/lock-файлах. Перед публикацией нужно выбрать лицензию собственного кода и сохранить уведомления зависимостей. Наличие кода Electron не предоставляет прав на персонажа, референсы и графику Capri; материалы персонажа требуют отдельного решения о распространении.
-
-## Расширение
-
-Голос подключён через отдельный сервис и очередь предложений; см. `desktop-voice.md`. Для расширения набора спрайтов редактируйте авторский `complete-sprite-set.json`, затем выполните `npm run build:sprites`. Приложение загружает проверенный `runtime-sprite-set.json`; кадры ходьбы в него не включаются. Статический `sprite-set.json` сохранён как исходный набор выражений и проверочный каталог. Старый Live2D-интерфейс удалён; текущая архитектура описана в README.
+Computer control, voice calls and some inference/speech adapters remain beta.
+Camera capture is not implemented. Optional speech needs the matching installed
+pack and backend; a successful model download is not proof of GPU support or
+voice quality. API use sends request context to the selected provider. Ordinary
+conversation and memory are local but not fully encrypted; see
+[security](../SECURITY.md) and [licensing and asset terms](licensing.md).

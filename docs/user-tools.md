@@ -1,4 +1,7 @@
-# User tools in Capri 0.6.2
+# User tools
+
+Available in Capri 1.0.0 on Windows x64. Tools are optional and disabled until
+reviewed and approved; installing Capri does not execute dropped-in scripts.
 
 Open **Settings → User tools → Open tools folder**. Each subfolder contains its own `manifest.json` and code. **Refresh tools** discovers definitions without running scripts. **Create example tool** adds a small, disabled Node example.
 

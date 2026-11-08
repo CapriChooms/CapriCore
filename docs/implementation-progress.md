@@ -1,6 +1,28 @@
-# Implementation progress — 2026-10-26
+# Implementation progress
 
-This is the current implementation ledger. Unchecked roadmap items remain work, even when a first usable subset exists. No public release, installer or multilingual voice parity is claimed.
+## Public 1.0.0 baseline — 2026-11-08
+
+Capri 1.0.0 is published in [CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases/tag/v1.0.0).
+The [roadmap](../ROADMAP.md) tracks outstanding acceptance work; a shipped
+foundation does not establish equal quality across every model, language or PC.
+
+- **Model routes:** bundled local models, Hugging Face GGUF discovery/import and saved OpenAI-compatible API connections. API mode skips the local conversation model; local speech, embeddings and classification have separate resource needs. [Models](models.md) · [External API](external-api.md)
+- **Voice and presentation:** 50 offline interface languages, independent conversation/recognition/voice choices, reviewed Chatterbox adapters and Qwen3-TTS CPU (BETA), voice effects, desktop animations, music/BPM reactions and resource monitoring. Microphone and voice start off. [Languages](languages.md) · [Music listening](music-listening.md)
+- **Actions:** scoped files/apps, computer-control beta, Discord/Spotify integrations, recorded workflows and isolated tools/context scripts. Action verification and Escape cancellation are required; successful fixtures do not qualify arbitrary applications. [Computer control](computer-control.md) · [User tools](user-tools.md)
+- **Knowledge and memory:** shared local history, native compaction, hybrid recall, direct saved-fact viewing, local document retrieval and a separately password-protected memory box. Free-form tagged, budgeted recall is still roadmap work; ordinary history/memory are not fully encrypted. [Context management](context-management.md) · [Security](../SECURITY.md)
+- **Distribution:** public Windows installer, matching source/build manifests and checksums, anonymous public updates, stable/experimental selection, repair and selective uninstall. Old private-channel installations need the current full installer once. Publisher signing and broader clean-machine/hardware qualification remain open. [Release notes](releases/1.0.0.md) · [Updates](updates.md)
+
+The public source CI checks JavaScript/Python, formatting, export boundaries,
+desktop/installer fixtures and pinned speech dependency plans. GPU voice quality,
+physical audio routing and real application workflows require separate testing;
+older timings and suite counts below are historical evidence, not current totals.
+
+## Historical development checkpoint — 2026-10-26
+
+The remaining sections preserve the original development ledger and measurements.
+References to missing installers, unavailable automation, fixed application
+allowlists or earlier voice candidates describe that checkpoint only. See the
+public baseline above and the linked current guides for present behavior.
 
 ## Implemented in this development pass
 

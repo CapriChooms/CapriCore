@@ -189,8 +189,9 @@ export class UpdatesPanel {
           ? 'Secure credential storage is unavailable. GitHub access was not saved.'
           : value.connected
             ? `${this.ui.text('GitHub access token')}: ${this.ui.text('Ready')}`
-            : 'Public updates do not require a GitHub account or token.'),
+            : ''),
     );
+    this.get('access-status').hidden = !this.get('access-status').textContent;
     this.get('forget').hidden = !value.connected && !value.error;
     this.syncAccessControls();
   }

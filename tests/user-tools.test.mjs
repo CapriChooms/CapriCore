@@ -260,7 +260,7 @@ test(
     const tools = fixture();
     try {
       const code =
-        "import net from 'node:net'; const socket=net.connect({host:'1.1.1.1',port:443}); socket.on('connect',()=>{console.log(JSON.stringify({denied:false}));socket.destroy();});socket.on('error',()=>console.log(JSON.stringify({denied:true})));socket.setTimeout(1500,()=>{socket.destroy();console.log(JSON.stringify({denied:true}));});";
+        "import net from 'node:net'; for await (const chunk of process.stdin) {} const socket=net.connect({host:'1.1.1.1',port:443}); socket.on('connect',()=>{console.log(JSON.stringify({denied:false}));socket.destroy();});socket.on('error',()=>console.log(JSON.stringify({denied:true})));socket.setTimeout(1500,()=>{socket.destroy();console.log(JSON.stringify({denied:true}));});";
       await install(tools, { ...manifest, timeoutMs: 5000 }, code);
       await tools.enable('example', true);
       assert.equal((await tools.run('example', {})).denied, true);

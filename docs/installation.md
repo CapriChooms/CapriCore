@@ -1,6 +1,6 @@
 # Installation
 
-Download [CapriSetup-1.0.0.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe) from the public **CapriChooms/CapriCore** release. No GitHub account, invitation or token is required. The unsigned Windows installer provisions its own runtimes; the manual prerequisites below apply to command-line installation. You can also double-click **Install Capri.cmd** from a complete extracted source package. See [the wizard guide](installation-wizard.md).
+Download [CapriSetup-1.0.1.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe) from the public **CapriChooms/CapriCore** release. No GitHub account, invitation or token is required. The unsigned Windows installer provisions its own runtimes; the manual prerequisites below apply to command-line installation. You can also double-click **Install Capri.cmd** from a complete extracted source package. See [the wizard guide](installation-wizard.md).
 
 Choose a bundled local LLM, local Hugging Face GGUF selection, or **Use an API without installing local LLMs (BETA)**. API mode skips local conversation-model downloads and startup loading; its local memory helper and CPU request classifier remain installed. Optional recognition and voice have separate downloads and memory requirements. See [system requirements](../README.md#system-requirements).
 

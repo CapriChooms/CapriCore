@@ -1,6 +1,6 @@
 # Security
 
-This policy describes the public **CapriCore 1.0.0** release. When reporting a
+This policy describes the public **CapriCore 1.0.1** release. When reporting a
 problem, include the installed version and whether it also occurs on the latest
 public release. Historical early-access notes are not a statement of current
 protection.
@@ -17,7 +17,7 @@ The [reviewed dependency backports](docs/security-backports.md) document two ups
 
 ## Personal data at rest
 
-Full encryption of conversation history, attachments and ordinary memory is deferred. Capri 1.0.0 uses the existing local file storage and does not require EFS, WinFsp or Dokany. It must not be described as fully encrypted. Existing API credential protection and the separately password-protected private memory feature are retained. Stored API credentials use Electron safeStorage/Windows DPAPI for the current Windows account; this is not protection against a compromised account, administrator or process-memory access. The private memory box does not encrypt ordinary conversation history or other copies of information already shared.
+Full encryption of conversation history, attachments and ordinary memory is deferred. Capri 1.0.1 uses the existing local file storage and does not require EFS, WinFsp or Dokany. It must not be described as fully encrypted. Existing API credential protection and the separately password-protected private memory feature are retained. Stored API credentials use Electron safeStorage/Windows DPAPI for the current Windows account; this is not protection against a compromised account, administrator or process-memory access. The private memory box does not encrypt ordinary conversation history or other copies of information already shared.
 
 A read-only compatibility decoder can recover dialogue and image previews from the withdrawn local encryption experiment using the original Windows account and saved key. It never creates a key or encrypts new files. Unreadable history is preserved instead of being overwritten by new messages.
 

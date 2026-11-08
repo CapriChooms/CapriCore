@@ -7,7 +7,7 @@ export class DiscordPanel {
     this.panel.className = 'preferences-panel';
     this.panel.hidden = true;
     this.panel.dataset.panelCut = '12';
-    this.panel.innerHTML = `<h2>Discord presence <small class="beta-badge">BETA</small></h2>
+    this.panel.innerHTML = `<h2>Discord presence</h2>
       <div class="preferences-content"><div class="settings-card">
       <div class="settings-actions"><button id="discord-portal" type="button">Open Discord Developer Portal</button></div>
       <ol class="settings-help">

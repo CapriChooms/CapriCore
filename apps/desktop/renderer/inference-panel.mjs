@@ -59,7 +59,7 @@ export class InferencePanel {
     this.rows = new Map();
     this.skipLocalModelOnApi = true;
     this.startupRevision = 0;
-    this.panel.innerHTML = `<h2>External AI provider <small class="beta-badge">BETA</small></h2><div class="preferences-content">
+    this.panel.innerHTML = `<h2>External AI provider</h2><div class="preferences-content">
       <p class="settings-help" data-inline-help>Optional alternative to the local language model. Your messages, personality, relevant memory and tool results are sent to your chosen provider. Screen images are sent only when you enable vision and use screen features. Provider charges and privacy terms apply. Speech recognition and voice remain local.</p>
       <div class="settings-card">
       <label><input id="api-skip-local-model" type="checkbox" checked> Skip local language model when using an API</label>

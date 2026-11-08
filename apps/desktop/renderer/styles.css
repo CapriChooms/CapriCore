@@ -91,6 +91,21 @@ body {
   height: 100%;
   overflow: hidden;
   background: transparent;
+  user-select: none;
+}
+/* Interface labels are controls, not a document. Keep deliberate reply copying
+   and ordinary text editing without leaving selections on resource readings. */
+input,
+textarea,
+[contenteditable='true'] {
+  user-select: text;
+}
+#subtitle-text,
+.message[data-role='assistant'] .message-text {
+  user-select: text;
+}
+#subtitle-text {
+  pointer-events: auto;
 }
 /* Part of the native companion window: movement, visibility and DPI stay atomic. */
 #window-shade {
@@ -597,7 +612,6 @@ body[data-phase='ready']:not([data-replying='true']) #status {
   padding: 14px 15px 0;
   scrollbar-width: thin;
   scrollbar-color: #527a7c transparent;
-  user-select: text;
 }
 .message {
   margin: 0 0 17px;

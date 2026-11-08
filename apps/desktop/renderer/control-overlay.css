@@ -5,6 +5,7 @@ body {
   height: 100%;
   overflow: hidden;
   background: transparent;
+  user-select: none;
 }
 #control-effects {
   position: fixed;

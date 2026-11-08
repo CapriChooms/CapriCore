@@ -1,12 +1,12 @@
 <img src="assets/default/icon-source.png" alt="CapriCore lightning logo" width="72" align="right">
 
-# CapriCore · Capri 1.0.0
+# CapriCore · Capri 1.0.1
 
 A Windows AI desktop companion powered by OpenClaw: bundled local LLMs, Hugging Face GGUF models or OpenAI-compatible APIs, with shared conversation and memory, 50 interface languages, optional voice and explicitly enabled desktop tools.
 
 [Website](https://capri-core.com/) · [Discord](https://discord.gg/capricore) · [Documentation](docs/README.md) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
-**[Download Capri 1.0.0 for Windows](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.0/CapriSetup-1.0.0.exe)** · [Release notes](docs/releases/1.0.0.md) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
+**[Download Capri 1.0.1 for Windows](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe)** · [Release notes](docs/releases/1.0.1.md) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
 
 The public repository and releases are **CapriChooms/CapriCore**. Downloads and update checks do not require a GitHub account, invitation or token.
 
@@ -22,12 +22,12 @@ Capabilities depend on the selected model, its tool/image support and your permi
 
 ## Quick installation
 
-On Windows 10 22H2/11 x64, run **CapriSetup-1.0.0.exe** from the release, or extract the source package and double-click **Install Capri.cmd**. The wizard installs per-installation Node/npm/Ollama runtimes, selected models and optional speech components; the CPU request classifier is included. Choose local LLMs, Hugging Face model selection, or API mode (BETA). API mode skips local conversation-model downloads and, by default, startup loading. No global Python/Node installation or terminal is required.
+On Windows 10 22H2/11 x64, run **CapriSetup-1.0.1.exe** from the release, or extract the source package and double-click **Install Capri.cmd**. The wizard installs per-installation Node/npm/Ollama runtimes, selected models and optional speech components; the CPU request classifier is included. Choose local LLMs, Hugging Face model selection, or API mode (BETA). API mode skips local conversation-model downloads and, by default, startup loading. No global Python/Node installation or terminal is required.
 
 For a first installation, complete this wizard before opening **Capri.exe**. Use
 the same wizard and installation folder to repair missing runtimes or dependencies.
 
-**Upgrading from private early access:** run the 1.0.0 installer and select your existing Capri installation folder. Do not uninstall first. This switches future updates to the public repository while preserving local data, downloaded models and personal settings. Old private-channel updaters cannot discover the new repository themselves.
+**Upgrading from private early access:** run the 1.0.1 installer and select your existing Capri installation folder. Do not uninstall first. This switches future updates to the public repository while preserving local data, downloaded models and personal settings. Old private-channel updaters cannot discover the new repository themselves.
 
 For voice replies on a supported GPU, choose your **Conversation language** and the included **Capri · Chatterbox** voice. Setup installs English or the matching multilingual voice. The CPU Qwen3-TTS option is separate and BETA. No separate voice ZIP, destination folder, recording or training is needed for the included reference. Add or prepare voices later in **Settings → Language model → Voice models**. [Voice installation guide](docs/voice-installation.md), [release packaging](docs/voice-distribution.md).
 
@@ -219,7 +219,7 @@ Use Capri.exe for a silent launch. New support, report, personality, wake sound,
 follow-up listening and memory controls are described in [Companion controls](docs/companion-controls.md).
 See [Character assets](docs/character-assets.md) for the separate artwork notice.
 
-In-app **Updates (BETA)** checks **CapriChooms/CapriCore**, downloads verified releases and restarts a
+In-app **Updates** checks **CapriChooms/CapriCore**, downloads verified releases and restarts a
 managed installation while preserving personal data. Experimental builds are optional.
 Public updates work without a GitHub account or token; an expired optional token
 does not block anonymous access. See [Updates and recovery](docs/updates.md).

@@ -1,6 +1,6 @@
 # Capri Desktop
 
-Capri 1.0.0 is a Windows x64 desktop companion with shared conversation and
+Capri 1.0.1 is a Windows x64 desktop companion with shared conversation and
 memory, optional local speech, floating character animations and explicitly
 enabled tools. Language-model inference can use bundled local models, compatible
 Hugging Face GGUF imports or an OpenAI-compatible API. See the
@@ -71,7 +71,7 @@ Capri or return her to the home frame, with a configurable movement dead zone.
 Teleport and attachment-to-window behavior depend on the current layout and
 permissions. A report about lost interaction after minimizing/restoring a window
 with Capri sitting on it is still awaiting confirmation on affected setups;
-1.0.0 does not promise that every desktop/window combination is qualified.
+1.0.1 does not promise that every desktop/window combination is qualified.
 
 Floating replies appear near the character. A nearby arrow can reveal a hidden
 reply; it should not require expanding the home panel. Appearance settings

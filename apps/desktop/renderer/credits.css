@@ -160,7 +160,7 @@
     0 0 3px color-mix(in srgb, var(--name-glow) 60%, transparent),
     0 0 9px color-mix(in srgb, var(--name-glow) 28%, transparent);
   overflow-wrap: anywhere;
-  user-select: text;
+  user-select: none;
 }
 #credits-panel .credits-floating-item[data-in-view] .credits-drift {
   will-change: transform;
@@ -315,7 +315,7 @@
   letter-spacing: 0.025em;
   line-height: 1.55;
   overflow-wrap: anywhere;
-  user-select: text;
+  user-select: none;
 }
 #credits-panel .credits-team-identity .credits-epithet {
   font-size: 10px;

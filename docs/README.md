@@ -1,9 +1,9 @@
 # Capri documentation
 
-These guides describe **CapriCore 1.0.0**. Start with the
+These guides describe **CapriCore 1.0.1**. Start with the
 [project overview and system requirements](../README.md),
 [public downloads](https://github.com/CapriChooms/CapriCore/releases/latest), or
-the [1.0.0 release notes](releases/1.0.0.md). Public downloads and update checks
+the [1.0.1 release notes](releases/1.0.1.md). Public downloads and update checks
 do not need a GitHub account, invitation or token.
 
 ## Installation and models

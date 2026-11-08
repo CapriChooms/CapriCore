@@ -117,15 +117,7 @@ if (!response.ok) throw new Error('Settings forms unavailable');
 const template = new DOMParser().parseFromString(await response.text(), 'text/html');
 for (const form of template.querySelectorAll('.preferences-panel, #dimming-panel'))
   $('settings-forms').append(form.cloneNode(true));
-for (const id of [
-  'language-panel',
-  'file-access-panel',
-  'applications-panel',
-  'initiative-panel',
-  'screen-panel',
-  'time-panel',
-  'voice-effects-panel',
-]) {
+for (const id of ['initiative-panel', 'screen-panel']) {
   const heading = document.querySelector('#' + id + ' h2');
   if (heading) {
     const badge = document.createElement('small');

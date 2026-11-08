@@ -34,6 +34,7 @@ jobs:
       - run: node tools/verify/verify-settings-first-open.mjs
       - run: node tools/verify/verify-app-catalog-settings.mjs
       - run: node tools/verify/verify-button-feedback.mjs
+      - run: node tools/verify/verify-text-selection.mjs
       - run: node tools/verify/verify-computer-control.mjs
       - run: node tools/verify/verify-inference-api.mjs
       - run: node tools/verify/verify-update-handoff.mjs

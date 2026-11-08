@@ -129,7 +129,38 @@ export async function* sseData(body) {
     throw new Error('Gateway stream ended in the middle of an event');
 }
 
-function publicError(error) {
+const responseFailureCodes = new Set([
+  'CONTEXT_COMPACTION_FAILED',
+  'CAPRI_MODEL_NOT_READY',
+  'CAPRI_TOOL_LOOP',
+  'CAPRI_NPU_REQUEST_FAILED',
+  'CAPRI_GATEWAY_HTTP_ERROR',
+  'CAPRI_GATEWAY_STREAM_INVALID',
+  'CAPRI_GATEWAY_EVENT_INVALID',
+  'CAPRI_GATEWAY_REPORTED_ERROR',
+  'CAPRI_GATEWAY_STREAM_INCOMPLETE',
+  'CAPRI_GATEWAY_RESPONSE_EMPTY',
+]);
+const responseNetworkCodes = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ETIMEDOUT',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_SOCKET',
+]);
+function gatewayFailure(code, message, httpStatus) {
+  return Object.assign(new Error(message), {
+    code,
+    ...(Number.isInteger(httpStatus) ? { httpStatus } : {}),
+  });
+}
+function publicError(error, externalInference = false) {
+  if (externalInference && error.code === 'CAPRI_GATEWAY_RESPONSE_EMPTY')
+    return 'API model returned no text.';
   if (error.code === 'CAPRI_NPU_REQUEST_FAILED')
     return 'Lemonade could not generate a reply. Check that the selected model responds in Lemonade, then try again.';
   if (error.code === 'CAPRI_TOOL_LOOP')
@@ -159,6 +190,7 @@ export class ChatService {
     avatarSprites = [],
     defaultAvatarId = 'neutral',
     interfaceState = () => ({}),
+    externalInference = false,
     prepareContext = null,
     prepareModel = null,
     prepareThinking = null,
@@ -191,6 +223,7 @@ export class ChatService {
       avatarSprites,
       defaultAvatarId,
       interfaceState,
+      externalInference,
       prepareContext,
       prepareModel,
       prepareThinking,
@@ -814,10 +847,17 @@ export class ChatService {
           });
       if (!response.ok) {
         if (this.npuDialogue) throw npuFailure();
-        throw new Error(`Gateway HTTP ${response.status}`);
+        throw gatewayFailure(
+          'CAPRI_GATEWAY_HTTP_ERROR',
+          `Gateway HTTP ${response.status}`,
+          response.status,
+        );
       }
       if (!response.headers.get('content-type')?.includes('text/event-stream') || !response.body)
-        throw new Error('Gateway did not return an event stream');
+        throw gatewayFailure(
+          'CAPRI_GATEWAY_STREAM_INVALID',
+          'Gateway did not return an event stream',
+        );
       let complete = false;
       for await (const data of sseData(response.body)) {
         if (this.active?.computerTaskResult) {
@@ -828,7 +868,15 @@ export class ChatService {
           complete = true;
           break;
         }
-        const packet = JSON.parse(data);
+        let packet;
+        try {
+          packet = JSON.parse(data);
+        } catch (error) {
+          error.code = 'CAPRI_GATEWAY_EVENT_INVALID';
+          throw error;
+        }
+        if (!packet || typeof packet !== 'object' || Array.isArray(packet))
+          throw gatewayFailure('CAPRI_GATEWAY_EVENT_INVALID', 'Invalid Gateway event');
         if (packet.error) {
           if (this.npuDialogue) throw npuFailure();
           const detail = String(packet.error.message ?? '').slice(0, 2000);
@@ -838,7 +886,7 @@ export class ChatService {
             )
           )
             throw toolLoopError();
-          const error = new Error('Gateway reported an error');
+          const error = gatewayFailure('CAPRI_GATEWAY_REPORTED_ERROR', 'Gateway reported an error');
           if (/compaction|context overflow|prompt too large/i.test(detail))
             error.code = 'CONTEXT_COMPACTION_FAILED';
           throw error;
@@ -893,7 +941,10 @@ export class ChatService {
       requestSignal.throwIfAborted();
       if (!complete || !assistant.text.trim()) {
         if (this.npuDialogue) throw npuFailure();
-        throw new Error('Gateway returned an incomplete or empty response');
+        throw gatewayFailure(
+          complete ? 'CAPRI_GATEWAY_RESPONSE_EMPTY' : 'CAPRI_GATEWAY_STREAM_INCOMPLETE',
+          'Gateway returned an incomplete or empty response',
+        );
       }
       if (!assistant.avatar) {
         const fallback = this.avatarSprites.find((sprite) => sprite.id === this.defaultAvatarId);
@@ -924,16 +975,22 @@ export class ChatService {
           phase,
           elapsedMs: Date.now() - startedAt,
           errorName: reason?.name ?? 'Error',
-          ...([
-            'CONTEXT_COMPACTION_FAILED',
-            'CAPRI_MODEL_NOT_READY',
-            'CAPRI_TOOL_LOOP',
-            'CAPRI_NPU_REQUEST_FAILED',
-          ].includes(reason?.code)
-            ? { code: reason.code }
+          ...(responseFailureCodes.has(reason?.code) ? { code: reason.code } : {}),
+          ...(Number.isInteger(reason?.httpStatus) &&
+          reason.httpStatus >= 400 &&
+          reason.httpStatus <= 599
+            ? { httpStatus: reason.httpStatus }
             : {}),
+          ...(responseNetworkCodes.has(reason?.cause?.code)
+            ? { networkCode: reason.cause.code }
+            : responseNetworkCodes.has(reason?.code)
+              ? { networkCode: reason.code }
+              : {}),
           receivedText: Boolean(assistant.text.trim()),
-          message: publicError(reason ?? new Error('Unknown response error')),
+          message: publicError(
+            reason ?? new Error('Unknown response error'),
+            this.externalInference,
+          ),
         };
       // A partial reply still retains its last ordinary character on cancellation.
       const tail = reason?.code === 'CAPRI_TOOL_LOOP' ? '' : cleanText.push('', true);
@@ -949,7 +1006,10 @@ export class ChatService {
           : spotifyStarted &&
               (requestSignal.aborted ? requestSignal.reason : error)?.name === 'TimeoutError'
             ? 'Capri could not finish the Spotify reply in time. Check the player before trying again.'
-            : publicError(requestSignal.aborted ? requestSignal.reason : error),
+            : publicError(
+                requestSignal.aborted ? requestSignal.reason : error,
+                this.externalInference,
+              ),
         warning: this.store.warning,
       });
     } finally {

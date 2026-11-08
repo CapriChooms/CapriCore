@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:0d207d9b-3eb5-4ba0-a179-ac219663f681",
+  "serialNumber": "urn:uuid:bff0efed-66a9-401f-8bef-cc2745dd9ccf",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-08T17:31:39.470Z",
+    "timestamp": "2026-11-08T20:33:38.725Z",
     "lifecycles": [
       {
         "phase": "pre-build"
@@ -19,13 +19,13 @@
       }
     ],
     "component": {
-      "bom-ref": "capri@1.0.0",
+      "bom-ref": "capri@1.0.1",
       "type": "library",
       "name": "capri",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "scope": "required",
       "description": "Local Windows backend for Capri, powered by OpenClaw and Ollama",
-      "purl": "pkg:npm/capri@1.0.0",
+      "purl": "pkg:npm/capri@1.0.1",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -44,13 +44,13 @@
   },
   "components": [
     {
-      "bom-ref": "capri-desktop@1.0.0",
+      "bom-ref": "capri-desktop@1.0.1",
       "type": "library",
       "name": "capri-desktop",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "scope": "required",
       "description": "Local Windows companion for Capri Core",
-      "purl": "pkg:npm/capri-desktop@1.0.0",
+      "purl": "pkg:npm/capri-desktop@1.0.1",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -15381,12 +15381,12 @@
       ]
     },
     {
-      "bom-ref": "@capri/runtime@1.0.0",
+      "bom-ref": "@capri/runtime@1.0.1",
       "type": "library",
       "name": "@capri/runtime",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "scope": "required",
-      "purl": "pkg:npm/%40capri/runtime@1.0.0",
+      "purl": "pkg:npm/%40capri/runtime@1.0.1",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -15405,10 +15405,10 @@
   ],
   "dependencies": [
     {
-      "ref": "capri@1.0.0",
+      "ref": "capri@1.0.1",
       "dependsOn": [
-        "@capri/runtime@1.0.0",
-        "capri-desktop@1.0.0",
+        "@capri/runtime@1.0.1",
+        "capri-desktop@1.0.1",
         "@js-temporal/polyfill@0.5.1",
         "mathjs@15.2.0",
         "openclaw@2026.10.6",
@@ -15419,7 +15419,7 @@
       ]
     },
     {
-      "ref": "capri-desktop@1.0.0",
+      "ref": "capri-desktop@1.0.1",
       "dependsOn": []
     },
     {
@@ -18566,7 +18566,7 @@
       "dependsOn": ["zod@4.6.6"]
     },
     {
-      "ref": "@capri/runtime@1.0.0",
+      "ref": "@capri/runtime@1.0.1",
       "dependsOn": []
     }
   ]

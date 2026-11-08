@@ -1880,10 +1880,5 @@
     "corrections": 54,
     "rejected": []
   },
-  "reviewedIdentical": [
-    "Spotify",
-    "{label} ({seconds} s)",
-    "Capri ·",
-    "Overdrive"
-  ]
+  "reviewedIdentical": ["Spotify", "{label} ({seconds} s)", "Capri ·", "Overdrive"]
 }

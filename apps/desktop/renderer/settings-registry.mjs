@@ -60,6 +60,12 @@ export const SETTINGS_GROUPS = Object.freeze([
       ['credits', 'Credits', 'credits-panel'],
     ],
   },
+  {
+    id: 'development',
+    labels: ['Developer'],
+    icon: 'M7 5l-5 5 5 5m6-10l5 5-5 5M12 2L8 18',
+    sections: [['developer', 'For developers', 'developer-panel']],
+  },
 ]);
 export const SETTINGS_SECTIONS = Object.freeze(SETTINGS_GROUPS.flatMap(({ sections }) => sections));
 export const PANEL_SECTIONS = Object.fromEntries(

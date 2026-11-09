@@ -2,6 +2,9 @@
 // Capture, raw audio, avatar acknowledgements and companion geometry are excluded.
 export const SETTINGS_CHANNELS = [
   'bootstrap',
+  'developer-diagnostics',
+  'developer-log',
+  'developer-open-logs',
   'music-status',
   'music-settings',
   'music-command',

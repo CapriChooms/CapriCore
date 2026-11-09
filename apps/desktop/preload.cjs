@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld(
   Object.freeze({
     bootstrap: () => ipcRenderer.invoke('capri:bootstrap'),
     modelDevices: () => ipcRenderer.invoke('capri:model-devices'),
+    developerDiagnostics: () => ipcRenderer.invoke('capri:developer-diagnostics'),
+    developerLog: (id) => ipcRenderer.invoke('capri:developer-log', id),
+    openDeveloperLogs: () => ipcRenderer.invoke('capri:developer-open-logs'),
     applyModelDevices: (value) => ipcRenderer.invoke('capri:model-devices-apply', value),
     responsePainted: (value) => ipcRenderer.invoke('capri:response-painted', value),
     setThinkingMode: (enabled) => ipcRenderer.invoke('capri:thinking-mode-set', enabled),

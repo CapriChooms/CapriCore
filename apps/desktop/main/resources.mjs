@@ -12,6 +12,8 @@ const rendererFiles = [
   'settings.html',
   'settings.css',
   'model-device-panel.mjs',
+  'developer-panel.mjs',
+  'developer-panel.css',
   'credits.css',
   'credits-panel.mjs',
   'settings-app.mjs',

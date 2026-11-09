@@ -3,6 +3,7 @@ import { KnowledgePanel } from './knowledge-panel.mjs';
 import { WorkflowsPanel } from './workflows-panel.mjs';
 import { UserToolsPanel } from './user-tools-panel.mjs';
 import { CreditsPanel } from './credits-panel.mjs';
+import { DeveloperPanel } from './developer-panel.mjs';
 import { inferencePrivacy } from './inference-privacy.mjs';
 import { DiscordPanel } from './discord-panel.mjs';
 import { MusicListeningPanel } from './music-listening-panel.mjs';
@@ -226,6 +227,7 @@ const knowledge = new KnowledgePanel({ api, ui, onError: notice });
 const workflows = new WorkflowsPanel({ api, ui, onError: notice });
 const userTools = new UserToolsPanel({ api, ui, onError: notice });
 const credits = new CreditsPanel({ ui });
+const developer = new DeveloperPanel({ api, ui, onError: notice });
 const discord = new DiscordPanel(shared);
 const music = new MusicListeningPanel({
   api,
@@ -332,6 +334,7 @@ function queuePreview(immediate = false) {
   return previewTail;
 }
 async function finishClose() {
+  developer.close();
   rememberLocation();
   locationSuspended = true;
   inference.clear();
@@ -1009,6 +1012,7 @@ function refreshScreenText() {
 function applyLanguage(locale) {
   const changed = ui.language !== locale;
   ui.apply(locale);
+  developer.render();
   companion.savedMemory.render();
   if (changed) language.refreshLocale();
   models.setConversationLanguage(language.draft().conversation);
@@ -1278,6 +1282,7 @@ async function navigate(id, focus = null, match = null) {
   locationSuspended = false;
   busy = true;
   try {
+    if (id !== 'developer') developer.close();
     if (current && id !== current) {
       if (current === 'models') void models.voices.stopPreview();
       closeRequested = false;
@@ -1311,6 +1316,7 @@ async function navigate(id, focus = null, match = null) {
     if (id === 'workflows') await workflows.open();
     if (id === 'user-tools') await userTools.open();
     if (id === 'credits') await credits.open();
+    if (id === 'developer') await developer.open();
     if (id === 'discord') {
       const pending = dirty.has('discord-panel');
       await discord.open({ refresh: pending });
@@ -1456,6 +1462,8 @@ function show(snapshot) {
 function event(value) {
   if (value.type === 'settings.visibility') {
     credits.setVisible(value.visible === true);
+    developer.setVisible(value.visible === true && current === 'developer');
+    if (value.visible === true && current === 'developer') void developer.refresh();
     return;
   }
   if (value.preview === true) return;

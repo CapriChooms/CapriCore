@@ -37,6 +37,7 @@ import { SettingsWindow } from './main/settings-window.mjs';
 import { AvatarComposer } from './main/avatar-composer.mjs';
 import { MinimizedChip } from './main/minimized-chip.mjs';
 import { CallAudioDiagnostics } from './main/call-audio-diagnostics.mjs';
+import { DeveloperDiagnostics } from './diagnostics/developer.mjs';
 import { replyHistory } from './renderer/reply-pages.mjs';
 import {
   validateAvatarComposerAction,
@@ -720,6 +721,13 @@ async function initializeDesktop() {
     root: verification ? verificationFolder : root,
     ollama: ollamaPath,
     config: settings,
+  });
+  const developerDiagnostics = new DeveloperDiagnostics({
+    root: verification ? verificationFolder : root,
+    installerDirectory:
+      !verification && process.env.LOCALAPPDATA
+        ? path.join(process.env.LOCALAPPDATA, 'Capri/Installer')
+        : null,
   });
   const huggingface = new HuggingFaceService({
     hub: hfHub,
@@ -4809,6 +4817,20 @@ async function initializeDesktop() {
       return language && language !== 'off' ? language : 'en';
     };
     handle('capri:model-devices', () => modelDevices.refresh(voiceDeviceLanguage()));
+    handle('capri:developer-diagnostics', (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      return developerDiagnostics.snapshot();
+    });
+    handle('capri:developer-log', (id, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      return developerDiagnostics.read(id);
+    });
+    handle('capri:developer-open-logs', async (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      const error = await shell.openPath(await developerDiagnostics.folder());
+      if (error) throw new Error('The logs folder is not available yet.');
+      return true;
+    });
     handle('capri:model-devices-apply', async (value) => {
       if (verification) throw Error('Model changes are disabled in desktop verification.');
       assertModelIdle();

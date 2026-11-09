@@ -192,3 +192,56 @@ test('CPU to GPU switching removes old CPU-only gateway options and preserves un
   saveModelDevices(root, { language: 'cpu', voice: cuda.id });
   assert.equal(loadCoreSettings(path.join(root, 'config')).acceleration, 'cpu');
 });
+
+test('an unsupported voice language cannot block language devices or CPU/Automatic choices', async () => {
+  const service = new ModelDeviceService({
+    root: fixture(),
+    ollama: 'fixture',
+    languageProbe: async () => [cuda],
+    voiceProbe: async () => assert.fail('An unsupported voice has no runtime to probe'),
+    hardware: async () => ({ gpus: [{ name: cuda.name }] }),
+  });
+  const catalog = await service.refresh('unsupported-language');
+  assert.equal(catalog.voiceModel, null);
+  assert.equal(catalog.options.language.find((device) => device.id === cuda.id).available, true);
+  assert.deepEqual(
+    catalog.options.voice.filter((device) => device.available).map((device) => device.id),
+    ['auto', 'cpu'],
+  );
+  assert.equal(catalog.options.voice.find((device) => device.name === cuda.name).available, false);
+  assert.deepEqual(
+    await service.validate({ language: cuda.id, voice: 'cpu' }, 'unsupported-language'),
+    { language: cuda.id, voice: 'cpu' },
+  );
+});
+
+test('a failed device probe leaves the other model inventory usable and refreshing can recover', async () => {
+  let failedRole = 'voice';
+  const service = new ModelDeviceService({
+    root: fixture(),
+    ollama: 'fixture',
+    languageProbe: async () => {
+      if (failedRole === 'language') throw Error('Private backend error');
+      return [cuda];
+    },
+    voiceProbe: async () => {
+      if (failedRole === 'voice') throw Error('Private Python path');
+      return [cuda];
+    },
+    hardware: async () => ({ gpus: [{ name: cuda.name }] }),
+  });
+  const voiceFailed = await service.refresh('en');
+  assert(voiceFailed.options.language.some((device) => device.id === cuda.id && device.available));
+  assert(!JSON.stringify(voiceFailed).includes('Private'));
+  failedRole = 'language';
+  const languageFailed = await service.refresh('en');
+  assert(languageFailed.options.voice.some((device) => device.id === cuda.id && device.available));
+  assert.deepEqual(
+    languageFailed.options.language.filter((device) => device.available).map((device) => device.id),
+    ['auto', 'cpu'],
+  );
+  failedRole = null;
+  const recovered = await service.refresh('en');
+  for (const role of ['language', 'voice'])
+    assert(recovered.options[role].some((device) => device.id === cuda.id && device.available));
+});

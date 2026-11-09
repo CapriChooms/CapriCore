@@ -4830,7 +4830,7 @@ async function initializeDesktop() {
       return openLocalModelFolder(root, _value, (folder) => shell.openPath(folder));
     });
     const voiceDeviceLanguage = () => {
-      const language = liveLanguages().speech;
+      const language = resolveLanguages(liveLanguages()).speech;
       return language && language !== 'off' ? language : 'en';
     };
     handle('capri:model-devices', () => modelDevices.refresh(voiceDeviceLanguage()));

@@ -18,9 +18,13 @@ const entry = path.join(folder, 'main.mjs');
 writeFileSync(
   entry,
   `import { ModelDeviceService } from ${JSON.stringify(pathToFileURL(path.join(root, 'apps/desktop/model-device-service.mjs')).href)};
-ModelDeviceService.prototype.inspect = async function () {
-  const choices = () => [{id:'auto',name:'Automatic',available:true},{id:'cpu',name:'CPU',available:true}];
-  return {current:this.current(),options:{language:choices(),voice:choices()}};
+const inspectDevices = ModelDeviceService.prototype.inspect;
+ModelDeviceService.prototype.inspect = async function (language) {
+  globalThis.lastDeviceProbeLanguage = language;
+  this.languageProbe = async () => [];
+  this.voiceProbe = async () => [];
+  this.hardware = async () => ({gpus:[]});
+  return inspectDevices.call(this, language);
 };
 await import(${JSON.stringify(pathToFileURL(path.join(root, 'apps/desktop/main.mjs')).href)});`,
 );
@@ -61,6 +65,15 @@ try {
   await page.waitForFunction(
     () => document.querySelector('#model-device-language').options.length > 0,
   );
+  assert.equal(await app.evaluate(() => globalThis.lastDeviceProbeLanguage), 'en');
+  assert.equal(await page.locator('#model-device-language').isDisabled(), false);
+  assert.equal(await page.locator('#model-device-voice').isDisabled(), false);
+  await page.locator('#model-device-refresh').click();
+  await page.waitForFunction(() => !document.getElementById('model-device-refresh').disabled);
+  assert.equal(await app.evaluate(() => globalThis.lastDeviceProbeLanguage), 'en');
+  assert.equal(await page.locator('#model-device-language').isDisabled(), false);
+  assert.equal(await page.locator('#model-device-voice').isDisabled(), false);
+  report.checks.push('Refresh resolves follow to English and keeps both model device menus usable');
   await page.locator('#models-folder').click();
   await page.waitForFunction(() => !document.getElementById('models-folder').disabled);
   assert.equal(

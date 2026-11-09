@@ -41,6 +41,17 @@ try {
   const owner = await application.firstWindow();
   await owner.waitForFunction(() => document.body.dataset.phase === 'ready');
   const settings = await settingsView(application, 'general');
+  assert.equal(
+    await settings.locator('[data-settings-group="capri"] [data-section="languages"]').count(),
+    1,
+  );
+  await owner.locator('[data-quick="languages"]').click();
+  await settings.locator('[data-section="languages"][aria-current="page"]').waitFor();
+  assert.equal(await settings.locator('#language-interface').isVisible(), true);
+  assert.equal(await owner.locator('#screen-indicator svg circle').count(), 1);
+  await owner
+    .locator('#screen-indicator')
+    .screenshot({ path: path.join(folder, 'screen-observation-icon.png') });
   if (narrow) {
     await application.evaluate(({ BrowserWindow }) => {
       const window = BrowserWindow.getAllWindows().find((view) =>

@@ -6,6 +6,7 @@ export const SETTINGS_GROUPS = Object.freeze([
     icon: 'M10 2l7 8-7 8-7-8zM10 6v8M6 10h8',
     sections: [
       ['general', 'General', 'general-panel'],
+      ['languages', 'Languages', 'language-panel'],
       ['appearance', 'Appearance and animations', 'companion-settings'],
       ['window', 'Window', 'companion-settings'],
     ],
@@ -18,7 +19,6 @@ export const SETTINGS_GROUPS = Object.freeze([
       ['dialogue', 'Conversation and personality', 'companion-settings'],
       ['knowledge', 'Brain and private memory', 'knowledge-panel'],
       ['initiative', 'Initiative', 'initiative-panel'],
-      ['languages', 'Languages', 'language-panel'],
       ['microphone', 'Microphone settings', 'speech-panel'],
       ['voice', 'Voice effects', 'voice-effects-panel'],
       ['calls', 'Voice calls', 'call-audio-panel'],

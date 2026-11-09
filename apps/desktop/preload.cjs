@@ -217,6 +217,7 @@ contextBridge.exposeInMainWorld(
     settingsPreview: (value) => ipcRenderer.invoke('capri:settings-preview', value),
     resetSettings: () => ipcRenderer.invoke('capri:settings-reset'),
     settingsReady: () => ipcRenderer.invoke('capri:settings-ready'),
+    settingsLoading: () => ipcRenderer.invoke('capri:settings-loading'),
     settingsRendered: () => ipcRenderer.invoke('capri:settings-rendered'),
     settingsHelp: (value) => ipcRenderer.invoke('capri:settings-help', value),
     settingsVersions: () => ipcRenderer.invoke('capri:settings-versions'),

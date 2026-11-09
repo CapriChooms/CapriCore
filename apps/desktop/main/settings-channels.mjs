@@ -31,6 +31,7 @@ export const SETTINGS_CHANNELS = [
   'settings-preview',
   'settings-reset',
   'settings-ready',
+  'settings-loading',
   'settings-help',
   'settings-rendered',
   'screen-form-command',

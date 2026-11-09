@@ -4531,6 +4531,11 @@ async function initializeDesktop() {
       settingsHost.loaded();
       return true;
     });
+    handle('capri:settings-loading', (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings frame required');
+      settingsHost.loading();
+      return true;
+    });
     handle('capri:settings-help', (value, { role }) => {
       if (role !== 'settings') throw new Error('Settings frame required');
       return settingsHost.setHelp(value);

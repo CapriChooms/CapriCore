@@ -1,4 +1,5 @@
 import { InferencePanel } from './inference-panel.mjs';
+import { finishSettingsLoading, panelLoading } from './settings-loading.mjs';
 import { KnowledgePanel } from './knowledge-panel.mjs';
 import { WorkflowsPanel } from './workflows-panel.mjs';
 import { UserToolsPanel } from './user-tools-panel.mjs';
@@ -1282,6 +1283,7 @@ async function navigate(id, focus = null, match = null) {
   rememberLocation();
   locationSuspended = false;
   busy = true;
+  panelLoading(true);
   try {
     if (id !== 'developer') developer.close();
     if (current && id !== current) {
@@ -1352,6 +1354,8 @@ async function navigate(id, focus = null, match = null) {
     renderNavigation();
     await document.fonts.ready;
     await new Promise((resolve) => requestAnimationFrame(resolve));
+    panelLoading(false);
+    finishSettingsLoading();
     restoreLocation();
     if (match) revealSearchMatch(match, panel);
     else if (id === 'models' && focus === 'context') {
@@ -1363,6 +1367,7 @@ async function navigate(id, focus = null, match = null) {
     notice(error.message);
   } finally {
     busy = false;
+    panelLoading(false);
     rememberLocation();
     if (current && !firstContentFrame) {
       // Native ready-to-show can fire for the empty shell. Acknowledge only
@@ -1701,7 +1706,8 @@ for (const name of ['input', 'change', 'click'])
       models.setConversationLanguage(language.draft().conversation);
     queuePreview();
   });
-$('settings-window-close').onclick = close;
+$('settings-window-close').onclick = () =>
+  document.body.hasAttribute('data-settings-loading') ? raw.closeSettings() : close();
 search.oninput = renderNavigation;
 search.onkeydown = (event) => {
   if (event.isComposing || !search.value) return;
@@ -1719,6 +1725,10 @@ window.addEventListener('capri-open-models', () => navigate('models'));
 window.addEventListener('capri-open-updates', () => navigate('updates'));
 window.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+  if (document.body.hasAttribute('data-settings-loading')) {
+    void raw.closeSettings();
+    return;
+  }
   if (closeSettingHelp()) {
     e.preventDefault();
     return;

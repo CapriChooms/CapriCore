@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Deliberately hold the renderer's first UI frames: native ready-to-show is not
-// proof that the dynamically built settings category has been painted.
+// Hold content hydration and the first three compositor captures. One click
+// must still show the loading shell, recover, and present the populated form.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -37,17 +37,47 @@ try {
     application.on('window', (page) => page.on('pageerror', (e) => report.errors.push(e.message)));
     const page = await application.firstWindow();
     await page.waitForFunction(() => document.body.dataset.phase === 'ready');
+    await application.evaluate(({ app, nativeImage }) => {
+      app.on('browser-window-created', (_event, view) => {
+        if (view.getTitle() !== 'Capri Settings') return;
+        const capture = view.webContents.capturePage.bind(view.webContents);
+        view.qaCaptureAttempts = 0;
+        view.webContents.capturePage = (...args) => {
+          view.qaCaptureAttempts++;
+          return view.qaCaptureAttempts <= 3
+            ? Promise.resolve(nativeImage.createEmpty())
+            : capture(...args);
+        };
+      });
+    });
     await page.context().addInitScript(() => {
-      if (!location.pathname.endsWith('/settings.html')) return;
+      if (!location.pathname.endsWith('/settings.html') || window.qaSettingsFrames) return;
       const frame = window.requestAnimationFrame.bind(window),
-        queued = [];
+        cancel = window.cancelAnimationFrame.bind(window),
+        queued = new Map();
+      let nextFrame = -1;
+      window.qaSettingsFrames = { queued: 0, released: false, fired: 0 };
       window.requestAnimationFrame = (callback) => {
-        queued.push(callback);
-        return 0;
+        window.qaSettingsFrames.queued++;
+        const id = nextFrame--;
+        queued.set(id, { callback });
+        return id;
+      };
+      window.cancelAnimationFrame = (id) => {
+        if (id >= 0) return cancel(id);
+        const entry = queued.get(id);
+        if (entry?.nativeId !== undefined) cancel(entry.nativeId);
+        queued.delete(id);
       };
       window.releaseSettingsFrames = () => {
+        window.qaSettingsFrames.released = true;
         window.requestAnimationFrame = frame;
-        for (const callback of queued.splice(0)) frame(callback);
+        for (const [id, entry] of queued)
+          entry.nativeId = frame((time) => {
+            queued.delete(id);
+            window.qaSettingsFrames.fired++;
+            entry.callback(time);
+          });
       };
     });
     const opened = application.waitForEvent('window');
@@ -64,8 +94,85 @@ try {
           .find((w) => w.webContents.getURL().endsWith('/settings.html'))
           .isVisible(),
       );
-    assert.equal(await visible(), false, 'Unpainted forms must not expose a blank native window');
+    await application.evaluate(async ({ BrowserWindow }) => {
+      const view = BrowserWindow.getAllWindows().find((w) =>
+        w.webContents.getURL().endsWith('/settings.html'),
+      );
+      for (let attempt = 0; attempt < 200; attempt++) {
+        if (view.isVisible() && view.getOpacity() === 1) return;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      throw Error('Loading placeholders did not appear after one request');
+    });
+    assert.equal(await visible(), true);
+    assert.equal(
+      await settings.evaluate(() => document.body.hasAttribute('data-settings-loading')),
+      true,
+    );
+    assert.equal(await settings.locator('#settings-loading').isVisible(), true);
+    assert.equal(await settings.locator('#settings-layout').isVisible(), false);
+    assert.equal(
+      await settings
+        .locator('#settings-loading')
+        .evaluate((node) => getComputedStyle(node, '::after').animationName),
+      'settings-placeholder-sweep',
+    );
+    await settings.emulateMedia({ reducedMotion: 'reduce' });
+    assert.equal(
+      await settings
+        .locator('#settings-loading')
+        .evaluate((node) => getComputedStyle(node, '::after').animationName),
+      'none',
+    );
+    await settings.emulateMedia({ reducedMotion: 'no-preference' });
+    assert.equal(
+      await application.evaluate(
+        ({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().find((w) =>
+            w.webContents.getURL().endsWith('/settings.html'),
+          ).qaCaptureAttempts,
+      ),
+      4,
+    );
+    await settings.screenshot({ path: path.join(folder, section + '-loading.png') });
+    if (section === 'general') {
+      await settings.locator('#settings-window-close').click();
+      assert.equal(await visible(), false, 'Loading Settings can be dismissed before hydration');
+    }
     await settings.evaluate(() => window.releaseSettingsFrames());
+    if (section === 'general') {
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      assert.equal(await visible(), false, 'Late hydration cannot resurrect dismissed Settings');
+      await page.evaluate(() => window.capri.openSettings());
+    }
+    await settings
+      .waitForFunction(() => !document.body.hasAttribute('data-settings-loading'), null, {
+        timeout: 10000,
+        polling: 50,
+      })
+      .catch(async (error) => {
+        report.hydration = await settings.evaluate(() => ({
+          fonts: document.fonts.status,
+          busy: document.getElementById('companion').getAttribute('aria-busy'),
+          section: document.querySelector('#settings-navigation [aria-current="page"]')?.dataset
+            .section,
+          notice: document.getElementById('settings-notice').textContent,
+          pendingFonts: [...document.fonts]
+            .filter((font) => font.status !== 'loaded')
+            .map((font) => ({ family: font.family, status: font.status })),
+          visibility: document.visibilityState,
+          frames: window.qaSettingsFrames,
+        }));
+        report.native = await application.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().map((w) => ({
+            title: w.getTitle(),
+            visible: w.isVisible(),
+            opacity: w.getOpacity(),
+            throttled: w.webContents.getBackgroundThrottling(),
+          })),
+        );
+        throw error;
+      });
     await application.evaluate(async ({ BrowserWindow }) => {
       const view = BrowserWindow.getAllWindows().find((w) =>
         w.webContents.getURL().endsWith('/settings.html'),
@@ -116,7 +223,10 @@ try {
         .showInactive(),
     );
     assert.equal(await visible(), false, 'Tray restore must not resurrect settings');
-    report.checks.push('Fresh process, delayed frames, reopen and tray: ' + section);
+    report.checks.push(
+      'One request, loading placeholders, three failed captures, hydrated content, reopen and tray: ' +
+        section,
+    );
     await application.close();
     application = null;
   }

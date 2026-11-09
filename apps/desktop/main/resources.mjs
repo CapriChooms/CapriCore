@@ -17,6 +17,7 @@ const rendererFiles = [
   'credits.css',
   'credits-panel.mjs',
   'settings-app.mjs',
+  'settings-loading.mjs',
   'settings-api.mjs',
   'settings-registry.mjs',
   'settings-search.mjs',

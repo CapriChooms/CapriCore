@@ -167,6 +167,73 @@ test('first settings display waits for initialized forms, native paint and popul
   }
 });
 
+test('a painted loading shell opens on the first click while settings data is still pending', async () => {
+  const { host } = fixture();
+  const opening = host.open(),
+    view = host.window;
+  host.loading();
+  view.emit('ready-to-show');
+  await host.surfacePending;
+  assert.equal(view.visible, true);
+  assert.equal(view.opacity, 1);
+  assert.equal(host.snapshot().loading, true);
+  assert.equal(host.ready, false);
+  host.hide();
+  await host.open();
+  assert.equal(host.ready, false);
+  assert.equal(view.visible, true);
+  assert.equal(view.throttled, false);
+  host.loaded();
+  host.rendered();
+  view.resolve();
+  await opening;
+  assert.equal(host.snapshot().loading, false);
+  assert.equal(view.visible, true);
+  host.destroy();
+});
+
+test('transient cold compositor failures recover without another settings click', async () => {
+  const { host, errors } = fixture();
+  const opening = host.open(),
+    view = host.window;
+  let attempts = 0;
+  view.webContents.capturePage = async () => ({ isEmpty: () => ++attempts <= 3 });
+  host.loading();
+  view.emit('ready-to-show');
+  view.resolve();
+  await opening;
+  await host.surfacePending;
+  assert.equal(attempts, 4);
+  assert.equal(view.visible, true);
+  assert.equal(view.ignoreMouse, false);
+  assert.deepEqual(errors, []);
+  host.destroy();
+});
+
+test('dismissal during first-frame backoff cancels every later presentation attempt', async () => {
+  const { host } = fixture();
+  const opening = host.open(),
+    view = host.window;
+  let attempts = 0;
+  view.webContents.capturePage = async () => ({
+    isEmpty: () => {
+      attempts++;
+      return true;
+    },
+  });
+  host.loading();
+  view.emit('ready-to-show');
+  view.resolve();
+  await opening;
+  const pending = host.surfacePending;
+  host.hide();
+  await pending;
+  assert.equal(attempts, 1);
+  assert.equal(view.visible, false);
+  assert.equal(host.requested, false);
+  host.destroy();
+});
+
 test('tray and minimize retain drafts without automatically restoring the settings surface', async () => {
   const { host, owner } = fixture();
   const opening = host.open();

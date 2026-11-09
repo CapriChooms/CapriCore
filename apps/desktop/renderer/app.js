@@ -1670,6 +1670,12 @@ function notice(text = '', severity = 'error') {
   elements.notice.hidden = !noticeSource;
   scheduleRegions();
 }
+function renderInstalledVersion(status) {
+  if (typeof status?.current !== 'string') return;
+  const label = document.getElementById('capri-version');
+  label.textContent = status.current;
+  label.hidden = false;
+}
 function renderMicrophoneLabel(value) {
   const label =
     value.status === 'listening'
@@ -2176,6 +2182,7 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'updates.status') {
+    renderInstalledVersion(event);
     updatesPanel.show(event);
     updateNotification.show(event);
     scheduleRegions();
@@ -3058,6 +3065,7 @@ try {
   applicationsPanel.showSpotify(snapshot.spotify);
   modelsPanel.show(snapshot.models);
   updatesPanel.show(snapshot.updates);
+  renderInstalledVersion(snapshot.updates);
   updateNotification.show(snapshot.updates);
   startupPanel.update(snapshot.startup);
   companionSettings = snapshot.companion;

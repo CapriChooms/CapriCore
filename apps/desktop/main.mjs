@@ -5617,6 +5617,7 @@ async function initializeDesktop() {
           return state;
         })(),
         voice: voice.diagnostics(),
+        musicListening: musicListening.snapshot(),
         callAudio: callAudioDiagnostics.snapshot({
           ...callAudioSnapshot(),
           setup: callSetup.diagnostics(),

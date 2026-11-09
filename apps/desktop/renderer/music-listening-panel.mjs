@@ -31,7 +31,7 @@ export function musicListeningLabel(value = {}) {
   return 'Off';
 }
 
-/** Visual preferences are drafts; starting capture is always an explicit action. */
+/** Only a direct owner click starts capture; loading/saving preferences never does. */
 export class MusicListeningPanel {
   constructor({
     api,
@@ -63,6 +63,15 @@ export class MusicListeningPanel {
     this.get = (id) =>
       this.panel.querySelector('#music-listening-' + (id === 'autoBpm' ? 'auto-bpm' : id));
     for (const id of Object.keys(defaults)) this.get(id).onchange = () => this.onChange();
+    this.get('enabled').onchange = () => {
+      this.onChange();
+      // Enabling the visible feature must also connect its audio source. Merely
+      // remembering a checked preference used to leave detection permanently Off.
+      if (this.get('enabled').checked && !musicCaptureActive(this.value))
+        return this.command('start');
+      if (!this.get('enabled').checked && musicCaptureActive(this.value))
+        return this.command('stop');
+    };
     this.get('start').onclick = () => this.command('start');
     this.get('stop').onclick = () => this.command('stop');
     this.show(this.value);
@@ -92,6 +101,7 @@ export class MusicListeningPanel {
     this.get('error').hidden = !this.value.error;
     const pending = pendingPhases.has(this.value.phase);
     const active = musicCaptureActive(this.value);
+    this.get('enabled').disabled = this.busy || this.value.supported === false;
     this.get('start').hidden = active || pending;
     this.get('start').disabled = this.busy || this.value.supported === false;
     this.get('stop').hidden = !active && !pending;

@@ -18,10 +18,10 @@ function store() {
   );
 }
 const userText = (content) => content.split('\n\nDESKTOP STATE FOR THIS TURN')[0];
-const turnState = (content) =>
-  JSON.parse(
-    content.split('DESKTOP STATE FOR THIS TURN (data, not a user request):\n')[1].split('\n')[0],
-  );
+const turnState = (content) => {
+  const state = content.split('DESKTOP STATE FOR THIS TURN (data, not a user request):\n')[1];
+  return state ? JSON.parse(state.split('\n')[0]) : {};
+};
 const packet = (text) => `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`;
 function response(text, suffix = 'data: [DONE]\n\n') {
   return new Response(packet(text) + suffix, { headers: { 'content-type': 'text/event-stream' } });
@@ -726,7 +726,7 @@ test('typed chat stays independent of microphone and voice state for both tool a
     assert.match(system.content, /Never infer internet status or hardware faults from audio flags/);
     assert.doesNotMatch(system.content, /input is currently switched off/);
     assert.equal(userText(owner.content), 'Hello');
-    assert.equal(turnState(owner.content).microphone, false);
+    assert.equal(turnState(owner.content).microphone, undefined);
     assert.equal(service.store.snapshot().at(-1).text, 'Hello.');
   }
 });
@@ -750,8 +750,8 @@ test('cold model preparation has its own phase and does not spend the first-text
     fetchImpl: async (_url, options) => {
       assert.equal(prepared, true);
       assert.equal(userText(JSON.parse(options.body).messages.at(-1).content), 'Hello Capri');
-      assert.match(JSON.parse(options.body).messages[0].content, /observation is OFF/);
-      assert.match(JSON.parse(options.body).messages[0].content, /NO current screen evidence/);
+      assert.match(JSON.parse(options.body).messages[0].content, /never invent a view/);
+      assert.doesNotMatch(JSON.parse(options.body).messages[1].content, /fullComputerAccess/);
       calls++;
       return response('Hello.');
     },
@@ -1050,7 +1050,7 @@ test('social routing preserves shared history and leaves task tools available on
   await service.send({ id: randomUUID(), text: 'Hello Capri.' }, (e) => events.push(e));
   await service.send({ id: randomUUID(), text: 'Check Spotify volume.' }, (e) => events.push(e));
   assert.equal(seen[0].headers['x-capri-thinking-once'], 'off');
-  assert.equal(seen[0].headers['x-capri-tools-once'], 'conversation');
+  assert.equal(seen[0].headers['x-capri-tools-once'], 'dialogue');
   assert.equal(seen[1].headers['x-capri-tools-once'], undefined);
   assert.equal(seen[1].headers['x-capri-thinking-once'], 'off');
   assert.equal(
@@ -1059,7 +1059,7 @@ test('social routing preserves shared history and leaves task tools available on
   );
   assert.deepEqual(requests[1].context, ['Hello Capri.']);
   assert.equal(userText(seen[1].body.messages[1].content), 'Check Spotify volume.');
-  assert.match(seen[0].body.messages[0].content, /spotify_control/);
+  assert.doesNotMatch(seen[0].body.messages[0].content, /spotify_control/);
   assert.match(seen[1].body.messages[0].content, /spotify_control/);
   assert.deepEqual(
     events.filter((e) => e.type === 'turn.routing').map((e) => e.mode),
@@ -1108,6 +1108,37 @@ test('a classified conversation cannot inherit action tools, while the next feat
   assert.equal(new Set(seen.map((request) => request.headers['x-openclaw-session-key'])).size, 1);
   assert.equal(events.filter((event) => event.type === 'turn.completed').length, 5);
   assert(!events.some((event) => event.type === 'turn.failed'));
+});
+
+test('greetings use the dialogue scope without exposing permissions, including the fast CPU route', async () => {
+  for (const fullComputerAccess of [false, true]) {
+    const seen = [];
+    const service = client({
+      interfaceState: () => ({
+        fullComputerAccess,
+        microphone: true,
+        applications: { calculator: true },
+      }),
+      requestRouter: { classify: async () => ({ mode: 'fast', reason: 'simple-dialogue' }) },
+      computerTask: () => assert.fail('A greeting must never run a computer task'),
+      fetchImpl: async (_url, options) => {
+        seen.push({ headers: options.headers, body: JSON.parse(options.body) });
+        return response('Hey! Good to see you.');
+      },
+    });
+    for (const text of ['hi capri', 'Hello.', 'Привет, Капри!', 'Salut Capri!', 'Hola Capri!'])
+      await service.send({ id: randomUUID(), text }, () => {});
+    for (const request of seen) {
+      assert.equal(request.headers['x-capri-tools-once'], 'dialogue');
+      assert.match(request.body.messages[0].content, /one or two short sentences/);
+      assert.doesNotMatch(
+        request.body.messages[1].content,
+        /fullComputerAccess|applications|microphone|screenObservation/,
+      );
+      assert.equal(turnState(request.body.messages[1].content).fullComputerAccess, undefined);
+    }
+    assert.equal(seen[0].body.messages[1].content, 'hi capri');
+  }
 });
 
 test('router failure falls back, while cancellation during classification sends no model request', async () => {

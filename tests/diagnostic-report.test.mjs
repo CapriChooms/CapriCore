@@ -108,6 +108,17 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
           elapsedMs: 20305,
         },
       },
+      musicListening: {
+        phase: 'listening',
+        enabled: true,
+        hearingMusic: true,
+        musicScore: 0.92,
+        speechScore: 0.03,
+        tempo: 124,
+        tempoConfidence: 0.8,
+        settings: { enabled: true, notes: true, motion: true, autoBpm: true },
+        transcript: privateText,
+      },
       prompt: privateText,
       messages: [{ content: privateText }],
       apiKey: secret,
@@ -123,6 +134,10 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
   assert.equal(session.inference.model, model);
   assert.equal(session.response.lastFailure.receivedText, false);
   assert.equal(session.response.lastFailure.code, 'CAPRI_GATEWAY_REPORTED_ERROR');
+  assert.equal(session.musicListening.phase, 'listening');
+  assert.equal(session.musicListening.tempo, 124);
+  assert.equal(session.musicListening.tempoConfidence, 0.8);
+  assert.equal(session.musicListening.transcript, '[REDACTED]');
   assert.deepEqual(session.inferenceTransport.lastFailure, {
     stage: 'connect',
     code: 'CAPRI_API_NETWORK_ERROR',

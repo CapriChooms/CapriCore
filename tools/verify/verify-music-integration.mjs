@@ -222,7 +222,7 @@ try {
       return sink.stream;
     };
   });
-  await settings.evaluate(() => window.capri.musicCommand('start'));
+  await settings.locator('#music-listening-enabled').check();
   await application.evaluate(async () => {
     const until = Date.now() + 12000;
     while (globalThis.musicIntegrationFixture.packets.length < 3 && Date.now() < until)

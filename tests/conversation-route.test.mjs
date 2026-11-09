@@ -15,6 +15,11 @@ test('social route restricts greetings without swallowing commands or ambiguous 
     'Hey Capri, how are you?',
     'Привет, Капри!',
     'Капри, как дела?',
+    'Salut Capri!',
+    'Hola Capri!',
+    'Hallo Capri.',
+    'Olá Capri!',
+    '你好 Capri',
   ])
     assert.equal(conversationOnly(text), true, text);
   for (const text of [
@@ -25,6 +30,8 @@ test('social route restricts greetings without swallowing commands or ambiguous 
     'press W',
     'click there',
     'Hello! Delete a file',
+    'Bonjour Capri, ouvre Chrome',
+    'Hola Capri, abre Spotify',
   ])
     assert.equal(conversationOnly(text), false, text);
   assert.equal(

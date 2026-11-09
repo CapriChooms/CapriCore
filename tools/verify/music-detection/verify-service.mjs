@@ -2,15 +2,17 @@
 // Real CPU worker, public cached benchmark PCM, no system/microphone capture.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFileSync, existsSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MusicListeningService } from '../../../apps/desktop/music-listening-service.mjs';
+import { musicAnimationReady } from '../../../apps/desktop/music-listening-settings.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const fixture = path.join(root, '.runtime/music-detection-research');
+const assetRoot = path.resolve(process.argv[2] ?? root);
+const fixture = path.join(assetRoot, '.runtime/music-detection-research');
 const data = path.join(fixture, 'benchmark');
-const python = path.join(root, '.runtime/router-venv/Scripts/python.exe');
+const python = path.join(assetRoot, '.runtime/router-venv/Scripts/python.exe');
 assert(existsSync(python), 'Install the existing CPU router runtime first.');
 
 function readPcm16(name, seconds = 10) {
@@ -137,6 +139,10 @@ try {
   assert(rhythm.tempo >= 40 && rhythm.tempo <= 240);
   assert(rhythm.tempoConfidence >= 0.45 && rhythm.tempoConfidence <= 1);
   assert(rhythm.beatAt > 0 && rhythm.beatAt <= Date.now());
+  assert(
+    musicAnimationReady(rhythm),
+    'Detected music and BPM must enable the actual animation gate',
+  );
   await send(readPcm16('musan-speech-0.wav'));
   assert(!service.snapshot().hearingMusic, 'Real speech must leave the music animation state.');
   assert(service.snapshot().speechScore > 0.8);
@@ -168,10 +174,9 @@ try {
     speechExited: true,
     stoppedAndReset: true,
   };
-  writeFileSync(
-    path.join(data, 'service-verification.json'),
-    JSON.stringify(report, null, 2) + '\n',
-  );
+  const output = path.join(root, '.runtime/music-service-verification');
+  mkdirSync(output, { recursive: true });
+  writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report));
 } finally {
   service.stop();

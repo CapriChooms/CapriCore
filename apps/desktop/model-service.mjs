@@ -53,7 +53,7 @@ export class ModelService {
     this.value = {
       phase: 'idle',
       current: config.model,
-      remoteActive: Boolean(rt.remote?.enabled),
+      remoteActive: Boolean(rt.remote?.enabled || rt.remote?.setupRequired),
       contextTokens: config.contextTokens,
       contextChoices: contextChoicesFor(config),
       selected: null,
@@ -94,7 +94,7 @@ export class ModelService {
       unavailable = true;
     }
     const imported = (await this.customProfiles()).map(validateImportedProfile);
-    const remoteActive = Boolean(this.rt.remote?.enabled);
+    const remoteActive = Boolean(this.rt.remote?.enabled || this.rt.remote?.setupRequired);
     return {
       remoteActive,
       inventoryUnavailable: unavailable,

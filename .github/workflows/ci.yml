@@ -21,6 +21,9 @@ jobs:
         with:
           python-version: '3.11'
       - run: npm ci
+      - name: Restore pinned desktop runtime
+        run: >-
+          node --input-type=module -e "import { ensureElectronRuntime } from './packages/installer/src/electron-runtime.mjs'; import { runCommand } from './packages/installer/src/commands.mjs'; await ensureElectronRuntime(process.cwd(), { command: runCommand });"
       - run: npm run check -- --require-python
       - run: npm test
       - run: python -m unittest tests.model_download_test tests.multilingual_provision_test tests.asr_path_test tests.voice_compatibility_test tests.uv_retry_test tests.hub_download_messages_test tests.speech_language_test tests.voice_startup_failure_test
@@ -37,6 +40,7 @@ jobs:
       - run: node tools/verify/verify-text-selection.mjs
       - run: node tools/verify/verify-computer-control.mjs
       - run: node tools/verify/verify-inference-api.mjs
+      - run: node tools/verify/verify-maintenance-offline.mjs
       - run: node tools/verify/verify-update-handoff.mjs
       - run: npm run verify:installer
       # Resolve the real locked voice environment from scratch without a GPU

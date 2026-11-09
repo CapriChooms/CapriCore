@@ -15,6 +15,8 @@ import { updateSourcePath, updatePayloadFiles, installerRequired } from './paylo
 import { installationLock } from '../../installer/src/lock.mjs';
 import { runCommand } from '../../installer/src/commands.mjs';
 import { installNpmDependencies } from '../../installer/src/npm-install.mjs';
+import { ensureElectronRuntime } from '../../installer/src/electron-runtime.mjs';
+import { npmInstallRequired } from './npm-policy.mjs';
 import { writeJsonAtomic } from '../../runtime/src/atomic-json.mjs';
 import { compareVersions, parseVersion, REPOSITORY } from './releases.mjs';
 
@@ -147,8 +149,8 @@ function backupPath(name) {
 export function runtimeUpgradeRequired(root, source) {
   const before = readJson(path.join(root, 'config/installer.json'));
   const after = readJson(path.join(source, 'config/installer.json'));
-  return ['node', 'ollama', 'uv', 'git'].some(
-    (name) => before.artifacts[name].sha256 !== after.artifacts[name].sha256,
+  return ['node', 'ollama', 'uv', 'git', 'electron'].some(
+    (name) => before.artifacts[name]?.sha256 !== after.artifacts[name]?.sha256,
   );
 }
 function restore(root, backup, journal) {
@@ -224,8 +226,9 @@ export async function applyUpdate(
       ...args,
     ]);
   let dependenciesStarted = false;
-  const syncDependencies = async (changed) => {
-    if (changed.has('package-lock.json') || changed.has('package.json')) {
+  let npmChanged = false;
+  const syncDependencies = async (changed, { forceNpm = false } = {}) => {
+    if (forceNpm || npmChanged) {
       emit({ phase: 'dependencies' });
       await installNpmDependencies({
         nodeExecutable: process.execPath,
@@ -242,6 +245,7 @@ export async function applyUpdate(
       // Apply reviewed compatibility fixes even when the dependency lock is unchanged.
       await command(process.execPath, [path.join(root, 'packages/runtime/bin/patch-openclaw.mjs')]);
     }
+    await ensureElectronRuntime(root, { command, emit });
     const uv = path.join(root, '.runtime/uv/uv.exe');
     for (const [lock, venv] of [
       ['config/asr-requirements.lock.txt', 'asr-venv'],
@@ -286,7 +290,9 @@ export async function applyUpdate(
         emit({ phase: 'recovering' });
         restore(root, saved, previous);
         if (previous.dependenciesStarted)
-          await syncDependencies(new Set([...previous.changed, 'package-lock.json']));
+          await syncDependencies(new Set([...previous.changed, 'package-lock.json']), {
+            forceNpm: previous.npmDependenciesChanged !== false,
+          });
         previous.phase = 'rolled-back';
         writeJsonAtomic(path.join(saved, 'journal.json'), previous);
       }
@@ -302,6 +308,7 @@ export async function applyUpdate(
       throw new Error(
         'This release changes bundled runtimes. Use its full installer to upgrade this installation.',
       );
+    npmChanged = npmInstallRequired(root, source);
     const changed = new Set(
       files
         .filter(
@@ -318,7 +325,7 @@ export async function applyUpdate(
     );
     const needed =
       updates.reduce((sum, file) => sum + file.bytes * 2, 0) +
-      (changed.has('package-lock.json') ? 2 * 1024 ** 3 : 64 * 1024 ** 2);
+      (npmChanged ? 2 * 1024 ** 3 : 64 * 1024 ** 2);
     if (diskFree(root) < needed)
       throw new Error('Not enough free space for the update and its backup.');
     const id = randomUUID();
@@ -331,6 +338,7 @@ export async function applyUpdate(
       phase: 'backing-up',
       changed: [...changed],
       dependenciesStarted: false,
+      npmDependenciesChanged: npmChanged,
       entries: [],
     };
     const owned = [
@@ -398,7 +406,9 @@ export async function applyUpdate(
       try {
         restore(root, backup, journal);
         if (dependenciesStarted)
-          await syncDependencies(new Set([...journal.changed, 'package-lock.json']));
+          await syncDependencies(new Set([...journal.changed, 'package-lock.json']), {
+            forceNpm: journal.npmDependenciesChanged !== false,
+          });
         journal.phase = 'rolled-back';
         writeJsonAtomic(path.join(backup, 'journal.json'), journal);
         if (existsSync(active)) unlinkSync(active);

@@ -137,8 +137,13 @@ test('model file sizes prefer Ollama inventory, recognize native aliases and est
   assert.equal(profiles.find((p) => p.id === 'minimal').installed, false);
 });
 test('API routing retains the configured local model without falsely marking it active or preparing it', async () => {
-  for (const enabled of [true, false]) {
-    const remote = Object.freeze({ enabled, model: 'fixture-api-model' });
+  for (const [enabled, setupRequired] of [
+    [true, false],
+    [false, false],
+    [false, true],
+  ]) {
+    const apiSelected = enabled || setupRequired;
+    const remote = Object.freeze({ enabled, setupRequired, model: 'fixture-api-model' });
     const rt = Object.freeze({ ...dependencies.rt, remote });
     const service = new ModelService({
       ...dependencies,
@@ -150,15 +155,15 @@ test('API routing retains the configured local model without falsely marking it 
       pull: async () => assert.fail('Inspecting the configured model must not download weights'),
       native: async () => assert.fail('Inspecting the configured model must not prepare an alias'),
     });
-    assert.equal(service.snapshot().remoteActive, enabled);
+    assert.equal(service.snapshot().remoteActive, apiSelected);
     const snapshot = await service.refresh();
-    assert.equal(snapshot.remoteActive, enabled);
+    assert.equal(snapshot.remoteActive, apiSelected);
     const configured = snapshot.profiles.find((profile) => profile.id === 'desktop');
     assert.equal(configured.configured, true);
-    assert.equal(configured.active, !enabled);
+    assert.equal(configured.active, !apiSelected);
     assert.equal(configured.installed, true);
     assert.equal(snapshot.profiles.filter((profile) => profile.configured).length, 1);
-    assert.equal(snapshot.profiles.filter((profile) => profile.active).length, enabled ? 0 : 1);
+    assert.equal(snapshot.profiles.filter((profile) => profile.active).length, apiSelected ? 0 : 1);
     assert.equal(snapshot.current, 'capri-qwen3.5:4b');
     assert.equal(rt.remote, remote);
     assert.equal(rt.remote.enabled, enabled);

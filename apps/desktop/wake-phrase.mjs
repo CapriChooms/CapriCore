@@ -215,11 +215,14 @@ export class WakePhraseGate {
       }
     }
     this.lastUtterance = Math.max(this.lastUtterance, event.utterance);
+    // Only the utterance that opened the gate contains an activation prefix.
+    // Manual/follow-up listening and later utterances already have attention:
+    // names in them are ordinary speech, never a new wake or a text boundary.
     const text = event.prefixRemoved
       ? event.text
       : event.utterance === this.wakeUtterance
         ? stripActivatedPrefix(event.text)
-        : (findWakePhrase(event.text)?.body ?? event.text);
+        : event.text;
     if (text.trim()) this.armTimeout(Boolean(event.refining));
     return { accepted: true, text: text.trim() };
   }

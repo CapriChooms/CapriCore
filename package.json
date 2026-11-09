@@ -1,6 +1,6 @@
 {
   "name": "capri",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Local Windows backend for Capri, powered by OpenClaw and Ollama",
   "type": "module",

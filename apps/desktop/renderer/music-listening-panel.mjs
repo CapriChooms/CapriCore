@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { musicAnimationReady } from '../music-listening-settings.mjs';
 const defaults = Object.freeze({ enabled: false, notes: true, motion: true, autoBpm: true });
 const capturePhases = new Set(['listening', 'active', 'monitoring', 'running']);
 const pendingPhases = new Set([
@@ -96,7 +97,12 @@ export class MusicListeningPanel {
       ...value,
       settings: { ...defaults, ...(value.settings ?? this.value.settings) },
     };
-    this.get('status').textContent = this.ui.text(musicListeningLabel(this.value));
+    const label = musicListeningLabel(this.value);
+    this.get('status').textContent =
+      this.ui.text(label) +
+      (label === 'Music detected'
+        ? ` · BPM ${musicAnimationReady(this.value) ? Math.round(this.value.tempo) : '…'}`
+        : '');
     this.get('error').textContent = this.value.error ? this.ui.text(this.value.error) : '';
     this.get('error').hidden = !this.value.error;
     const pending = pendingPhases.has(this.value.phase);

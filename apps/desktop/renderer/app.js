@@ -2008,9 +2008,20 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'music.status') {
+    const wasHearingMusic = musicState.hearingMusic;
+    const wasReady = musicAnimationReady(musicState);
     musicState = { ...musicState, ...event };
     musicClient.setState(event);
     renderMusicState();
+    // Decode while BPM is being acquired, without selecting a music pose yet.
+    if (!wasHearingMusic && musicState.hearingMusic)
+      frameImages?.get('music-floor').catch(() => {});
+    if (!wasReady && musicAnimationReady(musicState) && ready)
+      animateCharacter(
+        performance.now(),
+        presence.snapshot(),
+        matchMedia('(prefers-reduced-motion: reduce)').matches,
+      );
     return;
   }
   if (event.type === 'avatar.composer.action') {

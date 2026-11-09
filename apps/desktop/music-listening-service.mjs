@@ -21,6 +21,7 @@ export class MusicDecision {
     this.tempo = 0;
     this.tempoConfidence = 0;
     this.beatAt = 0;
+    this.pendingTempo = null;
   }
   update(value, capturedAt = Date.now()) {
     if (
@@ -49,11 +50,24 @@ export class MusicDecision {
     this.exit = value.music < 0.28 || value.rms < 0.0003 ? this.exit + 1 : 0;
     if (!this.hearingMusic && this.enter >= 3) this.hearingMusic = true;
     else if (this.hearingMusic && this.exit >= 3) this.hearingMusic = false;
-    if (!this.hearingMusic) this.resetTempo();
-    else if (tempo && confidence >= MUSIC_TEMPO_MIN_CONFIDENCE) {
-      this.tempo = tempo;
-      this.tempoConfidence = confidence;
-      this.beatAt = Math.max(0, capturedAt - (phase * 60000) / tempo);
+    const beat =
+      tempo && confidence >= MUSIC_TEMPO_MIN_CONFIDENCE
+        ? {
+            tempo,
+            tempoConfidence: confidence,
+            beatAt: Math.max(0, capturedAt - (phase * 60000) / tempo),
+          }
+        : null;
+    // Keep a reliable prewarmed beat during the three-window music decision.
+    // It stays private until the music gate agrees; a rejected candidate clears it.
+    if (!this.hearingMusic) {
+      const pending = this.enter > 0 ? (beat ?? this.pendingTempo) : null;
+      this.resetTempo();
+      this.pendingTempo = pending;
+    } else {
+      const available = beat ?? this.pendingTempo;
+      this.pendingTempo = null;
+      if (available) Object.assign(this, available);
     }
     return this.hearingMusic;
   }

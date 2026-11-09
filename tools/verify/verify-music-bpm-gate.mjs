@@ -51,6 +51,7 @@ const classify = (tempo = 0, tempoConfidence = 0, music = 0.9) =>
       decision.update({ music, speech: 0.01, rms: music ? 0.1 : 0, tempo, tempoConfidence });
       globalThis.musicGateStatus = {
         enabled: true,
+        supported: true,
         phase: 'listening',
         hearingMusic: decision.hearingMusic,
         tempo: decision.tempo,
@@ -94,6 +95,7 @@ const observeMotion = (view) =>
         active: value.active,
         angle: value.angle,
         notes: value.notes.length,
+        sinceStatusMs: args[0] - (window.musicGateStatusAt ?? args[0]),
       });
       if (window.musicGateSamples.length > 120) window.musicGateSamples.shift();
       return value;
@@ -118,7 +120,9 @@ try {
     timeout: 60000,
   });
   page = await app.firstWindow();
-  page.on('pageerror', (error) => report.errors.push(error.message));
+  page.on('pageerror', (error) => {
+    if (!report.errors.includes(error.message)) report.errors.push(error.message);
+  });
   await page.waitForFunction(() => document.body.dataset.initialized === 'true');
   await app.evaluate(({ BrowserWindow }) => {
     const win = BrowserWindow.getAllWindows().find((win) =>
@@ -141,11 +145,31 @@ try {
   report.checks.push(
     'Home portrait retains its ordinary pose while music is detected but BPM is unknown',
   );
+  const musicSettings = await settingsView(app, 'music');
+  assert((await musicSettings.locator('#music-listening-status').textContent()).endsWith('BPM …'));
+  await page.evaluate(() => {
+    window.musicGateSamples = [];
+    window.musicGateStatusAt = performance.now();
+  });
   await classify(120, 0.8);
   await page.waitForFunction(
     () => document.getElementById('sprite').dataset.frame === 'music-floor',
   );
   await assertMoving(page);
+  assert(
+    (await musicSettings.locator('#music-listening-status').textContent()).endsWith('BPM 120'),
+  );
+  await musicSettings.screenshot({ path: path.join(folder, 'music-bpm-ready-settings.png') });
+  report.homeStart = await page.evaluate(() => {
+    const samples = window.musicGateSamples;
+    return {
+      poseMs: samples.find((s) => s.active)?.sinceStatusMs,
+      motionMs: samples.find((s) => s.active && Math.abs(s.angle) > 0.01)?.sinceStatusMs,
+      notesMs: samples.find((s) => s.notes > 0)?.sinceStatusMs,
+    };
+  });
+  assert(report.homeStart.motionMs < 400, 'A reliable BPM must start movement without waiting');
+  assert(report.homeStart.notesMs < 1000, 'Notes must start on the next beat');
   report.checks.push('First reliable BPM starts the home music pose, sway and notes');
   for (let i = 0; i < 5; i++) await classify();
   await page.waitForTimeout(1100);

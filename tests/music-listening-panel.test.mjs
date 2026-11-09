@@ -84,6 +84,18 @@ test('an explicit animation toggle starts and stops listening, but restoring pre
     });
     panel.show({ phase: 'off', enabled: false, settings: { enabled: true } });
     assert.deepEqual(calls, []);
+    panel.status({
+      phase: 'listening',
+      enabled: true,
+      hearingMusic: true,
+      tempo: 0,
+      tempoConfidence: 0,
+      settings: { enabled: true },
+    });
+    assert.equal(panel.get('status').textContent, 'Music detected · BPM …');
+    panel.status({ tempo: 120.3, tempoConfidence: 0.8 });
+    assert.equal(panel.get('status').textContent, 'Music detected · BPM 120');
+    panel.show({ phase: 'off', enabled: false, hearingMusic: false, settings: { enabled: true } });
     panel.get('enabled').checked = false;
     await panel.get('enabled').onchange();
     assert.deepEqual(calls, []);

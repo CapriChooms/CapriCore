@@ -6,10 +6,14 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import signal
 import sys
+import threading
 import time
 
 TAIL_BYTES = 64 * 1024
+ATTEMPT_TIMEOUT_SECONDS = 15 * 60
+ATTEMPT_TIMEOUT_CODE = 'CAPRI_DEPENDENCY_ATTEMPT_TIMEOUT'
 ROOT = Path(__file__).resolve().parents[2]
 _PYTORCH_R2 = re.compile(r'https://download-r2\.pytorch\.org/whl/(cu\d+)/(?:torch|torchaudio)-', re.I)
 _PERMANENT = re.compile(
@@ -45,7 +49,16 @@ _NETWORK = re.compile(
 
 def transient_failure(returncode, output):
     """An exit code/early EOF alone cannot establish a retryable Git failure."""
-    if returncode not in (1, 2, 128) or _PERMANENT.search(output):
+    if returncode not in (1, 2, 128):
+        return None
+    fatal = output
+    # uv can wrap a timed-out wheel stream as an invalid package and then print
+    # "requirements are unsatisfiable". Only that proven transport wrapper is
+    # retryable; hash, certificate, authentication and real resolver errors stay fatal.
+    if (re.search(r'invalid package format', output, re.I) and
+            re.search(r'Failed to download distribution due to network timeout', output, re.I)):
+        fatal = re.sub(r'no solution found|requirements are unsatisfiable', '', output, flags=re.I)
+    if _PERMANENT.search(fatal):
         return None
     curl = _CURL.search(output)
     if curl and int(curl[1]) in {6, 7, 16, 18, 28, 52, 55, 56, 92}:
@@ -76,23 +89,71 @@ def _write_output(chunk):
     sys.stdout.buffer.flush()
 
 
-def stream_process(command, env, output=_write_output):
+def _stop_owned_tree(process):
+    if process.poll() is not None:
+        return
+    if os.name == 'nt':
+        try:
+            subprocess.run(['taskkill.exe', '/PID', str(process.pid), '/T', '/F'],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           creationflags=subprocess.CREATE_NO_WINDOW, timeout=5, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    if process.poll() is None:
+        process.kill()
+
+
+def stream_process(command, env, output=_write_output, *, timeout_seconds=ATTEMPT_TIMEOUT_SECONDS):
     """Stream progress immediately and retain only a bounded diagnostic tail."""
     options = {'stdout': subprocess.PIPE, 'stderr': subprocess.STDOUT, 'env': env}
     if os.name == 'nt':
         options['creationflags'] = subprocess.CREATE_NO_WINDOW
+    else:
+        options['start_new_session'] = True
     with subprocess.Popen(command, **options) as process:
         tail = b''
+        stopped, expired = threading.Event(), threading.Event()
+        pause = env.get('CAPRI_INSTALL_PAUSE_FILE')
+
+        def watchdog():
+            active, previous = 0.0, time.monotonic()
+            while not stopped.wait(min(1.0, timeout_seconds / 10)):
+                now = time.monotonic()
+                if not pause or not Path(pause).exists():
+                    active += now - previous
+                previous = now
+                if active >= timeout_seconds and process.poll() is None:
+                    expired.set()
+                    _stop_owned_tree(process)
+                    return
+
+        monitor = threading.Thread(target=watchdog, daemon=True)
+        monitor.start()
         try:
             while chunk := process.stdout.read1(4096):
                 output(chunk)
                 tail = (tail + chunk)[-TAIL_BYTES:]
-            return process.wait(), tail.decode('utf-8', errors='replace')
+            code = process.wait()
+            text = tail.decode('utf-8', errors='replace')
+            if expired.is_set():
+                message = (ATTEMPT_TIMEOUT_CODE + ': Voice dependency download timed out '
+                           '(network timeout). Completed cached packages were preserved.\n')
+                output(message.encode('utf-8'))
+                return 2, text + '\n' + message
+            return code, text
         except BaseException:
             # The installer cancels the enclosing owned process tree. Standalone
             # interruption must also stop the immediate uv process before leaving.
-            process.kill()
+            _stop_owned_tree(process)
             raise
+        finally:
+            stopped.set()
+            monitor.join(timeout=6)
 
 
 def wait_for_resume(environ):
@@ -103,7 +164,8 @@ def wait_for_resume(environ):
 
 def pytorch_fallback(command, profile, output):
     """Use reviewed direct URLs, never construct download URLs from error text."""
-    if profile not in {'legacy', 'blackwell'} or not _PYTORCH_R2.search(output):
+    stalled = ATTEMPT_TIMEOUT_CODE in output
+    if profile not in {'legacy', 'blackwell'} or not (_PYTORCH_R2.search(output) or stalled):
         return None
     selected = json.loads((ROOT / 'config/voice-runtime.json').read_text(encoding='utf-8'))['profiles'][profile]
     # Do not accidentally change another environment's CUDA/profile selection.
@@ -111,7 +173,7 @@ def pytorch_fallback(command, profile, output):
         backend = command[command.index('--torch-backend') + 1]
     except (ValueError, IndexError):
         return None
-    if backend != selected['backend'] or _PYTORCH_R2.search(output)[1] != backend:
+    if backend != selected['backend'] or (not stalled and _PYTORCH_R2.search(output)[1] != backend):
         return None
     constraints = ROOT / selected['transportConstraints']
     if not constraints.is_file():
@@ -131,6 +193,8 @@ def run_uv(command, *, environ=None, run=stream_process, sleep=time.sleep,
     if not any(key in base_env for key in ('UV_HTTP_TIMEOUT','UV_REQUEST_TIMEOUT','HTTP_TIMEOUT')):
         base_env['UV_HTTP_TIMEOUT'] = '120'
     base_env.setdefault('UV_HTTP_CONNECT_TIMEOUT','30')
+    # uv's own retries otherwise multiply our three whole-operation attempts.
+    base_env.setdefault('UV_HTTP_RETRIES', '0')
     adaptive_downloads = 'UV_CONCURRENT_DOWNLOADS' not in base_env
     base_env.setdefault('UV_CONCURRENT_DOWNLOADS','8')
     git_fallback = False
@@ -161,7 +225,7 @@ def run_uv(command, *, environ=None, run=stream_process, sleep=time.sleep,
             if alternate:
                 active_command = alternate
                 torch_fallback = True
-                notify('PyTorch file delivery via download-r2.pytorch.org was interrupted. '
+                notify('PyTorch file delivery was interrupted or timed out. '
                        'Switching to official download.pytorch.org with the same CUDA versions and pinned SHA-256 checksums.')
         git_fallback = git_fallback or reason.startswith('git-')
         notify('Voice dependency transfer interrupted (' + reason + '). Retrying ' +
@@ -181,6 +245,9 @@ def main():
     if len(arguments) < 2 or arguments[0] != 'pip' or arguments[1] not in {'sync', 'install'}:
         parser.error('Only locked uv pip sync/install commands are supported')
     try:
+        print('Voice dependencies: at most 3 attempts; stalled network reads time out after '
+              '120 seconds. Each attempt is limited to 15 active minutes; user pauses do not count.',
+              flush=True)
         return run_uv([args.uv, *arguments], pytorch_profile=args.pytorch_profile)
     except KeyboardInterrupt:
         return 130

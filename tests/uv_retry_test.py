@@ -10,8 +10,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 import zipfile
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, unquote
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -320,6 +323,113 @@ cause: operation timed out'''
                                 text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), 'HTTP/1.1')
+
+    def test_a_silent_dependency_process_and_its_child_are_stopped_at_the_attempt_deadline(self):
+        output = io.BytesIO()
+        started = time.monotonic()
+        child = "import time; time.sleep(30)"
+        command = [sys.executable, '-u', '-c',
+                   "import subprocess,sys,time; subprocess.Popen([sys.executable,'-c'," + repr(child) +
+                   "]); print('Downloading torch (2.4GiB)',flush=True); time.sleep(30)"]
+        code, tail = retry.stream_process(command, dict(os.environ), output=output.write,
+                                          timeout_seconds=0.2)
+        self.assertEqual(code, 2)
+        self.assertIn(retry.ATTEMPT_TIMEOUT_CODE, tail)
+        self.assertIn(b'Downloading torch', output.getvalue())
+        self.assertLess(time.monotonic() - started, 7)
+        self.assertEqual(retry.transient_failure(code, tail), 'package-network')
+
+    def test_ui_pause_time_does_not_consume_the_dependency_deadline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            pause = Path(directory) / 'pause'
+            pause.touch()
+            resume = threading.Timer(0.5, pause.unlink)
+            resume.start()
+            try:
+                code, tail = retry.stream_process(
+                    [sys.executable, '-c', "import time; time.sleep(0.6); print('ready')"],
+                    {**os.environ, 'CAPRI_INSTALL_PAUSE_FILE': str(pause)},
+                    output=lambda _: None, timeout_seconds=0.3)
+                self.assertEqual(code, 0, tail)
+            finally:
+                resume.join()
+
+    def test_stalled_dependency_attempts_are_limited_and_select_the_pinned_official_alternate(self):
+        calls, notices = [], []
+        command = ['uv.exe', 'pip', 'sync', 'reviewed.lock', '--torch-backend', 'cu124']
+        timeout = retry.ATTEMPT_TIMEOUT_CODE + ': dependency network timeout'
+        environment = {'UV_CACHE_DIR': 'keep-existing-cache'}
+        def stalled(args, env):
+            calls.append((args, env))
+            return 2, timeout
+        self.assertEqual(retry.run_uv(command, environ=environment, run=stalled,
+                                      sleep=lambda _: None, notify=notices.append,
+                                      pytorch_profile='legacy'), 2)
+        self.assertEqual(len(calls), 3)
+        self.assertNotIn('--constraints', calls[0][0])
+        self.assertIn('--constraints', calls[1][0])
+        self.assertEqual(calls[1][0], calls[2][0])
+        self.assertTrue(all(env['UV_HTTP_RETRIES'] == '0' for _, env in calls))
+        self.assertTrue(all(env['UV_CACHE_DIR'] == 'keep-existing-cache' for _, env in calls))
+        self.assertEqual(environment, {'UV_CACHE_DIR': 'keep-existing-cache'})
+        self.assertTrue(any('after 3 attempts' in notice for notice in notices))
+
+    def test_real_uv_stalled_http_download_does_not_multiply_retries(self):
+        uv = shutil.which('uv')
+        if not uv:
+            self.skipTest('uv required for local stalled-HTTP integration')
+        requests = []
+        class Stalled(BaseHTTPRequestHandler):
+            def do_HEAD(self):
+                self.send_response(200)
+                self.send_header('Content-Length', '100000')
+                self.end_headers()
+            def do_GET(self):
+                requests.append(self.path)
+                self.send_response(200)
+                self.send_header('Content-Length', '100000')
+                self.end_headers()
+                time.sleep(3)
+            def log_message(self, *_):
+                pass
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Stalled)
+        serving = threading.Thread(target=server.serve_forever, daemon=True)
+        serving.start()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                env = {**os.environ, 'UV_NO_CONFIG': '1', 'UV_CACHE_DIR': str(Path(directory)/'cache'),
+                       'UV_HTTP_TIMEOUT': '1', 'UV_HTTP_CONNECT_TIMEOUT': '1', 'NO_PROXY': '127.0.0.1'}
+                venv = Path(directory)/'venv'
+                created = subprocess.run([uv, 'venv', str(venv), '--python', sys.executable, '--offline'],
+                                         env=env, capture_output=True, timeout=15)
+                self.assertEqual(created.returncode, 0, created.stderr)
+                python = venv/('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+                url = f'http://127.0.0.1:{server.server_port}/stallfixture-1.0-py3-none-any.whl'
+                attempts, outcomes = [], []
+                def run(args, child_env):
+                    attempts.append(args)
+                    result = retry.stream_process(args, child_env, output=lambda _: None, timeout_seconds=8)
+                    outcomes.append(result)
+                    return result
+                code = retry.run_uv([uv, 'pip', 'install', '--python', str(python), '--no-deps', '--no-index', url],
+                                    environ=env, run=run, sleep=lambda _: None, notify=lambda _: None)
+                self.assertNotEqual(code, 0)
+                self.assertEqual(len(attempts), 3, outcomes)
+                self.assertEqual(len(requests), 3, 'uv must not add its own retries inside each attempt')
+        finally:
+            server.shutdown()
+            server.server_close()
+            serving.join(timeout=2)
+
+    def test_network_timeout_inside_uv_resolver_wrapper_never_hides_real_integrity_failures(self):
+        wrapped = ('error: No solution found when resolving dependencies\n'
+                   'wheel has an invalid package format; requirements are unsatisfiable\n'
+                   'Caused by: Failed to download distribution due to network timeout.')
+        self.assertEqual(retry.transient_failure(1, wrapped), 'package-network')
+        for permanent in ['Hash mismatch', 'certificate verify failed', 'HTTP 403',
+                          'Permission denied', 'Failed to build wheel']:
+            self.assertIsNone(retry.transient_failure(1, wrapped + '\n' + permanent))
+        self.assertIsNone(retry.transient_failure(1, wrapped.replace('due to network timeout', 'due to invalid ZIP')))
 
     def test_streams_progress_and_bounds_the_retained_tail(self):
         stream = io.BytesIO()

@@ -463,6 +463,8 @@ async function transactionFixture({
   }
   const execute = async (file, args, options) => {
     assert.equal(options.env.OPENCLAW_GATEWAY_TOKEN, undefined);
+    if (args.some((arg) => arg.endsWith('setup-voice-training.ps1')))
+      options.output('Downloading torch (2.4GiB)');
     if (args.some((arg) => arg.endsWith('setup-request-router.ps1')))
       speechSetupCalls.push('router');
     if (args.some((arg) => arg.endsWith('setup-qwen-tts.ps1'))) {
@@ -584,6 +586,18 @@ async function transactionFixture({
   else await running;
   assert.equal(readFileSync(canary, 'utf8'), 'private memory canary');
   const state = json(path.join(target, '.runtime/installer/state.json'));
+  if (state.status === 'complete' && voiceLanguage && voiceMode !== 'qwen') {
+    const voiceActivities = events.filter(
+      (event) => event.type === 'activity' && event.step === 'voice-runtime',
+    );
+    assert(voiceActivities.some((event) => event.action === 'installDependencies'));
+    assert.deepEqual(voiceActivities.at(-1), {
+      type: 'activity',
+      step: 'voice-runtime',
+      action: 'downloadRuntime',
+      component: 'PyTorch',
+    });
+  }
   assert.equal(
     state.status,
     cancel || cancelModels

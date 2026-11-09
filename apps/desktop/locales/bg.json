@@ -1958,7 +1958,16 @@
     "Event": "Събитие",
     "Since request": "Откъм заявката",
     "Invalid log selection.": "Невалиден избор на лог.",
-    "The logs folder is not available yet.": "Папката за лога все още не е налична."
+    "The logs folder is not available yet.": "Папката за лога все още не е налична.",
+    "API connections": "API връзки",
+    "API provider": "API доставчик",
+    "Open models folder": "Отваряне на папката с модели",
+    "The models folder could not be opened.": "Папката с модели не може да бъде отворена.",
+    "How to connect an API": "Как да свържете API",
+    "Use the API base URL from the provider, not its website address.": "Използвайте базовия URL на API на доставчика, а не адреса на сайта му.",
+    "Copy the exact model ID from the provider's model list.": "Копирайте точния ID на модела от списъка с модели на доставчика.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Създайте API ключ в профила си при доставчика и го поставете тук. Пазете го в тайна.",
+    "Example: {value}": "Пример: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

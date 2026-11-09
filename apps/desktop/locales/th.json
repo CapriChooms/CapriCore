@@ -1958,7 +1958,16 @@
     "Event": "เหตุการณ์",
     "Since request": "นับตั้งแต่วินาทีของคำขอ",
     "Invalid log selection.": "การเลือกบันทึกข้อมูลไม่ถูกต้อง",
-    "The logs folder is not available yet.": "โฟลเดอร์บันทึกข้อมูลยังพร้อมใช้งานไม่ได้"
+    "The logs folder is not available yet.": "โฟลเดอร์บันทึกข้อมูลยังพร้อมใช้งานไม่ได้",
+    "API connections": "การเชื่อมต่อ API",
+    "API provider": "ผู้ให้บริการ API",
+    "Open models folder": "เปิดโฟลเดอร์โมเดล",
+    "The models folder could not be opened.": "ไม่สามารถเปิดโฟลเดอร์โมเดลได้",
+    "How to connect an API": "วิธีเชื่อมต่อ API",
+    "Use the API base URL from the provider, not its website address.": "ใช้ URL ฐานของ API จากผู้ให้บริการ ไม่ใช่ที่อยู่เว็บไซต์",
+    "Copy the exact model ID from the provider's model list.": "คัดลอก ID โมเดลที่ตรงกันจากรายการโมเดลของผู้ให้บริการ",
+    "Create an API key in your provider account and paste it here. Keep it private.": "สร้างคีย์ API ในบัญชีผู้ให้บริการของคุณแล้ววางที่นี่ เก็บคีย์ไว้เป็นความลับ",
+    "Example: {value}": "ตัวอย่าง: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

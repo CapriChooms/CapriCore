@@ -1958,7 +1958,16 @@
     "Event": "Notikums",
     "Since request": "No pieprasījuma",
     "Invalid log selection.": "Neefektīvs žurnāla atlase.",
-    "The logs folder is not available yet.": "Žurnāla aplubi nav pieejams līdz šim."
+    "The logs folder is not available yet.": "Žurnāla aplubi nav pieejams līdz šim.",
+    "API connections": "API savienojumi",
+    "API provider": "API pakalpojuma sniedzējs",
+    "Open models folder": "Atvērt modeļu mapi",
+    "The models folder could not be opened.": "Neizdevās atvērt modeļu mapi.",
+    "How to connect an API": "Kā pievienot API",
+    "Use the API base URL from the provider, not its website address.": "Izmantojiet pakalpojuma sniedzēja API pamatadresi, nevis tā tīmekļvietnes adresi.",
+    "Copy the exact model ID from the provider's model list.": "Nokopējiet precīzu modeļa ID no pakalpojuma sniedzēja modeļu saraksta.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Izveidojiet API atslēgu savā pakalpojuma sniedzēja kontā un ielīmējiet to šeit. Glabājiet to slepenībā.",
+    "Example: {value}": "Piemērs: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

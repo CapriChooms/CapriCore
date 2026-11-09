@@ -1961,7 +1961,16 @@
         "Event": "Event",
         "Since request": "Since request",
         "Invalid log selection.": "Invalid log selection.",
-        "The logs folder is not available yet.": "The logs folder is not available yet."
+        "The logs folder is not available yet.": "The logs folder is not available yet.",
+        "API connections": "API connections",
+        "API provider": "API provider",
+        "Open models folder": "Open models folder",
+        "The models folder could not be opened.": "The models folder could not be opened.",
+        "How to connect an API": "How to connect an API",
+        "Use the API base URL from the provider, not its website address.": "Use the API base URL from the provider, not its website address.",
+        "Copy the exact model ID from the provider's model list.": "Copy the exact model ID from the provider's model list.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Create an API key in your provider account and paste it here. Keep it private.",
+        "Example: {value}": "Example: {value}"
       }
     },
     "ru": {
@@ -3923,7 +3932,16 @@
         "Event": "Событие",
         "Since request": "С начала запроса",
         "Invalid log selection.": "Недопустимый журнал.",
-        "The logs folder is not available yet.": "Папка логов пока недоступна."
+        "The logs folder is not available yet.": "Папка логов пока недоступна.",
+        "API connections": "Подключения API",
+        "API provider": "Провайдер API",
+        "Open models folder": "Открыть папку моделей",
+        "The models folder could not be opened.": "Не удалось открыть папку моделей.",
+        "How to connect an API": "Как подключить API",
+        "Use the API base URL from the provider, not its website address.": "Вставьте базовый адрес API из документации провайдера, а не адрес его сайта.",
+        "Copy the exact model ID from the provider's model list.": "Скопируйте точный ID модели из списка моделей провайдера.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Создайте API-ключ в личном кабинете провайдера и вставьте его сюда. Не передавайте его другим.",
+        "Example: {value}": "Пример: {value}"
       }
     },
     "de": {
@@ -5885,7 +5903,16 @@
         "Event": "Ereignis",
         "Since request": "Seit Anforderung",
         "Invalid log selection.": "Ungültige Logauswahl.",
-        "The logs folder is not available yet.": "Der Logs-Ordner ist noch nicht verfügbar."
+        "The logs folder is not available yet.": "Der Logs-Ordner ist noch nicht verfügbar.",
+        "API connections": "API-Verbindungen",
+        "API provider": "API-Anbieter",
+        "Open models folder": "Modellordner öffnen",
+        "The models folder could not be opened.": "Der Modellordner konnte nicht geöffnet werden.",
+        "How to connect an API": "So verbindest du eine API",
+        "Use the API base URL from the provider, not its website address.": "Verwende die API-Basis-URL des Anbieters, nicht dessen Website-Adresse.",
+        "Copy the exact model ID from the provider's model list.": "Kopiere die genaue Modell-ID aus der Modellliste des Anbieters.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Erstelle einen API-Schlüssel in deinem Anbieterkonto und füge ihn hier ein. Halte ihn geheim.",
+        "Example: {value}": "Beispiel: {value}"
       }
     },
     "fr": {
@@ -7847,7 +7874,16 @@
         "Event": "Événement",
         "Since request": "Depuis la demande",
         "Invalid log selection.": "Sélection de journal invalide.",
-        "The logs folder is not available yet.": "Le dossier des journaux n'est pas disponible pour le moment."
+        "The logs folder is not available yet.": "Le dossier des journaux n'est pas disponible pour le moment.",
+        "API connections": "Connexions API",
+        "API provider": "Fournisseur API",
+        "Open models folder": "Ouvrir le dossier des modèles",
+        "The models folder could not be opened.": "Impossible d’ouvrir le dossier des modèles.",
+        "How to connect an API": "Comment connecter une API",
+        "Use the API base URL from the provider, not its website address.": "Utilisez l’URL de base de l’API du fournisseur, et non celle de son site web.",
+        "Copy the exact model ID from the provider's model list.": "Copiez l’identifiant exact du modèle dans la liste des modèles du fournisseur.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Créez une clé API dans votre compte fournisseur et collez-la ici. Gardez-la secrète.",
+        "Example: {value}": "Exemple : {value}"
       }
     },
     "es": {
@@ -9809,7 +9845,16 @@
         "Event": "Evento",
         "Since request": "Desde la solicitud",
         "Invalid log selection.": "Selección de registro inválida.",
-        "The logs folder is not available yet.": "La carpeta de registros no está disponible aún."
+        "The logs folder is not available yet.": "La carpeta de registros no está disponible aún.",
+        "API connections": "Conexiones API",
+        "API provider": "Proveedor de API",
+        "Open models folder": "Abrir carpeta de modelos",
+        "The models folder could not be opened.": "No se pudo abrir la carpeta de modelos.",
+        "How to connect an API": "Cómo conectar una API",
+        "Use the API base URL from the provider, not its website address.": "Usa la URL base de la API del proveedor, no la dirección de su sitio web.",
+        "Copy the exact model ID from the provider's model list.": "Copia el ID exacto del modelo de la lista de modelos del proveedor.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Crea una clave API en tu cuenta del proveedor y pégala aquí. Mantenla privada.",
+        "Example: {value}": "Ejemplo: {value}"
       }
     },
     "it": {
@@ -11771,7 +11816,16 @@
         "Event": "Evento",
         "Since request": "Dalla richiesta",
         "Invalid log selection.": "Selezione log non valida.",
-        "The logs folder is not available yet.": "La cartella log non è disponibile ancora."
+        "The logs folder is not available yet.": "La cartella log non è disponibile ancora.",
+        "API connections": "Connessioni API",
+        "API provider": "Provider API",
+        "Open models folder": "Apri cartella dei modelli",
+        "The models folder could not be opened.": "Impossibile aprire la cartella dei modelli.",
+        "How to connect an API": "Come collegare un’API",
+        "Use the API base URL from the provider, not its website address.": "Usa l’URL di base dell’API del provider, non l’indirizzo del suo sito web.",
+        "Copy the exact model ID from the provider's model list.": "Copia l’ID esatto del modello dall’elenco dei modelli del provider.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Crea una chiave API nel tuo account del provider e incollala qui. Mantienila segreta.",
+        "Example: {value}": "Esempio: {value}"
       }
     },
     "pt": {
@@ -13733,7 +13787,16 @@
         "Event": "Evento",
         "Since request": "Desde a solicitação",
         "Invalid log selection.": "Seleção de registro inválida.",
-        "The logs folder is not available yet.": "A pasta de registros não está disponível ainda."
+        "The logs folder is not available yet.": "A pasta de registros não está disponível ainda.",
+        "API connections": "Conexões de API",
+        "API provider": "Provedor de API",
+        "Open models folder": "Abrir pasta de modelos",
+        "The models folder could not be opened.": "Não foi possível abrir a pasta de modelos.",
+        "How to connect an API": "Como conectar uma API",
+        "Use the API base URL from the provider, not its website address.": "Use a URL base da API do provedor, não o endereço do site dele.",
+        "Copy the exact model ID from the provider's model list.": "Copie o ID exato do modelo da lista de modelos do provedor.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Crie uma chave de API na sua conta do provedor e cole aqui. Mantenha-a em segredo.",
+        "Example: {value}": "Exemplo: {value}"
       }
     },
     "nl": {
@@ -15695,7 +15758,16 @@
         "Event": "Evenement",
         "Since request": "Omdat aanvraag",
         "Invalid log selection.": "Ongeldig logselectie.",
-        "The logs folder is not available yet.": "De logsmap is nog niet beschikbaar."
+        "The logs folder is not available yet.": "De logsmap is nog niet beschikbaar.",
+        "API connections": "API-verbindingen",
+        "API provider": "API-provider",
+        "Open models folder": "Modellenmap openen",
+        "The models folder could not be opened.": "De modellenmap kon niet worden geopend.",
+        "How to connect an API": "Een API verbinden",
+        "Use the API base URL from the provider, not its website address.": "Gebruik de basis-URL van de API van de provider, niet het websiteadres.",
+        "Copy the exact model ID from the provider's model list.": "Kopieer de exacte model-ID uit de modellenlijst van de provider.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Maak een API-sleutel aan in je provideraccount en plak die hier. Houd de sleutel geheim.",
+        "Example: {value}": "Voorbeeld: {value}"
       }
     },
     "pl": {
@@ -17657,7 +17729,16 @@
         "Event": "Zdarzenie",
         "Since request": "Od żądania",
         "Invalid log selection.": "Nieprawidłowy wybór dziennika.",
-        "The logs folder is not available yet.": "Folder dzienników nie jest jeszcze dostępny."
+        "The logs folder is not available yet.": "Folder dzienników nie jest jeszcze dostępny.",
+        "API connections": "Połączenia API",
+        "API provider": "Dostawca API",
+        "Open models folder": "Otwórz folder modeli",
+        "The models folder could not be opened.": "Nie udało się otworzyć folderu modeli.",
+        "How to connect an API": "Jak połączyć API",
+        "Use the API base URL from the provider, not its website address.": "Użyj bazowego adresu API dostawcy, a nie adresu jego strony internetowej.",
+        "Copy the exact model ID from the provider's model list.": "Skopiuj dokładny identyfikator modelu z listy modeli dostawcy.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Utwórz klucz API na koncie dostawcy i wklej go tutaj. Zachowaj go w tajemnicy.",
+        "Example: {value}": "Przykład: {value}"
       }
     },
     "uk": {
@@ -19619,7 +19700,16 @@
         "Event": "Подія",
         "Since request": "Оскільки запиту",
         "Invalid log selection.": "Невалидне вибір журналу.",
-        "The logs folder is not available yet.": "Фолдер журналів ще не доступний."
+        "The logs folder is not available yet.": "Фолдер журналів ще не доступний.",
+        "API connections": "Підключення API",
+        "API provider": "Провайдер API",
+        "Open models folder": "Відкрити папку моделей",
+        "The models folder could not be opened.": "Не вдалося відкрити папку моделей.",
+        "How to connect an API": "Як підключити API",
+        "Use the API base URL from the provider, not its website address.": "Вставте базову адресу API провайдера, а не адресу його сайту.",
+        "Copy the exact model ID from the provider's model list.": "Скопіюйте точний ID моделі зі списку моделей провайдера.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Створіть API-ключ в обліковому записі провайдера та вставте його сюди. Зберігайте його в таємниці.",
+        "Example: {value}": "Приклад: {value}"
       }
     },
     "cs": {
@@ -21581,7 +21671,16 @@
         "Event": "Udánost",
         "Since request": "Od požadavku",
         "Invalid log selection.": "Neplatný výběr logu.",
-        "The logs folder is not available yet.": "Složka s logy zatím není k dispozici."
+        "The logs folder is not available yet.": "Složka s logy zatím není k dispozici.",
+        "API connections": "Připojení API",
+        "API provider": "Poskytovatel API",
+        "Open models folder": "Otevřít složku modelů",
+        "The models folder could not be opened.": "Složku modelů se nepodařilo otevřít.",
+        "How to connect an API": "Jak připojit API",
+        "Use the API base URL from the provider, not its website address.": "Použijte základní URL API poskytovatele, nikoli adresu jeho webu.",
+        "Copy the exact model ID from the provider's model list.": "Zkopírujte přesné ID modelu ze seznamu modelů poskytovatele.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Vytvořte klíč API ve svém účtu u poskytovatele a vložte jej sem. Uchovávejte jej v tajnosti.",
+        "Example: {value}": "Příklad: {value}"
       }
     },
     "sk": {
@@ -23543,7 +23642,16 @@
         "Event": "Udalosť",
         "Since request": "Od požiadavky",
         "Invalid log selection.": "Neplatný výber logu.",
-        "The logs folder is not available yet.": "Priečinok logov nie je ešte dostupný."
+        "The logs folder is not available yet.": "Priečinok logov nie je ešte dostupný.",
+        "API connections": "Pripojenia API",
+        "API provider": "Poskytovateľ API",
+        "Open models folder": "Otvoriť priečinok modelov",
+        "The models folder could not be opened.": "Priečinok modelov sa nepodarilo otvoriť.",
+        "How to connect an API": "Ako pripojiť API",
+        "Use the API base URL from the provider, not its website address.": "Použite základnú URL API poskytovateľa, nie adresu jeho webu.",
+        "Copy the exact model ID from the provider's model list.": "Skopírujte presné ID modelu zo zoznamu modelov poskytovateľa.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Vytvorte kľúč API vo svojom účte u poskytovateľa a vložte ho sem. Uchovávajte ho v tajnosti.",
+        "Example: {value}": "Príklad: {value}"
       }
     },
     "bg": {
@@ -25505,7 +25613,16 @@
         "Event": "Събитие",
         "Since request": "Откъм заявката",
         "Invalid log selection.": "Невалиден избор на лог.",
-        "The logs folder is not available yet.": "Папката за лога все още не е налична."
+        "The logs folder is not available yet.": "Папката за лога все още не е налична.",
+        "API connections": "API връзки",
+        "API provider": "API доставчик",
+        "Open models folder": "Отваряне на папката с модели",
+        "The models folder could not be opened.": "Папката с модели не може да бъде отворена.",
+        "How to connect an API": "Как да свържете API",
+        "Use the API base URL from the provider, not its website address.": "Използвайте базовия URL на API на доставчика, а не адреса на сайта му.",
+        "Copy the exact model ID from the provider's model list.": "Копирайте точния ID на модела от списъка с модели на доставчика.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Създайте API ключ в профила си при доставчика и го поставете тук. Пазете го в тайна.",
+        "Example: {value}": "Пример: {value}"
       }
     },
     "hr": {
@@ -27467,7 +27584,16 @@
         "Event": "Događaj",
         "Since request": "Od zahtjeva",
         "Invalid log selection.": "Nevaljan odabir dnevnika.",
-        "The logs folder is not available yet.": "Mapa dnevnika još nije dostupna."
+        "The logs folder is not available yet.": "Mapa dnevnika još nije dostupna.",
+        "API connections": "API veze",
+        "API provider": "Pružatelj API-ja",
+        "Open models folder": "Otvori mapu modela",
+        "The models folder could not be opened.": "Mapu modela nije moguće otvoriti.",
+        "How to connect an API": "Kako povezati API",
+        "Use the API base URL from the provider, not its website address.": "Upotrijebite osnovni URL API-ja pružatelja, a ne adresu njegove web-stranice.",
+        "Copy the exact model ID from the provider's model list.": "Kopirajte točan ID modela s popisa modela pružatelja.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Izradite API ključ na računu kod pružatelja i zalijepite ga ovdje. Čuvajte ga u tajnosti.",
+        "Example: {value}": "Primjer: {value}"
       }
     },
     "sr": {
@@ -29429,7 +29555,16 @@
         "Event": "Događaj",
         "Since request": "Od zahteva",
         "Invalid log selection.": "Nevaljan izbor loga.",
-        "The logs folder is not available yet.": "Mapa logova još uvijek nije dostupna."
+        "The logs folder is not available yet.": "Mapa logova još uvijek nije dostupna.",
+        "API connections": "API везе",
+        "API provider": "API провајдер",
+        "Open models folder": "Отвори фасциклу модела",
+        "The models folder could not be opened.": "Није могуће отворити фасциклу модела.",
+        "How to connect an API": "Како повезати API",
+        "Use the API base URL from the provider, not its website address.": "Унесите основни URL API-ја провајдера, а не адресу његовог сајта.",
+        "Copy the exact model ID from the provider's model list.": "Копирајте тачан ID модела из листе модела провајдера.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Направите API кључ на налогу код провајдера и налепите га овде. Чувајте га у тајности.",
+        "Example: {value}": "Пример: {value}"
       }
     },
     "sl": {
@@ -31391,7 +31526,16 @@
         "Event": "Dogodek",
         "Since request": "Od zahtevka",
         "Invalid log selection.": "Neveljaven izbor dnevnika.",
-        "The logs folder is not available yet.": "Mapa dnevnika trenutno ni na voljo."
+        "The logs folder is not available yet.": "Mapa dnevnika trenutno ni na voljo.",
+        "API connections": "Povezave API",
+        "API provider": "Ponudnik API",
+        "Open models folder": "Odpri mapo modelov",
+        "The models folder could not be opened.": "Mape modelov ni bilo mogoče odpreti.",
+        "How to connect an API": "Kako povezati API",
+        "Use the API base URL from the provider, not its website address.": "Uporabite osnovni URL API ponudnika, ne naslova njegove spletne strani.",
+        "Copy the exact model ID from the provider's model list.": "Kopirajte točen ID modela s ponudnikovega seznama modelov.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Ustvarite ključ API v svojem računu pri ponudniku in ga prilepite sem. Ohranite ga zasebnega.",
+        "Example: {value}": "Primer: {value}"
       }
     },
     "ro": {
@@ -33353,7 +33497,16 @@
         "Event": "Eveniment",
         "Since request": "De la cerere",
         "Invalid log selection.": "Selectare de log invalidă.",
-        "The logs folder is not available yet.": "Folderul cu loguri nu este disponibil încă."
+        "The logs folder is not available yet.": "Folderul cu loguri nu este disponibil încă.",
+        "API connections": "Conexiuni API",
+        "API provider": "Furnizor API",
+        "Open models folder": "Deschide dosarul modelelor",
+        "The models folder could not be opened.": "Dosarul modelelor nu a putut fi deschis.",
+        "How to connect an API": "Cum conectezi un API",
+        "Use the API base URL from the provider, not its website address.": "Folosește adresa de bază a API-ului furnizorului, nu adresa site-ului său.",
+        "Copy the exact model ID from the provider's model list.": "Copiază ID-ul exact al modelului din lista de modele a furnizorului.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Creează o cheie API în contul tău la furnizor și lipește-o aici. Păstreaz-o secretă.",
+        "Example: {value}": "Exemplu: {value}"
       }
     },
     "hu": {
@@ -35315,7 +35468,16 @@
         "Event": "Esemény",
         "Since request": "Mivel a kérés",
         "Invalid log selection.": "Érvénytelen naplóválasztás.",
-        "The logs folder is not available yet.": "A napló mappa még nem érhető el."
+        "The logs folder is not available yet.": "A napló mappa még nem érhető el.",
+        "API connections": "API-kapcsolatok",
+        "API provider": "API-szolgáltató",
+        "Open models folder": "Modellek mappájának megnyitása",
+        "The models folder could not be opened.": "Nem sikerült megnyitni a modellek mappáját.",
+        "How to connect an API": "API csatlakoztatása",
+        "Use the API base URL from the provider, not its website address.": "A szolgáltató API-jának alap-URL-jét használd, ne a weboldala címét.",
+        "Copy the exact model ID from the provider's model list.": "Másold ki a pontos modellazonosítót a szolgáltató modelllistájából.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Hozz létre API-kulcsot a szolgáltatói fiókodban, és illeszd be ide. Tartsd titokban.",
+        "Example: {value}": "Példa: {value}"
       }
     },
     "el": {
@@ -37277,7 +37439,16 @@
         "Event": "Γεγονός",
         "Since request": "Από αίτηση",
         "Invalid log selection.": "Άκυρο επιλογή γραφικού.",
-        "The logs folder is not available yet.": "Ο φάκελος των γραφικών δεν είναι ακόμα διαθέσιμος."
+        "The logs folder is not available yet.": "Ο φάκελος των γραφικών δεν είναι ακόμα διαθέσιμος.",
+        "API connections": "Συνδέσεις API",
+        "API provider": "Πάροχος API",
+        "Open models folder": "Άνοιγμα φακέλου μοντέλων",
+        "The models folder could not be opened.": "Δεν ήταν δυνατό το άνοιγμα του φακέλου μοντέλων.",
+        "How to connect an API": "Πώς να συνδέσετε ένα API",
+        "Use the API base URL from the provider, not its website address.": "Χρησιμοποιήστε τη βασική διεύθυνση API του παρόχου, όχι τη διεύθυνση του ιστοτόπου του.",
+        "Copy the exact model ID from the provider's model list.": "Αντιγράψτε το ακριβές ID μοντέλου από τη λίστα μοντέλων του παρόχου.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Δημιουργήστε ένα κλειδί API στον λογαριασμό σας στον πάροχο και επικολλήστε το εδώ. Κρατήστε το μυστικό.",
+        "Example: {value}": "Παράδειγμα: {value}"
       }
     },
     "da": {
@@ -39239,7 +39410,16 @@
         "Event": "Arrangement",
         "Since request": "Sidst siden anmodning",
         "Invalid log selection.": "Ugyldig log-vælg.",
-        "The logs folder is not available yet.": "Logmappen er endnu ikke tilgængelig."
+        "The logs folder is not available yet.": "Logmappen er endnu ikke tilgængelig.",
+        "API connections": "API-forbindelser",
+        "API provider": "API-udbyder",
+        "Open models folder": "Åbn modelmappe",
+        "The models folder could not be opened.": "Modelmappen kunne ikke åbnes.",
+        "How to connect an API": "Sådan tilsluttes en API",
+        "Use the API base URL from the provider, not its website address.": "Brug udbyderens API-basis-URL, ikke adressen på udbyderens websted.",
+        "Copy the exact model ID from the provider's model list.": "Kopiér det præcise model-ID fra udbyderens modelliste.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Opret en API-nøgle på din konto hos udbyderen, og indsæt den her. Hold den hemmelig.",
+        "Example: {value}": "Eksempel: {value}"
       }
     },
     "no": {
@@ -41201,7 +41381,16 @@
         "Event": "Hendelse",
         "Since request": "Siden forespørsel",
         "Invalid log selection.": "Ugyldig loggvalg.",
-        "The logs folder is not available yet.": "Loggmappen er ikke tilgjengelig enda."
+        "The logs folder is not available yet.": "Loggmappen er ikke tilgjengelig enda.",
+        "API connections": "API-tilkoblinger",
+        "API provider": "API-leverandør",
+        "Open models folder": "Åpne modellmappe",
+        "The models folder could not be opened.": "Modellmappen kunne ikke åpnes.",
+        "How to connect an API": "Slik kobler du til en API",
+        "Use the API base URL from the provider, not its website address.": "Bruk leverandørens API-basisadresse, ikke adressen til nettstedet.",
+        "Copy the exact model ID from the provider's model list.": "Kopier nøyaktig modell-ID fra leverandørens modelliste.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Opprett en API-nøkkel på kontoen din hos leverandøren og lim den inn her. Hold den hemmelig.",
+        "Example: {value}": "Eksempel: {value}"
       }
     },
     "sv": {
@@ -43163,7 +43352,16 @@
         "Event": "Händelse",
         "Since request": "Eftersom begäran",
         "Invalid log selection.": "Ogiltig loggväljning.",
-        "The logs folder is not available yet.": "Loggmappen är inte tillgänglig än."
+        "The logs folder is not available yet.": "Loggmappen är inte tillgänglig än.",
+        "API connections": "API-anslutningar",
+        "API provider": "API-leverantör",
+        "Open models folder": "Öppna modellmappen",
+        "The models folder could not be opened.": "Modellmappen kunde inte öppnas.",
+        "How to connect an API": "Så ansluter du ett API",
+        "Use the API base URL from the provider, not its website address.": "Använd leverantörens bas-URL för API:et, inte webbplatsens adress.",
+        "Copy the exact model ID from the provider's model list.": "Kopiera exakt modell-ID från leverantörens modellista.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Skapa en API-nyckel på ditt konto hos leverantören och klistra in den här. Håll den hemlig.",
+        "Example: {value}": "Exempel: {value}"
       }
     },
     "fi": {
@@ -45125,7 +45323,16 @@
         "Event": "Tapahtuma",
         "Since request": "Koska pyyntö",
         "Invalid log selection.": "Virheellinen login valinta.",
-        "The logs folder is not available yet.": "Logihaku ei ole vielä saatavilla."
+        "The logs folder is not available yet.": "Logihaku ei ole vielä saatavilla.",
+        "API connections": "API-yhteydet",
+        "API provider": "API-palveluntarjoaja",
+        "Open models folder": "Avaa mallikansio",
+        "The models folder could not be opened.": "Mallikansiota ei voitu avata.",
+        "How to connect an API": "API:n yhdistäminen",
+        "Use the API base URL from the provider, not its website address.": "Käytä palveluntarjoajan API:n perusosoitetta, älä verkkosivuston osoitetta.",
+        "Copy the exact model ID from the provider's model list.": "Kopioi tarkka mallitunnus palveluntarjoajan malliluettelosta.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Luo API-avain palveluntarjoajan tililläsi ja liitä se tähän. Pidä avain salassa.",
+        "Example: {value}": "Esimerkki: {value}"
       }
     },
     "et": {
@@ -47087,7 +47294,16 @@
         "Event": "Sündmus",
         "Since request": "Kuna palve",
         "Invalid log selection.": "Vale log valik.",
-        "The logs folder is not available yet.": "Logistikustikust ei ole veel saadaval."
+        "The logs folder is not available yet.": "Logistikustikust ei ole veel saadaval.",
+        "API connections": "API ühendused",
+        "API provider": "API pakkuja",
+        "Open models folder": "Ava mudelite kaust",
+        "The models folder could not be opened.": "Mudelite kausta ei saanud avada.",
+        "How to connect an API": "API ühendamine",
+        "Use the API base URL from the provider, not its website address.": "Kasuta teenusepakkuja API põhiaadressi, mitte tema veebilehe aadressi.",
+        "Copy the exact model ID from the provider's model list.": "Kopeeri mudeli täpne ID teenusepakkuja mudelite loendist.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Loo teenusepakkuja kontol API võti ja kleebi see siia. Hoia seda saladuses.",
+        "Example: {value}": "Näide: {value}"
       }
     },
     "lv": {
@@ -49049,7 +49265,16 @@
         "Event": "Notikums",
         "Since request": "No pieprasījuma",
         "Invalid log selection.": "Neefektīvs žurnāla atlase.",
-        "The logs folder is not available yet.": "Žurnāla aplubi nav pieejams līdz šim."
+        "The logs folder is not available yet.": "Žurnāla aplubi nav pieejams līdz šim.",
+        "API connections": "API savienojumi",
+        "API provider": "API pakalpojuma sniedzējs",
+        "Open models folder": "Atvērt modeļu mapi",
+        "The models folder could not be opened.": "Neizdevās atvērt modeļu mapi.",
+        "How to connect an API": "Kā pievienot API",
+        "Use the API base URL from the provider, not its website address.": "Izmantojiet pakalpojuma sniedzēja API pamatadresi, nevis tā tīmekļvietnes adresi.",
+        "Copy the exact model ID from the provider's model list.": "Nokopējiet precīzu modeļa ID no pakalpojuma sniedzēja modeļu saraksta.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Izveidojiet API atslēgu savā pakalpojuma sniedzēja kontā un ielīmējiet to šeit. Glabājiet to slepenībā.",
+        "Example: {value}": "Piemērs: {value}"
       }
     },
     "lt": {
@@ -51011,7 +51236,16 @@
         "Event": "Įvykis",
         "Since request": "Nuo reikalavimo",
         "Invalid log selection.": "Neteisingas dienoraščių pasirinkimas.",
-        "The logs folder is not available yet.": "Dienoraščių aplankas dar neprieinamas."
+        "The logs folder is not available yet.": "Dienoraščių aplankas dar neprieinamas.",
+        "API connections": "API jungtys",
+        "API provider": "API teikėjas",
+        "Open models folder": "Atverti modelių aplanką",
+        "The models folder could not be opened.": "Nepavyko atverti modelių aplanko.",
+        "How to connect an API": "Kaip prijungti API",
+        "Use the API base URL from the provider, not its website address.": "Naudokite teikėjo API bazinį URL, o ne jo svetainės adresą.",
+        "Copy the exact model ID from the provider's model list.": "Nukopijuokite tikslų modelio ID iš teikėjo modelių sąrašo.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Savo teikėjo paskyroje sukurkite API raktą ir įklijuokite jį čia. Laikykite jį paslaptyje.",
+        "Example: {value}": "Pavyzdys: {value}"
       }
     },
     "is": {
@@ -52973,7 +53207,16 @@
         "Event": "Hending",
         "Since request": "Síðan ósk",
         "Invalid log selection.": "Ógilt log veling.",
-        "The logs folder is not available yet.": "Skráloga skrifstofu er ekki til staðar enn."
+        "The logs folder is not available yet.": "Skráloga skrifstofu er ekki til staðar enn.",
+        "API connections": "API-tengingar",
+        "API provider": "API-veita",
+        "Open models folder": "Opna líkanamöppu",
+        "The models folder could not be opened.": "Ekki tókst að opna líkanamöppuna.",
+        "How to connect an API": "Hvernig tengja á API",
+        "Use the API base URL from the provider, not its website address.": "Notaðu grunnslóð API-þjónustunnar, ekki vefslóð veitunnar.",
+        "Copy the exact model ID from the provider's model list.": "Afritaðu nákvæmt auðkenni líkans úr líkanalista veitunnar.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Búðu til API-lykil á reikningnum þínum hjá veitunni og límdu hann hér. Haltu honum leyndum.",
+        "Example: {value}": "Dæmi: {value}"
       }
     },
     "ca": {
@@ -54935,7 +55178,16 @@
         "Event": "Esdeveniment",
         "Since request": "Des de la sol·licitud",
         "Invalid log selection.": "Selecció de registre invàlida.",
-        "The logs folder is not available yet.": "La carpeta de registres no està disponible encara."
+        "The logs folder is not available yet.": "La carpeta de registres no està disponible encara.",
+        "API connections": "Connexions API",
+        "API provider": "Proveïdor d’API",
+        "Open models folder": "Obre la carpeta de models",
+        "The models folder could not be opened.": "No s’ha pogut obrir la carpeta de models.",
+        "How to connect an API": "Com connectar una API",
+        "Use the API base URL from the provider, not its website address.": "Fes servir l’URL base de l’API del proveïdor, no l’adreça del seu lloc web.",
+        "Copy the exact model ID from the provider's model list.": "Copia l’ID exacte del model de la llista de models del proveïdor.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Crea una clau API al teu compte del proveïdor i enganxa-la aquí. Mantén-la en secret.",
+        "Example: {value}": "Exemple: {value}"
       }
     },
     "ar": {
@@ -56897,7 +57149,16 @@
         "Event": "حدث",
         "Since request": "منذ الطلب",
         "Invalid log selection.": "اختيار سجل غير صالح.",
-        "The logs folder is not available yet.": "مجلد السجلات غير متاح بعد."
+        "The logs folder is not available yet.": "مجلد السجلات غير متاح بعد.",
+        "API connections": "اتصالات API",
+        "API provider": "موفّر API",
+        "Open models folder": "فتح مجلد النماذج",
+        "The models folder could not be opened.": "تعذّر فتح مجلد النماذج.",
+        "How to connect an API": "كيفية ربط API",
+        "Use the API base URL from the provider, not its website address.": "استخدم عنوان URL الأساسي لواجهة API لدى الموفّر، وليس عنوان موقعه الإلكتروني.",
+        "Copy the exact model ID from the provider's model list.": "انسخ معرّف النموذج كما هو من قائمة نماذج الموفّر.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "أنشئ مفتاح API في حسابك لدى الموفّر والصقه هنا. احتفظ به سريًا.",
+        "Example: {value}": "مثال: {value}"
       }
     },
     "he": {
@@ -58859,7 +59120,16 @@
         "Event": "סימנים לשנייה",
         "Since request": "אירוע",
         "Invalid log selection.": "מאז הבקשה",
-        "The logs folder is not available yet.": "בחירת סיפור לא תקינה."
+        "The logs folder is not available yet.": "בחירת סיפור לא תקינה.",
+        "API connections": "חיבורי API",
+        "API provider": "ספק API",
+        "Open models folder": "פתיחת תיקיית המודלים",
+        "The models folder could not be opened.": "לא ניתן לפתוח את תיקיית המודלים.",
+        "How to connect an API": "כיצד לחבר API",
+        "Use the API base URL from the provider, not its website address.": "יש להשתמש בכתובת הבסיס של ה-API של הספק, ולא בכתובת האתר שלו.",
+        "Copy the exact model ID from the provider's model list.": "יש להעתיק את מזהה המודל המדויק מרשימת המודלים של הספק.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "צרו מפתח API בחשבון שלכם אצל הספק והדביקו אותו כאן. שמרו עליו בסוד.",
+        "Example: {value}": "לדוגמה: {value}"
       }
     },
     "fa": {
@@ -60821,7 +61091,16 @@
         "Event": "رویداد",
         "Since request": "از آنجا که درخواست",
         "Invalid log selection.": "انتخاب لاگ نامعتبر.",
-        "The logs folder is not available yet.": "پوشه لاگ هنوز در دسترس نیست."
+        "The logs folder is not available yet.": "پوشه لاگ هنوز در دسترس نیست.",
+        "API connections": "اتصال‌های API",
+        "API provider": "ارائه‌دهنده API",
+        "Open models folder": "باز کردن پوشه مدل‌ها",
+        "The models folder could not be opened.": "پوشه مدل‌ها باز نشد.",
+        "How to connect an API": "روش اتصال API",
+        "Use the API base URL from the provider, not its website address.": "نشانی پایه API ارائه‌دهنده را وارد کنید، نه نشانی وب‌سایت او را.",
+        "Copy the exact model ID from the provider's model list.": "شناسه دقیق مدل را از فهرست مدل‌های ارائه‌دهنده کپی کنید.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "در حساب خود نزد ارائه‌دهنده یک کلید API بسازید و اینجا جای‌گذاری کنید. آن را محرمانه نگه دارید.",
+        "Example: {value}": "نمونه: {value}"
       }
     },
     "ur": {
@@ -62783,7 +63062,16 @@
         "Event": "واقعات",
         "Since request": "درخواست کے بعد",
         "Invalid log selection.": "غلط لوگ انتخاب۔",
-        "The logs folder is not available yet.": "لوگز فولڈر ابھی دستیاب نہیں ہے۔"
+        "The logs folder is not available yet.": "لوگز فولڈر ابھی دستیاب نہیں ہے۔",
+        "API connections": "API کنکشنز",
+        "API provider": "API فراہم کنندہ",
+        "Open models folder": "ماڈلز کا فولڈر کھولیں",
+        "The models folder could not be opened.": "ماڈلز کا فولڈر نہیں کھولا جا سکا۔",
+        "How to connect an API": "API کیسے جوڑیں",
+        "Use the API base URL from the provider, not its website address.": "فراہم کنندہ کا بنیادی API URL استعمال کریں، اس کی ویب سائٹ کا پتہ نہیں۔",
+        "Copy the exact model ID from the provider's model list.": "فراہم کنندہ کی ماڈلز کی فہرست سے ماڈل کی عین ID نقل کریں۔",
+        "Create an API key in your provider account and paste it here. Keep it private.": "فراہم کنندہ کے اپنے اکاؤنٹ میں API کلید بنائیں اور یہاں چسپاں کریں۔ اسے خفیہ رکھیں۔",
+        "Example: {value}": "مثال: {value}"
       }
     },
     "hi": {
@@ -64745,7 +65033,16 @@
         "Event": "घटना",
         "Since request": "अनुरोध से",
         "Invalid log selection.": "अमान्य लॉग चुनना।",
-        "The logs folder is not available yet.": "लॉग फोल्डर अभी उपलब्ध नहीं है।"
+        "The logs folder is not available yet.": "लॉग फोल्डर अभी उपलब्ध नहीं है।",
+        "API connections": "API कनेक्शन",
+        "API provider": "API प्रदाता",
+        "Open models folder": "मॉडल फ़ोल्डर खोलें",
+        "The models folder could not be opened.": "मॉडल फ़ोल्डर नहीं खोला जा सका।",
+        "How to connect an API": "API कैसे जोड़ें",
+        "Use the API base URL from the provider, not its website address.": "प्रदाता का API बेस URL इस्तेमाल करें, उसकी वेबसाइट का पता नहीं।",
+        "Copy the exact model ID from the provider's model list.": "प्रदाता की मॉडल सूची से मॉडल की सटीक ID कॉपी करें।",
+        "Create an API key in your provider account and paste it here. Keep it private.": "प्रदाता के अपने खाते में API कुंजी बनाकर यहाँ पेस्ट करें। इसे गुप्त रखें।",
+        "Example: {value}": "उदाहरण: {value}"
       }
     },
     "bn": {
@@ -66707,7 +67004,16 @@
         "Event": "ইভেন্ট",
         "Since request": "অনুরোধ থেকে",
         "Invalid log selection.": "অবৈধ লগ নির্বাচন।",
-        "The logs folder is not available yet.": "লগ ফোল্ডার এখনো উপলব্ধ নয়।"
+        "The logs folder is not available yet.": "লগ ফোল্ডার এখনো উপলব্ধ নয়।",
+        "API connections": "API সংযোগ",
+        "API provider": "API প্রদানকারী",
+        "Open models folder": "মডেলের ফোল্ডার খুলুন",
+        "The models folder could not be opened.": "মডেলের ফোল্ডার খোলা যায়নি।",
+        "How to connect an API": "কীভাবে API সংযোগ করবেন",
+        "Use the API base URL from the provider, not its website address.": "প্রদানকারীর API বেস URL ব্যবহার করুন, তার ওয়েবসাইটের ঠিকানা নয়।",
+        "Copy the exact model ID from the provider's model list.": "প্রদানকারীর মডেল তালিকা থেকে মডেলের সঠিক ID কপি করুন।",
+        "Create an API key in your provider account and paste it here. Keep it private.": "প্রদানকারীর কাছে আপনার অ্যাকাউন্টে API কী তৈরি করে এখানে পেস্ট করুন। এটি গোপন রাখুন।",
+        "Example: {value}": "উদাহরণ: {value}"
       }
     },
     "ta": {
@@ -68669,7 +68975,16 @@
         "Event": "நிகழ்வு",
         "Since request": "பணியிலிருந்து",
         "Invalid log selection.": "தவறான லாஜத் தேர்வு.",
-        "The logs folder is not available yet.": "லாஜ் புத்தகம் கிடைக்கவில்லை."
+        "The logs folder is not available yet.": "லாஜ் புத்தகம் கிடைக்கவில்லை.",
+        "API connections": "API இணைப்புகள்",
+        "API provider": "API வழங்குநர்",
+        "Open models folder": "மாதிரிகள் கோப்புறையைத் திற",
+        "The models folder could not be opened.": "மாதிரிகள் கோப்புறையைத் திறக்க முடியவில்லை.",
+        "How to connect an API": "API-ஐ இணைப்பது எப்படி",
+        "Use the API base URL from the provider, not its website address.": "வழங்குநரின் API அடிப்படை URL-ஐப் பயன்படுத்தவும்; அதன் இணையதள முகவரியை அல்ல.",
+        "Copy the exact model ID from the provider's model list.": "வழங்குநரின் மாதிரிப் பட்டியலிலிருந்து சரியான மாதிரி ID-ஐ நகலெடுக்கவும்.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "வழங்குநரிடமுள்ள உங்கள் கணக்கில் API விசையை உருவாக்கி இங்கே ஒட்டவும். அதை ரகசியமாக வைத்திருக்கவும்.",
+        "Example: {value}": "எடுத்துக்காட்டு: {value}"
       }
     },
     "te": {
@@ -70631,7 +70946,16 @@
         "Event": "ఎవెంట్",
         "Since request": "ప్రార్థన నుండి",
         "Invalid log selection.": "విఫలమైన లాగ్ ఎంపిక.",
-        "The logs folder is not available yet.": "లాగ్ ఫాల్డర్ ఇప్పటికే లభ్యంగా లేదు."
+        "The logs folder is not available yet.": "లాగ్ ఫాల్డర్ ఇప్పటికే లభ్యంగా లేదు.",
+        "API connections": "API కనెక్షన్లు",
+        "API provider": "API ప్రదాత",
+        "Open models folder": "మోడళ్ల ఫోల్డర్ తెరవండి",
+        "The models folder could not be opened.": "మోడళ్ల ఫోల్డర్ తెరవలేకపోయాం.",
+        "How to connect an API": "API ఎలా కనెక్ట్ చేయాలి",
+        "Use the API base URL from the provider, not its website address.": "ప్రదాత API బేస్ URL వాడండి, వారి వెబ్‌సైట్ చిరునామా కాదు.",
+        "Copy the exact model ID from the provider's model list.": "ప్రదాత మోడళ్ల జాబితా నుండి ఖచ్చితమైన మోడల్ ID కాపీ చేయండి.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "ప్రదాత వద్ద మీ ఖాతాలో API కీ సృష్టించి ఇక్కడ పేస్ట్ చేయండి. దానిని రహస్యంగా ఉంచండి.",
+        "Example: {value}": "ఉదాహరణ: {value}"
       }
     },
     "mr": {
@@ -72593,7 +72917,16 @@
         "Event": "घटना",
         "Since request": "विनंतीपासून",
         "Invalid log selection.": "अमान्य लॉग निवड.",
-        "The logs folder is not available yet.": "लॉग्स फोल्डर उपलब्ध नाही."
+        "The logs folder is not available yet.": "लॉग्स फोल्डर उपलब्ध नाही.",
+        "API connections": "API जोडण्या",
+        "API provider": "API प्रदाता",
+        "Open models folder": "मॉडेल फोल्डर उघडा",
+        "The models folder could not be opened.": "मॉडेल फोल्डर उघडता आला नाही.",
+        "How to connect an API": "API कसे जोडावे",
+        "Use the API base URL from the provider, not its website address.": "प्रदात्याचा API बेस URL वापरा, त्याच्या वेबसाइटचा पत्ता नव्हे.",
+        "Copy the exact model ID from the provider's model list.": "प्रदात्याच्या मॉडेल यादीतून मॉडेलचा अचूक ID कॉपी करा.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "प्रदात्याकडील तुमच्या खात्यात API की तयार करून येथे पेस्ट करा. ती गुप्त ठेवा.",
+        "Example: {value}": "उदाहरण: {value}"
       }
     },
     "gu": {
@@ -74555,7 +74888,16 @@
         "Event": "ઘટના",
         "Since request": "વિનંતીથી",
         "Invalid log selection.": "અસંગત લોગ પસંદગી.",
-        "The logs folder is not available yet.": "લોગ ફોલ્ડર હજુ ઉપલબ્ધ નથી."
+        "The logs folder is not available yet.": "લોગ ફોલ્ડર હજુ ઉપલબ્ધ નથી.",
+        "API connections": "API જોડાણો",
+        "API provider": "API પ્રદાતા",
+        "Open models folder": "મોડલનું ફોલ્ડર ખોલો",
+        "The models folder could not be opened.": "મોડલનું ફોલ્ડર ખોલી શકાયું નથી.",
+        "How to connect an API": "API કેવી રીતે જોડવું",
+        "Use the API base URL from the provider, not its website address.": "પ્રદાતાનો API બેઝ URL વાપરો, તેની વેબસાઇટનું સરનામું નહીં.",
+        "Copy the exact model ID from the provider's model list.": "પ્રદાતાની મોડલ સૂચિમાંથી મોડલનું ચોક્કસ ID કૉપી કરો.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "પ્રદાતાના તમારા ખાતામાં API કી બનાવો અને અહીં પેસ્ટ કરો. તેને ગુપ્ત રાખો.",
+        "Example: {value}": "ઉદાહરણ: {value}"
       }
     },
     "pa": {
@@ -76517,7 +76859,16 @@
         "Event": "ਘਟਨਾ",
         "Since request": "ਪ੍ਰਾਰਥਨਾ ਤੋਂ",
         "Invalid log selection.": "ਅਸਲੀ ਲੋਗ ਚੋਣ।",
-        "The logs folder is not available yet.": "ਲੋਗ ਫੋਲਡਰ ਹੁਣ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।"
+        "The logs folder is not available yet.": "ਲੋਗ ਫੋਲਡਰ ਹੁਣ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
+        "API connections": "API ਕਨੈਕਸ਼ਨ",
+        "API provider": "API ਪ੍ਰਦਾਤਾ",
+        "Open models folder": "ਮਾਡਲਾਂ ਦਾ ਫੋਲਡਰ ਖੋਲ੍ਹੋ",
+        "The models folder could not be opened.": "ਮਾਡਲਾਂ ਦਾ ਫੋਲਡਰ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕਿਆ।",
+        "How to connect an API": "API ਕਿਵੇਂ ਜੋੜਨਾ ਹੈ",
+        "Use the API base URL from the provider, not its website address.": "ਪ੍ਰਦਾਤਾ ਦਾ API ਬੇਸ URL ਵਰਤੋ, ਉਸਦੀ ਵੈੱਬਸਾਈਟ ਦਾ ਪਤਾ ਨਹੀਂ।",
+        "Copy the exact model ID from the provider's model list.": "ਪ੍ਰਦਾਤਾ ਦੀ ਮਾਡਲ ਸੂਚੀ ਤੋਂ ਮਾਡਲ ਦੀ ਸਹੀ ID ਕਾਪੀ ਕਰੋ।",
+        "Create an API key in your provider account and paste it here. Keep it private.": "ਪ੍ਰਦਾਤਾ ਦੇ ਆਪਣੇ ਖਾਤੇ ਵਿੱਚ API ਕੁੰਜੀ ਬਣਾਓ ਅਤੇ ਇੱਥੇ ਪੇਸਟ ਕਰੋ। ਇਸਨੂੰ ਗੁਪਤ ਰੱਖੋ।",
+        "Example: {value}": "ਉਦਾਹਰਨ: {value}"
       }
     },
     "zh": {
@@ -78479,7 +78830,16 @@
         "Event": "事件",
         "Since request": "自请求以来",
         "Invalid log selection.": "无效的日志选择。",
-        "The logs folder is not available yet.": "日志文件夹尚未可用。"
+        "The logs folder is not available yet.": "日志文件夹尚未可用。",
+        "API connections": "API 连接",
+        "API provider": "API 提供商",
+        "Open models folder": "打开模型文件夹",
+        "The models folder could not be opened.": "无法打开模型文件夹。",
+        "How to connect an API": "如何连接 API",
+        "Use the API base URL from the provider, not its website address.": "填写提供商的 API 基础 URL，而不是其网站地址。",
+        "Copy the exact model ID from the provider's model list.": "从提供商的模型列表中复制准确的模型 ID。",
+        "Create an API key in your provider account and paste it here. Keep it private.": "在提供商的账户中创建 API 密钥并粘贴到这里。请勿泄露密钥。",
+        "Example: {value}": "示例：{value}"
       }
     },
     "ja": {
@@ -80441,7 +80801,16 @@
         "Event": "リクエスト以来",
         "Since request": "無効なログ選択。",
         "Invalid log selection.": "ログフォルダはまだ利用できません。",
-        "The logs folder is not available yet.": "ログフォルダーはまだ利用できません。"
+        "The logs folder is not available yet.": "ログフォルダーはまだ利用できません。",
+        "API connections": "API 接続",
+        "API provider": "API プロバイダー",
+        "Open models folder": "モデルフォルダーを開く",
+        "The models folder could not be opened.": "モデルフォルダーを開けませんでした。",
+        "How to connect an API": "API の接続方法",
+        "Use the API base URL from the provider, not its website address.": "プロバイダーのウェブサイトではなく、API のベース URL を入力してください。",
+        "Copy the exact model ID from the provider's model list.": "プロバイダーのモデル一覧から正確なモデル ID をコピーしてください。",
+        "Create an API key in your provider account and paste it here. Keep it private.": "プロバイダーのアカウントで API キーを作成し、ここに貼り付けてください。キーは秘密にしてください。",
+        "Example: {value}": "例：{value}"
       }
     },
     "ko": {
@@ -82403,7 +82772,16 @@
         "Event": "이벤트",
         "Since request": "요청 이후",
         "Invalid log selection.": "잘못된 로그 선택.",
-        "The logs folder is not available yet.": "로그 폴더가 아직 사용 가능하지 않습니다."
+        "The logs folder is not available yet.": "로그 폴더가 아직 사용 가능하지 않습니다.",
+        "API connections": "API 연결",
+        "API provider": "API 제공업체",
+        "Open models folder": "모델 폴더 열기",
+        "The models folder could not be opened.": "모델 폴더를 열 수 없습니다.",
+        "How to connect an API": "API 연결 방법",
+        "Use the API base URL from the provider, not its website address.": "제공업체의 웹사이트 주소가 아닌 API 기본 URL을 입력하세요.",
+        "Copy the exact model ID from the provider's model list.": "제공업체의 모델 목록에서 정확한 모델 ID를 복사하세요.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "제공업체 계정에서 API 키를 만들어 여기에 붙여넣으세요. 키를 비밀로 유지하세요.",
+        "Example: {value}": "예: {value}"
       }
     },
     "vi": {
@@ -84365,7 +84743,16 @@
         "Event": "Sự kiện",
         "Since request": "Từ khi yêu cầu",
         "Invalid log selection.": "Chọn nhật ký không hợp lệ.",
-        "The logs folder is not available yet.": "Thư mục nhật ký hiện tại không khả dụng."
+        "The logs folder is not available yet.": "Thư mục nhật ký hiện tại không khả dụng.",
+        "API connections": "Kết nối API",
+        "API provider": "Nhà cung cấp API",
+        "Open models folder": "Mở thư mục mô hình",
+        "The models folder could not be opened.": "Không thể mở thư mục mô hình.",
+        "How to connect an API": "Cách kết nối API",
+        "Use the API base URL from the provider, not its website address.": "Dùng URL cơ sở API của nhà cung cấp, không phải địa chỉ trang web.",
+        "Copy the exact model ID from the provider's model list.": "Sao chép chính xác ID mô hình từ danh sách mô hình của nhà cung cấp.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Tạo khóa API trong tài khoản nhà cung cấp của bạn rồi dán vào đây. Giữ bí mật khóa này.",
+        "Example: {value}": "Ví dụ: {value}"
       }
     },
     "th": {
@@ -86327,7 +86714,16 @@
         "Event": "เหตุการณ์",
         "Since request": "นับตั้งแต่วินาทีของคำขอ",
         "Invalid log selection.": "การเลือกบันทึกข้อมูลไม่ถูกต้อง",
-        "The logs folder is not available yet.": "โฟลเดอร์บันทึกข้อมูลยังพร้อมใช้งานไม่ได้"
+        "The logs folder is not available yet.": "โฟลเดอร์บันทึกข้อมูลยังพร้อมใช้งานไม่ได้",
+        "API connections": "การเชื่อมต่อ API",
+        "API provider": "ผู้ให้บริการ API",
+        "Open models folder": "เปิดโฟลเดอร์โมเดล",
+        "The models folder could not be opened.": "ไม่สามารถเปิดโฟลเดอร์โมเดลได้",
+        "How to connect an API": "วิธีเชื่อมต่อ API",
+        "Use the API base URL from the provider, not its website address.": "ใช้ URL ฐานของ API จากผู้ให้บริการ ไม่ใช่ที่อยู่เว็บไซต์",
+        "Copy the exact model ID from the provider's model list.": "คัดลอก ID โมเดลที่ตรงกันจากรายการโมเดลของผู้ให้บริการ",
+        "Create an API key in your provider account and paste it here. Keep it private.": "สร้างคีย์ API ในบัญชีผู้ให้บริการของคุณแล้ววางที่นี่ เก็บคีย์ไว้เป็นความลับ",
+        "Example: {value}": "ตัวอย่าง: {value}"
       }
     },
     "id": {
@@ -88289,7 +88685,16 @@
         "Event": "Peristiwa",
         "Since request": "Sejak permintaan",
         "Invalid log selection.": "Pilihan log tidak valid.",
-        "The logs folder is not available yet.": "Folder log belum tersedia."
+        "The logs folder is not available yet.": "Folder log belum tersedia.",
+        "API connections": "Koneksi API",
+        "API provider": "Penyedia API",
+        "Open models folder": "Buka folder model",
+        "The models folder could not be opened.": "Folder model tidak dapat dibuka.",
+        "How to connect an API": "Cara menghubungkan API",
+        "Use the API base URL from the provider, not its website address.": "Gunakan URL dasar API dari penyedia, bukan alamat situs webnya.",
+        "Copy the exact model ID from the provider's model list.": "Salin ID model yang tepat dari daftar model penyedia.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Buat kunci API di akun penyedia Anda dan tempelkan di sini. Jaga kerahasiaannya.",
+        "Example: {value}": "Contoh: {value}"
       }
     },
     "ms": {
@@ -90251,7 +90656,16 @@
         "Event": "Pilihan log tidak sah.",
         "Since request": "Paparan folder log belum tersedia.",
         "Invalid log selection.": "]```json\n[",
-        "The logs folder is not available yet.": "["
+        "The logs folder is not available yet.": "[",
+        "API connections": "Sambungan API",
+        "API provider": "Penyedia API",
+        "Open models folder": "Buka folder model",
+        "The models folder could not be opened.": "Folder model tidak dapat dibuka.",
+        "How to connect an API": "Cara menyambungkan API",
+        "Use the API base URL from the provider, not its website address.": "Gunakan URL asas API penyedia, bukan alamat laman webnya.",
+        "Copy the exact model ID from the provider's model list.": "Salin ID model yang tepat daripada senarai model penyedia.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Cipta kunci API dalam akaun penyedia anda dan tampalkannya di sini. Rahsiakan kunci itu.",
+        "Example: {value}": "Contoh: {value}"
       }
     },
     "tl": {
@@ -92213,7 +92627,16 @@
         "Event": "Event",
         "Since request": "Mula sa hiling",
         "Invalid log selection.": "Invalid na pilihan ng log.",
-        "The logs folder is not available yet.": "Hindi pa available ang folder ng logs."
+        "The logs folder is not available yet.": "Hindi pa available ang folder ng logs.",
+        "API connections": "Mga koneksyon sa API",
+        "API provider": "Provider ng API",
+        "Open models folder": "Buksan ang folder ng mga modelo",
+        "The models folder could not be opened.": "Hindi mabuksan ang folder ng mga modelo.",
+        "How to connect an API": "Paano kumonekta sa API",
+        "Use the API base URL from the provider, not its website address.": "Gamitin ang base URL ng API ng provider, hindi ang address ng website nito.",
+        "Copy the exact model ID from the provider's model list.": "Kopyahin ang eksaktong model ID mula sa listahan ng mga modelo ng provider.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Gumawa ng API key sa iyong account sa provider at i-paste ito rito. Panatilihin itong lihim.",
+        "Example: {value}": "Halimbawa: {value}"
       }
     },
     "tr": {
@@ -94175,7 +94598,16 @@
         "Event": "Olay",
         "Since request": "İstekten beri",
         "Invalid log selection.": "Geçersiz log seçimi.",
-        "The logs folder is not available yet.": "Log klasörü henüz mevcut değil."
+        "The logs folder is not available yet.": "Log klasörü henüz mevcut değil.",
+        "API connections": "API bağlantıları",
+        "API provider": "API sağlayıcısı",
+        "Open models folder": "Model klasörünü aç",
+        "The models folder could not be opened.": "Model klasörü açılamadı.",
+        "How to connect an API": "API nasıl bağlanır",
+        "Use the API base URL from the provider, not its website address.": "Sağlayıcının web sitesi adresini değil, API temel URL’sini kullanın.",
+        "Copy the exact model ID from the provider's model list.": "Sağlayıcının model listesinden model kimliğini olduğu gibi kopyalayın.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Sağlayıcı hesabınızda bir API anahtarı oluşturup buraya yapıştırın. Anahtarı gizli tutun.",
+        "Example: {value}": "Örnek: {value}"
       }
     },
     "sw": {
@@ -96137,7 +96569,16 @@
         "Event": "Chaguo la Nishati lisilo sahihi.",
         "Since request": "Fulani ya nishati haiwezi kupatikana sasa.",
         "Invalid log selection.": "Hakuna vigezo vya kisayansi katika Nishati hii.",
-        "The logs folder is not available yet.": "Onyesha 64 KB ya mwisho. Vigezo vingine vinabaki katika faili ya Nishati."
+        "The logs folder is not available yet.": "Onyesha 64 KB ya mwisho. Vigezo vingine vinabaki katika faili ya Nishati.",
+        "API connections": "Miunganisho ya API",
+        "API provider": "Mtoa huduma wa API",
+        "Open models folder": "Fungua folda ya modeli",
+        "The models folder could not be opened.": "Folda ya modeli haikuweza kufunguliwa.",
+        "How to connect an API": "Jinsi ya kuunganisha API",
+        "Use the API base URL from the provider, not its website address.": "Tumia URL ya msingi ya API ya mtoa huduma, si anwani ya tovuti yake.",
+        "Copy the exact model ID from the provider's model list.": "Nakili ID halisi ya modeli kutoka kwenye orodha ya modeli za mtoa huduma.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Unda ufunguo wa API kwenye akaunti yako ya mtoa huduma na ubandike hapa. Uweke siri.",
+        "Example: {value}": "Mfano: {value}"
       }
     },
     "af": {
@@ -98099,7 +98540,16 @@
         "Event": "Evenement",
         "Since request": "Aangesien aanvraag",
         "Invalid log selection.": "Ongeldige log-seleksie.",
-        "The logs folder is not available yet.": "Die log-map is nog nie beskikbaar nie."
+        "The logs folder is not available yet.": "Die log-map is nog nie beskikbaar nie.",
+        "API connections": "API-verbindings",
+        "API provider": "API-verskaffer",
+        "Open models folder": "Maak modelgids oop",
+        "The models folder could not be opened.": "Die modelgids kon nie oopgemaak word nie.",
+        "How to connect an API": "Hoe om ’n API te koppel",
+        "Use the API base URL from the provider, not its website address.": "Gebruik die verskaffer se API-basis-URL, nie sy webwerfadres nie.",
+        "Copy the exact model ID from the provider's model list.": "Kopieer die presiese model-ID uit die verskaffer se modellys.",
+        "Create an API key in your provider account and paste it here. Keep it private.": "Skep ’n API-sleutel in jou verskafferrekening en plak dit hier. Hou dit geheim.",
+        "Example: {value}": "Voorbeeld: {value}"
       }
     }
   },

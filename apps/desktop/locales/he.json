@@ -1958,7 +1958,16 @@
     "Event": "סימנים לשנייה",
     "Since request": "אירוע",
     "Invalid log selection.": "מאז הבקשה",
-    "The logs folder is not available yet.": "בחירת סיפור לא תקינה."
+    "The logs folder is not available yet.": "בחירת סיפור לא תקינה.",
+    "API connections": "חיבורי API",
+    "API provider": "ספק API",
+    "Open models folder": "פתיחת תיקיית המודלים",
+    "The models folder could not be opened.": "לא ניתן לפתוח את תיקיית המודלים.",
+    "How to connect an API": "כיצד לחבר API",
+    "Use the API base URL from the provider, not its website address.": "יש להשתמש בכתובת הבסיס של ה-API של הספק, ולא בכתובת האתר שלו.",
+    "Copy the exact model ID from the provider's model list.": "יש להעתיק את מזהה המודל המדויק מרשימת המודלים של הספק.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "צרו מפתח API בחשבון שלכם אצל הספק והדביקו אותו כאן. שמרו עליו בסוד.",
+    "Example: {value}": "לדוגמה: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

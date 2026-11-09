@@ -1958,7 +1958,16 @@
     "Event": "Događaj",
     "Since request": "Od zahteva",
     "Invalid log selection.": "Nevaljan izbor loga.",
-    "The logs folder is not available yet.": "Mapa logova još uvijek nije dostupna."
+    "The logs folder is not available yet.": "Mapa logova još uvijek nije dostupna.",
+    "API connections": "API везе",
+    "API provider": "API провајдер",
+    "Open models folder": "Отвори фасциклу модела",
+    "The models folder could not be opened.": "Није могуће отворити фасциклу модела.",
+    "How to connect an API": "Како повезати API",
+    "Use the API base URL from the provider, not its website address.": "Унесите основни URL API-ја провајдера, а не адресу његовог сајта.",
+    "Copy the exact model ID from the provider's model list.": "Копирајте тачан ID модела из листе модела провајдера.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Направите API кључ на налогу код провајдера и налепите га овде. Чувајте га у тајности.",
+    "Example: {value}": "Пример: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

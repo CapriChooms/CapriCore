@@ -1958,7 +1958,16 @@
     "Event": "Olay",
     "Since request": "İstekten beri",
     "Invalid log selection.": "Geçersiz log seçimi.",
-    "The logs folder is not available yet.": "Log klasörü henüz mevcut değil."
+    "The logs folder is not available yet.": "Log klasörü henüz mevcut değil.",
+    "API connections": "API bağlantıları",
+    "API provider": "API sağlayıcısı",
+    "Open models folder": "Model klasörünü aç",
+    "The models folder could not be opened.": "Model klasörü açılamadı.",
+    "How to connect an API": "API nasıl bağlanır",
+    "Use the API base URL from the provider, not its website address.": "Sağlayıcının web sitesi adresini değil, API temel URL’sini kullanın.",
+    "Copy the exact model ID from the provider's model list.": "Sağlayıcının model listesinden model kimliğini olduğu gibi kopyalayın.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Sağlayıcı hesabınızda bir API anahtarı oluşturup buraya yapıştırın. Anahtarı gizli tutun.",
+    "Example: {value}": "Örnek: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

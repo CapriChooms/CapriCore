@@ -1,4 +1,5 @@
 import { InferenceApi, apiSettings, readApiSettings } from './inference-api.mjs';
+import { openLocalModelFolder } from './local-model-folder.mjs';
 import { isLemonadeNpuEndpoint, isLocalApiEndpoint } from './renderer/inference-endpoint.mjs';
 import { ComputerControl } from './computer-control.mjs';
 import { thinkingBriefing } from './thinking-briefing.mjs';
@@ -2421,7 +2422,7 @@ async function initializeDesktop() {
       return;
     }
     if (inferenceApi.config.setupRequired) {
-      setBackend('offline', 'External AI provider');
+      setBackend('offline', 'API connections');
       return;
     }
     if (shuttingDown) throw new Error('Capri is shutting down');
@@ -4812,6 +4813,10 @@ async function initializeDesktop() {
       }
     });
     handle('capri:models-status', () => models.snapshot());
+    handle('capri:models-folder', (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      return openLocalModelFolder(root, _value, (folder) => shell.openPath(folder));
+    });
     const voiceDeviceLanguage = () => {
       const language = liveLanguages().speech;
       return language && language !== 'off' ? language : 'en';

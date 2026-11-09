@@ -1958,7 +1958,16 @@
     "Event": "Γεγονός",
     "Since request": "Από αίτηση",
     "Invalid log selection.": "Άκυρο επιλογή γραφικού.",
-    "The logs folder is not available yet.": "Ο φάκελος των γραφικών δεν είναι ακόμα διαθέσιμος."
+    "The logs folder is not available yet.": "Ο φάκελος των γραφικών δεν είναι ακόμα διαθέσιμος.",
+    "API connections": "Συνδέσεις API",
+    "API provider": "Πάροχος API",
+    "Open models folder": "Άνοιγμα φακέλου μοντέλων",
+    "The models folder could not be opened.": "Δεν ήταν δυνατό το άνοιγμα του φακέλου μοντέλων.",
+    "How to connect an API": "Πώς να συνδέσετε ένα API",
+    "Use the API base URL from the provider, not its website address.": "Χρησιμοποιήστε τη βασική διεύθυνση API του παρόχου, όχι τη διεύθυνση του ιστοτόπου του.",
+    "Copy the exact model ID from the provider's model list.": "Αντιγράψτε το ακριβές ID μοντέλου από τη λίστα μοντέλων του παρόχου.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Δημιουργήστε ένα κλειδί API στον λογαριασμό σας στον πάροχο και επικολλήστε το εδώ. Κρατήστε το μυστικό.",
+    "Example: {value}": "Παράδειγμα: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

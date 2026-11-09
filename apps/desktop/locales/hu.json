@@ -1958,7 +1958,16 @@
     "Event": "Esemény",
     "Since request": "Mivel a kérés",
     "Invalid log selection.": "Érvénytelen naplóválasztás.",
-    "The logs folder is not available yet.": "A napló mappa még nem érhető el."
+    "The logs folder is not available yet.": "A napló mappa még nem érhető el.",
+    "API connections": "API-kapcsolatok",
+    "API provider": "API-szolgáltató",
+    "Open models folder": "Modellek mappájának megnyitása",
+    "The models folder could not be opened.": "Nem sikerült megnyitni a modellek mappáját.",
+    "How to connect an API": "API csatlakoztatása",
+    "Use the API base URL from the provider, not its website address.": "A szolgáltató API-jának alap-URL-jét használd, ne a weboldala címét.",
+    "Copy the exact model ID from the provider's model list.": "Másold ki a pontos modellazonosítót a szolgáltató modelllistájából.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Hozz létre API-kulcsot a szolgáltatói fiókodban, és illeszd be ide. Tartsd titokban.",
+    "Example: {value}": "Példa: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

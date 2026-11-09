@@ -1958,7 +1958,16 @@
     "Event": "Evento",
     "Since request": "Dalla richiesta",
     "Invalid log selection.": "Selezione log non valida.",
-    "The logs folder is not available yet.": "La cartella log non è disponibile ancora."
+    "The logs folder is not available yet.": "La cartella log non è disponibile ancora.",
+    "API connections": "Connessioni API",
+    "API provider": "Provider API",
+    "Open models folder": "Apri cartella dei modelli",
+    "The models folder could not be opened.": "Impossibile aprire la cartella dei modelli.",
+    "How to connect an API": "Come collegare un’API",
+    "Use the API base URL from the provider, not its website address.": "Usa l’URL di base dell’API del provider, non l’indirizzo del suo sito web.",
+    "Copy the exact model ID from the provider's model list.": "Copia l’ID esatto del modello dall’elenco dei modelli del provider.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Crea una chiave API nel tuo account del provider e incollala qui. Mantienila segreta.",
+    "Example: {value}": "Esempio: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

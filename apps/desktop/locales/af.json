@@ -1958,7 +1958,16 @@
     "Event": "Evenement",
     "Since request": "Aangesien aanvraag",
     "Invalid log selection.": "Ongeldige log-seleksie.",
-    "The logs folder is not available yet.": "Die log-map is nog nie beskikbaar nie."
+    "The logs folder is not available yet.": "Die log-map is nog nie beskikbaar nie.",
+    "API connections": "API-verbindings",
+    "API provider": "API-verskaffer",
+    "Open models folder": "Maak modelgids oop",
+    "The models folder could not be opened.": "Die modelgids kon nie oopgemaak word nie.",
+    "How to connect an API": "Hoe om ’n API te koppel",
+    "Use the API base URL from the provider, not its website address.": "Gebruik die verskaffer se API-basis-URL, nie sy webwerfadres nie.",
+    "Copy the exact model ID from the provider's model list.": "Kopieer die presiese model-ID uit die verskaffer se modellys.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Skep ’n API-sleutel in jou verskafferrekening en plak dit hier. Hou dit geheim.",
+    "Example: {value}": "Voorbeeld: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

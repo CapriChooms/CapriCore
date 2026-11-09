@@ -1958,7 +1958,16 @@
     "Event": "Chaguo la Nishati lisilo sahihi.",
     "Since request": "Fulani ya nishati haiwezi kupatikana sasa.",
     "Invalid log selection.": "Hakuna vigezo vya kisayansi katika Nishati hii.",
-    "The logs folder is not available yet.": "Onyesha 64 KB ya mwisho. Vigezo vingine vinabaki katika faili ya Nishati."
+    "The logs folder is not available yet.": "Onyesha 64 KB ya mwisho. Vigezo vingine vinabaki katika faili ya Nishati.",
+    "API connections": "Miunganisho ya API",
+    "API provider": "Mtoa huduma wa API",
+    "Open models folder": "Fungua folda ya modeli",
+    "The models folder could not be opened.": "Folda ya modeli haikuweza kufunguliwa.",
+    "How to connect an API": "Jinsi ya kuunganisha API",
+    "Use the API base URL from the provider, not its website address.": "Tumia URL ya msingi ya API ya mtoa huduma, si anwani ya tovuti yake.",
+    "Copy the exact model ID from the provider's model list.": "Nakili ID halisi ya modeli kutoka kwenye orodha ya modeli za mtoa huduma.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Unda ufunguo wa API kwenye akaunti yako ya mtoa huduma na ubandike hapa. Uweke siri.",
+    "Example: {value}": "Mfano: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

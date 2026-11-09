@@ -31,7 +31,7 @@ export const SETTINGS_GROUPS = Object.freeze([
     icon: 'M5 5h10v10H5zM8 8h4v4H8zM7 2v3m6-3v3M7 15v3m6-3v3M2 7h3m-3 6h3m10-6h3m-3 6h3',
     sections: [
       ['models', 'Language model', 'models-panel'],
-      ['api', 'External AI provider', 'inference-panel'],
+      ['api', 'API connections', 'inference-panel'],
     ],
   },
   {

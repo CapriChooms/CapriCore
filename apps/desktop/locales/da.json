@@ -1958,7 +1958,16 @@
     "Event": "Arrangement",
     "Since request": "Sidst siden anmodning",
     "Invalid log selection.": "Ugyldig log-vælg.",
-    "The logs folder is not available yet.": "Logmappen er endnu ikke tilgængelig."
+    "The logs folder is not available yet.": "Logmappen er endnu ikke tilgængelig.",
+    "API connections": "API-forbindelser",
+    "API provider": "API-udbyder",
+    "Open models folder": "Åbn modelmappe",
+    "The models folder could not be opened.": "Modelmappen kunne ikke åbnes.",
+    "How to connect an API": "Sådan tilsluttes en API",
+    "Use the API base URL from the provider, not its website address.": "Brug udbyderens API-basis-URL, ikke adressen på udbyderens websted.",
+    "Copy the exact model ID from the provider's model list.": "Kopiér det præcise model-ID fra udbyderens modelliste.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Opret en API-nøgle på din konto hos udbyderen, og indsæt den her. Hold den hemmelig.",
+    "Example: {value}": "Eksempel: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

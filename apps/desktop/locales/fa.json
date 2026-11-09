@@ -1958,7 +1958,16 @@
     "Event": "رویداد",
     "Since request": "از آنجا که درخواست",
     "Invalid log selection.": "انتخاب لاگ نامعتبر.",
-    "The logs folder is not available yet.": "پوشه لاگ هنوز در دسترس نیست."
+    "The logs folder is not available yet.": "پوشه لاگ هنوز در دسترس نیست.",
+    "API connections": "اتصال‌های API",
+    "API provider": "ارائه‌دهنده API",
+    "Open models folder": "باز کردن پوشه مدل‌ها",
+    "The models folder could not be opened.": "پوشه مدل‌ها باز نشد.",
+    "How to connect an API": "روش اتصال API",
+    "Use the API base URL from the provider, not its website address.": "نشانی پایه API ارائه‌دهنده را وارد کنید، نه نشانی وب‌سایت او را.",
+    "Copy the exact model ID from the provider's model list.": "شناسه دقیق مدل را از فهرست مدل‌های ارائه‌دهنده کپی کنید.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "در حساب خود نزد ارائه‌دهنده یک کلید API بسازید و اینجا جای‌گذاری کنید. آن را محرمانه نگه دارید.",
+    "Example: {value}": "نمونه: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

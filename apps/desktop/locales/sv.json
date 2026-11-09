@@ -1958,7 +1958,16 @@
     "Event": "Händelse",
     "Since request": "Eftersom begäran",
     "Invalid log selection.": "Ogiltig loggväljning.",
-    "The logs folder is not available yet.": "Loggmappen är inte tillgänglig än."
+    "The logs folder is not available yet.": "Loggmappen är inte tillgänglig än.",
+    "API connections": "API-anslutningar",
+    "API provider": "API-leverantör",
+    "Open models folder": "Öppna modellmappen",
+    "The models folder could not be opened.": "Modellmappen kunde inte öppnas.",
+    "How to connect an API": "Så ansluter du ett API",
+    "Use the API base URL from the provider, not its website address.": "Använd leverantörens bas-URL för API:et, inte webbplatsens adress.",
+    "Copy the exact model ID from the provider's model list.": "Kopiera exakt modell-ID från leverantörens modellista.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Skapa en API-nyckel på ditt konto hos leverantören och klistra in den här. Håll den hemlig.",
+    "Example: {value}": "Exempel: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

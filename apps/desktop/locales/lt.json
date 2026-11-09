@@ -1958,7 +1958,16 @@
     "Event": "Įvykis",
     "Since request": "Nuo reikalavimo",
     "Invalid log selection.": "Neteisingas dienoraščių pasirinkimas.",
-    "The logs folder is not available yet.": "Dienoraščių aplankas dar neprieinamas."
+    "The logs folder is not available yet.": "Dienoraščių aplankas dar neprieinamas.",
+    "API connections": "API jungtys",
+    "API provider": "API teikėjas",
+    "Open models folder": "Atverti modelių aplanką",
+    "The models folder could not be opened.": "Nepavyko atverti modelių aplanko.",
+    "How to connect an API": "Kaip prijungti API",
+    "Use the API base URL from the provider, not its website address.": "Naudokite teikėjo API bazinį URL, o ne jo svetainės adresą.",
+    "Copy the exact model ID from the provider's model list.": "Nukopijuokite tikslų modelio ID iš teikėjo modelių sąrašo.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Savo teikėjo paskyroje sukurkite API raktą ir įklijuokite jį čia. Laikykite jį paslaptyje.",
+    "Example: {value}": "Pavyzdys: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

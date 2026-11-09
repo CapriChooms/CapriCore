@@ -1958,7 +1958,16 @@
     "Event": "Evenement",
     "Since request": "Omdat aanvraag",
     "Invalid log selection.": "Ongeldig logselectie.",
-    "The logs folder is not available yet.": "De logsmap is nog niet beschikbaar."
+    "The logs folder is not available yet.": "De logsmap is nog niet beschikbaar.",
+    "API connections": "API-verbindingen",
+    "API provider": "API-provider",
+    "Open models folder": "Modellenmap openen",
+    "The models folder could not be opened.": "De modellenmap kon niet worden geopend.",
+    "How to connect an API": "Een API verbinden",
+    "Use the API base URL from the provider, not its website address.": "Gebruik de basis-URL van de API van de provider, niet het websiteadres.",
+    "Copy the exact model ID from the provider's model list.": "Kopieer de exacte model-ID uit de modellenlijst van de provider.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Maak een API-sleutel aan in je provideraccount en plak die hier. Houd de sleutel geheim.",
+    "Example: {value}": "Voorbeeld: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

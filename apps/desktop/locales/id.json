@@ -1958,7 +1958,16 @@
     "Event": "Peristiwa",
     "Since request": "Sejak permintaan",
     "Invalid log selection.": "Pilihan log tidak valid.",
-    "The logs folder is not available yet.": "Folder log belum tersedia."
+    "The logs folder is not available yet.": "Folder log belum tersedia.",
+    "API connections": "Koneksi API",
+    "API provider": "Penyedia API",
+    "Open models folder": "Buka folder model",
+    "The models folder could not be opened.": "Folder model tidak dapat dibuka.",
+    "How to connect an API": "Cara menghubungkan API",
+    "Use the API base URL from the provider, not its website address.": "Gunakan URL dasar API dari penyedia, bukan alamat situs webnya.",
+    "Copy the exact model ID from the provider's model list.": "Salin ID model yang tepat dari daftar model penyedia.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Buat kunci API di akun penyedia Anda dan tempelkan di sini. Jaga kerahasiaannya.",
+    "Example: {value}": "Contoh: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

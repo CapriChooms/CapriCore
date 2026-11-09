@@ -1958,7 +1958,16 @@
     "Event": "நிகழ்வு",
     "Since request": "பணியிலிருந்து",
     "Invalid log selection.": "தவறான லாஜத் தேர்வு.",
-    "The logs folder is not available yet.": "லாஜ் புத்தகம் கிடைக்கவில்லை."
+    "The logs folder is not available yet.": "லாஜ் புத்தகம் கிடைக்கவில்லை.",
+    "API connections": "API இணைப்புகள்",
+    "API provider": "API வழங்குநர்",
+    "Open models folder": "மாதிரிகள் கோப்புறையைத் திற",
+    "The models folder could not be opened.": "மாதிரிகள் கோப்புறையைத் திறக்க முடியவில்லை.",
+    "How to connect an API": "API-ஐ இணைப்பது எப்படி",
+    "Use the API base URL from the provider, not its website address.": "வழங்குநரின் API அடிப்படை URL-ஐப் பயன்படுத்தவும்; அதன் இணையதள முகவரியை அல்ல.",
+    "Copy the exact model ID from the provider's model list.": "வழங்குநரின் மாதிரிப் பட்டியலிலிருந்து சரியான மாதிரி ID-ஐ நகலெடுக்கவும்.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "வழங்குநரிடமுள்ள உங்கள் கணக்கில் API விசையை உருவாக்கி இங்கே ஒட்டவும். அதை ரகசியமாக வைத்திருக்கவும்.",
+    "Example: {value}": "எடுத்துக்காட்டு: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -1958,7 +1958,16 @@
     "Event": "घटना",
     "Since request": "अनुरोध से",
     "Invalid log selection.": "अमान्य लॉग चुनना।",
-    "The logs folder is not available yet.": "लॉग फोल्डर अभी उपलब्ध नहीं है।"
+    "The logs folder is not available yet.": "लॉग फोल्डर अभी उपलब्ध नहीं है।",
+    "API connections": "API कनेक्शन",
+    "API provider": "API प्रदाता",
+    "Open models folder": "मॉडल फ़ोल्डर खोलें",
+    "The models folder could not be opened.": "मॉडल फ़ोल्डर नहीं खोला जा सका।",
+    "How to connect an API": "API कैसे जोड़ें",
+    "Use the API base URL from the provider, not its website address.": "प्रदाता का API बेस URL इस्तेमाल करें, उसकी वेबसाइट का पता नहीं।",
+    "Copy the exact model ID from the provider's model list.": "प्रदाता की मॉडल सूची से मॉडल की सटीक ID कॉपी करें।",
+    "Create an API key in your provider account and paste it here. Keep it private.": "प्रदाता के अपने खाते में API कुंजी बनाकर यहाँ पेस्ट करें। इसे गुप्त रखें।",
+    "Example: {value}": "उदाहरण: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

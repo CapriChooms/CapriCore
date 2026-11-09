@@ -1958,7 +1958,16 @@
     "Event": "이벤트",
     "Since request": "요청 이후",
     "Invalid log selection.": "잘못된 로그 선택.",
-    "The logs folder is not available yet.": "로그 폴더가 아직 사용 가능하지 않습니다."
+    "The logs folder is not available yet.": "로그 폴더가 아직 사용 가능하지 않습니다.",
+    "API connections": "API 연결",
+    "API provider": "API 제공업체",
+    "Open models folder": "모델 폴더 열기",
+    "The models folder could not be opened.": "모델 폴더를 열 수 없습니다.",
+    "How to connect an API": "API 연결 방법",
+    "Use the API base URL from the provider, not its website address.": "제공업체의 웹사이트 주소가 아닌 API 기본 URL을 입력하세요.",
+    "Copy the exact model ID from the provider's model list.": "제공업체의 모델 목록에서 정확한 모델 ID를 복사하세요.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "제공업체 계정에서 API 키를 만들어 여기에 붙여넣으세요. 키를 비밀로 유지하세요.",
+    "Example: {value}": "예: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

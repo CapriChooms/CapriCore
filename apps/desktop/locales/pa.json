@@ -1952,7 +1952,16 @@
     "Event": "ਘਟਨਾ",
     "Since request": "ਪ੍ਰਾਰਥਨਾ ਤੋਂ",
     "Invalid log selection.": "ਅਸਲੀ ਲੋਗ ਚੋਣ।",
-    "The logs folder is not available yet.": "ਲੋਗ ਫੋਲਡਰ ਹੁਣ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।"
+    "The logs folder is not available yet.": "ਲੋਗ ਫੋਲਡਰ ਹੁਣ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
+    "API connections": "API ਕਨੈਕਸ਼ਨ",
+    "API provider": "API ਪ੍ਰਦਾਤਾ",
+    "Open models folder": "ਮਾਡਲਾਂ ਦਾ ਫੋਲਡਰ ਖੋਲ੍ਹੋ",
+    "The models folder could not be opened.": "ਮਾਡਲਾਂ ਦਾ ਫੋਲਡਰ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕਿਆ।",
+    "How to connect an API": "API ਕਿਵੇਂ ਜੋੜਨਾ ਹੈ",
+    "Use the API base URL from the provider, not its website address.": "ਪ੍ਰਦਾਤਾ ਦਾ API ਬੇਸ URL ਵਰਤੋ, ਉਸਦੀ ਵੈੱਬਸਾਈਟ ਦਾ ਪਤਾ ਨਹੀਂ।",
+    "Copy the exact model ID from the provider's model list.": "ਪ੍ਰਦਾਤਾ ਦੀ ਮਾਡਲ ਸੂਚੀ ਤੋਂ ਮਾਡਲ ਦੀ ਸਹੀ ID ਕਾਪੀ ਕਰੋ।",
+    "Create an API key in your provider account and paste it here. Keep it private.": "ਪ੍ਰਦਾਤਾ ਦੇ ਆਪਣੇ ਖਾਤੇ ਵਿੱਚ API ਕੁੰਜੀ ਬਣਾਓ ਅਤੇ ਇੱਥੇ ਪੇਸਟ ਕਰੋ। ਇਸਨੂੰ ਗੁਪਤ ਰੱਖੋ।",
+    "Example: {value}": "ਉਦਾਹਰਨ: {value}"
   },
   "id": "pa",
   "name": "Punjabi",

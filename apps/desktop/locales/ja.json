@@ -1958,7 +1958,16 @@
     "Event": "リクエスト以来",
     "Since request": "無効なログ選択。",
     "Invalid log selection.": "ログフォルダはまだ利用できません。",
-    "The logs folder is not available yet.": "ログフォルダーはまだ利用できません。"
+    "The logs folder is not available yet.": "ログフォルダーはまだ利用できません。",
+    "API connections": "API 接続",
+    "API provider": "API プロバイダー",
+    "Open models folder": "モデルフォルダーを開く",
+    "The models folder could not be opened.": "モデルフォルダーを開けませんでした。",
+    "How to connect an API": "API の接続方法",
+    "Use the API base URL from the provider, not its website address.": "プロバイダーのウェブサイトではなく、API のベース URL を入力してください。",
+    "Copy the exact model ID from the provider's model list.": "プロバイダーのモデル一覧から正確なモデル ID をコピーしてください。",
+    "Create an API key in your provider account and paste it here. Keep it private.": "プロバイダーのアカウントで API キーを作成し、ここに貼り付けてください。キーは秘密にしてください。",
+    "Example: {value}": "例：{value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

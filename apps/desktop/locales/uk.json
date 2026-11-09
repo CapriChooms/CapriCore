@@ -1958,7 +1958,16 @@
     "Event": "Подія",
     "Since request": "Оскільки запиту",
     "Invalid log selection.": "Невалидне вибір журналу.",
-    "The logs folder is not available yet.": "Фолдер журналів ще не доступний."
+    "The logs folder is not available yet.": "Фолдер журналів ще не доступний.",
+    "API connections": "Підключення API",
+    "API provider": "Провайдер API",
+    "Open models folder": "Відкрити папку моделей",
+    "The models folder could not be opened.": "Не вдалося відкрити папку моделей.",
+    "How to connect an API": "Як підключити API",
+    "Use the API base URL from the provider, not its website address.": "Вставте базову адресу API провайдера, а не адресу його сайту.",
+    "Copy the exact model ID from the provider's model list.": "Скопіюйте точний ID моделі зі списку моделей провайдера.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Створіть API-ключ в обліковому записі провайдера та вставте його сюди. Зберігайте його в таємниці.",
+    "Example: {value}": "Приклад: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

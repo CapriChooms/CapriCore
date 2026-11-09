@@ -1958,7 +1958,16 @@
     "Event": "Udánost",
     "Since request": "Od požadavku",
     "Invalid log selection.": "Neplatný výběr logu.",
-    "The logs folder is not available yet.": "Složka s logy zatím není k dispozici."
+    "The logs folder is not available yet.": "Složka s logy zatím není k dispozici.",
+    "API connections": "Připojení API",
+    "API provider": "Poskytovatel API",
+    "Open models folder": "Otevřít složku modelů",
+    "The models folder could not be opened.": "Složku modelů se nepodařilo otevřít.",
+    "How to connect an API": "Jak připojit API",
+    "Use the API base URL from the provider, not its website address.": "Použijte základní URL API poskytovatele, nikoli adresu jeho webu.",
+    "Copy the exact model ID from the provider's model list.": "Zkopírujte přesné ID modelu ze seznamu modelů poskytovatele.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Vytvořte klíč API ve svém účtu u poskytovatele a vložte jej sem. Uchovávejte jej v tajnosti.",
+    "Example: {value}": "Příklad: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

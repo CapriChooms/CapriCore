@@ -1958,7 +1958,16 @@
     "Event": "ఎవెంట్",
     "Since request": "ప్రార్థన నుండి",
     "Invalid log selection.": "విఫలమైన లాగ్ ఎంపిక.",
-    "The logs folder is not available yet.": "లాగ్ ఫాల్డర్ ఇప్పటికే లభ్యంగా లేదు."
+    "The logs folder is not available yet.": "లాగ్ ఫాల్డర్ ఇప్పటికే లభ్యంగా లేదు.",
+    "API connections": "API కనెక్షన్లు",
+    "API provider": "API ప్రదాత",
+    "Open models folder": "మోడళ్ల ఫోల్డర్ తెరవండి",
+    "The models folder could not be opened.": "మోడళ్ల ఫోల్డర్ తెరవలేకపోయాం.",
+    "How to connect an API": "API ఎలా కనెక్ట్ చేయాలి",
+    "Use the API base URL from the provider, not its website address.": "ప్రదాత API బేస్ URL వాడండి, వారి వెబ్‌సైట్ చిరునామా కాదు.",
+    "Copy the exact model ID from the provider's model list.": "ప్రదాత మోడళ్ల జాబితా నుండి ఖచ్చితమైన మోడల్ ID కాపీ చేయండి.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "ప్రదాత వద్ద మీ ఖాతాలో API కీ సృష్టించి ఇక్కడ పేస్ట్ చేయండి. దానిని రహస్యంగా ఉంచండి.",
+    "Example: {value}": "ఉదాహరణ: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

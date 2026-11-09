@@ -151,6 +151,37 @@ test('API settings and the credential cross the restricted settings IPC in one p
     role: 'settings',
   });
 });
+
+test('model folder and device controls are admitted from the actual Settings frame', () => {
+  const handlers = new Map(),
+    frame = { url: 'capri://desktop/settings.html' };
+  const settings = { isDestroyed: () => false, webContents: { mainFrame: frame } };
+  const event = { sender: settings.webContents, senderFrame: frame };
+  const handle = createIpcHandler(
+    { handle: (name, callback) => handlers.set(name, callback) },
+    {
+      getWindow: () => null,
+      getSettingsWindow: () => settings,
+      settingsUrl: frame.url,
+      settingsChannels: SETTINGS_CHANNELS,
+    },
+  );
+  for (const channel of [
+    'capri:models-folder',
+    'capri:model-devices',
+    'capri:model-devices-apply',
+  ]) {
+    handle(channel, (value, { role }) => ({ value, role }));
+    assert.deepEqual(handlers.get(channel)(event, 'fixture'), {
+      value: 'fixture',
+      role: 'settings',
+    });
+    assert.throws(
+      () => handlers.get(channel)({ ...event, senderFrame: { url: frame.url } }),
+      /Untrusted/,
+    );
+  }
+});
 test('opaque decoration never affects native hit testing, and drag gestures expire', () => {
   let cursor = { x: 10, y: 10 },
     time = 100,

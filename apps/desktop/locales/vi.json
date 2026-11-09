@@ -1958,7 +1958,16 @@
     "Event": "Sự kiện",
     "Since request": "Từ khi yêu cầu",
     "Invalid log selection.": "Chọn nhật ký không hợp lệ.",
-    "The logs folder is not available yet.": "Thư mục nhật ký hiện tại không khả dụng."
+    "The logs folder is not available yet.": "Thư mục nhật ký hiện tại không khả dụng.",
+    "API connections": "Kết nối API",
+    "API provider": "Nhà cung cấp API",
+    "Open models folder": "Mở thư mục mô hình",
+    "The models folder could not be opened.": "Không thể mở thư mục mô hình.",
+    "How to connect an API": "Cách kết nối API",
+    "Use the API base URL from the provider, not its website address.": "Dùng URL cơ sở API của nhà cung cấp, không phải địa chỉ trang web.",
+    "Copy the exact model ID from the provider's model list.": "Sao chép chính xác ID mô hình từ danh sách mô hình của nhà cung cấp.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Tạo khóa API trong tài khoản nhà cung cấp của bạn rồi dán vào đây. Giữ bí mật khóa này.",
+    "Example: {value}": "Ví dụ: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

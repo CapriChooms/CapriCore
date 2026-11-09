@@ -1958,7 +1958,16 @@
     "Event": "ইভেন্ট",
     "Since request": "অনুরোধ থেকে",
     "Invalid log selection.": "অবৈধ লগ নির্বাচন।",
-    "The logs folder is not available yet.": "লগ ফোল্ডার এখনো উপলব্ধ নয়।"
+    "The logs folder is not available yet.": "লগ ফোল্ডার এখনো উপলব্ধ নয়।",
+    "API connections": "API সংযোগ",
+    "API provider": "API প্রদানকারী",
+    "Open models folder": "মডেলের ফোল্ডার খুলুন",
+    "The models folder could not be opened.": "মডেলের ফোল্ডার খোলা যায়নি।",
+    "How to connect an API": "কীভাবে API সংযোগ করবেন",
+    "Use the API base URL from the provider, not its website address.": "প্রদানকারীর API বেস URL ব্যবহার করুন, তার ওয়েবসাইটের ঠিকানা নয়।",
+    "Copy the exact model ID from the provider's model list.": "প্রদানকারীর মডেল তালিকা থেকে মডেলের সঠিক ID কপি করুন।",
+    "Create an API key in your provider account and paste it here. Keep it private.": "প্রদানকারীর কাছে আপনার অ্যাকাউন্টে API কী তৈরি করে এখানে পেস্ট করুন। এটি গোপন রাখুন।",
+    "Example: {value}": "উদাহরণ: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

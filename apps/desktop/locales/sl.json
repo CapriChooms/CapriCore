@@ -1958,7 +1958,16 @@
     "Event": "Dogodek",
     "Since request": "Od zahtevka",
     "Invalid log selection.": "Neveljaven izbor dnevnika.",
-    "The logs folder is not available yet.": "Mapa dnevnika trenutno ni na voljo."
+    "The logs folder is not available yet.": "Mapa dnevnika trenutno ni na voljo.",
+    "API connections": "Povezave API",
+    "API provider": "Ponudnik API",
+    "Open models folder": "Odpri mapo modelov",
+    "The models folder could not be opened.": "Mape modelov ni bilo mogoče odpreti.",
+    "How to connect an API": "Kako povezati API",
+    "Use the API base URL from the provider, not its website address.": "Uporabite osnovni URL API ponudnika, ne naslova njegove spletne strani.",
+    "Copy the exact model ID from the provider's model list.": "Kopirajte točen ID modela s ponudnikovega seznama modelov.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Ustvarite ključ API v svojem računu pri ponudniku in ga prilepite sem. Ohranite ga zasebnega.",
+    "Example: {value}": "Primer: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

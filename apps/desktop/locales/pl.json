@@ -1958,7 +1958,16 @@
     "Event": "Zdarzenie",
     "Since request": "Od żądania",
     "Invalid log selection.": "Nieprawidłowy wybór dziennika.",
-    "The logs folder is not available yet.": "Folder dzienników nie jest jeszcze dostępny."
+    "The logs folder is not available yet.": "Folder dzienników nie jest jeszcze dostępny.",
+    "API connections": "Połączenia API",
+    "API provider": "Dostawca API",
+    "Open models folder": "Otwórz folder modeli",
+    "The models folder could not be opened.": "Nie udało się otworzyć folderu modeli.",
+    "How to connect an API": "Jak połączyć API",
+    "Use the API base URL from the provider, not its website address.": "Użyj bazowego adresu API dostawcy, a nie adresu jego strony internetowej.",
+    "Copy the exact model ID from the provider's model list.": "Skopiuj dokładny identyfikator modelu z listy modeli dostawcy.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Utwórz klucz API na koncie dostawcy i wklej go tutaj. Zachowaj go w tajemnicy.",
+    "Example: {value}": "Przykład: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

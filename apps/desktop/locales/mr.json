@@ -1958,7 +1958,16 @@
     "Event": "घटना",
     "Since request": "विनंतीपासून",
     "Invalid log selection.": "अमान्य लॉग निवड.",
-    "The logs folder is not available yet.": "लॉग्स फोल्डर उपलब्ध नाही."
+    "The logs folder is not available yet.": "लॉग्स फोल्डर उपलब्ध नाही.",
+    "API connections": "API जोडण्या",
+    "API provider": "API प्रदाता",
+    "Open models folder": "मॉडेल फोल्डर उघडा",
+    "The models folder could not be opened.": "मॉडेल फोल्डर उघडता आला नाही.",
+    "How to connect an API": "API कसे जोडावे",
+    "Use the API base URL from the provider, not its website address.": "प्रदात्याचा API बेस URL वापरा, त्याच्या वेबसाइटचा पत्ता नव्हे.",
+    "Copy the exact model ID from the provider's model list.": "प्रदात्याच्या मॉडेल यादीतून मॉडेलचा अचूक ID कॉपी करा.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "प्रदात्याकडील तुमच्या खात्यात API की तयार करून येथे पेस्ट करा. ती गुप्त ठेवा.",
+    "Example: {value}": "उदाहरण: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

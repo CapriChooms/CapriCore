@@ -1958,7 +1958,16 @@
     "Event": "Tapahtuma",
     "Since request": "Koska pyyntö",
     "Invalid log selection.": "Virheellinen login valinta.",
-    "The logs folder is not available yet.": "Logihaku ei ole vielä saatavilla."
+    "The logs folder is not available yet.": "Logihaku ei ole vielä saatavilla.",
+    "API connections": "API-yhteydet",
+    "API provider": "API-palveluntarjoaja",
+    "Open models folder": "Avaa mallikansio",
+    "The models folder could not be opened.": "Mallikansiota ei voitu avata.",
+    "How to connect an API": "API:n yhdistäminen",
+    "Use the API base URL from the provider, not its website address.": "Käytä palveluntarjoajan API:n perusosoitetta, älä verkkosivuston osoitetta.",
+    "Copy the exact model ID from the provider's model list.": "Kopioi tarkka mallitunnus palveluntarjoajan malliluettelosta.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Luo API-avain palveluntarjoajan tililläsi ja liitä se tähän. Pidä avain salassa.",
+    "Example: {value}": "Esimerkki: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

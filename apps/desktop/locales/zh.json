@@ -1958,7 +1958,16 @@
     "Event": "事件",
     "Since request": "自请求以来",
     "Invalid log selection.": "无效的日志选择。",
-    "The logs folder is not available yet.": "日志文件夹尚未可用。"
+    "The logs folder is not available yet.": "日志文件夹尚未可用。",
+    "API connections": "API 连接",
+    "API provider": "API 提供商",
+    "Open models folder": "打开模型文件夹",
+    "The models folder could not be opened.": "无法打开模型文件夹。",
+    "How to connect an API": "如何连接 API",
+    "Use the API base URL from the provider, not its website address.": "填写提供商的 API 基础 URL，而不是其网站地址。",
+    "Copy the exact model ID from the provider's model list.": "从提供商的模型列表中复制准确的模型 ID。",
+    "Create an API key in your provider account and paste it here. Keep it private.": "在提供商的账户中创建 API 密钥并粘贴到这里。请勿泄露密钥。",
+    "Example: {value}": "示例：{value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

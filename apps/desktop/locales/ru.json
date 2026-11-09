@@ -1958,7 +1958,16 @@
     "Event": "Событие",
     "Since request": "С начала запроса",
     "Invalid log selection.": "Недопустимый журнал.",
-    "The logs folder is not available yet.": "Папка логов пока недоступна."
+    "The logs folder is not available yet.": "Папка логов пока недоступна.",
+    "API connections": "Подключения API",
+    "API provider": "Провайдер API",
+    "Open models folder": "Открыть папку моделей",
+    "The models folder could not be opened.": "Не удалось открыть папку моделей.",
+    "How to connect an API": "Как подключить API",
+    "Use the API base URL from the provider, not its website address.": "Вставьте базовый адрес API из документации провайдера, а не адрес его сайта.",
+    "Copy the exact model ID from the provider's model list.": "Скопируйте точный ID модели из списка моделей провайдера.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Создайте API-ключ в личном кабинете провайдера и вставьте его сюда. Не передавайте его другим.",
+    "Example: {value}": "Пример: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

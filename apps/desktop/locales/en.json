@@ -1956,6 +1956,15 @@
     "Event": "Event",
     "Since request": "Since request",
     "Invalid log selection.": "Invalid log selection.",
-    "The logs folder is not available yet.": "The logs folder is not available yet."
+    "The logs folder is not available yet.": "The logs folder is not available yet.",
+    "API connections": "API connections",
+    "API provider": "API provider",
+    "Open models folder": "Open models folder",
+    "The models folder could not be opened.": "The models folder could not be opened.",
+    "How to connect an API": "How to connect an API",
+    "Use the API base URL from the provider, not its website address.": "Use the API base URL from the provider, not its website address.",
+    "Copy the exact model ID from the provider's model list.": "Copy the exact model ID from the provider's model list.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Create an API key in your provider account and paste it here. Keep it private.",
+    "Example: {value}": "Example: {value}"
   }
 }

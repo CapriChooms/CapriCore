@@ -1958,7 +1958,16 @@
     "Event": "Hending",
     "Since request": "Síðan ósk",
     "Invalid log selection.": "Ógilt log veling.",
-    "The logs folder is not available yet.": "Skráloga skrifstofu er ekki til staðar enn."
+    "The logs folder is not available yet.": "Skráloga skrifstofu er ekki til staðar enn.",
+    "API connections": "API-tengingar",
+    "API provider": "API-veita",
+    "Open models folder": "Opna líkanamöppu",
+    "The models folder could not be opened.": "Ekki tókst að opna líkanamöppuna.",
+    "How to connect an API": "Hvernig tengja á API",
+    "Use the API base URL from the provider, not its website address.": "Notaðu grunnslóð API-þjónustunnar, ekki vefslóð veitunnar.",
+    "Copy the exact model ID from the provider's model list.": "Afritaðu nákvæmt auðkenni líkans úr líkanalista veitunnar.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Búðu til API-lykil á reikningnum þínum hjá veitunni og límdu hann hér. Haltu honum leyndum.",
+    "Example: {value}": "Dæmi: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

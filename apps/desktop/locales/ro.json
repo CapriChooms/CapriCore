@@ -1958,7 +1958,16 @@
     "Event": "Eveniment",
     "Since request": "De la cerere",
     "Invalid log selection.": "Selectare de log invalidă.",
-    "The logs folder is not available yet.": "Folderul cu loguri nu este disponibil încă."
+    "The logs folder is not available yet.": "Folderul cu loguri nu este disponibil încă.",
+    "API connections": "Conexiuni API",
+    "API provider": "Furnizor API",
+    "Open models folder": "Deschide dosarul modelelor",
+    "The models folder could not be opened.": "Dosarul modelelor nu a putut fi deschis.",
+    "How to connect an API": "Cum conectezi un API",
+    "Use the API base URL from the provider, not its website address.": "Folosește adresa de bază a API-ului furnizorului, nu adresa site-ului său.",
+    "Copy the exact model ID from the provider's model list.": "Copiază ID-ul exact al modelului din lista de modele a furnizorului.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Creează o cheie API în contul tău la furnizor și lipește-o aici. Păstreaz-o secretă.",
+    "Example: {value}": "Exemplu: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

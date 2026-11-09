@@ -1958,7 +1958,16 @@
     "Event": "حدث",
     "Since request": "منذ الطلب",
     "Invalid log selection.": "اختيار سجل غير صالح.",
-    "The logs folder is not available yet.": "مجلد السجلات غير متاح بعد."
+    "The logs folder is not available yet.": "مجلد السجلات غير متاح بعد.",
+    "API connections": "اتصالات API",
+    "API provider": "موفّر API",
+    "Open models folder": "فتح مجلد النماذج",
+    "The models folder could not be opened.": "تعذّر فتح مجلد النماذج.",
+    "How to connect an API": "كيفية ربط API",
+    "Use the API base URL from the provider, not its website address.": "استخدم عنوان URL الأساسي لواجهة API لدى الموفّر، وليس عنوان موقعه الإلكتروني.",
+    "Copy the exact model ID from the provider's model list.": "انسخ معرّف النموذج كما هو من قائمة نماذج الموفّر.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "أنشئ مفتاح API في حسابك لدى الموفّر والصقه هنا. احتفظ به سريًا.",
+    "Example: {value}": "مثال: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

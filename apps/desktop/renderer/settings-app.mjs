@@ -1012,6 +1012,7 @@ function refreshScreenText() {
 function applyLanguage(locale) {
   const changed = ui.language !== locale;
   ui.apply(locale);
+  inference.refreshExamples();
   developer.render();
   companion.savedMemory.render();
   if (changed) language.refreshLocale();

@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld(
     setSpotifyAccess: (enabled) => ipcRenderer.invoke('capri:spotify-access', enabled),
     checkSpotify: () => ipcRenderer.invoke('capri:spotify-check'),
     modelStatus: () => ipcRenderer.invoke('capri:models-status'),
+    openModelsFolder: (kind) => ipcRenderer.invoke('capri:models-folder', kind),
     huggingFaceStatus: () => ipcRenderer.invoke('capri:huggingface-status'),
     searchHuggingFace: (value) => ipcRenderer.invoke('capri:huggingface-search', value),
     inspectHuggingFace: (repository) => ipcRenderer.invoke('capri:huggingface-inspect', repository),

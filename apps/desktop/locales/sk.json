@@ -1958,7 +1958,16 @@
     "Event": "Udalosť",
     "Since request": "Od požiadavky",
     "Invalid log selection.": "Neplatný výber logu.",
-    "The logs folder is not available yet.": "Priečinok logov nie je ešte dostupný."
+    "The logs folder is not available yet.": "Priečinok logov nie je ešte dostupný.",
+    "API connections": "Pripojenia API",
+    "API provider": "Poskytovateľ API",
+    "Open models folder": "Otvoriť priečinok modelov",
+    "The models folder could not be opened.": "Priečinok modelov sa nepodarilo otvoriť.",
+    "How to connect an API": "Ako pripojiť API",
+    "Use the API base URL from the provider, not its website address.": "Použite základnú URL API poskytovateľa, nie adresu jeho webu.",
+    "Copy the exact model ID from the provider's model list.": "Skopírujte presné ID modelu zo zoznamu modelov poskytovateľa.",
+    "Create an API key in your provider account and paste it here. Keep it private.": "Vytvorte kľúč API vo svojom účte u poskytovateľa a vložte ho sem. Uchovávajte ho v tajnosti.",
+    "Example: {value}": "Príklad: {value}"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

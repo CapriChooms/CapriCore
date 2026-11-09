@@ -28,7 +28,7 @@ export function screenObservationText(ui, status = {}) {
     return (
       ui.text('Screen observation is off.') +
       ' ' +
-      ui.text('External AI provider') +
+      ui.text('API connections') +
       ' → ' +
       ui.text('This API model supports images')
     );

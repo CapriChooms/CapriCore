@@ -69,7 +69,19 @@ function Test-CapriSetupNetworkError([string]$Message,[string]$Code='',[Exceptio
         |(?:не[ ]удалось[ ]разрешить[ ]удал[её]нное[ ]имя|соединение[^\r\n]{0,40}(?:разорвано|закрыто))
     '
 }
+function Test-CapriAppControlBlock([string]$Message,[Exception]$Exception=$null) {
+    # Win32 codes remain reliable on non-English Windows and through PowerShell's wrapper.
+    for($depth=0;$Exception -and $depth -lt 12;$depth++){
+        if($Exception -is [ComponentModel.Win32Exception] -and $Exception.NativeErrorCode -in @(1260,4551)){return $true}
+        $Exception=$Exception.InnerException
+    }
+    return $Message -match '(?i)CAPRI_APP_CONTROL_BLOCKED|Application Control policy has blocked this file|blocked by group policy|Device Guard.*block'
+}
 function Get-CapriSetupError($Translations,[string]$Language,[string]$Message,[string]$Code='') {
+    if($Code -eq 'CAPRI_APP_CONTROL_BLOCKED' -or (Test-CapriAppControlBlock $Message)){
+        # Installation succeeded; replacing/re-downloading its files cannot grant a Windows policy exception.
+        return (Get-CapriInstallerText $Translations $Language 'complete')+"`r`n`r`n"+(Get-CapriInstallerText $Translations $Language 'technicalDetails')+":`r`nCAPRI_APP_CONTROL_BLOCKED (Windows App Control):`r`n"+$Message
+    }
     if($Code -eq 'CAPRI_DISK_SPACE'){return (Get-CapriInstallerText $Translations $Language 'diskSpaceError')+"`r`n"+$Message}
     if($Message -match 'INSTALLER_ALREADY_ACTIVE'){return (Get-CapriInstallerText $Translations $Language 'activeInstallation')}
     if($Message -match 'INSTALLER_UI_ALREADY_OPEN|INSTALLER_UI_SUPERSEDED'){return (Get-CapriInstallerText $Translations $Language 'windowAlreadyOpen')}

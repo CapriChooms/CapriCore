@@ -175,3 +175,26 @@ test('the multilingual classifier receives Discord app examples without executin
     usesPrevious: false,
   });
 });
+
+test('the classifier distinguishes ordinary conversation from built-in feature requests', async () => {
+  for (const intent of ['chat', 'memory', 'feature']) {
+    const classify = computerIntentClassifier({
+      url: 'http://127.0.0.1:1234',
+      model: 'fixture',
+      fetchImpl: async (_url, options) => {
+        const body = JSON.parse(options.body);
+        assert(body.format.properties.intent.enum.includes('feature'));
+        assert(body.format.properties.intent.enum.includes('memory'));
+        assert.match(body.messages[0].content, /feature:.*timers.*screenshots/);
+        return result({ intent, usesPrevious: false });
+      },
+    });
+    assert.deepEqual(
+      await classify(intent === 'chat' ? 'Not much, just chilling.' : 'Set a timer.'),
+      {
+        intent,
+        usesPrevious: false,
+      },
+    );
+  }
+});

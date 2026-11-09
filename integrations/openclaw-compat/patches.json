@@ -423,9 +423,17 @@
         {
           "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
           "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+        },
+        {
+          "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+          "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+        },
+        {
+          "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+          "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
         }
       ],
-      "afterSha256": "366629f37a54d25ea4db5d2a63780b1a37edd8ab13fb5b32dd127ea3977e480e",
+      "afterSha256": "b534105baadfdae2040083ff277befafc2a2fe1aaa9d92443cf4b72f72efb80b",
       "upgrades": [
         {
           "beforeSha256": "91fc9bbe7dce6ae3dd02776b28cf201f59a98c016fc4f9df646353cefe01ae40",
@@ -457,6 +465,14 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         },
@@ -482,6 +498,14 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         },
@@ -499,6 +523,14 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         },
@@ -512,6 +544,14 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         },
@@ -521,6 +561,36 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "366629f37a54d25ea4db5d2a63780b1a37edd8ab13fb5b32dd127ea3977e480e",
+          "edits": [
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "54d6b9457a39b4ff204dc9f9cf030e20eba4ff345f7a19d3869bd444e5144ec9",
+          "edits": [
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         }
@@ -553,9 +623,13 @@
         {
           "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
           "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+        },
+        {
+          "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+          "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
         }
       ],
-      "afterSha256": "ca55967a21588684acaa6680d5c4bb33a7a2dd001e13fdd10c110660ccc89b26",
+      "afterSha256": "aa16310465b3314f8cce19e058052b7db6a819d0fb5d2056f1e268f75888f44c",
       "upgrades": [
         {
           "beforeSha256": "7ea507b5d49303f07099e8f719eedff6f0e88556ce340de68637b7d143840831",
@@ -579,6 +653,10 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         },
@@ -600,6 +678,10 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         },
@@ -617,6 +699,10 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         },
@@ -630,6 +716,10 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         },
@@ -639,6 +729,19 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "ca55967a21588684acaa6680d5c4bb33a7a2dd001e13fdd10c110660ccc89b26",
+          "edits": [
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         }

@@ -6,6 +6,7 @@ import { VoicePlayer } from '../apps/desktop/renderer/voice-player.mjs';
 import { VOICE_EFFECT_PRESETS } from '../apps/desktop/renderer/voice-effects-settings.mjs';
 import { speechLanguageMismatch } from '../apps/desktop/renderer/speech-text.mjs';
 import { randomUUID } from 'node:crypto';
+import { ChatService } from '../apps/desktop/chat-service.mjs';
 import {
   configureResponseTimings,
   withResponseTiming,
@@ -201,6 +202,50 @@ function turn(voice, id, text) {
   voice.onChat({ type: 'turn.delta', turnId: id, text });
   voice.onChat({ type: 'turn.completed', turnId: id });
 }
+
+test('a classified social reply completes both streamed text and the entire speech queue', async () => {
+  const { voice, events, requests } = service(),
+    records = new Map(),
+    chatEvents = [];
+  const chat = new ChatService({
+    gatewayUrl: 'http://127.0.0.1:18789',
+    agentId: 'capri',
+    token: () => 'fixture',
+    persona: () => 'You are Capri.',
+    store: { snapshot: () => [...records.values()], put: (value) => records.set(value.id, value) },
+    interfaceState: () => ({ fullComputerAccess: true, languages: { conversation: 'en' } }),
+    computerIntent: async () => ({ intent: 'chat', usesPrevious: false }),
+    computerTask: () => assert.fail('Smalltalk cannot start a computer task'),
+    fetchImpl: async (_url, options) => {
+      assert.equal(options.headers['x-capri-tools-once'], 'dialogue');
+      const parts = ['No worries. ', 'We can just hang out. ', 'How was your evening?'];
+      return new Response(
+        parts
+          .map(
+            (content) => 'data: ' + JSON.stringify({ choices: [{ delta: { content } }] }) + '\n\n',
+          )
+          .join('') + 'data: [DONE]\n\n',
+        { headers: { 'content-type': 'text/event-stream' } },
+      );
+    },
+  });
+  try {
+    await chat.send({ id: randomUUID(), text: 'Not much, just chilling.' }, (event) => {
+      chatEvents.push(event);
+      voice.onChat(event);
+    });
+    await until(() => events.some((event) => event.type === 'voice.generated'));
+    assert.equal(chatEvents.at(-1).type, 'turn.completed');
+    assert.equal(
+      requests.map((request) => request.text).join(' '),
+      'No worries. We can just hang out. How was your evening?',
+    );
+    assert(!events.some((event) => ['voice.cancelled', 'voice.error'].includes(event.type)));
+    assert.equal(voice.generating, false);
+  } finally {
+    voice.close();
+  }
+});
 
 test('speech preserves asterisk-wrapped words and hides code across arbitrary stream boundaries', () => {
   const input =

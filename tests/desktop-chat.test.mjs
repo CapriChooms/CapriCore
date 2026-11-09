@@ -1067,6 +1067,49 @@ test('social routing preserves shared history and leaves task tools available on
   );
 });
 
+test('a classified conversation cannot inherit action tools, while the next feature request keeps them', async () => {
+  const seen = [],
+    events = [];
+  const service = client({
+    requestRouter: { classify: async () => ({ mode: 'normal', reason: 'unavailable' }) },
+    computerIntent: async (text) => ({
+      intent:
+        text === 'Set a timer for ten minutes.'
+          ? 'feature'
+          : text === 'What is my favourite game?'
+            ? 'memory'
+            : 'chat',
+      usesPrevious: false,
+    }),
+    interfaceState: () => ({ fullComputerAccess: true }),
+    computerTask: () => assert.fail('Conversation and built-in features must not control the PC'),
+    fetchImpl: async (_url, options) => {
+      seen.push({ headers: options.headers, body: JSON.parse(options.body) });
+      return response('No worries. We can just hang out.');
+    },
+  });
+  for (const text of [
+    'Not much, just chilling.',
+    'Да ничего особенного.',
+    'Rien de spécial.',
+    'Set a timer for ten minutes.',
+    'What is my favourite game?',
+  ])
+    await service.send({ id: randomUUID(), text }, (event) => events.push(event));
+  for (const request of seen.slice(0, 3)) {
+    assert.equal(request.headers['x-capri-tools-once'], 'dialogue');
+    assert.match(request.body.messages[0].content, /Tools are unavailable/);
+    assert.doesNotMatch(request.body.messages[0].content, /filesystem_control trash/);
+  }
+  assert.equal(seen[3].headers['x-capri-tools-once'], undefined);
+  assert.match(seen[3].body.messages[0].content, /timer/);
+  assert.equal(seen[4].headers['x-capri-tools-once'], 'conversation');
+  assert.match(seen[4].body.messages[0].content, /memory tools/);
+  assert.equal(new Set(seen.map((request) => request.headers['x-openclaw-session-key'])).size, 1);
+  assert.equal(events.filter((event) => event.type === 'turn.completed').length, 5);
+  assert(!events.some((event) => event.type === 'turn.failed'));
+});
+
 test('router failure falls back, while cancellation during classification sends no model request', async () => {
   let fetched = 0;
   const service = client({

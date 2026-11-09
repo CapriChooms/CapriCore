@@ -3,6 +3,7 @@ import path from 'node:path';
 import { root } from '../host/paths.mjs';
 import { MIN_COMPANION_CONTEXT, isManagedCapriModel } from './context-policy.mjs';
 import { deviceSettingsFile, readModelDevices } from '../model-device-settings.mjs';
+import { cpuExecutionProfile } from '../hardware/cpu-execution.mjs';
 
 export function generationParams(value = { temperature: 0.85, repeat_last_n: 512 }) {
   if (
@@ -106,16 +107,18 @@ export function loadCoreSettings(directory = path.join(root, 'config')) {
   const base = read(path.join(directory, 'core.json')),
     file = path.join(directory, 'core.local.json'),
     local = existsSync(file) ? read(file) : {};
-  return validateCoreSettings({
-    ...base,
-    ...local,
-    ...(existsSync(deviceSettingsFile(path.dirname(directory)))
-      ? {
-          acceleration:
-            readModelDevices(path.dirname(directory)).language === 'cpu' ? 'cpu' : 'auto',
-        }
-      : {}),
-    generation: { ...base.generation, ...local.generation },
-  });
+  return cpuExecutionProfile(
+    validateCoreSettings({
+      ...base,
+      ...local,
+      ...(existsSync(deviceSettingsFile(path.dirname(directory)))
+        ? {
+            acceleration:
+              readModelDevices(path.dirname(directory)).language === 'cpu' ? 'cpu' : 'auto',
+          }
+        : {}),
+      generation: { ...base.generation, ...local.generation },
+    }),
+  );
 }
 export const settings = Object.freeze(loadCoreSettings());

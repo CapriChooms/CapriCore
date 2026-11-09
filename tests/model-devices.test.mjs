@@ -22,11 +22,77 @@ import { ModelDeviceService } from '../apps/desktop/model-device-service.mjs';
 import { loadCoreSettings } from '../packages/runtime/src/config/settings.mjs';
 import { saveInferenceSettings } from '../packages/runtime/src/hardware/model-profile.mjs';
 import { createGatewayConfiguration } from '../packages/runtime/src/context.mjs';
+import { availableParallelism } from 'node:os';
+import { cpuExecutionProfile } from '../packages/runtime/src/hardware/cpu-execution.mjs';
 const parent = path.resolve('.runtime/model-device-tests');
 mkdirSync(parent, { recursive: true });
 const fixture = () => mkdtempSync(path.join(parent, 'case-'));
 const cuda = modelDevice('cuda', 0, 'NVIDIA QA'),
   amd = modelDevice('vulkan', 1, 'AMD Radeon QA');
+
+test('CPU profiles scale conservative preset budgets to the available cores', () => {
+  const base = {
+    resourceProfile: 'minimal',
+    model: 'capri-qwen3.5:0.8b',
+    acceleration: 'cpu',
+    cpuThreads: 2,
+    contextTokens: 32768,
+  };
+  for (const [host, expected] of [
+    [1, 1],
+    [2, 1],
+    [4, 2],
+    [8, 4],
+    [16, 8],
+    [32, 8],
+  ]) {
+    const result = cpuExecutionProfile(base, host);
+    assert.equal(result.cpuThreads, expected);
+    assert.equal(result.contextTokens, base.contextTokens);
+    assert.equal(result.model, base.model);
+  }
+  assert.equal(base.cpuThreads, 2);
+  for (const config of [
+    { ...base, acceleration: 'auto' },
+    { ...base, cpuThreads: 3 },
+    { ...base, resourceProfile: 'custom' },
+  ])
+    assert.equal(cpuExecutionProfile(config, 32), config);
+});
+
+test('CPU switching applies the same effective thread budget to settings and gateway without changing the saved profile', () => {
+  const root = fixture();
+  mkdirSync(path.join(root, 'config'), { recursive: true });
+  const config = {
+    ...JSON.parse(readFileSync('config/core.json', 'utf8')),
+    resourceProfile: 'minimal',
+    model: 'capri-qwen3.5:0.8b',
+    cpuThreads: 2,
+    acceleration: 'auto',
+  };
+  const file = path.join(root, 'config/core.json');
+  writeFileSync(file, JSON.stringify(config));
+  const rt = {
+    workspace: path.join(root, 'data/workspace'),
+    stateDir: path.join(root, 'data/openclaw'),
+    configPath: path.join(root, 'data/openclaw/openclaw.json'),
+    ollamaUrl: 'http://127.0.0.1:30251',
+    gatewayPort: 30151,
+  };
+  mkdirSync(path.dirname(rt.configPath), { recursive: true });
+  writeFileSync(rt.configPath, JSON.stringify(createGatewayConfiguration(rt, config)));
+  saveModelDevices(root, { language: 'cpu', voice: 'cpu' });
+  const expected = Math.min(8, Math.max(1, Math.floor(availableParallelism() / 2)));
+  const cpu = loadCoreSettings(path.join(root, 'config'));
+  assert.equal(cpu.cpuThreads, expected);
+  saveInferenceSettings({ root, rt, overrides: { acceleration: 'cpu' } });
+  const gateway = JSON.parse(readFileSync(rt.configPath, 'utf8'));
+  assert.equal(gateway.models.providers.ollama.models[0].params.num_thread, expected);
+  assert.equal(gateway.models.providers.ollama.models[0].params.num_gpu, 0);
+  assert.equal(JSON.parse(readFileSync(file, 'utf8')).cpuThreads, 2);
+  saveModelDevices(root, { language: 'auto', voice: 'auto' });
+  assert.equal(loadCoreSettings(path.join(root, 'config')).cpuThreads, 2);
+});
 
 test('backend discovery uses actual backend ordinals and bounded names, never DXGI order', () => {
   const text =

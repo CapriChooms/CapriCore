@@ -7,6 +7,7 @@ import { applyModelProfile } from '../context.mjs';
 import { writeJsonAtomic } from '../atomic-json.mjs';
 import { validateContextChoice, contextChoicesFor } from '../config/context-policy.mjs';
 import { validateImportedProfile } from './imported-model.mjs';
+import { cpuExecutionProfile } from './cpu-execution.mjs';
 
 export function profileOverrides(profile) {
   return {
@@ -83,11 +84,15 @@ export function saveInferenceSettings({ root, rt, overrides, write = writeJsonAt
     if (beforeGateway)
       write(
         rt.configPath,
-        applyModelProfile(beforeGateway, rt, {
-          ...current,
-          ...next,
-          generation: { ...current.generation, ...next.generation },
-        }),
+        applyModelProfile(
+          beforeGateway,
+          rt,
+          cpuExecutionProfile({
+            ...current,
+            ...next,
+            generation: { ...current.generation, ...next.generation },
+          }),
+        ),
       );
     write(file, next);
   } catch (error) {

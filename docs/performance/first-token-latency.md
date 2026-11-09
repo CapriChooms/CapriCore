@@ -69,6 +69,35 @@ reused their resident runner (4–6 ms reported loading). These complete-chain
 checks use a different prompt/history from the diagnostic and are not a direct
 before/after comparison. A genuinely cold model still needs its initial load.
 
+## CPU-only profile budget
+
+A separate diagnostic confirmed zero GPU offload but no visible answer before
+the CPU first-text deadline of 120 seconds. The selected built-in minimal profile
+retained its two-thread budget while replaying a long conversation and running
+compaction. That default is conservative for a small PC, but unnecessarily
+restricts a larger processor.
+
+Explicit CPU execution now scales unmodified built-in profile budgets to half
+the host's logical cores, capped at eight. Smaller hosts retain a smaller budget;
+non-default thread counts and custom profiles are preserved. The effective
+configuration is shared by preparation, auxiliary requests and the gateway.
+Changing back to GPU mode restores the saved profile's original CPU budget.
+
+Real Qwen 3.5 0.8B, CPU-only, 32K-context checks with the same public personality
+measured prompt evaluation at 13.138 s / two threads versus 4.855 s / eight threads
+for 1,427 prompt tokens. An eight-thread 5,904-token prefill took 29.586 s.
+An additional actual gateway conversation, seeded with public synthetic history,
+completed both turns; first text arrived at 43.425 s and 76.879 s. The latter
+included audited compaction and a 9,096-token final prompt. These are intentionally
+reported as end-to-end timings, not inference-only speedups. No original user
+history was replayed in these checks.
+
+The real Chatterbox CPU worker also loaded, warmed and synthesized a short phrase
+without initializing CUDA. The measured phrase took 4.353 s after warmup; its
+audio was validated without playback. CPU execution remains considerably slower
+than GPU execution on large prompts; increasing the context does not make its
+prefill free.
+
 ## Earlier desktop measurements
 
 The test used a separate installed Capri instance, its real Electron renderer,

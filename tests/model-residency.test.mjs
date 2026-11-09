@@ -72,7 +72,7 @@ test('model preparation handles context mismatch, provider failures and cancella
     }),
     { cold: true },
   );
-  assert.equal(calls.length, 2);
+  assert.equal(calls.filter((options) => options.method === 'POST').length, 1);
   const cause = new Error('Not enough memory to load model');
   await assert.rejects(
     ensureLanguageModelReady(model, {
@@ -97,6 +97,43 @@ test('model preparation handles context mismatch, provider failures and cancella
     }),
     /Owner stopped/,
   );
+});
+
+test('a cold auto runner reports actual CPU residency without mistaking a missing GPU counter for CPU', async () => {
+  let warmed = false;
+  const result = await ensureLanguageModelReady(
+    { url: 'http://127.0.0.1:11435', model: 'fixture', contextTokens: 32768 },
+    {
+      requestImpl: async (url) => {
+        if (url.endsWith('/api/ps'))
+          return {
+            models: warmed
+              ? [{ name: 'fixture', context_length: 32768, size: 2 ** 30, size_vram: 0 }]
+              : [],
+          };
+        warmed = true;
+        return { done: true };
+      },
+    },
+  );
+  assert.deepEqual(result, {
+    cold: true,
+    residentBytes: 2 ** 30,
+    residentGpuBytes: 0,
+    residentContextTokens: 32768,
+  });
+  let reads = 0;
+  const unknown = await ensureLanguageModelReady(
+    { url: 'http://127.0.0.1:11435', model: 'fixture', contextTokens: 32768 },
+    {
+      requestImpl: async (url) => {
+        if (!url.endsWith('/api/ps')) return { done: true };
+        if (++reads > 1) throw Error('Optional metadata unavailable');
+        return { models: [] };
+      },
+    },
+  );
+  assert.deepEqual(unknown, { cold: true });
 });
 
 test('muted voice unloads once and concurrent starts can await the same termination', async () => {

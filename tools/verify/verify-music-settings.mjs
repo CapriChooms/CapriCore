@@ -48,6 +48,7 @@ try {
     enabled: false,
     notes: true,
     motion: true,
+    autoBpm: true,
   });
   await application.evaluate(({ ipcMain, BrowserWindow }) => {
     const state = (globalThis.musicSettingsFixture = {
@@ -57,7 +58,7 @@ try {
       hearingMusic: false,
       musicScore: 0,
       speechScore: 0,
-      settings: { enabled: false, notes: true, motion: true },
+      settings: { enabled: false, notes: true, motion: true, autoBpm: true },
       starts: 0,
       stops: 0,
       saves: 0,
@@ -132,7 +133,7 @@ try {
   report.checks.push(
     'tab navigation preserves the unsaved music preference without an automatic save',
   );
-  await page.locator('#music-listening-start').click();
+  await page.locator('#music-listening-enabled').check();
   await page.waitForFunction(
     () => document.getElementById('music-listening-status').textContent === 'Listening',
   );
@@ -147,12 +148,12 @@ try {
   );
   assert.equal(await page.locator('#music-listening-notes').isChecked(), false);
   report.checks.push(
-    'explicit Start changes live status; music events preserve dirty animation toggles',
+    'explicit animation toggle starts listening; music events preserve dirty note preferences',
   );
   await saveSettings(page);
   await page.waitForTimeout(300);
   const saved = await application.evaluate(() => ({ ...globalThis.musicSettingsFixture }));
-  assert.deepEqual(saved.settings, { enabled: true, notes: false, motion: true });
+  assert.deepEqual(saved.settings, { enabled: true, notes: false, motion: true, autoBpm: true });
   assert.equal(saved.saves, 1);
   assert.equal(saved.starts, 1);
   assert.equal(saved.captures, 0);

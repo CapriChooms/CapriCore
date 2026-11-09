@@ -16,6 +16,7 @@ export function environment(rt = runtime()) {
     OPENCLAW_WORKSPACE_DIR: rt.workspace,
     OPENCLAW_HOME: path.join(rt.stateDir, 'home'),
     CAPRI_GATEWAY_PORT: String(rt.gatewayPort),
+    CAPRI_OLLAMA_PORT: String(settings.ollamaPort),
     OPENCLAW_GATEWAY_TOKEN: headers(rt).authorization.slice(7),
     OLLAMA_HOST: `127.0.0.1:${settings.ollamaPort}`,
     OLLAMA_MODELS: path.join(paths.data, 'models'),

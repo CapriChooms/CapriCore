@@ -3,7 +3,10 @@
 // unknown JSON fields may themselves be private, even when they contain no key.
 import { existsSync, lstatSync, openSync, readSync, closeSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { diagnosticModelId } from './technical-model-id.mjs';
+export { diagnosticModelId } from './technical-model-id.mjs';
 import { assertPrivatePath, writePrivateBytesAtomic } from './safe-file.mjs';
+import { responseTimingRecord } from './response-timing-schema.mjs';
 const ERROR_CODES = new Set([
   'ECONNREFUSED',
   'ECONNRESET',
@@ -70,24 +73,6 @@ const EVENTS = new Set([
   'activity',
 ]);
 
-/** Public model identifiers are technical metadata, never arbitrary log prose. */
-export function diagnosticModelId(value) {
-  if (
-    typeof value !== 'string' ||
-    value.length > 200 ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$/.test(value) ||
-    /^(?:[A-Za-z]:\/|https?:|file:|sk[-_]|gh[pousr]_|github_pat_|hf_|AIza)/i.test(value) ||
-    value.includes('//') ||
-    value.split('/').some((part) => !part || part === '.' || part === '..') ||
-    /^[^/]+@[^/]+\.[^/]+$/.test(value) ||
-    /(?:^|[/:_-])(?:api[-_]?key|access[-_]?token|refresh[-_]?token|token|secret|password|passwd|bearer)(?:$|[/:_-])/i.test(
-      value,
-    )
-  )
-    return undefined;
-  return value;
-}
-
 export function privateLogRecord(input, { service, stream, stage } = {}) {
   const source = typeof input === 'string' ? input.slice(-16384) : '';
   let parsed;
@@ -96,6 +81,8 @@ export function privateLogRecord(input, { service, stream, stage } = {}) {
   } catch {
     /* Unknown text is never copied. */
   }
+  const timing = responseTimingRecord(parsed);
+  if (timing) return timing;
   const record = { schemaVersion: 1 };
   if (
     typeof parsed?.time === 'string' &&

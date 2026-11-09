@@ -7,6 +7,125 @@ body.settings-window {
   background: #07131c;
   color: #d7eeed;
 }
+/* One compositor-only sweep for all placeholders; no per-control timers. */
+#settings-loading {
+  position: absolute;
+  inset: 58px 0 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--theme-background, #07131c);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 180ms ease,
+    visibility 180ms;
+}
+[data-settings-loading] #settings-loading {
+  opacity: 1;
+  visibility: visible;
+}
+[data-settings-loading] #settings-layout {
+  visibility: hidden;
+}
+.settings-loading-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+  padding: 14px 12px;
+  border-inline-end: 1px solid var(--theme-border, #296373);
+}
+.settings-loading-content {
+  min-inline-size: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.skeleton-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-block: 12px;
+}
+.settings-skeleton {
+  display: block;
+  flex: none;
+  min-inline-size: 0;
+  block-size: 12px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--cyan, #8ef5ed) 11%, var(--theme-panel, #102630));
+}
+.skeleton-title {
+  inline-size: 62%;
+  block-size: 23px;
+  margin-block-end: 8px;
+}
+.skeleton-label {
+  inline-size: 58%;
+}
+.skeleton-line {
+  inline-size: 85%;
+  block-size: 8px;
+}
+.skeleton-input {
+  inline-size: 100%;
+  block-size: 34px;
+}
+.skeleton-nav {
+  inline-size: 84%;
+  block-size: 19px;
+}
+.skeleton-toggle {
+  inline-size: 76%;
+  block-size: 31px;
+}
+#settings-loading::after,
+#companion[data-panel-loading] #settings-panel-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    color-mix(in srgb, var(--cyan, #8ef5ed) 7%, transparent) 50%,
+    transparent 62%
+  );
+  transform: translateX(-100%);
+}
+[data-settings-loading] #settings-loading::after,
+#companion[data-panel-loading] #settings-panel-loading::after {
+  animation: settings-placeholder-sweep 1.6s ease-in-out infinite;
+}
+@keyframes settings-placeholder-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+#settings-panel-loading {
+  display: none;
+  position: absolute;
+  inset: 14px;
+  overflow: hidden;
+  pointer-events: none;
+}
+#companion[data-panel-loading] #settings-panel-loading {
+  display: flex;
+}
+#companion[data-panel-loading] #settings-forms {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  #settings-loading {
+    transition: none;
+  }
+  [data-settings-loading] #settings-loading::after,
+  #companion[data-panel-loading] #settings-panel-loading::after {
+    animation: none;
+  }
+}
 .saved-memory-view {
   margin-block: 12px 16px;
   padding: 14px;
@@ -1070,6 +1189,25 @@ body.settings-window {
   gap: 7px;
   overflow-wrap: anywhere;
 }
+.api-setup-guide {
+  margin-block: 8px 12px;
+  padding: 9px 12px;
+  border-inline-start: 2px solid var(--ui-accent, #8ef5ed);
+  background: color-mix(in srgb, var(--ui-accent, #8ef5ed) 5%, transparent);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.api-setup-guide summary {
+  color: var(--ui-accent, #8ef5ed);
+  cursor: pointer;
+}
+.api-setup-guide ol {
+  margin-block: 8px 0;
+  padding-inline-start: 20px;
+}
+.api-setup-guide li + li {
+  margin-block-start: 5px;
+}
 #api-editing-name {
   color: var(--ui-accent, #8ef5ed);
   font-size: 0.9em;
@@ -1198,4 +1336,11 @@ textarea:disabled {
     animation: none;
     outline: 1px solid #8ef5ed;
   }
+}
+.model-device-card select {
+  width: 100%;
+  min-width: 0;
+}
+.model-device-card .model-device-error {
+  color: var(--danger, #ff6687);
 }

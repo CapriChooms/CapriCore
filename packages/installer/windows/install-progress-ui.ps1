@@ -71,6 +71,7 @@ function Read-CapriInstallProgress([bool]$Paused) {
                 $description=Text-Capri $key
                 if($description -ne $key){
                     $component=if($event.PSObject.Properties['component']){Text-Capri ('progressComponent.'+[string]$event.component)}else{''}
+                    if($component -like 'progressComponent.*' -and $event.component -in @('PyTorch','torchaudio')){$component=[string]$event.component}
                     $progress.activity=$description -f $component
                     $progress.transfer='';$progress.transferEta=$null
                     $logBatch.Add($progress.activity)

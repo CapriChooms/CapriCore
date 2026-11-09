@@ -396,6 +396,7 @@ function syncSleepingVisual() {
 let activeTurnId = null;
 const pendingSpotifyTools = new Set();
 let submitting = false;
+const responsePaintStarts = new Map();
 let ready = false;
 let miniDraftRevision = 0,
   lastMiniSnapshot;
@@ -1669,6 +1670,12 @@ function notice(text = '', severity = 'error') {
   elements.notice.hidden = !noticeSource;
   scheduleRegions();
 }
+function renderInstalledVersion(status) {
+  if (typeof status?.current !== 'string') return;
+  const label = document.getElementById('capri-version');
+  label.textContent = status.current;
+  label.hidden = false;
+}
 function renderMicrophoneLabel(value) {
   const label =
     value.status === 'listening'
@@ -2001,9 +2008,20 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'music.status') {
+    const wasHearingMusic = musicState.hearingMusic;
+    const wasReady = musicAnimationReady(musicState);
     musicState = { ...musicState, ...event };
     musicClient.setState(event);
     renderMusicState();
+    // Decode while BPM is being acquired, without selecting a music pose yet.
+    if (!wasHearingMusic && musicState.hearingMusic)
+      frameImages?.get('music-floor').catch(() => {});
+    if (!wasReady && musicAnimationReady(musicState) && ready)
+      animateCharacter(
+        performance.now(),
+        presence.snapshot(),
+        matchMedia('(prefers-reduced-motion: reduce)').matches,
+      );
     return;
   }
   if (event.type === 'avatar.composer.action') {
@@ -2175,6 +2193,7 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'updates.status') {
+    renderInstalledVersion(event);
     updatesPanel.show(event);
     updateNotification.show(event);
     scheduleRegions();
@@ -2462,6 +2481,8 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'turn.started') {
+    if (!responsePaintStarts.has(event.turnId))
+      responsePaintStarts.set(event.turnId, performance.now());
     replyVisibility.update(
       { turnId: event.turnId, text: '', status: 'streaming' },
       Boolean(
@@ -2528,9 +2549,22 @@ function onEvent(event) {
       (item) => item.message.turnId === event.turnId && item.message.role === 'assistant',
     );
     if (view) {
+      const firstVisibleText = !view.message.text;
       const message = { ...view.message, text: view.message.text + event.text };
       putMessage(message);
       showSubtitles(message);
+      if (firstVisibleText && document.visibilityState === 'visible') {
+        const started = responsePaintStarts.get(event.turnId);
+        responsePaintStarts.delete(event.turnId);
+        if (started !== undefined)
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              void api
+                .responsePainted?.({ id: event.turnId, elapsedMs: performance.now() - started })
+                .catch(() => {});
+            }),
+          );
+      }
     }
     return;
   }
@@ -2542,6 +2576,7 @@ function onEvent(event) {
     putMessage(event.assistant);
     showSubtitles(event.assistant);
     activeTurnId = null;
+    responsePaintStarts.delete(event.turnId);
     notice(event.warning || (event.type === 'turn.failed' ? event.message : ''));
     elements.announcement.textContent = ui.text(
       event.type === 'turn.completed' ? 'Capri has replied.' : event.message,
@@ -2575,6 +2610,9 @@ async function send() {
   api.stopVoice().catch(() => {});
   if (voiceSettings.enabled) voicePlayer.unlock().catch(() => {});
   const id = crypto.randomUUID();
+  responsePaintStarts.set(id, performance.now());
+  if (responsePaintStarts.size > 32)
+    responsePaintStarts.delete(responsePaintStarts.keys().next().value);
   elements.message.value = '';
   sizeInput();
   try {
@@ -3038,6 +3076,7 @@ try {
   applicationsPanel.showSpotify(snapshot.spotify);
   modelsPanel.show(snapshot.models);
   updatesPanel.show(snapshot.updates);
+  renderInstalledVersion(snapshot.updates);
   updateNotification.show(snapshot.updates);
   startupPanel.update(snapshot.startup);
   companionSettings = snapshot.companion;

@@ -4,7 +4,37 @@ import assert from 'node:assert/strict';
 import {
   dedicatedMusicContext,
   dedicatedMusicRequest,
+  namedSpotifyPlay,
 } from '../apps/desktop/computer-mode-request.mjs';
+
+test('named Spotify playback preserves the owner query, never generated command syntax', () => {
+  for (const text of [
+    'Play Example Artist - Example Title on Spotify.',
+    'Capri, could you please play Example Artist - Example Title?',
+    'Капри, включи Example Artist - Example Title в Spotify, пожалуйста.',
+    'Поставь в спотифай Example Artist - Example Title',
+    'Play the track Example Artist - Example Title',
+  ])
+    assert.deepEqual(
+      namedSpotifyPlay(text),
+      { action: 'play', query: 'Example Artist - Example Title' },
+      text,
+    );
+  for (const text of [
+    'Do you like Example Artist - Example Title?',
+    'Play chess',
+    'Play music on Spotify',
+    'Do not play Example Artist - Example Title on Spotify',
+    'Say "play Example Artist - Example Title on Spotify"',
+    'Play Example Artist - Example Title on Spotify and set a timer',
+    'Play Example Artist - Example Title on Spotify; pause it',
+    'Use full computer control to play Example Artist - Example Title on Spotify',
+    'Play Example Artist - Example Title and then click the lyrics button',
+    'Play is the title on Spotify',
+    '**[spotify_control{action:<|"|>play<|"|>,query:<|"|>Example Artist - Example Title<|"|>}]**',
+  ])
+    assert.equal(namedSpotifyPlay(text), null, text);
+});
 
 test('a music topic can block implicit desktop escalation without claiming an execution request', () => {
   for (const text of [

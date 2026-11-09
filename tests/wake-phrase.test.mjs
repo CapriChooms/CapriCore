@@ -143,6 +143,78 @@ test('a bare name activates once, strips the address and sends only the accurate
   f.service.stop();
 });
 
+test('manual listening treats Capri as ordinary text across interim and final transcripts', () => {
+  for (const phrase of [
+    'Capri, play music.',
+    'Hey Capri, tell me what Capri means.',
+    'Капри, расскажи о себе.',
+    'Эй Капри, какая сегодня погода?',
+    'Tell me, hey Capri, how this works.',
+  ]) {
+    const wakes = [],
+      gate = new WakePhraseGate(options, { onWake: (event) => wakes.push(event) });
+    try {
+      assert.equal(gate.continueListening(), true);
+      assert.deepEqual(gate.observe({ utterance: 0, text: 'Capri', final: false }), {
+        accepted: true,
+        text: 'Capri',
+      });
+      assert.deepEqual(gate.observe({ utterance: 0, text: phrase, final: true }), {
+        accepted: true,
+        text: phrase,
+      });
+      assert.equal(gate.snapshot().wakeState, 'command');
+      assert.equal(wakes.length, 0);
+    } finally {
+      gate.close();
+    }
+  }
+});
+
+test('a manually activated microphone sends the complete name-containing request without waking again', async () => {
+  for (const phrase of ['Hey Capri, play music.', 'Капри, расскажи про Капри.']) {
+    const f = await fixture();
+    try {
+      assert.equal(f.service.listenNow(), true);
+      f.emit(0, 'Capri');
+      assert.equal(f.service.snapshot().wakeState, 'command');
+      assert.equal(f.events.filter((event) => event.type === 'microphone.wake').length, 1);
+      f.emit(0, phrase, { final: true });
+      await f.service.tail;
+      assert.deepEqual(
+        f.submitted.map((value) => value.text),
+        [phrase],
+      );
+      assert.equal(f.events.filter((event) => event.type === 'microphone.wake').length, 1);
+      assert.equal(f.service.snapshot().wakeState, 'waiting');
+    } finally {
+      f.service.stop();
+    }
+  }
+});
+
+test('the utterance after a keyword-only wake and follow-up listening preserve further names', () => {
+  const wakes = [],
+    gate = new WakePhraseGate(options, { onWake: (event) => wakes.push(event) });
+  try {
+    assert.equal(gate.observe({ utterance: 0, text: 'Hey Capri.', final: true }).text, '');
+    assert.equal(
+      gate.observe({ utterance: 1, text: 'Capri, tell me more.', final: true }).text,
+      'Capri, tell me more.',
+    );
+    assert.equal(wakes.length, 1);
+    gate.rearm(1);
+    gate.continueListening();
+    assert.equal(
+      gate.observe({ utterance: 2, text: 'Hey Capri, continue.', final: true }).text,
+      'Hey Capri, continue.',
+    );
+    assert.equal(wakes.length, 1);
+  } finally {
+    gate.close();
+  }
+});
+
 test('ambient speech is neither sent nor previewed; wake opens promptly and one accurate command rearms it', async () => {
   const f = await fixture();
   f.emit(0, 'PLAY MUSIC', { final: true });

@@ -144,7 +144,7 @@ export class InferencePicker {
     actions.setAttribute('role', 'group');
     for (const [section, label] of [
       ['models', 'Language model'],
-      ['api', 'External AI provider'],
+      ['api', 'API connections'],
     ]) {
       const button = document.createElement('button');
       button.type = 'button';

@@ -19,6 +19,7 @@ test('briefing uses only the active local/proxy inference transport and the curr
     const prepare = thinkingBriefing({
       url: `http://127.0.0.1:${port}`,
       model: 'selected-model',
+      params: { num_ctx: 32768 },
       fetchImpl: async (url, request) => {
         calls.push({ url, request });
         return new Response(packet());
@@ -37,6 +38,10 @@ test('briefing uses only the active local/proxy inference transport and the curr
     assert.equal(body.model, 'selected-model');
     assert.equal(body.stream, false);
     assert.equal(body.think, false);
+    assert.equal(body.shift, false);
+    assert.equal(body.truncate, false);
+    assert.equal(body.keep_alive, -1);
+    assert.equal(body.options.num_ctx, 32768);
     assert.deepEqual(body.tools, []);
     assert.equal(body.options.num_predict, 192);
     assert.equal(body.options.temperature, 0.7);

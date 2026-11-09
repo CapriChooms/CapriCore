@@ -103,6 +103,41 @@ function musicRequestScope(text) {
   return gui || mixed ? null : value;
 }
 
+/** Only an explicit, single owner request can bypass generated tool syntax. */
+export function namedSpotifyPlay(text) {
+  const scoped = musicRequestScope(text);
+  if (scoped === null) return null;
+  const request = requestText(scoped)
+    .replace(/[,\s]+(?:please|пожалуйста)[.!?\s]*$/iu, '')
+    .replace(/[.!?\s]+$/u, '');
+  const match = /^(?:play|put\s+on|turn\s+on|включи|поставь|воспроизведи)\s+(.+)$/iu.exec(request);
+  if (!match) return null;
+  let query = match[1];
+  const spotify =
+    /^(?:in|on|в)\s+(?:spotify|спотифа[йе])\s+|\s+(?:in|on|в)\s+(?:spotify|спотифа[йе])$/iu;
+  const explicit = spotify.test(query);
+  query = query.replace(spotify, '').replace(/^(?:me\s+|мне\s+)/iu, '');
+  const named = /^(?:the\s+)?(?:song|track|песню|трек)\s+/iu;
+  if (!explicit && !named.test(query) && !/\s[-–—]\s/u.test(query)) return null;
+  query = query.replace(named, '').trim();
+  // Ambiguous references, compound tasks and quoted tool output stay on the
+  // normal language-model route. Never repair/execute assistant text here.
+  if (
+    !query ||
+    query.length > 180 ||
+    /[\x00-\x1f{}<>;`]/u.test(query) ||
+    /\b(?:and|then|but|before|after|instead|not|don't|never|if|when)\b|(?:^|\s)(?:и|затем|потом|не|если|когда)(?=\s|$)/iu.test(
+      query,
+    ) ||
+    /^(?:is|means|was|are|were)\b/iu.test(query) ||
+    /^(?:(?:some|any|the|this|that|my|your|current|next|previous)\s+)*(?:music|song|track|playlist|it|something|anything)$|^(?:музыку|песню|трек|её|ее|его|это|что-нибудь)$/iu.test(
+      query,
+    )
+  )
+    return null;
+  return { action: 'play', query };
+}
+
 /** Topic guard only: never authorizes a tool, execution or a verified-action reply. */
 export function dedicatedMusicContext(text) {
   const value = musicRequestScope(text);

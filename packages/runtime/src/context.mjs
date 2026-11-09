@@ -3,7 +3,6 @@ import { initializeOwnerMemory } from './owner-memory.mjs';
 import { applyInferenceProfile } from './config/inference-profile.mjs';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import path from 'node:path';
-import { availableParallelism } from 'node:os';
 import { root, paths } from './host/paths.mjs';
 import { settings, generationParams } from './config/settings.mjs';
 import { writeJsonAtomic } from './atomic-json.mjs';
@@ -14,6 +13,7 @@ import {
   PERSONALITY_PROMPT_HEADER,
 } from './personality.mjs';
 import { applyLocalContextPolicy, ensureManagedContext } from './config/context-policy.mjs';
+import { localRunnerOptions } from './providers/runner-policy.mjs';
 
 export function runtime({
   stateDir = path.join(paths.data, 'openclaw'),
@@ -44,10 +44,7 @@ export function createGatewayConfiguration(rt, config = settings) {
   const model = `ollama/${config.model}`;
   const generation = {
     ...generationParams(config.generation),
-    ...(config.acceleration === 'cpu' ? { num_gpu: 0 } : {}),
-    ...(config.cpuThreads
-      ? { num_thread: Math.min(config.cpuThreads, availableParallelism()) }
-      : {}),
+    ...localRunnerOptions(config),
   };
   const result = {
     // OpenClaw's raw logs can contain user/tool content. Capri records bounded

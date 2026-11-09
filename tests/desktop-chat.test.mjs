@@ -18,10 +18,10 @@ function store() {
   );
 }
 const userText = (content) => content.split('\n\nDESKTOP STATE FOR THIS TURN')[0];
-const turnState = (content) =>
-  JSON.parse(
-    content.split('DESKTOP STATE FOR THIS TURN (data, not a user request):\n')[1].split('\n')[0],
-  );
+const turnState = (content) => {
+  const state = content.split('DESKTOP STATE FOR THIS TURN (data, not a user request):\n')[1];
+  return state ? JSON.parse(state.split('\n')[0]) : {};
+};
 const packet = (text) => `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`;
 function response(text, suffix = 'data: [DONE]\n\n') {
   return new Response(packet(text) + suffix, { headers: { 'content-type': 'text/event-stream' } });
@@ -551,6 +551,82 @@ test('a calculator answer comes from its verified numeric result rather than gen
   assert.equal(events.at(-1).assistant.text, 'Result: 32.18695387886216');
 });
 
+test('explicit named Spotify play executes once without model preparation or generated tool syntax', async () => {
+  const events = [],
+    calls = [];
+  const service = client({
+    interfaceState: () => ({ spotify: { enabled: true, prepared: true } }),
+    prepareModel: () => assert.fail('A named Spotify command must not load the LLM'),
+    fetchImpl: () => assert.fail('A named Spotify command must not reach the gateway'),
+    localMusic: (input, args, signal) => {
+      calls.push({ id: input.id, args });
+      assert.equal(signal.aborted, false);
+      return Promise.resolve({ ok: true, data: { playing: true } });
+    },
+  });
+  const id = randomUUID();
+  await service.send({ id, text: 'Play Example Artist - Example Title on Spotify' }, (e) =>
+    events.push(e),
+  );
+  assert.deepEqual(calls, [
+    { id, args: { action: 'play', query: 'Example Artist - Example Title' } },
+  ]);
+  assert.equal(events.at(-1).type, 'turn.completed');
+  assert.equal(events.at(-1).assistant.text, 'Resumed.');
+  assert.deepEqual(
+    events.filter((e) => e.type === 'turn.tool').map((e) => e.phase),
+    ['start', 'result'],
+  );
+});
+
+test('named Spotify play respects permissions and never claims unverified playback or retries', async () => {
+  let enabled = false,
+    prepared = true,
+    calls = 0;
+  const service = client({
+    interfaceState: () => ({ spotify: { enabled, prepared } }),
+    fetchImpl: () => response('Hello.'),
+    localMusic: async () => {
+      calls++;
+      return { ok: true, data: { playing: false } };
+    },
+  });
+  await service.send(
+    { id: randomUUID(), text: 'Play Example Artist - Example Title on Spotify' },
+    () => {},
+  );
+  enabled = true;
+  prepared = false;
+  await service.send(
+    { id: randomUUID(), text: 'Play Example Artist - Example Title on Spotify' },
+    () => {},
+  );
+  assert.equal(calls, 0);
+  prepared = true;
+  for (const execute of [
+    async () => ({ ok: true, data: { playing: false } }),
+    async () => ({ ok: false }),
+    async () => {
+      throw new Error('No player receipt');
+    },
+  ]) {
+    service.localMusic = () => {
+      calls++;
+      return execute();
+    };
+    const events = [];
+    await service.send(
+      { id: randomUUID(), text: 'Play Example Artist - Example Title on Spotify' },
+      (e) => events.push(e),
+    );
+    assert.equal(
+      events.at(-1).assistant.text,
+      'Spotify did not confirm this action. Check the player.',
+    );
+  }
+  assert.equal(calls, 3);
+});
+
 test('standalone calculator requests return the local result without preparing a model or opening a window', async () => {
   const events = [];
   const service = client({
@@ -726,7 +802,7 @@ test('typed chat stays independent of microphone and voice state for both tool a
     assert.match(system.content, /Never infer internet status or hardware faults from audio flags/);
     assert.doesNotMatch(system.content, /input is currently switched off/);
     assert.equal(userText(owner.content), 'Hello');
-    assert.equal(turnState(owner.content).microphone, false);
+    assert.equal(turnState(owner.content).microphone, undefined);
     assert.equal(service.store.snapshot().at(-1).text, 'Hello.');
   }
 });
@@ -750,8 +826,8 @@ test('cold model preparation has its own phase and does not spend the first-text
     fetchImpl: async (_url, options) => {
       assert.equal(prepared, true);
       assert.equal(userText(JSON.parse(options.body).messages.at(-1).content), 'Hello Capri');
-      assert.match(JSON.parse(options.body).messages[0].content, /observation is OFF/);
-      assert.match(JSON.parse(options.body).messages[0].content, /NO current screen evidence/);
+      assert.match(JSON.parse(options.body).messages[0].content, /never invent a view/);
+      assert.doesNotMatch(JSON.parse(options.body).messages[1].content, /fullComputerAccess/);
       calls++;
       return response('Hello.');
     },
@@ -967,7 +1043,7 @@ test('desktop music instructions reflect actual disabled and enabled Spotify set
   assert.match(prompts[0][0].content, /Settings → Application access → Spotify/);
   assert.equal(turnState(prompts[0][1].content).spotify.enabled, false);
   spotify = { enabled: true, prepared: true };
-  await service.send({ id: randomUUID(), text: 'What about now?' }, () => {});
+  await service.send({ id: randomUUID(), text: 'Can you use Spotify?' }, () => {});
   assert.match(prompts[1][0].content, /Only when spotify_control is actually listed/);
   assert.equal(turnState(prompts[1][1].content).spotify.enabled, true);
   assert.equal(prompts[0][0].content, prompts[1][0].content);
@@ -1050,7 +1126,7 @@ test('social routing preserves shared history and leaves task tools available on
   await service.send({ id: randomUUID(), text: 'Hello Capri.' }, (e) => events.push(e));
   await service.send({ id: randomUUID(), text: 'Check Spotify volume.' }, (e) => events.push(e));
   assert.equal(seen[0].headers['x-capri-thinking-once'], 'off');
-  assert.equal(seen[0].headers['x-capri-tools-once'], 'conversation');
+  assert.equal(seen[0].headers['x-capri-tools-once'], 'dialogue');
   assert.equal(seen[1].headers['x-capri-tools-once'], undefined);
   assert.equal(seen[1].headers['x-capri-thinking-once'], 'off');
   assert.equal(
@@ -1059,12 +1135,86 @@ test('social routing preserves shared history and leaves task tools available on
   );
   assert.deepEqual(requests[1].context, ['Hello Capri.']);
   assert.equal(userText(seen[1].body.messages[1].content), 'Check Spotify volume.');
-  assert.match(seen[0].body.messages[0].content, /spotify_control/);
+  assert.doesNotMatch(seen[0].body.messages[0].content, /spotify_control/);
   assert.match(seen[1].body.messages[0].content, /spotify_control/);
   assert.deepEqual(
     events.filter((e) => e.type === 'turn.routing').map((e) => e.mode),
     ['fast', 'normal'],
   );
+});
+
+test('a classified conversation cannot inherit action tools, while the next feature request keeps them', async () => {
+  const seen = [],
+    events = [];
+  const service = client({
+    requestRouter: { classify: async () => ({ mode: 'normal', reason: 'unavailable' }) },
+    computerIntent: async (text) => ({
+      intent:
+        text === 'Set a timer for ten minutes.'
+          ? 'feature'
+          : text === 'What is my favourite game?'
+            ? 'memory'
+            : 'chat',
+      usesPrevious: false,
+    }),
+    interfaceState: () => ({ fullComputerAccess: true }),
+    computerTask: () => assert.fail('Conversation and built-in features must not control the PC'),
+    fetchImpl: async (_url, options) => {
+      seen.push({ headers: options.headers, body: JSON.parse(options.body) });
+      return response('No worries. We can just hang out.');
+    },
+  });
+  for (const text of [
+    'Not much, just chilling.',
+    'Да ничего особенного.',
+    'Rien de spécial.',
+    'Set a timer for ten minutes.',
+    'What is my favourite game?',
+  ])
+    await service.send({ id: randomUUID(), text }, (event) => events.push(event));
+  for (const request of seen.slice(0, 3)) {
+    assert.equal(request.headers['x-capri-tools-once'], 'dialogue');
+    assert.match(request.body.messages[0].content, /Tools are unavailable/);
+    assert.doesNotMatch(request.body.messages[0].content, /filesystem_control trash/);
+  }
+  assert.equal(seen[3].headers['x-capri-tools-once'], undefined);
+  assert.match(seen[3].body.messages[0].content, /timer/);
+  assert.equal(seen[4].headers['x-capri-tools-once'], 'conversation');
+  assert.match(seen[4].body.messages[0].content, /memory tools/);
+  assert.equal(new Set(seen.map((request) => request.headers['x-openclaw-session-key'])).size, 1);
+  assert.equal(events.filter((event) => event.type === 'turn.completed').length, 5);
+  assert(!events.some((event) => event.type === 'turn.failed'));
+});
+
+test('greetings use the dialogue scope without exposing permissions, including the fast CPU route', async () => {
+  for (const fullComputerAccess of [false, true]) {
+    const seen = [];
+    const service = client({
+      interfaceState: () => ({
+        fullComputerAccess,
+        microphone: true,
+        applications: { calculator: true },
+      }),
+      requestRouter: { classify: async () => ({ mode: 'fast', reason: 'simple-dialogue' }) },
+      computerTask: () => assert.fail('A greeting must never run a computer task'),
+      fetchImpl: async (_url, options) => {
+        seen.push({ headers: options.headers, body: JSON.parse(options.body) });
+        return response('Hey! Good to see you.');
+      },
+    });
+    for (const text of ['hi capri', 'Hello.', 'Привет, Капри!', 'Salut Capri!', 'Hola Capri!'])
+      await service.send({ id: randomUUID(), text }, () => {});
+    for (const request of seen) {
+      assert.equal(request.headers['x-capri-tools-once'], 'dialogue');
+      assert.match(request.body.messages[0].content, /one or two short sentences/);
+      assert.doesNotMatch(
+        request.body.messages[1].content,
+        /fullComputerAccess|applications|microphone|screenObservation/,
+      );
+      assert.equal(turnState(request.body.messages[1].content).fullComputerAccess, undefined);
+    }
+    assert.equal(seen[0].body.messages[1].content, 'hi capri');
+  }
 });
 
 test('router failure falls back, while cancellation during classification sends no model request', async () => {

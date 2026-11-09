@@ -28,7 +28,7 @@ export function screenObservationText(ui, status = {}) {
     return (
       ui.text('Screen observation is off.') +
       ' ' +
-      ui.text('External AI provider') +
+      ui.text('API connections') +
       ' → ' +
       ui.text('This API model supports images')
     );
@@ -338,16 +338,17 @@ export class ScreenPanel {
       indicator = document.getElementById('screen-indicator');
     indicator.hidden = false;
     indicator.setAttribute('aria-pressed', String(Boolean(value.active || this.clipping)));
-    indicator.textContent = this.clipping
-      ? 'CLIP'
+    indicator.dataset.captureMode = this.clipping
+      ? 'clip'
       : value.active && value.mode !== 'watch'
-        ? 'REC'
-        : 'OBS';
+        ? 'recording'
+        : 'observation';
     indicator.title =
       this.ui.text(value.active ? 'Stop screen access' : 'Screen observation (BETA)') +
       (value.source
         ? ': ' + (value.allMonitors ? this.ui.text('All monitors') : value.source)
         : '');
+    indicator.setAttribute('aria-label', indicator.title);
   }
   observation(value) {
     const previousWarning = this.observationState?.warning;

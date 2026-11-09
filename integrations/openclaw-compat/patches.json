@@ -23,10 +23,26 @@
         {
           "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
           "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+        },
+        {
+          "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+          "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+        },
+        {
+          "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+          "after": "body: capriWireBody"
+        },
+        {
+          "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+          "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+        },
+        {
+          "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+          "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
         }
       ],
       "beforeSha256": "8e67d97372d384f2f493a3fd9277e04c60fd09d94af495ec45a2b78f0b182fba",
-      "afterSha256": "b3140f99408c0731dc32d2ba697c6bdb9f9b0017432889342179706c2102aeb7",
+      "afterSha256": "3d5863754df017ab926bc635b473b3a7b96e6c95b0fd6cea5068939722d55eca",
       "upgrades": [
         {
           "beforeSha256": "3058230b7cdc17e327edd40b5b6e743006d7b87ffaa153f806851653c2c26ae3",
@@ -50,6 +66,22 @@
             {
               "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
               "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            },
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
             }
           ]
         },
@@ -67,6 +99,22 @@
             {
               "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
               "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            },
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
             }
           ]
         },
@@ -80,6 +128,22 @@
             {
               "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
               "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            },
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
             }
           ]
         },
@@ -89,6 +153,43 @@
             {
               "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
               "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            },
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "b3140f99408c0731dc32d2ba697c6bdb9f9b0017432889342179706c2102aeb7",
+          "edits": [
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
             }
           ]
         }
@@ -322,9 +423,17 @@
         {
           "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
           "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+        },
+        {
+          "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+          "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+        },
+        {
+          "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+          "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
         }
       ],
-      "afterSha256": "366629f37a54d25ea4db5d2a63780b1a37edd8ab13fb5b32dd127ea3977e480e",
+      "afterSha256": "b534105baadfdae2040083ff277befafc2a2fe1aaa9d92443cf4b72f72efb80b",
       "upgrades": [
         {
           "beforeSha256": "91fc9bbe7dce6ae3dd02776b28cf201f59a98c016fc4f9df646353cefe01ae40",
@@ -356,6 +465,14 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         },
@@ -381,6 +498,14 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         },
@@ -398,6 +523,14 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         },
@@ -411,6 +544,14 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         },
@@ -420,6 +561,36 @@
             {
               "before": "capriThinkingOnce !== \"off\" || agentId !== \"capri\" || !senderIsOwner",
               "after": "![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && req.headers[\"x-capri-tools-once\"] !== \"conversation\")"
+            },
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "366629f37a54d25ea4db5d2a63780b1a37edd8ab13fb5b32dd127ea3977e480e",
+          "edits": [
+            {
+              "before": "[\"conversation\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)",
+              "after": "[\"conversation\", \"dialogue\", \"spotify\", \"calculator\", \"desktop\"].includes(capriToolsOnce)"
+            },
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "54d6b9457a39b4ff204dc9f9cf030e20eba4ff345f7a19d3869bd444e5144ec9",
+          "edits": [
+            {
+              "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
+              "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
             }
           ]
         }
@@ -452,9 +623,13 @@
         {
           "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
           "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+        },
+        {
+          "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+          "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
         }
       ],
-      "afterSha256": "ca55967a21588684acaa6680d5c4bb33a7a2dd001e13fdd10c110660ccc89b26",
+      "afterSha256": "aa16310465b3314f8cce19e058052b7db6a819d0fb5d2056f1e268f75888f44c",
       "upgrades": [
         {
           "beforeSha256": "7ea507b5d49303f07099e8f719eedff6f0e88556ce340de68637b7d143840831",
@@ -478,6 +653,10 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         },
@@ -499,6 +678,10 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         },
@@ -516,6 +699,10 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         },
@@ -529,6 +716,10 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         },
@@ -538,6 +729,19 @@
             {
               "before": "thinkingOnce: params.capriThinkingOnce === \"off\" ? \"off\" : void 0,",
               "after": "thinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            },
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "ca55967a21588684acaa6680d5c4bb33a7a2dd001e13fdd10c110660ccc89b26",
+          "edits": [
+            {
+              "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
+              "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
             }
           ]
         }

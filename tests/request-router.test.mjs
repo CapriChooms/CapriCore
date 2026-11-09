@@ -126,7 +126,9 @@ test('the reviewed Gateway override allows owner-only one-shot reasoning for con
       { messages: [] },
     );
   assert.equal(call('off'), 'off');
+  assert.equal(call('off', 'capri', true, 'dialogue'), 'off');
   assert.equal(call('medium'), 'medium');
+  assert.equal(call('medium', 'capri', true, 'dialogue'), 'medium');
   assert.equal(call(undefined), undefined);
   for (const args of [
     ['high'],
@@ -139,4 +141,20 @@ test('the reviewed Gateway override allows owner-only one-shot reasoning for con
   ])
     assert.equal(call(...args), true);
   assert.equal(errors, 7);
+});
+
+test('plain dialogue has no tools; personal recall keeps memory and never broadens persistent permissions', () => {
+  const manifest = JSON.parse(
+    readFileSync(new URL('../integrations/openclaw-compat/patches.json', import.meta.url), 'utf8'),
+  );
+  const patch = manifest.patches.find((p) => p.file.includes('openai-tool-choice-'));
+  let source = patch.edits[0].after;
+  for (const edit of patch.edits.slice(1))
+    if (source.includes(edit.before)) source = source.replace(edit.before, edit.after);
+  const line = source.split('\n').find((line) => line.includes('toolsAllow:'));
+  const allow = new Function('params', 'return ({' + line + '}).toolsAllow;');
+  assert.deepEqual(allow({ capriToolsOnce: 'dialogue' }), []);
+  assert.deepEqual(allow({ capriToolsOnce: 'conversation' }), ['memory_search', 'memory_get']);
+  assert.deepEqual(allow({ capriToolsOnce: 'desktop' }), ['desktop_control', 'settings_control']);
+  assert.equal(allow({}), undefined);
 });

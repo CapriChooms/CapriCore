@@ -110,7 +110,11 @@ class TempoTracker:
                 self.nonmusic = 3
             return dict(UNKNOWN)
         self.nonmusic = 0
-        if len(self.onsets) < 550:
+        # Do not impose a 5.5-second delay on every tempo. The correlation
+        # already requires at least three periods, five attacks, sufficient
+        # confidence and two agreeing estimates. Slow/ambiguous music still
+        # waits for evidence; a clear faster beat can lock earlier.
+        if len(self.onsets) < 300:
             return dict(UNKNOWN)
         # Eight seconds responds to track changes; retained twelve-second history
         # bounds memory and leaves room for future low-tempo confidence policies.

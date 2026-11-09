@@ -1,0 +1,185 @@
+{
+  "model": "capri-qwen3.5:4b",
+  "contextTokens": 32768,
+  "syntheticPersonalityCharacters": 7372,
+  "before": [
+    {
+      "run": 0,
+      "firstTextMs": 11815,
+      "totalMs": 12244,
+      "completed": true,
+      "modelCalls": [
+        {
+          "loadMs": 3804.299,
+          "promptEvalMs": 2521.04,
+          "promptTokens": 14018,
+          "outputTokens": 9
+        }
+      ],
+      "intentCalls": [
+        {
+          "loadMs": 3884.282,
+          "promptEvalMs": 237.467,
+          "promptTokens": 360,
+          "outputTokens": 19
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "firstTextMs": 11417,
+      "totalMs": 11689,
+      "completed": true,
+      "modelCalls": [
+        {
+          "loadMs": 3535.847,
+          "promptEvalMs": 2517.491,
+          "promptTokens": 14143,
+          "outputTokens": 9
+        }
+      ],
+      "intentCalls": [
+        {
+          "loadMs": 3760.941,
+          "promptEvalMs": 308.147,
+          "promptTokens": 360,
+          "outputTokens": 19
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "firstTextMs": 12682,
+      "totalMs": 12999,
+      "completed": true,
+      "modelCalls": [
+        {
+          "loadMs": 3554.459,
+          "promptEvalMs": 2549.588,
+          "promptTokens": 14268,
+          "outputTokens": 9
+        }
+      ],
+      "intentCalls": [
+        {
+          "loadMs": 3589.048,
+          "promptEvalMs": 243.379,
+          "promptTokens": 360,
+          "outputTokens": 19
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "run": 0,
+      "firstTextMs": 12545,
+      "totalMs": 13069,
+      "completed": true,
+      "modelCalls": [
+        {
+          "loadMs": 3.088,
+          "promptEvalMs": 436.042,
+          "promptTokens": 2521,
+          "outputTokens": 468
+        },
+        {
+          "loadMs": 3.625,
+          "promptEvalMs": 2568.348,
+          "promptTokens": 14054,
+          "outputTokens": 9
+        }
+      ],
+      "intentCalls": [
+        {
+          "loadMs": 2.582,
+          "promptEvalMs": 361.69,
+          "promptTokens": 360,
+          "outputTokens": 19
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "firstTextMs": 2409,
+      "totalMs": 2857,
+      "completed": true,
+      "modelCalls": [
+        {
+          "loadMs": 4.134,
+          "promptEvalMs": 127.906,
+          "promptTokens": 14179,
+          "outputTokens": 9
+        }
+      ],
+      "intentCalls": [
+        {
+          "loadMs": 3.261,
+          "promptEvalMs": 51.491,
+          "promptTokens": 360,
+          "outputTokens": 19
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "firstTextMs": 1671,
+      "totalMs": 2062,
+      "completed": true,
+      "modelCalls": [
+        {
+          "loadMs": 4.626,
+          "promptEvalMs": 111.74,
+          "promptTokens": 14304,
+          "outputTokens": 9
+        }
+      ],
+      "intentCalls": [
+        {
+          "loadMs": 2.527,
+          "promptEvalMs": 42.781,
+          "promptTokens": 360,
+          "outputTokens": 19
+        }
+      ]
+    }
+  ],
+  "shiftToggle": [
+    {
+      "shift": true,
+      "elapsedMs": 2893,
+      "loadMs": 2668,
+      "promptEvalMs": 186
+    },
+    {
+      "shift": true,
+      "elapsedMs": 54,
+      "loadMs": 3,
+      "promptEvalMs": 35
+    },
+    {
+      "shift": false,
+      "elapsedMs": 3727,
+      "loadMs": 3510,
+      "promptEvalMs": 180
+    },
+    {
+      "shift": false,
+      "elapsedMs": 70,
+      "loadMs": 3,
+      "promptEvalMs": 39
+    },
+    {
+      "shift": true,
+      "elapsedMs": 3729,
+      "loadMs": 3510,
+      "promptEvalMs": 181
+    },
+    {
+      "shift": false,
+      "elapsedMs": 3713,
+      "loadMs": 3494,
+      "promptEvalMs": 186
+    }
+  ]
+}

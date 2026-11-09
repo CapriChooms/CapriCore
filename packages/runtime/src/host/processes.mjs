@@ -83,7 +83,13 @@ export function markerBelongsHere(marker) {
       normalize(value).startsWith(normalize(root) + path.sep),
   );
 }
-export function launch(name, executable, args, rt = runtime(), { onExit, env = {} } = {}) {
+export function launch(
+  name,
+  executable,
+  args,
+  rt = runtime(),
+  { onExit, env = {}, deviceKey } = {},
+) {
   const existing = managedProcess(name);
   if (existing) {
     onExit?.();
@@ -174,6 +180,7 @@ export function launch(name, executable, args, rt = runtime(), { onExit, env = {
         args,
         projectRoot: root,
         privateLogSchema: PRIVATE_SERVICE_LOG_SCHEMA,
+        ...(typeof deviceKey === 'string' && deviceKey.length <= 128 ? { deviceKey } : {}),
       };
       try {
         writeJsonAtomic(markerPath(name), marker);

@@ -12,10 +12,12 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="cyberpunk.css" />
     <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="developer-panel.css" />
     <link rel="stylesheet" href="credits.css" />
+    <script type="module" src="settings-loading.mjs"></script>
     <script type="module" src="settings-app.mjs"></script>
   </head>
-  <body class="settings-window">
+  <body class="settings-window" data-settings-loading>
     <header id="settings-header">
       <strong>CAPRI <small>SETTINGS</small></strong>
       <div id="settings-header-actions">
@@ -28,7 +30,36 @@
       </div>
     </header>
     <div id="settings-notice" role="status" hidden></div>
-    <div id="settings-layout">
+    <div id="settings-loading" aria-hidden="true">
+      <div class="settings-loading-nav">
+        <i class="settings-skeleton skeleton-input"></i>
+        <i class="settings-skeleton skeleton-label"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+        <i class="settings-skeleton skeleton-label"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+      </div>
+      <div class="settings-loading-content">
+        <i class="settings-skeleton skeleton-title"></i>
+        <div class="skeleton-group">
+          <i class="settings-skeleton skeleton-label"></i
+          ><i class="settings-skeleton skeleton-input"></i
+          ><i class="settings-skeleton skeleton-line"></i>
+        </div>
+        <div class="skeleton-group">
+          <i class="settings-skeleton skeleton-label"></i
+          ><i class="settings-skeleton skeleton-toggle"></i
+          ><i class="settings-skeleton skeleton-toggle"></i>
+        </div>
+        <div class="skeleton-group">
+          <i class="settings-skeleton skeleton-label"></i
+          ><i class="settings-skeleton skeleton-input"></i>
+        </div>
+      </div>
+    </div>
+    <div id="settings-layout" inert>
       <nav aria-label="Settings categories">
         <input
           id="settings-search"
@@ -43,7 +74,20 @@
           <div id="settings-search-items"></div>
         </div>
       </nav>
-      <main id="companion">
+      <main id="companion" aria-busy="true">
+        <div id="settings-panel-loading" class="settings-loading-content" aria-hidden="true">
+          <i class="settings-skeleton skeleton-title"></i>
+          <div class="skeleton-group">
+            <i class="settings-skeleton skeleton-label"></i
+            ><i class="settings-skeleton skeleton-input"></i
+            ><i class="settings-skeleton skeleton-line"></i>
+          </div>
+          <div class="skeleton-group">
+            <i class="settings-skeleton skeleton-label"></i
+            ><i class="settings-skeleton skeleton-toggle"></i
+            ><i class="settings-skeleton skeleton-input"></i>
+          </div>
+        </div>
         <button id="settings-open" class="sr-only">Settings</button>
         <div id="settings-forms">
           <section

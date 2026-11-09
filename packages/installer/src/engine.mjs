@@ -250,6 +250,11 @@ export async function install(
           }
         }
         emit({ type: 'log', step: currentStep, message });
+        if (currentStep === 'voice-runtime') {
+          const packageDownload = message.match(/^Downloading (torch|torchaudio)\b/);
+          if (packageDownload)
+            activity('downloadRuntime', packageDownload[1] === 'torch' ? 'PyTorch' : 'torchaudio');
+        }
         const match = message.match(/\b(\d{1,3})%/);
         if (match && Number(match[1]) <= 100)
           emit({ type: 'percent', step: currentStep, percent: Number(match[1]), message });
@@ -645,6 +650,7 @@ export async function install(
     } else if (plan.voicePack) {
       await step('voice-runtime', async () => {
         await runtime('git', path.join(root, '.runtime/git/cmd/git.exe'));
+        activity('installDependencies');
         await ps(
           'tools/setup/setup-voice-training.ps1',
           plan.languages.conversation === 'en' ? [] : ['-DependenciesOnly'],

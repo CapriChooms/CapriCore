@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { HuggingFacePanel } from './huggingface-panel.mjs';
 import { VoiceModelPanel } from './voice-model-panel.mjs';
+import { ModelDevicePanel } from './model-device-panel.mjs';
 const states = {
   idle: 'Choose a language model for this PC.',
   checking: 'Checking local models...',
@@ -37,7 +38,7 @@ export class ModelsPanel {
         <p class="settings-help">GB describes model files, not RAM or VRAM use. Downloaded models are marked in the list; estimates can change with upstream versions.</p>
         <p class="settings-help">GPU support depends on your hardware and Ollama. Larger models can be slower on a CPU. All choices keep the same conversation and memory.</p>
         <div class="model-progress-card" hidden role="status" aria-live="polite"><p id="models-status"></p><progress id="models-progress" max="100" hidden></progress><output id="models-transfer" data-untranslated></output><p id="models-error"></p></div>
-        <div class="settings-actions"><button type="button" id="models-refresh">Refresh models</button><button type="button" id="models-prepare">Download and prepare</button><button type="button" id="models-cancel" hidden>Cancel download</button></div>
+        <div class="settings-actions"><button type="button" id="models-refresh">Refresh models</button><button type="button" id="models-folder">Open models folder</button><button type="button" id="models-prepare">Download and prepare</button><button type="button" id="models-cancel" hidden>Cancel download</button></div>
         <div class="settings-actions"><button type="button" id="models-apply" hidden>Switch model and restart</button></div>
         <p class="settings-help">Downloading keeps the current model active. Switch when you are ready; Capri will restart and prepare the new model. Downloaded models remain available for switching back.</p>
         <div class="settings-card model-context-card">
@@ -49,6 +50,12 @@ export class ModelsPanel {
         </div>
       </div>`;
     document.getElementById('companion').append(this.panel);
+    this.devices = new ModelDevicePanel({
+      api,
+      ui,
+      onError,
+      host: this.panel.querySelector('.preferences-content'),
+    });
     this.hub = new HuggingFacePanel({
       api,
       ui,
@@ -65,6 +72,20 @@ export class ModelsPanel {
     this.get('close').onclick = () => this.open(false);
     this.get('choice').onchange = () => this.details();
     this.get('local').onclick = () => this.useLocalModel();
+    this.get('folder').onclick = async () => {
+      const button = this.get('folder');
+      button.disabled = true;
+      try {
+        const selected = this.value?.profiles?.find(
+          (profile) => profile.id === this.get('choice').value,
+        );
+        await api.openModelsFolder(selected?.source === 'huggingface' ? 'huggingface' : 'ollama');
+      } catch (error) {
+        onError(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    };
     this.get('context').onchange = () => this.contextDetails();
     for (const [id, work] of [
       ['refresh', () => api.refreshModels()],
@@ -96,7 +117,7 @@ export class ModelsPanel {
     this.value = value;
     const active = value.profiles?.find((profile) => profile.alias === value.current);
     this.get('current').textContent = value.remoteActive
-      ? this.ui.text('External AI provider')
+      ? this.ui.text('API connections')
       : active?.source === 'huggingface'
         ? active.family
         : (value.current?.replace('capri-', '') ?? '');
@@ -349,6 +370,7 @@ export class ModelsPanel {
         }
       }
       this.show(await this.api.refreshModels());
+      void this.devices.refresh();
       if (this.api.huggingFaceStatus) await this.hub.refresh();
       if (this.api.voiceCatalog) await this.voices.refresh(this.conversationLanguage);
       this.ui.apply(this.ui.language);

@@ -89,6 +89,19 @@ function launcherHarness(fixture) {
 }
 
 test(
+  'native UI attachment tolerates a brief exclusive control-file lock without losing ownership',
+  { skip: !windows },
+  () => {
+    const result = spawnSync(native, ['attach-busy', folder()], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 8000,
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  },
+);
+
+test(
   'launcher reports startup errors but releases a lost wizard that already handed off its worker',
   { skip: !windows },
   () => {

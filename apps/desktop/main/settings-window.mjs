@@ -74,6 +74,7 @@ export class SettingsWindow {
     this.ready = false;
     this.painted = false;
     this.contentReady = false;
+    this.loadingReady = false;
     this.surfaceReady = false;
     this.surfacePending = null;
     this.navigationRevision = 0;
@@ -82,6 +83,7 @@ export class SettingsWindow {
     this.section = null;
     this.pendingEvents = new Map();
     this.helpRevision = 0;
+    this.presentationRevision = 0;
     owner.on('move', () => this.reposition());
     owner.on('resize', () => this.reposition());
     owner.on('hide', () => this.hide());
@@ -107,6 +109,7 @@ export class SettingsWindow {
       ready: this.ready,
       painted: this.painted,
       contentReady: this.contentReady,
+      loading: Boolean(view) && !this.contentReady,
       surfaceReady: this.surfaceReady,
       visible: this.surfaceReady && (view?.isVisible() ?? false),
       docked: this.docked,
@@ -246,16 +249,15 @@ export class SettingsWindow {
     const view = this.window;
     if (
       !view ||
-      !this.ready ||
       !this.painted ||
-      !this.contentReady ||
+      !(this.loadingReady || (this.ready && this.contentReady)) ||
       !this.requested ||
       this.quitting()
     )
       return;
     if (!this.surfaceReady) {
       if (!this.surfacePending) {
-        const pending = this.prepareSurface(view);
+        const pending = this.prepareSurface(view, this.presentationRevision);
         this.surfacePending = pending;
         void pending.finally(() => {
           if (this.surfacePending === pending) this.surfacePending = null;
@@ -271,9 +273,18 @@ export class SettingsWindow {
     view.focus();
     this.onBusy(true);
   }
-  async prepareSurface(view) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (this.window !== view || !this.requested || this.quitting()) return;
+  async prepareSurface(view, revision) {
+    const current = () =>
+      this.window === view &&
+      this.requested &&
+      !this.quitting() &&
+      this.presentationRevision === revision;
+    // GPU/model startup may temporarily return several empty compositor frames.
+    // Retry the same click with bounded backoff; never leave a hidden window
+    // waiting for another click, and never revive a dismissed presentation.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      if (attempt) await new Promise((resolve) => setTimeout(resolve, Math.min(attempt * 60, 240)));
+      if (!current()) return;
       let timeout;
       try {
         view.webContents.setBackgroundThrottling(false);
@@ -293,16 +304,16 @@ export class SettingsWindow {
             timeout.unref?.();
           }),
         ]);
-        if (this.window !== view || !this.requested || this.quitting()) return;
+        if (!current()) return;
         if (frame.isEmpty() || !view.isVisible())
           throw new Error('Settings compositor returned an empty or hidden frame');
         this.surfaceReady = true;
         this.present();
         return;
       } catch (error) {
-        if (this.window !== view || !this.requested || this.quitting()) return;
+        if (!current()) return;
         view.hide();
-        if (attempt === 1) this.onError(error.message);
+        if (attempt === 5) this.onError(error.message);
       } finally {
         clearTimeout(timeout);
       }
@@ -318,6 +329,7 @@ export class SettingsWindow {
       this.ready = false;
       this.painted = false;
       this.contentReady = false;
+      this.loadingReady = false;
       this.docked = true;
       this.view = new this.BrowserWindow({
         ...settingsBounds(this.owner.getBounds(), this.getOwnerDisplay().workArea),
@@ -379,9 +391,8 @@ export class SettingsWindow {
       this.view.on('show', () => {
         if (this.window !== view) return;
         if (
-          !this.ready ||
           !this.painted ||
-          !this.contentReady ||
+          !(this.loadingReady || (this.ready && this.contentReady)) ||
           !this.requested ||
           this.quitting()
         ) {
@@ -446,8 +457,8 @@ export class SettingsWindow {
     this.reposition();
     if (this.ready && this.requested && !this.quitting()) {
       this.navigate();
-      this.present();
     }
+    this.present();
   }
   loaded() {
     if (!this.window || this.quitting()) return;
@@ -455,6 +466,11 @@ export class SettingsWindow {
     for (const event of this.pendingEvents.values()) this.send(event);
     this.pendingEvents.clear();
     this.navigate();
+  }
+  loading() {
+    if (!this.window || this.quitting()) return;
+    this.loadingReady = true;
+    this.present();
   }
   navigate() {
     if (!this.requested || this.sentRevision === this.navigationRevision) return;
@@ -481,6 +497,8 @@ export class SettingsWindow {
     }
   }
   hide() {
+    this.presentationRevision++;
+    this.surfacePending = null;
     this.requested = false;
     this.window?.hide();
     this.window?.webContents.setBackgroundThrottling(true);
@@ -492,6 +510,7 @@ export class SettingsWindow {
     view?.destroy();
   }
   clear() {
+    this.presentationRevision++;
     this.hideHelp(false, true);
     this.helpWindow?.destroy();
     this.helpWindow = null;
@@ -501,6 +520,7 @@ export class SettingsWindow {
     this.ready = false;
     this.painted = false;
     this.contentReady = false;
+    this.loadingReady = false;
     this.surfaceReady = false;
     this.surfacePending = null;
     this.sentRevision = null;

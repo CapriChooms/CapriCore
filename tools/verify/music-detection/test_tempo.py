@@ -50,6 +50,23 @@ def feed(tracker, audio, size=8000):
 
 
 class TempoTests(unittest.TestCase):
+    def test_clear_beats_lock_without_a_fixed_seven_second_wait(self):
+        for bpm in [90, 120, 150, 180, 240]:
+            with self.subTest(bpm=bpm):
+                tracker = TempoTracker()
+                audio = rhythm(bpm, seconds=8)
+                first = None
+                for index in range(0, len(audio), 8000):
+                    tracker.accept(audio[index:index + 8000])
+                    if (index + 8000) % RATE == 0:
+                        result = tracker.estimate()
+                        if result['tempo']:
+                            self.assertAlmostEqual(result['tempo'], bpm, delta=bpm * 0.025)
+                            first = (index + 8000) / RATE
+                            break
+                self.assertIsNotNone(first)
+                self.assertLessEqual(first, 5)
+
     def test_known_tempos_and_endpoint_phase(self):
         for bpm in [60, 75, 90, 120, 150, 180, 210, 240]:
             with self.subTest(bpm=bpm):

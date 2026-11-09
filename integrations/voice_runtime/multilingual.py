@@ -68,9 +68,11 @@ class MultilingualVoice(DecoderMemoryBudget):
         self.reference_memory = prepare_reference(self.engine, str(reference_file), exaggeration=.5)
         # Half precision applies only to the multilingual Llama backbone. The
         # trained English Turbo and both acoustic decoders retain FP32.
-        self.engine.t3.to(device='cuda:0', dtype=torch.float16).eval()
-        self.engine.device = 'cuda:0'
-        self.engine.conds.t3.to(device='cuda:0', dtype=torch.float16)
+        compute = config.get('computeDevice', 'cuda:0')
+        precision = torch.float32 if compute == 'cpu' else torch.float16
+        self.engine.t3.to(device=compute, dtype=precision).eval()
+        self.engine.device = compute
+        self.engine.conds.t3.to(device=compute, dtype=precision)
         self.config, self.cancelled, self.last_metrics = config, None, {}
         self.decoder_device = 'cpu'
         self.engine.t3.tfmr.register_forward_pre_hook(lambda *_: check_cancelled(self.cancelled))
@@ -86,7 +88,8 @@ class MultilingualVoice(DecoderMemoryBudget):
         kwargs['max_new_tokens'] = limit
         started = time.perf_counter()
         tokens = self._native_inference(**kwargs)
-        torch.cuda.synchronize()
+        if self.engine.device != 'cpu':
+            torch.cuda.synchronize()
         self.token_ms = (time.perf_counter() - started) * 1000
         if tokens.shape[-1] >= limit:
             raise SpeechGenerationLimit()
@@ -186,8 +189,9 @@ class VoicePool:
         graph = getattr(voice, 'graph', None)
         reference_memory = getattr(voice, 'reference_memory', {})
         return dict(activeEngine=self.kind, language=self.language, decoderDevice=getattr(voice, 'decoder_device', None),
+                    computeDevice=self.config.get('computeDevice', 'cuda:0'),
                     decoderReason=getattr(voice, 'decoder_reason', None),
-                    precision='float16-t3/float32-decoder' if self.kind == 'multilingual-v3' else 'float32',
+                    precision='float16-t3/float32-decoder' if self.kind == 'multilingual-v3' and self.config.get('computeDevice') != 'cpu' else 'float32',
                     mergedProjections=getattr(voice, 'merged_projections', 0), cudaGraph=graph is not None,
                     cpuThreads=torch.get_num_threads(),
                     graphBatchSteps=getattr(graph, 'batch_steps', None),

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { LOCAL_RUNNER_POLICY } from '../../packages/runtime/src/providers/runner-policy.mjs';
 /** Direct inference only: no gateway session, tool execution, transcript or persistent memory. */
 export function privateDialogue({
   url,
   model,
   remote,
+  params = () => ({}),
   prepare = async () => {},
   fetchImpl = fetch,
 }) {
@@ -25,7 +27,8 @@ export function privateDialogue({
       body: JSON.stringify({
         model: model(),
         stream: false,
-        options: { temperature: 0.6, num_predict: 1200 },
+        ...LOCAL_RUNNER_POLICY,
+        options: { ...params(), temperature: 0.6, num_predict: 1200 },
         messages: [
           {
             role: 'system',

@@ -952,7 +952,14 @@ $next.Add_Click({try{
                 try{$script:uiDiagnostics.Record('launch-requested',$options.target)
                     $opened=Start-CapriInstalledApp $options.target
                     $script:uiDiagnostics.Record('launch-ready',([string]$opened.pid))
-                }catch{$script:uiDiagnostics.Record('launch-failed',$_.Exception.Message);throw}
+                }catch{
+                    $script:uiDiagnostics.Record('launch-failed',$_.Exception.Message)
+                    if(-not(Test-CapriAppControlBlock $_.Exception.Message $_.Exception)){throw}
+                    $script:uiDiagnostics.Record('launch-policy-blocked','CAPRI_APP_CONTROL_BLOCKED')
+                    $script:launchOnFinish=$false;$script:fields.launch.Checked=$false
+                    [Windows.Forms.MessageBox]::Show((Capri-SetupError $_.Exception.Message 'CAPRI_APP_CONTROL_BLOCKED'),(Text-Capri 'complete'),'OK','Warning')|Out-Null
+                    return
+                }
                 finally{$next.Enabled=$true;$cancel.Enabled=$true;$form.UseWaitCursor=$false}
             };
             Clear-CapriSession

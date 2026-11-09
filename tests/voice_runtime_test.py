@@ -1,4 +1,5 @@
 import copy
+import os
 import threading
 import unittest
 from types import SimpleNamespace
@@ -17,6 +18,49 @@ from integrations.voice_training.backend import LoRAProjection
 
 
 class RuntimeOptimizationTests(unittest.TestCase):
+    def test_gpu_budget_queries_only_the_selected_physical_cuda_card_once(self):
+        uuid = 'GPU-12345678-1234-1234-1234-123456789abc'
+        with patch.dict(os.environ, {'CUDA_VISIBLE_DEVICES': uuid, 'CAPRI_VOICE_GPU_UUID': uuid}), \
+             patch('torch.cuda.mem_get_info', return_value=(1024**3, 2*1024**3)), \
+             patch('torch.version.hip', None), \
+             patch('integrations.voice_runtime.model.subprocess.run', return_value=SimpleNamespace(stdout='256\n')) as run:
+            self.assertEqual(DecoderMemoryBudget.free_gpu_bytes(), 256*1024**2)
+            self.assertEqual(run.call_count, 1)
+            self.assertIn('--id='+uuid, run.call_args.args[0])
+
+    def test_cpu_selection_never_promotes_the_decoder_or_queries_gpu_memory(self):
+        voice = DecoderMemoryBudget()
+        voice.config = {'computeDevice': 'cpu', 'decoderDevice': 'cuda:0'}
+        voice.set_decoder_device = lambda device: setattr(voice, 'decoder_device', device)
+        voice.free_gpu_bytes = lambda: self.fail('CPU selection queried GPU memory')
+        voice.choose_decoder()
+        voice.rebalance_decoder()
+        self.assertEqual(voice.decoder_device, 'cpu')
+        self.assertEqual(voice.decoder_reason, 'configured-cpu')
+
+    def test_cpu_voice_warmup_skips_cuda_preflight_for_chatterbox(self):
+        with patch('integrations.voice_runtime.server.VoicePool') as pool, \
+             patch('integrations.voice_runtime.compatibility.require_cuda') as preflight, \
+             patch('torch.cuda.empty_cache'):
+            voice = load_and_warm({'computeDevice': 'cpu'}, 'en')
+            preflight.assert_not_called()
+            pool.assert_called_once_with({'computeDevice': 'cpu'})
+            self.assertIs(voice, pool.return_value)
+
+    def test_cpu_turbo_tokens_and_acoustic_decoder_never_touch_cuda(self):
+        from integrations.voice_runtime.inference import render
+        engine = SimpleNamespace(device='cpu', sr=24000,
+            conds=SimpleNamespace(t3=SimpleNamespace(to=lambda **_: torch.zeros(1))),
+            tokenizer=lambda *_args, **_kwargs: SimpleNamespace(input_ids=torch.tensor([[1, 2]])),
+            t3=SimpleNamespace(inference_turbo=lambda **kwargs: torch.tensor([[3, 4]])),
+            s3gen=SimpleNamespace(inference=lambda **kwargs: (torch.zeros(1, 1, 240), None)),
+            watermarker=SimpleNamespace(apply_watermark=lambda audio, **kwargs: audio))
+        with patch('torch.cuda.synchronize', side_effect=AssertionError('Unexpected CUDA')):
+            audio, rate, metrics = render(engine, 'Ready.', device='cpu', reference={}, seed=0, max_tokens=100)
+        self.assertEqual(len(audio), 240 * 4)
+        self.assertEqual(rate, 24000)
+        self.assertEqual(metrics['speechTokens'], 2)
+
     def test_turbo_decoder_keeps_one_canonical_reference_after_transfer(self):
         voice = CapriVoice.__new__(CapriVoice)
         reference = {'embedding': torch.tensor([0.25, 0.75])}
@@ -136,6 +180,24 @@ class RuntimeOptimizationTests(unittest.TestCase):
             model.block.lora_B.fill_(float('nan'))
         with self.assertRaisesRegex(ValueError, 'Non-finite'):
             merge_adapters(model)
+
+    @unittest.skipUnless(torch.cuda.is_available(), 'CUDA device required')
+    def test_fp32_gpu_adapter_folding_matches_cpu_folding(self):
+        torch.manual_seed(417)
+        model = nn.Module()
+        model.block = LoRAProjection(Conv1D(128, 256), 8, 16, 0)
+        with torch.no_grad():
+            model.block.lora_B.normal_(std=.01)
+        model.eval()
+        gpu = copy.deepcopy(model).to('cuda:0')
+        previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+        try:
+            torch.backends.cuda.matmul.allow_tf32 = False
+            merge_adapters(model)
+            merge_adapters(gpu)
+            torch.testing.assert_close(gpu.block.weight.cpu(), model.block.weight, atol=2e-7, rtol=2e-6)
+        finally:
+            torch.backends.cuda.matmul.allow_tf32 = previous_tf32
 
     def test_cancellation_interrupts_before_next_transformer_forward(self):
         event = threading.Event()

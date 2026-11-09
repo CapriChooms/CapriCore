@@ -1,0 +1,156 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+#developer-panel {
+  min-inline-size: 0;
+}
+#developer-panel select {
+  inline-size: 100%;
+  min-inline-size: 0;
+  margin-block: 6px 14px;
+}
+.developer-toolbar {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.developer-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-inline-start: auto;
+}
+.developer-section {
+  min-inline-size: 0;
+  padding-block: 12px;
+  border-block-start: 1px solid var(--theme-border, #448f9c);
+}
+.developer-section h3 {
+  margin-block: 0 12px;
+}
+.developer-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-block: 12px 20px;
+}
+.developer-metric {
+  min-inline-size: 0;
+  border-inline-start: 2px solid var(--cyan, #8ef5ed);
+  padding: 8px 10px;
+  background: var(--theme-panel, #102630);
+}
+.developer-metric span {
+  display: block;
+  font-size: 11px;
+  color: var(--theme-text, #d7eeed);
+  opacity: 0.7;
+}
+.developer-metric strong {
+  display: block;
+  margin-block-start: 6px;
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cyan, #8ef5ed);
+}
+.developer-phase {
+  margin-block: 10px;
+}
+.developer-phase-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.developer-phase-title strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.developer-phase progress {
+  display: block;
+  inline-size: 100%;
+  block-size: 5px;
+  margin-block-start: 6px;
+  appearance: none;
+  border: 0;
+  accent-color: var(--cyan, #8ef5ed);
+}
+.developer-phase progress::-webkit-progress-bar {
+  background: var(--theme-panel, #102630);
+}
+.developer-phase progress::-webkit-progress-value {
+  background: var(--cyan, #8ef5ed);
+}
+.developer-call,
+.developer-events {
+  margin-block: 12px;
+  border: 1px solid var(--theme-border, #448f9c);
+  padding: 10px;
+  min-inline-size: 0;
+}
+.developer-call summary,
+.developer-events summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  color: var(--cyan, #8ef5ed);
+}
+.developer-call-metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+  font-size: 12px;
+}
+.developer-call-metrics dt {
+  color: var(--theme-text, #d7eeed);
+  opacity: 0.7;
+}
+.developer-call-metrics dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+#developer-events {
+  max-block-size: 330px;
+  overflow: auto;
+}
+#developer-events table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+#developer-events :is(th, td) {
+  padding: 7px 4px;
+  border-block-end: 1px solid var(--theme-border, #448f9c);
+  text-align: start;
+  vertical-align: top;
+}
+#developer-events td:last-child {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+#developer-turn-meta {
+  overflow-wrap: anywhere;
+}
+#developer-log-content {
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 245px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--theme-border, #448f9c);
+  background: var(--theme-panel, #102630);
+  color: var(--theme-text, #d7eeed);
+  font:
+    11px/1.6 Consolas,
+    monospace;
+  user-select: text;
+  -webkit-user-select: text;
+}
+@media (max-width: 500px) {
+  .developer-toolbar label {
+    margin-inline-start: 0;
+  }
+  .developer-metric strong {
+    font-size: 16px;
+  }
+}

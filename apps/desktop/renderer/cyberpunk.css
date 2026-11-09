@@ -772,6 +772,17 @@ body[data-presence='core'] #inference-model {
   font-size: 6px;
   letter-spacing: 1.1px;
 }
+.portrait-foot > #capri-version {
+  margin-right: 0;
+  opacity: 0.85;
+  color: var(--ui-accent, #8ef5ed);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+.portrait-foot > #capri-version:not([hidden]) {
+  display: inline;
+}
 #avatar-expression {
   font-size: 7px;
   letter-spacing: 1.2px;

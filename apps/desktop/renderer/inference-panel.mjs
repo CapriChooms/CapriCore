@@ -59,7 +59,7 @@ export class InferencePanel {
     this.rows = new Map();
     this.skipLocalModelOnApi = true;
     this.startupRevision = 0;
-    this.panel.innerHTML = `<h2>External AI provider</h2><div class="preferences-content">
+    this.panel.innerHTML = `<h2>API connections</h2><div class="preferences-content">
       <p class="settings-help" data-inline-help>Optional alternative to the local language model. Your messages, personality, relevant memory and tool results are sent to your chosen provider. Screen images are sent only when you enable vision and use screen features. Provider charges and privacy terms apply. Speech recognition and voice remain local.</p>
       <div class="settings-card">
       <label><input id="api-skip-local-model" type="checkbox" checked> Skip local language model when using an API</label>
@@ -78,8 +78,16 @@ export class InferencePanel {
       <p id="api-status" role="status"></p>
       <div id="api-form" hidden>
       <h3 class="api-edit-heading"><span id="api-form-title">Add an API connection</span><span id="api-editing-name" data-untranslated></span></h3>
+      <details class="api-setup-guide" id="api-guide" open>
+        <summary>How to connect an API</summary>
+        <ol>
+          <li>Use the API base URL from the provider, not its website address.</li>
+          <li>Copy the exact model ID from the provider's model list.</li>
+          <li>Create an API key in your provider account and paste it here. Keep it private.</li>
+        </ol>
+      </details>
       <label for="api-name">Connection name (optional)</label><input id="api-name" type="text" maxlength="64" autocomplete="off" data-untranslated disabled>
-      <label for="api-provider">External AI provider</label><select id="api-provider" disabled>
+      <label for="api-provider">API provider</label><select id="api-provider" disabled>
         <option value="openrouter" data-untranslated>OpenRouter</option>
         <option value="huggingface" data-untranslated>Hugging Face</option>
         <option value="proxyapi" data-untranslated>ProxyAPI</option>
@@ -430,6 +438,7 @@ export class InferencePanel {
     this.get('url').value = PROVIDER_URLS.get('openrouter');
     this.get('model').value = '';
     this.get('context').value = 32768;
+    this.get('guide').open = true;
     this.get('tools').checked = true;
     this.get('vision').checked = false;
     this.clear();
@@ -454,6 +463,7 @@ export class InferencePanel {
     this.get('editing-name').textContent =
       profile.name || providerDisplayName(new URL(profile.baseUrl).hostname);
     this.get('save').textContent = this.ui.text('Save changes');
+    this.get('guide').open = false;
     this.setFormOpen(true);
     this.get('form').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     this.get('name').focus({ preventScroll: true });
@@ -494,9 +504,46 @@ export class InferencePanel {
           ? 'Leave the key blank unless your local server requires one. HTTP is limited to this PC.'
           : 'Each connection has its own encrypted key. Keys are never shown again or included in diagnostic reports.',
     );
-    this.get('key').placeholder = this.keepsKey() ? this.ui.text('Encrypted') : '';
+    this.refreshExamples(preset);
     this.get('key').setAttribute('aria-required', String(!local && !this.keepsKey()));
     this.syncEnabled();
+  }
+  refreshExamples(preset) {
+    preset ??= [...PROVIDER_URLS].find(
+      ([, url]) => url === this.get('url').value.trim().replace(/\/+$/, ''),
+    )?.[0];
+    const example = (value) => this.ui.text('Example: {value}', { value });
+    this.get('name').placeholder = example(
+      preset === 'lemonade'
+        ? 'Lemonade'
+        : PROVIDER_URLS.has(preset)
+          ? providerDisplayName(new URL(PROVIDER_URLS.get(preset)).hostname)
+          : 'API',
+    );
+    this.get('url').placeholder = example(
+      PROVIDER_URLS.get(preset) ?? 'https://api.example.com/v1',
+    );
+    this.get('model').placeholder = example(
+      preset === 'lemonade'
+        ? 'Phi-4-mini-instruct-NPU'
+        : preset === 'huggingface'
+          ? 'organization/model-name'
+          : ['openrouter', 'proxyapi'].includes(preset)
+            ? 'provider/model-name'
+            : 'model-id',
+    );
+    this.get('key').placeholder = this.keepsKey()
+      ? this.ui.text('Encrypted')
+      : example(
+          preset === 'gemini'
+            ? 'AIza…'
+            : preset === 'huggingface'
+              ? 'hf_…'
+              : preset === 'openrouter'
+                ? 'sk-or-v1-…'
+                : 'API_KEY_FROM_PROVIDER',
+        );
+    this.get('context').placeholder = '32768';
   }
   syncEnabled() {
     const enabled = !this.get('form').hidden && !this.saving;

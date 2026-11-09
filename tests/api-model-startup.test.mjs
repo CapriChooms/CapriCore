@@ -105,7 +105,7 @@ async function fixture(options, verify) {
           shortCircuit: true,
         };
       assert.ok(
-        ['node:path', 'node:crypto'].includes(specifier),
+        ['node:path', 'node:crypto', './runner-policy.mjs'].includes(specifier),
         'Unmocked provider import: ' + specifier,
       );
       return next(specifier, context);

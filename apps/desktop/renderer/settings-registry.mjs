@@ -6,6 +6,7 @@ export const SETTINGS_GROUPS = Object.freeze([
     icon: 'M10 2l7 8-7 8-7-8zM10 6v8M6 10h8',
     sections: [
       ['general', 'General', 'general-panel'],
+      ['languages', 'Languages', 'language-panel'],
       ['appearance', 'Appearance and animations', 'companion-settings'],
       ['window', 'Window', 'companion-settings'],
     ],
@@ -18,7 +19,6 @@ export const SETTINGS_GROUPS = Object.freeze([
       ['dialogue', 'Conversation and personality', 'companion-settings'],
       ['knowledge', 'Brain and private memory', 'knowledge-panel'],
       ['initiative', 'Initiative', 'initiative-panel'],
-      ['languages', 'Languages', 'language-panel'],
       ['microphone', 'Microphone settings', 'speech-panel'],
       ['voice', 'Voice effects', 'voice-effects-panel'],
       ['calls', 'Voice calls', 'call-audio-panel'],
@@ -31,7 +31,7 @@ export const SETTINGS_GROUPS = Object.freeze([
     icon: 'M5 5h10v10H5zM8 8h4v4H8zM7 2v3m6-3v3M7 15v3m6-3v3M2 7h3m-3 6h3m10-6h3m-3 6h3',
     sections: [
       ['models', 'Language model', 'models-panel'],
-      ['api', 'External AI provider', 'inference-panel'],
+      ['api', 'API connections', 'inference-panel'],
     ],
   },
   {
@@ -59,6 +59,12 @@ export const SETTINGS_GROUPS = Object.freeze([
       ['support', 'Support the author', 'companion-settings'],
       ['credits', 'Credits', 'credits-panel'],
     ],
+  },
+  {
+    id: 'development',
+    labels: ['Developer'],
+    icon: 'M7 5l-5 5 5 5m6-10l5 5-5 5M12 2L8 18',
+    sections: [['developer', 'For developers', 'developer-panel']],
   },
 ]);
 export const SETTINGS_SECTIONS = Object.freeze(SETTINGS_GROUPS.flatMap(({ sections }) => sections));

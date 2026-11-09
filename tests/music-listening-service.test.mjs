@@ -10,6 +10,23 @@ import { musicAnimationReady } from '../apps/desktop/music-listening-settings.mj
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const score = (music = 0.85, speech = 0.02, rms = 0.1) => ({ music, speech, rms });
 
+test('a reliable beat acquired before the music gate starts animation on the first music decision', () => {
+  const decision = new MusicDecision();
+  const ready = () => musicAnimationReady({ enabled: true, ...decision });
+  decision.update({ ...score(), tempo: 120, tempoConfidence: 0.8 }, 10000);
+  assert.equal(ready(), false);
+  decision.update(score(), 11000);
+  assert.equal(ready(), false);
+  decision.update(score(), 12000);
+  assert.equal(ready(), true, 'No fourth classification or new tempo estimate is required');
+  assert.equal(decision.tempo, 120);
+  decision.reset();
+  decision.update({ ...score(), tempo: 90, tempoConfidence: 0.8 });
+  decision.update(score(0.1, 0.9));
+  for (let i = 0; i < 3; i++) decision.update(score());
+  assert.equal(ready(), false, 'A rejected music candidate cannot seed a later track');
+});
+
 test('music poses wait for the first reliable BPM, retain it through dropouts and reset between tracks', () => {
   const decision = new MusicDecision();
   const ready = () => musicAnimationReady({ enabled: true, ...decision });

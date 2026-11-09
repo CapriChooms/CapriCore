@@ -5,6 +5,57 @@ import { SentenceBuffer, VoiceService, spokenText } from '../apps/desktop/voice-
 import { VoicePlayer } from '../apps/desktop/renderer/voice-player.mjs';
 import { VOICE_EFFECT_PRESETS } from '../apps/desktop/renderer/voice-effects-settings.mjs';
 import { speechLanguageMismatch } from '../apps/desktop/renderer/speech-text.mjs';
+import { randomUUID } from 'node:crypto';
+import { ChatService } from '../apps/desktop/chat-service.mjs';
+import {
+  configureResponseTimings,
+  withResponseTiming,
+} from '../packages/runtime/src/response-timing.mjs';
+
+test('cold voice timings retain correlation after text completes and never contain reply or credentials', async () => {
+  const records = [],
+    id = randomUUID();
+  configureResponseTimings({ write: (record) => records.push(record) });
+  const { voice, events, requests } = service();
+  try {
+    voice.setReady(false);
+    withResponseTiming(id, () => turn(voice, id, 'Private speech fixture.'));
+    assert.equal(requests.length, 0);
+    assert.equal(records.find((r) => r.stage === 'voice_queued').cold, 1);
+    // Readiness arrives outside the chat callback's AsyncLocalStorage context.
+    voice.setReady(true);
+    await until(() => events.some((event) => event.type === 'voice.audio'));
+    const stages = records.filter((r) => r.stage.startsWith('voice_'));
+    assert.deepEqual(
+      stages.map((r) => r.stage),
+      ['voice_text', 'voice_queued', 'voice_synthesis', 'voice_audio'],
+    );
+    assert(stages.every((r) => r.traceId === id && r.source === 'desktop'));
+    assert.equal(stages[2].speechCharacters, 23);
+    assert(!JSON.stringify(stages).includes('Private speech'));
+    assert(!JSON.stringify(stages).includes('authorization'));
+    assert(!JSON.stringify(stages).includes('pcm'));
+    // Later phrases must not overwrite the first-audio measurement.
+    voice.onChat({ type: 'turn.delta', turnId: id, text: 'Second sentence. ' });
+    voice.onChat({ type: 'turn.completed', turnId: id });
+    await until(() => events.filter((event) => event.type === 'voice.audio').length === 2);
+    assert.equal(records.filter((r) => r.stage === 'voice_audio').length, 1);
+  } finally {
+    voice.close();
+    configureResponseTimings(undefined);
+  }
+});
+
+test('turn cancellation while voice is loading never starts stale queued speech', async () => {
+  const { voice, events, requests } = service();
+  voice.setReady(false);
+  turn(voice, 'stale', 'This turn was cancelled.');
+  voice.cancel();
+  voice.setReady(true);
+  await delay(10);
+  assert.equal(requests.length, 0);
+  assert(!events.some((event) => event.type === 'voice.audio'));
+});
 
 test('call voice volume ramps existing output without restarting audio or changing the local output', () => {
   const player = new VoicePlayer({ onState() {}, onError() {} });
@@ -151,6 +202,50 @@ function turn(voice, id, text) {
   voice.onChat({ type: 'turn.delta', turnId: id, text });
   voice.onChat({ type: 'turn.completed', turnId: id });
 }
+
+test('a classified social reply completes both streamed text and the entire speech queue', async () => {
+  const { voice, events, requests } = service(),
+    records = new Map(),
+    chatEvents = [];
+  const chat = new ChatService({
+    gatewayUrl: 'http://127.0.0.1:18789',
+    agentId: 'capri',
+    token: () => 'fixture',
+    persona: () => 'You are Capri.',
+    store: { snapshot: () => [...records.values()], put: (value) => records.set(value.id, value) },
+    interfaceState: () => ({ fullComputerAccess: true, languages: { conversation: 'en' } }),
+    computerIntent: async () => ({ intent: 'chat', usesPrevious: false }),
+    computerTask: () => assert.fail('Smalltalk cannot start a computer task'),
+    fetchImpl: async (_url, options) => {
+      assert.equal(options.headers['x-capri-tools-once'], 'dialogue');
+      const parts = ['No worries. ', 'We can just hang out. ', 'How was your evening?'];
+      return new Response(
+        parts
+          .map(
+            (content) => 'data: ' + JSON.stringify({ choices: [{ delta: { content } }] }) + '\n\n',
+          )
+          .join('') + 'data: [DONE]\n\n',
+        { headers: { 'content-type': 'text/event-stream' } },
+      );
+    },
+  });
+  try {
+    await chat.send({ id: randomUUID(), text: 'Not much, just chilling.' }, (event) => {
+      chatEvents.push(event);
+      voice.onChat(event);
+    });
+    await until(() => events.some((event) => event.type === 'voice.generated'));
+    assert.equal(chatEvents.at(-1).type, 'turn.completed');
+    assert.equal(
+      requests.map((request) => request.text).join(' '),
+      'No worries. We can just hang out. How was your evening?',
+    );
+    assert(!events.some((event) => ['voice.cancelled', 'voice.error'].includes(event.type)));
+    assert.equal(voice.generating, false);
+  } finally {
+    voice.close();
+  }
+});
 
 test('speech preserves asterisk-wrapped words and hides code across arbitrary stream boundaries', () => {
   const input =

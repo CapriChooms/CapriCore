@@ -1,4 +1,5 @@
 import { InferenceApi, apiSettings, readApiSettings } from './inference-api.mjs';
+import { openLocalModelFolder } from './local-model-folder.mjs';
 import { isLemonadeNpuEndpoint, isLocalApiEndpoint } from './renderer/inference-endpoint.mjs';
 import { ComputerControl } from './computer-control.mjs';
 import { thinkingBriefing } from './thinking-briefing.mjs';
@@ -23,6 +24,13 @@ import {
   writeModelSelectionLog,
 } from '../../packages/runtime/src/privacy-log.mjs';
 import { createSecureWindow } from './main/secure-window.mjs';
+import {
+  ResponseTimingLog,
+  configureResponseTimings,
+  withResponseTiming,
+  acknowledgeResponsePaint,
+} from '../../packages/runtime/src/response-timing.mjs';
+import { timingFetch } from '../../packages/runtime/src/response-probe.mjs';
 import { wantsVoiceFollowUp } from './voice-follow-up.mjs';
 import { screenFormState } from './main/screen-form-state.mjs';
 import { localizedDialog } from './main/localized-dialog.mjs';
@@ -30,6 +38,7 @@ import { SettingsWindow } from './main/settings-window.mjs';
 import { AvatarComposer } from './main/avatar-composer.mjs';
 import { MinimizedChip } from './main/minimized-chip.mjs';
 import { CallAudioDiagnostics } from './main/call-audio-diagnostics.mjs';
+import { DeveloperDiagnostics } from './diagnostics/developer.mjs';
 import { replyHistory } from './renderer/reply-pages.mjs';
 import {
   validateAvatarComposerAction,
@@ -81,6 +90,7 @@ import { HuggingFaceHub } from '../../packages/runtime/src/huggingface/hub.mjs';
 import { HuggingFaceService } from './huggingface-service.mjs';
 import { HuggingFaceCredentials } from './huggingface-credentials.mjs';
 import { VoiceCatalogService, voiceBackendChanged } from './voice-catalog-service.mjs';
+import { ModelDeviceService } from './model-device-service.mjs';
 import { VoiceTrainingService } from './voice-training-service.mjs';
 import { SpotifySettings } from './spotify-settings.mjs';
 import { SpotifyService, SpotifyWorker } from '../../integrations/spotify/service.mjs';
@@ -88,6 +98,7 @@ import { ApplicationService } from '../../integrations/desktop-actions/service.m
 import {
   saveModelProfile,
   saveContextWindow,
+  saveInferenceSettings,
 } from '../../packages/runtime/src/hardware/model-profile.mjs';
 import { validateContextChoice } from '../../packages/runtime/src/config/context-policy.mjs';
 import { responsiveness } from '../../packages/runtime/src/hardware/responsiveness.mjs';
@@ -100,7 +111,8 @@ import { CpuSampler } from './system-resources.mjs';
 import { ContextSampler } from './context-usage.mjs';
 import { MutedVoiceResidency } from './voice-residency.mjs';
 import { ensureLanguageModelReady } from '../../packages/runtime/src/providers/model-residency.mjs';
-import { readConversationBudget } from './conversation-budget.mjs';
+import { localRunnerOptions } from '../../packages/runtime/src/providers/runner-policy.mjs';
+import { conversationBudget } from './conversation-budget.mjs';
 import { Confirmations } from './main/confirmations.mjs';
 import {
   COMPANION_DEFAULTS,
@@ -143,6 +155,7 @@ import { fileURLToPath } from 'node:url';
 import {
   root,
   nodePath,
+  ollamaPath,
   settings,
   runtime,
   initialize,
@@ -316,6 +329,12 @@ else {
     app.on('browser-window-created', (_event, window) => window.setIcon(applicationIcon));
 }
 async function initializeDesktop() {
+  configureResponseTimings(
+    new ResponseTimingLog(
+      path.join(verification ? verificationFolder : root, 'logs/response-desktop.jsonl'),
+    ),
+  );
+  const localTimingFetch = timingFetch(fetch, { ollamaPort: settings.ollamaPort });
   const rt = verification
     ? runtime({
         stateDir: path.join(verificationFolder, 'openclaw'),
@@ -356,10 +375,15 @@ async function initializeDesktop() {
           ...(rt.remote.vision ? ['vision'] : []),
         ],
       }
-    : {};
+    : { fetchImpl: localTimingFetch };
+  const auxiliaryRunnerParams = Object.freeze({
+    num_ctx: settings.contextTokens,
+    ...(!rt.remote.enabled ? localRunnerOptions(settings) : {}),
+  });
   const prepareThinking = thinkingBriefing({
     url: rt.inferenceUrl,
     model: settings.model,
+    params: auxiliaryRunnerParams,
     ...inferenceOptions,
   });
   if (!Number.isInteger(rt.gatewayPort) || rt.gatewayPort < 1024 || rt.gatewayPort > 65535)
@@ -699,6 +723,18 @@ async function initializeDesktop() {
     settings.model;
   const localResidency = new LocalModelResidencySampler({ url: rt.ollamaUrl });
   const models = new ModelService({ rt, config: settings, emit, customProfiles: importedProfiles });
+  const modelDevices = new ModelDeviceService({
+    root: verification ? verificationFolder : root,
+    ollama: ollamaPath,
+    config: settings,
+  });
+  const developerDiagnostics = new DeveloperDiagnostics({
+    root: verification ? verificationFolder : root,
+    installerDirectory:
+      !verification && process.env.LOCALAPPDATA
+        ? path.join(process.env.LOCALAPPDATA, 'Capri/Installer')
+        : null,
+  });
   const huggingface = new HuggingFaceService({
     hub: hfHub,
     credentials: hfCredentials,
@@ -848,6 +884,7 @@ async function initializeDesktop() {
   const generateCallReply = callResponseGenerator({
     url: rt.inferenceUrl,
     model: settings.model,
+    params: auxiliaryRunnerParams,
     modelCapabilities: settings.modelCapabilities,
     ...inferenceOptions,
   });
@@ -956,10 +993,12 @@ async function initializeDesktop() {
           model: settings.model,
           modelCapabilities: settings.modelCapabilities,
           ...inferenceOptions,
-          params: { num_ctx: settings.contextTokens },
+          params: auxiliaryRunnerParams,
         }),
     localCalculation: (input, args, signal) =>
       companionActions.execute('application_control', input.id, args, signal),
+    localMusic: (input, args, signal) =>
+      companionActions.execute('spotify_control', input.id, args, signal),
     computerAccess: (enabled, options) => {
       chat.assertToolAllowed('settings_control', {
         action: 'request',
@@ -997,32 +1036,33 @@ async function initializeDesktop() {
           await mutedVoiceResidency.release();
           signal.throwIfAborted();
           if (rt.remote.enabled) return { remote: true };
-          const [model, conversationBudget] = await Promise.all([
-            ensureLanguageModelReady(
-              {
-                url: rt.inferenceUrl,
-                model: settings.model,
-                modelCapabilities: settings.modelCapabilities,
-                contextTokens: settings.contextTokens,
-                keepAlive: settings.keepAlive ?? -1,
-                acceleration: settings.acceleration,
-              },
-              { signal },
-            ),
-            readConversationBudget({
-              rpc: metadataRpc,
-              sessionKey: chatSessionKey,
-              signal,
+          const budgetOptions = {
+            session: contextSampler.peekSession(),
+            model: settings.model,
+            contextTokens: settings.contextTokens,
+            historyCharacters: store
+              .snapshot()
+              .reduce((count, item) => count + (item.text?.length ?? 0), 0),
+            ...responseTiming,
+          };
+          // Share the HUD's bounded/background read; metadata never gates Send.
+          void contextSampler.sample({ available: backendState.phase === 'ready' }).catch(() => {});
+          const model = await ensureLanguageModelReady(
+            {
+              url: rt.inferenceUrl,
               model: settings.model,
               modelCapabilities: settings.modelCapabilities,
               contextTokens: settings.contextTokens,
-              historyCharacters: store
-                .snapshot()
-                .reduce((count, item) => count + (item.text?.length ?? 0), 0),
-              ...responseTiming,
-            }),
-          ]);
-          return { ...model, conversationBudget };
+              keepAlive: settings.keepAlive ?? -1,
+              acceleration: settings.acceleration,
+              cpuThreads: settings.cpuThreads,
+            },
+            { signal },
+          );
+          return {
+            ...model,
+            conversationBudget: conversationBudget({ ...budgetOptions, ...model }),
+          };
         },
   });
   // Speech is opt-in for each desktop session, including upgrades with an old
@@ -1100,6 +1140,9 @@ async function initializeDesktop() {
     });
   }
   async function submitMessage(value, origin = 'text') {
+    return withResponseTiming(value?.id, () => submitMessageTurn(value, origin));
+  }
+  async function submitMessageTurn(value, origin = 'text') {
     avatarClickReactions?.cancel();
     const input = thinkingInput(value);
     const movement = desktopAvatarCommand(input.text);
@@ -1510,7 +1553,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
     }),
     state: () => ({
       busy: Boolean(chat.active || currentChatTask || initiative?.active),
@@ -1662,6 +1705,7 @@ async function initializeDesktop() {
     ...inferenceOptions,
     params: {
       ...settings.generation,
+      ...auxiliaryRunnerParams,
       num_ctx: rt.remote.enabled ? rt.remote.contextTokens : settings.contextTokens,
     },
     rpc: metadataRpc,
@@ -1872,7 +1916,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
       sessionKey: chatSessionKey,
       rpc: metadataRpc,
       persona: sharedOwnerPersona,
@@ -1948,7 +1992,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
       languages: liveLanguages,
       style: () => settingsPreview.style ?? readCommunicationStyle(rt.workspace),
     }),
@@ -2390,7 +2434,7 @@ async function initializeDesktop() {
       return;
     }
     if (inferenceApi.config.setupRequired) {
-      setBackend('offline', 'External AI provider');
+      setBackend('offline', 'API connections');
       return;
     }
     if (shuttingDown) throw new Error('Capri is shutting down');
@@ -3754,7 +3798,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
     }),
     registerEscape: async () => {
       let shortcut = false;
@@ -3835,7 +3879,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
     }),
     emit: (event) => {
       controlBorder?.phase(event.phase);
@@ -4499,6 +4543,11 @@ async function initializeDesktop() {
       settingsHost.loaded();
       return true;
     });
+    handle('capri:settings-loading', (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings frame required');
+      settingsHost.loading();
+      return true;
+    });
     handle('capri:settings-help', (value, { role }) => {
       if (role !== 'settings') throw new Error('Settings frame required');
       return settingsHost.setHelp(value);
@@ -4781,6 +4830,65 @@ async function initializeDesktop() {
       }
     });
     handle('capri:models-status', () => models.snapshot());
+    handle('capri:models-folder', (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      return openLocalModelFolder(root, _value, (folder) => shell.openPath(folder));
+    });
+    const voiceDeviceLanguage = () => {
+      const language = resolveLanguages(liveLanguages()).speech;
+      return language && language !== 'off' ? language : 'en';
+    };
+    handle('capri:model-devices', () => modelDevices.refresh(voiceDeviceLanguage()));
+    handle('capri:developer-diagnostics', (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      return developerDiagnostics.snapshot();
+    });
+    handle('capri:developer-log', (id, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      return developerDiagnostics.read(id);
+    });
+    handle('capri:developer-open-logs', async (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      const error = await shell.openPath(await developerDiagnostics.folder());
+      if (error) throw new Error('The logs folder is not available yet.');
+      return true;
+    });
+    handle('capri:model-devices-apply', async (value) => {
+      if (verification) throw Error('Model changes are disabled in desktop verification.');
+      assertModelIdle();
+      const selected = await modelDevices.validate(value, voiceDeviceLanguage());
+      const current = modelDevices.current();
+      if (selected.language === current.language && selected.voice === current.voice) return false;
+      if (
+        !(await confirmations.request({
+          title: 'Model devices',
+          detail:
+            'Capri will restart with the prepared model. Your conversation, memory, voice and personal settings will be kept.',
+          confirmLabel: 'Save and restart Capri',
+        }))
+      )
+        return false;
+      assertModelIdle();
+      await shutdownForRestart('Preparing to restart Capri...');
+      let restore, inferenceChange;
+      try {
+        restore = modelDevices.save(selected);
+        inferenceChange = saveInferenceSettings({
+          root,
+          rt,
+          overrides: { acceleration: selected.language === 'cpu' ? 'cpu' : 'auto' },
+        });
+        queueDesktopRelaunch();
+      } catch (error) {
+        inferenceChange?.restore();
+        restore?.();
+        shuttingDown = false;
+        setBackend('offline', 'Reconnect to try again.');
+        throw error;
+      }
+      app.quit();
+      return true;
+    });
     handle('capri:models-refresh', () => models.refresh());
     handle('capri:models-cancel', () => models.cancel());
     handle('capri:models-prepare', (id) => {
@@ -5298,6 +5406,7 @@ async function initializeDesktop() {
     const respondPrivately = privateDialogue({
       url: rt.inferenceUrl,
       model: () => settings.model,
+      params: () => auxiliaryRunnerParams,
       remote: () => rt.remote.enabled,
       fetchImpl: (url, options) =>
         rt.remote.enabled ? inferenceApi.localFetch(url, options) : fetch(url, options),
@@ -5312,6 +5421,7 @@ async function initializeDesktop() {
               contextTokens: settings.contextTokens,
               keepAlive: settings.keepAlive ?? -1,
               acceleration: settings.acceleration,
+              cpuThreads: settings.cpuThreads,
             },
             { signal },
           );
@@ -5520,6 +5630,7 @@ async function initializeDesktop() {
           return state;
         })(),
         voice: voice.diagnostics(),
+        musicListening: musicListening.snapshot(),
         callAudio: callAudioDiagnostics.snapshot({
           ...callAudioSnapshot(),
           setup: callSetup.diagnostics(),
@@ -5646,6 +5757,11 @@ async function initializeDesktop() {
       };
     });
     handle('capri:send', (value) => submitMessage(value));
+    handle('capri:response-painted', (value) => {
+      if (!value || Object.keys(value).some((key) => !['id', 'elapsedMs'].includes(key)))
+        return false;
+      return acknowledgeResponsePaint(value.id, value.elapsedMs);
+    });
     handle('capri:thinking-mode-set', (enabled) => {
       if (typeof enabled !== 'boolean') throw new Error('Invalid thinking mode');
       thinkingMode = enabled;

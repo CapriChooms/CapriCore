@@ -12,7 +12,12 @@ const files = readdirSync(new URL('../../tests/', import.meta.url))
 // These integration fixtures deliberately launch real package managers and
 // nested native repair helpers. Run them without competing compiler/process
 // fixtures so their strict command deadlines measure recovery, not CI load.
-const exclusive = new Set(['tests/uv-bootstrap.test.mjs', 'tests/npm-install.test.mjs']);
+const exclusive = new Set([
+  'tests/uv-bootstrap.test.mjs',
+  'tests/npm-install.test.mjs',
+  'tests/application-bridge-upgrade.test.mjs',
+  'tests/installer-recovery.test.mjs',
+]);
 const batches = [
   [files.filter((file) => !exclusive.has(file)), Math.min(4, availableParallelism())],
   [files.filter((file) => exclusive.has(file)), 1],

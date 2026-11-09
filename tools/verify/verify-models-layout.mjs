@@ -336,10 +336,10 @@ try {
   assert(missing);
   await sendStatus({ phase: 'idle' });
   await page.selectOption('#models-choice', missing.id);
-  assert.equal(await page.locator('#models-local').isDisabled(), true);
+  assert.equal(await page.locator('#models-local').isDisabled(), false);
   assert.match(
     await page.locator('#models-local-help').textContent(),
-    /Prepare the selected model first/,
+    /This model will be downloaded when you prepare it/,
   );
   await sendStatus({
     phase: 'idle',
@@ -348,14 +348,14 @@ try {
     ),
   });
   await page.selectOption('#models-choice', alternative.id);
-  assert.equal(await page.locator('#models-local').isDisabled(), true);
+  assert.equal(await page.locator('#models-local').isDisabled(), false);
   await sendStatus({
     phase: 'idle',
     profiles: localProfiles.map((profile) =>
       profile.id === alternative.id ? { ...profile, upstreamInstalled: undefined } : profile,
     ),
   });
-  assert.equal(await page.locator('#models-local').isDisabled(), true);
+  assert.equal(await page.locator('#models-local').isDisabled(), false);
   const originalInference = await page.evaluate(() => window.capri.inferenceApiStatus());
   await application.evaluate(({ ipcMain }, original) => {
     ipcMain.removeHandler('capri:inference-api-status');

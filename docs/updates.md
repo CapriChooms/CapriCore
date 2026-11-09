@@ -3,7 +3,8 @@
 Open **Menu → Updates**, or **Companion settings → Check for updates**.
 Check for updates, download the selected release, then choose **Restart and update**.
 Downloading does not stop conversation or unload models. Installation requires an idle
-conversation and the usual styled confirmation. The download shows transferred bytes
+conversation and the usual styled confirmation. An offline API or local core does
+not count as an active conversation and must not prevent maintenance. The download shows transferred bytes
 and speed; cancellation retains partial bytes for the next attempt.
 
 The experimental-updates checkbox is off by default. Stable mode excludes both GitHub
@@ -21,7 +22,7 @@ Windows installers are unsigned.
 
 Public releases work without an account, invitation or token, subject to GitHub rate limits. Startup checks and manual checks use the public release channel. A GitHub token is optional; saved tokens remain encrypted for the local OS account, and the renderer receives connection status only. Expired or unreadable optional access does not block anonymous public updates. Rate limits, cancellation and integrity failures remain errors. Capri never distributes the author's credentials or sends GitHub credentials to CDN redirects.
 
-Installations from the former private `CapriChooms/Capri` channel need a one-time full-installer upgrade: download [Capri 1.0.1](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe), select the existing installation folder, and keep its data. Updating the new code does not retrospectively redirect an already installed old updater. The [old private-access guide](private-updates.md) is historical documentation.
+Installations from the former private `CapriChooms/Capri` channel need a one-time full-installer upgrade: download [Capri 1.0.2](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.2/CapriSetup-1.0.2.exe), select the existing installation folder, and keep its data. Updating the new code does not retrospectively redirect an already installed old updater. The [old private-access guide](private-updates.md) is historical documentation.
 
 ## What is preserved
 
@@ -29,7 +30,10 @@ Direct updates work on managed installations created by the wizard. They replace
 manifested source files and refresh the launcher/uninstall registration. They preserve
 data/, logs/, local configuration overrides, memory, history, downloaded models,
 PERSONALITY.md and the mutable voice/recognition/router configurations. Dependencies
-are synchronized only when their lockfiles change. Models are not downloaded again
+are synchronized only when their effective locked graph or installation hooks change;
+Capri/workspace version labels alone keep installed packages intact. If npm must
+reinstall, the updater restores the pinned, checksum-verified Electron desktop
+bundle before committing the update or finishing recovery. Models are not downloaded again
 by a source-only update. Existing source files are backed up under
 .runtime/updates/backups; failed updates restore source files before reporting failure.
 Keep a separate backup of personal data as usual.
@@ -57,7 +61,7 @@ it does not recognize the eight new `poses-v2` artwork files. The published v0.5
 archive and its file checksums are valid. This happens during preparation, before
 installation, so the failed check does not replace Capri or remove personal data.
 
-Quit Capri, run the [public 1.0.1 installer](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe)
+Quit Capri, run the [public 1.0.2 installer](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.2/CapriSetup-1.0.2.exe)
 and select the **existing managed installation folder**. Keep that folder and its
 data; an uninstall is not required. The wizard updates application files while keeping
 history, memory, API settings and downloaded models. This recovery was checked against
@@ -73,6 +77,22 @@ installation. They are never overwritten by the in-app updater. No Git checkout 
 reset, committed or pulled by the application.
 
 ## Interrupted updates
+
+### Repairing the 1.0.0 to 1.0.1 desktop regression
+
+The published 1.0.1 source update can finish after deleting Electron's desktop
+binaries: its version-only package changes unnecessarily trigger `npm ci`, while
+Electron 45 no longer downloads its runtime during that command. Capri can then
+report that its desktop download is incomplete. A failure during dependency
+recovery may instead leave a pending-update warning.
+
+If the old app cannot start, or “Restart and update” incorrectly says to wait for
+a reply while its API is unconfigured, run **CapriSetup-1.0.2.exe** and select the
+**same installation folder**. Do not uninstall or remove data/backups. The full
+installer repairs the runtime and clears a completed repair's pending marker.
+Already installed old code cannot apply its own offline-maintenance fix before
+loading the newer installer. The 1.0.2 updater preserves unchanged dependencies
+and verifies/restores the desktop before reporting completion.
 
 One installer/update can own a folder at a time. Normal failures restore the previous
 source files. A later update attempt can recover a pending transaction from its journal.

@@ -5172,7 +5172,7 @@ async function initializeDesktop() {
     handle('capri:update-download', () => updates.prepare());
     handle('capri:update-cancel', () => updates.cancel());
     handle('capri:update-install', async () => {
-      assertIdle();
+      assertIdle({ requireBackend: false });
       if (
         models.busy() ||
         spotify.busy() ||
@@ -5199,7 +5199,7 @@ async function initializeDesktop() {
         }))
       )
         return false;
-      assertIdle();
+      assertIdle({ requireBackend: false });
       if (models.busy() || spotify.busy())
         throw new Error('Wait for the current operation to finish.');
       const installed = await updates.install({
@@ -5211,13 +5211,13 @@ async function initializeDesktop() {
       return installed;
     });
     handle('capri:confirmation', (value) => confirmations.respond(value));
-    const assertIdle = () => {
+    const assertIdle = ({ requireBackend = true } = {}) => {
       if (
         shuttingDown ||
         currentChatTask ||
         chat.active ||
         visualTurn ||
-        backendState.phase !== 'ready'
+        (requireBackend && backendState.phase !== 'ready')
       )
         throw new Error('Wait for the current reply to finish.');
     };

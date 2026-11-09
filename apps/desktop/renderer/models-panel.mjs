@@ -250,18 +250,23 @@ export class ModelsPanel {
     const busy =
       Boolean(this.localSwitchOperation) ||
       ['checking', 'downloading', 'preparing', 'applying'].includes(this.value?.phase);
-    this.get('prepare').disabled = busy || !profile?.supported || profile.active;
+    const active =
+      profile?.active &&
+      !this.value?.remoteActive &&
+      !this.setupRequired &&
+      profile?.installed &&
+      !this.value?.inventoryUnavailable;
+    this.get('prepare').disabled = busy || !profile?.supported || active;
     this.get('prepare').textContent = this.ui.text(
       profile?.installed ? 'Prepare model' : 'Download and prepare',
     );
     const configured = profile?.configured && (this.value?.remoteActive || this.setupRequired);
     const prepared = this.value?.phase === 'ready' && this.value.selected === profile?.id;
-    const active = profile?.active && !this.setupRequired;
     const prepareFirst =
       !profile?.installed ||
       this.value?.inventoryUnavailable ||
       (!configured && !prepared && profile?.upstreamInstalled !== true);
-    this.get('local').disabled = Boolean(busy || !profile?.supported || active || prepareFirst);
+    this.get('local').disabled = Boolean(busy || !profile?.supported || active);
     const explanation = busy
       ? 'Wait for the model operation to finish.'
       : !profile
@@ -271,7 +276,7 @@ export class ModelsPanel {
           : active
             ? 'You are already using this model.'
             : prepareFirst
-              ? 'Prepare the selected model first.'
+              ? 'This model will be downloaded when you prepare it.'
               : prepared
                 ? states.ready
                 : 'Downloaded on this PC.';
@@ -287,12 +292,17 @@ export class ModelsPanel {
     if (this.localSwitchOperation || this.get('local').disabled) return false;
     const id = this.get('choice').value;
     const profile = this.value?.profiles.find((item) => item.id === id);
-    if (!profile?.supported || !profile.installed) return false;
+    if (!profile?.supported) return false;
     const operation = {};
     this.localSwitchOperation = operation;
     this.show(this.value);
     try {
-      if (profile.configured && (this.value.remoteActive || this.setupRequired))
+      if (
+        profile.configured &&
+        profile.installed &&
+        !this.value.inventoryUnavailable &&
+        (this.value.remoteActive || this.setupRequired)
+      )
         return await this.api.useInferenceApi(null);
       let prepared = this.value;
       if (prepared.phase !== 'ready' || prepared.selected !== id) {

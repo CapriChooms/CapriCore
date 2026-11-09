@@ -181,6 +181,24 @@ class RuntimeOptimizationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Non-finite'):
             merge_adapters(model)
 
+    @unittest.skipUnless(torch.cuda.is_available(), 'CUDA device required')
+    def test_fp32_gpu_adapter_folding_matches_cpu_folding(self):
+        torch.manual_seed(417)
+        model = nn.Module()
+        model.block = LoRAProjection(Conv1D(128, 256), 8, 16, 0)
+        with torch.no_grad():
+            model.block.lora_B.normal_(std=.01)
+        model.eval()
+        gpu = copy.deepcopy(model).to('cuda:0')
+        previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+        try:
+            torch.backends.cuda.matmul.allow_tf32 = False
+            merge_adapters(model)
+            merge_adapters(gpu)
+            torch.testing.assert_close(gpu.block.weight.cpu(), model.block.weight, atol=2e-7, rtol=2e-6)
+        finally:
+            torch.backends.cuda.matmul.allow_tf32 = previous_tf32
+
     def test_cancellation_interrupts_before_next_transformer_forward(self):
         event = threading.Event()
         module = nn.Linear(3, 3)

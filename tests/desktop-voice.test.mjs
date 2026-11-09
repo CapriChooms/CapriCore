@@ -5,6 +5,56 @@ import { SentenceBuffer, VoiceService, spokenText } from '../apps/desktop/voice-
 import { VoicePlayer } from '../apps/desktop/renderer/voice-player.mjs';
 import { VOICE_EFFECT_PRESETS } from '../apps/desktop/renderer/voice-effects-settings.mjs';
 import { speechLanguageMismatch } from '../apps/desktop/renderer/speech-text.mjs';
+import { randomUUID } from 'node:crypto';
+import {
+  configureResponseTimings,
+  withResponseTiming,
+} from '../packages/runtime/src/response-timing.mjs';
+
+test('cold voice timings retain correlation after text completes and never contain reply or credentials', async () => {
+  const records = [],
+    id = randomUUID();
+  configureResponseTimings({ write: (record) => records.push(record) });
+  const { voice, events, requests } = service();
+  try {
+    voice.setReady(false);
+    withResponseTiming(id, () => turn(voice, id, 'Private speech fixture.'));
+    assert.equal(requests.length, 0);
+    assert.equal(records.find((r) => r.stage === 'voice_queued').cold, 1);
+    // Readiness arrives outside the chat callback's AsyncLocalStorage context.
+    voice.setReady(true);
+    await until(() => events.some((event) => event.type === 'voice.audio'));
+    const stages = records.filter((r) => r.stage.startsWith('voice_'));
+    assert.deepEqual(
+      stages.map((r) => r.stage),
+      ['voice_text', 'voice_queued', 'voice_synthesis', 'voice_audio'],
+    );
+    assert(stages.every((r) => r.traceId === id && r.source === 'desktop'));
+    assert.equal(stages[2].speechCharacters, 23);
+    assert(!JSON.stringify(stages).includes('Private speech'));
+    assert(!JSON.stringify(stages).includes('authorization'));
+    assert(!JSON.stringify(stages).includes('pcm'));
+    // Later phrases must not overwrite the first-audio measurement.
+    voice.onChat({ type: 'turn.delta', turnId: id, text: 'Second sentence. ' });
+    voice.onChat({ type: 'turn.completed', turnId: id });
+    await until(() => events.filter((event) => event.type === 'voice.audio').length === 2);
+    assert.equal(records.filter((r) => r.stage === 'voice_audio').length, 1);
+  } finally {
+    voice.close();
+    configureResponseTimings(undefined);
+  }
+});
+
+test('turn cancellation while voice is loading never starts stale queued speech', async () => {
+  const { voice, events, requests } = service();
+  voice.setReady(false);
+  turn(voice, 'stale', 'This turn was cancelled.');
+  voice.cancel();
+  voice.setReady(true);
+  await delay(10);
+  assert.equal(requests.length, 0);
+  assert(!events.some((event) => event.type === 'voice.audio'));
+});
 
 test('call voice volume ramps existing output without restarting audio or changing the local output', () => {
   const player = new VoicePlayer({ onState() {}, onError() {} });

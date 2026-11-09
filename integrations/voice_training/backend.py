@@ -27,12 +27,20 @@ def local_environment():
 
 
 def load_engine(config):
-    from .provision import verify_model
+    from concurrent.futures import ThreadPoolExecutor
+    from .provision import verify_model, verify_model_metadata
 
-    verify_model(config)
+    # Check the installed source/revision before importing its code. Hash all
+    # model files while importing the pinned library, then wait for successful
+    # verification before loading any checkpoint (including conds.pt).
+    verify_model_metadata(config)
     local_environment()
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix='capri-voice-verify') as worker:
+        verification = worker.submit(verify_model, config)
+        from chatterbox import tts_turbo as native
+        verification.result()
     from .low_memory import load_turbo_cpu
-    engine = load_turbo_cpu(config["modelPath"])
+    engine = load_turbo_cpu(config["modelPath"], native=native)
     if len(engine.tokenizer) != 50276:
         raise ValueError(
             "The native Turbo English tokenizer must not be replaced or expanded"

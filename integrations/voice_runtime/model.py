@@ -11,6 +11,7 @@ from .inference import check_cancelled, render, SpeechGenerationLimit
 from .optimize import merge_adapters
 from .profile_settings import merge_local_settings
 from .reference_memory import prepare_reference
+from .initialization import initialization_threads
 
 
 def settings():
@@ -34,12 +35,20 @@ def settings():
         or type(value.get("cudaGraph", True)) is not bool
     ):
         raise ValueError("Invalid companion voice configuration")
-    value["cpuThreads"] = max(1, min(value["cpuThreads"], os.cpu_count() or 1, int(os.environ.get("CAPRI_CPU_THREADS", "16"))))
+    configured_threads = value['cpuThreads']
+    value["cpuThreads"] = max(1, min(configured_threads, os.cpu_count() or 1, int(os.environ.get("CAPRI_CPU_THREADS", "16"))))
     value["profilePath"] = inside(ROOT, value["profileDir"])
     device = os.environ.get('CAPRI_VOICE_COMPUTE_DEVICE', 'auto')
     if device not in {'auto', 'cpu', 'cuda:0'}:
         raise ValueError('Invalid voice compute device')
     value['computeDevice'] = 'cpu' if device == 'cpu' else 'cuda:0'
+    # The LLM's small-model thread budget also reaches this process. On a
+    # larger CPU, permit the voice's configured budget while loading on GPU;
+    # return to the low inference budget before serving requests. Weak PCs and
+    # explicitly CPU-only speech retain their existing limit.
+    value['startupCpuThreads'] = value['cpuThreads']
+    if value['computeDevice'] != 'cpu' and (os.cpu_count() or 1) >= 16:
+        value['startupCpuThreads'] = max(value['cpuThreads'], min(configured_threads, 8))
     return value
 
 
@@ -138,8 +147,8 @@ class DecoderMemoryBudget:
 
 
 class CapriVoice(DecoderMemoryBudget):
+    @initialization_threads
     def __init__(self, config):
-        torch.set_num_threads(config["cpuThreads"])
         torch.backends.cuda.matmul.allow_tf32 = False
         torch.backends.cudnn.allow_tf32 = False
         compute = config.get('computeDevice', 'cuda:0')
@@ -161,6 +170,14 @@ class CapriVoice(DecoderMemoryBudget):
         self.engine = load_engine(read_config())
         load_adapter(self.engine.t3, folder, read_config())
         self.engine.t3.eval()
+        self.adapter_merge_device = 'cpu'
+        if (compute != 'cpu' and config.get('mergeAdapter', True)
+                and self.free_gpu_bytes() >= sum(p.numel()*p.element_size() for p in self.engine.t3.parameters()) + 1024**3):
+            # Fold on the selected GPU only with generous transient headroom.
+            # FP32 and TF32 policy stay unchanged; low-VRAM/CPU devices keep
+            # the existing CPU path without extra peak GPU allocations.
+            self.engine.t3.to(device=compute, dtype=torch.float32)
+            self.adapter_merge_device = compute
         self.merged_projections = len(merge_adapters(self.engine.t3)) if config.get("mergeAdapter", True) else 0
         self.engine.t3.to(device=compute, dtype=torch.float32)
         self.reference_memory = prepare_reference(self.engine, str(reference_file), norm_loudness=False)

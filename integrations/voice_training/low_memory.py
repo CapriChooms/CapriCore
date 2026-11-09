@@ -8,8 +8,56 @@ from pathlib import Path
 import torch
 
 
-def load_turbo_cpu(folder):
-    from chatterbox import tts_turbo as native
+def _restore_decoder_caches(decoder):
+    """Rebuild only the pinned, non-checkpoint constants using native FP32 math."""
+    from chatterbox.models.s3gen import S3Gen, S3GEN_SR
+    from chatterbox.models.s3gen.transformer.embedding import EspnetRelPositionalEncoding
+    from s3tokenizer.model_v2 import AudioEncoderV2, precompute_freqs_cis
+    if type(decoder) is not S3Gen or S3GEN_SR != 24000:
+        raise ValueError('Unknown acoustic decoder layout')
+    encoder = decoder.tokenizer.encoder
+    if type(encoder) is not AudioEncoderV2 or tuple(encoder.freqs_cis.shape) != (2048, 64):
+        raise ValueError('Unknown tokenizer position cache')
+    with torch.device('cpu'):
+        encoder.freqs_cis = precompute_freqs_cis(64, 2048)
+        for embedding in (decoder.flow.encoder.embed, decoder.flow.encoder.up_embed):
+            position = embedding.pos_enc
+            if (type(position) is not EspnetRelPositionalEncoding
+                    or position.d_model != 512 or tuple(position.pe.shape) != (1, 9999, 512)):
+                raise ValueError('Unknown acoustic position cache')
+            position.pe = EspnetRelPositionalEncoding(512, position.dropout.p, max_len=5000).pe
+        n_trim = S3GEN_SR // 50
+        if tuple(decoder.trim_fade.shape) != (2*n_trim,):
+            raise ValueError('Unknown acoustic fade buffer')
+        fade = torch.zeros(2*n_trim)
+        fade[n_trim:] = (torch.cos(torch.linspace(torch.pi, 0, n_trim)) + 1)/2
+        decoder.trim_fade = fade
+
+
+def load_decoder_cpu(native, folder):
+    """Avoid initializing/copying a second 1 GB decoder. Unknown layouts stay native."""
+    state = native.load_file(Path(folder)/'s3gen_meanflow.safetensors')
+    decoder = None
+    try:
+        with torch.device('meta'):
+            decoder = native.S3Gen(meanflow=True)
+        _restore_decoder_caches(decoder)
+        decoder.load_state_dict(state, strict=True, assign=True)
+        if any(value.is_meta for value in list(decoder.parameters())+list(decoder.buffers())):
+            raise ValueError('Unmaterialized acoustic state')
+        for module in decoder.modules():
+            if any(torch.is_tensor(value) and value.is_meta for value in vars(module).values()):
+                raise ValueError('Unknown acoustic tensor cache')
+    except (RuntimeError, ValueError, TypeError, NotImplementedError, AttributeError):
+        decoder = native.S3Gen(meanflow=True)
+        decoder.load_state_dict(state, strict=True)
+    decoder.eval()
+    return decoder
+
+
+def load_turbo_cpu(folder, *, native=None):
+    if native is None:
+        from chatterbox import tts_turbo as native
     folder = Path(folder)
     ve = native.VoiceEncoder()
     ve.load_state_dict(native.load_file(folder / 've.safetensors'))
@@ -34,11 +82,7 @@ def load_turbo_cpu(folder):
     if any(t.is_meta for t in list(t3.parameters()) + list(t3.buffers())):
         raise RuntimeError('The pinned Turbo layout changed: unmaterialized tensors remain.')
     t3.eval()
-    # Decoder construction remains native: its persistent/nonpersistent buffers
-    # must retain their normal initialization. Drop checkpoint references early.
-    s3gen = native.S3Gen(meanflow=True)
-    s3gen.load_state_dict(native.load_file(folder / 's3gen_meanflow.safetensors'), strict=True)
-    s3gen.eval()
+    s3gen = load_decoder_cpu(native, folder)
     tokenizer = native.AutoTokenizer.from_pretrained(folder, local_files_only=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token

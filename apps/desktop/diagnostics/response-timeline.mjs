@@ -20,6 +20,7 @@ const phases = [
   ['context', 'context_start', 'context_ready'],
   ['gateway', 'gateway_dispatch', 'gateway_first_token'],
   ['stream', 'first_delta', 'completed'],
+  ['voice', 'first_delta', 'voice_audio'],
 ];
 
 /** Join by explicit correlation IDs only. Process elapsed clocks are never mixed. */

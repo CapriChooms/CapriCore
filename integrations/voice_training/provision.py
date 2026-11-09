@@ -63,7 +63,7 @@ def download_model(config, *, root=ROOT, download=download_verified):
     return files
 
 
-def verify_model(config):
+def verify_model_metadata(config):
     import importlib.metadata
 
     folder = config["modelPath"]
@@ -85,6 +85,12 @@ def verify_model(config):
         raise ValueError(
             "Model revision differs from the pinned download; rerun download"
         )
+    return receipt
+
+
+def verify_model(config):
+    receipt = verify_model_metadata(config)
+    folder = config['modelPath']
     for name, expected in receipt["files"].items():
         if digest(folder / name) != expected:
             raise ValueError(f"Model file changed: {name}")

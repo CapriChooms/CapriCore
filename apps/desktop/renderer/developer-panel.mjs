@@ -7,6 +7,7 @@ const labels = {
   context: 'Preparing context',
   gateway: 'Waiting for gateway text',
   stream: 'Receiving the reply',
+  voice: 'Voice',
 };
 const stages = {
   received: 'Request received',
@@ -33,6 +34,10 @@ const stages = {
   provider_failed: 'Model request failed',
   first_delta: 'First text sent to interface',
   first_paint: 'First text painted',
+  voice_text: 'First text sent to interface',
+  voice_queued: 'Voice',
+  voice_synthesis: 'Generating tokens',
+  voice_audio: 'Ready',
   completed: 'Completed',
   failed: 'Failed',
   cancelled: 'Cancelled',

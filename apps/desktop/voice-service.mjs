@@ -1,4 +1,8 @@
 import { setTimeout as delay } from 'node:timers/promises';
+import {
+  currentResponseTiming,
+  markResponseTiming,
+} from '../../packages/runtime/src/response-timing.mjs';
 
 import {
   SentenceBuffer,
@@ -199,6 +203,7 @@ export class VoiceService {
         sequence: 0,
         segments: 0,
         started: performance.now(),
+        timing: currentResponseTiming(),
       };
   }
   preview(turnId, text) {
@@ -233,6 +238,10 @@ export class VoiceService {
       return;
     }
     if (event.type === 'turn.delta' || event.type === 'turn.completed') {
+      if (event.text && !turn.textReceived) {
+        turn.textReceived = true;
+        if (turn.timing) markResponseTiming('voice_text', {}, { turn: turn.timing });
+      }
       turn.final = event.type === 'turn.completed';
       const parts = turn.buffer.push(event.text || '', turn.final);
       if (parts.some((text) => text.length > MAX_SPEECH_SENTENCE)) {
@@ -254,6 +263,12 @@ export class VoiceService {
     }
   }
   async pump() {
+    const queued = this.turn;
+    if (queued?.queue.length && !queued.queued) {
+      queued.queued = true;
+      if (queued.timing)
+        markResponseTiming('voice_queued', { cold: this.ready ? 0 : 1 }, { turn: queued.timing });
+    }
     if (this.running || !this.ready) return;
     this.running = true;
     try {
@@ -274,6 +289,12 @@ export class VoiceService {
               { code: 'SPEECH_LANGUAGE_MISMATCH' },
             );
           turn.requestId = `${turn.id}:${turn.sequence}`;
+          if (turn.sequence === 0 && turn.timing)
+            markResponseTiming(
+              'voice_synthesis',
+              { speechCharacters: text.length },
+              { turn: turn.timing },
+            );
           let response;
           do {
             response = await this.fetchImpl(`${this.url}/synthesize`, {
@@ -305,6 +326,16 @@ export class VoiceService {
           if (!pcm.length || pcm.length % 4) throw new Error('Invalid PCM audio');
           if (this.turn !== turn || turn.controller.signal.aborted) continue;
           turn.requestId = null;
+          if (turn.sequence === 0 && turn.timing)
+            markResponseTiming(
+              'voice_audio',
+              {
+                requestMs: Date.now() - started,
+                tokenMs: Number(response.headers.get('x-t3-ms')),
+                decoderMs: Number(response.headers.get('x-decoder-ms')),
+              },
+              { turn: turn.timing },
+            );
           this.emit({
             type: 'voice.timing',
             turnId: turn.id,

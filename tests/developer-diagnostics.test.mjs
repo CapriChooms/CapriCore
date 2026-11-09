@@ -20,6 +20,23 @@ const row = (stage, ms, source = 'desktop', values = {}) => ({
   ...values,
 });
 
+test('voice latency is measured separately from model completion and stays attached to its request', () => {
+  const result = responseTimelines([
+    row('received', 0),
+    row('first_delta', 300),
+    row('voice_text', 300),
+    row('voice_queued', 400, 'desktop', { cold: 1 }),
+    row('completed', 500),
+    row('voice_synthesis', 2000, 'desktop', { speechCharacters: 23 }),
+    row('voice_audio', 2800, 'desktop', { requestMs: 800, tokenMs: 650, decoderMs: 100 }),
+  ])[0];
+  assert.equal(result.totalMs, 500);
+  assert.equal(result.firstTextMs, 300);
+  assert.equal(result.phases.find((phase) => phase.id === 'voice').durationMs, 2500);
+  assert.equal(result.events.at(-1).tokenMs, 650);
+  assert.equal(result.events.at(-1).decoderMs, 100);
+});
+
 test('joins correlated events without subtracting clocks from different processes', () => {
   const result = responseTimelines([
     row('received', 0),

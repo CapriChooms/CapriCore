@@ -7,6 +7,7 @@ from integrations.voice_runtime.multilingual import VoicePool
 class Health(unittest.TestCase):
     def test_graph_without_optional_batch_metric_is_ready_for_json_health(self):
         pool = VoicePool.__new__(VoicePool)
+        pool.config = {}
         pool.voice = SimpleNamespace(graph=SimpleNamespace(validation_max_error=0.01))
         pool.kind, pool.language = 'turbo', 'en'
         health = pool.health()
@@ -18,6 +19,7 @@ class Health(unittest.TestCase):
 
     def test_reference_release_receipt_is_reported_without_claiming_process_ram_savings(self):
         pool = VoicePool.__new__(VoicePool)
+        pool.config = {}
         pool.kind, pool.language = 'turbo', 'en'
         pool.voice = SimpleNamespace(reference_memory={
             'referenceEncodersReleased': True,

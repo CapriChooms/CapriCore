@@ -1975,13 +1975,5 @@
     "corrections": 1,
     "rejected": []
   },
-  "reviewedIdentical": [
-    "Spotify",
-    "Capri ·",
-    "Amethyst",
-    "Overdrive",
-    "Spark",
-    "Thunder",
-    "Pulse"
-  ]
+  "reviewedIdentical": ["Spotify", "Capri ·", "Amethyst", "Overdrive", "Spark", "Thunder", "Pulse"]
 }

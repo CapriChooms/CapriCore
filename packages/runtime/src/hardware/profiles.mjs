@@ -1,5 +1,6 @@
 /** Conservative planning estimates, not promises of measured latency or GPU support. */
 import { profileRamRequirement } from './memory-budget.mjs';
+import { PROFILE_CPU_DEFAULTS } from './cpu-execution.mjs';
 export const PROFILES = Object.freeze([
   {
     id: 'minimal',
@@ -8,7 +9,7 @@ export const PROFILES = Object.freeze([
     ramGiB: 8,
     recommendedVramGiB: 0,
     contextTokens: 32768,
-    cpuThreads: 2,
+    cpuThreads: PROFILE_CPU_DEFAULTS.minimal,
     voice: 'off',
     description: 'CPU text mode; reduced quality and potentially long replies.',
   },
@@ -19,7 +20,7 @@ export const PROFILES = Object.freeze([
     ramGiB: 16,
     recommendedVramGiB: 4,
     contextTokens: 32768,
-    cpuThreads: 4,
+    cpuThreads: PROFILE_CPU_DEFAULTS.balanced,
     voice: 'optional',
     description: 'Text-first default. Ollama may accelerate it when a supported GPU is available.',
   },
@@ -30,7 +31,7 @@ export const PROFILES = Object.freeze([
     ramGiB: 24,
     recommendedVramGiB: 8,
     contextTokens: 32768,
-    cpuThreads: 4,
+    cpuThreads: PROFILE_CPU_DEFAULTS.desktop,
     voice: 'optional',
     description:
       'Recommended with at least 8 GiB confirmed discrete VRAM; CPU execution is slower.',
@@ -42,7 +43,7 @@ export const PROFILES = Object.freeze([
     ramGiB: 32,
     recommendedVramGiB: 12,
     contextTokens: 32768,
-    cpuThreads: 8,
+    cpuThreads: PROFILE_CPU_DEFAULTS.quality,
     voice: 'optional',
     description:
       'Existing quality baseline; recommend 12+ GiB confirmed discrete VRAM. Speech uses additional resources.',

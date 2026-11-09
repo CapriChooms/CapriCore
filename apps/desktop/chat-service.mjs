@@ -10,6 +10,7 @@ import {
   computerTaskFollowUp,
   dedicatedMusicContext,
   dedicatedMusicRequest,
+  namedSpotifyPlay,
   mentionsDiscord,
 } from './computer-mode-request.mjs';
 import { callTaskNeedsOwner, callTaskRequest } from './call-computer-task.mjs';
@@ -213,6 +214,7 @@ export class ChatService {
     npuDialogue = null,
     commitNpuDialogue = null,
     localCalculation = null,
+    localMusic = null,
     ownerMemoryWorkspace = null,
     fetchImpl = fetch,
     timeoutMs = 180000,
@@ -246,6 +248,7 @@ export class ChatService {
       npuDialogue,
       commitNpuDialogue,
       localCalculation,
+      localMusic,
       ownerMemoryWorkspace,
       fetchImpl,
       timeoutMs,
@@ -606,6 +609,37 @@ export class ChatService {
       }
       if (ownerCall?.action === 'clarify') {
         finishComputer(callTaskNeedsOwner(state.languages?.conversation));
+        return;
+      }
+      const music =
+        !computerMode &&
+        this.localMusic &&
+        state.spotify?.enabled &&
+        state.spotify?.prepared &&
+        namedSpotifyPlay(input.text);
+      if (music) {
+        phase = 'spotify';
+        const callId = `local-music-${input.id}`;
+        toolProgress({ type: 'tool', phase: 'start', name: 'spotify_control', callId });
+        const result = await this.localMusic(input, music, requestSignal).catch(() => null);
+        requestSignal.throwIfAborted();
+        toolProgress({ type: 'tool', phase: 'result', name: 'spotify_control', callId });
+        const language = state.languages?.conversation ?? 'en';
+        const text =
+          result?.ok === true &&
+          result.data?.playing === true &&
+          factualActionReply('spotify_control', music, result, language);
+        append(
+          cleanText.push(
+            text || uiText('Spotify did not confirm this action. Check the player.', language),
+            true,
+          ),
+          true,
+        );
+        assistant.status = 'complete';
+        assistant.followUp = false;
+        this.store.put(assistant);
+        emit({ type: 'turn.completed', turnId: input.id, assistant, warning: this.store.warning });
         return;
       }
       const expression =

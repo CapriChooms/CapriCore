@@ -41,19 +41,25 @@ async function capture(text, extra = {}) {
   return { ...sent, persona };
 }
 
-test('memory-only conversation keeps personality and language without unrelated action manuals', async () => {
+test('casual dialogue and personal-memory questions keep their narrow scopes without action manuals', async () => {
   const social = await capture('Hi'),
     unclassified = await capture('Find the missing file');
-  assert.equal(social.headers['x-capri-tools-once'], 'conversation');
+  assert.equal(social.headers['x-capri-tools-once'], 'dialogue');
   const prompt = social.body.messages[0].content;
   assert(prompt.includes(social.persona));
-  assert(prompt.includes('memory tools'));
+  assert(prompt.includes('Tools are unavailable'));
   assert(prompt.includes('French'));
   assert(prompt.includes('avatar'));
   assert(!prompt.includes('filesystem_control trash'));
   assert(prompt.length < unclassified.body.messages[0].content.length * 0.6);
   assert.equal(unclassified.headers['x-capri-tools-once'], undefined);
   assert(unclassified.body.messages[0].content.includes('filesystem_control'));
+  const memory = await capture('What did I tell you yesterday?', {
+    computerIntent: async () => ({ intent: 'memory', usesPrevious: true }),
+  });
+  assert.equal(memory.headers['x-capri-tools-once'], 'conversation');
+  assert(memory.body.messages[0].content.includes('Only memory tools'));
+  assert(!memory.body.messages[0].content.includes('filesystem_control trash'));
 });
 
 test('cached context can budget a turn immediately while a shared metadata read is still pending', async () => {

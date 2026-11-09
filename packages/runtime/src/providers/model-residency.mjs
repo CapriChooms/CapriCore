@@ -2,6 +2,15 @@
 import { request } from '../http.mjs';
 import { localRunnerOptions } from './runner-policy.mjs';
 
+const allocation = (resident) =>
+  Number.isFinite(resident?.size) && Number.isFinite(resident?.size_vram)
+    ? {
+        residentBytes: resident.size,
+        residentGpuBytes: resident.size_vram,
+        residentContextTokens: resident.context_length,
+      }
+    : {};
+
 /** A keep-alive expiry is not a ready language model. Prime only missing/cold
  * inference; never replace a resident conversation KV cache or call agent tools.
  */
@@ -16,22 +25,15 @@ export async function ensureLanguageModelReady(
   try {
     const { models = [] } = await requestImpl(`${url}/api/ps`, { timeout: 3000, signal });
     signal?.throwIfAborted();
-    const resident = models.find(
-      (entry) =>
-        entry.name === model &&
-        entry.context_length === contextTokens &&
-        (acceleration !== 'cpu' || entry.size_vram === 0),
-    );
+    const matches = (entry) =>
+      entry.name === model &&
+      entry.context_length === contextTokens &&
+      (acceleration !== 'cpu' || entry.size_vram === 0);
+    const resident = models.find(matches);
     if (resident)
       return {
         cold: false,
-        ...(Number.isFinite(resident.size) && Number.isFinite(resident.size_vram)
-          ? {
-              residentBytes: resident.size,
-              residentGpuBytes: resident.size_vram,
-              residentContextTokens: resident.context_length,
-            }
-          : {}),
+        ...allocation(resident),
       };
     const result = await requestImpl(`${url}/api/chat`, {
       method: 'POST',
@@ -55,7 +57,14 @@ export async function ensureLanguageModelReady(
     });
     signal?.throwIfAborted();
     if (result.done !== true) throw new Error('Ollama did not complete language model preparation');
-    return { cold: true };
+    // A newly prepared auto runner may also be CPU-only. This bounded metadata
+    // read must not turn successful inference into a preparation failure.
+    const loaded = await requestImpl(`${url}/api/ps`, { timeout: 1000, signal }).catch(() => ({}));
+    signal?.throwIfAborted();
+    return {
+      cold: true,
+      ...allocation(Array.isArray(loaded.models) ? loaded.models.find(matches) : undefined),
+    };
   } catch (cause) {
     signal?.throwIfAborted();
     throw Object.assign(new Error('The local language model could not be prepared.', { cause }), {

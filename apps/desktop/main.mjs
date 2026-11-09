@@ -997,6 +997,8 @@ async function initializeDesktop() {
         }),
     localCalculation: (input, args, signal) =>
       companionActions.execute('application_control', input.id, args, signal),
+    localMusic: (input, args, signal) =>
+      companionActions.execute('spotify_control', input.id, args, signal),
     computerAccess: (enabled, options) => {
       chat.assertToolAllowed('settings_control', {
         action: 'request',
@@ -1034,7 +1036,7 @@ async function initializeDesktop() {
           await mutedVoiceResidency.release();
           signal.throwIfAborted();
           if (rt.remote.enabled) return { remote: true };
-          const budget = conversationBudget({
+          const budgetOptions = {
             session: contextSampler.peekSession(),
             model: settings.model,
             contextTokens: settings.contextTokens,
@@ -1042,7 +1044,7 @@ async function initializeDesktop() {
               .snapshot()
               .reduce((count, item) => count + (item.text?.length ?? 0), 0),
             ...responseTiming,
-          });
+          };
           // Share the HUD's bounded/background read; metadata never gates Send.
           void contextSampler.sample({ available: backendState.phase === 'ready' }).catch(() => {});
           const model = await ensureLanguageModelReady(
@@ -1057,7 +1059,10 @@ async function initializeDesktop() {
             },
             { signal },
           );
-          return { ...model, conversationBudget: budget };
+          return {
+            ...model,
+            conversationBudget: conversationBudget({ ...budgetOptions, ...model }),
+          };
         },
   });
   // Speech is opt-in for each desktop session, including upgrades with an old

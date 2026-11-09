@@ -10,6 +10,8 @@ export function conversationBudget({
   historyCharacters = 0,
   firstTextTimeoutMs = 30000,
   timeoutMs = 180000,
+  residentBytes,
+  residentGpuBytes,
 }) {
   const positive = (n) => Number.isFinite(n) && n > 0;
   const window = positive(contextTokens) ? Math.min(contextTokens, 262144) : 32768;
@@ -29,14 +31,20 @@ export function conversationBudget({
   // Reserve the configured window for long histories if metadata is unavailable.
   const fallback = !measured && !pressure && historyCharacters >= 12000 ? window : 0;
   const promptTokens = Math.min(window, Math.max(measured, pressure, fallback));
-  const cap = Math.max(firstTextTimeoutMs, Math.min(150000, timeoutMs - 30000));
+  // Automatic acceleration can fall back to CPU. Use observed allocation,
+  // rather than only the saved device preference, for the prefill allowance.
+  const observedCpu = positive(residentBytes) && residentGpuBytes === 0;
+  const initialDeadline = observedCpu
+    ? Math.min(timeoutMs, Math.max(firstTextTimeoutMs, 120000))
+    : firstTextTimeoutMs;
+  const cap = Math.max(initialDeadline, Math.min(150000, timeoutMs - 30000));
   const firstReplyMs =
     promptTokens > 4096
       ? Math.max(
-          firstTextTimeoutMs,
+          initialDeadline,
           Math.min(cap, Math.ceil((15000 + (promptTokens / 160) * 1000) / 1000) * 1000),
         )
-      : firstTextTimeoutMs;
+      : initialDeadline;
   return {
     firstTextTimeoutMs: firstReplyMs,
     promptTokens: Math.round(promptTokens),

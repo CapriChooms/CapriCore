@@ -551,6 +551,82 @@ test('a calculator answer comes from its verified numeric result rather than gen
   assert.equal(events.at(-1).assistant.text, 'Result: 32.18695387886216');
 });
 
+test('explicit named Spotify play executes once without model preparation or generated tool syntax', async () => {
+  const events = [],
+    calls = [];
+  const service = client({
+    interfaceState: () => ({ spotify: { enabled: true, prepared: true } }),
+    prepareModel: () => assert.fail('A named Spotify command must not load the LLM'),
+    fetchImpl: () => assert.fail('A named Spotify command must not reach the gateway'),
+    localMusic: (input, args, signal) => {
+      calls.push({ id: input.id, args });
+      assert.equal(signal.aborted, false);
+      return Promise.resolve({ ok: true, data: { playing: true } });
+    },
+  });
+  const id = randomUUID();
+  await service.send({ id, text: 'Play Example Artist - Example Title on Spotify' }, (e) =>
+    events.push(e),
+  );
+  assert.deepEqual(calls, [
+    { id, args: { action: 'play', query: 'Example Artist - Example Title' } },
+  ]);
+  assert.equal(events.at(-1).type, 'turn.completed');
+  assert.equal(events.at(-1).assistant.text, 'Resumed.');
+  assert.deepEqual(
+    events.filter((e) => e.type === 'turn.tool').map((e) => e.phase),
+    ['start', 'result'],
+  );
+});
+
+test('named Spotify play respects permissions and never claims unverified playback or retries', async () => {
+  let enabled = false,
+    prepared = true,
+    calls = 0;
+  const service = client({
+    interfaceState: () => ({ spotify: { enabled, prepared } }),
+    fetchImpl: () => response('Hello.'),
+    localMusic: async () => {
+      calls++;
+      return { ok: true, data: { playing: false } };
+    },
+  });
+  await service.send(
+    { id: randomUUID(), text: 'Play Example Artist - Example Title on Spotify' },
+    () => {},
+  );
+  enabled = true;
+  prepared = false;
+  await service.send(
+    { id: randomUUID(), text: 'Play Example Artist - Example Title on Spotify' },
+    () => {},
+  );
+  assert.equal(calls, 0);
+  prepared = true;
+  for (const execute of [
+    async () => ({ ok: true, data: { playing: false } }),
+    async () => ({ ok: false }),
+    async () => {
+      throw new Error('No player receipt');
+    },
+  ]) {
+    service.localMusic = () => {
+      calls++;
+      return execute();
+    };
+    const events = [];
+    await service.send(
+      { id: randomUUID(), text: 'Play Example Artist - Example Title on Spotify' },
+      (e) => events.push(e),
+    );
+    assert.equal(
+      events.at(-1).assistant.text,
+      'Spotify did not confirm this action. Check the player.',
+    );
+  }
+  assert.equal(calls, 3);
+});
+
 test('standalone calculator requests return the local result without preparing a model or opening a window', async () => {
   const events = [];
   const service = client({

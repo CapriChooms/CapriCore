@@ -14,6 +14,28 @@ const session = {
   contextBudgetStatus: { model: base.model, sessionId: 'existing', estimatedPromptTokens: 30460 },
 };
 
+test('observed CPU fallback gets a CPU prefill allowance even in automatic acceleration mode', () => {
+  assert.equal(
+    conversationBudget({ ...base, residentBytes: 2 ** 30, residentGpuBytes: 0 }).firstTextTimeoutMs,
+    120000,
+  );
+  assert.equal(
+    conversationBudget({ ...base, residentBytes: 2 ** 30, residentGpuBytes: 2 ** 29 })
+      .firstTextTimeoutMs,
+    30000,
+  );
+  for (const residentBytes of [undefined, 0, NaN])
+    assert.equal(
+      conversationBudget({ ...base, residentBytes, residentGpuBytes: 0 }).firstTextTimeoutMs,
+      30000,
+    );
+  assert.equal(
+    conversationBudget({ ...base, residentBytes: 2 ** 30, residentGpuBytes: 0, timeoutMs: 60000 })
+      .firstTextTimeoutMs,
+    60000,
+  );
+});
+
 test('a large existing conversation gets bounded prefill time even when Qwen is already resident', () => {
   assert.deepEqual(conversationBudget({ ...base, session }), {
     firstTextTimeoutMs: 150000,

@@ -44,10 +44,15 @@ namespace Capri.Setup {
             }finally{if(File.Exists(temporary))File.Delete(temporary);if(File.Exists(backup))File.Delete(backup);}
         }
         public static FileStream Gate(string file) {
+            return Gate(file,500);
+        }
+        public static FileStream Gate(string file,int timeoutMilliseconds) {
+            if(timeoutMilliseconds<0||timeoutMilliseconds>10000)throw new ArgumentOutOfRangeException("timeoutMilliseconds");
             NoLinks(file);Directory.CreateDirectory(Path.GetDirectoryName(file));
-            for(int attempt=0;;attempt++) {
+            Stopwatch wait=Stopwatch.StartNew();
+            for(;;) {
                 try{return new FileStream(file,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);}
-                catch(IOException){if(attempt>=20)throw;Thread.Sleep(25);}
+                catch(IOException){if(wait.ElapsedMilliseconds>=timeoutMilliseconds)throw;Thread.Sleep(25);}
             }
         }
         public static FileStream TryGate(string file) {
@@ -91,7 +96,10 @@ namespace Capri.Setup {
         }
         public UiLease(string folder,long windowHandle) {
             session=folder;pid=Process.GetCurrentProcess().Id;stamp=SessionIO.Stamp(pid);id=Guid.NewGuid().ToString("N");window=windowHandle;
-            using(FileStream gate=SessionIO.Gate(Path.Combine(session,"ui-control.lock"))) {
+            // A cold or recovering UI can overlap the worker's short control I/O.
+            // Wait a bounded three seconds on attachment; heartbeats keep using
+            // nonblocking TryGate and existing live-owner validation is unchanged.
+            using(FileStream gate=SessionIO.Gate(Path.Combine(session,"ui-control.lock"),3000)) {
                 string ownerFile=Path.Combine(session,"ui-owner.json"),heartbeatFile=Path.Combine(session,"ui-heartbeat.json");
                 bool reconnecting=File.Exists(ownerFile)||File.Exists(heartbeatFile);
                 Dictionary<string,object> owner=ReadLeaseRecord(session,"ui-owner.json"),beat=ReadLeaseRecord(session,"ui-heartbeat.json");

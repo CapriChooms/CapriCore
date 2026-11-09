@@ -87,7 +87,7 @@ export function exportVoicePack({ source, destination, upstream } = {}) {
       'This runtime pack contains a trained LoRA adapter, its configuration and the reference audio required for synthesis. It contains no training dataset or conversation history. No user training is required.\n\n' +
       'The pinned Chatterbox Turbo base weights are downloaded separately from ResembleAI/chatterbox-turbo on Hugging Face. The upstream software and base model specify MIT; retain their original notices.\n\n' +
       'This voice was prepared from English anime dialogue supplied by the project author. Capri source code is GPL-3.0-only; that code license does not grant rights to third-party recordings, character identity or performances. No additional rights clearance is asserted by this packaging tool.\n\n' +
-      'The current voice runtime requires a supported NVIDIA GPU and driver. See the application hardware guide.\n',
+      'Voice inference supports CPU and compatible GPU runtimes. Device and driver requirements depend on the installed backend. See docs/model-devices.md and the application hardware guide.\n',
     'utf8',
   );
   copyFileSync(

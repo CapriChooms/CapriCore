@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Diagnostics;
 using Capri.Setup;
 internal static class SessionHarness {
     private static int Main(string[] args) {
@@ -17,6 +18,20 @@ internal static class SessionHarness {
                     if(File.Exists(Path.Combine(folder,"resume-request"))){lease.Control("resume");File.Delete(Path.Combine(folder,"resume-request"));}
                     Thread.Sleep(100);
                 }
+            }
+        }else if(mode=="attach-busy") {
+            using(ManualResetEvent held=new ManualResetEvent(false)) {
+                Thread owner=new Thread(delegate() {
+                    using(FileStream gate=SessionIO.Gate(Path.Combine(folder,"ui-control.lock"))) {
+                        held.Set();Thread.Sleep(900);
+                    }
+                });
+                owner.Start();held.WaitOne();
+                Stopwatch watch=Stopwatch.StartNew();
+                try {using(UiLease lease=new UiLease(folder,0)) {
+                    if(!lease.IsOwner()||!lease.Heartbeat())return 2;
+                }}finally{owner.Join();}
+                if(watch.ElapsedMilliseconds<700||watch.ElapsedMilliseconds>5000)return 3;
             }
         }else if(mode=="cursor") {
             string file=Path.Combine(folder,"events.jsonl");byte[] text=Encoding.UTF8.GetBytes("{\"type\":\"log\",\"message\":\"\u041f\u0440\u0438\u0432\u0435\u0442\"}\n");

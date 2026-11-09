@@ -2,15 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { root } from '../packages/runtime/src/index.mjs';
-import { loadAvatarCatalog } from '../apps/desktop/avatar-catalog.mjs';
+import { loadAvatarCatalog, requireCapriAvatar } from '../apps/desktop/avatar-catalog.mjs';
 import { AvatarStreamParser, avatarInstructions } from '../apps/desktop/avatar-protocol.mjs';
 import { AvatarState } from '../apps/desktop/avatar-state.mjs';
 import { ChatService } from '../apps/desktop/chat-service.mjs';
 import { TranscriptStore } from '../apps/desktop/storage.mjs';
 
-const catalog = loadAvatarCatalog(path.join(root, 'assets/capri/sprites/v1/sprite-set.json'));
+const catalog = requireCapriAvatar(root);
 const sprites = catalog.publicSprites();
 const parent = path.join(root, '.runtime/test-data');
 mkdirSync(parent, { recursive: true });
@@ -48,20 +48,32 @@ function client(fetchImpl) {
   });
 }
 
-test('real sprite catalog exposes eight approved combinations, without disk paths', () => {
-  assert.equal(sprites.length, 8);
+test('active runtime catalog exposes the approved expressions and poses without disk paths', () => {
+  assert.equal(catalog.animated, true);
+  for (const id of [
+    'neutral',
+    'happy',
+    'annoyed',
+    'attentive',
+    'concerned',
+    'embarrassed',
+    'flirty',
+    'smirk',
+  ])
+    assert.ok(
+      sprites.some((sprite) => sprite.id === id),
+      id,
+    );
   assert.equal(catalog.defaultId, 'neutral');
   assert.deepEqual(catalog.canvas, { width: 1254, height: 1254 });
   for (const sprite of sprites) {
     assert.equal(sprite.file, undefined);
-    assert.equal(sprite.pose, 'idle');
-    assert.equal(sprite.url, `capri://desktop/sprites/${sprite.id}.png`);
+    assert.match(sprite.pose, /^[a-z][a-z0-9_-]{0,39}$/);
+    // Expression aliases share the canonical image URL.
+    assert.match(sprite.url, /^capri:\/\/desktop\/sprites\/[a-z0-9_-]+\.png$/);
     assert.ok(avatarInstructions(sprites).includes(`${sprite.id}:`));
   }
-  assert.equal(
-    createHash('sha256').update(readFileSync(catalog.sprites[0].file)).digest('hex'),
-    'e7d3cd9d3c062b23be5c414d57e3c400a3aa0f28d0381da7495167e5fff9fccc',
-  );
+  // requireCapriAvatar verifies the current reviewed artwork manifests/digests.
 });
 
 test('catalog rejects duplicate IDs, unsupported canvases and arbitrary paths', () => {
@@ -103,17 +115,20 @@ test('catalog rejects duplicate IDs, unsupported canvases and arbitrary paths', 
 test('all expressions survive every possible streaming split and never enter visible text', () => {
   for (const sprite of sprites) {
     const frame = `[avatar:${sprite.pose}/${sprite.expression}]`;
+    const canonical = sprites.find(
+      (candidate) => candidate.pose === sprite.pose && candidate.expression === sprite.expression,
+    );
     for (let cut = 0; cut <= frame.length; cut++) {
       const result = parse([frame.slice(0, cut), frame.slice(cut), '\nHello, Капри ✨']);
       assert.equal(result.text, '\nHello, Капри ✨');
       assert.deepEqual(
         result.choices.map((choice) => choice.avatar.id),
-        [sprite.id],
+        [canonical.id],
       );
     }
     const result = parse([...`${frame}\nHello`]);
     assert.equal(result.text, '\nHello');
-    assert.equal(result.choices[0].avatar.id, sprite.id);
+    assert.equal(result.choices[0].avatar.id, canonical.id);
   }
 });
 

@@ -55,12 +55,18 @@ test('private dialogue refuses external sharing by default and uses a direct bou
   const request = privateDialogue({
     url: 'http://127.0.0.1:54321',
     model: () => 'synthetic',
+    params: () => ({ num_ctx: 32768 }),
     remote: () => remote,
     fetchImpl: async (url, options) => {
       called++;
       assert.equal(url.pathname, '/api/chat');
       assert(!options.headers['x-openclaw-session-key']);
       assert.equal(JSON.parse(options.body).stream, false);
+      const body = JSON.parse(options.body);
+      assert.equal(body.shift, false);
+      assert.equal(body.truncate, false);
+      assert.equal(body.keep_alive, -1);
+      assert.equal(body.options.num_ctx, 32768);
       return new Response(JSON.stringify({ message: { content: 'Private answer' } }));
     },
   });

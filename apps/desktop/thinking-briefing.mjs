@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { validateThinkingBriefing } from './thinking-mode.mjs';
+import { LOCAL_RUNNER_POLICY } from '../../packages/runtime/src/providers/runner-policy.mjs';
 
 const format = {
   type: 'object',
@@ -12,7 +13,7 @@ const format = {
 };
 
 /** A separate, tool-free public briefing using only this request and its reply language. */
-export function thinkingBriefing({ url, model, fetchImpl = fetch, timeoutMs = 5000 }) {
+export function thinkingBriefing({ url, model, params = {}, fetchImpl = fetch, timeoutMs = 5000 }) {
   const base = new URL(url);
   if (base.hostname !== '127.0.0.1' || base.protocol !== 'http:' || base.username || base.password)
     throw new Error('Thinking briefings require the active loopback inference endpoint.');
@@ -45,10 +46,11 @@ export function thinkingBriefing({ url, model, fetchImpl = fetch, timeoutMs = 50
         body: JSON.stringify({
           model,
           stream: false,
+          ...LOCAL_RUNNER_POLICY,
           think: false,
           tools: [],
           format,
-          options: { num_predict: 192, temperature: 0.7 },
+          options: { ...params, num_predict: 192, temperature: 0.7 },
           messages: [
             {
               role: 'system',

@@ -396,6 +396,7 @@ function syncSleepingVisual() {
 let activeTurnId = null;
 const pendingSpotifyTools = new Set();
 let submitting = false;
+const responsePaintStarts = new Map();
 let ready = false;
 let miniDraftRevision = 0,
   lastMiniSnapshot;
@@ -2462,6 +2463,8 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'turn.started') {
+    if (!responsePaintStarts.has(event.turnId))
+      responsePaintStarts.set(event.turnId, performance.now());
     replyVisibility.update(
       { turnId: event.turnId, text: '', status: 'streaming' },
       Boolean(
@@ -2528,9 +2531,22 @@ function onEvent(event) {
       (item) => item.message.turnId === event.turnId && item.message.role === 'assistant',
     );
     if (view) {
+      const firstVisibleText = !view.message.text;
       const message = { ...view.message, text: view.message.text + event.text };
       putMessage(message);
       showSubtitles(message);
+      if (firstVisibleText && document.visibilityState === 'visible') {
+        const started = responsePaintStarts.get(event.turnId);
+        responsePaintStarts.delete(event.turnId);
+        if (started !== undefined)
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              void api
+                .responsePainted?.({ id: event.turnId, elapsedMs: performance.now() - started })
+                .catch(() => {});
+            }),
+          );
+      }
     }
     return;
   }
@@ -2542,6 +2558,7 @@ function onEvent(event) {
     putMessage(event.assistant);
     showSubtitles(event.assistant);
     activeTurnId = null;
+    responsePaintStarts.delete(event.turnId);
     notice(event.warning || (event.type === 'turn.failed' ? event.message : ''));
     elements.announcement.textContent = ui.text(
       event.type === 'turn.completed' ? 'Capri has replied.' : event.message,
@@ -2575,6 +2592,9 @@ async function send() {
   api.stopVoice().catch(() => {});
   if (voiceSettings.enabled) voicePlayer.unlock().catch(() => {});
   const id = crypto.randomUUID();
+  responsePaintStarts.set(id, performance.now());
+  if (responsePaintStarts.size > 32)
+    responsePaintStarts.delete(responsePaintStarts.keys().next().value);
   elements.message.value = '';
   sizeInput();
   try {

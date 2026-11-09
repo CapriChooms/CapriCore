@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { plainDialogueText } from '../../packages/runtime/src/text.mjs';
 import { conversationInstruction } from './language-context.mjs';
+import { LOCAL_RUNNER_POLICY } from '../../packages/runtime/src/providers/runner-policy.mjs';
 
 const routes = ['owner', 'owner-and-call'];
 export const MAX_CALL_REQUEST = 1200;
@@ -16,7 +17,13 @@ const format = {
 };
 
 /** A single explicitly approved exchange. No regular chat context or tools. */
-export function callResponseGenerator({ url, model, modelCapabilities, fetchImpl = fetch }) {
+export function callResponseGenerator({
+  url,
+  model,
+  modelCapabilities,
+  params = {},
+  fetchImpl = fetch,
+}) {
   const base = new URL(url);
   if (base.hostname !== '127.0.0.1' || base.protocol !== 'http:' || base.username || base.password)
     throw new Error('Call replies require a loopback inference endpoint.');
@@ -32,8 +39,9 @@ export function callResponseGenerator({ url, model, modelCapabilities, fetchImpl
       body: JSON.stringify({
         model,
         stream: false,
+        ...LOCAL_RUNNER_POLICY,
         ...(!modelCapabilities || modelCapabilities.includes('thinking') ? { think: false } : {}),
-        options: { num_predict: 160 },
+        options: { ...params, num_predict: 160 },
         format,
         tools: [],
         messages: [

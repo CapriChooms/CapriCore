@@ -1,5 +1,10 @@
 # Local diagnostic reports
 
+For slow responses, the counter-only desktop/gateway/provider traces distinguish
+model loading, prompt evaluation and first visible text. See
+[First visible reply latency](performance/first-token-latency.md) for stages,
+privacy limits and a repeatable capture procedure.
+
 In Capri Setup, **Open logs** opens one `setup.log` with the latest events and
 relevant log tails. **Save diagnostics** creates a ZIP containing `setup.log`,
 `setup.json` for system and installation details, and `REPORT.md` for an overview.

@@ -97,6 +97,8 @@ test('tool delivery overrides late payload policies and preserves a final JSON r
     events.push(event);
   assert.ok(requests.length, 'Provider failed before HTTP: ' + JSON.stringify(events));
   assert.equal(requests[0].think, false);
+  assert.equal(requests[0].shift, false, 'Auxiliary calls must match this gateway runner policy');
+  assert.equal(requests[0].truncate, false);
   assert.equal(requests[0].stream, false);
   assert.equal(requests[0].options.temperature, 0.2);
   assert.equal(requests[0].options.presence_penalty, 0);

@@ -23,6 +23,13 @@ import {
   writeModelSelectionLog,
 } from '../../packages/runtime/src/privacy-log.mjs';
 import { createSecureWindow } from './main/secure-window.mjs';
+import {
+  ResponseTimingLog,
+  configureResponseTimings,
+  withResponseTiming,
+  acknowledgeResponsePaint,
+} from '../../packages/runtime/src/response-timing.mjs';
+import { timingFetch } from '../../packages/runtime/src/response-probe.mjs';
 import { wantsVoiceFollowUp } from './voice-follow-up.mjs';
 import { screenFormState } from './main/screen-form-state.mjs';
 import { localizedDialog } from './main/localized-dialog.mjs';
@@ -100,7 +107,7 @@ import { CpuSampler } from './system-resources.mjs';
 import { ContextSampler } from './context-usage.mjs';
 import { MutedVoiceResidency } from './voice-residency.mjs';
 import { ensureLanguageModelReady } from '../../packages/runtime/src/providers/model-residency.mjs';
-import { readConversationBudget } from './conversation-budget.mjs';
+import { conversationBudget } from './conversation-budget.mjs';
 import { Confirmations } from './main/confirmations.mjs';
 import {
   COMPANION_DEFAULTS,
@@ -316,6 +323,12 @@ else {
     app.on('browser-window-created', (_event, window) => window.setIcon(applicationIcon));
 }
 async function initializeDesktop() {
+  configureResponseTimings(
+    new ResponseTimingLog(
+      path.join(verification ? verificationFolder : root, 'logs/response-desktop.jsonl'),
+    ),
+  );
+  const localTimingFetch = timingFetch(fetch, { ollamaPort: settings.ollamaPort });
   const rt = verification
     ? runtime({
         stateDir: path.join(verificationFolder, 'openclaw'),
@@ -356,10 +369,11 @@ async function initializeDesktop() {
           ...(rt.remote.vision ? ['vision'] : []),
         ],
       }
-    : {};
+    : { fetchImpl: localTimingFetch };
   const prepareThinking = thinkingBriefing({
     url: rt.inferenceUrl,
     model: settings.model,
+    params: { num_ctx: settings.contextTokens },
     ...inferenceOptions,
   });
   if (!Number.isInteger(rt.gatewayPort) || rt.gatewayPort < 1024 || rt.gatewayPort > 65535)
@@ -848,6 +862,7 @@ async function initializeDesktop() {
   const generateCallReply = callResponseGenerator({
     url: rt.inferenceUrl,
     model: settings.model,
+    params: { num_ctx: settings.contextTokens },
     modelCapabilities: settings.modelCapabilities,
     ...inferenceOptions,
   });
@@ -997,32 +1012,29 @@ async function initializeDesktop() {
           await mutedVoiceResidency.release();
           signal.throwIfAborted();
           if (rt.remote.enabled) return { remote: true };
-          const [model, conversationBudget] = await Promise.all([
-            ensureLanguageModelReady(
-              {
-                url: rt.inferenceUrl,
-                model: settings.model,
-                modelCapabilities: settings.modelCapabilities,
-                contextTokens: settings.contextTokens,
-                keepAlive: settings.keepAlive ?? -1,
-                acceleration: settings.acceleration,
-              },
-              { signal },
-            ),
-            readConversationBudget({
-              rpc: metadataRpc,
-              sessionKey: chatSessionKey,
-              signal,
+          const budget = conversationBudget({
+            session: contextSampler.peekSession(),
+            model: settings.model,
+            contextTokens: settings.contextTokens,
+            historyCharacters: store
+              .snapshot()
+              .reduce((count, item) => count + (item.text?.length ?? 0), 0),
+            ...responseTiming,
+          });
+          // Share the HUD's bounded/background read; metadata never gates Send.
+          void contextSampler.sample({ available: backendState.phase === 'ready' }).catch(() => {});
+          const model = await ensureLanguageModelReady(
+            {
+              url: rt.inferenceUrl,
               model: settings.model,
               modelCapabilities: settings.modelCapabilities,
               contextTokens: settings.contextTokens,
-              historyCharacters: store
-                .snapshot()
-                .reduce((count, item) => count + (item.text?.length ?? 0), 0),
-              ...responseTiming,
-            }),
-          ]);
-          return { ...model, conversationBudget };
+              keepAlive: settings.keepAlive ?? -1,
+              acceleration: settings.acceleration,
+            },
+            { signal },
+          );
+          return { ...model, conversationBudget: budget };
         },
   });
   // Speech is opt-in for each desktop session, including upgrades with an old
@@ -1100,6 +1112,9 @@ async function initializeDesktop() {
     });
   }
   async function submitMessage(value, origin = 'text') {
+    return withResponseTiming(value?.id, () => submitMessageTurn(value, origin));
+  }
+  async function submitMessageTurn(value, origin = 'text') {
     avatarClickReactions?.cancel();
     const input = thinkingInput(value);
     const movement = desktopAvatarCommand(input.text);
@@ -5298,6 +5313,7 @@ async function initializeDesktop() {
     const respondPrivately = privateDialogue({
       url: rt.inferenceUrl,
       model: () => settings.model,
+      params: () => ({ num_ctx: settings.contextTokens }),
       remote: () => rt.remote.enabled,
       fetchImpl: (url, options) =>
         rt.remote.enabled ? inferenceApi.localFetch(url, options) : fetch(url, options),
@@ -5646,6 +5662,11 @@ async function initializeDesktop() {
       };
     });
     handle('capri:send', (value) => submitMessage(value));
+    handle('capri:response-painted', (value) => {
+      if (!value || Object.keys(value).some((key) => !['id', 'elapsedMs'].includes(key)))
+        return false;
+      return acknowledgeResponsePaint(value.id, value.elapsedMs);
+    });
     handle('capri:thinking-mode-set', (enabled) => {
       if (typeof enabled !== 'boolean') throw new Error('Invalid thinking mode');
       thinkingMode = enabled;

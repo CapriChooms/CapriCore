@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld(
   'capri',
   Object.freeze({
     bootstrap: () => ipcRenderer.invoke('capri:bootstrap'),
+    responsePainted: (value) => ipcRenderer.invoke('capri:response-painted', value),
     setThinkingMode: (enabled) => ipcRenderer.invoke('capri:thinking-mode-set', enabled),
     setInternetMode: (enabled) => ipcRenderer.invoke('capri:internet-mode-set', enabled),
     openWebSource: (value) => ipcRenderer.invoke('capri:web-source-open', value),

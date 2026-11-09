@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { LOCAL_RUNNER_POLICY } from '../../packages/runtime/src/providers/runner-policy.mjs';
 import {
   browserPageState,
   requiresPageSearch,
@@ -632,7 +633,7 @@ export function computerIntentClassifier({
       body: JSON.stringify({
         model,
         stream: false,
-        keep_alive: -1,
+        ...LOCAL_RUNNER_POLICY,
         ...(!modelCapabilities || modelCapabilities.includes('thinking') ? { think: false } : {}),
         options: { ...params, num_predict: 64, temperature: 0 },
         format: {
@@ -846,9 +847,7 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
       body: {
         model,
         stream: false,
-        keep_alive: -1,
-        truncate: false,
-        shift: false,
+        ...LOCAL_RUNNER_POLICY,
         ...(!modelCapabilities || modelCapabilities.includes('thinking') ? { think: false } : {}),
         options: {
           ...params,

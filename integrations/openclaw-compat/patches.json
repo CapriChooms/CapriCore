@@ -23,10 +23,26 @@
         {
           "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
           "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+        },
+        {
+          "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+          "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+        },
+        {
+          "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+          "after": "body: capriWireBody"
+        },
+        {
+          "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+          "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+        },
+        {
+          "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+          "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
         }
       ],
       "beforeSha256": "8e67d97372d384f2f493a3fd9277e04c60fd09d94af495ec45a2b78f0b182fba",
-      "afterSha256": "b3140f99408c0731dc32d2ba697c6bdb9f9b0017432889342179706c2102aeb7",
+      "afterSha256": "3d5863754df017ab926bc635b473b3a7b96e6c95b0fd6cea5068939722d55eca",
       "upgrades": [
         {
           "beforeSha256": "3058230b7cdc17e327edd40b5b6e743006d7b87ffaa153f806851653c2c26ae3",
@@ -50,6 +66,22 @@
             {
               "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
               "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            },
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
             }
           ]
         },
@@ -67,6 +99,22 @@
             {
               "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
               "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            },
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
             }
           ]
         },
@@ -80,6 +128,22 @@
             {
               "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
               "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            },
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
             }
           ]
         },
@@ -89,6 +153,43 @@
             {
               "before": "requestBody.options = { ...requestBody.options, num_predict: 8192 };",
               "after": "const capriOutputBudget = requestBody.options?.num_predict;\n\t\t\t\t\trequestBody.options = { ...requestBody.options, num_predict: Number.isFinite(capriOutputBudget) && capriOutputBudget > 0 ? Math.min(capriOutputBudget, 8192) : 8192 };"
+            },
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "b3140f99408c0731dc32d2ba697c6bdb9f9b0017432889342179706c2102aeb7",
+          "edits": [
+            {
+              "before": "\t\t\t\tconst { response, release, refreshTimeout } = await fetchWithSsrFGuard({",
+              "after": "\t\t\t\t// Capri: count/timing-only diagnostics leave dispatch and SSRF protection intact.\n\t\t\t\tconst capriWireBody = JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id));\n\t\t\t\tlet capriTiming;\n\t\t\t\ttry { capriTiming = globalThis[Symbol.for(\"capri.providerTiming\")]?.(chatUrl, capriWireBody); } catch {}\n\t\t\t\tconst { response: capriRawResponse, release, refreshTimeout } = await fetchWithSsrFGuard({"
+            },
+            {
+              "before": "body: JSON.stringify(applyOllamaThinkingFloor(requestBody, model.id))",
+              "after": "body: capriWireBody"
+            },
+            {
+              "before": "}).catch((error) => {\n\t\t\t\t\tlocalServiceLease?.release();",
+              "after": "}).catch((error) => {\n\t\t\t\t\ttry { capriTiming?.failed(); } catch {}\n\t\t\t\t\tlocalServiceLease?.release();"
+            },
+            {
+              "before": "\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({",
+              "after": "\t\t\t\tlet response = capriRawResponse;\n\t\t\t\ttry { response = capriTiming?.response(capriRawResponse) ?? capriRawResponse; } catch {}\n\t\t\t\ttry {\n\t\t\t\t\tawait notifyProviderHttpResponse({"
             }
           ]
         }

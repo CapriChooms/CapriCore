@@ -967,7 +967,7 @@ test('desktop music instructions reflect actual disabled and enabled Spotify set
   assert.match(prompts[0][0].content, /Settings → Application access → Spotify/);
   assert.equal(turnState(prompts[0][1].content).spotify.enabled, false);
   spotify = { enabled: true, prepared: true };
-  await service.send({ id: randomUUID(), text: 'What about now?' }, () => {});
+  await service.send({ id: randomUUID(), text: 'Can you use Spotify?' }, () => {});
   assert.match(prompts[1][0].content, /Only when spotify_control is actually listed/);
   assert.equal(turnState(prompts[1][1].content).spotify.enabled, true);
   assert.equal(prompts[0][0].content, prompts[1][0].content);

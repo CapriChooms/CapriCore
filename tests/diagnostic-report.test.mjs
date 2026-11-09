@@ -51,6 +51,23 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
   const secret = 'bare-credential-canary-123456789';
   const privateText = 'PRIVATE_CONVERSATION_CANARY_8492';
   put(base, 'data/openclaw/gateway-token', secret);
+  const traceId = 'fc28b5a7-2972-4af5-aad7-ea07d39f624c';
+  put(
+    base,
+    'logs/response-provider.jsonl',
+    JSON.stringify({
+      event: 'response-timing',
+      source: 'provider',
+      stage: 'provider_finished',
+      traceId,
+      promptTokens: 128,
+      loadMs: 3,
+      promptEvalMs: 17,
+      modelId: model,
+      prompt: privateText,
+      apiKey: secret,
+    }),
+  );
   assert.equal(writeModelSelectionLog(path.join(base, 'logs'), model), true);
   put(
     base,
@@ -118,6 +135,19 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
   const modelLog = [...files].find(([name]) => name.endsWith('desktop-model.jsonl'))?.[1];
   assert.ok(modelLog, 'The dedicated model metadata log is included');
   assert.equal(JSON.parse(modelLog).modelId, model);
+  const timingLog = [...files].find(([name]) => name.endsWith('response-provider.jsonl'))?.[1];
+  assert.ok(timingLog, 'Response timing metadata survives diagnostic ZIP export');
+  assert.deepEqual(JSON.parse(timingLog), {
+    schemaVersion: 1,
+    event: 'response-timing',
+    source: 'provider',
+    stage: 'provider_finished',
+    traceId,
+    modelId: model,
+    promptTokens: 128,
+    loadMs: 3,
+    promptEvalMs: 17,
+  });
   const all = [...files.values()].join('\n');
   for (const value of [secret, privateText, 'Alice', 'private-document.txt'])
     assert.ok(!all.includes(value), value);

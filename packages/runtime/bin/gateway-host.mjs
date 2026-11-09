@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { root, nodePath, openclawPath } from '../src/index.mjs';
 
 // Closing the supported stdin host lifeline asks OpenClaw to drain and release
@@ -11,7 +12,17 @@ const stopFile = path.join(root, 'data/run', `${name}.stop`);
 if (existsSync(stopFile)) unlinkSync(stopFile);
 const child = spawn(
   nodePath,
-  [openclawPath, 'gateway', 'run', '--port', process.env.CAPRI_GATEWAY_PORT, '--bind', 'loopback'],
+  [
+    '--import',
+    pathToFileURL(path.join(root, 'packages/runtime/bin/response-timing-preload.mjs')).href,
+    openclawPath,
+    'gateway',
+    'run',
+    '--port',
+    process.env.CAPRI_GATEWAY_PORT,
+    '--bind',
+    'loopback',
+  ],
   {
     cwd: root,
     env: { ...process.env, OPENCLAW_GATEWAY_HOST_LIFELINE: 'stdin', OPENCLAW_NO_RESPAWN: '1' },

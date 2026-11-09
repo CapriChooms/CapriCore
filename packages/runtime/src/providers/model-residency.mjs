@@ -15,15 +15,23 @@ export async function ensureLanguageModelReady(
   try {
     const { models = [] } = await requestImpl(`${url}/api/ps`, { timeout: 3000, signal });
     signal?.throwIfAborted();
-    if (
-      models.some(
-        (entry) =>
-          entry.name === model &&
-          entry.context_length === contextTokens &&
-          (acceleration !== 'cpu' || entry.size_vram === 0),
-      )
-    )
-      return { cold: false };
+    const resident = models.find(
+      (entry) =>
+        entry.name === model &&
+        entry.context_length === contextTokens &&
+        (acceleration !== 'cpu' || entry.size_vram === 0),
+    );
+    if (resident)
+      return {
+        cold: false,
+        ...(Number.isFinite(resident.size) && Number.isFinite(resident.size_vram)
+          ? {
+              residentBytes: resident.size,
+              residentGpuBytes: resident.size_vram,
+              residentContextTokens: resident.context_length,
+            }
+          : {}),
+      };
     const result = await requestImpl(`${url}/api/chat`, {
       method: 'POST',
       timeout: 180000,

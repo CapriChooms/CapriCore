@@ -33,6 +33,10 @@ export class ContextSampler {
     this.generation++;
     this.nextAt = 0;
     this.value = contextUsage(null, this);
+    this.session = null;
+  }
+  peekSession() {
+    return this.session ? structuredClone(this.session) : null;
   }
   async sample({ available = true } = {}) {
     if (!available) {
@@ -44,6 +48,23 @@ export class ContextSampler {
       this.pending = this.read()
         .then(({ session, failed }) => {
           if (generation === this.generation) {
+            this.session = session
+              ? {
+                  model: session.model,
+                  sessionId: session.sessionId,
+                  totalTokens: session.totalTokens,
+                  totalTokensFresh: session.totalTokensFresh,
+                  ...(session.contextBudgetStatus
+                    ? {
+                        contextBudgetStatus: {
+                          model: session.contextBudgetStatus.model,
+                          sessionId: session.contextBudgetStatus.sessionId,
+                          estimatedPromptTokens: session.contextBudgetStatus.estimatedPromptTokens,
+                        },
+                      }
+                    : {}),
+                }
+              : null;
             this.value = contextUsage(session, this);
             this.nextAt = this.now() + (failed ? 10000 : 2000);
           }

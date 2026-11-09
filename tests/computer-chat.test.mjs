@@ -400,10 +400,15 @@ test('multilingual desktop intent uses the host grant and keeps the current goal
   const classifier = computerIntentClassifier({
     url: 'http://127.0.0.1:1234',
     model: 'fixture',
+    params: { num_ctx: 32768 },
     fetchImpl: async (url, options) => {
       assert.equal(url.pathname, '/api/chat');
       const payload = JSON.parse(options.body);
       assert.equal(payload.options.num_predict, 64);
+      assert.equal(payload.options.num_ctx, 32768);
+      assert.equal(payload.shift, false, 'Classifier must share the gateway runner');
+      assert.equal(payload.truncate, false);
+      assert.equal(payload.keep_alive, -1);
       const request = JSON.parse(payload.messages[1].content);
       requests.push(request);
       const intent =

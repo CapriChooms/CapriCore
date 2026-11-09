@@ -8,10 +8,15 @@ test('call routing sees one approved prompt and cannot call tools or access priv
   const generate = callResponseGenerator({
     url: 'http://127.0.0.1:11434',
     model: 'fixture',
+    params: { num_ctx: 32768 },
     fetchImpl: async (url, request) => {
       assert.equal(url, 'http://127.0.0.1:11434/api/chat');
       assert.equal(request.signal, signal);
       const body = JSON.parse(request.body);
+      assert.equal(body.shift, false);
+      assert.equal(body.truncate, false);
+      assert.equal(body.keep_alive, -1);
+      assert.equal(body.options.num_ctx, 32768);
       assert.deepEqual(body.tools, []);
       assert.deepEqual(
         body.messages.map(({ role }) => role),

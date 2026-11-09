@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { LOCAL_RUNNER_POLICY } from '../../packages/runtime/src/providers/runner-policy.mjs';
 import { randomUUID } from 'node:crypto';
 import { plainDialogueText } from '../../packages/runtime/src/text.mjs';
 import { communicationInstruction } from '../../packages/runtime/src/communication.mjs';
@@ -131,6 +132,7 @@ export function avatarClickGenerator({
         model,
         stream: false,
         ...(!modelCapabilities || modelCapabilities.includes('thinking') ? { think: false } : {}),
+        ...LOCAL_RUNNER_POLICY,
         options: { ...params, num_predict: 72 },
         tools: [],
         messages: [

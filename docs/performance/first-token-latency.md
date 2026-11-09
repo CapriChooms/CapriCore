@@ -35,7 +35,41 @@ Two further changes remove avoidable work:
   remain intact. Unknown/action requests retain their action instructions; no
   benchmark-specific prompt exception was added.
 
-## Actual desktop measurements
+## Configured thread count: a second runner-reload defect
+
+A later Gemma `gemma4:e2b` diagnostic showed a separate mismatch despite identical
+`shift`, `truncate` and 32K context settings. The classifier omitted `num_thread`,
+while the gateway used the configured four threads. Its 6.811 s intent stage
+included 6.329 s of model loading, followed by another 6.725 s load for the answer.
+The model had already appeared resident in `/api/ps`.
+
+A controlled comparison on that same resident model changed only whether the
+classifier supplied the configured thread count. Generation limits, intent
+instructions, selected device and context capacity stayed unchanged:
+
+| Request                  | Before: elapsed / loading | After: elapsed / loading |
+| ------------------------ | ------------------------: | -----------------------: |
+| Intent classifier        |          7,016 / 6,518 ms |               281 / 4 ms |
+| Following short answer   |          7,035 / 6,781 ms |               144 / 4 ms |
+| Repeat intent classifier |                         — |               168 / 4 ms |
+| Repeat short answer      |                         — |                71 / 3 ms |
+
+One shared allocation helper now supplies CPU/GPU and thread options to the
+gateway, native model alias, startup/first-turn warmup and all desktop auxiliary
+requests, including intent, vision, planning, initiative and thinking briefings.
+Each task keeps its own sampling and output limit. Remote API requests do not
+receive these local device options. Regression checks cover explicit CPU mode,
+GPU/automatic mode, configured threads and host thread limits.
+
+Two additional complete `ChatService → intent → OpenClaw → Ollama` checks used
+the installed application backend and a fresh session with the public personality
+and a benign question. Intent took 252 and 230 ms; first streamed answer text
+arrived after 4.325 and 1.500 s. Both replies completed, and both provider calls
+reused their resident runner (4–6 ms reported loading). These complete-chain
+checks use a different prompt/history from the diagnostic and are not a direct
+before/after comparison. A genuinely cold model still needs its initial load.
+
+## Earlier desktop measurements
 
 The test used a separate installed Capri instance, its real Electron renderer,
 real OpenClaw gateway (2026.10.6) and real Ollama inference (0.40.10).
@@ -60,8 +94,9 @@ These are a small diagnostic sample, not a general performance guarantee. The
 synthetic conversation grew between runs, and the first after-fix turn included
 an additional gateway model call (468 output tokens, about five seconds), followed
 by a full prefill. That first-turn overhead remains visible in the trace and is
-not counted as a warm-run improvement. Changing thread options or keep-alive in
-separate controls did not reproduce the restart; changing `shift` did.
+not counted as a warm-run improvement. In that earlier 4B experiment, separate
+thread/keep-alive controls did not reproduce the restart; changing `shift` did.
+The later Gemma test above independently reproduces the thread mismatch.
 
 The tester's exact 58–59 seconds has **not** been reproduced on their AMD system.
 This study used a different GPU, without Chatterbox co-residency. Runner restarts

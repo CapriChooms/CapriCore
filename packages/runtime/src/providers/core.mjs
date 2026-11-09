@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import { ensureNativeLanguageModel } from './native-model.mjs';
 import { ensureEmbeddingModel } from './embedding-model.mjs';
 import { responsiveness } from '../hardware/responsiveness.mjs';
+import { localRunnerOptions } from './runner-policy.mjs';
 
 export async function startCore(
   rt = runtime(),
@@ -191,7 +192,7 @@ export async function prewarmModels(rt = runtime(), { signal, inventory } = {}) 
             options: {
               num_ctx: settings.contextTokens,
               num_predict: 1,
-              ...(settings.acceleration === 'cpu' ? { num_gpu: 0 } : {}),
+              ...localRunnerOptions(settings),
             },
           }),
         }),

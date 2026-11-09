@@ -111,6 +111,7 @@ import { CpuSampler } from './system-resources.mjs';
 import { ContextSampler } from './context-usage.mjs';
 import { MutedVoiceResidency } from './voice-residency.mjs';
 import { ensureLanguageModelReady } from '../../packages/runtime/src/providers/model-residency.mjs';
+import { localRunnerOptions } from '../../packages/runtime/src/providers/runner-policy.mjs';
 import { conversationBudget } from './conversation-budget.mjs';
 import { Confirmations } from './main/confirmations.mjs';
 import {
@@ -375,10 +376,14 @@ async function initializeDesktop() {
         ],
       }
     : { fetchImpl: localTimingFetch };
+  const auxiliaryRunnerParams = Object.freeze({
+    num_ctx: settings.contextTokens,
+    ...(!rt.remote.enabled ? localRunnerOptions(settings) : {}),
+  });
   const prepareThinking = thinkingBriefing({
     url: rt.inferenceUrl,
     model: settings.model,
-    params: { num_ctx: settings.contextTokens },
+    params: auxiliaryRunnerParams,
     ...inferenceOptions,
   });
   if (!Number.isInteger(rt.gatewayPort) || rt.gatewayPort < 1024 || rt.gatewayPort > 65535)
@@ -879,7 +884,7 @@ async function initializeDesktop() {
   const generateCallReply = callResponseGenerator({
     url: rt.inferenceUrl,
     model: settings.model,
-    params: { num_ctx: settings.contextTokens },
+    params: auxiliaryRunnerParams,
     modelCapabilities: settings.modelCapabilities,
     ...inferenceOptions,
   });
@@ -988,7 +993,7 @@ async function initializeDesktop() {
           model: settings.model,
           modelCapabilities: settings.modelCapabilities,
           ...inferenceOptions,
-          params: { num_ctx: settings.contextTokens },
+          params: auxiliaryRunnerParams,
         }),
     localCalculation: (input, args, signal) =>
       companionActions.execute('application_control', input.id, args, signal),
@@ -1048,6 +1053,7 @@ async function initializeDesktop() {
               contextTokens: settings.contextTokens,
               keepAlive: settings.keepAlive ?? -1,
               acceleration: settings.acceleration,
+              cpuThreads: settings.cpuThreads,
             },
             { signal },
           );
@@ -1542,7 +1548,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
     }),
     state: () => ({
       busy: Boolean(chat.active || currentChatTask || initiative?.active),
@@ -1694,6 +1700,7 @@ async function initializeDesktop() {
     ...inferenceOptions,
     params: {
       ...settings.generation,
+      ...auxiliaryRunnerParams,
       num_ctx: rt.remote.enabled ? rt.remote.contextTokens : settings.contextTokens,
     },
     rpc: metadataRpc,
@@ -1904,7 +1911,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
       sessionKey: chatSessionKey,
       rpc: metadataRpc,
       persona: sharedOwnerPersona,
@@ -1980,7 +1987,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
       languages: liveLanguages,
       style: () => settingsPreview.style ?? readCommunicationStyle(rt.workspace),
     }),
@@ -3786,7 +3793,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
     }),
     registerEscape: async () => {
       let shortcut = false;
@@ -3867,7 +3874,7 @@ async function initializeDesktop() {
       model: settings.model,
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
-      params: { num_ctx: settings.contextTokens, ...settings.generation },
+      params: { ...auxiliaryRunnerParams, ...settings.generation },
     }),
     emit: (event) => {
       controlBorder?.phase(event.phase);
@@ -5394,7 +5401,7 @@ async function initializeDesktop() {
     const respondPrivately = privateDialogue({
       url: rt.inferenceUrl,
       model: () => settings.model,
-      params: () => ({ num_ctx: settings.contextTokens }),
+      params: () => auxiliaryRunnerParams,
       remote: () => rt.remote.enabled,
       fetchImpl: (url, options) =>
         rt.remote.enabled ? inferenceApi.localFetch(url, options) : fetch(url, options),
@@ -5409,6 +5416,7 @@ async function initializeDesktop() {
               contextTokens: settings.contextTokens,
               keepAlive: settings.keepAlive ?? -1,
               acceleration: settings.acceleration,
+              cpuThreads: settings.cpuThreads,
             },
             { signal },
           );

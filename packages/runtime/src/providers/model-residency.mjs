@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { request } from '../http.mjs';
+import { localRunnerOptions } from './runner-policy.mjs';
 
 /** A keep-alive expiry is not a ready language model. Prime only missing/cold
  * inference; never replace a resident conversation KV cache or call agent tools.
  */
 export async function ensureLanguageModelReady(
-  { url, model, contextTokens, keepAlive = -1, acceleration, modelCapabilities },
+  { url, model, contextTokens, keepAlive = -1, acceleration, cpuThreads, modelCapabilities },
   { signal, requestImpl = request } = {},
 ) {
   const endpoint = new URL(url);
@@ -48,7 +49,7 @@ export async function ensureLanguageModelReady(
         options: {
           num_ctx: contextTokens,
           num_predict: 1,
-          ...(acceleration === 'cpu' ? { num_gpu: 0 } : {}),
+          ...localRunnerOptions({ acceleration, cpuThreads }),
         },
       }),
     });

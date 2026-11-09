@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "आपका सहेजा गया डेटा सुरक्षित है। इंस्टॉलर से Capri की मरम्मत करें और फिर कोशिश करें।",
     "Public updates do not require a GitHub account or token.": "सार्वजनिक अपडेट के लिए GitHub खाते या टोकन की आवश्यकता नहीं है।",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "अपडेट GitHub पर CapriChooms/CapriCore से आते हैं और इंस्टॉलेशन से पहले SHA-256 से जांचे जाते हैं।",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "संसाधन स्वामी के रूप में CapriChooms का चयन करें, केवल CapriCore रिपॉजिटरी, और सामग्री: केवल पढ़ने के लिए।"
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "संसाधन स्वामी के रूप में CapriChooms का चयन करें, केवल CapriCore रिपॉजिटरी, और सामग्री: केवल पढ़ने के लिए।",
+    "Model devices": "मॉडल उपकरण",
+    "Language model device": "भाषा मॉडल उपकरण",
+    "Voice model device": "आवाज़ मॉडल उपकरण",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "भाषा और आवाज़ के लिए स्वतंत्र रूप से चुनें। सीपीयू सिस्टम रैम का उपयोग करता है और धीपा हो सकता है। एक बाह्य एपीआई प्रदाता की हार्डवेयर पर चलता है।",
+    "Save and restart Capri": "Capri को सहेजें और पुनः शुरू करें",
+    "Selected GPU is unavailable": "चुना गया जीपीयू उपलब्ध नहीं है",
+    "Checking available devices...": "उपलब्ध उपकरण जांच रहे हैं...",
+    "Device discovery failed. Try refreshing.": "उपकरण खोज विफल रही। रिफ्रेश करने की कोशिश करें।",
+    "This GPU is not available in the installed voice runtime.": "इस जीपीयू में स्थापित आवाज़ रनटाइम उपलब्ध नहीं है।",
+    "This GPU is not available in the installed language model runtime.": "इस जीपीयू में स्थापित भाषा मॉडल रनटाइम उपलब्ध नहीं है।",
+    "The installed voice runtime cannot execute on this GPU.": "स्थापित आवाज़ रनटाइम इस जीपीयू पर निष्पादित नहीं किया जा सकता।"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "तुमचा जतन केलेला डेटा सुरक्षित आहे. इन्स्टॉलरने Capri दुरुस्त करा आणि पुन्हा प्रयत्न करा.",
     "Public updates do not require a GitHub account or token.": "सार्वजनिक अद्यतनांसाठी GitHub खाते किंवा टोकन आवश्यक नाही.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "GitHub वर CapriChooms/CapriCore वरून अपडेट येतात आणि स्थापनेपूर्वी SHA-256 सह तपासले जातात.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "संसाधन मालक म्हणून CapriChooms निवडा, फक्त CapriCore भांडार, आणि सामग्री: केवळ-वाचनीय."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "संसाधन मालक म्हणून CapriChooms निवडा, फक्त CapriCore भांडार, आणि सामग्री: केवळ-वाचनीय.",
+    "Model devices": "मॉडेलची उपकरणे",
+    "Language model device": "भाषा मॉडेलचे उपकरण",
+    "Voice model device": "आवाज मॉडेलचे उपकरण",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "भाषा आणि आवाजासाठी उपकरणे स्वतंत्रपणे निवडा. CPU प्रणालीची RAM वापरतो आणि अधिक संथ असू शकतो. बाह्य API प्रदात्याच्या हार्डवेअरवर चालते.",
+    "Save and restart Capri": "जतन करा आणि Capri पुन्हा सुरू करा",
+    "Selected GPU is unavailable": "निवडलेला GPU उपलब्ध नाही",
+    "Checking available devices...": "उपलब्ध उपकरणे शोधत आहे…",
+    "Device discovery failed. Try refreshing.": "उपकरणे शोधता आली नाहीत. यादी रीफ्रेश करा.",
+    "This GPU is not available in the installed voice runtime.": "हा GPU स्थापित आवाज रनटाइममध्ये उपलब्ध नाही.",
+    "This GPU is not available in the installed language model runtime.": "हा GPU स्थापित भाषा मॉडेल रनटाइममध्ये उपलब्ध नाही.",
+    "The installed voice runtime cannot execute on this GPU.": "स्थापित आवाज रनटाइम या GPU वर चालू शकत नाही."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

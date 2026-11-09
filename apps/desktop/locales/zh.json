@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "已保留您保存的数据。请使用安装程序修复 Capri，然后重试。",
     "Public updates do not require a GitHub account or token.": "公开更新无需 GitHub 账户或令牌。",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "更新来自 GitHub 上的 CapriChooms/CapriCore，并在安装前使用 SHA-256 检查。",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "选择 CapriCooms 作为资源所有者，仅选择 CapriCore 存储库，并且内容：只读。"
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "选择 CapriCooms 作为资源所有者，仅选择 CapriCore 存储库，并且内容：只读。",
+    "Model devices": "模型设备",
+    "Language model device": "语言模型设备",
+    "Voice model device": "语音模型设备",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "可独立为语言和语音选择。CPU 使用系统内存，速度可能较慢。外部 API 运行在提供商的硬件上。",
+    "Save and restart Capri": "保存并重启Capri",
+    "Selected GPU is unavailable": "所选 GPU 不可用",
+    "Checking available devices...": "正在检查可用设备...",
+    "Device discovery failed. Try refreshing.": "设备发现失败。请尝试刷新。",
+    "This GPU is not available in the installed voice runtime.": "此 GPU 未安装在语音运行时中。",
+    "This GPU is not available in the installed language model runtime.": "此 GPU 未安装在语言模型运行时中。",
+    "The installed voice runtime cannot execute on this GPU.": "已安装的语音运行时无法在此 GPU 上运行。"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

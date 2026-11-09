@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Kaydedilmiş verileriniz korundu. Yükleyiciyle Capri’yi onarın ve yeniden deneyin.",
     "Public updates do not require a GitHub account or token.": "Herkese açık güncellemeler GitHub hesabı veya belirteç gerektirmez.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Güncellemeler GitHub'daki CapriChooms/CapriCore adresinden gelir ve kurulumdan önce SHA-256 ile kontrol edilir.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Kaynak sahibi olarak CapriChooms'u, yalnızca CapriCore deposunu ve İçerikler: Salt okunur'u seçin."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Kaynak sahibi olarak CapriChooms'u, yalnızca CapriCore deposunu ve İçerikler: Salt okunur'u seçin.",
+    "Model devices": "Cihazlar",
+    "Language model device": "Dil modeli cihazı",
+    "Voice model device": "Ses modeli cihazı",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Dil ve ses için bağımsız olarak seçin. CPU sistem RAM'ini kullanır ve daha yavaş olabilir. Harici bir API sağlayıcının donanımında çalışır.",
+    "Save and restart Capri": "Capri'yi kaydet ve yeniden başlat",
+    "Selected GPU is unavailable": "Seçilen GPU kullanımda",
+    "Checking available devices...": "Mevcut cihazlar kontrol ediliyor...",
+    "Device discovery failed. Try refreshing.": "Cihaz keşfi başarısız oldu. Yenilemeyi deneyin.",
+    "This GPU is not available in the installed voice runtime.": "Bu GPU kurulu olan ses çalışma zamanında kullanılamaz.",
+    "This GPU is not available in the installed language model runtime.": "Bu GPU kurulu olan dil modeli çalışma zamanında kullanılamaz.",
+    "The installed voice runtime cannot execute on this GPU.": "Kurulu olan ses çalışma zamanı bu GPU'da çalışamaz."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

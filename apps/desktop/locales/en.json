@@ -1870,6 +1870,17 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Your saved data has been preserved. Repair Capri with the installer and try again.",
     "Public updates do not require a GitHub account or token.": "Public updates do not require a GitHub account or token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.",
+    "Model devices": "Model devices",
+    "Language model device": "Language model device",
+    "Voice model device": "Voice model device",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.",
+    "Save and restart Capri": "Save and restart Capri",
+    "Selected GPU is unavailable": "Selected GPU is unavailable",
+    "Checking available devices...": "Checking available devices...",
+    "Device discovery failed. Try refreshing.": "Device discovery failed. Try refreshing.",
+    "This GPU is not available in the installed voice runtime.": "This GPU is not available in the installed voice runtime.",
+    "This GPU is not available in the installed language model runtime.": "This GPU is not available in the installed language model runtime.",
+    "The installed voice runtime cannot execute on this GPU.": "The installed voice runtime cannot execute on this GPU."
   }
 }

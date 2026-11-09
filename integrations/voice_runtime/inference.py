@@ -31,8 +31,8 @@ def render(engine, text, *, device, reference, seed, max_tokens, cancelled=None)
     check_cancelled(cancelled)
     torch.manual_seed(seed)
     tokens = engine.t3.inference_turbo(
-        t3_cond=engine.conds.t3.to(device="cuda:0"),
-        text_tokens=engine.tokenizer(punc_norm(text), return_tensors="pt").input_ids.to("cuda:0"),
+        t3_cond=engine.conds.t3.to(device=engine.device),
+        text_tokens=engine.tokenizer(punc_norm(text), return_tensors="pt").input_ids.to(engine.device),
         max_gen_len=max_tokens, temperature=.8, top_p=.95, top_k=1000,
         repetition_penalty=1.2,
     )

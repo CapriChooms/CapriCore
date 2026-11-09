@@ -26,7 +26,7 @@ from .catalog import selected_voice
 
 def load_and_warm(config, language, cancelled=None):
     check_cancelled(cancelled)
-    if config.get('validateTurbo') or selected_voice(language)['backend'] != 'qwen3-tts':
+    if config.get('computeDevice') != 'cpu' and (config.get('computeDevice') == 'cuda:0' or config.get('validateTurbo') or selected_voice(language)['backend'] != 'qwen3-tts'):
         from .compatibility import require_cuda
         require_cuda(torch)
     voice = VoicePool(config)
@@ -50,6 +50,10 @@ def serve(language='en', validate_turbo=False):
     if not LANGUAGES.get(language, {}).get('speech'):
         raise ValueError('Unsupported spoken language')
     config = settings()
+    # Qwen keeps its established CPU default; an explicit GPU selection uses
+    # only the selected worker's installed CUDA/ROCm runtime.
+    if not validate_turbo and os.environ.get('CAPRI_VOICE_COMPUTE_DEVICE', 'auto') == 'auto' and selected_voice(language)['backend'] == 'qwen3-tts':
+        config['computeDevice'] = 'cpu'
     if validate_turbo:
         if language != 'en':
             raise ValueError('Turbo validation requires English')

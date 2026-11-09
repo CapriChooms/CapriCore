@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { HuggingFacePanel } from './huggingface-panel.mjs';
 import { VoiceModelPanel } from './voice-model-panel.mjs';
+import { ModelDevicePanel } from './model-device-panel.mjs';
 const states = {
   idle: 'Choose a language model for this PC.',
   checking: 'Checking local models...',
@@ -49,6 +50,12 @@ export class ModelsPanel {
         </div>
       </div>`;
     document.getElementById('companion').append(this.panel);
+    this.devices = new ModelDevicePanel({
+      api,
+      ui,
+      onError,
+      host: this.panel.querySelector('.preferences-content'),
+    });
     this.hub = new HuggingFacePanel({
       api,
       ui,
@@ -349,6 +356,7 @@ export class ModelsPanel {
         }
       }
       this.show(await this.api.refreshModels());
+      void this.devices.refresh();
       if (this.api.huggingFaceStatus) await this.hub.refresh();
       if (this.api.voiceCatalog) await this.voices.refresh(this.conversationLanguage);
       this.ui.apply(this.ui.language);

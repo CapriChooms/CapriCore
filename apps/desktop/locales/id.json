@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data tersimpan Anda tetap utuh. Perbaiki Capri dengan penginstal lalu coba lagi.",
     "Public updates do not require a GitHub account or token.": "Pembaruan publik tidak memerlukan akun GitHub atau token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Pembaruan datang dari CapriChooms/CapriCore di GitHub dan diperiksa dengan SHA-256 sebelum instalasi.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pilih CapriChooms sebagai pemilik sumber daya, hanya repositori CapriCore, dan Isi: Hanya baca."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pilih CapriChooms sebagai pemilik sumber daya, hanya repositori CapriCore, dan Isi: Hanya baca.",
+    "Model devices": "Perangkat model",
+    "Language model device": "Perangkat model bahasa",
+    "Voice model device": "Perangkat model suara",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pilih secara independen untuk bahasa dan suara. CPU menggunakan RAM sistem dan bisa lebih lambat. API eksternal berjalan pada perangkat keras penyedia.",
+    "Save and restart Capri": "Simpan dan mulai ulang Capri",
+    "Selected GPU is unavailable": "GPU yang dipilih tidak tersedia",
+    "Checking available devices...": "Memeriksa perangkat yang tersedia...",
+    "Device discovery failed. Try refreshing.": "Penemuan perangkat gagal. Coba refresh.",
+    "This GPU is not available in the installed voice runtime.": "GPU ini tidak tersedia dalam runtime suara yang terpasang.",
+    "This GPU is not available in the installed language model runtime.": "GPU ini tidak tersedia dalam runtime model bahasa yang terpasang.",
+    "The installed voice runtime cannot execute on this GPU.": "Runtime suara yang terpasang tidak dapat dijalankan pada GPU ini."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

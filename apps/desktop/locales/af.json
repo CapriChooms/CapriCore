@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jou gestoorde data is behou. Herstel Capri met die installeerder en probeer weer.",
     "Public updates do not require a GitHub account or token.": "Openbare opdaterings vereis nie ’n GitHub-rekening of toegangstoken nie.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Opdaterings kom van CapriChooms/CapriCore op GitHub en word nagegaan met SHA-256 voor installasie.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Kies CapriChooms as hulpbroneienaar, slegs die CapriCore-bewaarplek, en Inhoud: Leesalleen."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Kies CapriChooms as hulpbroneienaar, slegs die CapriCore-bewaarplek, en Inhoud: Leesalleen.",
+    "Model devices": "Apparatuur vir modelle",
+    "Language model device": "Apparaat vir taalmodel",
+    "Voice model device": "Apparaat vir stemmodel",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Kies onafhanklik vir taal en stem. CPU gebruik sisteen-slaggeheue en kan stadig wees. 'n Eksterne API word op die verskaffer se hardeware uitgevoer.",
+    "Save and restart Capri": "Stoor en herstart Capri",
+    "Selected GPU is unavailable": "Geselekteerde GPU is beskikbaar nie",
+    "Checking available devices...": "Toegang tot beskikbare apparatuur...",
+    "Device discovery failed. Try refreshing.": "Apparatuurontdekking het misluk. Probeer om te verseer.",
+    "This GPU is not available in the installed voice runtime.": "Hierdie GPU is beskikbaar nie in die geïnstalleerde stem-runtime.",
+    "This GPU is not available in the installed language model runtime.": "Hierdie GPU is beskikbaar nie in die geïnstalleerde taalmodel-runtime.",
+    "The installed voice runtime cannot execute on this GPU.": "Die geïnstalleerde stem-runtime kan nie op hierdie GPU uitvoer."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

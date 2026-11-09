@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "A mentett adatok megmaradtak. Javítsa a Capri telepítését a telepítővel, majd próbálja újra.",
     "Public updates do not require a GitHub account or token.": "A nyilvános frissítésekhez nem szükséges GitHub-fiók vagy token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "A frissítések a GitHubon található CapriChooms/CapriCore-tól származnak, és telepítés előtt az SHA-256 ellenőrzik őket.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Válassza ki a CapriChooms-t erőforrás-tulajdonosként, csak a CapriCore tárat és a Tartalom: Csak olvasható."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Válassza ki a CapriChooms-t erőforrás-tulajdonosként, csak a CapriCore tárat és a Tartalom: Csak olvasható.",
+    "Model devices": "Berendezések kiválasztása",
+    "Language model device": "Nyelvi modell berendezése",
+    "Voice model device": "Hangmodell berendezése",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "A nyelvi és hangmodellt külön-külön választhatja ki. A CPU rendszer RAM-t használhat és lassabb lehet. Egy külső API fut a szolgáltató hardverén.",
+    "Save and restart Capri": "Mentés és újraindítás a Capri-nál",
+    "Selected GPU is unavailable": "A kiválasztott GPU nem elérhető",
+    "Checking available devices...": "Elérhető berendezések ellenőrzése...",
+    "Device discovery failed. Try refreshing.": "A berendezéskutatás sikertelen. Próbálja meg frissíteni.",
+    "This GPU is not available in the installed voice runtime.": "Ez a GPU nem érhető el az telepített hangmodell futtatási környezetben.",
+    "This GPU is not available in the installed language model runtime.": "Ez a GPU nem érhető el az telepített nyelvi modell futtatási környezetében.",
+    "The installed voice runtime cannot execute on this GPU.": "Az telepített hangmodell futtatási környezet nem tud futni ezen a GPU-n."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

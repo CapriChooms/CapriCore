@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "আপনার সংরক্ষিত তথ্য অক্ষত রয়েছে। ইনস্টলার দিয়ে Capri মেরামত করে আবার চেষ্টা করুন।",
     "Public updates do not require a GitHub account or token.": "সর্বজনীন আপডেটের জন্য GitHub অ্যাকাউন্ট বা টোকেনের প্রয়োজন নেই।",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "GitHub-এ CapriChooms/CapriCore থেকে আপডেট আসে এবং ইনস্টলেশনের আগে SHA-256 দিয়ে চেক করা হয়।",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "সম্পদের মালিক হিসাবে CapriChooms নির্বাচন করুন, শুধুমাত্র CapriCore সংগ্রহস্থল, এবং বিষয়বস্তু: শুধুমাত্র-পঠন।"
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "সম্পদের মালিক হিসাবে CapriChooms নির্বাচন করুন, শুধুমাত্র CapriCore সংগ্রহস্থল, এবং বিষয়বস্তু: শুধুমাত্র-পঠন।",
+    "Model devices": "মডেল ডিভাইস",
+    "Language model device": "ভাষা মডেল ডিভাইস",
+    "Voice model device": "ভয়েস মডেল ডিভাইস",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "ভাষা এবং ভয়েসের জন্য আলাদাভাবে নির্বাচন করুন। সিপিইউ ব্যবহার করে সিস্টেমের র‍্যাম ব্যবহার করে এবং এটি ধীর হতে পারে। একটি বাহ্যিক এপিআই প্রোভাইডারের হার্ডওয়্যারে চালু থাকে।",
+    "Save and restart Capri": "Capri সেভ এবং রিস্টার্ট করুন",
+    "Selected GPU is unavailable": "নির্বাচিত গ্রাফিক প্রসেসর উপলব্ধ নয়",
+    "Checking available devices...": "উপলব্হ ডিভাইস যাচাই করা হচ্ছে...",
+    "Device discovery failed. Try refreshing.": "ডিভাইস খুঁজে বের করতে ব্যর্থ হয়েছে। রিফ্রেশ করার চেষ্টা করুন।",
+    "This GPU is not available in the installed voice runtime.": "এই গ্রাফিক প্রসেসর ইন্সটল করা ভয়েস রানটাইমে উপলব্ধ নয়।",
+    "This GPU is not available in the installed language model runtime.": "এই গ্রাফিক প্রসেসর ইন্সটল করা ভাষা মডেল রানটাইমে উপলব্ধ নয়।",
+    "The installed voice runtime cannot execute on this GPU.": "ইন্সটল করা ভয়েস রানটাইম এই গ্রাফিক প্রসেসরে চলতে পারে না।"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

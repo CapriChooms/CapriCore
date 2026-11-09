@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "保存済みのデータは保持されています。インストーラーで Capri を修復して、もう一度お試しください。",
     "Public updates do not require a GitHub account or token.": "公開アップデートに GitHub アカウントやトークンは不要です。",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "アップデートは GitHub の CapriChooms/CapriCore から提供され、インストール前に SHA-256 でチェックされます。",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "リソース所有者として CapriChooms を選択し、CapriCore リポジトリのみを選択し、コンテンツ: 読み取り専用を選択します。"
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "リソース所有者として CapriChooms を選択し、CapriCore リポジトリのみを選択し、コンテンツ: 読み取り専用を選択します。",
+    "Model devices": "モデルデバイス",
+    "Language model device": "言語モデルのデバイス",
+    "Voice model device": "音声モデルのデバイス",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "言語と声は独立して選択できます。CPU はシステム RAM を使用し、遅くなる可能性があります。外部 API はプロバイダーのハードウェア上で実行されます。",
+    "Save and restart Capri": "Capriを保存して再起動",
+    "Selected GPU is unavailable": "選択された GPU が利用できません",
+    "Checking available devices...": "利用可能なデバイスのチェック中...",
+    "Device discovery failed. Try refreshing.": "デバイスの検出に失敗しました。リフレッシュを試してください。",
+    "This GPU is not available in the installed voice runtime.": "この GPU はインストールされた音声ランタイムで利用できません。",
+    "This GPU is not available in the installed language model runtime.": "この GPU はインストールされた言語モデルランタイムで利用できません。",
+    "The installed voice runtime cannot execute on this GPU.": "インストールされた音声ランタイムはこの GPU で実行できません。"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -1875,7 +1875,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Your saved data has been preserved. Repair Capri with the installer and try again.",
         "Public updates do not require a GitHub account or token.": "Public updates do not require a GitHub account or token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.",
+        "Model devices": "Model devices",
+        "Language model device": "Language model device",
+        "Voice model device": "Voice model device",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.",
+        "Save and restart Capri": "Save and restart Capri",
+        "Selected GPU is unavailable": "Selected GPU is unavailable",
+        "Checking available devices...": "Checking available devices...",
+        "Device discovery failed. Try refreshing.": "Device discovery failed. Try refreshing.",
+        "This GPU is not available in the installed voice runtime.": "This GPU is not available in the installed voice runtime.",
+        "This GPU is not available in the installed language model runtime.": "This GPU is not available in the installed language model runtime.",
+        "The installed voice runtime cannot execute on this GPU.": "The installed voice runtime cannot execute on this GPU."
       }
     },
     "ru": {
@@ -3751,7 +3762,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Сохранённые данные не затронуты. Восстановите Capri через установщик и повторите попытку.",
         "Public updates do not require a GitHub account or token.": "Для публичных обновлений не нужны аккаунт GitHub и токен.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Обновления поступают из CapriChooms/CapriCore на GitHub. Перед установкой проверяется SHA-256.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Выберите владельца CapriChooms, только репозиторий CapriCore и разрешение Contents: Read-only."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Выберите владельца CapriChooms, только репозиторий CapriCore и разрешение Contents: Read-only.",
+        "Model devices": "Устройства моделей",
+        "Language model device": "Устройство языковой модели",
+        "Voice model device": "Устройство озвучки",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Выберите устройства для языковой модели и озвучки отдельно. CPU использует оперативную память и может работать медленнее. Внешний API выполняет запросы на оборудовании провайдера.",
+        "Save and restart Capri": "Сохранить и перезапустить Capri",
+        "Selected GPU is unavailable": "Выбранная GPU недоступна",
+        "Checking available devices...": "Поиск доступных устройств…",
+        "Device discovery failed. Try refreshing.": "Не удалось определить устройства. Попробуйте обновить список.",
+        "This GPU is not available in the installed voice runtime.": "Эта GPU недоступна в установленной среде озвучки.",
+        "This GPU is not available in the installed language model runtime.": "Эта GPU недоступна в установленной среде языковой модели.",
+        "The installed voice runtime cannot execute on this GPU.": "Установленная среда озвучки не может выполнять вычисления на этой GPU."
       }
     },
     "de": {
@@ -5627,7 +5649,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Ihre gespeicherten Daten bleiben erhalten. Reparieren Sie Capri mit dem Installationsprogramm und versuchen Sie es erneut.",
         "Public updates do not require a GitHub account or token.": "Für öffentliche Updates sind weder ein GitHub-Konto noch ein Token erforderlich.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Updates kommen von CapriChooms/CapriCore auf GitHub und werden vor der Installation mit SHA-256 überprüft.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Wählen Sie CapriChooms als Ressourceneigentümer, nur das CapriCore-Repository und Inhalte: Schreibgeschützt."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Wählen Sie CapriChooms als Ressourceneigentümer, nur das CapriCore-Repository und Inhalte: Schreibgeschützt.",
+        "Model devices": "Geräte auswählen",
+        "Language model device": "Sprachmodell-Gerät",
+        "Voice model device": "Stimmmodell-Gerät",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Unabhängig für Sprache und Stimme wählen. Die CPU verwendet den System-RAM und kann langsamer sein. Eine externe API läuft auf der Hardware des Providers.",
+        "Save and restart Capri": "Speichern und Capri neu starten",
+        "Selected GPU is unavailable": "Die ausgewählte GPU ist nicht verfügbar",
+        "Checking available devices...": "Verfügbare Geräte werden überprüft...",
+        "Device discovery failed. Try refreshing.": "Entdeckung der Geräte fehlgeschlagen. Bitte aktualisieren.",
+        "This GPU is not available in the installed voice runtime.": "Diese GPU ist nicht im installierten Stimmmodell-Runtime verfügbar",
+        "This GPU is not available in the installed language model runtime.": "Diese GPU ist nicht im installierten Sprachmodell-Runtime verfügbar",
+        "The installed voice runtime cannot execute on this GPU.": "Das installierte Stimmmodell-Runtime kann auf dieser GPU nicht ausgeführt werden"
       }
     },
     "fr": {
@@ -7503,7 +7536,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vos données enregistrées ont été conservées. Réparez Capri avec le programme d’installation, puis réessayez.",
         "Public updates do not require a GitHub account or token.": "Les mises à jour publiques ne nécessitent ni compte GitHub ni jeton.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Les mises à jour proviennent de CapriChooms/CapriCore sur GitHub et sont vérifiées avec SHA-256 avant l'installation.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Sélectionnez CapriChooms comme propriétaire de la ressource, uniquement le référentiel CapriCore et Contenu : Lecture seule."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Sélectionnez CapriChooms comme propriétaire de la ressource, uniquement le référentiel CapriCore et Contenu : Lecture seule.",
+        "Model devices": "Dispositifs du modèle",
+        "Language model device": "Dispositif pour le modèle de langage",
+        "Voice model device": "Dispositif pour le modèle vocal",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Choisissez indépendamment pour le langage et la voix. Le CPU utilise la RAM du système et peut être plus lent. Une API externe fonctionne sur le matériel du fournisseur.",
+        "Save and restart Capri": "Enregistrer et redémarrer Capri",
+        "Selected GPU is unavailable": "La GPU sélectionnée n'est pas disponible",
+        "Checking available devices...": "Vérification des dispositifs disponibles...",
+        "Device discovery failed. Try refreshing.": "Échec de la découverte des dispositifs. Essayez de rafraîchir.",
+        "This GPU is not available in the installed voice runtime.": "Cette GPU n'est pas disponible dans le temps d'exécution vocal installé.",
+        "This GPU is not available in the installed language model runtime.": "Cette GPU n'est pas disponible dans le temps d'exécution du modèle de langage installé.",
+        "The installed voice runtime cannot execute on this GPU.": "Le temps d'exécution vocal installé ne peut pas s'exécuter sur cette GPU."
       }
     },
     "es": {
@@ -9379,7 +9423,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Tus datos guardados se han conservado. Repara Capri con el instalador e inténtalo de nuevo.",
         "Public updates do not require a GitHub account or token.": "Las actualizaciones públicas no requieren una cuenta de GitHub ni un token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Las actualizaciones provienen de CapriChooms/CapriCore en GitHub y se verifican con SHA-256 antes de la instalación.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Seleccione CapriChooms como propietario del recurso, solo el repositorio CapriCore y Contenido: Solo lectura."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Seleccione CapriChooms como propietario del recurso, solo el repositorio CapriCore y Contenido: Solo lectura.",
+        "Model devices": "Dispositivos del modelo",
+        "Language model device": "Dispositivo para el modelo de lenguaje",
+        "Voice model device": "Dispositivo para el modelo de voz",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Elige independientemente para lenguaje y voz. La CPU utiliza la memoria RAM del sistema y puede ser más lenta. Una API externa se ejecuta en el hardware del proveedor.",
+        "Save and restart Capri": "Guardar y reiniciar Capri",
+        "Selected GPU is unavailable": "La GPU seleccionada no está disponible",
+        "Checking available devices...": "Buscando dispositivos disponibles...",
+        "Device discovery failed. Try refreshing.": "El descubrimiento de dispositivos falló. Intenta refrescar.",
+        "This GPU is not available in the installed voice runtime.": "Esta GPU no está disponible en el tiempo de ejecución de voz instalado.",
+        "This GPU is not available in the installed language model runtime.": "Esta GPU no está disponible en el tiempo de ejecución de modelo de lenguaje instalado.",
+        "The installed voice runtime cannot execute on this GPU.": "El tiempo de ejecución de voz instalado no puede ejecutarse en esta GPU."
       }
     },
     "it": {
@@ -11255,7 +11310,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "I dati salvati sono stati conservati. Ripara Capri con il programma di installazione e riprova.",
         "Public updates do not require a GitHub account or token.": "Gli aggiornamenti pubblici non richiedono un account GitHub o un token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Gli aggiornamenti provengono da CapriChooms/CapriCore su GitHub e vengono controllati con SHA-256 prima dell'installazione.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Seleziona CapriChooms come proprietario della risorsa, solo il repository CapriCore e Contenuti: di sola lettura."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Seleziona CapriChooms come proprietario della risorsa, solo il repository CapriCore e Contenuti: di sola lettura.",
+        "Model devices": "Dispositivi modello",
+        "Language model device": "Dispositivo per il modello linguistico",
+        "Voice model device": "Dispositivo per il modello vocale",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Seleziona indipendentemente per linguaggio e voce. La CPU utilizza la RAM del sistema e può essere più lenta. Un'API esterna gira sull'hardware del fornitore.",
+        "Save and restart Capri": "Salva e riavvia Capri",
+        "Selected GPU is unavailable": "La GPU selezionata non è disponibile",
+        "Checking available devices...": "Verifica dispositivi disponibili...",
+        "Device discovery failed. Try refreshing.": "Rilevamento dispositivo fallito. Riprova aggiornando.",
+        "This GPU is not available in the installed voice runtime.": "Questa GPU non è disponibile nel runtime vocale installato",
+        "This GPU is not available in the installed language model runtime.": "Questa GPU non è disponibile nel runtime del modello linguistico installato",
+        "The installed voice runtime cannot execute on this GPU.": "Il runtime vocale installato non può eseguire su questa GPU"
       }
     },
     "pt": {
@@ -13131,7 +13197,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Seus dados salvos foram preservados. Repare Capri com o instalador e tente novamente.",
         "Public updates do not require a GitHub account or token.": "As atualizações públicas não exigem uma conta GitHub nem um token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "As atualizações vêm de CapriChooms/CapriCore no GitHub e são verificadas com SHA-256 antes da instalação.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selecione CapriChooms como proprietário do recurso, apenas o repositório CapriCore e Conteúdo: somente leitura."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selecione CapriChooms como proprietário do recurso, apenas o repositório CapriCore e Conteúdo: somente leitura.",
+        "Model devices": "Dispositivos do modelo",
+        "Language model device": "Dispositivo do modelo de linguagem",
+        "Voice model device": "Dispositivo do modelo de voz",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Escolha independentemente para linguagem e voz. A CPU usa a memória RAM do sistema e pode ser mais lenta. Uma API externa roda no hardware do provedor.",
+        "Save and restart Capri": "Salvar e reiniciar o Capri",
+        "Selected GPU is unavailable": "A GPU selecionada não está disponível",
+        "Checking available devices...": "Verificando dispositivos disponíveis...",
+        "Device discovery failed. Try refreshing.": "Falha na descoberta de dispositivos. Tente atualizar.",
+        "This GPU is not available in the installed voice runtime.": "Esta GPU não está disponível no runtime de voz instalado.",
+        "This GPU is not available in the installed language model runtime.": "Esta GPU não está disponível no runtime de modelo de linguagem instalado.",
+        "The installed voice runtime cannot execute on this GPU.": "O runtime de voz instalado não pode executar nesta GPU."
       }
     },
     "nl": {
@@ -15007,7 +15084,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uw opgeslagen gegevens zijn behouden. Herstel Capri met het installatieprogramma en probeer het opnieuw.",
         "Public updates do not require a GitHub account or token.": "Voor openbare updates is geen GitHub-account of token nodig.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Updates komen van CapriChooms/CapriCore op GitHub en worden vóór installatie gecontroleerd met SHA-256.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selecteer CapriChooms als broneigenaar, alleen de CapriCore repository en Inhoud: Alleen-lezen."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selecteer CapriChooms als broneigenaar, alleen de CapriCore repository en Inhoud: Alleen-lezen.",
+        "Model devices": "Apparaten voor modellen",
+        "Language model device": "Apparaat voor taalmodel",
+        "Voice model device": "Apparaat voor spraakmodel",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Kies onafhankelijk voor taal en spraak. De CPU maakt gebruik van het systeem-geheugen en kan langzamer zijn. Een externe API draait op de hardware van de leverancier.",
+        "Save and restart Capri": "Opslaan en opnieuw starten van Capri",
+        "Selected GPU is unavailable": "De geselecteerde GPU is niet beschikbaar",
+        "Checking available devices...": "Beschikbare apparaten controleren...",
+        "Device discovery failed. Try refreshing.": "Het detecteren van apparaten is mislukt. Probeer te vernieuwen.",
+        "This GPU is not available in the installed voice runtime.": "Deze GPU is niet beschikbaar in de geïnstalleerde spraak-runtime.",
+        "This GPU is not available in the installed language model runtime.": "Deze GPU is niet beschikbaar in de geïnstalleerde taalmodel-runtime.",
+        "The installed voice runtime cannot execute on this GPU.": "De geïnstalleerde spraak-runtime kan op deze GPU niet worden uitgevoerd."
       }
     },
     "pl": {
@@ -16883,7 +16971,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Zapisane dane zostały zachowane. Napraw Capri za pomocą instalatora i spróbuj ponownie.",
         "Public updates do not require a GitHub account or token.": "Publiczne aktualizacje nie wymagają konta GitHub ani tokena.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Aktualizacje pochodzą z CapriChooms/CapriCore na GitHub i są sprawdzane za pomocą SHA-256 przed instalacją.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Wybierz CapriChooms jako właściciela zasobu, tylko repozytorium CapriCore i Zawartość: tylko do odczytu."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Wybierz CapriChooms jako właściciela zasobu, tylko repozytorium CapriCore i Zawartość: tylko do odczytu.",
+        "Model devices": "Urządzenia modelu",
+        "Language model device": "Urządzenie modelu językowego",
+        "Voice model device": "Urządzenie modelu głosowego",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Wybieraj niezależnie dla języka i głosu. CPU wykorzystuje pamięć RAM systemu i może być wolniejszy. Zewnętrzna API działa na sprzęcie dostawcy.",
+        "Save and restart Capri": "Zapisz i uruchom ponownie Capri",
+        "Selected GPU is unavailable": "Wybrana karta GPU jest niedostępna",
+        "Checking available devices...": "Sprawdzanie dostępnych urządzeń...",
+        "Device discovery failed. Try refreshing.": "Odkrywanie urządzeń nie powiodło się. Spróbuj odświeżyć.",
+        "This GPU is not available in the installed voice runtime.": "Ta karta GPU nie jest dostępna w zainstalowanym uruchomiaczu głosowym.",
+        "This GPU is not available in the installed language model runtime.": "Ta karta GPU nie jest dostępna w zainstalowanym uruchomiaczu modelu językowego.",
+        "The installed voice runtime cannot execute on this GPU.": "Zainstalowany uruchomiacz głosowy nie może działać na tej karcie GPU."
       }
     },
     "uk": {
@@ -18759,7 +18858,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Збережені дані не зачеплено. Відновіть Capri за допомогою інсталятора та повторіть спробу.",
         "Public updates do not require a GitHub account or token.": "Для публічних оновлень не потрібні обліковий запис GitHub і токен.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Оновлення надходять із CapriChooms/CapriCore на GitHub і перевіряються за допомогою SHA-256 перед встановленням.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Виберіть CapriChooms як власника ресурсу, лише репозиторій CapriCore і вміст: лише для читання."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Виберіть CapriChooms як власника ресурсу, лише репозиторій CapriCore і вміст: лише для читання.",
+        "Model devices": "Устройства моделей",
+        "Language model device": "Устройство для мовної моделі",
+        "Voice model device": "Устройство для голосової моделі",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Виберіть незалежно для мовної та голосової моделей. CPU використовує оперативну пам'ять системи і може працювати повільніше. Зовнішній API працює на апаратному забезпеченні постачальника.",
+        "Save and restart Capri": "Зберегти та перезапустити Capri",
+        "Selected GPU is unavailable": "Вибрана GPU недоступна",
+        "Checking available devices...": "Перевірка доступних пристроїв...",
+        "Device discovery failed. Try refreshing.": "Не вдалося виявити пристрій. Спробуйте оновити сторінку.",
+        "This GPU is not available in the installed voice runtime.": "Ця GPU недоступна в встановленому середовищі виконання голосової моделі.",
+        "This GPU is not available in the installed language model runtime.": "Ця GPU недоступна в встановленому середовищі виконання мовної моделі.",
+        "The installed voice runtime cannot execute on this GPU.": "Встановлене середовище виконання голосової моделі не може запускатися на цій GPU."
       }
     },
     "cs": {
@@ -20635,7 +20745,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uložená data byla zachována. Opravte Capri pomocí instalačního programu a zkuste to znovu.",
         "Public updates do not require a GitHub account or token.": "Veřejné aktualizace nevyžadují účet GitHub ani token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Aktualizace pocházejí z CapriChooms/CapriCore na GitHubu a před instalací jsou kontrolovány pomocí SHA-256.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Vyberte CapriChooms jako vlastníka zdroje, pouze úložiště CapriCore a Obsah: Pouze pro čtení."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Vyberte CapriChooms jako vlastníka zdroje, pouze úložiště CapriCore a Obsah: Pouze pro čtení.",
+        "Model devices": "Zařízení modelu",
+        "Language model device": "Zařízení jazykového modelu",
+        "Voice model device": "Zařízení hlasového modelu",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Vyberte nezávisle pro jazykový a hlasový model. CPU využívá systémovou paměť RAM a může být pomalejší. Externí API běží na hardwaru poskytovatele.",
+        "Save and restart Capri": "Uložit a restartovat Capri",
+        "Selected GPU is unavailable": "Vybraná GPU není dostupná",
+        "Checking available devices...": "Ověřování dostupných zařízení...",
+        "Device discovery failed. Try refreshing.": "Nepovedl se objevovací proces zařízení. Zkuste obnovit stránku.",
+        "This GPU is not available in the installed voice runtime.": "Tato GPU není dostupná v nainstalovaném hlasovém runtime.",
+        "This GPU is not available in the installed language model runtime.": "Tato GPU není dostupná v nainstalovaném runtime jazykového modelu.",
+        "The installed voice runtime cannot execute on this GPU.": "Nainstalovaný hlasový runtime nemůže běžet na této GPU."
       }
     },
     "sk": {
@@ -22511,7 +22632,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uložené údaje boli zachované. Opravte Capri pomocou inštalátora a skúste to znova.",
         "Public updates do not require a GitHub account or token.": "Verejné aktualizácie nevyžadujú účet GitHub ani token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Aktualizácie pochádzajú z CapriChooms/CapriCore na GitHub a pred inštaláciou sa kontrolujú pomocou SHA-256.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Vyberte CapriChooms ako vlastníka zdroja, iba úložisko CapriCore a Obsah: Len na čítanie."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Vyberte CapriChooms ako vlastníka zdroja, iba úložisko CapriCore a Obsah: Len na čítanie.",
+        "Model devices": "Zariadenia modelu",
+        "Language model device": "Zariadenie jazykového modelu",
+        "Voice model device": "Zariadenie hlasového modelu",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Vyberte nezávisle pre jazykový a hlasový model. CPU využíva systémovú pamäť a môže byť pomalší. Vonkajšia API spája na hardvéri poskytovateľa.",
+        "Save and restart Capri": "Uložiť a reštartovať Capri",
+        "Selected GPU is unavailable": "Vybraná GPU nie je dostupná",
+        "Checking available devices...": "Skontrolovanie dostupných zariadení...",
+        "Device discovery failed. Try refreshing.": "Odhalenie zariadenia zlyhalo. Skúste obnoviť stránku.",
+        "This GPU is not available in the installed voice runtime.": "Táto GPU nie je dostupná v nainštalovanom hlasovom runtime.",
+        "This GPU is not available in the installed language model runtime.": "Táto GPU nie je dostupná v nainštalovanom jazykovom modeli runtime.",
+        "The installed voice runtime cannot execute on this GPU.": "Nainštalovaný hlasový runtime sa nedá vykonať na tejto GPU."
       }
     },
     "bg": {
@@ -24387,7 +24519,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Запазените ви данни са съхранени. Поправете Capri с инсталатора и опитайте отново.",
         "Public updates do not require a GitHub account or token.": "Публичните актуализации не изискват акаунт в GitHub или токен.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Актуализациите идват от CapriChooms/CapriCore на GitHub и се проверяват с SHA-256 преди инсталиране.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Изберете CapriChooms като собственик на ресурс, само хранилището CapriCore и Съдържание: само за четене."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Изберете CapriChooms като собственик на ресурс, само хранилището CapriCore и Съдържание: само за четене.",
+        "Model devices": "Устройства модели",
+        "Language model device": "Устройство за езиков модел",
+        "Voice model device": "Устройство за гласов модел",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Изберете независимо за езика и гласа. CPU използва системна памет и може да е по-бавен. Външен API работи на хардуера на доставчика.",
+        "Save and restart Capri": "Запази и рестартирай Capri",
+        "Selected GPU is unavailable": "Избраната GPU не е налична",
+        "Checking available devices...": "Проверка на наличните устройства...",
+        "Device discovery failed. Try refreshing.": "Откриването на устройството е неуспешно. Опитай се да пречупиш.",
+        "This GPU is not available in the installed voice runtime.": "Тази GPU не е налична в инсталираната гласова среда за изпълнение.",
+        "This GPU is not available in the installed language model runtime.": "Тази GPU не е налична в инсталираната среда за изпълнение на езиков модел.",
+        "The installed voice runtime cannot execute on this GPU.": "Инсталираната гласова среда за изпълнение не може да работи на тази GPU."
       }
     },
     "hr": {
@@ -26263,7 +26406,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vaši spremljeni podaci su sačuvani. Popravite Capri instalacijskim programom i pokušajte ponovno.",
         "Public updates do not require a GitHub account or token.": "Javna ažuriranja ne zahtijevaju GitHub račun ni token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Ažuriranja dolaze s CapriChooms/CapriCore na GitHubu i provjeravaju se pomoću SHA-256 prije instalacije.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Odaberite CapriChooms kao vlasnika resursa, samo repozitorij CapriCore i Sadržaj: samo za čitanje."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Odaberite CapriChooms kao vlasnika resursa, samo repozitorij CapriCore i Sadržaj: samo za čitanje.",
+        "Model devices": "Uređaji modela",
+        "Language model device": "Uređaj za jezični model",
+        "Voice model device": "Uređaj za glasovni model",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Odaberite zasebno za jezični i glasovni model. CPU koristi sistemsku RAM i može biti sporiji. Vanjska API funkcija radi na hardveru dobavljača.",
+        "Save and restart Capri": "Sačuvati i ponovo pokrenuti Capri",
+        "Selected GPU is unavailable": "Odabrana GPU nije dostupna",
+        "Checking available devices...": "Provjeravanje dostupnih uređaja...",
+        "Device discovery failed. Try refreshing.": "Otkrivanje uređaja nije uspješno. Pokušajte osvježiti stranicu.",
+        "This GPU is not available in the installed voice runtime.": "Ova GPU nije dostupna u instaliranom glasovnom vremenskom okviru.",
+        "This GPU is not available in the installed language model runtime.": "Ova GPU nije dostupna u instaliranom jezičnom modelu vremenskog okvira.",
+        "The installed voice runtime cannot execute on this GPU.": "Instalirani glasovni vremenski okvir ne može izvršavati ovu GPU."
       }
     },
     "sr": {
@@ -28139,7 +28293,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Сачувани подаци су очувани. Поправите Capri помоћу инсталационог програма и покушајте поново.",
         "Public updates do not require a GitHub account or token.": "Јавна ажурирања не захтевају GitHub налог нити токен.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Ажурирања долазе са ЦаприЦхоомс/Capri на ГитХуб-у и проверавају се са СХА-256 пре инсталације.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Изаберите ЦаприЦхоомс као власника ресурса, само CapriCore спремиште и Садржај: само за читање."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Изаберите ЦаприЦхоомс као власника ресурса, само CapriCore спремиште и Садржај: само за читање.",
+        "Model devices": "Uređaji modela",
+        "Language model device": "Uređaj za jezični model",
+        "Voice model device": "Uređaj za glasovni model",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Odaberite nezavisno za jezični i glasovni model. CPU koristi sistemsku RAM i može biti sporiji. Vanjska API funkcija radi na hardveru dobavljača.",
+        "Save and restart Capri": "Sačuvati i ponovo pokrenuti Capri",
+        "Selected GPU is unavailable": "Odabrani GPU nije dostupan",
+        "Checking available devices...": "Provera dostupnih uređaja...",
+        "Device discovery failed. Try refreshing.": "Otkrivanje uređaja nije uspešno. Pokušajte osvežavanje.",
+        "This GPU is not available in the installed voice runtime.": "Ovaj GPU nije dostupan u instaliranom glasovnom vremenskom okviru.",
+        "This GPU is not available in the installed language model runtime.": "Ovaj GPU nije dostupan u instaliranom jezičnom modelu vremenskog okvira.",
+        "The installed voice runtime cannot execute on this GPU.": "Instalirani glasovni vremenski okvir ne može izvršiti ovaj GPU."
       }
     },
     "sl": {
@@ -30015,7 +30180,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vaši shranjeni podatki so ohranjeni. Popravite Capri z namestitvenim programom in poskusite znova.",
         "Public updates do not require a GitHub account or token.": "Javne posodobitve ne zahtevajo računa GitHub ali žetona.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Posodobitve prihajajo iz CapriChooms/CapriCore na GitHub in se pred namestitvijo preverijo s SHA-256.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Izberite CapriChooms kot lastnika vira, samo repozitorij CapriCore in Vsebina: samo za branje."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Izberite CapriChooms kot lastnika vira, samo repozitorij CapriCore in Vsebina: samo za branje.",
+        "Model devices": "Naprave za model",
+        "Language model device": "Naprava za jezikovni model",
+        "Voice model device": "Naprava za glasovni model",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Izberite ločeno za jezik in glas. CPU uporablja sistemsko spominsko pomnilnik in lahko deluje počasneje. Zunanji API teče na opremu dobavitnika.",
+        "Save and restart Capri": "Shrani in ponovno zagon Capri",
+        "Selected GPU is unavailable": "Izbirana GPU ni na voljo",
+        "Checking available devices...": "Preverjanje razpoložljivih naprav...",
+        "Device discovery failed. Try refreshing.": "Kazalo napak pri odkrivanju naprav. Poskusite osvežiti.",
+        "This GPU is not available in the installed voice runtime.": "Ta GPU ni na voljo v nameščenem glasovnem okolju.",
+        "This GPU is not available in the installed language model runtime.": "Ta GPU ni na voljo v nameščenem okolju za jezikovni model.",
+        "The installed voice runtime cannot execute on this GPU.": "Nameščeno glasovno okolje ne more izvesti na tem GPU."
       }
     },
     "ro": {
@@ -31891,7 +32067,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Datele salvate au fost păstrate. Reparați Capri cu programul de instalare și încercați din nou.",
         "Public updates do not require a GitHub account or token.": "Actualizările publice nu necesită un cont GitHub sau un token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Actualizările vin de la CapriChooms/CapriCore pe GitHub și sunt verificate cu SHA-256 înainte de instalare.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selectați CapriChooms ca proprietar de resurse, numai depozitul CapriCore și Conținut: Numai citire."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selectați CapriChooms ca proprietar de resurse, numai depozitul CapriCore și Conținut: Numai citire.",
+        "Model devices": "Dispozitive de model",
+        "Language model device": "Dispozitiv pentru modelul de limbaj",
+        "Voice model device": "Dispozitiv pentru model vocal",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Alegeți independent pentru limbaj și voce. CPU-ul folosește memoria RAM din sistem și poate fi mai lent. O API externă rulează pe hardware furnizorului.",
+        "Save and restart Capri": "Salvează și repornește Capri",
+        "Selected GPU is unavailable": "GPU-ul selectat nu este disponibil",
+        "Checking available devices...": "Se verifică dispozitivele disponibile...",
+        "Device discovery failed. Try refreshing.": "Descoperirea dispozitivelor a eșuat. Încercați să reîmprospătați pagina.",
+        "This GPU is not available in the installed voice runtime.": "Această GPU nu este disponibilă în timpul de rulare vocal instalat.",
+        "This GPU is not available in the installed language model runtime.": "Această GPU nu este disponibilă în timpul de rulare al modelului de limbaj instalat.",
+        "The installed voice runtime cannot execute on this GPU.": "Timpul de rulare vocal instalat nu poate executa pe această GPU."
       }
     },
     "hu": {
@@ -33767,7 +33954,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "A mentett adatok megmaradtak. Javítsa a Capri telepítését a telepítővel, majd próbálja újra.",
         "Public updates do not require a GitHub account or token.": "A nyilvános frissítésekhez nem szükséges GitHub-fiók vagy token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "A frissítések a GitHubon található CapriChooms/CapriCore-tól származnak, és telepítés előtt az SHA-256 ellenőrzik őket.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Válassza ki a CapriChooms-t erőforrás-tulajdonosként, csak a CapriCore tárat és a Tartalom: Csak olvasható."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Válassza ki a CapriChooms-t erőforrás-tulajdonosként, csak a CapriCore tárat és a Tartalom: Csak olvasható.",
+        "Model devices": "Berendezések kiválasztása",
+        "Language model device": "Nyelvi modell berendezése",
+        "Voice model device": "Hangmodell berendezése",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "A nyelvi és hangmodellt külön-külön választhatja ki. A CPU rendszer RAM-t használhat és lassabb lehet. Egy külső API fut a szolgáltató hardverén.",
+        "Save and restart Capri": "Mentés és újraindítás a Capri-nál",
+        "Selected GPU is unavailable": "A kiválasztott GPU nem elérhető",
+        "Checking available devices...": "Elérhető berendezések ellenőrzése...",
+        "Device discovery failed. Try refreshing.": "A berendezéskutatás sikertelen. Próbálja meg frissíteni.",
+        "This GPU is not available in the installed voice runtime.": "Ez a GPU nem érhető el az telepített hangmodell futtatási környezetben.",
+        "This GPU is not available in the installed language model runtime.": "Ez a GPU nem érhető el az telepített nyelvi modell futtatási környezetében.",
+        "The installed voice runtime cannot execute on this GPU.": "Az telepített hangmodell futtatási környezet nem tud futni ezen a GPU-n."
       }
     },
     "el": {
@@ -35643,7 +35841,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Τα αποθηκευμένα δεδομένα σας διατηρήθηκαν. Επιδιορθώστε το Capri με το πρόγραμμα εγκατάστασης και δοκιμάστε ξανά.",
         "Public updates do not require a GitHub account or token.": "Οι δημόσιες ενημερώσεις δεν απαιτούν λογαριασμό GitHub ή διακριτικό.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Οι ενημερώσεις προέρχονται από το CapriChooms/CapriCore στο GitHub και ελέγχονται με το SHA-256 πριν από την εγκατάσταση.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Επιλέξτε CapriChooms ως κάτοχο πόρων, μόνο το αποθετήριο CapriCore και Περιεχόμενα: Μόνο για ανάγνωση."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Επιλέξτε CapriChooms ως κάτοχο πόρων, μόνο το αποθετήριο CapriCore και Περιεχόμενα: Μόνο για ανάγνωση.",
+        "Model devices": "Συσκευή μοντέλου",
+        "Language model device": "Συσκευή για μοντέλο γλώσσας",
+        "Voice model device": "Συσκευή για μοντέλο φωνής",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Επιλέξτε ανεξάρτητα για γλώσσα και φωνή. Η CPU χρησιμοποιεί τη συστημική μνήμη RAM και μπορεί να είναι πιο αργή. Ένας εξωτερικός API εκτελείται στο υλικό του προμηθευτή.",
+        "Save and restart Capri": "Αποθήκευση και επανεκκίνηση του Capri",
+        "Selected GPU is unavailable": "Η επιλεγμένη GPU δεν είναι διαθέσιμη",
+        "Checking available devices...": "Έλεγχος διαθέσιμων συσκευών...",
+        "Device discovery failed. Try refreshing.": "Απέτυχε η ανακάλυψη συσκευών. Προσπαθήστε να ανανένετε.",
+        "This GPU is not available in the installed voice runtime.": "Αυτή η GPU δεν είναι διαθέσιμη στη εγκατεστημένη διαδρομή εκτέλεσης φωνής.",
+        "This GPU is not available in the installed language model runtime.": "Αυτή η GPU δεν είναι διαθέσιμη στη διαδρομή εκτέλεσης μοντέλου γλώσσας.",
+        "The installed voice runtime cannot execute on this GPU.": "Η εγκατεστημένη διαδρομή εκτέλεσης φωνής δεν μπορεί να εκτελεστεί σε αυτή την GPU."
       }
     },
     "da": {
@@ -37519,7 +37728,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dine gemte data er bevaret. Reparer Capri med installationsprogrammet, og prøv igen.",
         "Public updates do not require a GitHub account or token.": "Offentlige opdateringer kræver hverken en GitHub-konto eller et token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Opdateringer kommer fra CapriChooms/CapriCore på GitHub og kontrolleres med SHA-256 før installation.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Vælg CapriChooms som ressourceejer, kun CapriCore-lageret og Indhold: Skrivebeskyttet."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Vælg CapriChooms som ressourceejer, kun CapriCore-lageret og Indhold: Skrivebeskyttet.",
+        "Model devices": "Udstyr til modeller",
+        "Language model device": "Udstyr til sprogmodel",
+        "Voice model device": "Udstyr til stemmemodel",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Vælg uafhængigt for sprog og stemme. CPU bruger system-RAM og kan være langsommere. En ekstern API kører på leverandørens hardware.",
+        "Save and restart Capri": "Gem og genstart Capri",
+        "Selected GPU is unavailable": "Den valgte GPU er ikke tilgængelig",
+        "Checking available devices...": "Tjekker tilgængelige enheder...",
+        "Device discovery failed. Try refreshing.": "Enhedsopdagelse mislykkedes. Prøv at opdatere.",
+        "This GPU is not available in the installed voice runtime.": "Denne GPU er ikke tilgængelig i den installerede stemmeruntime.",
+        "This GPU is not available in the installed language model runtime.": "Denne GPU er ikke tilgængelig i den installerede sprogmodelleruntime.",
+        "The installed voice runtime cannot execute on this GPU.": "Den installerede stemmeruntime kan ikke køre på denne GPU."
       }
     },
     "no": {
@@ -39395,7 +39615,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "De lagrede dataene dine er bevart. Reparer Capri med installasjonsprogrammet, og prøv igjen.",
         "Public updates do not require a GitHub account or token.": "Offentlige oppdateringer krever verken en GitHub-konto eller et token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Oppdateringer kommer fra CapriChooms/CapriCore på GitHub og sjekkes med SHA-256 før installasjon.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Velg CapriChooms som ressurseier, bare CapriCore-depotet, og Innhold: Skrivebeskyttet."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Velg CapriChooms som ressurseier, bare CapriCore-depotet, og Innhold: Skrivebeskyttet.",
+        "Model devices": "Enhetene",
+        "Language model device": "Hva enhet skal brukes til språkmodellen",
+        "Voice model device": "Hva enhet skal brukes til stemmemodellen",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Velg uavhengig for språk- og stemme. CPU bruker systemminne og kan være langsommere. En ekstern API kjører på leverandørens hardvarer.",
+        "Save and restart Capri": "Lagre og start Capri",
+        "Selected GPU is unavailable": "Den valgte GPU-en er ikke tilgjengelig",
+        "Checking available devices...": "Sjekker tilgjengelige enheter...",
+        "Device discovery failed. Try refreshing.": "Oppdaging av enheter mislyktes. Prøv å oppdatere.",
+        "This GPU is not available in the installed voice runtime.": "Denne GPU-en er ikke tilgjengelig i den installerte stemme-runtimeen.",
+        "This GPU is not available in the installed language model runtime.": "Denne GPU-en er ikke tilgjengelig i den installerte språkmode-runtimeen.",
+        "The installed voice runtime cannot execute on this GPU.": "Den installerte stemme-runtimeen kan ikke kjøre på denne GPU-en."
       }
     },
     "sv": {
@@ -41271,7 +41502,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dina sparade data har bevarats. Reparera Capri med installationsprogrammet och försök igen.",
         "Public updates do not require a GitHub account or token.": "Offentliga uppdateringar kräver varken ett GitHub-konto eller en token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Uppdateringar kommer från CapriChooms/CapriCore på GitHub och kontrolleras med SHA-256 före installation.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Välj CapriChooms som resursägare, bara CapriCore-förrådet och Innehåll: Skrivskyddat."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Välj CapriChooms som resursägare, bara CapriCore-förrådet och Innehåll: Skrivskyddat.",
+        "Model devices": "Enhanced enhancers",
+        "Language model device": "Språkmodellens enhet",
+        "Voice model device": "Röstmodellens enhet",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Välj oberoende för språk och röst. CPU använder systemminne och kan vara långsammare. En extern API kör på leverantörens hårdvara.",
+        "Save and restart Capri": "Spara och starta om Capri",
+        "Selected GPU is unavailable": "Vald GPU är inte tillgänglig",
+        "Checking available devices...": "Kontrollerar tillgängliga enheter...",
+        "Device discovery failed. Try refreshing.": "Enhetsupptäckt misslyckades. Försök ladda om.",
+        "This GPU is not available in the installed voice runtime.": "Denna GPU är inte tillgänglig i den installerade röstruntimen.",
+        "This GPU is not available in the installed language model runtime.": "Denna GPU är inte tillgänglig i den installerade språkmodellruntimen.",
+        "The installed voice runtime cannot execute on this GPU.": "Den installerade röstruntimen kan inte köra på denna GPU."
       }
     },
     "fi": {
@@ -43147,7 +43389,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Tallennetut tietosi on säilytetty. Korjaa Capri asennusohjelmalla ja yritä uudelleen.",
         "Public updates do not require a GitHub account or token.": "Julkiset päivitykset eivät vaadi GitHub-tiliä tai tunnistetta.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Päivitykset tulevat GitHubin CapriChooms/CapriCore-sivustolta, ja ne tarkistetaan SHA-256-päivityksellä ennen asennusta.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Valitse CapriChooms resurssin omistajaksi, vain CapriCore-arkisto ja Sisältö: Vain luku."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Valitse CapriChooms resurssin omistajaksi, vain CapriCore-arkisto ja Sisältö: Vain luku.",
+        "Model devices": "Laitevalinnat",
+        "Language model device": "Kielimallin laite",
+        "Voice model device": "Äänimallin laite",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Valitse kielimalli- ja äänimallilaitteet itsenäisesti. CPU käyttää järjestelmän RAM-muistia ja voi olla hitaampi. Ulkoinen API toimittaa palveluntarjoajan laitteilla.",
+        "Save and restart Capri": "Tallenna ja käynnistä uudelleen Capria",
+        "Selected GPU is unavailable": "Valittu GPU ei ole käytettävissä",
+        "Checking available devices...": "Laitteiden etsintä...",
+        "Device discovery failed. Try refreshing.": "Laitteen löytäminen epäonnistui. Yritä päivittää.",
+        "This GPU is not available in the installed voice runtime.": "Tämä GPU ei ole käytettävissä asennetussa äänimallin ajurissa.",
+        "This GPU is not available in the installed language model runtime.": "Tämä GPU ei ole käytettävissä asennetussa kielimallin ajurissa.",
+        "The installed voice runtime cannot execute on this GPU.": "Asennettu äänimallin ajuri ei voi suorittaa tätä GPU:lla."
       }
     },
     "et": {
@@ -45023,7 +45276,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Teie salvestatud andmed on säilinud. Parandage Capri paigaldusprogrammiga ja proovige uuesti.",
         "Public updates do not require a GitHub account or token.": "Avalikud uuendused ei vaja GitHubi kontot ega pääsutõendit.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Värskendused pärinevad GitHubi veebisaidilt CapriChooms/CapriCore ja neid kontrollitakse enne installimist rakendusega SHA-256.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Valige ressursi omanikuks CapriChooms, ainult CapriCore hoidla ja sisu: kirjutuskaitstud."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Valige ressursi omanikuks CapriChooms, ainult CapriCore hoidla ja sisu: kirjutuskaitstud.",
+        "Model devices": "Seadmedevikud",
+        "Language model device": "Keelmodeli seade",
+        "Voice model device": "Häälemudelide seade",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Valige keele- ja häälemudelid sõltumatult. CPU kasutab süsteemi RAM-i ja võib olla aeglasem. Välis-API töötab pakkujate pühendatud hardveril.",
+        "Save and restart Capri": "Salvesta ja alusta Capri uuesti",
+        "Selected GPU is unavailable": "Valitud GPU ei ole kättesaadav",
+        "Checking available devices...": "Kättesaadavate seadmete otsing...",
+        "Device discovery failed. Try refreshing.": "Seadmete avastamine ebaõnnestus. Proovige värskendada.",
+        "This GPU is not available in the installed voice runtime.": "See GPU ei ole kättesaadav paigaldatud häälemudelide käivitamisseadmesse.",
+        "This GPU is not available in the installed language model runtime.": "See GPU ei ole kättesaadav paigaldatud keelmodeli käivitamisseadmesse.",
+        "The installed voice runtime cannot execute on this GPU.": "Paigaldatud häälemudelide käivitamisseade ei saa seda GPU-d kasutada."
       }
     },
     "lv": {
@@ -46899,7 +47163,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jūsu saglabātie dati ir saglabāti. Labojiet Capri ar instalēšanas programmu un mēģiniet vēlreiz.",
         "Public updates do not require a GitHub account or token.": "Publiskajiem atjauninājumiem nav vajadzīgs GitHub konts vai piekļuves tokens.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Atjauninājumus nodrošina CapriChooms/CapriCore vietnē GitHub, un pirms instalēšanas tie tiek pārbaudīti ar SHA-256.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Atlasiet CapriChooms kā resursa īpašnieku, tikai CapriCore repozitoriju un Saturs: tikai lasāms."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Atlasiet CapriChooms kā resursa īpašnieku, tikai CapriCore repozitoriju un Saturs: tikai lasāms.",
+        "Model devices": "Iekārtas",
+        "Language model device": "Valodas modeļa iekārta",
+        "Voice model device": "Vokāla modeļa iekārta",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Atlasiet neatkarīgi valodai un vokalim. CPU izmanto sistēmas atmiņu un var būt lēnāks. Ārējais API darbojas uz piegādātāja cietās iekārtas.",
+        "Save and restart Capri": "Saglabāt un atkārtoti sākt Capri",
+        "Selected GPU is unavailable": "Atlasītā GPU nav pieejama",
+        "Checking available devices...": "Pārbauda pieejamās iekārtas...",
+        "Device discovery failed. Try refreshing.": "Iekārtu atklāšana neizdevās. Mēģiniet atjaunināt.",
+        "This GPU is not available in the installed voice runtime.": "Šī GPU nav pieejama instalētajā vokālajā runtajā.",
+        "This GPU is not available in the installed language model runtime.": "Šī GPU nav pieejama instalētajā valodas modeļa runtajā.",
+        "The installed voice runtime cannot execute on this GPU.": "Instalētais vokālais runtimes nevar izpildīties šajā GPU."
       }
     },
     "lt": {
@@ -48775,7 +49050,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jūsų išsaugoti duomenys išliko. Pataisykite Capri diegimo programa ir bandykite dar kartą.",
         "Public updates do not require a GitHub account or token.": "Viešiems naujinimams nereikia GitHub paskyros ar prieigos rakto.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Atnaujinimai pateikiami iš „CapriChooms/CapriCore“ sistemoje „GitHub“ ir prieš diegiant tikrinami naudojant SHA-256.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pasirinkite „CapriChooms“ kaip išteklių savininką, tik CapriCore saugyklą ir „Turinys: tik skaitomas“."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pasirinkite „CapriChooms“ kaip išteklių savininką, tik CapriCore saugyklą ir „Turinys: tik skaitomas“.",
+        "Model devices": "Įrenginiai",
+        "Language model device": "Kalbos modelių įrenginys",
+        "Voice model device": "Rūšies modelių įrenginys",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pasirinkite atskirai kalbai ir rūšiai. CPU naudoja sistemos RAM ir gali veikti lėčiau. Išorinė API veikia tiekėjo įrenginiuose.",
+        "Save and restart Capri": "Išsaugoti ir paleisti Capri iš naujo",
+        "Selected GPU is unavailable": "Pasirinktas GPU nėra prieinamas",
+        "Checking available devices...": "Tikrinami prieinami įrenginiai...",
+        "Device discovery failed. Try refreshing.": "Nepavyko atrasti įrenginių. Pabandykite atnaujinti.",
+        "This GPU is not available in the installed voice runtime.": "Šis GPU nėra prieinamas įstaliuotoje rūšies modelio aplankoje.",
+        "This GPU is not available in the installed language model runtime.": "Šis GPU nėra prieinamas įstaliuotame kalbos modelių aplankoje.",
+        "The installed voice runtime cannot execute on this GPU.": "Įstaliuota rūšies modelio aplanka negali vykdyti šiuo GPU."
       }
     },
     "is": {
@@ -50651,7 +50937,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vistuðu gögnin þín hafa varðveist. Gerðu við Capri með uppsetningarforritinu og reyndu aftur.",
         "Public updates do not require a GitHub account or token.": "Opinberar uppfærslur krefjast hvorki GitHub-reiknings né aðgangstákns.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Uppfærslur koma frá CapriChooms/CapriCore á GitHub og eru athugaðar með SHA-256 fyrir uppsetningu.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Veldu CapriChooms sem auðlindareiganda, aðeins CapriCore geymsluna og Innihald: Skrifvarið."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Veldu CapriChooms sem auðlindareiganda, aðeins CapriCore geymsluna og Innihald: Skrifvarið.",
+        "Model devices": "Hönnuðarsetningar",
+        "Language model device": "Setningahóps setninga",
+        "Voice model device": "Stimmuhóps setninga",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Veldu sjálfstætt fyrir setningar og stjórn. CPU notar kerfisminni og getur verið hærra. Ekki tilheyrandi API fer fram á útlendi í gegnum þjónusturekju.",
+        "Save and restart Capri": "Vinsamlegast spara og endurtaka Capri",
+        "Selected GPU is unavailable": "Valin GPU er ekki til staðar",
+        "Checking available devices...": "Skoða tilgengilega setningar...",
+        "Device discovery failed. Try refreshing.": "Gagntökufall setninganna hefur mislykst. Prófaðu að opna aftur.",
+        "This GPU is not available in the installed voice runtime.": "Þessi GPU er ekki til staðar í innstýddum stemmuhópsetningunni.",
+        "This GPU is not available in the installed language model runtime.": "Þessi GPU er ekki til staðar í innstýddum setningahópssetningunni.",
+        "The installed voice runtime cannot execute on this GPU.": "Innstýddur stemmuhópssetningur getur ekki keyrt á þessu GPU."
       }
     },
     "ca": {
@@ -52527,7 +52824,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Les dades desades s’han conservat. Repara Capri amb l’instal·lador i torna-ho a provar.",
         "Public updates do not require a GitHub account or token.": "Les actualitzacions públiques no requereixen un compte de GitHub ni un testimoni.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Les actualitzacions provenen de CapriChooms/CapriCore a GitHub i es comproven amb SHA-256 abans de la instal·lació.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Seleccioneu CapriChooms com a propietari del recurs, només el repositori CapriCore i Contingut: només de lectura."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Seleccioneu CapriChooms com a propietari del recurs, només el repositori CapriCore i Contingut: només de lectura.",
+        "Model devices": "Dispositius del model",
+        "Language model device": "Dispositiu del model de llenguatge",
+        "Voice model device": "Dispositiu del model de veu",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Trieu independentment per al llenguatge i la veu. La CPU utilitza la memòria RAM del sistema i pot ser més lenta. Una API externa s'executa en el maquinari del proveïdor.",
+        "Save and restart Capri": "Desa i reinicia Capri",
+        "Selected GPU is unavailable": "La GPU seleccionada no està disponible",
+        "Checking available devices...": "S'estan comprovant els dispositius disponibles...",
+        "Device discovery failed. Try refreshing.": "L'escombrat de dispositius ha fallat. Intenteu actualitzar.",
+        "This GPU is not available in the installed voice runtime.": "Aquesta GPU no està disponible en el temps d'execució de veu instal·lat.",
+        "This GPU is not available in the installed language model runtime.": "Aquesta GPU no està disponible en el temps d'execució del model de llenguatge instal·lat.",
+        "The installed voice runtime cannot execute on this GPU.": "El temps d'execució de veu instal·lat no es pot executar en aquesta GPU."
       }
     },
     "ar": {
@@ -54403,7 +54711,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "تم الحفاظ على بياناتك المحفوظة. أصلح Capri باستخدام برنامج التثبيت ثم حاول مجددًا.",
         "Public updates do not require a GitHub account or token.": "لا تتطلب التحديثات العامة حساب GitHub أو رمز وصول.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "تأتي التحديثات من CapriChooms/CapriCore على GitHub ويتم فحصها باستخدام SHA-256 قبل التثبيت.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "حدد CapriChooms كمالك للموارد، ومستودع CapriCore فقط، والمحتويات: للقراءة فقط."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "حدد CapriChooms كمالك للموارد، ومستودع CapriCore فقط، والمحتويات: للقراءة فقط.",
+        "Model devices": "أجهزة النماذج",
+        "Language model device": "جهاز نموذج اللغة",
+        "Voice model device": "جهاز نموذج الصوت",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "اختر بشكل مستقل بين نموذج اللغة ونموذج الصوت. يستخدم الجهاز المعالج المركزي (CPU) ذاكرة النظام وقد يكون أبطأ، بينما يعمل الواجهة الخارجية عبر واجهة برمجة تطبيقات (API) على أجهزة الموفر.",
+        "Save and restart Capri": "حفظ وإعادة تشغيل Capri",
+        "Selected GPU is unavailable": "المعالج الرسومي (GPU) المحدد غير متاح",
+        "Checking available devices...": "جارٍ اكتشاف الأجهزة المتاحة...",
+        "Device discovery failed. Try refreshing.": "فشل اكتشاف الأجهزة. حاول التحديث.",
+        "This GPU is not available in the installed voice runtime.": "هذا المعالج الرسومي (GPU) غير متاح في تشغيل صوت المثبت.",
+        "This GPU is not available in the installed language model runtime.": "هذا المعالج الرسومي (GPU) غير متاح في تشغيل نموذج اللغة المثبت.",
+        "The installed voice runtime cannot execute on this GPU.": "لا يمكن لتطبيق صوت المثبت التشغيل على هذا المعالج الرسومي (GPU)."
       }
     },
     "he": {
@@ -56279,7 +56598,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "הנתונים השמורים שלכם נשמרו. תקנו את Capri באמצעות תוכנית ההתקנה ונסו שוב.",
         "Public updates do not require a GitHub account or token.": "עדכונים ציבוריים אינם דורשים חשבון GitHub או אסימון גישה.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "עדכונים מגיעים מ-CapriChooms/CapriCore ב-GitHub ונבדקים עם SHA-256 לפני ההתקנה.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "בחר CapriChoos כבעלים של משאב, רק מאגר CapriCore ותוכן: לקריאה בלבד."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "בחר CapriChoos כבעלים של משאב, רק מאגר CapriCore ותוכן: לקריאה בלבד.",
+        "Model devices": "ציוד מודלים",
+        "Language model device": "ציוד למודל השפה",
+        "Voice model device": "ציוד למודל הקול",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "בחר בנפרד עבור שפה וקול. ה-CPU משתמש בזיכרון הפנימי של המערכת ועשוי להיות איטי יותר. API חיצונייפעל על ציוד החומרה של הספק.",
+        "Save and restart Capri": "שמור והפעל מחדש את Capri",
+        "Selected GPU is unavailable": "ה-GPU שנבחר לא זמין",
+        "Checking available devices...": "בדיקת ציוד זמין...",
+        "Device discovery failed. Try refreshing.": "גילוי ציוד נכשל. נסה לעדכן.",
+        "This GPU is not available in the installed voice runtime.": "GPU זה אינו זמין בביצוע קול המותקן.",
+        "This GPU is not available in the installed language model runtime.": "GPU זה אינו זמין בביצוע מודל השפה המותקן.",
+        "The installed voice runtime cannot execute on this GPU.": "ביצוע הקול המותקן אינו יכול להפעיל על GPU זה."
       }
     },
     "fa": {
@@ -58155,7 +58485,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "داده‌های ذخیره‌شدهٔ شما حفظ شده‌اند. Capri را با برنامهٔ نصب تعمیر کنید و دوباره تلاش کنید.",
         "Public updates do not require a GitHub account or token.": "به‌روزرسانی‌های عمومی به حساب GitHub یا توکن نیاز ندارند.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "به‌روزرسانی‌ها از CapriChooms/CapriCore در GitHub می‌آیند و قبل از نصب با SHA-256 بررسی می‌شوند.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChoms را به عنوان مالک منبع، فقط مخزن CapriCore و Contents: فقط خواندنی انتخاب کنید."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChoms را به عنوان مالک منبع، فقط مخزن CapriCore و Contents: فقط خواندنی انتخاب کنید.",
+        "Model devices": "تجهیزات مدل",
+        "Language model device": "تجهیزات مدل زبانی",
+        "Voice model device": "تجهیزات مدل صوتی",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "به طور مستقل برای زبان و صدا انتخاب کنید. پردازنده مرکزی از حافظه رم سیستم استفاده می‌کند و ممکن است کندتر باشد. یک API خارجی روی سخت‌افزار ارائه‌دهنده اجرا می‌شود.",
+        "Save and restart Capri": "ذخیره و راه‌اندازی مجدد Capri",
+        "Selected GPU is unavailable": "GPU انتخاب شده در دسترس نیست",
+        "Checking available devices...": "در حال بررسی تجهیزات موجود...",
+        "Device discovery failed. Try refreshing.": "کشف دستگاه با شکست مواجه شد. تلاش برای رفرش کنید.",
+        "This GPU is not available in the installed voice runtime.": "این GPU در زمان‌بندی صوتی نصب شده در دسترس نیست.",
+        "This GPU is not available in the installed language model runtime.": "این GPU در زمان‌بندی مدل زبانی نصب شده در دسترس نیست.",
+        "The installed voice runtime cannot execute on this GPU.": "زمان‌بندی صوتی نصب شده نمی‌تواند روی این GPU اجرا شود."
       }
     },
     "ur": {
@@ -60031,7 +60372,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "آپ کا محفوظ کردہ ڈیٹا برقرار ہے۔ انسٹالر سے Capri کی مرمت کریں اور دوبارہ کوشش کریں۔",
         "Public updates do not require a GitHub account or token.": "عوامی اپ ڈیٹس کے لیے GitHub اکاؤنٹ یا ٹوکن درکار نہیں۔",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "اپ ڈیٹس گٹ ہب پر CapriChooms/CapriCore سے آتے ہیں اور انسٹالیشن سے پہلے SHA-256 سے چیک کیے جاتے ہیں۔",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "وسائل کے مالک کے طور پر CapriChooms کو منتخب کریں، صرف CapriCore ذخیرہ، اور مشمولات: صرف پڑھنے کے لیے۔"
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "وسائل کے مالک کے طور پر CapriChooms کو منتخب کریں، صرف CapriCore ذخیرہ، اور مشمولات: صرف پڑھنے کے لیے۔",
+        "Model devices": "ڈیوائسز کا انتخاب",
+        "Language model device": "بھاشا ماڈل ڈیوائس",
+        "Voice model device": "آواز ماڈل ڈیوائس",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "بھاشا اور آواز کے لیے الگ الگ منتخب کریں۔ سی پی یو سسٹم کی ریم استعمال کرتا ہے اور تھوڑا سست ہو سکتا ہے۔ ایک بیرونی ای پی آئی فراہم کنندہ کی ہارڈویئر پر چلتا ہے۔",
+        "Save and restart Capri": "Capri محفوظ کریں اور دوبارہ شروع کریں",
+        "Selected GPU is unavailable": "انتخاب کردہ جی پی یو دستیاب نہیں ہے",
+        "Checking available devices...": "دستیاب ڈیوائسز کی جانچ پڑتال...",
+        "Device discovery failed. Try refreshing.": "ڈیوائس دریافت میں ناکامی۔ تازہ کاری کرنے کی کوشش کریں۔",
+        "This GPU is not available in the installed voice runtime.": "اس جی پی یو انسٹال شدہ آواز رن ٹائم میں دستیاب نہیں ہے",
+        "This GPU is not available in the installed language model runtime.": "اس جی پی یو انسٹال شدہ بھاشا ماڈل رن ٹائم میں دستیاب نہیں ہے",
+        "The installed voice runtime cannot execute on this GPU.": "انسٹال شدہ آواز رن ٹائم اس جی پی یو پر نہیں چلا سکتا"
       }
     },
     "hi": {
@@ -61907,7 +62259,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "आपका सहेजा गया डेटा सुरक्षित है। इंस्टॉलर से Capri की मरम्मत करें और फिर कोशिश करें।",
         "Public updates do not require a GitHub account or token.": "सार्वजनिक अपडेट के लिए GitHub खाते या टोकन की आवश्यकता नहीं है।",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "अपडेट GitHub पर CapriChooms/CapriCore से आते हैं और इंस्टॉलेशन से पहले SHA-256 से जांचे जाते हैं।",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "संसाधन स्वामी के रूप में CapriChooms का चयन करें, केवल CapriCore रिपॉजिटरी, और सामग्री: केवल पढ़ने के लिए।"
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "संसाधन स्वामी के रूप में CapriChooms का चयन करें, केवल CapriCore रिपॉजिटरी, और सामग्री: केवल पढ़ने के लिए।",
+        "Model devices": "मॉडल उपकरण",
+        "Language model device": "भाषा मॉडल उपकरण",
+        "Voice model device": "आवाज़ मॉडल उपकरण",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "भाषा और आवाज़ के लिए स्वतंत्र रूप से चुनें। सीपीयू सिस्टम रैम का उपयोग करता है और धीपा हो सकता है। एक बाह्य एपीआई प्रदाता की हार्डवेयर पर चलता है।",
+        "Save and restart Capri": "Capri को सहेजें और पुनः शुरू करें",
+        "Selected GPU is unavailable": "चुना गया जीपीयू उपलब्ध नहीं है",
+        "Checking available devices...": "उपलब्ध उपकरण जांच रहे हैं...",
+        "Device discovery failed. Try refreshing.": "उपकरण खोज विफल रही। रिफ्रेश करने की कोशिश करें।",
+        "This GPU is not available in the installed voice runtime.": "इस जीपीयू में स्थापित आवाज़ रनटाइम उपलब्ध नहीं है।",
+        "This GPU is not available in the installed language model runtime.": "इस जीपीयू में स्थापित भाषा मॉडल रनटाइम उपलब्ध नहीं है।",
+        "The installed voice runtime cannot execute on this GPU.": "स्थापित आवाज़ रनटाइम इस जीपीयू पर निष्पादित नहीं किया जा सकता।"
       }
     },
     "bn": {
@@ -63783,7 +64146,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "আপনার সংরক্ষিত তথ্য অক্ষত রয়েছে। ইনস্টলার দিয়ে Capri মেরামত করে আবার চেষ্টা করুন।",
         "Public updates do not require a GitHub account or token.": "সর্বজনীন আপডেটের জন্য GitHub অ্যাকাউন্ট বা টোকেনের প্রয়োজন নেই।",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "GitHub-এ CapriChooms/CapriCore থেকে আপডেট আসে এবং ইনস্টলেশনের আগে SHA-256 দিয়ে চেক করা হয়।",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "সম্পদের মালিক হিসাবে CapriChooms নির্বাচন করুন, শুধুমাত্র CapriCore সংগ্রহস্থল, এবং বিষয়বস্তু: শুধুমাত্র-পঠন।"
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "সম্পদের মালিক হিসাবে CapriChooms নির্বাচন করুন, শুধুমাত্র CapriCore সংগ্রহস্থল, এবং বিষয়বস্তু: শুধুমাত্র-পঠন।",
+        "Model devices": "মডেল ডিভাইস",
+        "Language model device": "ভাষা মডেল ডিভাইস",
+        "Voice model device": "ভয়েস মডেল ডিভাইস",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "ভাষা এবং ভয়েসের জন্য আলাদাভাবে নির্বাচন করুন। সিপিইউ ব্যবহার করে সিস্টেমের র‍্যাম ব্যবহার করে এবং এটি ধীর হতে পারে। একটি বাহ্যিক এপিআই প্রোভাইডারের হার্ডওয়্যারে চালু থাকে।",
+        "Save and restart Capri": "Capri সেভ এবং রিস্টার্ট করুন",
+        "Selected GPU is unavailable": "নির্বাচিত গ্রাফিক প্রসেসর উপলব্ধ নয়",
+        "Checking available devices...": "উপলব্হ ডিভাইস যাচাই করা হচ্ছে...",
+        "Device discovery failed. Try refreshing.": "ডিভাইস খুঁজে বের করতে ব্যর্থ হয়েছে। রিফ্রেশ করার চেষ্টা করুন।",
+        "This GPU is not available in the installed voice runtime.": "এই গ্রাফিক প্রসেসর ইন্সটল করা ভয়েস রানটাইমে উপলব্ধ নয়।",
+        "This GPU is not available in the installed language model runtime.": "এই গ্রাফিক প্রসেসর ইন্সটল করা ভাষা মডেল রানটাইমে উপলব্ধ নয়।",
+        "The installed voice runtime cannot execute on this GPU.": "ইন্সটল করা ভয়েস রানটাইম এই গ্রাফিক প্রসেসরে চলতে পারে না।"
       }
     },
     "ta": {
@@ -65659,7 +66033,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "சேமித்த தரவு பாதுகாக்கப்பட்டுள்ளது. நிறுவியைப் பயன்படுத்தி Capri-ஐச் சரிசெய்து மீண்டும் முயலவும்.",
         "Public updates do not require a GitHub account or token.": "பொது புதுப்பிப்புகளுக்கு GitHub கணக்கோ டோக்கனோ தேவையில்லை.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "புதுப்பிப்புகள் GitHub இல் CapriChooms/CapriCore இலிருந்து வருகின்றன மற்றும் நிறுவும் முன் SHA-256 உடன் சரிபார்க்கப்படும்.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChooms ஐ ஆதார உரிமையாளராகத் தேர்ந்தெடுக்கவும், CapriCore களஞ்சியத்தை மட்டும், மற்றும் உள்ளடக்கம்: படிக்க மட்டும்."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChooms ஐ ஆதார உரிமையாளராகத் தேர்ந்தெடுக்கவும், CapriCore களஞ்சியத்தை மட்டும், மற்றும் உள்ளடக்கம்: படிக்க மட்டும்.",
+        "Model devices": "மாதிரி சாதனங்கள்",
+        "Language model device": "மொழி மாதிரிக்கான சாதனம்",
+        "Voice model device": "குரல் மாதிரிக்கான சாதனம்",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "மொழிக்கும் குரலுக்கும் சாதனங்களைத் தனித்தனியாகத் தேர்ந்தெடுக்கவும். CPU கணினியின் RAM ஐப் பயன்படுத்துவதால் மெதுவாக இருக்கலாம். வெளிப்புற API வழங்குநரின் வன்பொருளில் இயங்கும்.",
+        "Save and restart Capri": "சேமித்து Capri ஐ மறுதொடக்கம் செய்",
+        "Selected GPU is unavailable": "தேர்ந்தெடுத்த GPU கிடைக்கவில்லை",
+        "Checking available devices...": "கிடைக்கும் சாதனங்கள் தேடப்படுகின்றன…",
+        "Device discovery failed. Try refreshing.": "சாதனங்களைக் கண்டறிய முடியவில்லை. பட்டியலைப் புதுப்பிக்கவும்.",
+        "This GPU is not available in the installed voice runtime.": "நிறுவப்பட்ட குரல் இயக்கச் சூழலில் இந்த GPU கிடைக்கவில்லை.",
+        "This GPU is not available in the installed language model runtime.": "நிறுவப்பட்ட மொழி மாதிரி இயக்கச் சூழலில் இந்த GPU கிடைக்கவில்லை.",
+        "The installed voice runtime cannot execute on this GPU.": "நிறுவப்பட்ட குரல் இயக்கச் சூழல் இந்த GPU இல் இயங்க முடியாது."
       }
     },
     "te": {
@@ -67535,7 +67920,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "మీరు సేవ్ చేసిన డేటా భద్రంగా ఉంది. ఇన్‌స్టాలర్‌తో Capriని రిపేర్ చేసి మళ్లీ ప్రయత్నించండి.",
         "Public updates do not require a GitHub account or token.": "పబ్లిక్ అప్‌డేట్‌లకు GitHub ఖాతా లేదా టోకెన్ అవసరం లేదు.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "నవీకరణలు GitHubలో CapriChooms/CapriCore నుండి వస్తాయి మరియు ఇన్‌స్టాలేషన్‌కు ముందు SHA-256తో తనిఖీ చేయబడతాయి.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChoomsని వనరుల యజమానిగా ఎంచుకోండి, కేవలం CapriCore రిపోజిటరీ మరియు కంటెంట్‌లు: చదవడానికి మాత్రమే."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChoomsని వనరుల యజమానిగా ఎంచుకోండి, కేవలం CapriCore రిపోజిటరీ మరియు కంటెంట్‌లు: చదవడానికి మాత్రమే.",
+        "Model devices": "మోడల్ డివైజ్‌లు",
+        "Language model device": "భాషా మోడల్ డివైజ్",
+        "Voice model device": "వాక్యం మోడల్ డివైజ్",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "భాష మరియు వాయిస్‌ను స్వతంత్రంగా ఎంచుకోండి. CPU సిస్టమ్‌లోని RAM ను ఉపయోగిస్తుంది మరియు దీని వేగం తక్కువగా ఉండవచ్చు. బాహ్య API ప్రొవైడర్‌ల హార్డ్‌వేర్‌పై పనిచేస్తుంది.",
+        "Save and restart Capri": "Capri నిల్వ చేయండి మరియు రీస్టార్ట్ చేయండి",
+        "Selected GPU is unavailable": "ఎంచుకున్న GPU అందుబాటులో లేదు",
+        "Checking available devices...": "అందుబాటులో ఉన్న డివైజ్‌లను సరిచూస్తున్నారు...",
+        "Device discovery failed. Try refreshing.": "డివైజ్ కనుగొనడం విఫలమైంది. ఫ్రెష్ చేయడానికి ప్రయత్నించండి.",
+        "This GPU is not available in the installed voice runtime.": "ఈ GPU ఇన్‌స్టాల్ చేసిన వాయిస్ ర్యాప్టింగ్‌లో అందుబాటులో లేదు.",
+        "This GPU is not available in the installed language model runtime.": "ఈ GPU ఇన్‌స్టాల్ చేసిన భాషా మోడల్ ర్యాప్టింగ్‌లో అందుబాటులో లేదు.",
+        "The installed voice runtime cannot execute on this GPU.": "ఇన్‌స్టాల్ చేసిన వాయిస్ ర్యాప్టింగ్ ఈ GPU 'పై పనిచేయలేదు."
       }
     },
     "mr": {
@@ -69411,7 +69807,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "तुमचा जतन केलेला डेटा सुरक्षित आहे. इन्स्टॉलरने Capri दुरुस्त करा आणि पुन्हा प्रयत्न करा.",
         "Public updates do not require a GitHub account or token.": "सार्वजनिक अद्यतनांसाठी GitHub खाते किंवा टोकन आवश्यक नाही.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "GitHub वर CapriChooms/CapriCore वरून अपडेट येतात आणि स्थापनेपूर्वी SHA-256 सह तपासले जातात.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "संसाधन मालक म्हणून CapriChooms निवडा, फक्त CapriCore भांडार, आणि सामग्री: केवळ-वाचनीय."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "संसाधन मालक म्हणून CapriChooms निवडा, फक्त CapriCore भांडार, आणि सामग्री: केवळ-वाचनीय.",
+        "Model devices": "मॉडेलची उपकरणे",
+        "Language model device": "भाषा मॉडेलचे उपकरण",
+        "Voice model device": "आवाज मॉडेलचे उपकरण",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "भाषा आणि आवाजासाठी उपकरणे स्वतंत्रपणे निवडा. CPU प्रणालीची RAM वापरतो आणि अधिक संथ असू शकतो. बाह्य API प्रदात्याच्या हार्डवेअरवर चालते.",
+        "Save and restart Capri": "जतन करा आणि Capri पुन्हा सुरू करा",
+        "Selected GPU is unavailable": "निवडलेला GPU उपलब्ध नाही",
+        "Checking available devices...": "उपलब्ध उपकरणे शोधत आहे…",
+        "Device discovery failed. Try refreshing.": "उपकरणे शोधता आली नाहीत. यादी रीफ्रेश करा.",
+        "This GPU is not available in the installed voice runtime.": "हा GPU स्थापित आवाज रनटाइममध्ये उपलब्ध नाही.",
+        "This GPU is not available in the installed language model runtime.": "हा GPU स्थापित भाषा मॉडेल रनटाइममध्ये उपलब्ध नाही.",
+        "The installed voice runtime cannot execute on this GPU.": "स्थापित आवाज रनटाइम या GPU वर चालू शकत नाही."
       }
     },
     "gu": {
@@ -71287,7 +71694,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "તમારો સાચવેલો ડેટા સુરક્ષિત છે. ઇન્સ્ટોલરથી Capri રિપેર કરો અને ફરી પ્રયાસ કરો.",
         "Public updates do not require a GitHub account or token.": "જાહેર અપડેટ માટે GitHub ખાતું કે ટોકન જરૂરી નથી.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "GitHub પર CapriChooms/CapriCore તરફથી અપડેટ્સ આવે છે અને ઇન્સ્ટોલેશન પહેલાં SHA-256 સાથે ચેક કરવામાં આવે છે.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "સંસાધન માલિક તરીકે CapriChooms પસંદ કરો, માત્ર CapriCore ભંડાર અને સામગ્રીઓ: ફક્ત વાંચવા માટે."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "સંસાધન માલિક તરીકે CapriChooms પસંદ કરો, માત્ર CapriCore ભંડાર અને સામગ્રીઓ: ફક્ત વાંચવા માટે.",
+        "Model devices": "મોડેલનાં ઉપકરણો",
+        "Language model device": "ભાષા મોડેલનું ઉપકરણ",
+        "Voice model device": "અવાજ મોડેલનું ઉપકરણ",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "ભાષા અને અવાજ માટે ઉપકરણો અલગ પસંદ કરો. CPU સિસ્ટમની RAM વાપરે છે અને ધીમું હોઈ શકે છે. બાહ્ય API પ્રદાતાના હાર્ડવેર પર ચાલે છે.",
+        "Save and restart Capri": "સાચવો અને Capri ફરી શરૂ કરો",
+        "Selected GPU is unavailable": "પસંદ કરેલ GPU ઉપલબ્ધ નથી",
+        "Checking available devices...": "ઉપલબ્ધ ઉપકરણો શોધી રહ્યા છીએ…",
+        "Device discovery failed. Try refreshing.": "ઉપકરણો શોધી શકાયાં નથી. યાદી ફરી લોડ કરો.",
+        "This GPU is not available in the installed voice runtime.": "આ GPU સ્થાપિત અવાજ રનટાઇમમાં ઉપલબ્ધ નથી.",
+        "This GPU is not available in the installed language model runtime.": "આ GPU સ્થાપિત ભાષા મોડેલ રનટાઇમમાં ઉપલબ્ધ નથી.",
+        "The installed voice runtime cannot execute on this GPU.": "સ્થાપિત અવાજ રનટાઇમ આ GPU પર ચાલી શકતું નથી."
       }
     },
     "pa": {
@@ -73163,7 +73581,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "ਤੁਹਾਡਾ ਸੰਭਾਲਿਆ ਡਾਟਾ ਸੁਰੱਖਿਅਤ ਹੈ। ਇੰਸਟਾਲਰ ਨਾਲ Capri ਦੀ ਮੁਰੰਮਤ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
         "Public updates do not require a GitHub account or token.": "ਜਨਤਕ ਅੱਪਡੇਟਾਂ ਲਈ GitHub ਖਾਤੇ ਜਾਂ ਟੋਕਨ ਦੀ ਲੋੜ ਨਹੀਂ ਹੈ।",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "ਅੱਪਡੇਟ GitHub 'ਤੇ CapriChooms/CapriCore ਤੋਂ ਆਉਂਦੇ ਹਨ ਅਤੇ ਸਥਾਪਨਾ ਤੋਂ ਪਹਿਲਾਂ SHA-256 ਨਾਲ ਜਾਂਚ ਕੀਤੀ ਜਾਂਦੀ ਹੈ।",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChooms ਨੂੰ ਸਰੋਤ ਮਾਲਕ ਵਜੋਂ ਚੁਣੋ, ਸਿਰਫ਼ CapriCore ਰਿਪੋਜ਼ਟਰੀ, ਅਤੇ ਸਮੱਗਰੀ: ਸਿਰਫ਼ ਪੜ੍ਹਨ ਲਈ।"
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChooms ਨੂੰ ਸਰੋਤ ਮਾਲਕ ਵਜੋਂ ਚੁਣੋ, ਸਿਰਫ਼ CapriCore ਰਿਪੋਜ਼ਟਰੀ, ਅਤੇ ਸਮੱਗਰੀ: ਸਿਰਫ਼ ਪੜ੍ਹਨ ਲਈ।",
+        "Model devices": "ਮਾਡਲਾਂ ਦੇ ਡਿਵਾਈਸ",
+        "Language model device": "ਭਾਸ਼ਾ ਮਾਡਲ ਦਾ ਡਿਵਾਈਸ",
+        "Voice model device": "ਆਵਾਜ਼ ਮਾਡਲ ਦਾ ਡਿਵਾਈਸ",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "ਭਾਸ਼ਾ ਅਤੇ ਆਵਾਜ਼ ਲਈ ਡਿਵਾਈਸ ਵੱਖਰੇ ਚੁਣੋ। CPU ਸਿਸਟਮ ਦੀ RAM ਵਰਤਦਾ ਹੈ ਅਤੇ ਹੌਲੀ ਹੋ ਸਕਦਾ ਹੈ। ਬਾਹਰੀ API ਪ੍ਰਦਾਤਾ ਦੇ ਹਾਰਡਵੇਅਰ ਉੱਤੇ ਚੱਲਦਾ ਹੈ।",
+        "Save and restart Capri": "ਸੰਭਾਲੋ ਅਤੇ Capri ਮੁੜ ਚਾਲੂ ਕਰੋ",
+        "Selected GPU is unavailable": "ਚੁਣਿਆ GPU ਉਪਲਬਧ ਨਹੀਂ ਹੈ",
+        "Checking available devices...": "ਉਪਲਬਧ ਡਿਵਾਈਸ ਲੱਭੇ ਜਾ ਰਹੇ ਹਨ…",
+        "Device discovery failed. Try refreshing.": "ਡਿਵਾਈਸ ਲੱਭੇ ਨਹੀਂ ਜਾ ਸਕੇ। ਸੂਚੀ ਮੁੜ ਲੋਡ ਕਰੋ।",
+        "This GPU is not available in the installed voice runtime.": "ਇਹ GPU ਇੰਸਟਾਲ ਕੀਤੇ ਆਵਾਜ਼ ਰਨਟਾਈਮ ਵਿੱਚ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
+        "This GPU is not available in the installed language model runtime.": "ਇਹ GPU ਇੰਸਟਾਲ ਕੀਤੇ ਭਾਸ਼ਾ ਮਾਡਲ ਰਨਟਾਈਮ ਵਿੱਚ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
+        "The installed voice runtime cannot execute on this GPU.": "ਇੰਸਟਾਲ ਕੀਤਾ ਆਵਾਜ਼ ਰਨਟਾਈਮ ਇਸ GPU ਉੱਤੇ ਨਹੀਂ ਚੱਲ ਸਕਦਾ।"
       }
     },
     "zh": {
@@ -75039,7 +75468,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "已保留您保存的数据。请使用安装程序修复 Capri，然后重试。",
         "Public updates do not require a GitHub account or token.": "公开更新无需 GitHub 账户或令牌。",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "更新来自 GitHub 上的 CapriChooms/CapriCore，并在安装前使用 SHA-256 检查。",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "选择 CapriCooms 作为资源所有者，仅选择 CapriCore 存储库，并且内容：只读。"
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "选择 CapriCooms 作为资源所有者，仅选择 CapriCore 存储库，并且内容：只读。",
+        "Model devices": "模型设备",
+        "Language model device": "语言模型设备",
+        "Voice model device": "语音模型设备",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "可独立为语言和语音选择。CPU 使用系统内存，速度可能较慢。外部 API 运行在提供商的硬件上。",
+        "Save and restart Capri": "保存并重启Capri",
+        "Selected GPU is unavailable": "所选 GPU 不可用",
+        "Checking available devices...": "正在检查可用设备...",
+        "Device discovery failed. Try refreshing.": "设备发现失败。请尝试刷新。",
+        "This GPU is not available in the installed voice runtime.": "此 GPU 未安装在语音运行时中。",
+        "This GPU is not available in the installed language model runtime.": "此 GPU 未安装在语言模型运行时中。",
+        "The installed voice runtime cannot execute on this GPU.": "已安装的语音运行时无法在此 GPU 上运行。"
       }
     },
     "ja": {
@@ -76915,7 +77355,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "保存済みのデータは保持されています。インストーラーで Capri を修復して、もう一度お試しください。",
         "Public updates do not require a GitHub account or token.": "公開アップデートに GitHub アカウントやトークンは不要です。",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "アップデートは GitHub の CapriChooms/CapriCore から提供され、インストール前に SHA-256 でチェックされます。",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "リソース所有者として CapriChooms を選択し、CapriCore リポジトリのみを選択し、コンテンツ: 読み取り専用を選択します。"
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "リソース所有者として CapriChooms を選択し、CapriCore リポジトリのみを選択し、コンテンツ: 読み取り専用を選択します。",
+        "Model devices": "モデルデバイス",
+        "Language model device": "言語モデルのデバイス",
+        "Voice model device": "音声モデルのデバイス",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "言語と声は独立して選択できます。CPU はシステム RAM を使用し、遅くなる可能性があります。外部 API はプロバイダーのハードウェア上で実行されます。",
+        "Save and restart Capri": "Capriを保存して再起動",
+        "Selected GPU is unavailable": "選択された GPU が利用できません",
+        "Checking available devices...": "利用可能なデバイスのチェック中...",
+        "Device discovery failed. Try refreshing.": "デバイスの検出に失敗しました。リフレッシュを試してください。",
+        "This GPU is not available in the installed voice runtime.": "この GPU はインストールされた音声ランタイムで利用できません。",
+        "This GPU is not available in the installed language model runtime.": "この GPU はインストールされた言語モデルランタイムで利用できません。",
+        "The installed voice runtime cannot execute on this GPU.": "インストールされた音声ランタイムはこの GPU で実行できません。"
       }
     },
     "ko": {
@@ -78791,7 +79242,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "저장된 데이터는 보존되었습니다. 설치 프로그램으로 Capri를 복구한 후 다시 시도하세요.",
         "Public updates do not require a GitHub account or token.": "공개 업데이트에는 GitHub 계정이나 토큰이 필요하지 않습니다.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "업데이트는 GitHub의 CapriCooms/Capri에서 제공되며 설치 전에 SHA-256로 확인됩니다.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriCooms를 리소스 소유자로 선택하고 CapriCore 저장소만 선택하고 콘텐츠: 읽기 전용을 선택합니다."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriCooms를 리소스 소유자로 선택하고 CapriCore 저장소만 선택하고 콘텐츠: 읽기 전용을 선택합니다.",
+        "Model devices": "모델 장치",
+        "Language model device": "언어 모델 장치",
+        "Voice model device": "음성 모델 장치",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "언어와 음성 모델을 독립적으로 선택할 수 있습니다. CPU 는 시스템 메모리를 사용하며 속도가 느릴 수 있습니다. 외부 API 는 제공자의 하드웨어에서 실행됩니다.",
+        "Save and restart Capri": "Capri 저장 및 재시작",
+        "Selected GPU is unavailable": "선택한 GPU 가 이용 불가능합니다",
+        "Checking available devices...": "이용 가능한 장치를 확인 중...",
+        "Device discovery failed. Try refreshing.": "장치 발견 실패. 새로고침을 시도해 보세요.",
+        "This GPU is not available in the installed voice runtime.": "설치된 음성 런타임에서 이 GPU 를 사용할 수 없습니다.",
+        "This GPU is not available in the installed language model runtime.": "설치된 언어 모델 런타임에서 이 GPU 를 사용할 수 없습니다.",
+        "The installed voice runtime cannot execute on this GPU.": "설치된 음성 런타임은 이 GPU 에서 실행할 수 없습니다."
       }
     },
     "vi": {
@@ -80667,7 +81129,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dữ liệu đã lưu của bạn vẫn được giữ nguyên. Dùng trình cài đặt để sửa Capri rồi thử lại.",
         "Public updates do not require a GitHub account or token.": "Các bản cập nhật công khai không yêu cầu tài khoản GitHub hoặc mã thông báo.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Các bản cập nhật đến từ CapriChooms/CapriCore trên GitHub và được kiểm tra bằng SHA-256 trước khi cài đặt.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Chọn CapriChooms làm chủ sở hữu tài nguyên, chỉ kho lưu trữ CapriCore và Nội dung: Chỉ đọc."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Chọn CapriChooms làm chủ sở hữu tài nguyên, chỉ kho lưu trữ CapriCore và Nội dung: Chỉ đọc.",
+        "Model devices": "Thiết bị mô hình",
+        "Language model device": "Thiết bị cho mô hình ngôn ngữ",
+        "Voice model device": "Thiết bị cho mô hình giọng nói",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Chọn độc lập cho ngôn ngữ và giọng nói. CPU sử dụng bộ nhớ hệ thống và có thể chậm hơn. Một API bên ngoài sẽ chạy trên phần cứng của nhà cung cấp.",
+        "Save and restart Capri": "Lưu và khởi động lại Capri",
+        "Selected GPU is unavailable": "GPU đã chọn không khả dụng",
+        "Checking available devices...": "Đang kiểm tra các thiết bị khả dụng...",
+        "Device discovery failed. Try refreshing.": "Phát hiện thiết bị thất bại. Hãy thử làm mới.",
+        "This GPU is not available in the installed voice runtime.": "GPU này không khả dụng trong môi trường chạy giọng nói đã cài đặt.",
+        "This GPU is not available in the installed language model runtime.": "GPU này không khả dụng trong môi trường chạy mô hình ngôn ngữ đã cài đặt.",
+        "The installed voice runtime cannot execute on this GPU.": "Môi trường chạy giọng nói đã cài đặt không thể thực thi trên GPU này."
       }
     },
     "th": {
@@ -82543,7 +83016,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "ข้อมูลที่บันทึกไว้ของคุณยังคงอยู่ ซ่อมแซม Capri ด้วยโปรแกรมติดตั้งแล้วลองอีกครั้ง",
         "Public updates do not require a GitHub account or token.": "การอัปเดตสาธารณะไม่จำเป็นต้องมีบัญชี GitHub หรือโทเค็น",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "การอัปเดตมาจาก CapriChoms/Capri บน GitHub และได้รับการตรวจสอบด้วย SHA-256 ก่อนการติดตั้ง",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "เลือก CapriChooms เป็นเจ้าของทรัพยากร เฉพาะพื้นที่เก็บข้อมูล CapriCore และเนื้อหา: อ่านอย่างเดียว"
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "เลือก CapriChooms เป็นเจ้าของทรัพยากร เฉพาะพื้นที่เก็บข้อมูล CapriCore และเนื้อหา: อ่านอย่างเดียว",
+        "Model devices": "อุปกรณ์โมเดล",
+        "Language model device": "อุปกรณ์สำหรับโมเดลภาษา",
+        "Voice model device": "อุปกรณ์สำหรับโมเดลเสียง",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "เลือกแยกกันสำหรับโมเดลภาษาและเสียง โมเดลภาษาที่ใช้ CPU จะใช้หน่วยความจำของระบบและอาจทำงานช้ากว่า การเรียกใช้ API จากภายนอกจะทำงานบนฮาร์ดแวร์ของผู้ให้บริการ",
+        "Save and restart Capri": "บันทึกและเริ่มใหม่ Capri",
+        "Selected GPU is unavailable": "GPU ที่เลือกไม่สามารถใช้งานได้",
+        "Checking available devices...": "กำลังตรวจสอบอุปกรณ์ที่มีอยู่...",
+        "Device discovery failed. Try refreshing.": "การค้นพบอุปกรณ์ล้มเหลว ลองรีเฟรชอีกครั้ง",
+        "This GPU is not available in the installed voice runtime.": "GPU นี้ไม่สามารถใช้งานได้ในรันไทม์เสียงที่ติดตั้งแล้ว",
+        "This GPU is not available in the installed language model runtime.": "GPU นี้ไม่สามารถใช้งานได้ในรันไทม์โมเดลภาษาที่ติดตั้งแล้ว",
+        "The installed voice runtime cannot execute on this GPU.": "รันไทม์เสียงที่ติดตั้งไม่สามารถทำงานบน GPU นี้ได้"
       }
     },
     "id": {
@@ -84419,7 +84903,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data tersimpan Anda tetap utuh. Perbaiki Capri dengan penginstal lalu coba lagi.",
         "Public updates do not require a GitHub account or token.": "Pembaruan publik tidak memerlukan akun GitHub atau token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Pembaruan datang dari CapriChooms/CapriCore di GitHub dan diperiksa dengan SHA-256 sebelum instalasi.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pilih CapriChooms sebagai pemilik sumber daya, hanya repositori CapriCore, dan Isi: Hanya baca."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pilih CapriChooms sebagai pemilik sumber daya, hanya repositori CapriCore, dan Isi: Hanya baca.",
+        "Model devices": "Perangkat model",
+        "Language model device": "Perangkat model bahasa",
+        "Voice model device": "Perangkat model suara",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pilih secara independen untuk bahasa dan suara. CPU menggunakan RAM sistem dan bisa lebih lambat. API eksternal berjalan pada perangkat keras penyedia.",
+        "Save and restart Capri": "Simpan dan mulai ulang Capri",
+        "Selected GPU is unavailable": "GPU yang dipilih tidak tersedia",
+        "Checking available devices...": "Memeriksa perangkat yang tersedia...",
+        "Device discovery failed. Try refreshing.": "Penemuan perangkat gagal. Coba refresh.",
+        "This GPU is not available in the installed voice runtime.": "GPU ini tidak tersedia dalam runtime suara yang terpasang.",
+        "This GPU is not available in the installed language model runtime.": "GPU ini tidak tersedia dalam runtime model bahasa yang terpasang.",
+        "The installed voice runtime cannot execute on this GPU.": "Runtime suara yang terpasang tidak dapat dijalankan pada GPU ini."
       }
     },
     "ms": {
@@ -86295,7 +86790,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data tersimpan anda masih terpelihara. Baiki Capri menggunakan pemasang dan cuba lagi.",
         "Public updates do not require a GitHub account or token.": "Kemas kini awam tidak memerlukan akaun GitHub atau token.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Kemas kini datang daripada CapriChooms/CapriCore pada GitHub dan disemak dengan SHA-256 sebelum pemasangan.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pilih CapriChooms sebagai pemilik sumber, hanya repositori CapriCore dan Kandungan: Baca sahaja."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pilih CapriChooms sebagai pemilik sumber, hanya repositori CapriCore dan Kandungan: Baca sahaja.",
+        "Model devices": "Peranti model",
+        "Language model device": "Peranti model bahasa",
+        "Voice model device": "Peranti model suara",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pilih secara berasingan untuk bahasa dan suara. CPU menggunakan RAM sistem dan boleh lebih perlahan. API luaran berjalan pada perisian keras penyedia.",
+        "Save and restart Capri": "Simpan dan mulakan semula Capri",
+        "Selected GPU is unavailable": "GPU yang dipilih tidak tersedia",
+        "Checking available devices...": "Memeriksa peranti yang tersedia...",
+        "Device discovery failed. Try refreshing.": "Penemuan peranti gagal. Cuba semburat semula.",
+        "This GPU is not available in the installed voice runtime.": "GPU ini tidak tersedia dalam pakej jiran suara yang dipasang.",
+        "This GPU is not available in the installed language model runtime.": "GPU ini tidak tersedia dalam pakej jiran model bahasa yang dipasang.",
+        "The installed voice runtime cannot execute on this GPU.": "Pakej jiran suara yang dipasang tidak boleh dilaksanakan pada GPU ini."
       }
     },
     "tl": {
@@ -88171,7 +88677,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Napanatili ang iyong naka-save na datos. Ayusin ang Capri gamit ang installer at subukan muli.",
         "Public updates do not require a GitHub account or token.": "Hindi kailangan ng GitHub account o token para sa mga pampublikong update.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Ang mga update ay mula sa CapriChooms/CapriCore sa GitHub at sinusuri gamit ang SHA-256 bago i-install.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Piliin ang CapriChooms bilang may-ari ng mapagkukunan, tanging ang CapriCore repositoryo, at Mga Nilalaman: Read-only."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Piliin ang CapriChooms bilang may-ari ng mapagkukunan, tanging ang CapriCore repositoryo, at Mga Nilalaman: Read-only.",
+        "Model devices": "Paghahanda ng mga kagamitan",
+        "Language model device": "Kagamitan ng modelo ng wika",
+        "Voice model device": "Kagamitan ng modelo ng boses",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Piliin nang hiwalay ang modelo ng wika at boses. Gumagamit ang CPU ng RAM ng sistema at maaaring mas mabagal. Naglilinis ang API sa hardware ng tagapagbigay.",
+        "Save and restart Capri": "I-save at i-restart ang Capri",
+        "Selected GPU is unavailable": "Hindi accessible ang piniling GPU",
+        "Checking available devices...": "Nag-aayos ng mga kagamitan...",
+        "Device discovery failed. Try refreshing.": "Maling makita ang mga kagamitan. Subukang i-refresh.",
+        "This GPU is not available in the installed voice runtime.": "Hindi available ang GPU para sa nakalagay na runtime ng boses.",
+        "This GPU is not available in the installed language model runtime.": "Hindi available ang GPU para sa nakalagay na runtime ng modelo ng wika.",
+        "The installed voice runtime cannot execute on this GPU.": "Hindi pwedeng ginamitan ang nakalagay na runtime ng boses sa ito."
       }
     },
     "tr": {
@@ -90047,7 +90564,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Kaydedilmiş verileriniz korundu. Yükleyiciyle Capri’yi onarın ve yeniden deneyin.",
         "Public updates do not require a GitHub account or token.": "Herkese açık güncellemeler GitHub hesabı veya belirteç gerektirmez.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Güncellemeler GitHub'daki CapriChooms/CapriCore adresinden gelir ve kurulumdan önce SHA-256 ile kontrol edilir.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Kaynak sahibi olarak CapriChooms'u, yalnızca CapriCore deposunu ve İçerikler: Salt okunur'u seçin."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Kaynak sahibi olarak CapriChooms'u, yalnızca CapriCore deposunu ve İçerikler: Salt okunur'u seçin.",
+        "Model devices": "Cihazlar",
+        "Language model device": "Dil modeli cihazı",
+        "Voice model device": "Ses modeli cihazı",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Dil ve ses için bağımsız olarak seçin. CPU sistem RAM'ini kullanır ve daha yavaş olabilir. Harici bir API sağlayıcının donanımında çalışır.",
+        "Save and restart Capri": "Capri'yi kaydet ve yeniden başlat",
+        "Selected GPU is unavailable": "Seçilen GPU kullanımda",
+        "Checking available devices...": "Mevcut cihazlar kontrol ediliyor...",
+        "Device discovery failed. Try refreshing.": "Cihaz keşfi başarısız oldu. Yenilemeyi deneyin.",
+        "This GPU is not available in the installed voice runtime.": "Bu GPU kurulu olan ses çalışma zamanında kullanılamaz.",
+        "This GPU is not available in the installed language model runtime.": "Bu GPU kurulu olan dil modeli çalışma zamanında kullanılamaz.",
+        "The installed voice runtime cannot execute on this GPU.": "Kurulu olan ses çalışma zamanı bu GPU'da çalışamaz."
       }
     },
     "sw": {
@@ -91923,7 +92451,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data zako zilizohifadhiwa zimehifadhiwa salama. Rekebisha Capri kwa kutumia kisakinishi kisha ujaribu tena.",
         "Public updates do not require a GitHub account or token.": "Masasisho ya umma hayahitaji akaunti ya GitHub au tokeni.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Masasisho hutoka kwa CapriChooms/CapriCore kwenye GitHub na huteuliwa na SHA-256 kabla ya kusakinisha.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Chagua CapriChooms kama mmiliki wa rasilimali, hazina ya CapriCore pekee, na Yaliyomo: Kusoma pekee."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Chagua CapriChooms kama mmiliki wa rasilimali, hazina ya CapriCore pekee, na Yaliyomo: Kusoma pekee.",
+        "Model devices": "Mashine za modeli",
+        "Language model device": "Mashine ya mchakato wa lugha",
+        "Voice model device": "Mashine ya mchakato wa sifa",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Chagua kwa muundo wa kipekee kwa lugha na sifa. CPU inatumia RAM ya mfumo na inaweza kuwa ngumu zaidi. API nje hufanya kazi katika utengenezaji wa kifaa.",
+        "Save and restart Capri": "Hifadhi na ufanikiweze tena Capri",
+        "Selected GPU is unavailable": "GPU iliyochaguliwa haipo tayari",
+        "Checking available devices...": "Inafanyika mashine zinazopo...",
+        "Device discovery failed. Try refreshing.": "Utafiti wa mashime ulimbia. Jaribu kurefreshisha.",
+        "This GPU is not available in the installed voice runtime.": "GPU hii haipo katika mchakato wa sifa uliofanyiwa.",
+        "This GPU is not available in the installed language model runtime.": "GPU hii haipo katika mchakato wa mchakato wa lugha uliofanyiwa.",
+        "The installed voice runtime cannot execute on this GPU.": "Mchakato wa sifa uliofanyiwa hauwezi kufanya kazi hapa."
       }
     },
     "af": {
@@ -93799,7 +94338,18 @@
         "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jou gestoorde data is behou. Herstel Capri met die installeerder en probeer weer.",
         "Public updates do not require a GitHub account or token.": "Openbare opdaterings vereis nie ’n GitHub-rekening of toegangstoken nie.",
         "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Opdaterings kom van CapriChooms/CapriCore op GitHub en word nagegaan met SHA-256 voor installasie.",
-        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Kies CapriChooms as hulpbroneienaar, slegs die CapriCore-bewaarplek, en Inhoud: Leesalleen."
+        "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Kies CapriChooms as hulpbroneienaar, slegs die CapriCore-bewaarplek, en Inhoud: Leesalleen.",
+        "Model devices": "Apparatuur vir modelle",
+        "Language model device": "Apparaat vir taalmodel",
+        "Voice model device": "Apparaat vir stemmodel",
+        "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Kies onafhanklik vir taal en stem. CPU gebruik sisteen-slaggeheue en kan stadig wees. 'n Eksterne API word op die verskaffer se hardeware uitgevoer.",
+        "Save and restart Capri": "Stoor en herstart Capri",
+        "Selected GPU is unavailable": "Geselekteerde GPU is beskikbaar nie",
+        "Checking available devices...": "Toegang tot beskikbare apparatuur...",
+        "Device discovery failed. Try refreshing.": "Apparatuurontdekking het misluk. Probeer om te verseer.",
+        "This GPU is not available in the installed voice runtime.": "Hierdie GPU is beskikbaar nie in die geïnstalleerde stem-runtime.",
+        "This GPU is not available in the installed language model runtime.": "Hierdie GPU is beskikbaar nie in die geïnstalleerde taalmodel-runtime.",
+        "The installed voice runtime cannot execute on this GPU.": "Die geïnstalleerde stem-runtime kan nie op hierdie GPU uitvoer."
       }
     }
   },

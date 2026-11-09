@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Tallennetut tietosi on säilytetty. Korjaa Capri asennusohjelmalla ja yritä uudelleen.",
     "Public updates do not require a GitHub account or token.": "Julkiset päivitykset eivät vaadi GitHub-tiliä tai tunnistetta.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Päivitykset tulevat GitHubin CapriChooms/CapriCore-sivustolta, ja ne tarkistetaan SHA-256-päivityksellä ennen asennusta.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Valitse CapriChooms resurssin omistajaksi, vain CapriCore-arkisto ja Sisältö: Vain luku."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Valitse CapriChooms resurssin omistajaksi, vain CapriCore-arkisto ja Sisältö: Vain luku.",
+    "Model devices": "Laitevalinnat",
+    "Language model device": "Kielimallin laite",
+    "Voice model device": "Äänimallin laite",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Valitse kielimalli- ja äänimallilaitteet itsenäisesti. CPU käyttää järjestelmän RAM-muistia ja voi olla hitaampi. Ulkoinen API toimittaa palveluntarjoajan laitteilla.",
+    "Save and restart Capri": "Tallenna ja käynnistä uudelleen Capria",
+    "Selected GPU is unavailable": "Valittu GPU ei ole käytettävissä",
+    "Checking available devices...": "Laitteiden etsintä...",
+    "Device discovery failed. Try refreshing.": "Laitteen löytäminen epäonnistui. Yritä päivittää.",
+    "This GPU is not available in the installed voice runtime.": "Tämä GPU ei ole käytettävissä asennetussa äänimallin ajurissa.",
+    "This GPU is not available in the installed language model runtime.": "Tämä GPU ei ole käytettävissä asennetussa kielimallin ajurissa.",
+    "The installed voice runtime cannot execute on this GPU.": "Asennettu äänimallin ajuri ei voi suorittaa tätä GPU:lla."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

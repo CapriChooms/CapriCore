@@ -15,6 +15,8 @@ import { selectedVoiceModel, voicePython } from '../../apps/desktop/voice-catalo
 import { speechModelsInstalled } from '../../apps/desktop/language-models.mjs';
 import { readVoiceSettings } from '../../packages/runtime/src/voice-settings.mjs';
 import { requiresPrivacyRestart } from '../../packages/runtime/src/host/processes.mjs';
+import { voiceDeviceLaunch } from '../../packages/runtime/src/hardware/model-devices.mjs';
+import { readModelDevices } from '../../packages/runtime/src/model-device-settings.mjs';
 
 export function companionVoiceSettings() {
   const value = readVoiceSettings(root);
@@ -61,6 +63,10 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
   const python = voicePython(root, selected);
   if (!existsSync(python))
     throw new Error('Install the voice environment with setup-voice-training.cmd.');
+  const runtimeEnv = voiceRuntimeEnvironment(root);
+  const deviceKey = readModelDevices(root).voice;
+  const marker = managedProcess('companion-voice');
+  if (marker && (marker.deviceKey ?? 'auto') !== deviceKey) await stopManaged('companion-voice');
   if (requiresPrivacyRestart(managedProcess('companion-voice')))
     await stopManaged('companion-voice');
   const health = async () =>
@@ -94,7 +100,8 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
   signal?.throwIfAborted();
   const startedAt = Date.now();
   let worker = managedProcess('companion-voice');
-  if (!current && !worker)
+  if (!current && !worker) {
+    const device = await voiceDeviceLaunch(root, python, runtimeEnv);
     worker = await launch(
       'companion-voice',
       python,
@@ -106,8 +113,9 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
         ...(modelId ? ['--validate-turbo'] : []),
       ],
       undefined,
-      { env: voiceRuntimeEnvironment(root) },
+      { env: { ...runtimeEnv, ...device.env }, deviceKey: device.key },
     );
+  }
   const result = await waitForVoiceReady({
     health,
     isRunning: () => managedProcess('companion-voice') !== null,

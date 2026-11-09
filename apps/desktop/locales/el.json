@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Τα αποθηκευμένα δεδομένα σας διατηρήθηκαν. Επιδιορθώστε το Capri με το πρόγραμμα εγκατάστασης και δοκιμάστε ξανά.",
     "Public updates do not require a GitHub account or token.": "Οι δημόσιες ενημερώσεις δεν απαιτούν λογαριασμό GitHub ή διακριτικό.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Οι ενημερώσεις προέρχονται από το CapriChooms/CapriCore στο GitHub και ελέγχονται με το SHA-256 πριν από την εγκατάσταση.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Επιλέξτε CapriChooms ως κάτοχο πόρων, μόνο το αποθετήριο CapriCore και Περιεχόμενα: Μόνο για ανάγνωση."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Επιλέξτε CapriChooms ως κάτοχο πόρων, μόνο το αποθετήριο CapriCore και Περιεχόμενα: Μόνο για ανάγνωση.",
+    "Model devices": "Συσκευή μοντέλου",
+    "Language model device": "Συσκευή για μοντέλο γλώσσας",
+    "Voice model device": "Συσκευή για μοντέλο φωνής",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Επιλέξτε ανεξάρτητα για γλώσσα και φωνή. Η CPU χρησιμοποιεί τη συστημική μνήμη RAM και μπορεί να είναι πιο αργή. Ένας εξωτερικός API εκτελείται στο υλικό του προμηθευτή.",
+    "Save and restart Capri": "Αποθήκευση και επανεκκίνηση του Capri",
+    "Selected GPU is unavailable": "Η επιλεγμένη GPU δεν είναι διαθέσιμη",
+    "Checking available devices...": "Έλεγχος διαθέσιμων συσκευών...",
+    "Device discovery failed. Try refreshing.": "Απέτυχε η ανακάλυψη συσκευών. Προσπαθήστε να ανανένετε.",
+    "This GPU is not available in the installed voice runtime.": "Αυτή η GPU δεν είναι διαθέσιμη στη εγκατεστημένη διαδρομή εκτέλεσης φωνής.",
+    "This GPU is not available in the installed language model runtime.": "Αυτή η GPU δεν είναι διαθέσιμη στη διαδρομή εκτέλεσης μοντέλου γλώσσας.",
+    "The installed voice runtime cannot execute on this GPU.": "Η εγκατεστημένη διαδρομή εκτέλεσης φωνής δεν μπορεί να εκτελεστεί σε αυτή την GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

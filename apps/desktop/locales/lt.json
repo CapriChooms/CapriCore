@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jūsų išsaugoti duomenys išliko. Pataisykite Capri diegimo programa ir bandykite dar kartą.",
     "Public updates do not require a GitHub account or token.": "Viešiems naujinimams nereikia GitHub paskyros ar prieigos rakto.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Atnaujinimai pateikiami iš „CapriChooms/CapriCore“ sistemoje „GitHub“ ir prieš diegiant tikrinami naudojant SHA-256.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pasirinkite „CapriChooms“ kaip išteklių savininką, tik CapriCore saugyklą ir „Turinys: tik skaitomas“."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pasirinkite „CapriChooms“ kaip išteklių savininką, tik CapriCore saugyklą ir „Turinys: tik skaitomas“.",
+    "Model devices": "Įrenginiai",
+    "Language model device": "Kalbos modelių įrenginys",
+    "Voice model device": "Rūšies modelių įrenginys",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pasirinkite atskirai kalbai ir rūšiai. CPU naudoja sistemos RAM ir gali veikti lėčiau. Išorinė API veikia tiekėjo įrenginiuose.",
+    "Save and restart Capri": "Išsaugoti ir paleisti Capri iš naujo",
+    "Selected GPU is unavailable": "Pasirinktas GPU nėra prieinamas",
+    "Checking available devices...": "Tikrinami prieinami įrenginiai...",
+    "Device discovery failed. Try refreshing.": "Nepavyko atrasti įrenginių. Pabandykite atnaujinti.",
+    "This GPU is not available in the installed voice runtime.": "Šis GPU nėra prieinamas įstaliuotoje rūšies modelio aplankoje.",
+    "This GPU is not available in the installed language model runtime.": "Šis GPU nėra prieinamas įstaliuotame kalbos modelių aplankoje.",
+    "The installed voice runtime cannot execute on this GPU.": "Įstaliuota rūšies modelio aplanka negali vykdyti šiuo GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

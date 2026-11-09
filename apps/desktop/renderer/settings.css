@@ -1199,3 +1199,10 @@ textarea:disabled {
     outline: 1px solid #8ef5ed;
   }
 }
+.model-device-card select {
+  width: 100%;
+  min-width: 0;
+}
+.model-device-card .model-device-error {
+  color: var(--danger, #ff6687);
+}

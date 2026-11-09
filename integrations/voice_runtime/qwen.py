@@ -40,7 +40,8 @@ class QwenVoice:
         if not np.isfinite(audio).all():
             raise ValueError('Invalid Capri reference audio')
         from qwen_tts import Qwen3TTSModel
-        self.engine = Qwen3TTSModel.from_pretrained(str(folder), device_map='cpu',
+        compute = config.get('computeDevice', 'cpu')
+        self.engine = Qwen3TTSModel.from_pretrained(str(folder), device_map=compute,
             dtype=torch.float32, attn_implementation='sdpa', local_files_only=True,
             trust_remote_code=False)
         self.engine.model.requires_grad_(False).eval()
@@ -48,7 +49,7 @@ class QwenVoice:
             self.prompt = self.engine.create_voice_clone_prompt(ref_audio=(audio, rate),
                                                               x_vector_only_mode=True)
         self.config, self.cancelled, self.last_metrics = config, None, {}
-        self.decoder_device, self.decoder_reason = 'cpu', 'isolated CPU voice runtime'
+        self.decoder_device, self.decoder_reason = compute, 'configured voice device'
         self.started, self.frames = 0, 0
         # Every autoregressive talker step checks cancellation and both a time
         # and frame budget. Exceptions abort before incomplete audio is played.

@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "تم الحفاظ على بياناتك المحفوظة. أصلح Capri باستخدام برنامج التثبيت ثم حاول مجددًا.",
     "Public updates do not require a GitHub account or token.": "لا تتطلب التحديثات العامة حساب GitHub أو رمز وصول.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "تأتي التحديثات من CapriChooms/CapriCore على GitHub ويتم فحصها باستخدام SHA-256 قبل التثبيت.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "حدد CapriChooms كمالك للموارد، ومستودع CapriCore فقط، والمحتويات: للقراءة فقط."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "حدد CapriChooms كمالك للموارد، ومستودع CapriCore فقط، والمحتويات: للقراءة فقط.",
+    "Model devices": "أجهزة النماذج",
+    "Language model device": "جهاز نموذج اللغة",
+    "Voice model device": "جهاز نموذج الصوت",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "اختر بشكل مستقل بين نموذج اللغة ونموذج الصوت. يستخدم الجهاز المعالج المركزي (CPU) ذاكرة النظام وقد يكون أبطأ، بينما يعمل الواجهة الخارجية عبر واجهة برمجة تطبيقات (API) على أجهزة الموفر.",
+    "Save and restart Capri": "حفظ وإعادة تشغيل Capri",
+    "Selected GPU is unavailable": "المعالج الرسومي (GPU) المحدد غير متاح",
+    "Checking available devices...": "جارٍ اكتشاف الأجهزة المتاحة...",
+    "Device discovery failed. Try refreshing.": "فشل اكتشاف الأجهزة. حاول التحديث.",
+    "This GPU is not available in the installed voice runtime.": "هذا المعالج الرسومي (GPU) غير متاح في تشغيل صوت المثبت.",
+    "This GPU is not available in the installed language model runtime.": "هذا المعالج الرسومي (GPU) غير متاح في تشغيل نموذج اللغة المثبت.",
+    "The installed voice runtime cannot execute on this GPU.": "لا يمكن لتطبيق صوت المثبت التشغيل على هذا المعالج الرسومي (GPU)."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

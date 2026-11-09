@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "הנתונים השמורים שלכם נשמרו. תקנו את Capri באמצעות תוכנית ההתקנה ונסו שוב.",
     "Public updates do not require a GitHub account or token.": "עדכונים ציבוריים אינם דורשים חשבון GitHub או אסימון גישה.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "עדכונים מגיעים מ-CapriChooms/CapriCore ב-GitHub ונבדקים עם SHA-256 לפני ההתקנה.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "בחר CapriChoos כבעלים של משאב, רק מאגר CapriCore ותוכן: לקריאה בלבד."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "בחר CapriChoos כבעלים של משאב, רק מאגר CapriCore ותוכן: לקריאה בלבד.",
+    "Model devices": "ציוד מודלים",
+    "Language model device": "ציוד למודל השפה",
+    "Voice model device": "ציוד למודל הקול",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "בחר בנפרד עבור שפה וקול. ה-CPU משתמש בזיכרון הפנימי של המערכת ועשוי להיות איטי יותר. API חיצונייפעל על ציוד החומרה של הספק.",
+    "Save and restart Capri": "שמור והפעל מחדש את Capri",
+    "Selected GPU is unavailable": "ה-GPU שנבחר לא זמין",
+    "Checking available devices...": "בדיקת ציוד זמין...",
+    "Device discovery failed. Try refreshing.": "גילוי ציוד נכשל. נסה לעדכן.",
+    "This GPU is not available in the installed voice runtime.": "GPU זה אינו זמין בביצוע קול המותקן.",
+    "This GPU is not available in the installed language model runtime.": "GPU זה אינו זמין בביצוע מודל השפה המותקן.",
+    "The installed voice runtime cannot execute on this GPU.": "ביצוע הקול המותקן אינו יכול להפעיל על GPU זה."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

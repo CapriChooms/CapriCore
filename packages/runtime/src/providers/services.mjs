@@ -12,6 +12,8 @@ import { requireOllamaBundle } from '../host/ollama-bundle.mjs';
 import { memorySampler } from '../hardware/memory.mjs';
 import { gpuBudget } from '../hardware/gpu-budget.mjs';
 import { applyDependencySecurityPatches } from './dependency-security.mjs';
+import { languageDeviceLaunch } from '../hardware/model-devices.mjs';
+import { readModelDevices, modelsShareDevice } from '../model-device-settings.mjs';
 
 export async function stopManaged(name) {
   if (name === 'ollama' && managedProcess(name)) {
@@ -39,6 +41,9 @@ export async function startOllama(
   requireExecutable(ollamaPath, 'Ollama');
   requireOllamaBundle(ollamaPath);
   initialize(rt);
+  const preferences = readModelDevices(root);
+  const marker = managedProcess('ollama');
+  if (marker && (marker.deviceKey ?? 'auto') !== preferences.language) await stopManaged('ollama');
   // A previous build may still own raw stdout/stderr file descriptors. Adopt
   // only services started with the current privacy log policy.
   if (requiresPrivacyRestart(managedProcess('ollama'))) await stopManaged('ollama');
@@ -51,14 +56,21 @@ export async function startOllama(
       `Ollama port ${settings.ollamaPort} is already in use. Select a free managed port in config/core.local.json.`,
     );
   if (!current) {
+    const selection = await languageDeviceLaunch(root, ollamaPath);
     const memory = await memorySampler.sample({ fresh: true });
     signal?.throwIfAborted();
-    const budget = gpuBudget({ ...settings, voiceExpected, voiceReady, gpus: memory.gpus });
+    const budget = gpuBudget({
+      ...settings,
+      voiceExpected: voiceExpected && modelsShareDevice(preferences.language, preferences.voice),
+      voiceReady,
+      gpus: memory.gpus,
+    });
     console.info('Qwen GPU budget:', JSON.stringify(budget));
     // No guessed layer count: Ollama sizes weights + KV cache against free VRAM
     // and this reserve. The same policy applies to warmup and real requests.
     await launch('ollama', ollamaPath, ['serve'], rt, {
-      env: { OLLAMA_GPU_OVERHEAD: String(budget.overheadBytes) },
+      env: { OLLAMA_GPU_OVERHEAD: String(budget.overheadBytes), ...selection.env },
+      deviceKey: selection.key,
     });
   }
   const version = await waitFor(() => request(`${rt.ollamaUrl}/api/version`, { signal }), {

@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "داده‌های ذخیره‌شدهٔ شما حفظ شده‌اند. Capri را با برنامهٔ نصب تعمیر کنید و دوباره تلاش کنید.",
     "Public updates do not require a GitHub account or token.": "به‌روزرسانی‌های عمومی به حساب GitHub یا توکن نیاز ندارند.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "به‌روزرسانی‌ها از CapriChooms/CapriCore در GitHub می‌آیند و قبل از نصب با SHA-256 بررسی می‌شوند.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChoms را به عنوان مالک منبع، فقط مخزن CapriCore و Contents: فقط خواندنی انتخاب کنید."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChoms را به عنوان مالک منبع، فقط مخزن CapriCore و Contents: فقط خواندنی انتخاب کنید.",
+    "Model devices": "تجهیزات مدل",
+    "Language model device": "تجهیزات مدل زبانی",
+    "Voice model device": "تجهیزات مدل صوتی",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "به طور مستقل برای زبان و صدا انتخاب کنید. پردازنده مرکزی از حافظه رم سیستم استفاده می‌کند و ممکن است کندتر باشد. یک API خارجی روی سخت‌افزار ارائه‌دهنده اجرا می‌شود.",
+    "Save and restart Capri": "ذخیره و راه‌اندازی مجدد Capri",
+    "Selected GPU is unavailable": "GPU انتخاب شده در دسترس نیست",
+    "Checking available devices...": "در حال بررسی تجهیزات موجود...",
+    "Device discovery failed. Try refreshing.": "کشف دستگاه با شکست مواجه شد. تلاش برای رفرش کنید.",
+    "This GPU is not available in the installed voice runtime.": "این GPU در زمان‌بندی صوتی نصب شده در دسترس نیست.",
+    "This GPU is not available in the installed language model runtime.": "این GPU در زمان‌بندی مدل زبانی نصب شده در دسترس نیست.",
+    "The installed voice runtime cannot execute on this GPU.": "زمان‌بندی صوتی نصب شده نمی‌تواند روی این GPU اجرا شود."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

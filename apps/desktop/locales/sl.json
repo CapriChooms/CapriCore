@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vaši shranjeni podatki so ohranjeni. Popravite Capri z namestitvenim programom in poskusite znova.",
     "Public updates do not require a GitHub account or token.": "Javne posodobitve ne zahtevajo računa GitHub ali žetona.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Posodobitve prihajajo iz CapriChooms/CapriCore na GitHub in se pred namestitvijo preverijo s SHA-256.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Izberite CapriChooms kot lastnika vira, samo repozitorij CapriCore in Vsebina: samo za branje."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Izberite CapriChooms kot lastnika vira, samo repozitorij CapriCore in Vsebina: samo za branje.",
+    "Model devices": "Naprave za model",
+    "Language model device": "Naprava za jezikovni model",
+    "Voice model device": "Naprava za glasovni model",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Izberite ločeno za jezik in glas. CPU uporablja sistemsko spominsko pomnilnik in lahko deluje počasneje. Zunanji API teče na opremu dobavitnika.",
+    "Save and restart Capri": "Shrani in ponovno zagon Capri",
+    "Selected GPU is unavailable": "Izbirana GPU ni na voljo",
+    "Checking available devices...": "Preverjanje razpoložljivih naprav...",
+    "Device discovery failed. Try refreshing.": "Kazalo napak pri odkrivanju naprav. Poskusite osvežiti.",
+    "This GPU is not available in the installed voice runtime.": "Ta GPU ni na voljo v nameščenem glasovnem okolju.",
+    "This GPU is not available in the installed language model runtime.": "Ta GPU ni na voljo v nameščenem okolju za jezikovni model.",
+    "The installed voice runtime cannot execute on this GPU.": "Nameščeno glasovno okolje ne more izvesti na tem GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Teie salvestatud andmed on säilinud. Parandage Capri paigaldusprogrammiga ja proovige uuesti.",
     "Public updates do not require a GitHub account or token.": "Avalikud uuendused ei vaja GitHubi kontot ega pääsutõendit.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Värskendused pärinevad GitHubi veebisaidilt CapriChooms/CapriCore ja neid kontrollitakse enne installimist rakendusega SHA-256.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Valige ressursi omanikuks CapriChooms, ainult CapriCore hoidla ja sisu: kirjutuskaitstud."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Valige ressursi omanikuks CapriChooms, ainult CapriCore hoidla ja sisu: kirjutuskaitstud.",
+    "Model devices": "Seadmedevikud",
+    "Language model device": "Keelmodeli seade",
+    "Voice model device": "Häälemudelide seade",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Valige keele- ja häälemudelid sõltumatult. CPU kasutab süsteemi RAM-i ja võib olla aeglasem. Välis-API töötab pakkujate pühendatud hardveril.",
+    "Save and restart Capri": "Salvesta ja alusta Capri uuesti",
+    "Selected GPU is unavailable": "Valitud GPU ei ole kättesaadav",
+    "Checking available devices...": "Kättesaadavate seadmete otsing...",
+    "Device discovery failed. Try refreshing.": "Seadmete avastamine ebaõnnestus. Proovige värskendada.",
+    "This GPU is not available in the installed voice runtime.": "See GPU ei ole kättesaadav paigaldatud häälemudelide käivitamisseadmesse.",
+    "This GPU is not available in the installed language model runtime.": "See GPU ei ole kättesaadav paigaldatud keelmodeli käivitamisseadmesse.",
+    "The installed voice runtime cannot execute on this GPU.": "Paigaldatud häälemudelide käivitamisseade ei saa seda GPU-d kasutada."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

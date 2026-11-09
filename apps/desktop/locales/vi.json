@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dữ liệu đã lưu của bạn vẫn được giữ nguyên. Dùng trình cài đặt để sửa Capri rồi thử lại.",
     "Public updates do not require a GitHub account or token.": "Các bản cập nhật công khai không yêu cầu tài khoản GitHub hoặc mã thông báo.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Các bản cập nhật đến từ CapriChooms/CapriCore trên GitHub và được kiểm tra bằng SHA-256 trước khi cài đặt.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Chọn CapriChooms làm chủ sở hữu tài nguyên, chỉ kho lưu trữ CapriCore và Nội dung: Chỉ đọc."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Chọn CapriChooms làm chủ sở hữu tài nguyên, chỉ kho lưu trữ CapriCore và Nội dung: Chỉ đọc.",
+    "Model devices": "Thiết bị mô hình",
+    "Language model device": "Thiết bị cho mô hình ngôn ngữ",
+    "Voice model device": "Thiết bị cho mô hình giọng nói",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Chọn độc lập cho ngôn ngữ và giọng nói. CPU sử dụng bộ nhớ hệ thống và có thể chậm hơn. Một API bên ngoài sẽ chạy trên phần cứng của nhà cung cấp.",
+    "Save and restart Capri": "Lưu và khởi động lại Capri",
+    "Selected GPU is unavailable": "GPU đã chọn không khả dụng",
+    "Checking available devices...": "Đang kiểm tra các thiết bị khả dụng...",
+    "Device discovery failed. Try refreshing.": "Phát hiện thiết bị thất bại. Hãy thử làm mới.",
+    "This GPU is not available in the installed voice runtime.": "GPU này không khả dụng trong môi trường chạy giọng nói đã cài đặt.",
+    "This GPU is not available in the installed language model runtime.": "GPU này không khả dụng trong môi trường chạy mô hình ngôn ngữ đã cài đặt.",
+    "The installed voice runtime cannot execute on this GPU.": "Môi trường chạy giọng nói đã cài đặt không thể thực thi trên GPU này."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

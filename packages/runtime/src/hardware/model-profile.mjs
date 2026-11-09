@@ -62,7 +62,7 @@ export function saveContextWindow({ root, rt, contextTokens, write = writeJsonAt
   return saveInferenceSettings({ root, rt, overrides: { contextTokens }, write });
 }
 
-function saveInferenceSettings({ root, rt, overrides, write }) {
+export function saveInferenceSettings({ root, rt, overrides, write = writeJsonAtomic }) {
   const file = path.join(root, 'config/core.local.json');
   const read = (name) => {
     if (!existsSync(name)) return null;

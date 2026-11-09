@@ -1,5 +1,10 @@
 # Voice GPU runtime selection
 
+Independent CPU/GPU inference selectors are now available under
+**Settings → Language model → Model devices**; see [device selection](model-devices.md)
+for current behavior and validation. The earlier qualification notes below describe
+the original NVIDIA backend, not a restriction of the new CPU path.
+
 Capri's currently supported trained-voice runtime needs a compatible NVIDIA GPU,
 driver and PyTorch build. This is the current implementation's supported backend,
 not an inherent NVIDIA-only restriction of the voice model. AMD/CPU backends and

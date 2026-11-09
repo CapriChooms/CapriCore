@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Seus dados salvos foram preservados. Repare Capri com o instalador e tente novamente.",
     "Public updates do not require a GitHub account or token.": "As atualizações públicas não exigem uma conta GitHub nem um token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "As atualizações vêm de CapriChooms/CapriCore no GitHub e são verificadas com SHA-256 antes da instalação.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selecione CapriChooms como proprietário do recurso, apenas o repositório CapriCore e Conteúdo: somente leitura."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selecione CapriChooms como proprietário do recurso, apenas o repositório CapriCore e Conteúdo: somente leitura.",
+    "Model devices": "Dispositivos do modelo",
+    "Language model device": "Dispositivo do modelo de linguagem",
+    "Voice model device": "Dispositivo do modelo de voz",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Escolha independentemente para linguagem e voz. A CPU usa a memória RAM do sistema e pode ser mais lenta. Uma API externa roda no hardware do provedor.",
+    "Save and restart Capri": "Salvar e reiniciar o Capri",
+    "Selected GPU is unavailable": "A GPU selecionada não está disponível",
+    "Checking available devices...": "Verificando dispositivos disponíveis...",
+    "Device discovery failed. Try refreshing.": "Falha na descoberta de dispositivos. Tente atualizar.",
+    "This GPU is not available in the installed voice runtime.": "Esta GPU não está disponível no runtime de voz instalado.",
+    "This GPU is not available in the installed language model runtime.": "Esta GPU não está disponível no runtime de modelo de linguagem instalado.",
+    "The installed voice runtime cannot execute on this GPU.": "O runtime de voz instalado não pode executar nesta GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

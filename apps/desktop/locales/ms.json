@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data tersimpan anda masih terpelihara. Baiki Capri menggunakan pemasang dan cuba lagi.",
     "Public updates do not require a GitHub account or token.": "Kemas kini awam tidak memerlukan akaun GitHub atau token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Kemas kini datang daripada CapriChooms/CapriCore pada GitHub dan disemak dengan SHA-256 sebelum pemasangan.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pilih CapriChooms sebagai pemilik sumber, hanya repositori CapriCore dan Kandungan: Baca sahaja."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Pilih CapriChooms sebagai pemilik sumber, hanya repositori CapriCore dan Kandungan: Baca sahaja.",
+    "Model devices": "Peranti model",
+    "Language model device": "Peranti model bahasa",
+    "Voice model device": "Peranti model suara",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pilih secara berasingan untuk bahasa dan suara. CPU menggunakan RAM sistem dan boleh lebih perlahan. API luaran berjalan pada perisian keras penyedia.",
+    "Save and restart Capri": "Simpan dan mulakan semula Capri",
+    "Selected GPU is unavailable": "GPU yang dipilih tidak tersedia",
+    "Checking available devices...": "Memeriksa peranti yang tersedia...",
+    "Device discovery failed. Try refreshing.": "Penemuan peranti gagal. Cuba semburat semula.",
+    "This GPU is not available in the installed voice runtime.": "GPU ini tidak tersedia dalam pakej jiran suara yang dipasang.",
+    "This GPU is not available in the installed language model runtime.": "GPU ini tidak tersedia dalam pakej jiran model bahasa yang dipasang.",
+    "The installed voice runtime cannot execute on this GPU.": "Pakej jiran suara yang dipasang tidak boleh dilaksanakan pada GPU ini."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

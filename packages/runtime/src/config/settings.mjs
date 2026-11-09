@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { root } from '../host/paths.mjs';
 import { MIN_COMPANION_CONTEXT, isManagedCapriModel } from './context-policy.mjs';
+import { deviceSettingsFile, readModelDevices } from '../model-device-settings.mjs';
 
 export function generationParams(value = { temperature: 0.85, repeat_last_n: 512 }) {
   if (
@@ -108,6 +109,12 @@ export function loadCoreSettings(directory = path.join(root, 'config')) {
   return validateCoreSettings({
     ...base,
     ...local,
+    ...(existsSync(deviceSettingsFile(path.dirname(directory)))
+      ? {
+          acceleration:
+            readModelDevices(path.dirname(directory)).language === 'cpu' ? 'cpu' : 'auto',
+        }
+      : {}),
     generation: { ...base.generation, ...local.generation },
   });
 }

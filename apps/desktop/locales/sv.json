@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dina sparade data har bevarats. Reparera Capri med installationsprogrammet och försök igen.",
     "Public updates do not require a GitHub account or token.": "Offentliga uppdateringar kräver varken ett GitHub-konto eller en token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Uppdateringar kommer från CapriChooms/CapriCore på GitHub och kontrolleras med SHA-256 före installation.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Välj CapriChooms som resursägare, bara CapriCore-förrådet och Innehåll: Skrivskyddat."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Välj CapriChooms som resursägare, bara CapriCore-förrådet och Innehåll: Skrivskyddat.",
+    "Model devices": "Enhanced enhancers",
+    "Language model device": "Språkmodellens enhet",
+    "Voice model device": "Röstmodellens enhet",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Välj oberoende för språk och röst. CPU använder systemminne och kan vara långsammare. En extern API kör på leverantörens hårdvara.",
+    "Save and restart Capri": "Spara och starta om Capri",
+    "Selected GPU is unavailable": "Vald GPU är inte tillgänglig",
+    "Checking available devices...": "Kontrollerar tillgängliga enheter...",
+    "Device discovery failed. Try refreshing.": "Enhetsupptäckt misslyckades. Försök ladda om.",
+    "This GPU is not available in the installed voice runtime.": "Denna GPU är inte tillgänglig i den installerade röstruntimen.",
+    "This GPU is not available in the installed language model runtime.": "Denna GPU är inte tillgänglig i den installerade språkmodellruntimen.",
+    "The installed voice runtime cannot execute on this GPU.": "Den installerade röstruntimen kan inte köra på denna GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

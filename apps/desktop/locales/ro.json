@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Datele salvate au fost păstrate. Reparați Capri cu programul de instalare și încercați din nou.",
     "Public updates do not require a GitHub account or token.": "Actualizările publice nu necesită un cont GitHub sau un token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Actualizările vin de la CapriChooms/CapriCore pe GitHub și sunt verificate cu SHA-256 înainte de instalare.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selectați CapriChooms ca proprietar de resurse, numai depozitul CapriCore și Conținut: Numai citire."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selectați CapriChooms ca proprietar de resurse, numai depozitul CapriCore și Conținut: Numai citire.",
+    "Model devices": "Dispozitive de model",
+    "Language model device": "Dispozitiv pentru modelul de limbaj",
+    "Voice model device": "Dispozitiv pentru model vocal",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Alegeți independent pentru limbaj și voce. CPU-ul folosește memoria RAM din sistem și poate fi mai lent. O API externă rulează pe hardware furnizorului.",
+    "Save and restart Capri": "Salvează și repornește Capri",
+    "Selected GPU is unavailable": "GPU-ul selectat nu este disponibil",
+    "Checking available devices...": "Se verifică dispozitivele disponibile...",
+    "Device discovery failed. Try refreshing.": "Descoperirea dispozitivelor a eșuat. Încercați să reîmprospătați pagina.",
+    "This GPU is not available in the installed voice runtime.": "Această GPU nu este disponibilă în timpul de rulare vocal instalat.",
+    "This GPU is not available in the installed language model runtime.": "Această GPU nu este disponibilă în timpul de rulare al modelului de limbaj instalat.",
+    "The installed voice runtime cannot execute on this GPU.": "Timpul de rulare vocal instalat nu poate executa pe această GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

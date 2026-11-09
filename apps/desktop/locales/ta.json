@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "சேமித்த தரவு பாதுகாக்கப்பட்டுள்ளது. நிறுவியைப் பயன்படுத்தி Capri-ஐச் சரிசெய்து மீண்டும் முயலவும்.",
     "Public updates do not require a GitHub account or token.": "பொது புதுப்பிப்புகளுக்கு GitHub கணக்கோ டோக்கனோ தேவையில்லை.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "புதுப்பிப்புகள் GitHub இல் CapriChooms/CapriCore இலிருந்து வருகின்றன மற்றும் நிறுவும் முன் SHA-256 உடன் சரிபார்க்கப்படும்.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChooms ஐ ஆதார உரிமையாளராகத் தேர்ந்தெடுக்கவும், CapriCore களஞ்சியத்தை மட்டும், மற்றும் உள்ளடக்கம்: படிக்க மட்டும்."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChooms ஐ ஆதார உரிமையாளராகத் தேர்ந்தெடுக்கவும், CapriCore களஞ்சியத்தை மட்டும், மற்றும் உள்ளடக்கம்: படிக்க மட்டும்.",
+    "Model devices": "மாதிரி சாதனங்கள்",
+    "Language model device": "மொழி மாதிரிக்கான சாதனம்",
+    "Voice model device": "குரல் மாதிரிக்கான சாதனம்",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "மொழிக்கும் குரலுக்கும் சாதனங்களைத் தனித்தனியாகத் தேர்ந்தெடுக்கவும். CPU கணினியின் RAM ஐப் பயன்படுத்துவதால் மெதுவாக இருக்கலாம். வெளிப்புற API வழங்குநரின் வன்பொருளில் இயங்கும்.",
+    "Save and restart Capri": "சேமித்து Capri ஐ மறுதொடக்கம் செய்",
+    "Selected GPU is unavailable": "தேர்ந்தெடுத்த GPU கிடைக்கவில்லை",
+    "Checking available devices...": "கிடைக்கும் சாதனங்கள் தேடப்படுகின்றன…",
+    "Device discovery failed. Try refreshing.": "சாதனங்களைக் கண்டறிய முடியவில்லை. பட்டியலைப் புதுப்பிக்கவும்.",
+    "This GPU is not available in the installed voice runtime.": "நிறுவப்பட்ட குரல் இயக்கச் சூழலில் இந்த GPU கிடைக்கவில்லை.",
+    "This GPU is not available in the installed language model runtime.": "நிறுவப்பட்ட மொழி மாதிரி இயக்கச் சூழலில் இந்த GPU கிடைக்கவில்லை.",
+    "The installed voice runtime cannot execute on this GPU.": "நிறுவப்பட்ட குரல் இயக்கச் சூழல் இந்த GPU இல் இயங்க முடியாது."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

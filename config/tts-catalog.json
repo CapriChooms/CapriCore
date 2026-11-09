@@ -9,7 +9,7 @@
       "languages": ["en", "zh", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"],
       "voiceIdentity": "capri-reference",
       "training": null,
-      "devices": ["cpu"],
+      "devices": ["cpu", "cuda", "rocm"],
       "installLanguage": "en",
       "downloadBytes": 2516100892,
       "minimumFreeBytes": 8589934592,
@@ -23,7 +23,7 @@
       "languages": ["en"],
       "voiceIdentity": "trained-capri-adapter",
       "training": "capri-turbo-lora",
-      "devices": ["cuda", "rocm"],
+      "devices": ["cpu", "cuda", "rocm"],
       "installLanguage": "en"
     },
     {
@@ -58,7 +58,7 @@
       ],
       "voiceIdentity": "capri-reference",
       "training": null,
-      "devices": ["cuda", "rocm"],
+      "devices": ["cpu", "cuda", "rocm"],
       "installLanguage": "ru"
     }
   ]

@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Ihre gespeicherten Daten bleiben erhalten. Reparieren Sie Capri mit dem Installationsprogramm und versuchen Sie es erneut.",
     "Public updates do not require a GitHub account or token.": "Für öffentliche Updates sind weder ein GitHub-Konto noch ein Token erforderlich.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Updates kommen von CapriChooms/CapriCore auf GitHub und werden vor der Installation mit SHA-256 überprüft.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Wählen Sie CapriChooms als Ressourceneigentümer, nur das CapriCore-Repository und Inhalte: Schreibgeschützt."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Wählen Sie CapriChooms als Ressourceneigentümer, nur das CapriCore-Repository und Inhalte: Schreibgeschützt.",
+    "Model devices": "Geräte auswählen",
+    "Language model device": "Sprachmodell-Gerät",
+    "Voice model device": "Stimmmodell-Gerät",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Unabhängig für Sprache und Stimme wählen. Die CPU verwendet den System-RAM und kann langsamer sein. Eine externe API läuft auf der Hardware des Providers.",
+    "Save and restart Capri": "Speichern und Capri neu starten",
+    "Selected GPU is unavailable": "Die ausgewählte GPU ist nicht verfügbar",
+    "Checking available devices...": "Verfügbare Geräte werden überprüft...",
+    "Device discovery failed. Try refreshing.": "Entdeckung der Geräte fehlgeschlagen. Bitte aktualisieren.",
+    "This GPU is not available in the installed voice runtime.": "Diese GPU ist nicht im installierten Stimmmodell-Runtime verfügbar",
+    "This GPU is not available in the installed language model runtime.": "Diese GPU ist nicht im installierten Sprachmodell-Runtime verfügbar",
+    "The installed voice runtime cannot execute on this GPU.": "Das installierte Stimmmodell-Runtime kann auf dieser GPU nicht ausgeführt werden"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uložené údaje boli zachované. Opravte Capri pomocou inštalátora a skúste to znova.",
     "Public updates do not require a GitHub account or token.": "Verejné aktualizácie nevyžadujú účet GitHub ani token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Aktualizácie pochádzajú z CapriChooms/CapriCore na GitHub a pred inštaláciou sa kontrolujú pomocou SHA-256.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Vyberte CapriChooms ako vlastníka zdroja, iba úložisko CapriCore a Obsah: Len na čítanie."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Vyberte CapriChooms ako vlastníka zdroja, iba úložisko CapriCore a Obsah: Len na čítanie.",
+    "Model devices": "Zariadenia modelu",
+    "Language model device": "Zariadenie jazykového modelu",
+    "Voice model device": "Zariadenie hlasového modelu",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Vyberte nezávisle pre jazykový a hlasový model. CPU využíva systémovú pamäť a môže byť pomalší. Vonkajšia API spája na hardvéri poskytovateľa.",
+    "Save and restart Capri": "Uložiť a reštartovať Capri",
+    "Selected GPU is unavailable": "Vybraná GPU nie je dostupná",
+    "Checking available devices...": "Skontrolovanie dostupných zariadení...",
+    "Device discovery failed. Try refreshing.": "Odhalenie zariadenia zlyhalo. Skúste obnoviť stránku.",
+    "This GPU is not available in the installed voice runtime.": "Táto GPU nie je dostupná v nainštalovanom hlasovom runtime.",
+    "This GPU is not available in the installed language model runtime.": "Táto GPU nie je dostupná v nainštalovanom jazykovom modeli runtime.",
+    "The installed voice runtime cannot execute on this GPU.": "Nainštalovaný hlasový runtime sa nedá vykonať na tejto GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

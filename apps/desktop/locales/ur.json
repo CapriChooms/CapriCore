@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "آپ کا محفوظ کردہ ڈیٹا برقرار ہے۔ انسٹالر سے Capri کی مرمت کریں اور دوبارہ کوشش کریں۔",
     "Public updates do not require a GitHub account or token.": "عوامی اپ ڈیٹس کے لیے GitHub اکاؤنٹ یا ٹوکن درکار نہیں۔",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "اپ ڈیٹس گٹ ہب پر CapriChooms/CapriCore سے آتے ہیں اور انسٹالیشن سے پہلے SHA-256 سے چیک کیے جاتے ہیں۔",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "وسائل کے مالک کے طور پر CapriChooms کو منتخب کریں، صرف CapriCore ذخیرہ، اور مشمولات: صرف پڑھنے کے لیے۔"
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "وسائل کے مالک کے طور پر CapriChooms کو منتخب کریں، صرف CapriCore ذخیرہ، اور مشمولات: صرف پڑھنے کے لیے۔",
+    "Model devices": "ڈیوائسز کا انتخاب",
+    "Language model device": "بھاشا ماڈل ڈیوائس",
+    "Voice model device": "آواز ماڈل ڈیوائس",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "بھاشا اور آواز کے لیے الگ الگ منتخب کریں۔ سی پی یو سسٹم کی ریم استعمال کرتا ہے اور تھوڑا سست ہو سکتا ہے۔ ایک بیرونی ای پی آئی فراہم کنندہ کی ہارڈویئر پر چلتا ہے۔",
+    "Save and restart Capri": "Capri محفوظ کریں اور دوبارہ شروع کریں",
+    "Selected GPU is unavailable": "انتخاب کردہ جی پی یو دستیاب نہیں ہے",
+    "Checking available devices...": "دستیاب ڈیوائسز کی جانچ پڑتال...",
+    "Device discovery failed. Try refreshing.": "ڈیوائس دریافت میں ناکامی۔ تازہ کاری کرنے کی کوشش کریں۔",
+    "This GPU is not available in the installed voice runtime.": "اس جی پی یو انسٹال شدہ آواز رن ٹائم میں دستیاب نہیں ہے",
+    "This GPU is not available in the installed language model runtime.": "اس جی پی یو انسٹال شدہ بھاشا ماڈل رن ٹائم میں دستیاب نہیں ہے",
+    "The installed voice runtime cannot execute on this GPU.": "انسٹال شدہ آواز رن ٹائم اس جی پی یو پر نہیں چلا سکتا"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

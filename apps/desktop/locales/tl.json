@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Napanatili ang iyong naka-save na datos. Ayusin ang Capri gamit ang installer at subukan muli.",
     "Public updates do not require a GitHub account or token.": "Hindi kailangan ng GitHub account o token para sa mga pampublikong update.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Ang mga update ay mula sa CapriChooms/CapriCore sa GitHub at sinusuri gamit ang SHA-256 bago i-install.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Piliin ang CapriChooms bilang may-ari ng mapagkukunan, tanging ang CapriCore repositoryo, at Mga Nilalaman: Read-only."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Piliin ang CapriChooms bilang may-ari ng mapagkukunan, tanging ang CapriCore repositoryo, at Mga Nilalaman: Read-only.",
+    "Model devices": "Paghahanda ng mga kagamitan",
+    "Language model device": "Kagamitan ng modelo ng wika",
+    "Voice model device": "Kagamitan ng modelo ng boses",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Piliin nang hiwalay ang modelo ng wika at boses. Gumagamit ang CPU ng RAM ng sistema at maaaring mas mabagal. Naglilinis ang API sa hardware ng tagapagbigay.",
+    "Save and restart Capri": "I-save at i-restart ang Capri",
+    "Selected GPU is unavailable": "Hindi accessible ang piniling GPU",
+    "Checking available devices...": "Nag-aayos ng mga kagamitan...",
+    "Device discovery failed. Try refreshing.": "Maling makita ang mga kagamitan. Subukang i-refresh.",
+    "This GPU is not available in the installed voice runtime.": "Hindi available ang GPU para sa nakalagay na runtime ng boses.",
+    "This GPU is not available in the installed language model runtime.": "Hindi available ang GPU para sa nakalagay na runtime ng modelo ng wika.",
+    "The installed voice runtime cannot execute on this GPU.": "Hindi pwedeng ginamitan ang nakalagay na runtime ng boses sa ito."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

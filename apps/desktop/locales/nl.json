@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uw opgeslagen gegevens zijn behouden. Herstel Capri met het installatieprogramma en probeer het opnieuw.",
     "Public updates do not require a GitHub account or token.": "Voor openbare updates is geen GitHub-account of token nodig.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Updates komen van CapriChooms/CapriCore op GitHub en worden vóór installatie gecontroleerd met SHA-256.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selecteer CapriChooms als broneigenaar, alleen de CapriCore repository en Inhoud: Alleen-lezen."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Selecteer CapriChooms als broneigenaar, alleen de CapriCore repository en Inhoud: Alleen-lezen.",
+    "Model devices": "Apparaten voor modellen",
+    "Language model device": "Apparaat voor taalmodel",
+    "Voice model device": "Apparaat voor spraakmodel",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Kies onafhankelijk voor taal en spraak. De CPU maakt gebruik van het systeem-geheugen en kan langzamer zijn. Een externe API draait op de hardware van de leverancier.",
+    "Save and restart Capri": "Opslaan en opnieuw starten van Capri",
+    "Selected GPU is unavailable": "De geselecteerde GPU is niet beschikbaar",
+    "Checking available devices...": "Beschikbare apparaten controleren...",
+    "Device discovery failed. Try refreshing.": "Het detecteren van apparaten is mislukt. Probeer te vernieuwen.",
+    "This GPU is not available in the installed voice runtime.": "Deze GPU is niet beschikbaar in de geïnstalleerde spraak-runtime.",
+    "This GPU is not available in the installed language model runtime.": "Deze GPU is niet beschikbaar in de geïnstalleerde taalmodel-runtime.",
+    "The installed voice runtime cannot execute on this GPU.": "De geïnstalleerde spraak-runtime kan op deze GPU niet worden uitgevoerd."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

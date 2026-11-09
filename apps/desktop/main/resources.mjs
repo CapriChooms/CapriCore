@@ -11,6 +11,7 @@ const rendererFiles = [
   'recording-indicator.mjs',
   'settings.html',
   'settings.css',
+  'model-device-panel.mjs',
   'credits.css',
   'credits-panel.mjs',
   'settings-app.mjs',

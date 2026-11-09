@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Zapisane dane zostały zachowane. Napraw Capri za pomocą instalatora i spróbuj ponownie.",
     "Public updates do not require a GitHub account or token.": "Publiczne aktualizacje nie wymagają konta GitHub ani tokena.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Aktualizacje pochodzą z CapriChooms/CapriCore na GitHub i są sprawdzane za pomocą SHA-256 przed instalacją.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Wybierz CapriChooms jako właściciela zasobu, tylko repozytorium CapriCore i Zawartość: tylko do odczytu."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Wybierz CapriChooms jako właściciela zasobu, tylko repozytorium CapriCore i Zawartość: tylko do odczytu.",
+    "Model devices": "Urządzenia modelu",
+    "Language model device": "Urządzenie modelu językowego",
+    "Voice model device": "Urządzenie modelu głosowego",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Wybieraj niezależnie dla języka i głosu. CPU wykorzystuje pamięć RAM systemu i może być wolniejszy. Zewnętrzna API działa na sprzęcie dostawcy.",
+    "Save and restart Capri": "Zapisz i uruchom ponownie Capri",
+    "Selected GPU is unavailable": "Wybrana karta GPU jest niedostępna",
+    "Checking available devices...": "Sprawdzanie dostępnych urządzeń...",
+    "Device discovery failed. Try refreshing.": "Odkrywanie urządzeń nie powiodło się. Spróbuj odświeżyć.",
+    "This GPU is not available in the installed voice runtime.": "Ta karta GPU nie jest dostępna w zainstalowanym uruchomiaczu głosowym.",
+    "This GPU is not available in the installed language model runtime.": "Ta karta GPU nie jest dostępna w zainstalowanym uruchomiaczu modelu językowego.",
+    "The installed voice runtime cannot execute on this GPU.": "Zainstalowany uruchomiacz głosowy nie może działać na tej karcie GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

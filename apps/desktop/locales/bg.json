@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Запазените ви данни са съхранени. Поправете Capri с инсталатора и опитайте отново.",
     "Public updates do not require a GitHub account or token.": "Публичните актуализации не изискват акаунт в GitHub или токен.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Актуализациите идват от CapriChooms/CapriCore на GitHub и се проверяват с SHA-256 преди инсталиране.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Изберете CapriChooms като собственик на ресурс, само хранилището CapriCore и Съдържание: само за четене."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Изберете CapriChooms като собственик на ресурс, само хранилището CapriCore и Съдържание: само за четене.",
+    "Model devices": "Устройства модели",
+    "Language model device": "Устройство за езиков модел",
+    "Voice model device": "Устройство за гласов модел",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Изберете независимо за езика и гласа. CPU използва системна памет и може да е по-бавен. Външен API работи на хардуера на доставчика.",
+    "Save and restart Capri": "Запази и рестартирай Capri",
+    "Selected GPU is unavailable": "Избраната GPU не е налична",
+    "Checking available devices...": "Проверка на наличните устройства...",
+    "Device discovery failed. Try refreshing.": "Откриването на устройството е неуспешно. Опитай се да пречупиш.",
+    "This GPU is not available in the installed voice runtime.": "Тази GPU не е налична в инсталираната гласова среда за изпълнение.",
+    "This GPU is not available in the installed language model runtime.": "Тази GPU не е налична в инсталираната среда за изпълнение на езиков модел.",
+    "The installed voice runtime cannot execute on this GPU.": "Инсталираната гласова среда за изпълнение не може да работи на тази GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

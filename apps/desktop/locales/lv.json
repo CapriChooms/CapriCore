@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jūsu saglabātie dati ir saglabāti. Labojiet Capri ar instalēšanas programmu un mēģiniet vēlreiz.",
     "Public updates do not require a GitHub account or token.": "Publiskajiem atjauninājumiem nav vajadzīgs GitHub konts vai piekļuves tokens.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Atjauninājumus nodrošina CapriChooms/CapriCore vietnē GitHub, un pirms instalēšanas tie tiek pārbaudīti ar SHA-256.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Atlasiet CapriChooms kā resursa īpašnieku, tikai CapriCore repozitoriju un Saturs: tikai lasāms."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Atlasiet CapriChooms kā resursa īpašnieku, tikai CapriCore repozitoriju un Saturs: tikai lasāms.",
+    "Model devices": "Iekārtas",
+    "Language model device": "Valodas modeļa iekārta",
+    "Voice model device": "Vokāla modeļa iekārta",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Atlasiet neatkarīgi valodai un vokalim. CPU izmanto sistēmas atmiņu un var būt lēnāks. Ārējais API darbojas uz piegādātāja cietās iekārtas.",
+    "Save and restart Capri": "Saglabāt un atkārtoti sākt Capri",
+    "Selected GPU is unavailable": "Atlasītā GPU nav pieejama",
+    "Checking available devices...": "Pārbauda pieejamās iekārtas...",
+    "Device discovery failed. Try refreshing.": "Iekārtu atklāšana neizdevās. Mēģiniet atjaunināt.",
+    "This GPU is not available in the installed voice runtime.": "Šī GPU nav pieejama instalētajā vokālajā runtajā.",
+    "This GPU is not available in the installed language model runtime.": "Šī GPU nav pieejama instalētajā valodas modeļa runtajā.",
+    "The installed voice runtime cannot execute on this GPU.": "Instalētais vokālais runtimes nevar izpildīties šajā GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

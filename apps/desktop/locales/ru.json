@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Сохранённые данные не затронуты. Восстановите Capri через установщик и повторите попытку.",
     "Public updates do not require a GitHub account or token.": "Для публичных обновлений не нужны аккаунт GitHub и токен.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Обновления поступают из CapriChooms/CapriCore на GitHub. Перед установкой проверяется SHA-256.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Выберите владельца CapriChooms, только репозиторий CapriCore и разрешение Contents: Read-only."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Выберите владельца CapriChooms, только репозиторий CapriCore и разрешение Contents: Read-only.",
+    "Model devices": "Устройства моделей",
+    "Language model device": "Устройство языковой модели",
+    "Voice model device": "Устройство озвучки",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Выберите устройства для языковой модели и озвучки отдельно. CPU использует оперативную память и может работать медленнее. Внешний API выполняет запросы на оборудовании провайдера.",
+    "Save and restart Capri": "Сохранить и перезапустить Capri",
+    "Selected GPU is unavailable": "Выбранная GPU недоступна",
+    "Checking available devices...": "Поиск доступных устройств…",
+    "Device discovery failed. Try refreshing.": "Не удалось определить устройства. Попробуйте обновить список.",
+    "This GPU is not available in the installed voice runtime.": "Эта GPU недоступна в установленной среде озвучки.",
+    "This GPU is not available in the installed language model runtime.": "Эта GPU недоступна в установленной среде языковой модели.",
+    "The installed voice runtime cannot execute on this GPU.": "Установленная среда озвучки не может выполнять вычисления на этой GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

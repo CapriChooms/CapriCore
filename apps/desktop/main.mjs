@@ -88,6 +88,7 @@ import { HuggingFaceHub } from '../../packages/runtime/src/huggingface/hub.mjs';
 import { HuggingFaceService } from './huggingface-service.mjs';
 import { HuggingFaceCredentials } from './huggingface-credentials.mjs';
 import { VoiceCatalogService, voiceBackendChanged } from './voice-catalog-service.mjs';
+import { ModelDeviceService } from './model-device-service.mjs';
 import { VoiceTrainingService } from './voice-training-service.mjs';
 import { SpotifySettings } from './spotify-settings.mjs';
 import { SpotifyService, SpotifyWorker } from '../../integrations/spotify/service.mjs';
@@ -95,6 +96,7 @@ import { ApplicationService } from '../../integrations/desktop-actions/service.m
 import {
   saveModelProfile,
   saveContextWindow,
+  saveInferenceSettings,
 } from '../../packages/runtime/src/hardware/model-profile.mjs';
 import { validateContextChoice } from '../../packages/runtime/src/config/context-policy.mjs';
 import { responsiveness } from '../../packages/runtime/src/hardware/responsiveness.mjs';
@@ -150,6 +152,7 @@ import { fileURLToPath } from 'node:url';
 import {
   root,
   nodePath,
+  ollamaPath,
   settings,
   runtime,
   initialize,
@@ -713,6 +716,11 @@ async function initializeDesktop() {
     settings.model;
   const localResidency = new LocalModelResidencySampler({ url: rt.ollamaUrl });
   const models = new ModelService({ rt, config: settings, emit, customProfiles: importedProfiles });
+  const modelDevices = new ModelDeviceService({
+    root: verification ? verificationFolder : root,
+    ollama: ollamaPath,
+    config: settings,
+  });
   const huggingface = new HuggingFaceService({
     hub: hfHub,
     credentials: hfCredentials,
@@ -4796,6 +4804,47 @@ async function initializeDesktop() {
       }
     });
     handle('capri:models-status', () => models.snapshot());
+    const voiceDeviceLanguage = () => {
+      const language = liveLanguages().speech;
+      return language && language !== 'off' ? language : 'en';
+    };
+    handle('capri:model-devices', () => modelDevices.refresh(voiceDeviceLanguage()));
+    handle('capri:model-devices-apply', async (value) => {
+      if (verification) throw Error('Model changes are disabled in desktop verification.');
+      assertModelIdle();
+      const selected = await modelDevices.validate(value, voiceDeviceLanguage());
+      const current = modelDevices.current();
+      if (selected.language === current.language && selected.voice === current.voice) return false;
+      if (
+        !(await confirmations.request({
+          title: 'Model devices',
+          detail:
+            'Capri will restart with the prepared model. Your conversation, memory, voice and personal settings will be kept.',
+          confirmLabel: 'Save and restart Capri',
+        }))
+      )
+        return false;
+      assertModelIdle();
+      await shutdownForRestart('Preparing to restart Capri...');
+      let restore, inferenceChange;
+      try {
+        restore = modelDevices.save(selected);
+        inferenceChange = saveInferenceSettings({
+          root,
+          rt,
+          overrides: { acceleration: selected.language === 'cpu' ? 'cpu' : 'auto' },
+        });
+        queueDesktopRelaunch();
+      } catch (error) {
+        inferenceChange?.restore();
+        restore?.();
+        shuttingDown = false;
+        setBackend('offline', 'Reconnect to try again.');
+        throw error;
+      }
+      app.quit();
+      return true;
+    });
     handle('capri:models-refresh', () => models.refresh());
     handle('capri:models-cancel', () => models.cancel());
     handle('capri:models-prepare', (id) => {

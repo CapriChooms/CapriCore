@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Сачувани подаци су очувани. Поправите Capri помоћу инсталационог програма и покушајте поново.",
     "Public updates do not require a GitHub account or token.": "Јавна ажурирања не захтевају GitHub налог нити токен.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Ажурирања долазе са ЦаприЦхоомс/Capri на ГитХуб-у и проверавају се са СХА-256 пре инсталације.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Изаберите ЦаприЦхоомс као власника ресурса, само CapriCore спремиште и Садржај: само за читање."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Изаберите ЦаприЦхоомс као власника ресурса, само CapriCore спремиште и Садржај: само за читање.",
+    "Model devices": "Uređaji modela",
+    "Language model device": "Uređaj za jezični model",
+    "Voice model device": "Uređaj za glasovni model",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Odaberite nezavisno za jezični i glasovni model. CPU koristi sistemsku RAM i može biti sporiji. Vanjska API funkcija radi na hardveru dobavljača.",
+    "Save and restart Capri": "Sačuvati i ponovo pokrenuti Capri",
+    "Selected GPU is unavailable": "Odabrani GPU nije dostupan",
+    "Checking available devices...": "Provera dostupnih uređaja...",
+    "Device discovery failed. Try refreshing.": "Otkrivanje uređaja nije uspešno. Pokušajte osvežavanje.",
+    "This GPU is not available in the installed voice runtime.": "Ovaj GPU nije dostupan u instaliranom glasovnom vremenskom okviru.",
+    "This GPU is not available in the installed language model runtime.": "Ovaj GPU nije dostupan u instaliranom jezičnom modelu vremenskog okvira.",
+    "The installed voice runtime cannot execute on this GPU.": "Instalirani glasovni vremenski okvir ne može izvršiti ovaj GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

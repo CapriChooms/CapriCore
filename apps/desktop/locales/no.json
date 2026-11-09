@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "De lagrede dataene dine er bevart. Reparer Capri med installasjonsprogrammet, og prøv igjen.",
     "Public updates do not require a GitHub account or token.": "Offentlige oppdateringer krever verken en GitHub-konto eller et token.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Oppdateringer kommer fra CapriChooms/CapriCore på GitHub og sjekkes med SHA-256 før installasjon.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Velg CapriChooms som ressurseier, bare CapriCore-depotet, og Innhold: Skrivebeskyttet."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Velg CapriChooms som ressurseier, bare CapriCore-depotet, og Innhold: Skrivebeskyttet.",
+    "Model devices": "Enhetene",
+    "Language model device": "Hva enhet skal brukes til språkmodellen",
+    "Voice model device": "Hva enhet skal brukes til stemmemodellen",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Velg uavhengig for språk- og stemme. CPU bruker systemminne og kan være langsommere. En ekstern API kjører på leverandørens hardvarer.",
+    "Save and restart Capri": "Lagre og start Capri",
+    "Selected GPU is unavailable": "Den valgte GPU-en er ikke tilgjengelig",
+    "Checking available devices...": "Sjekker tilgjengelige enheter...",
+    "Device discovery failed. Try refreshing.": "Oppdaging av enheter mislyktes. Prøv å oppdatere.",
+    "This GPU is not available in the installed voice runtime.": "Denne GPU-en er ikke tilgjengelig i den installerte stemme-runtimeen.",
+    "This GPU is not available in the installed language model runtime.": "Denne GPU-en er ikke tilgjengelig i den installerte språkmode-runtimeen.",
+    "The installed voice runtime cannot execute on this GPU.": "Den installerte stemme-runtimeen kan ikke kjøre på denne GPU-en."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

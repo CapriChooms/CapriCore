@@ -880,7 +880,18 @@
       "Type text": "Ввод текста",
       "Allow relevant Brain excerpts to be sent to an external API": "Разрешить отправку нужных фрагментов базы Brain внешнему API",
       "Capri could not start.": "Не удалось запустить Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Сохранённые данные не затронуты. Восстановите Capri через установщик и повторите попытку."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Сохранённые данные не затронуты. Восстановите Capri через установщик и повторите попытку.",
+      "Model devices": "Устройства моделей",
+      "Language model device": "Устройство языковой модели",
+      "Voice model device": "Устройство озвучки",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Выберите устройства для языковой модели и озвучки отдельно. CPU использует оперативную память и может работать медленнее. Внешний API выполняет запросы на оборудовании провайдера.",
+      "Save and restart Capri": "Сохранить и перезапустить Capri",
+      "Selected GPU is unavailable": "Выбранная GPU недоступна",
+      "Checking available devices...": "Поиск доступных устройств…",
+      "Device discovery failed. Try refreshing.": "Не удалось определить устройства. Попробуйте обновить список.",
+      "This GPU is not available in the installed voice runtime.": "Эта GPU недоступна в установленной среде озвучки.",
+      "This GPU is not available in the installed language model runtime.": "Эта GPU недоступна в установленной среде языковой модели.",
+      "The installed voice runtime cannot execute on this GPU.": "Установленная среда озвучки не может выполнять вычисления на этой GPU."
     },
     "de": {
       "Conversation frequency": "Gesprächshäufigkeit",
@@ -918,7 +929,18 @@
       "Private tool settings (JSON; encrypted, never shown to the model)": "Geheime Tool-Einstellungen (JSON; verschlüsselt, für das Modell unsichtbar)",
       "Allow relevant Brain excerpts to be sent to an external API": "Relevante Auszüge aus Brain an eine externe API senden dürfen",
       "Capri could not start.": "Capri konnte nicht gestartet werden.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Ihre gespeicherten Daten bleiben erhalten. Reparieren Sie Capri mit dem Installationsprogramm und versuchen Sie es erneut."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Ihre gespeicherten Daten bleiben erhalten. Reparieren Sie Capri mit dem Installationsprogramm und versuchen Sie es erneut.",
+      "Model devices": "Geräte auswählen",
+      "Language model device": "Sprachmodell-Gerät",
+      "Voice model device": "Stimmmodell-Gerät",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Unabhängig für Sprache und Stimme wählen. Die CPU verwendet den System-RAM und kann langsamer sein. Eine externe API läuft auf der Hardware des Providers.",
+      "Save and restart Capri": "Speichern und Capri neu starten",
+      "Selected GPU is unavailable": "Die ausgewählte GPU ist nicht verfügbar",
+      "Checking available devices...": "Verfügbare Geräte werden überprüft...",
+      "Device discovery failed. Try refreshing.": "Entdeckung der Geräte fehlgeschlagen. Bitte aktualisieren.",
+      "This GPU is not available in the installed voice runtime.": "Diese GPU ist nicht im installierten Stimmmodell-Runtime verfügbar",
+      "This GPU is not available in the installed language model runtime.": "Diese GPU ist nicht im installierten Sprachmodell-Runtime verfügbar",
+      "The installed voice runtime cannot execute on this GPU.": "Das installierte Stimmmodell-Runtime kann auf dieser GPU nicht ausgeführt werden"
     },
     "fr": {
       "Conversation frequency": "Fréquence des interventions",
@@ -950,7 +972,18 @@
       "Capri could not start.": "Impossible de démarrer Capri.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vos données enregistrées ont été conservées. Réparez Capri avec le programme d’installation, puis réessayez.",
       "Hide to tray": "Réduire dans la zone de notification",
-      "Place each tool in its own subfolder with manifest.json and its script. Discovery does not run code. Review the code, permissions and output before enabling a tool. Changed code requires approval again.": "Placez chaque outil dans son propre sous-dossier avec manifest.json et son script. La détection des outils n’exécute aucun code. Vérifiez le code, les autorisations et les résultats avant d’activer un outil. Toute modification du code nécessite une nouvelle approbation."
+      "Place each tool in its own subfolder with manifest.json and its script. Discovery does not run code. Review the code, permissions and output before enabling a tool. Changed code requires approval again.": "Placez chaque outil dans son propre sous-dossier avec manifest.json et son script. La détection des outils n’exécute aucun code. Vérifiez le code, les autorisations et les résultats avant d’activer un outil. Toute modification du code nécessite une nouvelle approbation.",
+      "Model devices": "Dispositifs du modèle",
+      "Language model device": "Dispositif pour le modèle de langage",
+      "Voice model device": "Dispositif pour le modèle vocal",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Choisissez indépendamment pour le langage et la voix. Le CPU utilise la RAM du système et peut être plus lent. Une API externe fonctionne sur le matériel du fournisseur.",
+      "Save and restart Capri": "Enregistrer et redémarrer Capri",
+      "Selected GPU is unavailable": "La GPU sélectionnée n'est pas disponible",
+      "Checking available devices...": "Vérification des dispositifs disponibles...",
+      "Device discovery failed. Try refreshing.": "Échec de la découverte des dispositifs. Essayez de rafraîchir.",
+      "This GPU is not available in the installed voice runtime.": "Cette GPU n'est pas disponible dans le temps d'exécution vocal installé.",
+      "This GPU is not available in the installed language model runtime.": "Cette GPU n'est pas disponible dans le temps d'exécution du modèle de langage installé.",
+      "The installed voice runtime cannot execute on this GPU.": "Le temps d'exécution vocal installé ne peut pas s'exécuter sur cette GPU."
     },
     "es": {
       "Microphone settings": "Ajustes del micrófono",
@@ -979,7 +1012,18 @@
       "Private tool settings (JSON; encrypted, never shown to the model)": "Configuración privada de la herramienta (JSON; cifrada, nunca se muestra al modelo)",
       "Allow relevant Brain excerpts to be sent to an external API": "Permitir el envío de fragmentos relevantes de Brain a una API externa",
       "Capri could not start.": "No se ha podido iniciar Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Tus datos guardados se han conservado. Repara Capri con el instalador e inténtalo de nuevo."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Tus datos guardados se han conservado. Repara Capri con el instalador e inténtalo de nuevo.",
+      "Model devices": "Dispositivos del modelo",
+      "Language model device": "Dispositivo para el modelo de lenguaje",
+      "Voice model device": "Dispositivo para el modelo de voz",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Elige independientemente para lenguaje y voz. La CPU utiliza la memoria RAM del sistema y puede ser más lenta. Una API externa se ejecuta en el hardware del proveedor.",
+      "Save and restart Capri": "Guardar y reiniciar Capri",
+      "Selected GPU is unavailable": "La GPU seleccionada no está disponible",
+      "Checking available devices...": "Buscando dispositivos disponibles...",
+      "Device discovery failed. Try refreshing.": "El descubrimiento de dispositivos falló. Intenta refrescar.",
+      "This GPU is not available in the installed voice runtime.": "Esta GPU no está disponible en el tiempo de ejecución de voz instalado.",
+      "This GPU is not available in the installed language model runtime.": "Esta GPU no está disponible en el tiempo de ejecución de modelo de lenguaje instalado.",
+      "The installed voice runtime cannot execute on this GPU.": "El tiempo de ejecución de voz instalado no puede ejecutarse en esta GPU."
     },
     "ja": {
       "Quit and unload models": "終了してモデルをメモリから解放",
@@ -1019,7 +1063,18 @@
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "保存済みのデータは保持されています。インストーラーで Capri を修復して、もう一度お試しください。",
       "Start recording": "操作の記録を開始",
       "Stop recording": "操作の記録を停止",
-      "Stop recording or playback first.": "まず操作の記録または再生を停止してください。"
+      "Stop recording or playback first.": "まず操作の記録または再生を停止してください。",
+      "Model devices": "モデルデバイス",
+      "Language model device": "言語モデルのデバイス",
+      "Voice model device": "音声モデルのデバイス",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "言語と声は独立して選択できます。CPU はシステム RAM を使用し、遅くなる可能性があります。外部 API はプロバイダーのハードウェア上で実行されます。",
+      "Save and restart Capri": "Capriを保存して再起動",
+      "Selected GPU is unavailable": "選択された GPU が利用できません",
+      "Checking available devices...": "利用可能なデバイスのチェック中...",
+      "Device discovery failed. Try refreshing.": "デバイスの検出に失敗しました。リフレッシュを試してください。",
+      "This GPU is not available in the installed voice runtime.": "この GPU はインストールされた音声ランタイムで利用できません。",
+      "This GPU is not available in the installed language model runtime.": "この GPU はインストールされた言語モデルランタイムで利用できません。",
+      "The installed voice runtime cannot execute on this GPU.": "インストールされた音声ランタイムはこの GPU で実行できません。"
     },
     "et": {
       "Conversational / up to 12 per hour": "Vestlev / kuni 12 korda tunnis",
@@ -1038,7 +1093,18 @@
       "Type text": "Teksti sisestamine",
       "Capri could not start.": "Capri ei käivitunud.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Teie salvestatud andmed on säilinud. Parandage Capri paigaldusprogrammiga ja proovige uuesti.",
-      "Hide to tray": "Peida süsteemisalve"
+      "Hide to tray": "Peida süsteemisalve",
+      "Model devices": "Seadmedevikud",
+      "Language model device": "Keelmodeli seade",
+      "Voice model device": "Häälemudelide seade",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Valige keele- ja häälemudelid sõltumatult. CPU kasutab süsteemi RAM-i ja võib olla aeglasem. Välis-API töötab pakkujate pühendatud hardveril.",
+      "Save and restart Capri": "Salvesta ja alusta Capri uuesti",
+      "Selected GPU is unavailable": "Valitud GPU ei ole kättesaadav",
+      "Checking available devices...": "Kättesaadavate seadmete otsing...",
+      "Device discovery failed. Try refreshing.": "Seadmete avastamine ebaõnnestus. Proovige värskendada.",
+      "This GPU is not available in the installed voice runtime.": "See GPU ei ole kättesaadav paigaldatud häälemudelide käivitamisseadmesse.",
+      "This GPU is not available in the installed language model runtime.": "See GPU ei ole kättesaadav paigaldatud keelmodeli käivitamisseadmesse.",
+      "The installed voice runtime cannot execute on this GPU.": "Paigaldatud häälemudelide käivitamisseade ei saa seda GPU-d kasutada."
     },
     "ta": {
       "Conversational / up to 12 per hour": "அடிக்கடி உரையாடல் / மணிக்கு அதிகபட்சம் 12 முறை",
@@ -1062,7 +1128,18 @@
       "Scroll": "உருட்டல்",
       "Type text": "உரை உள்ளீடு",
       "Capri could not start.": "Capri-ஐத் தொடங்க முடியவில்லை.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "சேமித்த தரவு பாதுகாக்கப்பட்டுள்ளது. நிறுவியைப் பயன்படுத்தி Capri-ஐச் சரிசெய்து மீண்டும் முயலவும்."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "சேமித்த தரவு பாதுகாக்கப்பட்டுள்ளது. நிறுவியைப் பயன்படுத்தி Capri-ஐச் சரிசெய்து மீண்டும் முயலவும்.",
+      "Model devices": "மாதிரி சாதனங்கள்",
+      "Language model device": "மொழி மாதிரிக்கான சாதனம்",
+      "Voice model device": "குரல் மாதிரிக்கான சாதனம்",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "மொழிக்கும் குரலுக்கும் சாதனங்களைத் தனித்தனியாகத் தேர்ந்தெடுக்கவும். CPU கணினியின் RAM ஐப் பயன்படுத்துவதால் மெதுவாக இருக்கலாம். வெளிப்புற API வழங்குநரின் வன்பொருளில் இயங்கும்.",
+      "Save and restart Capri": "சேமித்து Capri ஐ மறுதொடக்கம் செய்",
+      "Selected GPU is unavailable": "தேர்ந்தெடுத்த GPU கிடைக்கவில்லை",
+      "Checking available devices...": "கிடைக்கும் சாதனங்கள் தேடப்படுகின்றன…",
+      "Device discovery failed. Try refreshing.": "சாதனங்களைக் கண்டறிய முடியவில்லை. பட்டியலைப் புதுப்பிக்கவும்.",
+      "This GPU is not available in the installed voice runtime.": "நிறுவப்பட்ட குரல் இயக்கச் சூழலில் இந்த GPU கிடைக்கவில்லை.",
+      "This GPU is not available in the installed language model runtime.": "நிறுவப்பட்ட மொழி மாதிரி இயக்கச் சூழலில் இந்த GPU கிடைக்கவில்லை.",
+      "The installed voice runtime cannot execute on this GPU.": "நிறுவப்பட்ட குரல் இயக்கச் சூழல் இந்த GPU இல் இயங்க முடியாது."
     },
     "zh": {
       "Occasional / up to 3 per hour": "偶尔 / 每小时最多 3 次",
@@ -1097,7 +1174,18 @@
       "Private tool settings (JSON; encrypted, never shown to the model)": "工具的机密设置（JSON；已加密，绝不提供给模型）",
       "Allow relevant Brain excerpts to be sent to an external API": "允许将 Brain 中的相关片段发送至外部 API",
       "Capri could not start.": "无法启动 Capri。",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "已保留您保存的数据。请使用安装程序修复 Capri，然后重试。"
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "已保留您保存的数据。请使用安装程序修复 Capri，然后重试。",
+      "Model devices": "模型设备",
+      "Language model device": "语言模型设备",
+      "Voice model device": "语音模型设备",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "可独立为语言和语音选择。CPU 使用系统内存，速度可能较慢。外部 API 运行在提供商的硬件上。",
+      "Save and restart Capri": "保存并重启Capri",
+      "Selected GPU is unavailable": "所选 GPU 不可用",
+      "Checking available devices...": "正在检查可用设备...",
+      "Device discovery failed. Try refreshing.": "设备发现失败。请尝试刷新。",
+      "This GPU is not available in the installed voice runtime.": "此 GPU 未安装在语音运行时中。",
+      "This GPU is not available in the installed language model runtime.": "此 GPU 未安装在语言模型运行时中。",
+      "The installed voice runtime cannot execute on this GPU.": "已安装的语音运行时无法在此 GPU 上运行。"
     },
     "mr": {
       "Conversational / up to 12 per hour": "संवादप्रिय / तासाला जास्तीत जास्त १२ वेळा",
@@ -1115,7 +1203,18 @@
       "Scroll": "स्क्रोल",
       "Type text": "मजकूर टाइप करा",
       "Capri could not start.": "Capri सुरू होऊ शकली नाही.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "तुमचा जतन केलेला डेटा सुरक्षित आहे. इन्स्टॉलरने Capri दुरुस्त करा आणि पुन्हा प्रयत्न करा."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "तुमचा जतन केलेला डेटा सुरक्षित आहे. इन्स्टॉलरने Capri दुरुस्त करा आणि पुन्हा प्रयत्न करा.",
+      "Model devices": "मॉडेलची उपकरणे",
+      "Language model device": "भाषा मॉडेलचे उपकरण",
+      "Voice model device": "आवाज मॉडेलचे उपकरण",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "भाषा आणि आवाजासाठी उपकरणे स्वतंत्रपणे निवडा. CPU प्रणालीची RAM वापरतो आणि अधिक संथ असू शकतो. बाह्य API प्रदात्याच्या हार्डवेअरवर चालते.",
+      "Save and restart Capri": "जतन करा आणि Capri पुन्हा सुरू करा",
+      "Selected GPU is unavailable": "निवडलेला GPU उपलब्ध नाही",
+      "Checking available devices...": "उपलब्ध उपकरणे शोधत आहे…",
+      "Device discovery failed. Try refreshing.": "उपकरणे शोधता आली नाहीत. यादी रीफ्रेश करा.",
+      "This GPU is not available in the installed voice runtime.": "हा GPU स्थापित आवाज रनटाइममध्ये उपलब्ध नाही.",
+      "This GPU is not available in the installed language model runtime.": "हा GPU स्थापित भाषा मॉडेल रनटाइममध्ये उपलब्ध नाही.",
+      "The installed voice runtime cannot execute on this GPU.": "स्थापित आवाज रनटाइम या GPU वर चालू शकत नाही."
     },
     "bn": {
       "Occasional / up to 3 per hour": "মাঝেমধ্যে / ঘণ্টায় সর্বোচ্চ ৩ বার",
@@ -1132,7 +1231,18 @@
       "Scroll": "স্ক্রল",
       "Type text": "লেখা টাইপ করুন",
       "Capri could not start.": "Capri চালু করা যায়নি।",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "আপনার সংরক্ষিত তথ্য অক্ষত রয়েছে। ইনস্টলার দিয়ে Capri মেরামত করে আবার চেষ্টা করুন।"
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "আপনার সংরক্ষিত তথ্য অক্ষত রয়েছে। ইনস্টলার দিয়ে Capri মেরামত করে আবার চেষ্টা করুন।",
+      "Model devices": "মডেল ডিভাইস",
+      "Language model device": "ভাষা মডেল ডিভাইস",
+      "Voice model device": "ভয়েস মডেল ডিভাইস",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "ভাষা এবং ভয়েসের জন্য আলাদাভাবে নির্বাচন করুন। সিপিইউ ব্যবহার করে সিস্টেমের র‍্যাম ব্যবহার করে এবং এটি ধীর হতে পারে। একটি বাহ্যিক এপিআই প্রোভাইডারের হার্ডওয়্যারে চালু থাকে।",
+      "Save and restart Capri": "Capri সেভ এবং রিস্টার্ট করুন",
+      "Selected GPU is unavailable": "নির্বাচিত গ্রাফিক প্রসেসর উপলব্ধ নয়",
+      "Checking available devices...": "উপলব্হ ডিভাইস যাচাই করা হচ্ছে...",
+      "Device discovery failed. Try refreshing.": "ডিভাইস খুঁজে বের করতে ব্যর্থ হয়েছে। রিফ্রেশ করার চেষ্টা করুন।",
+      "This GPU is not available in the installed voice runtime.": "এই গ্রাফিক প্রসেসর ইন্সটল করা ভয়েস রানটাইমে উপলব্ধ নয়।",
+      "This GPU is not available in the installed language model runtime.": "এই গ্রাফিক প্রসেসর ইন্সটল করা ভাষা মডেল রানটাইমে উপলব্ধ নয়।",
+      "The installed voice runtime cannot execute on this GPU.": "ইন্সটল করা ভয়েস রানটাইম এই গ্রাফিক প্রসেসরে চলতে পারে না।"
     },
     "tr": {
       "Let Capri occasionally start a conversation. This preview observes app names, fullscreen state, idle/return, lock and power events. It captures no screenshots, window titles, document text or camera images. Hidden Capri pauses observation.": "Capri’nin ara sıra bir konuşma başlatmasına izin verin. Bu önizleme uygulama adlarını, tam ekran durumunu, hareketsizliği ve geri dönüşü, kilit ve güç olaylarını izler. Ekran görüntüleri, pencere başlıkları, belge metinleri veya kamera görüntüleri almaz. Capri gizlendiğinde gözlem duraklatılır.",
@@ -1147,7 +1257,18 @@
       "Type text": "Metin yaz",
       "Capri Avatar": "Capri avatarı",
       "Capri could not start.": "Capri başlatılamadı.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Kaydedilmiş verileriniz korundu. Yükleyiciyle Capri’yi onarın ve yeniden deneyin."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Kaydedilmiş verileriniz korundu. Yükleyiciyle Capri’yi onarın ve yeniden deneyin.",
+      "Model devices": "Cihazlar",
+      "Language model device": "Dil modeli cihazı",
+      "Voice model device": "Ses modeli cihazı",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Dil ve ses için bağımsız olarak seçin. CPU sistem RAM'ini kullanır ve daha yavaş olabilir. Harici bir API sağlayıcının donanımında çalışır.",
+      "Save and restart Capri": "Capri'yi kaydet ve yeniden başlat",
+      "Selected GPU is unavailable": "Seçilen GPU kullanımda",
+      "Checking available devices...": "Mevcut cihazlar kontrol ediliyor...",
+      "Device discovery failed. Try refreshing.": "Cihaz keşfi başarısız oldu. Yenilemeyi deneyin.",
+      "This GPU is not available in the installed voice runtime.": "Bu GPU kurulu olan ses çalışma zamanında kullanılamaz.",
+      "This GPU is not available in the installed language model runtime.": "Bu GPU kurulu olan dil modeli çalışma zamanında kullanılamaz.",
+      "The installed voice runtime cannot execute on this GPU.": "Kurulu olan ses çalışma zamanı bu GPU'da çalışamaz."
     },
     "af": {
       "A generated owned clip fixture is required in verification": "'n Gegenereerde skermgreeptoetslêer in die toetsomgewing word vir verifikasie vereis",
@@ -1180,7 +1301,18 @@
       "SAY CAPRI": "SÊ CAPRI",
       "Capri Avatar": "Capri-avatar",
       "Capri could not start.": "Capri kon nie begin nie.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jou gestoorde data is behou. Herstel Capri met die installeerder en probeer weer."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jou gestoorde data is behou. Herstel Capri met die installeerder en probeer weer.",
+      "Model devices": "Apparatuur vir modelle",
+      "Language model device": "Apparaat vir taalmodel",
+      "Voice model device": "Apparaat vir stemmodel",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Kies onafhanklik vir taal en stem. CPU gebruik sisteen-slaggeheue en kan stadig wees. 'n Eksterne API word op die verskaffer se hardeware uitgevoer.",
+      "Save and restart Capri": "Stoor en herstart Capri",
+      "Selected GPU is unavailable": "Geselekteerde GPU is beskikbaar nie",
+      "Checking available devices...": "Toegang tot beskikbare apparatuur...",
+      "Device discovery failed. Try refreshing.": "Apparatuurontdekking het misluk. Probeer om te verseer.",
+      "This GPU is not available in the installed voice runtime.": "Hierdie GPU is beskikbaar nie in die geïnstalleerde stem-runtime.",
+      "This GPU is not available in the installed language model runtime.": "Hierdie GPU is beskikbaar nie in die geïnstalleerde taalmodel-runtime.",
+      "The installed voice runtime cannot execute on this GPU.": "Die geïnstalleerde stem-runtime kan nie op hierdie GPU uitvoer."
     },
     "da": {
       "Ambient glitch interval": "Interval for baggrundsglitch",
@@ -1222,7 +1354,18 @@
       "Hall of Fame": "Æresgalleri",
       "Capri could not start.": "Capri kunne ikke starte.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dine gemte data er bevaret. Reparer Capri med installationsprogrammet, og prøv igen.",
-      "Microphone settings": "Mikrofonindstillinger"
+      "Microphone settings": "Mikrofonindstillinger",
+      "Model devices": "Udstyr til modeller",
+      "Language model device": "Udstyr til sprogmodel",
+      "Voice model device": "Udstyr til stemmemodel",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Vælg uafhængigt for sprog og stemme. CPU bruger system-RAM og kan være langsommere. En ekstern API kører på leverandørens hardware.",
+      "Save and restart Capri": "Gem og genstart Capri",
+      "Selected GPU is unavailable": "Den valgte GPU er ikke tilgængelig",
+      "Checking available devices...": "Tjekker tilgængelige enheder...",
+      "Device discovery failed. Try refreshing.": "Enhedsopdagelse mislykkedes. Prøv at opdatere.",
+      "This GPU is not available in the installed voice runtime.": "Denne GPU er ikke tilgængelig i den installerede stemmeruntime.",
+      "This GPU is not available in the installed language model runtime.": "Denne GPU er ikke tilgængelig i den installerede sprogmodelleruntime.",
+      "The installed voice runtime cannot execute on this GPU.": "Den installerede stemmeruntime kan ikke køre på denne GPU."
     },
     "no": {
       "Ambient glitch interval": "Intervall for bakgrunnsglitch",
@@ -1239,7 +1382,18 @@
       "Capri Avatar": "Capri-avatar",
       "Capri could not start.": "Capri kunne ikke starte.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "De lagrede dataene dine er bevart. Reparer Capri med installasjonsprogrammet, og prøv igjen.",
-      "Hide to tray": "Skjul i systemstatusfeltet"
+      "Hide to tray": "Skjul i systemstatusfeltet",
+      "Model devices": "Enhetene",
+      "Language model device": "Hva enhet skal brukes til språkmodellen",
+      "Voice model device": "Hva enhet skal brukes til stemmemodellen",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Velg uavhengig for språk- og stemme. CPU bruker systemminne og kan være langsommere. En ekstern API kjører på leverandørens hardvarer.",
+      "Save and restart Capri": "Lagre og start Capri",
+      "Selected GPU is unavailable": "Den valgte GPU-en er ikke tilgjengelig",
+      "Checking available devices...": "Sjekker tilgjengelige enheter...",
+      "Device discovery failed. Try refreshing.": "Oppdaging av enheter mislyktes. Prøv å oppdatere.",
+      "This GPU is not available in the installed voice runtime.": "Denne GPU-en er ikke tilgjengelig i den installerte stemme-runtimeen.",
+      "This GPU is not available in the installed language model runtime.": "Denne GPU-en er ikke tilgjengelig i den installerte språkmode-runtimeen.",
+      "The installed voice runtime cannot execute on this GPU.": "Den installerte stemme-runtimeen kan ikke kjøre på denne GPU-en."
     },
     "sv": {
       "STAY A LITTLE LONGER": "STANNA LITE TILL",
@@ -1255,7 +1409,18 @@
       "Capri Avatar": "Capri-avatar",
       "TRANSCRIPT": "TRANSKRIPTION",
       "Capri could not start.": "Capri kunde inte starta.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dina sparade data har bevarats. Reparera Capri med installationsprogrammet och försök igen."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dina sparade data har bevarats. Reparera Capri med installationsprogrammet och försök igen.",
+      "Model devices": "Enhanced enhancers",
+      "Language model device": "Språkmodellens enhet",
+      "Voice model device": "Röstmodellens enhet",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Välj oberoende för språk och röst. CPU använder systemminne och kan vara långsammare. En extern API kör på leverantörens hårdvara.",
+      "Save and restart Capri": "Spara och starta om Capri",
+      "Selected GPU is unavailable": "Vald GPU är inte tillgänglig",
+      "Checking available devices...": "Kontrollerar tillgängliga enheter...",
+      "Device discovery failed. Try refreshing.": "Enhetsupptäckt misslyckades. Försök ladda om.",
+      "This GPU is not available in the installed voice runtime.": "Denna GPU är inte tillgänglig i den installerade röstruntimen.",
+      "This GPU is not available in the installed language model runtime.": "Denna GPU är inte tillgänglig i den installerade språkmodellruntimen.",
+      "The installed voice runtime cannot execute on this GPU.": "Den installerade röstruntimen kan inte köra på denna GPU."
     },
     "sr": {
       "Accept the organization invitation or ask Overyx for membership with Read access. GitHub fine-grained tokens do not support outside collaborators on organization repositories. Existing GitHub CLI or classic tokens also work; classic token scopes are broader, so organization membership with a read-only token is preferred.": "Прихватите позивницу за организацију или затражите од Overyx чланство са приступом за читање. GitHub фини токени не подржавају спољне сараднике у репозиторијумима организације. Постојећи GitHub ЦЛИ или класични токени такође раде; класични опсег токена је шири, тако да је пожељно чланство у организацији са токеном само за читање.",
@@ -1270,7 +1435,18 @@
       "Type text": "Унос текста",
       "Capri could not start.": "Capri није могуће покренути.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Сачувани подаци су очувани. Поправите Capri помоћу инсталационог програма и покушајте поново.",
-      "Microphone settings": "Podešavanja mikrofona"
+      "Microphone settings": "Podešavanja mikrofona",
+      "Model devices": "Uređaji modela",
+      "Language model device": "Uređaj za jezični model",
+      "Voice model device": "Uređaj za glasovni model",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Odaberite nezavisno za jezični i glasovni model. CPU koristi sistemsku RAM i može biti sporiji. Vanjska API funkcija radi na hardveru dobavljača.",
+      "Save and restart Capri": "Sačuvati i ponovo pokrenuti Capri",
+      "Selected GPU is unavailable": "Odabrani GPU nije dostupan",
+      "Checking available devices...": "Provera dostupnih uređaja...",
+      "Device discovery failed. Try refreshing.": "Otkrivanje uređaja nije uspešno. Pokušajte osvežavanje.",
+      "This GPU is not available in the installed voice runtime.": "Ovaj GPU nije dostupan u instaliranom glasovnom vremenskom okviru.",
+      "This GPU is not available in the installed language model runtime.": "Ovaj GPU nije dostupan u instaliranom jezičnom modelu vremenskog okvira.",
+      "The installed voice runtime cannot execute on this GPU.": "Instalirani glasovni vremenski okvir ne može izvršiti ovaj GPU."
     },
     "hi": {
       "Accept the organization invitation or ask Overyx for membership with Read access. GitHub fine-grained tokens do not support outside collaborators on organization repositories. Existing GitHub CLI or classic tokens also work; classic token scopes are broader, so organization membership with a read-only token is preferred.": "संगठन के निमंत्रण को स्वीकार करें या रीड एक्सेस के साथ सदस्यता के लिए Overyx से पूछें। GitHub बारीक-बारीक टोकन संगठन रिपॉजिटरी पर बाहरी सहयोगियों का समर्थन नहीं करते हैं। मौजूदा GitHub CLI या क्लासिक टोकन भी काम करते हैं; क्लासिक टोकन का दायरा व्यापक है, इसलिए केवल पढ़ने योग्य टोकन के साथ संगठन की सदस्यता को प्राथमिकता दी जाती है।",
@@ -1296,7 +1472,18 @@
       "Scroll": "स्क्रॉल",
       "Type text": "टेक्स्ट लिखें",
       "Capri could not start.": "Capri शुरू नहीं हो सकी।",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "आपका सहेजा गया डेटा सुरक्षित है। इंस्टॉलर से Capri की मरम्मत करें और फिर कोशिश करें।"
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "आपका सहेजा गया डेटा सुरक्षित है। इंस्टॉलर से Capri की मरम्मत करें और फिर कोशिश करें।",
+      "Model devices": "मॉडल उपकरण",
+      "Language model device": "भाषा मॉडल उपकरण",
+      "Voice model device": "आवाज़ मॉडल उपकरण",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "भाषा और आवाज़ के लिए स्वतंत्र रूप से चुनें। सीपीयू सिस्टम रैम का उपयोग करता है और धीपा हो सकता है। एक बाह्य एपीआई प्रदाता की हार्डवेयर पर चलता है।",
+      "Save and restart Capri": "Capri को सहेजें और पुनः शुरू करें",
+      "Selected GPU is unavailable": "चुना गया जीपीयू उपलब्ध नहीं है",
+      "Checking available devices...": "उपलब्ध उपकरण जांच रहे हैं...",
+      "Device discovery failed. Try refreshing.": "उपकरण खोज विफल रही। रिफ्रेश करने की कोशिश करें।",
+      "This GPU is not available in the installed voice runtime.": "इस जीपीयू में स्थापित आवाज़ रनटाइम उपलब्ध नहीं है।",
+      "This GPU is not available in the installed language model runtime.": "इस जीपीयू में स्थापित भाषा मॉडल रनटाइम उपलब्ध नहीं है।",
+      "The installed voice runtime cannot execute on this GPU.": "स्थापित आवाज़ रनटाइम इस जीपीयू पर निष्पादित नहीं किया जा सकता।"
     },
     "nl": {
       "PERSONAL LINK": "PERSOONLIJKE VERBINDING",
@@ -1313,7 +1500,18 @@
       "Qwen model": "Qwen-model",
       "Qwen model…": "Qwen-model…",
       "Capri could not start.": "Capri kon niet worden gestart.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uw opgeslagen gegevens zijn behouden. Herstel Capri met het installatieprogramma en probeer het opnieuw."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uw opgeslagen gegevens zijn behouden. Herstel Capri met het installatieprogramma en probeer het opnieuw.",
+      "Model devices": "Apparaten voor modellen",
+      "Language model device": "Apparaat voor taalmodel",
+      "Voice model device": "Apparaat voor spraakmodel",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Kies onafhankelijk voor taal en spraak. De CPU maakt gebruik van het systeem-geheugen en kan langzamer zijn. Een externe API draait op de hardware van de leverancier.",
+      "Save and restart Capri": "Opslaan en opnieuw starten van Capri",
+      "Selected GPU is unavailable": "De geselecteerde GPU is niet beschikbaar",
+      "Checking available devices...": "Beschikbare apparaten controleren...",
+      "Device discovery failed. Try refreshing.": "Het detecteren van apparaten is mislukt. Probeer te vernieuwen.",
+      "This GPU is not available in the installed voice runtime.": "Deze GPU is niet beschikbaar in de geïnstalleerde spraak-runtime.",
+      "This GPU is not available in the installed language model runtime.": "Deze GPU is niet beschikbaar in de geïnstalleerde taalmodel-runtime.",
+      "The installed voice runtime cannot execute on this GPU.": "De geïnstalleerde spraak-runtime kan op deze GPU niet worden uitgevoerd."
     },
     "tl": {
       "Visual glitch": "Biswal na glitch",
@@ -1331,7 +1529,18 @@
       "Capri Avatar": "Avatar ni Capri",
       "TRANSCRIPT": "TRANSKRIPT",
       "Capri could not start.": "Hindi masimulan ang Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Napanatili ang iyong naka-save na datos. Ayusin ang Capri gamit ang installer at subukan muli."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Napanatili ang iyong naka-save na datos. Ayusin ang Capri gamit ang installer at subukan muli.",
+      "Model devices": "Paghahanda ng mga kagamitan",
+      "Language model device": "Kagamitan ng modelo ng wika",
+      "Voice model device": "Kagamitan ng modelo ng boses",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Piliin nang hiwalay ang modelo ng wika at boses. Gumagamit ang CPU ng RAM ng sistema at maaaring mas mabagal. Naglilinis ang API sa hardware ng tagapagbigay.",
+      "Save and restart Capri": "I-save at i-restart ang Capri",
+      "Selected GPU is unavailable": "Hindi accessible ang piniling GPU",
+      "Checking available devices...": "Nag-aayos ng mga kagamitan...",
+      "Device discovery failed. Try refreshing.": "Maling makita ang mga kagamitan. Subukang i-refresh.",
+      "This GPU is not available in the installed voice runtime.": "Hindi available ang GPU para sa nakalagay na runtime ng boses.",
+      "This GPU is not available in the installed language model runtime.": "Hindi available ang GPU para sa nakalagay na runtime ng modelo ng wika.",
+      "The installed voice runtime cannot execute on this GPU.": "Hindi pwedeng ginamitan ang nakalagay na runtime ng boses sa ito."
     },
     "en": {
       "Save memory": "Save fact",
@@ -1347,7 +1556,18 @@
       "Type text": "Type text",
       "Private tool settings (JSON; encrypted, never shown to the model)": "Secret tool settings (JSON; encrypted, never shown to the model)",
       "Capri could not start.": "Capri could not start.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Your saved data has been preserved. Repair Capri with the installer and try again."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Your saved data has been preserved. Repair Capri with the installer and try again.",
+      "Model devices": "Model devices",
+      "Language model device": "Language model device",
+      "Voice model device": "Voice model device",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.",
+      "Save and restart Capri": "Save and restart Capri",
+      "Selected GPU is unavailable": "Selected GPU is unavailable",
+      "Checking available devices...": "Checking available devices...",
+      "Device discovery failed. Try refreshing.": "Device discovery failed. Try refreshing.",
+      "This GPU is not available in the installed voice runtime.": "This GPU is not available in the installed voice runtime.",
+      "This GPU is not available in the installed language model runtime.": "This GPU is not available in the installed language model runtime.",
+      "The installed voice runtime cannot execute on this GPU.": "The installed voice runtime cannot execute on this GPU."
     },
     "it": {
       "Save memory": "Memorizza un fatto",
@@ -1361,7 +1581,18 @@
       "Type text": "Digita testo",
       "Capri could not start.": "Impossibile avviare Capri.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "I dati salvati sono stati conservati. Ripara Capri con il programma di installazione e riprova.",
-      "Microphone settings": "Impostazioni del microfono"
+      "Microphone settings": "Impostazioni del microfono",
+      "Model devices": "Dispositivi modello",
+      "Language model device": "Dispositivo per il modello linguistico",
+      "Voice model device": "Dispositivo per il modello vocale",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Seleziona indipendentemente per linguaggio e voce. La CPU utilizza la RAM del sistema e può essere più lenta. Un'API esterna gira sull'hardware del fornitore.",
+      "Save and restart Capri": "Salva e riavvia Capri",
+      "Selected GPU is unavailable": "La GPU selezionata non è disponibile",
+      "Checking available devices...": "Verifica dispositivi disponibili...",
+      "Device discovery failed. Try refreshing.": "Rilevamento dispositivo fallito. Riprova aggiornando.",
+      "This GPU is not available in the installed voice runtime.": "Questa GPU non è disponibile nel runtime vocale installato",
+      "This GPU is not available in the installed language model runtime.": "Questa GPU non è disponibile nel runtime del modello linguistico installato",
+      "The installed voice runtime cannot execute on this GPU.": "Il runtime vocale installato non può eseguire su questa GPU"
     },
     "pt": {
       "Save memory": "Memorizar um fato",
@@ -1389,7 +1620,18 @@
       "Allow relevant Brain excerpts to be sent to an external API": "Permitir o envio de trechos relevantes do Brain para uma API externa",
       "Capri could not start.": "Não foi possível iniciar Capri.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Seus dados salvos foram preservados. Repare Capri com o instalador e tente novamente.",
-      "Microphone settings": "Configurações do microfone"
+      "Microphone settings": "Configurações do microfone",
+      "Model devices": "Dispositivos do modelo",
+      "Language model device": "Dispositivo do modelo de linguagem",
+      "Voice model device": "Dispositivo do modelo de voz",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Escolha independentemente para linguagem e voz. A CPU usa a memória RAM do sistema e pode ser mais lenta. Uma API externa roda no hardware do provedor.",
+      "Save and restart Capri": "Salvar e reiniciar o Capri",
+      "Selected GPU is unavailable": "A GPU selecionada não está disponível",
+      "Checking available devices...": "Verificando dispositivos disponíveis...",
+      "Device discovery failed. Try refreshing.": "Falha na descoberta de dispositivos. Tente atualizar.",
+      "This GPU is not available in the installed voice runtime.": "Esta GPU não está disponível no runtime de voz instalado.",
+      "This GPU is not available in the installed language model runtime.": "Esta GPU não está disponível no runtime de modelo de linguagem instalado.",
+      "The installed voice runtime cannot execute on this GPU.": "O runtime de voz instalado não pode executar nesta GPU."
     },
     "pl": {
       "Save memory": "Zapamiętaj fakt",
@@ -1402,7 +1644,18 @@
       "Scroll": "Przewijanie",
       "Type text": "Wpisywanie tekstu",
       "Capri could not start.": "Nie udało się uruchomić Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Zapisane dane zostały zachowane. Napraw Capri za pomocą instalatora i spróbuj ponownie."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Zapisane dane zostały zachowane. Napraw Capri za pomocą instalatora i spróbuj ponownie.",
+      "Model devices": "Urządzenia modelu",
+      "Language model device": "Urządzenie modelu językowego",
+      "Voice model device": "Urządzenie modelu głosowego",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Wybieraj niezależnie dla języka i głosu. CPU wykorzystuje pamięć RAM systemu i może być wolniejszy. Zewnętrzna API działa na sprzęcie dostawcy.",
+      "Save and restart Capri": "Zapisz i uruchom ponownie Capri",
+      "Selected GPU is unavailable": "Wybrana karta GPU jest niedostępna",
+      "Checking available devices...": "Sprawdzanie dostępnych urządzeń...",
+      "Device discovery failed. Try refreshing.": "Odkrywanie urządzeń nie powiodło się. Spróbuj odświeżyć.",
+      "This GPU is not available in the installed voice runtime.": "Ta karta GPU nie jest dostępna w zainstalowanym uruchomiaczu głosowym.",
+      "This GPU is not available in the installed language model runtime.": "Ta karta GPU nie jest dostępna w zainstalowanym uruchomiaczu modelu językowego.",
+      "The installed voice runtime cannot execute on this GPU.": "Zainstalowany uruchomiacz głosowy nie może działać na tej karcie GPU."
     },
     "uk": {
       "Save memory": "Запам’ятати факт",
@@ -1415,7 +1668,18 @@
       "Scroll": "Прокручування",
       "Type text": "Введення тексту",
       "Capri could not start.": "Не вдалося запустити Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Збережені дані не зачеплено. Відновіть Capri за допомогою інсталятора та повторіть спробу."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Збережені дані не зачеплено. Відновіть Capri за допомогою інсталятора та повторіть спробу.",
+      "Model devices": "Устройства моделей",
+      "Language model device": "Устройство для мовної моделі",
+      "Voice model device": "Устройство для голосової моделі",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Виберіть незалежно для мовної та голосової моделей. CPU використовує оперативну пам'ять системи і може працювати повільніше. Зовнішній API працює на апаратному забезпеченні постачальника.",
+      "Save and restart Capri": "Зберегти та перезапустити Capri",
+      "Selected GPU is unavailable": "Вибрана GPU недоступна",
+      "Checking available devices...": "Перевірка доступних пристроїв...",
+      "Device discovery failed. Try refreshing.": "Не вдалося виявити пристрій. Спробуйте оновити сторінку.",
+      "This GPU is not available in the installed voice runtime.": "Ця GPU недоступна в встановленому середовищі виконання голосової моделі.",
+      "This GPU is not available in the installed language model runtime.": "Ця GPU недоступна в встановленому середовищі виконання мовної моделі.",
+      "The installed voice runtime cannot execute on this GPU.": "Встановлене середовище виконання голосової моделі не може запускатися на цій GPU."
     },
     "cs": {
       "Save memory": "Zapamatovat fakt",
@@ -1430,7 +1694,18 @@
       "Type text": "Zadání textu",
       "Capri could not start.": "Capri se nepodařilo spustit.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uložená data byla zachována. Opravte Capri pomocí instalačního programu a zkuste to znovu.",
-      "Hide to tray": "Skrýt do oznamovací oblasti"
+      "Hide to tray": "Skrýt do oznamovací oblasti",
+      "Model devices": "Zařízení modelu",
+      "Language model device": "Zařízení jazykového modelu",
+      "Voice model device": "Zařízení hlasového modelu",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Vyberte nezávisle pro jazykový a hlasový model. CPU využívá systémovou paměť RAM a může být pomalejší. Externí API běží na hardwaru poskytovatele.",
+      "Save and restart Capri": "Uložit a restartovat Capri",
+      "Selected GPU is unavailable": "Vybraná GPU není dostupná",
+      "Checking available devices...": "Ověřování dostupných zařízení...",
+      "Device discovery failed. Try refreshing.": "Nepovedl se objevovací proces zařízení. Zkuste obnovit stránku.",
+      "This GPU is not available in the installed voice runtime.": "Tato GPU není dostupná v nainstalovaném hlasovém runtime.",
+      "This GPU is not available in the installed language model runtime.": "Tato GPU není dostupná v nainstalovaném runtime jazykového modelu.",
+      "The installed voice runtime cannot execute on this GPU.": "Nainstalovaný hlasový runtime nemůže běžet na této GPU."
     },
     "sk": {
       "Save memory": "Zapamätať si fakt",
@@ -1445,7 +1720,18 @@
       "Scroll": "Posúvanie",
       "Type text": "Zadanie textu",
       "Capri could not start.": "Capri sa nepodarilo spustiť.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uložené údaje boli zachované. Opravte Capri pomocou inštalátora a skúste to znova."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Uložené údaje boli zachované. Opravte Capri pomocou inštalátora a skúste to znova.",
+      "Model devices": "Zariadenia modelu",
+      "Language model device": "Zariadenie jazykového modelu",
+      "Voice model device": "Zariadenie hlasového modelu",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Vyberte nezávisle pre jazykový a hlasový model. CPU využíva systémovú pamäť a môže byť pomalší. Vonkajšia API spája na hardvéri poskytovateľa.",
+      "Save and restart Capri": "Uložiť a reštartovať Capri",
+      "Selected GPU is unavailable": "Vybraná GPU nie je dostupná",
+      "Checking available devices...": "Skontrolovanie dostupných zariadení...",
+      "Device discovery failed. Try refreshing.": "Odhalenie zariadenia zlyhalo. Skúste obnoviť stránku.",
+      "This GPU is not available in the installed voice runtime.": "Táto GPU nie je dostupná v nainštalovanom hlasovom runtime.",
+      "This GPU is not available in the installed language model runtime.": "Táto GPU nie je dostupná v nainštalovanom jazykovom modeli runtime.",
+      "The installed voice runtime cannot execute on this GPU.": "Nainštalovaný hlasový runtime sa nedá vykonať na tejto GPU."
     },
     "bg": {
       "Save memory": "Запомняне на факт",
@@ -1459,7 +1745,18 @@
       "Scroll": "Превъртане",
       "Type text": "Въвеждане на текст",
       "Capri could not start.": "Capri не може да се стартира.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Запазените ви данни са съхранени. Поправете Capri с инсталатора и опитайте отново."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Запазените ви данни са съхранени. Поправете Capri с инсталатора и опитайте отново.",
+      "Model devices": "Устройства модели",
+      "Language model device": "Устройство за езиков модел",
+      "Voice model device": "Устройство за гласов модел",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Изберете независимо за езика и гласа. CPU използва системна памет и може да е по-бавен. Външен API работи на хардуера на доставчика.",
+      "Save and restart Capri": "Запази и рестартирай Capri",
+      "Selected GPU is unavailable": "Избраната GPU не е налична",
+      "Checking available devices...": "Проверка на наличните устройства...",
+      "Device discovery failed. Try refreshing.": "Откриването на устройството е неуспешно. Опитай се да пречупиш.",
+      "This GPU is not available in the installed voice runtime.": "Тази GPU не е налична в инсталираната гласова среда за изпълнение.",
+      "This GPU is not available in the installed language model runtime.": "Тази GPU не е налична в инсталираната среда за изпълнение на езиков модел.",
+      "The installed voice runtime cannot execute on this GPU.": "Инсталираната гласова среда за изпълнение не може да работи на тази GPU."
     },
     "hr": {
       "Save memory": "Zapamti činjenicu",
@@ -1488,7 +1785,18 @@
       "Type text": "Unos teksta",
       "caching": "predmemoriranje",
       "Capri could not start.": "Capri nije moguće pokrenuti.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vaši spremljeni podaci su sačuvani. Popravite Capri instalacijskim programom i pokušajte ponovno."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vaši spremljeni podaci su sačuvani. Popravite Capri instalacijskim programom i pokušajte ponovno.",
+      "Model devices": "Uređaji modela",
+      "Language model device": "Uređaj za jezični model",
+      "Voice model device": "Uređaj za glasovni model",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Odaberite zasebno za jezični i glasovni model. CPU koristi sistemsku RAM i može biti sporiji. Vanjska API funkcija radi na hardveru dobavljača.",
+      "Save and restart Capri": "Sačuvati i ponovo pokrenuti Capri",
+      "Selected GPU is unavailable": "Odabrana GPU nije dostupna",
+      "Checking available devices...": "Provjeravanje dostupnih uređaja...",
+      "Device discovery failed. Try refreshing.": "Otkrivanje uređaja nije uspješno. Pokušajte osvježiti stranicu.",
+      "This GPU is not available in the installed voice runtime.": "Ova GPU nije dostupna u instaliranom glasovnom vremenskom okviru.",
+      "This GPU is not available in the installed language model runtime.": "Ova GPU nije dostupna u instaliranom jezičnom modelu vremenskog okvira.",
+      "The installed voice runtime cannot execute on this GPU.": "Instalirani glasovni vremenski okvir ne može izvršavati ovu GPU."
     },
     "sl": {
       "Save memory": "Zapomni si dejstvo",
@@ -1515,7 +1823,18 @@
       "Type text": "Vnos besedila",
       "Capri could not start.": "Capri ni bilo mogoče zagnati.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vaši shranjeni podatki so ohranjeni. Popravite Capri z namestitvenim programom in poskusite znova.",
-      "Hide to tray": "Skrij v sistemsko vrstico"
+      "Hide to tray": "Skrij v sistemsko vrstico",
+      "Model devices": "Naprave za model",
+      "Language model device": "Naprava za jezikovni model",
+      "Voice model device": "Naprava za glasovni model",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Izberite ločeno za jezik in glas. CPU uporablja sistemsko spominsko pomnilnik in lahko deluje počasneje. Zunanji API teče na opremu dobavitnika.",
+      "Save and restart Capri": "Shrani in ponovno zagon Capri",
+      "Selected GPU is unavailable": "Izbirana GPU ni na voljo",
+      "Checking available devices...": "Preverjanje razpoložljivih naprav...",
+      "Device discovery failed. Try refreshing.": "Kazalo napak pri odkrivanju naprav. Poskusite osvežiti.",
+      "This GPU is not available in the installed voice runtime.": "Ta GPU ni na voljo v nameščenem glasovnem okolju.",
+      "This GPU is not available in the installed language model runtime.": "Ta GPU ni na voljo v nameščenem okolju za jezikovni model.",
+      "The installed voice runtime cannot execute on this GPU.": "Nameščeno glasovno okolje ne more izvesti na tem GPU."
     },
     "ro": {
       "Save memory": "Memorează un fapt",
@@ -1529,7 +1848,18 @@
       "Type text": "Introducere text",
       "Control effects": "Efecte de control",
       "Capri could not start.": "Capri nu a putut porni.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Datele salvate au fost păstrate. Reparați Capri cu programul de instalare și încercați din nou."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Datele salvate au fost păstrate. Reparați Capri cu programul de instalare și încercați din nou.",
+      "Model devices": "Dispozitive de model",
+      "Language model device": "Dispozitiv pentru modelul de limbaj",
+      "Voice model device": "Dispozitiv pentru model vocal",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Alegeți independent pentru limbaj și voce. CPU-ul folosește memoria RAM din sistem și poate fi mai lent. O API externă rulează pe hardware furnizorului.",
+      "Save and restart Capri": "Salvează și repornește Capri",
+      "Selected GPU is unavailable": "GPU-ul selectat nu este disponibil",
+      "Checking available devices...": "Se verifică dispozitivele disponibile...",
+      "Device discovery failed. Try refreshing.": "Descoperirea dispozitivelor a eșuat. Încercați să reîmprospătați pagina.",
+      "This GPU is not available in the installed voice runtime.": "Această GPU nu este disponibilă în timpul de rulare vocal instalat.",
+      "This GPU is not available in the installed language model runtime.": "Această GPU nu este disponibilă în timpul de rulare al modelului de limbaj instalat.",
+      "The installed voice runtime cannot execute on this GPU.": "Timpul de rulare vocal instalat nu poate executa pe această GPU."
     },
     "hu": {
       "Save memory": "Tény megjegyzése",
@@ -1544,7 +1874,18 @@
       "Capri Avatar": "Capri-avatár",
       "Capri could not start.": "A Capri nem indult el.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "A mentett adatok megmaradtak. Javítsa a Capri telepítését a telepítővel, majd próbálja újra.",
-      "Microphone settings": "Mikrofonbeállítások"
+      "Microphone settings": "Mikrofonbeállítások",
+      "Model devices": "Berendezések kiválasztása",
+      "Language model device": "Nyelvi modell berendezése",
+      "Voice model device": "Hangmodell berendezése",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "A nyelvi és hangmodellt külön-külön választhatja ki. A CPU rendszer RAM-t használhat és lassabb lehet. Egy külső API fut a szolgáltató hardverén.",
+      "Save and restart Capri": "Mentés és újraindítás a Capri-nál",
+      "Selected GPU is unavailable": "A kiválasztott GPU nem elérhető",
+      "Checking available devices...": "Elérhető berendezések ellenőrzése...",
+      "Device discovery failed. Try refreshing.": "A berendezéskutatás sikertelen. Próbálja meg frissíteni.",
+      "This GPU is not available in the installed voice runtime.": "Ez a GPU nem érhető el az telepített hangmodell futtatási környezetben.",
+      "This GPU is not available in the installed language model runtime.": "Ez a GPU nem érhető el az telepített nyelvi modell futtatási környezetében.",
+      "The installed voice runtime cannot execute on this GPU.": "Az telepített hangmodell futtatási környezet nem tud futni ezen a GPU-n."
     },
     "el": {
       "Save memory": "Αποθήκευση πληροφορίας",
@@ -1571,7 +1912,18 @@
       "Scroll": "Κύλιση",
       "Type text": "Εισαγωγή κειμένου",
       "Capri could not start.": "Δεν ήταν δυνατή η εκκίνηση του Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Τα αποθηκευμένα δεδομένα σας διατηρήθηκαν. Επιδιορθώστε το Capri με το πρόγραμμα εγκατάστασης και δοκιμάστε ξανά."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Τα αποθηκευμένα δεδομένα σας διατηρήθηκαν. Επιδιορθώστε το Capri με το πρόγραμμα εγκατάστασης και δοκιμάστε ξανά.",
+      "Model devices": "Συσκευή μοντέλου",
+      "Language model device": "Συσκευή για μοντέλο γλώσσας",
+      "Voice model device": "Συσκευή για μοντέλο φωνής",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Επιλέξτε ανεξάρτητα για γλώσσα και φωνή. Η CPU χρησιμοποιεί τη συστημική μνήμη RAM και μπορεί να είναι πιο αργή. Ένας εξωτερικός API εκτελείται στο υλικό του προμηθευτή.",
+      "Save and restart Capri": "Αποθήκευση και επανεκκίνηση του Capri",
+      "Selected GPU is unavailable": "Η επιλεγμένη GPU δεν είναι διαθέσιμη",
+      "Checking available devices...": "Έλεγχος διαθέσιμων συσκευών...",
+      "Device discovery failed. Try refreshing.": "Απέτυχε η ανακάλυψη συσκευών. Προσπαθήστε να ανανένετε.",
+      "This GPU is not available in the installed voice runtime.": "Αυτή η GPU δεν είναι διαθέσιμη στη εγκατεστημένη διαδρομή εκτέλεσης φωνής.",
+      "This GPU is not available in the installed language model runtime.": "Αυτή η GPU δεν είναι διαθέσιμη στη διαδρομή εκτέλεσης μοντέλου γλώσσας.",
+      "The installed voice runtime cannot execute on this GPU.": "Η εγκατεστημένη διαδρομή εκτέλεσης φωνής δεν μπορεί να εκτελεστεί σε αυτή την GPU."
     },
     "fi": {
       "Save memory": "Tallenna tieto",
@@ -1584,7 +1936,18 @@
       "Scroll": "Vieritys",
       "Type text": "Tekstin syöttö",
       "Capri could not start.": "Capria ei voitu käynnistää.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Tallennetut tietosi on säilytetty. Korjaa Capri asennusohjelmalla ja yritä uudelleen."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Tallennetut tietosi on säilytetty. Korjaa Capri asennusohjelmalla ja yritä uudelleen.",
+      "Model devices": "Laitevalinnat",
+      "Language model device": "Kielimallin laite",
+      "Voice model device": "Äänimallin laite",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Valitse kielimalli- ja äänimallilaitteet itsenäisesti. CPU käyttää järjestelmän RAM-muistia ja voi olla hitaampi. Ulkoinen API toimittaa palveluntarjoajan laitteilla.",
+      "Save and restart Capri": "Tallenna ja käynnistä uudelleen Capria",
+      "Selected GPU is unavailable": "Valittu GPU ei ole käytettävissä",
+      "Checking available devices...": "Laitteiden etsintä...",
+      "Device discovery failed. Try refreshing.": "Laitteen löytäminen epäonnistui. Yritä päivittää.",
+      "This GPU is not available in the installed voice runtime.": "Tämä GPU ei ole käytettävissä asennetussa äänimallin ajurissa.",
+      "This GPU is not available in the installed language model runtime.": "Tämä GPU ei ole käytettävissä asennetussa kielimallin ajurissa.",
+      "The installed voice runtime cannot execute on this GPU.": "Asennettu äänimallin ajuri ei voi suorittaa tätä GPU:lla."
     },
     "lv": {
       "Save memory": "Iegaumēt faktu",
@@ -1598,7 +1961,18 @@
       "Type text": "Teksta ievade",
       "Capri could not start.": "Capri neizdevās palaist.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jūsu saglabātie dati ir saglabāti. Labojiet Capri ar instalēšanas programmu un mēģiniet vēlreiz.",
-      "Hide to tray": "Paslēpt sistēmas teknē"
+      "Hide to tray": "Paslēpt sistēmas teknē",
+      "Model devices": "Iekārtas",
+      "Language model device": "Valodas modeļa iekārta",
+      "Voice model device": "Vokāla modeļa iekārta",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Atlasiet neatkarīgi valodai un vokalim. CPU izmanto sistēmas atmiņu un var būt lēnāks. Ārējais API darbojas uz piegādātāja cietās iekārtas.",
+      "Save and restart Capri": "Saglabāt un atkārtoti sākt Capri",
+      "Selected GPU is unavailable": "Atlasītā GPU nav pieejama",
+      "Checking available devices...": "Pārbauda pieejamās iekārtas...",
+      "Device discovery failed. Try refreshing.": "Iekārtu atklāšana neizdevās. Mēģiniet atjaunināt.",
+      "This GPU is not available in the installed voice runtime.": "Šī GPU nav pieejama instalētajā vokālajā runtajā.",
+      "This GPU is not available in the installed language model runtime.": "Šī GPU nav pieejama instalētajā valodas modeļa runtajā.",
+      "The installed voice runtime cannot execute on this GPU.": "Instalētais vokālais runtimes nevar izpildīties šajā GPU."
     },
     "lt": {
       "Save memory": "Įsiminti faktą",
@@ -1611,7 +1985,18 @@
       "Scroll": "Slinkimas",
       "Type text": "Teksto įvedimas",
       "Capri could not start.": "Nepavyko paleisti Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jūsų išsaugoti duomenys išliko. Pataisykite Capri diegimo programa ir bandykite dar kartą."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Jūsų išsaugoti duomenys išliko. Pataisykite Capri diegimo programa ir bandykite dar kartą.",
+      "Model devices": "Įrenginiai",
+      "Language model device": "Kalbos modelių įrenginys",
+      "Voice model device": "Rūšies modelių įrenginys",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pasirinkite atskirai kalbai ir rūšiai. CPU naudoja sistemos RAM ir gali veikti lėčiau. Išorinė API veikia tiekėjo įrenginiuose.",
+      "Save and restart Capri": "Išsaugoti ir paleisti Capri iš naujo",
+      "Selected GPU is unavailable": "Pasirinktas GPU nėra prieinamas",
+      "Checking available devices...": "Tikrinami prieinami įrenginiai...",
+      "Device discovery failed. Try refreshing.": "Nepavyko atrasti įrenginių. Pabandykite atnaujinti.",
+      "This GPU is not available in the installed voice runtime.": "Šis GPU nėra prieinamas įstaliuotoje rūšies modelio aplankoje.",
+      "This GPU is not available in the installed language model runtime.": "Šis GPU nėra prieinamas įstaliuotame kalbos modelių aplankoje.",
+      "The installed voice runtime cannot execute on this GPU.": "Įstaliuota rūšies modelio aplanka negali vykdyti šiuo GPU."
     },
     "is": {
       "Save memory": "Muna staðreynd",
@@ -1626,7 +2011,18 @@
       "caching": "skyndiminnisvistun",
       "Capri could not start.": "Ekki tókst að ræsa Capri.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Vistuðu gögnin þín hafa varðveist. Gerðu við Capri með uppsetningarforritinu og reyndu aftur.",
-      "Microphone settings": "Hljóðnemastillingar"
+      "Microphone settings": "Hljóðnemastillingar",
+      "Model devices": "Hönnuðarsetningar",
+      "Language model device": "Setningahóps setninga",
+      "Voice model device": "Stimmuhóps setninga",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Veldu sjálfstætt fyrir setningar og stjórn. CPU notar kerfisminni og getur verið hærra. Ekki tilheyrandi API fer fram á útlendi í gegnum þjónusturekju.",
+      "Save and restart Capri": "Vinsamlegast spara og endurtaka Capri",
+      "Selected GPU is unavailable": "Valin GPU er ekki til staðar",
+      "Checking available devices...": "Skoða tilgengilega setningar...",
+      "Device discovery failed. Try refreshing.": "Gagntökufall setninganna hefur mislykst. Prófaðu að opna aftur.",
+      "This GPU is not available in the installed voice runtime.": "Þessi GPU er ekki til staðar í innstýddum stemmuhópsetningunni.",
+      "This GPU is not available in the installed language model runtime.": "Þessi GPU er ekki til staðar í innstýddum setningahópssetningunni.",
+      "The installed voice runtime cannot execute on this GPU.": "Innstýddur stemmuhópssetningur getur ekki keyrt á þessu GPU."
     },
     "ca": {
       "Save memory": "Desar una dada",
@@ -1645,7 +2041,18 @@
       "caching": "emmagatzematge en memòria cau",
       "Capri could not start.": "No s’ha pogut iniciar Capri.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "Les dades desades s’han conservat. Repara Capri amb l’instal·lador i torna-ho a provar.",
-      "Microphone settings": "Configuració del micròfon"
+      "Microphone settings": "Configuració del micròfon",
+      "Model devices": "Dispositius del model",
+      "Language model device": "Dispositiu del model de llenguatge",
+      "Voice model device": "Dispositiu del model de veu",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Trieu independentment per al llenguatge i la veu. La CPU utilitza la memòria RAM del sistema i pot ser més lenta. Una API externa s'executa en el maquinari del proveïdor.",
+      "Save and restart Capri": "Desa i reinicia Capri",
+      "Selected GPU is unavailable": "La GPU seleccionada no està disponible",
+      "Checking available devices...": "S'estan comprovant els dispositius disponibles...",
+      "Device discovery failed. Try refreshing.": "L'escombrat de dispositius ha fallat. Intenteu actualitzar.",
+      "This GPU is not available in the installed voice runtime.": "Aquesta GPU no està disponible en el temps d'execució de veu instal·lat.",
+      "This GPU is not available in the installed language model runtime.": "Aquesta GPU no està disponible en el temps d'execució del model de llenguatge instal·lat.",
+      "The installed voice runtime cannot execute on this GPU.": "El temps d'execució de veu instal·lat no es pot executar en aquesta GPU."
     },
     "ar": {
       "Save memory": "تذكّر معلومة",
@@ -1670,7 +2077,18 @@
       "External API sharing is disabled for private memory.": "إرسال الذاكرة الخاصة إلى واجهة API الخارجية معطّل.",
       "Private tool settings (JSON; encrypted, never shown to the model)": "إعدادات الأداة السرية (JSON؛ مشفّرة ولا تُعرض على النموذج أبدًا)",
       "Capri could not start.": "تعذّر بدء Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "تم الحفاظ على بياناتك المحفوظة. أصلح Capri باستخدام برنامج التثبيت ثم حاول مجددًا."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "تم الحفاظ على بياناتك المحفوظة. أصلح Capri باستخدام برنامج التثبيت ثم حاول مجددًا.",
+      "Model devices": "أجهزة النماذج",
+      "Language model device": "جهاز نموذج اللغة",
+      "Voice model device": "جهاز نموذج الصوت",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "اختر بشكل مستقل بين نموذج اللغة ونموذج الصوت. يستخدم الجهاز المعالج المركزي (CPU) ذاكرة النظام وقد يكون أبطأ، بينما يعمل الواجهة الخارجية عبر واجهة برمجة تطبيقات (API) على أجهزة الموفر.",
+      "Save and restart Capri": "حفظ وإعادة تشغيل Capri",
+      "Selected GPU is unavailable": "المعالج الرسومي (GPU) المحدد غير متاح",
+      "Checking available devices...": "جارٍ اكتشاف الأجهزة المتاحة...",
+      "Device discovery failed. Try refreshing.": "فشل اكتشاف الأجهزة. حاول التحديث.",
+      "This GPU is not available in the installed voice runtime.": "هذا المعالج الرسومي (GPU) غير متاح في تشغيل صوت المثبت.",
+      "This GPU is not available in the installed language model runtime.": "هذا المعالج الرسومي (GPU) غير متاح في تشغيل نموذج اللغة المثبت.",
+      "The installed voice runtime cannot execute on this GPU.": "لا يمكن لتطبيق صوت المثبت التشغيل على هذا المعالج الرسومي (GPU)."
     },
     "he": {
       "Save memory": "שמירת עובדה",
@@ -1689,7 +2107,18 @@
       "Capri could not start.": "לא ניתן להפעיל את Capri.",
       "Your saved data has been preserved. Repair Capri with the installer and try again.": "הנתונים השמורים שלכם נשמרו. תקנו את Capri באמצעות תוכנית ההתקנה ונסו שוב.",
       "Microphone settings": "הגדרות מיקרופון",
-      "Hide to tray": "הסתר למגש המערכת"
+      "Hide to tray": "הסתר למגש המערכת",
+      "Model devices": "ציוד מודלים",
+      "Language model device": "ציוד למודל השפה",
+      "Voice model device": "ציוד למודל הקול",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "בחר בנפרד עבור שפה וקול. ה-CPU משתמש בזיכרון הפנימי של המערכת ועשוי להיות איטי יותר. API חיצונייפעל על ציוד החומרה של הספק.",
+      "Save and restart Capri": "שמור והפעל מחדש את Capri",
+      "Selected GPU is unavailable": "ה-GPU שנבחר לא זמין",
+      "Checking available devices...": "בדיקת ציוד זמין...",
+      "Device discovery failed. Try refreshing.": "גילוי ציוד נכשל. נסה לעדכן.",
+      "This GPU is not available in the installed voice runtime.": "GPU זה אינו זמין בביצוע קול המותקן.",
+      "This GPU is not available in the installed language model runtime.": "GPU זה אינו זמין בביצוע מודל השפה המותקן.",
+      "The installed voice runtime cannot execute on this GPU.": "ביצוע הקול המותקן אינו יכול להפעיל על GPU זה."
     },
     "fa": {
       "Save memory": "به‌خاطر سپردن یک واقعیت",
@@ -1703,7 +2132,18 @@
       "Type text": "تایپ متن",
       "TRANSCRIPT": "رونوشت",
       "Capri could not start.": "راه‌اندازی Capri ممکن نشد.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "داده‌های ذخیره‌شدهٔ شما حفظ شده‌اند. Capri را با برنامهٔ نصب تعمیر کنید و دوباره تلاش کنید."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "داده‌های ذخیره‌شدهٔ شما حفظ شده‌اند. Capri را با برنامهٔ نصب تعمیر کنید و دوباره تلاش کنید.",
+      "Model devices": "تجهیزات مدل",
+      "Language model device": "تجهیزات مدل زبانی",
+      "Voice model device": "تجهیزات مدل صوتی",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "به طور مستقل برای زبان و صدا انتخاب کنید. پردازنده مرکزی از حافظه رم سیستم استفاده می‌کند و ممکن است کندتر باشد. یک API خارجی روی سخت‌افزار ارائه‌دهنده اجرا می‌شود.",
+      "Save and restart Capri": "ذخیره و راه‌اندازی مجدد Capri",
+      "Selected GPU is unavailable": "GPU انتخاب شده در دسترس نیست",
+      "Checking available devices...": "در حال بررسی تجهیزات موجود...",
+      "Device discovery failed. Try refreshing.": "کشف دستگاه با شکست مواجه شد. تلاش برای رفرش کنید.",
+      "This GPU is not available in the installed voice runtime.": "این GPU در زمان‌بندی صوتی نصب شده در دسترس نیست.",
+      "This GPU is not available in the installed language model runtime.": "این GPU در زمان‌بندی مدل زبانی نصب شده در دسترس نیست.",
+      "The installed voice runtime cannot execute on this GPU.": "زمان‌بندی صوتی نصب شده نمی‌تواند روی این GPU اجرا شود."
     },
     "ur": {
       "Save memory": "ایک بات یاد رکھیں",
@@ -1719,7 +2159,18 @@
       "Scroll": "اسکرول",
       "Type text": "متن لکھیں",
       "Capri could not start.": "Capri شروع نہیں ہو سکی۔",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "آپ کا محفوظ کردہ ڈیٹا برقرار ہے۔ انسٹالر سے Capri کی مرمت کریں اور دوبارہ کوشش کریں۔"
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "آپ کا محفوظ کردہ ڈیٹا برقرار ہے۔ انسٹالر سے Capri کی مرمت کریں اور دوبارہ کوشش کریں۔",
+      "Model devices": "ڈیوائسز کا انتخاب",
+      "Language model device": "بھاشا ماڈل ڈیوائس",
+      "Voice model device": "آواز ماڈل ڈیوائس",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "بھاشا اور آواز کے لیے الگ الگ منتخب کریں۔ سی پی یو سسٹم کی ریم استعمال کرتا ہے اور تھوڑا سست ہو سکتا ہے۔ ایک بیرونی ای پی آئی فراہم کنندہ کی ہارڈویئر پر چلتا ہے۔",
+      "Save and restart Capri": "Capri محفوظ کریں اور دوبارہ شروع کریں",
+      "Selected GPU is unavailable": "انتخاب کردہ جی پی یو دستیاب نہیں ہے",
+      "Checking available devices...": "دستیاب ڈیوائسز کی جانچ پڑتال...",
+      "Device discovery failed. Try refreshing.": "ڈیوائس دریافت میں ناکامی۔ تازہ کاری کرنے کی کوشش کریں۔",
+      "This GPU is not available in the installed voice runtime.": "اس جی پی یو انسٹال شدہ آواز رن ٹائم میں دستیاب نہیں ہے",
+      "This GPU is not available in the installed language model runtime.": "اس جی پی یو انسٹال شدہ بھاشا ماڈل رن ٹائم میں دستیاب نہیں ہے",
+      "The installed voice runtime cannot execute on this GPU.": "انسٹال شدہ آواز رن ٹائم اس جی پی یو پر نہیں چلا سکتا"
     },
     "te": {
       "Save memory": "ఒక విషయాన్ని గుర్తుంచుకోండి",
@@ -1733,7 +2184,18 @@
       "Scroll": "స్క్రోల్",
       "Type text": "వచనం టైప్ చేయండి",
       "Capri could not start.": "Capri ప్రారంభం కాలేకపోయింది.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "మీరు సేవ్ చేసిన డేటా భద్రంగా ఉంది. ఇన్‌స్టాలర్‌తో Capriని రిపేర్ చేసి మళ్లీ ప్రయత్నించండి."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "మీరు సేవ్ చేసిన డేటా భద్రంగా ఉంది. ఇన్‌స్టాలర్‌తో Capriని రిపేర్ చేసి మళ్లీ ప్రయత్నించండి.",
+      "Model devices": "మోడల్ డివైజ్‌లు",
+      "Language model device": "భాషా మోడల్ డివైజ్",
+      "Voice model device": "వాక్యం మోడల్ డివైజ్",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "భాష మరియు వాయిస్‌ను స్వతంత్రంగా ఎంచుకోండి. CPU సిస్టమ్‌లోని RAM ను ఉపయోగిస్తుంది మరియు దీని వేగం తక్కువగా ఉండవచ్చు. బాహ్య API ప్రొవైడర్‌ల హార్డ్‌వేర్‌పై పనిచేస్తుంది.",
+      "Save and restart Capri": "Capri నిల్వ చేయండి మరియు రీస్టార్ట్ చేయండి",
+      "Selected GPU is unavailable": "ఎంచుకున్న GPU అందుబాటులో లేదు",
+      "Checking available devices...": "అందుబాటులో ఉన్న డివైజ్‌లను సరిచూస్తున్నారు...",
+      "Device discovery failed. Try refreshing.": "డివైజ్ కనుగొనడం విఫలమైంది. ఫ్రెష్ చేయడానికి ప్రయత్నించండి.",
+      "This GPU is not available in the installed voice runtime.": "ఈ GPU ఇన్‌స్టాల్ చేసిన వాయిస్ ర్యాప్టింగ్‌లో అందుబాటులో లేదు.",
+      "This GPU is not available in the installed language model runtime.": "ఈ GPU ఇన్‌స్టాల్ చేసిన భాషా మోడల్ ర్యాప్టింగ్‌లో అందుబాటులో లేదు.",
+      "The installed voice runtime cannot execute on this GPU.": "ఇన్‌స్టాల్ చేసిన వాయిస్ ర్యాప్టింగ్ ఈ GPU 'పై పనిచేయలేదు."
     },
     "gu": {
       "Save memory": "એક હકીકત યાદ રાખો",
@@ -1748,7 +2210,18 @@
       "Scroll": "સ્ક્રોલ",
       "Type text": "લખાણ ટાઇપ કરો",
       "Capri could not start.": "Capri શરૂ થઈ શકી નહીં.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "તમારો સાચવેલો ડેટા સુરક્ષિત છે. ઇન્સ્ટોલરથી Capri રિપેર કરો અને ફરી પ્રયાસ કરો."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "તમારો સાચવેલો ડેટા સુરક્ષિત છે. ઇન્સ્ટોલરથી Capri રિપેર કરો અને ફરી પ્રયાસ કરો.",
+      "Model devices": "મોડેલનાં ઉપકરણો",
+      "Language model device": "ભાષા મોડેલનું ઉપકરણ",
+      "Voice model device": "અવાજ મોડેલનું ઉપકરણ",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "ભાષા અને અવાજ માટે ઉપકરણો અલગ પસંદ કરો. CPU સિસ્ટમની RAM વાપરે છે અને ધીમું હોઈ શકે છે. બાહ્ય API પ્રદાતાના હાર્ડવેર પર ચાલે છે.",
+      "Save and restart Capri": "સાચવો અને Capri ફરી શરૂ કરો",
+      "Selected GPU is unavailable": "પસંદ કરેલ GPU ઉપલબ્ધ નથી",
+      "Checking available devices...": "ઉપલબ્ધ ઉપકરણો શોધી રહ્યા છીએ…",
+      "Device discovery failed. Try refreshing.": "ઉપકરણો શોધી શકાયાં નથી. યાદી ફરી લોડ કરો.",
+      "This GPU is not available in the installed voice runtime.": "આ GPU સ્થાપિત અવાજ રનટાઇમમાં ઉપલબ્ધ નથી.",
+      "This GPU is not available in the installed language model runtime.": "આ GPU સ્થાપિત ભાષા મોડેલ રનટાઇમમાં ઉપલબ્ધ નથી.",
+      "The installed voice runtime cannot execute on this GPU.": "સ્થાપિત અવાજ રનટાઇમ આ GPU પર ચાલી શકતું નથી."
     },
     "pa": {
       "Save memory": "ਇੱਕ ਗੱਲ ਯਾਦ ਰੱਖੋ",
@@ -1772,7 +2245,18 @@
       "Scroll": "ਸਕ੍ਰੋਲ",
       "Type text": "ਟੈਕਸਟ ਲਿਖੋ",
       "Capri could not start.": "Capri ਸ਼ੁਰੂ ਨਹੀਂ ਹੋ ਸਕੀ।",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "ਤੁਹਾਡਾ ਸੰਭਾਲਿਆ ਡਾਟਾ ਸੁਰੱਖਿਅਤ ਹੈ। ਇੰਸਟਾਲਰ ਨਾਲ Capri ਦੀ ਮੁਰੰਮਤ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "ਤੁਹਾਡਾ ਸੰਭਾਲਿਆ ਡਾਟਾ ਸੁਰੱਖਿਅਤ ਹੈ। ਇੰਸਟਾਲਰ ਨਾਲ Capri ਦੀ ਮੁਰੰਮਤ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+      "Model devices": "ਮਾਡਲਾਂ ਦੇ ਡਿਵਾਈਸ",
+      "Language model device": "ਭਾਸ਼ਾ ਮਾਡਲ ਦਾ ਡਿਵਾਈਸ",
+      "Voice model device": "ਆਵਾਜ਼ ਮਾਡਲ ਦਾ ਡਿਵਾਈਸ",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "ਭਾਸ਼ਾ ਅਤੇ ਆਵਾਜ਼ ਲਈ ਡਿਵਾਈਸ ਵੱਖਰੇ ਚੁਣੋ। CPU ਸਿਸਟਮ ਦੀ RAM ਵਰਤਦਾ ਹੈ ਅਤੇ ਹੌਲੀ ਹੋ ਸਕਦਾ ਹੈ। ਬਾਹਰੀ API ਪ੍ਰਦਾਤਾ ਦੇ ਹਾਰਡਵੇਅਰ ਉੱਤੇ ਚੱਲਦਾ ਹੈ।",
+      "Save and restart Capri": "ਸੰਭਾਲੋ ਅਤੇ Capri ਮੁੜ ਚਾਲੂ ਕਰੋ",
+      "Selected GPU is unavailable": "ਚੁਣਿਆ GPU ਉਪਲਬਧ ਨਹੀਂ ਹੈ",
+      "Checking available devices...": "ਉਪਲਬਧ ਡਿਵਾਈਸ ਲੱਭੇ ਜਾ ਰਹੇ ਹਨ…",
+      "Device discovery failed. Try refreshing.": "ਡਿਵਾਈਸ ਲੱਭੇ ਨਹੀਂ ਜਾ ਸਕੇ। ਸੂਚੀ ਮੁੜ ਲੋਡ ਕਰੋ।",
+      "This GPU is not available in the installed voice runtime.": "ਇਹ GPU ਇੰਸਟਾਲ ਕੀਤੇ ਆਵਾਜ਼ ਰਨਟਾਈਮ ਵਿੱਚ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
+      "This GPU is not available in the installed language model runtime.": "ਇਹ GPU ਇੰਸਟਾਲ ਕੀਤੇ ਭਾਸ਼ਾ ਮਾਡਲ ਰਨਟਾਈਮ ਵਿੱਚ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
+      "The installed voice runtime cannot execute on this GPU.": "ਇੰਸਟਾਲ ਕੀਤਾ ਆਵਾਜ਼ ਰਨਟਾਈਮ ਇਸ GPU ਉੱਤੇ ਨਹੀਂ ਚੱਲ ਸਕਦਾ।"
     },
     "ko": {
       "Save memory": "정보 기억하기",
@@ -1803,7 +2287,18 @@
       "External API sharing is disabled for private memory.": "비공개 기억을 외부 API로 보내는 기능이 꺼져 있습니다.",
       "Private tool settings (JSON; encrypted, never shown to the model)": "도구의 비밀 설정(JSON, 암호화되며 모델에 전달되지 않음)",
       "Capri could not start.": "Capri를 시작하지 못했습니다.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "저장된 데이터는 보존되었습니다. 설치 프로그램으로 Capri를 복구한 후 다시 시도하세요."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "저장된 데이터는 보존되었습니다. 설치 프로그램으로 Capri를 복구한 후 다시 시도하세요.",
+      "Model devices": "모델 장치",
+      "Language model device": "언어 모델 장치",
+      "Voice model device": "음성 모델 장치",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "언어와 음성 모델을 독립적으로 선택할 수 있습니다. CPU 는 시스템 메모리를 사용하며 속도가 느릴 수 있습니다. 외부 API 는 제공자의 하드웨어에서 실행됩니다.",
+      "Save and restart Capri": "Capri 저장 및 재시작",
+      "Selected GPU is unavailable": "선택한 GPU 가 이용 불가능합니다",
+      "Checking available devices...": "이용 가능한 장치를 확인 중...",
+      "Device discovery failed. Try refreshing.": "장치 발견 실패. 새로고침을 시도해 보세요.",
+      "This GPU is not available in the installed voice runtime.": "설치된 음성 런타임에서 이 GPU 를 사용할 수 없습니다.",
+      "This GPU is not available in the installed language model runtime.": "설치된 언어 모델 런타임에서 이 GPU 를 사용할 수 없습니다.",
+      "The installed voice runtime cannot execute on this GPU.": "설치된 음성 런타임은 이 GPU 에서 실행할 수 없습니다."
     },
     "vi": {
       "Save memory": "Ghi nhớ một thông tin",
@@ -1817,7 +2312,18 @@
       "Scroll": "Cuộn",
       "Type text": "Nhập văn bản",
       "Capri could not start.": "Không thể khởi động Capri.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dữ liệu đã lưu của bạn vẫn được giữ nguyên. Dùng trình cài đặt để sửa Capri rồi thử lại."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Dữ liệu đã lưu của bạn vẫn được giữ nguyên. Dùng trình cài đặt để sửa Capri rồi thử lại.",
+      "Model devices": "Thiết bị mô hình",
+      "Language model device": "Thiết bị cho mô hình ngôn ngữ",
+      "Voice model device": "Thiết bị cho mô hình giọng nói",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Chọn độc lập cho ngôn ngữ và giọng nói. CPU sử dụng bộ nhớ hệ thống và có thể chậm hơn. Một API bên ngoài sẽ chạy trên phần cứng của nhà cung cấp.",
+      "Save and restart Capri": "Lưu và khởi động lại Capri",
+      "Selected GPU is unavailable": "GPU đã chọn không khả dụng",
+      "Checking available devices...": "Đang kiểm tra các thiết bị khả dụng...",
+      "Device discovery failed. Try refreshing.": "Phát hiện thiết bị thất bại. Hãy thử làm mới.",
+      "This GPU is not available in the installed voice runtime.": "GPU này không khả dụng trong môi trường chạy giọng nói đã cài đặt.",
+      "This GPU is not available in the installed language model runtime.": "GPU này không khả dụng trong môi trường chạy mô hình ngôn ngữ đã cài đặt.",
+      "The installed voice runtime cannot execute on this GPU.": "Môi trường chạy giọng nói đã cài đặt không thể thực thi trên GPU này."
     },
     "th": {
       "Save memory": "จดจำข้อมูล",
@@ -1833,7 +2339,18 @@
       "Scroll": "เลื่อน",
       "Type text": "พิมพ์ข้อความ",
       "Capri could not start.": "ไม่สามารถเริ่ม Capri ได้",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "ข้อมูลที่บันทึกไว้ของคุณยังคงอยู่ ซ่อมแซม Capri ด้วยโปรแกรมติดตั้งแล้วลองอีกครั้ง"
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "ข้อมูลที่บันทึกไว้ของคุณยังคงอยู่ ซ่อมแซม Capri ด้วยโปรแกรมติดตั้งแล้วลองอีกครั้ง",
+      "Model devices": "อุปกรณ์โมเดล",
+      "Language model device": "อุปกรณ์สำหรับโมเดลภาษา",
+      "Voice model device": "อุปกรณ์สำหรับโมเดลเสียง",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "เลือกแยกกันสำหรับโมเดลภาษาและเสียง โมเดลภาษาที่ใช้ CPU จะใช้หน่วยความจำของระบบและอาจทำงานช้ากว่า การเรียกใช้ API จากภายนอกจะทำงานบนฮาร์ดแวร์ของผู้ให้บริการ",
+      "Save and restart Capri": "บันทึกและเริ่มใหม่ Capri",
+      "Selected GPU is unavailable": "GPU ที่เลือกไม่สามารถใช้งานได้",
+      "Checking available devices...": "กำลังตรวจสอบอุปกรณ์ที่มีอยู่...",
+      "Device discovery failed. Try refreshing.": "การค้นพบอุปกรณ์ล้มเหลว ลองรีเฟรชอีกครั้ง",
+      "This GPU is not available in the installed voice runtime.": "GPU นี้ไม่สามารถใช้งานได้ในรันไทม์เสียงที่ติดตั้งแล้ว",
+      "This GPU is not available in the installed language model runtime.": "GPU นี้ไม่สามารถใช้งานได้ในรันไทม์โมเดลภาษาที่ติดตั้งแล้ว",
+      "The installed voice runtime cannot execute on this GPU.": "รันไทม์เสียงที่ติดตั้งไม่สามารถทำงานบน GPU นี้ได้"
     },
     "id": {
       "Save memory": "Ingat sebuah fakta",
@@ -1847,7 +2364,18 @@
       "Type text": "Ketik teks",
       "caching": "penyimpanan cache",
       "Capri could not start.": "Capri tidak dapat dimulai.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data tersimpan Anda tetap utuh. Perbaiki Capri dengan penginstal lalu coba lagi."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data tersimpan Anda tetap utuh. Perbaiki Capri dengan penginstal lalu coba lagi.",
+      "Model devices": "Perangkat model",
+      "Language model device": "Perangkat model bahasa",
+      "Voice model device": "Perangkat model suara",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pilih secara independen untuk bahasa dan suara. CPU menggunakan RAM sistem dan bisa lebih lambat. API eksternal berjalan pada perangkat keras penyedia.",
+      "Save and restart Capri": "Simpan dan mulai ulang Capri",
+      "Selected GPU is unavailable": "GPU yang dipilih tidak tersedia",
+      "Checking available devices...": "Memeriksa perangkat yang tersedia...",
+      "Device discovery failed. Try refreshing.": "Penemuan perangkat gagal. Coba refresh.",
+      "This GPU is not available in the installed voice runtime.": "GPU ini tidak tersedia dalam runtime suara yang terpasang.",
+      "This GPU is not available in the installed language model runtime.": "GPU ini tidak tersedia dalam runtime model bahasa yang terpasang.",
+      "The installed voice runtime cannot execute on this GPU.": "Runtime suara yang terpasang tidak dapat dijalankan pada GPU ini."
     },
     "ms": {
       "Save memory": "Ingat satu fakta",
@@ -1862,7 +2390,18 @@
       "caching": "penyimpanan cache",
       "Teleport Capri": "Pindahkan Capri",
       "Capri could not start.": "Capri tidak dapat dimulakan.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data tersimpan anda masih terpelihara. Baiki Capri menggunakan pemasang dan cuba lagi."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data tersimpan anda masih terpelihara. Baiki Capri menggunakan pemasang dan cuba lagi.",
+      "Model devices": "Peranti model",
+      "Language model device": "Peranti model bahasa",
+      "Voice model device": "Peranti model suara",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Pilih secara berasingan untuk bahasa dan suara. CPU menggunakan RAM sistem dan boleh lebih perlahan. API luaran berjalan pada perisian keras penyedia.",
+      "Save and restart Capri": "Simpan dan mulakan semula Capri",
+      "Selected GPU is unavailable": "GPU yang dipilih tidak tersedia",
+      "Checking available devices...": "Memeriksa peranti yang tersedia...",
+      "Device discovery failed. Try refreshing.": "Penemuan peranti gagal. Cuba semburat semula.",
+      "This GPU is not available in the installed voice runtime.": "GPU ini tidak tersedia dalam pakej jiran suara yang dipasang.",
+      "This GPU is not available in the installed language model runtime.": "GPU ini tidak tersedia dalam pakej jiran model bahasa yang dipasang.",
+      "The installed voice runtime cannot execute on this GPU.": "Pakej jiran suara yang dipasang tidak boleh dilaksanakan pada GPU ini."
     },
     "sw": {
       "Save memory": "Kumbuka taarifa",
@@ -1876,7 +2415,18 @@
       "Type text": "Andika maandishi",
       "Attachment": "Kiambatisho",
       "Capri could not start.": "Capri haikuweza kuanzishwa.",
-      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data zako zilizohifadhiwa zimehifadhiwa salama. Rekebisha Capri kwa kutumia kisakinishi kisha ujaribu tena."
+      "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data zako zilizohifadhiwa zimehifadhiwa salama. Rekebisha Capri kwa kutumia kisakinishi kisha ujaribu tena.",
+      "Model devices": "Mashine za modeli",
+      "Language model device": "Mashine ya mchakato wa lugha",
+      "Voice model device": "Mashine ya mchakato wa sifa",
+      "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Chagua kwa muundo wa kipekee kwa lugha na sifa. CPU inatumia RAM ya mfumo na inaweza kuwa ngumu zaidi. API nje hufanya kazi katika utengenezaji wa kifaa.",
+      "Save and restart Capri": "Hifadhi na ufanikiweze tena Capri",
+      "Selected GPU is unavailable": "GPU iliyochaguliwa haipo tayari",
+      "Checking available devices...": "Inafanyika mashine zinazopo...",
+      "Device discovery failed. Try refreshing.": "Utafiti wa mashime ulimbia. Jaribu kurefreshisha.",
+      "This GPU is not available in the installed voice runtime.": "GPU hii haipo katika mchakato wa sifa uliofanyiwa.",
+      "This GPU is not available in the installed language model runtime.": "GPU hii haipo katika mchakato wa mchakato wa lugha uliofanyiwa.",
+      "The installed voice runtime cannot execute on this GPU.": "Mchakato wa sifa uliofanyiwa hauwezi kufanya kazi hapa."
     }
   }
 }

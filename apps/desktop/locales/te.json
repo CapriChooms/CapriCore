@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "మీరు సేవ్ చేసిన డేటా భద్రంగా ఉంది. ఇన్‌స్టాలర్‌తో Capriని రిపేర్ చేసి మళ్లీ ప్రయత్నించండి.",
     "Public updates do not require a GitHub account or token.": "పబ్లిక్ అప్‌డేట్‌లకు GitHub ఖాతా లేదా టోకెన్ అవసరం లేదు.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "నవీకరణలు GitHubలో CapriChooms/CapriCore నుండి వస్తాయి మరియు ఇన్‌స్టాలేషన్‌కు ముందు SHA-256తో తనిఖీ చేయబడతాయి.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChoomsని వనరుల యజమానిగా ఎంచుకోండి, కేవలం CapriCore రిపోజిటరీ మరియు కంటెంట్‌లు: చదవడానికి మాత్రమే."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "CapriChoomsని వనరుల యజమానిగా ఎంచుకోండి, కేవలం CapriCore రిపోజిటరీ మరియు కంటెంట్‌లు: చదవడానికి మాత్రమే.",
+    "Model devices": "మోడల్ డివైజ్‌లు",
+    "Language model device": "భాషా మోడల్ డివైజ్",
+    "Voice model device": "వాక్యం మోడల్ డివైజ్",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "భాష మరియు వాయిస్‌ను స్వతంత్రంగా ఎంచుకోండి. CPU సిస్టమ్‌లోని RAM ను ఉపయోగిస్తుంది మరియు దీని వేగం తక్కువగా ఉండవచ్చు. బాహ్య API ప్రొవైడర్‌ల హార్డ్‌వేర్‌పై పనిచేస్తుంది.",
+    "Save and restart Capri": "Capri నిల్వ చేయండి మరియు రీస్టార్ట్ చేయండి",
+    "Selected GPU is unavailable": "ఎంచుకున్న GPU అందుబాటులో లేదు",
+    "Checking available devices...": "అందుబాటులో ఉన్న డివైజ్‌లను సరిచూస్తున్నారు...",
+    "Device discovery failed. Try refreshing.": "డివైజ్ కనుగొనడం విఫలమైంది. ఫ్రెష్ చేయడానికి ప్రయత్నించండి.",
+    "This GPU is not available in the installed voice runtime.": "ఈ GPU ఇన్‌స్టాల్ చేసిన వాయిస్ ర్యాప్టింగ్‌లో అందుబాటులో లేదు.",
+    "This GPU is not available in the installed language model runtime.": "ఈ GPU ఇన్‌స్టాల్ చేసిన భాషా మోడల్ ర్యాప్టింగ్‌లో అందుబాటులో లేదు.",
+    "The installed voice runtime cannot execute on this GPU.": "ఇన్‌స్టాల్ చేసిన వాయిస్ ర్యాప్టింగ్ ఈ GPU 'పై పనిచేయలేదు."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

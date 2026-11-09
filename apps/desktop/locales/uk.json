@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Збережені дані не зачеплено. Відновіть Capri за допомогою інсталятора та повторіть спробу.",
     "Public updates do not require a GitHub account or token.": "Для публічних оновлень не потрібні обліковий запис GitHub і токен.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Оновлення надходять із CapriChooms/CapriCore на GitHub і перевіряються за допомогою SHA-256 перед встановленням.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Виберіть CapriChooms як власника ресурсу, лише репозиторій CapriCore і вміст: лише для читання."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Виберіть CapriChooms як власника ресурсу, лише репозиторій CapriCore і вміст: лише для читання.",
+    "Model devices": "Устройства моделей",
+    "Language model device": "Устройство для мовної моделі",
+    "Voice model device": "Устройство для голосової моделі",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Виберіть незалежно для мовної та голосової моделей. CPU використовує оперативну пам'ять системи і може працювати повільніше. Зовнішній API працює на апаратному забезпеченні постачальника.",
+    "Save and restart Capri": "Зберегти та перезапустити Capri",
+    "Selected GPU is unavailable": "Вибрана GPU недоступна",
+    "Checking available devices...": "Перевірка доступних пристроїв...",
+    "Device discovery failed. Try refreshing.": "Не вдалося виявити пристрій. Спробуйте оновити сторінку.",
+    "This GPU is not available in the installed voice runtime.": "Ця GPU недоступна в встановленому середовищі виконання голосової моделі.",
+    "This GPU is not available in the installed language model runtime.": "Ця GPU недоступна в встановленому середовищі виконання мовної моделі.",
+    "The installed voice runtime cannot execute on this GPU.": "Встановлене середовище виконання голосової моделі не може запускатися на цій GPU."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

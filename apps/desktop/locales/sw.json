@@ -1872,7 +1872,18 @@
     "Your saved data has been preserved. Repair Capri with the installer and try again.": "Data zako zilizohifadhiwa zimehifadhiwa salama. Rekebisha Capri kwa kutumia kisakinishi kisha ujaribu tena.",
     "Public updates do not require a GitHub account or token.": "Masasisho ya umma hayahitaji akaunti ya GitHub au tokeni.",
     "Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.": "Masasisho hutoka kwa CapriChooms/CapriCore kwenye GitHub na huteuliwa na SHA-256 kabla ya kusakinisha.",
-    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Chagua CapriChooms kama mmiliki wa rasilimali, hazina ya CapriCore pekee, na Yaliyomo: Kusoma pekee."
+    "Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.": "Chagua CapriChooms kama mmiliki wa rasilimali, hazina ya CapriCore pekee, na Yaliyomo: Kusoma pekee.",
+    "Model devices": "Mashine za modeli",
+    "Language model device": "Mashine ya mchakato wa lugha",
+    "Voice model device": "Mashine ya mchakato wa sifa",
+    "Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.": "Chagua kwa muundo wa kipekee kwa lugha na sifa. CPU inatumia RAM ya mfumo na inaweza kuwa ngumu zaidi. API nje hufanya kazi katika utengenezaji wa kifaa.",
+    "Save and restart Capri": "Hifadhi na ufanikiweze tena Capri",
+    "Selected GPU is unavailable": "GPU iliyochaguliwa haipo tayari",
+    "Checking available devices...": "Inafanyika mashine zinazopo...",
+    "Device discovery failed. Try refreshing.": "Utafiti wa mashime ulimbia. Jaribu kurefreshisha.",
+    "This GPU is not available in the installed voice runtime.": "GPU hii haipo katika mchakato wa sifa uliofanyiwa.",
+    "This GPU is not available in the installed language model runtime.": "GPU hii haipo katika mchakato wa mchakato wa lugha uliofanyiwa.",
+    "The installed voice runtime cannot execute on this GPU.": "Mchakato wa sifa uliofanyiwa hauwezi kufanya kazi hapa."
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

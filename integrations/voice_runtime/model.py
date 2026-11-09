@@ -36,6 +36,10 @@ def settings():
         raise ValueError("Invalid companion voice configuration")
     value["cpuThreads"] = max(1, min(value["cpuThreads"], os.cpu_count() or 1, int(os.environ.get("CAPRI_CPU_THREADS", "16"))))
     value["profilePath"] = inside(ROOT, value["profileDir"])
+    device = os.environ.get('CAPRI_VOICE_COMPUTE_DEVICE', 'auto')
+    if device not in {'auto', 'cpu', 'cuda:0'}:
+        raise ValueError('Invalid voice compute device')
+    value['computeDevice'] = 'cpu' if device == 'cpu' else 'cuda:0'
     return value
 
 
@@ -50,6 +54,10 @@ class DecoderMemoryBudget:
     decoder_promotion_bytes = 2560 * 1024**2
 
     def choose_decoder(self):
+        if self.config.get('computeDevice') == 'cpu':
+            self.set_decoder_device('cpu')
+            self.decoder_reason = 'configured-cpu'
+            return
         requested = self.config.get('decoderDevice', 'auto')
         target = 'cpu'
         self.decoder_reason = 'configured-cpu'
@@ -78,6 +86,8 @@ class DecoderMemoryBudget:
         self._decoder_check_after = time.monotonic() + 30
 
     def rebalance_decoder(self):
+        if self.config.get('computeDevice') == 'cpu':
+            return
         if self.config.get('decoderDevice', 'auto') != 'auto':
             return
         now = time.monotonic()
@@ -112,8 +122,12 @@ class DecoderMemoryBudget:
             return free
         # On WDDM cudaMemGetInfo may include a budget backed by system RAM.
         try:
+            visible = os.environ.get('CAPRI_VOICE_GPU_UUID')
+            if os.environ.get('CUDA_VISIBLE_DEVICES') and not visible:
+                return free  # No reliable NVML identity; never read another card's row.
             result = subprocess.run(
-                ['nvidia-smi', '--query-gpu=memory.free', '--format=csv,noheader,nounits'],
+                ['nvidia-smi', *(['--id=' + visible] if visible else []),
+                 '--query-gpu=memory.free', '--format=csv,noheader,nounits'],
                 capture_output=True, text=True, timeout=3, check=True,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
             )
@@ -128,7 +142,8 @@ class CapriVoice(DecoderMemoryBudget):
         torch.set_num_threads(config["cpuThreads"])
         torch.backends.cuda.matmul.allow_tf32 = False
         torch.backends.cudnn.allow_tf32 = False
-        if not torch.cuda.is_available():
+        compute = config.get('computeDevice', 'cuda:0')
+        if compute != 'cpu' and not torch.cuda.is_available():
             raise RuntimeError("The selected voice needs the local CUDA environment")
         folder = config["profilePath"]
         profile = json.loads((folder / "voice-profile.json").read_text(encoding="utf-8"))
@@ -147,8 +162,10 @@ class CapriVoice(DecoderMemoryBudget):
         load_adapter(self.engine.t3, folder, read_config())
         self.engine.t3.eval()
         self.merged_projections = len(merge_adapters(self.engine.t3)) if config.get("mergeAdapter", True) else 0
-        self.engine.t3.to(device="cuda:0", dtype=torch.float32)
+        self.engine.t3.to(device=compute, dtype=torch.float32)
         self.reference_memory = prepare_reference(self.engine, str(reference_file), norm_loudness=False)
+        # Reference/speaker encoders remain on CPU during conditioning.
+        self.engine.device = compute
         torch.cuda.empty_cache()
         self.config = config
         self.decoder_device = "cpu"
@@ -162,7 +179,7 @@ class CapriVoice(DecoderMemoryBudget):
         self.config, self.profile = config, profile
         self.last_metrics = {}
         self.graph = None
-        if not getattr(torch.version, 'hip', None) and config.get('cudaGraph', True) and config.get('mergeAdapter', True) and self.free_gpu_bytes() >= 768 * 1024**2:
+        if compute != 'cpu' and not getattr(torch.version, 'hip', None) and config.get('cudaGraph', True) and config.get('mergeAdapter', True) and self.free_gpu_bytes() >= 768 * 1024**2:
             try:
                 from .cuda_graph import TurboGraph
                 self.graph = TurboGraph(self.engine.t3, cancelled=lambda: self.cancelled, max_tokens=config['maxSpeechTokens'])

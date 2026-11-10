@@ -11,6 +11,7 @@ import {
   dedicatedMusicContext,
   dedicatedMusicRequest,
   namedSpotifyPlay,
+  spotifyPlaybackCandidate,
   mentionsDiscord,
 } from './computer-mode-request.mjs';
 import { callTaskNeedsOwner, callTaskRequest } from './call-computer-task.mjs';
@@ -215,6 +216,7 @@ export class ChatService {
     commitNpuDialogue = null,
     localCalculation = null,
     localMusic = null,
+    prepareMusic = null,
     ownerMemoryWorkspace = null,
     fetchImpl = fetch,
     timeoutMs = 180000,
@@ -249,6 +251,7 @@ export class ChatService {
       commitNpuDialogue,
       localCalculation,
       localMusic,
+      prepareMusic,
       ownerMemoryWorkspace,
       fetchImpl,
       timeoutMs,
@@ -611,12 +614,29 @@ export class ChatService {
         finishComputer(callTaskNeedsOwner(state.languages?.conversation));
         return;
       }
-      const music =
+      let music =
         !computerMode &&
         this.localMusic &&
         state.spotify?.enabled &&
         state.spotify?.prepared &&
         namedSpotifyPlay(input.text);
+      if (
+        !music &&
+        !computerMode &&
+        this.localMusic &&
+        this.prepareMusic &&
+        state.spotify?.enabled &&
+        state.spotify?.prepared &&
+        (dedicatedMusicRequest(input.text) || spotifyPlaybackCandidate(input.text))
+      ) {
+        phase = 'spotify-planning';
+        armDeadline(this.toolTimeoutMs);
+        markResponseTiming('intent_start');
+        music = await this.prepareMusic(input.text, { signal: requestSignal });
+        markResponseTiming('intent_ready');
+        requestSignal.throwIfAborted();
+        if (!music) clearTimeout(firstTextTimer);
+      }
       if (music) {
         phase = 'spotify';
         const callId = `local-music-${input.id}`;
@@ -627,7 +647,11 @@ export class ChatService {
         const language = state.languages?.conversation ?? 'en';
         const text =
           result?.ok === true &&
-          result.data?.playing === true &&
+          (music.action === 'pause'
+            ? result.data?.playing === false
+            : music.action === 'volume'
+              ? Number.isFinite(result.data?.volumePercent)
+              : result.data?.playing === true) &&
           factualActionReply('spotify_control', music, result, language);
         append(
           cleanText.push(
@@ -1115,6 +1139,8 @@ export class ChatService {
       // A partial reply still retains its last ordinary character on cancellation.
       const tail = reason?.code === 'CAPRI_TOOL_LOOP' ? '' : cleanText.push('', true);
       if (assistant.text.length + tail.length <= MAX_OUTPUT) assistant.text += tail;
+      if (!controller.signal.aborted && /^[\s\[\]{}*`_,]+$/u.test(assistant.text))
+        assistant.text = '';
       assistant.status = controller.signal.aborted ? 'interrupted' : 'error';
       this.store.put(assistant);
       emit({

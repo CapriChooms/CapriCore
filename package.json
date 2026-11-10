@@ -91,7 +91,7 @@
   },
   "devDependencies": {
     "electron": "45.0.0",
-    "playwright-core": "1.63.0",
+    "playwright-core": "1.65.0",
     "prettier": "3.6.2"
   },
   "license": "GPL-3.0-only",

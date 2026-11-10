@@ -627,6 +627,68 @@ test('named Spotify play respects permissions and never claims unverified playba
   assert.equal(calls, 3);
 });
 
+test('ordinary music and unqualified artist requests use an isolated plan and verified Spotify receipts', async () => {
+  const calls = [],
+    plans = [],
+    events = [];
+  const service = client({
+    interfaceState: () => ({ spotify: { enabled: true, prepared: true } }),
+    fetchImpl: () => assert.fail('Music must not use the general gateway conversation'),
+    prepareModel: () => assert.fail('Isolated planning owns its inference'),
+    computerTask: () => assert.fail('No desktop session for music'),
+    prepareMusic: async (text) => {
+      plans.push(text);
+      return text.includes('Artist')
+        ? { action: 'play', query: 'Example Artist' }
+        : { action: 'resume' };
+    },
+    localMusic: async (_input, args) => {
+      calls.push(args);
+      return { ok: true, data: { playing: true } };
+    },
+  });
+  for (const text of ['Play some nice music', 'Play Example Artist'])
+    await service.send({ id: randomUUID(), text }, (e) => events.push(e));
+  assert.deepEqual(plans, ['Play some nice music', 'Play Example Artist']);
+  assert.deepEqual(calls, [{ action: 'resume' }, { action: 'play', query: 'Example Artist' }]);
+  assert.equal(events.filter((e) => e.type === 'turn.completed').length, 2);
+  assert(
+    events.filter((e) => e.type === 'turn.completed').every((e) => e.assistant.text === 'Resumed.'),
+  );
+});
+
+test('Spotify planning respects permissions, cancellation and non-music verdicts without side effects', async () => {
+  let enabled = false,
+    modelCalls = 0,
+    planning = 0;
+  const service = client({
+    interfaceState: () => ({ spotify: { enabled, prepared: true } }),
+    prepareMusic: async () => {
+      planning++;
+      return null;
+    },
+    localMusic: () => assert.fail('A rejected plan must never execute'),
+    fetchImpl: () => {
+      modelCalls++;
+      return response('Hello.');
+    },
+  });
+  await service.send({ id: randomUUID(), text: 'Play Example Artist' }, () => {});
+  assert.equal(planning, 0);
+  enabled = true;
+  await service.send({ id: randomUUID(), text: 'Play chess' }, () => {});
+  assert.equal(planning, 1);
+  assert.equal(modelCalls, 2);
+  const id = randomUUID(),
+    events = [];
+  service.prepareMusic = async () => {
+    service.cancel(id);
+    return { action: 'resume' };
+  };
+  await service.send({ id, text: 'Play some nice music' }, (e) => events.push(e));
+  assert.equal(events.at(-1).type, 'turn.cancelled');
+});
+
 test('standalone calculator requests return the local result without preparing a model or opening a window', async () => {
   const events = [];
   const service = client({

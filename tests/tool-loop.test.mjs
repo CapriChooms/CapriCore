@@ -30,3 +30,22 @@ test('unchanged discovery is bounded but real progress, changed results and a fr
     new ToolProgressGuard().record('desktop_control', { action: 'apps' }, { ok: true, apps: [] }),
   );
 });
+
+test('generated Spotify tool syntax never leaks through text, even in one-character deltas', () => {
+  for (const text of [
+    '[spotify_control{action:play}]',
+    '**[spotify_control{action:play}]**',
+    'spotify_control(action=play)',
+  ]) {
+    const stream = new CoreFailureStream();
+    let visible = '';
+    assert.throws(
+      () => {
+        for (const char of text) visible += stream.push(char);
+      },
+      { code: 'CAPRI_TOOL_ENCODING' },
+    );
+    assert.equal(visible, '');
+  }
+  assert.equal(new CoreFailureStream().push('Spotify is ready.'), 'Spotify is ready.');
+});

@@ -52,6 +52,14 @@ export class ToolProgressGuard {
 }
 
 const failurePrefixes = ['OpenClaw stopped this run', 'OpenClaw stopped this turn'];
+const toolPrefixes = [
+  'spotify_control',
+  'application_control',
+  'desktop_control',
+  'filesystem_control',
+  'settings_control',
+  'time_control',
+].flatMap((name) => [name + '{', name + '(']);
 /** Hold only a possible diagnostic prefix at a line start, never an entire normal reply. */
 export class CoreFailureStream {
   constructor() {
@@ -60,7 +68,7 @@ export class CoreFailureStream {
     this.failed = false;
   }
   push(text, final = false) {
-    if (this.failed) throw toolLoopError();
+    if (this.failed) throw this.failure ?? toolLoopError();
     let output = '';
     for (const char of text) {
       if (!this.lineStart) {
@@ -77,12 +85,26 @@ export class CoreFailureStream {
         }
         continue;
       }
+      const toolCandidate = candidate.replace(/^(?:\*\*)?\[?/u, '');
+      if (toolPrefixes.includes(toolCandidate)) {
+        this.failed = true;
+        this.buffer = '';
+        this.failure = Object.assign(new Error('Model returned tool syntax as reply text.'), {
+          code: 'CAPRI_TOOL_ENCODING',
+        });
+        throw this.failure;
+      }
       if (failurePrefixes.some((prefix) => candidate === prefix.toLowerCase())) {
         this.failed = true;
         this.buffer = '';
         throw toolLoopError();
       }
-      if (failurePrefixes.some((prefix) => prefix.toLowerCase().startsWith(candidate))) continue;
+      if (
+        failurePrefixes.some((prefix) => prefix.toLowerCase().startsWith(candidate)) ||
+        ['[', '**', '**['].some((prefix) => prefix.startsWith(candidate)) ||
+        toolPrefixes.some((prefix) => prefix.startsWith(toolCandidate))
+      )
+        continue;
       output += this.buffer;
       this.buffer = '';
       this.lineStart = char === '\n';

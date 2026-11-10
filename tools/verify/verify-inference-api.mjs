@@ -60,7 +60,7 @@ const report = {
   calls: 0,
   toolRoundTrip: false,
 };
-let socialPhase = true,
+let socialPhase = 'conversation',
   scopedPhase = null;
 const options = {
   root: folder,
@@ -134,8 +134,13 @@ const options = {
     }
     if (socialPhase) {
       const names = (payload.tools ?? []).map((tool) => tool.function.name);
-      assert.ok(names.every((name) => ['memory_search', 'memory_get'].includes(name)));
-      report.socialTools = names;
+      if (socialPhase === 'dialogue') {
+        assert.deepEqual(names, [], 'ordinary chat must reach the provider with zero tools');
+        report.dialogueCalls = (report.dialogueCalls ?? 0) + 1;
+      } else {
+        assert.deepEqual(names.sort(), ['memory_get', 'memory_search']);
+        report.socialTools = names;
+      }
       return new Response(
         'data: ' +
           JSON.stringify({
@@ -227,17 +232,25 @@ gatewayConfig.plugins.entries['capri-companion-tools'].config.endpointRoot = pat
 writeFileSync(rt.configPath, JSON.stringify(gatewayConfig, null, 2));
 try {
   await startGateway(rt);
-  const social = await request(rt.gatewayUrl + '/v1/chat/completions', {
-    method: 'POST',
-    timeout: 120000,
-    headers: { ...headers(rt), 'x-capri-tools-once': 'conversation' },
-    body: JSON.stringify({
-      model: 'openclaw/capri',
-      stream: false,
-      messages: [{ role: 'user', content: 'Hello.' }],
-    }),
-  });
-  assert.match(JSON.stringify(social), /Hello/);
+  const transitionSession = 'agent:capri:transition-fixture';
+  for (const mode of ['dialogue', 'conversation', 'dialogue']) {
+    socialPhase = mode;
+    const social = await request(rt.gatewayUrl + '/v1/chat/completions', {
+      method: 'POST',
+      timeout: 120000,
+      headers: {
+        ...headers(rt),
+        'x-capri-tools-once': mode,
+        'x-openclaw-session-key': transitionSession,
+      },
+      body: JSON.stringify({
+        model: 'openclaw/capri',
+        stream: false,
+        messages: [{ role: 'user', content: 'Hello.' }],
+      }),
+    });
+    assert.match(JSON.stringify(social), /Hello/);
+  }
   socialPhase = false;
   for (const scope of ['calculator', 'spotify', 'desktop', 'desktop-task']) {
     scopedPhase = scope;
@@ -267,7 +280,7 @@ try {
   const result = await request(rt.gatewayUrl + '/v1/chat/completions', {
     method: 'POST',
     timeout: 120000,
-    headers: headers(rt),
+    headers: { ...headers(rt), 'x-openclaw-session-key': transitionSession },
     body: JSON.stringify({
       model: 'openclaw/capri',
       stream: false,
@@ -280,7 +293,24 @@ try {
     }),
   });
   assert.equal(report.toolRoundTrip, true);
-  assert.equal(report.calls, 10);
+  socialPhase = 'dialogue';
+  const afterAction = await request(rt.gatewayUrl + '/v1/chat/completions', {
+    method: 'POST',
+    timeout: 30000,
+    headers: {
+      ...headers(rt),
+      'x-capri-tools-once': 'dialogue',
+      'x-openclaw-session-key': transitionSession,
+    },
+    body: JSON.stringify({
+      model: 'openclaw/capri',
+      stream: false,
+      messages: [{ role: 'user', content: 'Hello again.' }],
+    }),
+  });
+  assert.match(JSON.stringify(afterAction), /Hello/);
+  assert.equal(report.calls, 13);
+  assert.equal(report.dialogueCalls, 3);
   assert.equal(report.computerTaskRoundTrip, true);
   assert.equal(report.scientificToolRoundTrip, true);
   assert.equal(report.desktopToolRoundTrip, true);

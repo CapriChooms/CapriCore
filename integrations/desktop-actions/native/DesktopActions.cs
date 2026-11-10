@@ -825,13 +825,52 @@ class DesktopActions {
                 file.StartsWith(packages+"Microsoft.WindowsCalculator_",StringComparison.OrdinalIgnoreCase)&&name.Equals("CalculatorApp.exe",StringComparison.OrdinalIgnoreCase);
         }catch{return false;}
     }
-    static Process Window(string app){
+    sealed class AppWindow {
+        public Process Process; public IntPtr MainWindowHandle;
+        public int Id { get { return Process.Id; } }
+        public DateTime StartTime { get { return Process.StartTime; } }
+        public bool HasExited { get { return Process.HasExited; } }
+        public string MainWindowTitle { get { return WindowLabel(MainWindowHandle); } }
+    }
+    // Packaged Calculator can transfer its top-level window to the Windows
+    // frame host after its splash screen. Retain the trusted app identity and
+    // resolve its frame through an actual child HWND owned by that app.
+    static IntPtr AppFrame(Process app){
+        IntPtr result=IntPtr.Zero;
+        EnumWindows((window,state)=>{
+            if(!IsWindowVisible(window))return true;
+            var cls=new StringBuilder(128);GetClassName(window,cls,cls.Capacity);
+            if(cls.ToString()!="ApplicationFrameWindow")return true;
+            uint pid;GetWindowThreadProcessId(window,out pid);
+            try { using(var host=Process.GetProcessById((int)pid)) {
+                if(!Path.GetFullPath(host.MainModule.FileName).Equals(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),"ApplicationFrameHost.exe"),StringComparison.OrdinalIgnoreCase))return true;
+            }} catch { return true; }
+            bool contains=false;
+            EnumChildWindows(window,(child,unused)=>{uint childPid;GetWindowThreadProcessId(child,out childPid);if(childPid==(uint)app.Id){contains=true;return false;}return true;},IntPtr.Zero);
+            if(contains){result=window;return false;}return true;
+        },IntPtr.Zero);
+        return result;
+    }
+    static AppWindow Window(string app){
         var names=app=="notepad"?new[]{"notepad"}:new[]{"CalculatorApp","Calculator"};
-        var matches=names.SelectMany(Process.GetProcessesByName).Where(p=>{try{return p.MainWindowHandle!=IntPtr.Zero&&Trusted(p,app);}catch{return false;}}).ToArray();
-        if(matches.Length>1)throw new InvalidOperationException("Several supported app windows are open. Keep one window open before asking Capri to control it.");
+        var matches=new List<AppWindow>();
+        foreach(var process in names.SelectMany(Process.GetProcessesByName)) {
+            try {
+                if(!Trusted(process,app))continue;
+                var handle=AppFrame(process);if(handle==IntPtr.Zero)handle=process.MainWindowHandle;
+                if(handle!=IntPtr.Zero)matches.Add(new AppWindow{Process=process,MainWindowHandle=handle});
+            } catch(InvalidOperationException){} catch(System.ComponentModel.Win32Exception){}
+        }
+        if(matches.Count>1)throw new InvalidOperationException("Several supported app windows are open. Keep one window open before asking Capri to control it.");
         return matches.FirstOrDefault();
     }
-    static AutomationElement Root(Process process){if(process.HasExited)throw new InvalidOperationException("The app closed.");return AutomationElement.FromHandle(process.MainWindowHandle);}
+    static AutomationElement Root(AppWindow process){
+        if(process.HasExited)throw new InvalidOperationException("The app closed.");
+        uint owner;GetWindowThreadProcessId(process.MainWindowHandle,out owner);
+        if(owner!=(uint)process.Id&&AppFrame(process.Process)!=process.MainWindowHandle)
+            throw new InvalidOperationException("The app window changed. Inspect it again before continuing.");
+        return AutomationElement.FromHandle(process.MainWindowHandle);
+    }
     static IEnumerable<AutomationElement> BoundedControls(AutomationElement root,int limit=250,int timeoutMs=1500){
         if(root==null)yield break;
         var queue=new Queue<AutomationElement>();queue.Enqueue(root);int count=0;var timer=Stopwatch.StartNew();

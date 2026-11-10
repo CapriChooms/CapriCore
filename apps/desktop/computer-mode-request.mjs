@@ -103,6 +103,15 @@ function musicRequestScope(text) {
   return gui || mixed ? null : value;
 }
 
+/** Candidate only; the bounded semantic planner must confirm a music action. */
+export function spotifyPlaybackCandidate(text) {
+  const scoped = musicRequestScope(text);
+  if (scoped === null) return false;
+  return /^(?:play|put\s+on|turn\s+on|resume|pause|skip|next|previous|включи|поставь|воспроизведи|продолжи|приостанови|останови)(?=\s|[.!?]|$)/iu.test(
+    requestText(scoped),
+  );
+}
+
 /** Only an explicit, single owner request can bypass generated tool syntax. */
 export function namedSpotifyPlay(text) {
   const scoped = musicRequestScope(text);

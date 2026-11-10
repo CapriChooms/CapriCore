@@ -198,7 +198,7 @@
     {
       "file": "dist/builtin-openclaw-CcrkVuBH.mjs",
       "beforeSha256": "01d794f0a8e1eb2407d9ee54973c77c2ed73b0a366a6b38a750f1d634920d5aa",
-      "afterSha256": "7ed9fda24fbb07ac89fa3a8695f4433c0b7f3f42acb133c96346fa7d0276590f",
+      "afterSha256": "d6441d3d47c3a7f22987ec4f0fe6fd6b50406a6ffb65330b7c5d9584f7348120",
       "upgrades": [
         {
           "beforeSha256": "736ba7ebd5a014cfc92c5bd618222f6ebb469b2dae6027f49d24e7c0f60b2101",
@@ -226,6 +226,10 @@
             {
               "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
               "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+            },
+            {
+              "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({",
+              "after": "\t\t// Capri: an authenticated dialogue mask intentionally exposes zero tools.\n\t\t// Keep the empty-list error for missing plugins and unrelated agents.\n\t\tconst capriDialogueOnly = attempt.agentId === \"capri\" && Array.isArray(attempt.toolsAllow) && attempt.toolsAllow.length === 0;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly || capriDialogueOnly ? null : buildEmptyExplicitToolAllowlistError({"
             }
           ]
         },
@@ -243,6 +247,10 @@
             {
               "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
               "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+            },
+            {
+              "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({",
+              "after": "\t\t// Capri: an authenticated dialogue mask intentionally exposes zero tools.\n\t\t// Keep the empty-list error for missing plugins and unrelated agents.\n\t\tconst capriDialogueOnly = attempt.agentId === \"capri\" && Array.isArray(attempt.toolsAllow) && attempt.toolsAllow.length === 0;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly || capriDialogueOnly ? null : buildEmptyExplicitToolAllowlistError({"
             }
           ]
         },
@@ -256,6 +264,10 @@
             {
               "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
               "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+            },
+            {
+              "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({",
+              "after": "\t\t// Capri: an authenticated dialogue mask intentionally exposes zero tools.\n\t\t// Keep the empty-list error for missing plugins and unrelated agents.\n\t\tconst capriDialogueOnly = attempt.agentId === \"capri\" && Array.isArray(attempt.toolsAllow) && attempt.toolsAllow.length === 0;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly || capriDialogueOnly ? null : buildEmptyExplicitToolAllowlistError({"
             }
           ]
         },
@@ -265,6 +277,19 @@
             {
               "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
               "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+            },
+            {
+              "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({",
+              "after": "\t\t// Capri: an authenticated dialogue mask intentionally exposes zero tools.\n\t\t// Keep the empty-list error for missing plugins and unrelated agents.\n\t\tconst capriDialogueOnly = attempt.agentId === \"capri\" && Array.isArray(attempt.toolsAllow) && attempt.toolsAllow.length === 0;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly || capriDialogueOnly ? null : buildEmptyExplicitToolAllowlistError({"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "7ed9fda24fbb07ac89fa3a8695f4433c0b7f3f42acb133c96346fa7d0276590f",
+          "edits": [
+            {
+              "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({",
+              "after": "\t\t// Capri: an authenticated dialogue mask intentionally exposes zero tools.\n\t\t// Keep the empty-list error for missing plugins and unrelated agents.\n\t\tconst capriDialogueOnly = attempt.agentId === \"capri\" && Array.isArray(attempt.toolsAllow) && attempt.toolsAllow.length === 0;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly || capriDialogueOnly ? null : buildEmptyExplicitToolAllowlistError({"
             }
           ]
         }
@@ -297,6 +322,10 @@
         {
           "before": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\tcontextTokenBudget: attempt.contextTokenBudget",
           "after": "\t\tcfg: attempt.config,\n\t\tpluginMetadataSnapshot: input.getCurrentAttemptPluginMetadataSnapshot(),\n\t\t// Capri: keep preflight headroom aligned with the transient output limit.\n\t\tmodel: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel,\n\t\tcontextTokenBudget: attempt.contextTokenBudget"
+        },
+        {
+          "before": "\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly ? null : buildEmptyExplicitToolAllowlistError({",
+          "after": "\t\t// Capri: an authenticated dialogue mask intentionally exposes zero tools.\n\t\t// Keep the empty-list error for missing plugins and unrelated agents.\n\t\tconst capriDialogueOnly = attempt.agentId === \"capri\" && Array.isArray(attempt.toolsAllow) && attempt.toolsAllow.length === 0;\n\t\tconst emptyExplicitToolAllowlistError = attempt.forceRestartSafeTools || capriChatOnly || capriDialogueOnly ? null : buildEmptyExplicitToolAllowlistError({"
         }
       ]
     },

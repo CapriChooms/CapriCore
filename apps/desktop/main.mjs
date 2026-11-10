@@ -12,6 +12,7 @@ import { ResolveAdapter } from '../../integrations/resolve/service.mjs';
 import { ComputerAgent } from './computer-agent.mjs';
 import { steamGameLauncher } from './steam-game-launch.mjs';
 import { computerIntentClassifier, computerPlanner } from './computer-planner.mjs';
+import { spotifyPlanner } from './spotify-planner.mjs';
 import { computerVision } from './computer-vision.mjs';
 import { FullComputerAccess } from './full-computer-access.mjs';
 import { ComputerRequests } from './computer-requests.mjs';
@@ -999,6 +1000,13 @@ async function initializeDesktop() {
       companionActions.execute('application_control', input.id, args, signal),
     localMusic: (input, args, signal) =>
       companionActions.execute('spotify_control', input.id, args, signal),
+    prepareMusic: spotifyPlanner({
+      url: rt.inferenceUrl,
+      model: settings.model,
+      params: auxiliaryRunnerParams,
+      modelCapabilities: settings.modelCapabilities,
+      ...inferenceOptions,
+    }),
     computerAccess: (enabled, options) => {
       chat.assertToolAllowed('settings_control', {
         action: 'request',

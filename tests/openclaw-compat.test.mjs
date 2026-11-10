@@ -130,3 +130,21 @@ test('deliberate chat-only profiles tolerate only an empty or memory-only one-tu
     false,
   );
 });
+
+test('an intentional Capri dialogue mask is distinct from broken tool allowlists', () => {
+  const manifest = JSON.parse(
+    readFileSync(new URL('../integrations/openclaw-compat/patches.json', import.meta.url), 'utf8'),
+  );
+  const patch = manifest.patches.find((entry) => entry.file.includes('builtin-openclaw-'));
+  const edit = patch.edits.find((edit) => edit.after.includes('const capriDialogueOnly ='));
+  const declaration = edit.after.split('const emptyExplicitToolAllowlistError')[0];
+  const allowed = new Function('attempt', declaration + '\nreturn capriDialogueOnly;');
+  assert.equal(allowed({ agentId: 'capri', toolsAllow: [] }), true);
+  for (const attempt of [
+    { agentId: 'other', toolsAllow: [] },
+    { agentId: 'capri' },
+    { agentId: 'capri', toolsAllow: ['spotify_control'] },
+    { agentId: 'capri', toolsAllow: ['missing_plugin'] },
+  ])
+    assert.equal(allowed(attempt), false);
+});

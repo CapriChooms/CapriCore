@@ -864,7 +864,13 @@ class DesktopActions {
         if(matches.Count>1)throw new InvalidOperationException("Several supported app windows are open. Keep one window open before asking Capri to control it.");
         return matches.FirstOrDefault();
     }
-    static AutomationElement Root(AppWindow process){if(process.HasExited)throw new InvalidOperationException("The app closed.");return AutomationElement.FromHandle(process.MainWindowHandle);}
+    static AutomationElement Root(AppWindow process){
+        if(process.HasExited)throw new InvalidOperationException("The app closed.");
+        uint owner;GetWindowThreadProcessId(process.MainWindowHandle,out owner);
+        if(owner!=(uint)process.Id&&AppFrame(process.Process)!=process.MainWindowHandle)
+            throw new InvalidOperationException("The app window changed. Inspect it again before continuing.");
+        return AutomationElement.FromHandle(process.MainWindowHandle);
+    }
     static IEnumerable<AutomationElement> BoundedControls(AutomationElement root,int limit=250,int timeoutMs=1500){
         if(root==null)yield break;
         var queue=new Queue<AutomationElement>();queue.Enqueue(root);int count=0;var timer=Stopwatch.StartNew();

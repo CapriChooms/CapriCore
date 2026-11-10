@@ -293,8 +293,24 @@ try {
     }),
   });
   assert.equal(report.toolRoundTrip, true);
-  assert.equal(report.calls, 12);
-  assert.equal(report.dialogueCalls, 2);
+  socialPhase = 'dialogue';
+  const afterAction = await request(rt.gatewayUrl + '/v1/chat/completions', {
+    method: 'POST',
+    timeout: 30000,
+    headers: {
+      ...headers(rt),
+      'x-capri-tools-once': 'dialogue',
+      'x-openclaw-session-key': transitionSession,
+    },
+    body: JSON.stringify({
+      model: 'openclaw/capri',
+      stream: false,
+      messages: [{ role: 'user', content: 'Hello again.' }],
+    }),
+  });
+  assert.match(JSON.stringify(afterAction), /Hello/);
+  assert.equal(report.calls, 13);
+  assert.equal(report.dialogueCalls, 3);
   assert.equal(report.computerTaskRoundTrip, true);
   assert.equal(report.scientificToolRoundTrip, true);
   assert.equal(report.desktopToolRoundTrip, true);

@@ -29,15 +29,16 @@ import { fetchArtifact, artifactUrl, fileHash } from '../packages/installer/src/
 import { runCommand } from '../packages/installer/src/commands.mjs';
 import { install } from '../packages/installer/src/engine.mjs';
 import { estimateInstallStorage } from '../packages/installer/src/storage-estimate.mjs';
-import { importVoicePack, validateVoicePack } from '../packages/installer/src/voice-pack.mjs';
+import {
+  copyRussianVoicePack,
+  importVoicePack,
+  validateRussianVoicePack,
+  validateVoicePack,
+} from '../packages/installer/src/voice-pack.mjs';
 import { findFreePort } from '../packages/installer/src/ports.mjs';
 import { installationLock } from '../packages/installer/src/lock.mjs';
 import { ACTIVE_AVATAR_CATALOG, requireCapriAvatar } from '../apps/desktop/avatar-catalog.mjs';
-import {
-  OLLAMA_BACKEND_FILES,
-  OLLAMA_ROCM_DIRECTORY,
-  OLLAMA_ROCM_FILES,
-} from '../packages/runtime/src/host/ollama-bundle.mjs';
+import { LLAMA_VULKAN_FILES } from '../packages/runtime/src/host/llama-bundle.mjs';
 import {
   ELECTRON_RUNTIME_FILES,
   electronBundleReady,
@@ -126,9 +127,9 @@ test(
 test('installer manifests match reviewed runtimes, hardware profiles and all interface languages', () => {
   assert.ok(profilesAgree(spec));
   const upstream = json(path.join(root, 'config/upstream-lock.json'));
-  for (const name of ['node', 'ollama', 'uv'])
+  for (const name of ['node', 'llama', 'uv'])
     assert.equal(spec.artifacts[name].version, upstream[name].version);
-  assert.equal(spec.artifacts.ollama.sha256, upstream.ollama.windowsArchiveSha256);
+  assert.equal(spec.artifacts.llama.sha256, upstream.llama.windowsArchiveSha256);
   assert.equal(
     spec.artifacts.electron.version,
     json(path.join(root, 'package.json')).devDependencies.electron,
@@ -345,16 +346,20 @@ async function transactionFixture({
   voiceLanguage = '',
   damageAvatar = false,
   readOnlySource = false,
-  damagedOllama = false,
+  damagedLlama = false,
   inferenceMode,
   modelSource,
   voiceMode,
   includedReference = false,
   gpuName,
-  rocmState,
-  expectedRocmDownloads = 0,
-  failRocmPromotion = false,
+  llamaState,
+  failLlamaPromotion = false,
+  selectedProfile,
+  languageUpgrade,
+  routerNativeFailure = false,
+  russianAdapter,
 } = {}) {
+  const qwen = voiceMode === 'qwen' || voiceMode === 'qwen-ru';
   const target = folder(),
     controller = new AbortController(),
     events = [],
@@ -366,6 +371,18 @@ async function transactionFixture({
     installId: randomUUID(),
     version: '0.3.0',
   });
+  const previousModel = {
+    model: 'capri-qwen3.5:2b',
+    upstreamModel: 'qwen3.5:2b',
+    resourceProfile: 'balanced',
+    gatewayPort: 19876,
+    ollamaPort: 19877,
+    contextTokens: 65536,
+  };
+  if (selectedProfile) writeJsonAtomic(path.join(target, 'config/core.local.json'), previousModel);
+  const languageFile = path.join(target, 'data/desktop/languages.json');
+  if (languageUpgrade)
+    writeJsonAtomic(languageFile, { schemaVersion: 1, settings: languageUpgrade.previous });
   const canary = path.join(target, 'data/workspace/memory.md');
   mkdirSync(path.dirname(canary), { recursive: true });
   writeFileSync(canary, 'private memory canary');
@@ -375,58 +392,35 @@ async function transactionFixture({
     writeFileSync(replaced, 'old managed source fixture');
     chmodSync(replaced, 0o444);
   }
-  const exe = path.join(target, '.runtime/ollama/ollama.exe');
-  mkdirSync(path.dirname(exe), { recursive: true });
-  writeFileSync(exe, 'fixture executable - never executed');
-  for (const file of OLLAMA_BACKEND_FILES) {
-    const targetFile = path.join(path.dirname(exe), 'lib/ollama', file);
-    mkdirSync(path.dirname(targetFile), { recursive: true });
-    writeFileSync(targetFile, 'fixture backend - never executed');
-  }
-  if (damagedOllama) unlinkSync(path.join(path.dirname(exe), 'lib/ollama/llama-server.exe'));
-  writeJsonAtomic(path.join(target, '.runtime/installer/ollama.json'), {
-    sha256: spec.artifacts.ollama.sha256,
+  const bundle = path.join(target, '.runtime', spec.artifacts.llama.directory);
+  const exe = path.join(bundle, 'llama-server.exe');
+  const extractLlama = (destination = bundle) => {
+    mkdirSync(destination, { recursive: true });
+    for (const name of LLAMA_VULKAN_FILES)
+      writeFileSync(path.join(destination, name), 'fixture llama.cpp runtime');
+  };
+  extractLlama();
+  const receiptFile = path.join(target, '.runtime/installer/llama.json');
+  const files = {};
+  for (const name of LLAMA_VULKAN_FILES) files[name] = await fileHash(path.join(bundle, name));
+  writeJsonAtomic(receiptFile, {
+    sha256: spec.artifacts.llama.sha256,
     executableSha256: await fileHash(exe),
+    files,
   });
+  const previousReceipt = readFileSync(receiptFile, 'utf8');
+  const plugin = path.join(bundle, 'ggml-vulkan.dll');
+  if (damagedLlama) unlinkSync(plugin);
+  if (llamaState === 'corrupt') writeFileSync(plugin, 'corrupt Vulkan backend');
+  if (llamaState === 'empty') writeFileSync(plugin, '');
+  if (llamaState === 'stale') {
+    writeFileSync(plugin, 'corrupt Vulkan backend');
+    writeFileSync(path.join(bundle, 'stale-backend.dll'), 'legacy file');
+  }
   let voicePack = '';
   const multilingualCalls = [];
   const speechSetupCalls = [];
   let runtimeDownloads = 0;
-  let rocmDownloads = 0;
-  let rocmReceiptBefore;
-  const rocmFolder = path.join(path.dirname(exe), 'lib/ollama', OLLAMA_ROCM_DIRECTORY);
-  const rocmFiles = [...OLLAMA_ROCM_FILES, 'rocblas/library/additional-reviewed-kernel.hsaco'];
-  const extractRocm = (destination = rocmFolder) => {
-    for (const name of rocmFiles) {
-      const file = path.join(destination, name);
-      mkdirSync(path.dirname(file), { recursive: true });
-      writeFileSync(file, 'fixture AMD backend - never executed');
-    }
-  };
-  if (rocmState) {
-    extractRocm();
-    const backendHashes = {};
-    for (const name of rocmFiles) backendHashes[name] = await fileHash(path.join(rocmFolder, name));
-    writeJsonAtomic(path.join(target, '.runtime/installer/ollamaRocm.json'), {
-      sha256: spec.artifacts.ollamaRocm.sha256,
-      executableSha256: await fileHash(exe),
-      backendHashes,
-    });
-    rocmReceiptBefore = readFileSync(
-      path.join(target, '.runtime/installer/ollamaRocm.json'),
-      'utf8',
-    );
-    if (rocmState === 'corrupt')
-      writeFileSync(path.join(rocmFolder, rocmFiles.at(-1)), 'corrupted kernel');
-    if (rocmState === 'missing') unlinkSync(path.join(rocmFolder, rocmFiles.at(-1)));
-    if (rocmState === 'empty-dll') writeFileSync(path.join(rocmFolder, 'ggml-hip.dll'), '');
-    if (rocmState === 'empty-kernel') writeFileSync(path.join(rocmFolder, rocmFiles.at(-1)), '');
-    if (rocmState === 'stale')
-      writeFileSync(
-        path.join(rocmFolder, 'stale-unreviewed-kernel.hsaco'),
-        'preserved legacy kernel',
-      );
-  }
   if (voiceLanguage) {
     voicePack = folder();
     const adapter = Buffer.from('adapter fixture'),
@@ -447,7 +441,8 @@ async function transactionFixture({
       references: { neutral: { file: 'references/neutral.wav', sha256: digest(wav) } },
     });
   }
-  for (const name of voiceLanguage && voiceMode !== 'qwen' ? ['uv', 'git'] : ['uv']) {
+  if (russianAdapter) copyRussianVoicePack(russianAdapter, path.join(voicePack, 'russian'));
+  for (const name of voiceLanguage && !qwen ? ['uv', 'git'] : ['uv']) {
     const executable = path.join(
       target,
       '.runtime',
@@ -463,16 +458,32 @@ async function transactionFixture({
   }
   const execute = async (file, args, options) => {
     assert.equal(options.env.OPENCLAW_GATEWAY_TOKEN, undefined);
-    if (args.some((arg) => arg.endsWith('setup-voice-training.ps1')))
+    if (args.some((arg) => arg.endsWith('setup-voice-training.ps1'))) {
       options.output('Downloading torch (2.4GiB)');
-    if (args.some((arg) => arg.endsWith('setup-request-router.ps1')))
+      options.output(
+        JSON.stringify({
+          capriFileTransfer: 'torch.whl',
+          received: 9,
+          total: 30,
+          stageFraction: 0.2,
+        }),
+      );
+    }
+    if (args.some((arg) => arg.endsWith('setup-request-router.ps1'))) {
       speechSetupCalls.push('router');
+      if (routerNativeFailure)
+        throw Object.assign(new Error('Component exited 22'), {
+          exitCode: 22,
+          outputTail: 'CAPRI_ROUTER_NATIVE_LIBRARY_UNAVAILABLE',
+        });
+    }
     if (args.some((arg) => arg.endsWith('setup-qwen-tts.ps1'))) {
       assert.ok(args.includes('-DependenciesOnly'));
       speechSetupCalls.push('qwen-dependencies');
     }
     if (args.includes('integrations.voice_runtime.qwen_provision')) {
       assert.equal(file, path.join(target, '.runtime/qwen-tts-venv/Scripts/python.exe'));
+      assert.equal(args.includes('--russian'), voiceMode === 'qwen-ru');
       speechSetupCalls.push('qwen-weights');
     }
     if (args.some((arg) => /setup-(voice-training|multilingual-voice)\.ps1$/.test(arg)))
@@ -484,25 +495,14 @@ async function transactionFixture({
     if (args.includes('setup') || args.includes('doctor'))
       assert.equal(options.timeoutMs, 60 * 60 * 1000, 'Local setup keeps its original deadline');
     if (args.some((arg) => arg.endsWith('archive.ps1'))) {
-      if (args[args.indexOf('-Archive') + 1].endsWith('rocm-fixture.zip')) {
-        const destination = args[args.indexOf('-Destination') + 1];
-        assert.ok(
-          destination.startsWith(path.join(target, '.runtime/installer/staging') + path.sep),
-        );
-        extractRocm(path.join(destination, 'lib/ollama', OLLAMA_ROCM_DIRECTORY));
-        return;
-      }
-      if (
-        args[args.indexOf('-Destination') + 1] === path.join(target, 'node_modules/electron/dist')
-      ) {
+      const destination = args[args.indexOf('-Destination') + 1];
+      if (destination === path.join(target, 'node_modules/electron/dist')) {
         extractElectronFixture(target);
         return;
       }
-      assert.equal(damagedOllama, true);
-      writeFileSync(
-        path.join(path.dirname(exe), 'lib/ollama/llama-server.exe'),
-        'recovered backend fixture',
-      );
+      assert.ok(damagedLlama || llamaState);
+      assert.ok(destination.startsWith(path.join(target, '.runtime/installer/staging') + path.sep));
+      extractLlama(destination);
     }
     if (args.includes('ci')) {
       if (fail) throw new Error('network fixture failure');
@@ -521,9 +521,23 @@ async function transactionFixture({
       });
     if (args.includes('models')) {
       modelCommands.push(args.slice(args.indexOf('models') + 1));
+      if (selectedProfile) {
+        const selected = spec.profiles.find((profile) => profile.id === selectedProfile);
+        assert.equal(
+          json(path.join(target, 'config/core.local.json')).upstreamModel,
+          selected.model,
+        );
+      }
       if (cancelModels) controller.abort(new Error('cancel embedding fixture'));
       writeJsonAtomic(path.join(target, 'data/model-inventory.json'), {
-        models: missingEmbedding ? [] : [{ name: 'capri-embed:latest' }],
+        models: missingEmbedding
+          ? []
+          : [
+              { name: 'capri-embed:latest' },
+              ...(selectedProfile
+                ? [{ name: json(path.join(target, 'config/core.local.json')).model }]
+                : []),
+            ],
       });
     }
     if (args.some((arg) => arg.endsWith('setup-multilingual-voice.ps1')))
@@ -532,12 +546,21 @@ async function transactionFixture({
   const running = install(
     {
       ...request(target),
+      ...(routerNativeFailure && { router: true }),
       voicePack: includedReference ? '' : voicePack,
       ...(includedReference ? { bundledVoicePack: voicePack } : {}),
       ...(voiceMode ? { voiceMode } : {}),
-      conversationLanguage: voiceLanguage || 'en',
+      conversationLanguage: languageUpgrade?.conversation ?? (voiceLanguage || 'en'),
       ...(inferenceMode ? { inferenceMode, downloadModels: true } : {}),
       ...(modelSource ? { modelSource, downloadModels: true } : {}),
+      ...(selectedProfile
+        ? {
+            profile: selectedProfile,
+            downloadModels: true,
+            inferenceMode: 'local',
+            modelSource: 'catalog',
+          }
+        : {}),
     },
     {
       sourceRoot: root,
@@ -551,28 +574,23 @@ async function transactionFixture({
             ...hardware,
             gpus: [{ name: gpuName, vendor: 'amd', memoryKind: 'dedicated', vramMiB: 12282 }],
           }
-        : voiceMode === 'qwen'
+        : qwen
           ? { ...hardware, gpus: [] }
           : hardware,
       register: false,
       renameRuntime: (from, to) => {
         if (
-          failRocmPromotion &&
+          failLlamaPromotion &&
           from.startsWith(path.join(target, '.runtime/installer/staging') + path.sep)
         )
           throw new Error('fixture promotion failure');
         renameSync(from, to);
       },
       download: async (selected, _folder, { progress }) => {
-        if (selected.sha256 === spec.artifacts.ollamaRocm.sha256) {
-          rocmDownloads++;
-          progress({ received: selected.bytes, total: selected.bytes });
-          return path.join(target, '.runtime/rocm-fixture.zip');
-        }
         if (selected.sha256 === spec.artifacts.electron.sha256)
           return path.join(target, '.runtime/electron-fixture.zip');
-        assert.equal(damagedOllama, true);
-        assert.equal(selected.sha256, spec.artifacts.ollama.sha256);
+        assert.ok(damagedLlama || llamaState);
+        assert.equal(selected.sha256, spec.artifacts.llama.sha256);
         progress({ received: selected.bytes, total: selected.bytes });
         runtimeDownloads++;
         return path.join(target, '.runtime/verified-archive-fixture.zip');
@@ -582,11 +600,33 @@ async function transactionFixture({
   if (damageAvatar) await assert.rejects(running, /artwork is missing or damaged/);
   else if (missingEmbedding)
     await assert.rejects(running, /A required model is not ready: capri-embed/);
-  else if (fail || cancel || cancelModels || failRocmPromotion) await assert.rejects(running);
+  else if (fail || cancel || cancelModels || failLlamaPromotion) await assert.rejects(running);
   else await running;
+  if (routerNativeFailure) {
+    assert.ok(speechSetupCalls.includes('router'));
+    assert.equal(
+      events.find((event) => event.type === 'complete')?.routerNativeLibraryUnavailable,
+      true,
+    );
+    assert.equal(json(path.join(target, 'config/request-router.json')).enabled, false);
+  }
+  if (selectedProfile) {
+    const local = json(path.join(target, 'config/core.local.json'));
+    if (cancelModels) assert.deepEqual(local, previousModel);
+    else {
+      assert.equal(local.resourceProfile, selectedProfile);
+      assert.equal(local.gatewayPort, previousModel.gatewayPort);
+      assert.equal(local.contextTokens, previousModel.contextTokens);
+    }
+  }
   assert.equal(readFileSync(canary, 'utf8'), 'private memory canary');
+  if (languageUpgrade)
+    assert.deepEqual(
+      json(languageFile).settings,
+      cancelModels ? languageUpgrade.previous : languageUpgrade.expected,
+    );
   const state = json(path.join(target, '.runtime/installer/state.json'));
-  if (state.status === 'complete' && voiceLanguage && voiceMode !== 'qwen') {
+  if (state.status === 'complete' && voiceLanguage && !qwen) {
     const voiceActivities = events.filter(
       (event) => event.type === 'activity' && event.step === 'voice-runtime',
     );
@@ -597,19 +637,30 @@ async function transactionFixture({
       action: 'downloadRuntime',
       component: 'PyTorch',
     });
+    assert(
+      events.some(
+        (event) =>
+          event.type === 'download' &&
+          event.step === 'voice-runtime' &&
+          event.file === 'torch.whl' &&
+          event.received === 9 &&
+          event.total === 30 &&
+          event.stageFraction === 0.2,
+      ),
+    );
   }
   assert.equal(
     state.status,
     cancel || cancelModels
       ? 'cancelled'
-      : fail || damageAvatar || missingEmbedding || failRocmPromotion
+      : fail || damageAvatar || missingEmbedding || failLlamaPromotion
         ? 'failed'
         : 'complete',
   );
   assert.equal(existsSync(path.join(target, '.runtime/installer/install.lock.json')), false);
   assert.equal(
     events.some((event) => event.type === 'complete'),
-    !(fail || cancel || cancelModels || damageAvatar || missingEmbedding || failRocmPromotion),
+    !(fail || cancel || cancelModels || damageAvatar || missingEmbedding || failLlamaPromotion),
   );
   if (
     !fail &&
@@ -617,9 +668,9 @@ async function transactionFixture({
     !cancelModels &&
     !damageAvatar &&
     !missingEmbedding &&
-    !failRocmPromotion
+    !failLlamaPromotion
   ) {
-    assert.deepEqual(modelCommands, [['--embedding-only']]);
+    assert.deepEqual(modelCommands, [selectedProfile ? [] : ['--embedding-only']]);
     assert.equal(state.steps.models.status, 'complete');
     assert.equal(
       events.some((event) => event.type === 'stage' && event.step === 'models'),
@@ -627,14 +678,23 @@ async function transactionFixture({
     );
     assert.deepEqual(json(path.join(target, 'data/model-inventory.json')).models, [
       { name: 'capri-embed:latest' },
+      ...(selectedProfile
+        ? [{ name: json(path.join(target, 'config/core.local.json')).model }]
+        : []),
     ]);
-    assert.equal(json(path.join(target, 'config/request-router.json')).enabled, true);
+    assert.equal(
+      json(path.join(target, 'config/request-router.json')).enabled,
+      !routerNativeFailure,
+    );
     assert.equal(speechSetupCalls[0], 'router');
-    if (voiceMode === 'qwen') {
+    if (qwen) {
       assert.deepEqual(speechSetupCalls, ['router', 'qwen-dependencies', 'qwen-weights']);
       assert.deepEqual(json(path.join(target, 'data/speech/voice-selections.json')), {
         schemaVersion: 1,
-        languages: { [voiceLanguage]: 'qwen3-tts-0.6b-base' },
+        languages: {
+          [voiceLanguage]:
+            voiceMode === 'qwen-ru' ? 'qwen3-tts-1.7b-capri-ru' : 'qwen3-tts-0.6b-base',
+        },
       });
       assert.equal(
         json(path.join(target, 'data/desktop/languages.json')).settings.speech,
@@ -652,9 +712,18 @@ async function transactionFixture({
           json(path.join(root, 'config/voice-upstream.json')).model,
         );
       }
+      if (russianAdapter)
+        validateRussianVoicePack(path.join(target, 'data/speech/bundled-voice/russian'));
     }
-    assert.equal(events.find((event) => event.type === 'complete').modelsReady, false);
-    assert.equal(requireCapriAvatar(target).frames.length, 77);
+    assert.equal(
+      events.find((event) => event.type === 'complete').modelsReady,
+      Boolean(selectedProfile),
+    );
+    const sourceAvatar = requireCapriAvatar(root);
+    assert.deepEqual(
+      requireCapriAvatar(target).frames.map(({ id }) => id),
+      sourceAvatar.frames.map(({ id }) => id),
+    );
     if (inferenceMode === 'api') {
       assert.deepEqual(modelCommands, [['--embedding-only']]);
       assert.deepEqual(json(path.join(target, 'data/desktop/inference-api.json')), {
@@ -670,7 +739,7 @@ async function transactionFixture({
     }
   }
   if (voiceLanguage && !fail && !cancel && !cancelModels && !missingEmbedding)
-    assert.deepEqual(multilingualCalls, voiceMode === 'qwen' ? [] : [['-Language', voiceLanguage]]);
+    assert.deepEqual(multilingualCalls, qwen ? [] : [['-Language', voiceLanguage]]);
   if (readOnlySource) {
     assert.equal(
       readFileSync(replaced, 'utf8'),
@@ -684,79 +753,31 @@ async function transactionFixture({
       }),
     );
   }
-  assert.equal(runtimeDownloads, damagedOllama ? 1 : 0);
-  assert.equal(rocmDownloads, expectedRocmDownloads);
-  if (expectedRocmDownloads && !failRocmPromotion) {
-    const receipt = json(path.join(target, '.runtime/installer/ollamaRocm.json'));
-    assert.equal(Object.keys(receipt.backendHashes).length, rocmFiles.length);
-    for (const name of rocmFiles)
-      assert.equal(receipt.backendHashes[name], await fileHash(path.join(rocmFolder, name)));
-    const transfers = events.filter(
-      (event) => event.type === 'download' && event.step === 'ollama',
-    );
-    if (damagedOllama) {
-      assert.equal(transfers.length, 2);
-      assert.ok(transfers[0].stageFraction > 0 && transfers[0].stageFraction < 1);
-      assert.equal(
-        transfers[0].received,
-        spec.artifacts.ollama.bytes,
-        'Real download bytes are retained',
-      );
-    }
-    assert.equal(transfers.at(-1).stageFraction, 1);
-    if (rocmState === 'stale') {
-      assert.equal(existsSync(path.join(rocmFolder, 'stale-unreviewed-kernel.hsaco')), false);
-      const backups = path.join(target, '.runtime/installer/backups');
-      assert.ok(
-        readdirSync(backups).some((name) =>
-          existsSync(path.join(backups, name, 'stale-unreviewed-kernel.hsaco')),
-        ),
-      );
-    }
-  }
-  if (failRocmPromotion) {
-    assert.equal(readFileSync(path.join(rocmFolder, rocmFiles.at(-1)), 'utf8'), 'corrupted kernel');
-    assert.equal(
-      readFileSync(path.join(target, '.runtime/installer/ollamaRocm.json'), 'utf8'),
-      rocmReceiptBefore,
-    );
+  assert.equal(runtimeDownloads, damagedLlama || llamaState ? 1 : 0);
+  if (failLlamaPromotion) {
+    assert.equal(readFileSync(plugin, 'utf8'), 'corrupt Vulkan backend');
+    assert.equal(readFileSync(receiptFile, 'utf8'), previousReceipt);
+  } else if (runtimeDownloads) {
+    const receipt = json(receiptFile);
+    for (const name of LLAMA_VULKAN_FILES)
+      assert.equal(receipt.files[name], await fileHash(path.join(bundle, name)));
+    assert.equal(existsSync(path.join(bundle, 'stale-backend.dll')), false);
   }
 }
 
 test(
-  'supported local AMD installs and fully verifies its separately pinned ROCm backend',
-  { skip: process.platform !== 'win32' },
-  () =>
-    transactionFixture({
-      gpuName: 'AMD Radeon RX 7900 XTX',
-      damagedOllama: true,
-      expectedRocmDownloads: 1,
-    }),
-);
-for (const rocmState of ['corrupt', 'missing'])
-  test(
-    `AMD repair restores a ${rocmState} kernel even when the frontend and main DLLs survive`,
-    { skip: process.platform !== 'win32' },
-    () =>
-      transactionFixture({ gpuName: 'AMD Radeon PRO W7800', rocmState, expectedRocmDownloads: 1 }),
-  );
-test(
-  'a valid complete AMD backend receipt is reused without a repeated download',
-  { skip: process.platform !== 'win32' },
-  () => transactionFixture({ gpuName: 'AMD Radeon RX 7600', rocmState: 'valid' }),
-);
-test(
-  'API-only AMD and Vulkan-only Radeon installations do not download the ROCm add-on',
+  'NVIDIA and Radeon installations use the same pinned llama.cpp distribution',
   { skip: process.platform !== 'win32' },
   async () => {
-    await transactionFixture({ gpuName: 'AMD Radeon RX 7900 XTX', inferenceMode: 'api' });
-    await transactionFixture({ gpuName: 'AMD Radeon RX 6400' });
+    await transactionFixture({ gpuName: 'AMD Radeon RX 7900 XTX', damagedLlama: true });
+    await transactionFixture({ gpuName: 'AMD Radeon RX 6400', inferenceMode: 'api' });
+    await transactionFixture({ damagedLlama: true });
   },
 );
 test(
-  'repair restores a missing Ollama backend even when the frontend receipt is valid',
+  'repair restores a missing llama.cpp Vulkan backend even when the executable receipt is valid',
   { skip: process.platform !== 'win32' },
-  () => transactionFixture({ damagedOllama: true }),
+  () => transactionFixture({ damagedLlama: true }),
 );
 test(
   'installation transaction preserves private data and distinguishes deferred models from readiness',
@@ -830,40 +851,30 @@ test(
     }),
 );
 test(
-  'AMD repair replaces interrupted zero-byte DLL and kernel files without weakening fresh-package validation',
+  'Russian LoRA setup provisions Russian assets and persists the correct voice selection',
+  { skip: process.platform !== 'win32' || !process.env.CAPRI_VERIFICATION_RUSSIAN_VOICE_PACK },
+  () =>
+    transactionFixture({
+      voiceLanguage: 'ru',
+      voiceMode: 'qwen-ru',
+      inferenceMode: 'api',
+      includedReference: true,
+      russianAdapter: process.env.CAPRI_VERIFICATION_RUSSIAN_VOICE_PACK,
+    }),
+);
+test(
+  'repair atomically replaces corrupted, empty and stale llama.cpp backend files',
   { skip: process.platform !== 'win32' },
   async () => {
-    for (const rocmState of ['empty-dll', 'empty-kernel'])
-      await transactionFixture({
-        gpuName: 'AMD Radeon RX 7600',
-        rocmState,
-        expectedRocmDownloads: 1,
-      });
+    for (const llamaState of ['empty', 'corrupt', 'stale'])
+      await transactionFixture({ llamaState });
   },
 );
-
 test(
-  'AMD repair excludes stale extra kernels from its new archive-derived receipt',
+  'failed llama.cpp promotion restores the previous backend and receipt',
   { skip: process.platform !== 'win32' },
-  () =>
-    transactionFixture({
-      gpuName: 'AMD Radeon RX 7600',
-      rocmState: 'stale',
-      expectedRocmDownloads: 1,
-    }),
+  () => transactionFixture({ llamaState: 'corrupt', failLlamaPromotion: true }),
 );
-test(
-  'failed AMD backend promotion restores the complete previous backend and preserves its receipt',
-  { skip: process.platform !== 'win32' },
-  () =>
-    transactionFixture({
-      gpuName: 'AMD Radeon RX 7600',
-      rocmState: 'corrupt',
-      expectedRocmDownloads: 1,
-      failRocmPromotion: true,
-    }),
-);
-
 test('a missing included reference is rejected before installing dependencies', async () => {
   const target = folder();
   const context = {
@@ -943,14 +954,14 @@ test(
 );
 
 test(
-  'a fresh install runs its real postinstall without Ollama and configures only a verified owned runtime',
+  'a fresh install runs its real postinstall without a preinstalled runtime and configures only a verified owned runtime',
   { skip: process.platform !== 'win32' },
   async () => {
     const target = path.join(folder(), 'новая установка'),
       events = [];
-    const ollama = path.join(target, '.runtime/ollama/ollama.exe');
-    const inherited = process.env.CAPRI_OLLAMA_PATH;
-    process.env.CAPRI_OLLAMA_PATH = path.join(target, 'inherited-missing.exe');
+    const llama = path.join(target, '.runtime', spec.artifacts.llama.directory, 'llama-server.exe');
+    const inherited = process.env.CAPRI_LLAMA_PATH;
+    process.env.CAPRI_LLAMA_PATH = path.join(target, 'inherited-missing.exe');
     let postinstallPassed = false,
       downloaded = false,
       embeddingPrepared = false;
@@ -967,15 +978,15 @@ test(
             return path.join(target, 'electron-fixture.zip');
           if (artifact.sha256 === spec.artifacts.uv.sha256)
             return path.join(target, 'uv-fixture.zip');
-          assert.equal(artifact.sha256, spec.artifacts.ollama.sha256);
+          assert.equal(artifact.sha256, spec.artifacts.llama.sha256);
           assert.ok(postinstallPassed);
           downloaded = true;
           return path.join(target, 'fixture-archive.zip');
         },
         execute: async (file, args, options) => {
           if (args.includes('ci')) {
-            assert.equal(existsSync(ollama), false);
-            assert.equal(options.env.CAPRI_OLLAMA_PATH, undefined);
+            assert.equal(existsSync(llama), false);
+            assert.equal(options.env.CAPRI_LLAMA_PATH, undefined);
             // Exercise the actual pinned compatibility patcher, not a mocked
             // lifecycle exit. Only its reviewed dependency files are needed.
             const patches = json(path.join(root, 'integrations/openclaw-compat/patches.json'));
@@ -1015,7 +1026,7 @@ test(
               ['packages/runtime/bin/patch-openclaw.mjs'],
               {
                 cwd: target,
-                env: { ...options.env, CAPRI_OLLAMA_PATH: path.join(target, 'missing.exe') },
+                env: { ...options.env, CAPRI_LLAMA_PATH: path.join(target, 'missing.exe') },
                 encoding: 'utf8',
                 windowsHide: true,
                 timeout: 10000,
@@ -1038,19 +1049,16 @@ test(
               return;
             }
             assert.ok(downloaded);
-            assert.equal(options.env.CAPRI_OLLAMA_PATH, undefined);
-            mkdirSync(path.dirname(ollama), { recursive: true });
-            writeFileSync(ollama, 'owned runtime fixture');
-            for (const name of OLLAMA_BACKEND_FILES) {
-              const file = path.join(path.dirname(ollama), 'lib/ollama', name);
-              mkdirSync(path.dirname(file), { recursive: true });
-              writeFileSync(file, 'owned backend fixture');
-            }
+            assert.equal(options.env.CAPRI_LLAMA_PATH, undefined);
+            const staged = args[args.indexOf('-Destination') + 1];
+            mkdirSync(staged, { recursive: true });
+            for (const name of LLAMA_VULKAN_FILES)
+              writeFileSync(path.join(staged, name), 'owned backend fixture');
           } else if (args.includes('setup')) {
-            assert.equal(options.env.CAPRI_OLLAMA_PATH, ollama);
+            assert.equal(options.env.CAPRI_LLAMA_PATH, llama);
             assert.equal(
-              json(path.join(target, '.runtime/installer/ollama.json')).executableSha256,
-              await fileHash(ollama),
+              json(path.join(target, '.runtime/installer/llama.json')).executableSha256,
+              await fileHash(llama),
             );
             writeJsonAtomic(path.join(target, 'config/core.local.json'), {
               model: 'capri-qwen3.5:2b',
@@ -1058,7 +1066,7 @@ test(
             });
           } else if (args.includes('models')) {
             assert.deepEqual(args.slice(args.indexOf('models') + 1), ['--embedding-only']);
-            assert.equal(options.env.CAPRI_OLLAMA_PATH, ollama);
+            assert.equal(options.env.CAPRI_LLAMA_PATH, llama);
             writeJsonAtomic(path.join(target, 'data/model-inventory.json'), {
               models: [{ name: json(path.join(target, 'config/core.json')).embeddingModel }],
             });
@@ -1080,11 +1088,61 @@ test(
       assert.ok(completed.indexOf('ollama') < completed.indexOf('configuration'));
       assert.equal(json(path.join(target, '.runtime/installer/state.json')).status, 'complete');
     } finally {
-      if (inherited === undefined) delete process.env.CAPRI_OLLAMA_PATH;
-      else process.env.CAPRI_OLLAMA_PATH = inherited;
+      if (inherited === undefined) delete process.env.CAPRI_LLAMA_PATH;
+      else process.env.CAPRI_LLAMA_PATH = inherited;
     }
   },
 );
+
+test('upgrade applies the newly selected model before downloading it and preserves ports and context', async () => {
+  await transactionFixture({ selectedProfile: 'quality' });
+});
+
+test('a native ONNX loader failure leaves an upgraded installation usable without the optional classifier', async () => {
+  await transactionFixture({ routerNativeFailure: true });
+});
+
+test('interrupted upgrade model download restores the previously selected model', async () => {
+  await transactionFixture({ selectedProfile: 'quality', cancelModels: true });
+});
+
+const englishSettings = {
+  interface: 'en',
+  conversation: 'en',
+  customConversation: '',
+  recognition: 'auto',
+  speech: 'en',
+  autoDetect: true,
+};
+const russianUpgrade = {
+  previous: englishSettings,
+  conversation: 'ru',
+  expected: { ...englishSettings, interface: 'ru', conversation: 'ru', speech: 'follow' },
+};
+
+test('upgrade persists Russian conversation and interface selections while keeping automatic recognition', async () => {
+  await transactionFixture({ languageUpgrade: russianUpgrade });
+});
+
+test('interrupted upgrade leaves the previous conversation and interface languages intact', async () => {
+  await transactionFixture({ languageUpgrade: russianUpgrade, cancelModels: true });
+});
+
+test('an upgrade can retain a custom conversation language from the app', async () => {
+  const previous = {
+    ...englishSettings,
+    conversation: 'custom',
+    customConversation: 'Esperanto',
+    speech: 'off',
+  };
+  await transactionFixture({
+    languageUpgrade: {
+      previous,
+      conversation: 'custom',
+      expected: { ...previous, interface: 'ru' },
+    },
+  });
+});
 
 test('installer accepts BETA model choices with finite disk estimates and enforces system RAM', () => {
   for (const id of ['gemma4-e2b', 'ministral-3-3b']) {
@@ -1192,6 +1250,19 @@ test('Hugging Face selection skips the stock model while retaining optional comp
     { ...context, freeBytes: 32 * 2 ** 30 },
   );
   assert.equal(qwen.voiceMode, 'qwen');
+  const russian = { ...input, voiceMode: 'qwen-ru', conversationLanguage: 'ru' };
+  assert.equal(
+    validateRequest(russian, { ...context, freeBytes: 32 * 2 ** 30 }).voiceMode,
+    'qwen-ru',
+  );
+  assert.throws(
+    () => validateRequest({ ...russian, conversationLanguage: 'en' }, context),
+    /does not support/,
+  );
+  assert.ok(
+    estimateInstallStorage(russian).downloadBytes >
+      estimateInstallStorage({ ...russian, voiceMode: 'qwen' }).downloadBytes,
+  );
   assert.throws(
     () => validateRequest({ ...input, voiceMode: 'qwen', conversationLanguage: 'tr' }, context),
     /does not support/,

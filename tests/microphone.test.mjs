@@ -36,6 +36,31 @@ async function enable(f) {
 }
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+test('changing microphone gain updates the live input without changing the system audio mix', () => {
+  const values = [];
+  const client = new MicrophoneClient({
+    onState() {},
+    onLevel() {},
+  });
+  const systemAudio = {};
+  const run = {
+    id: 'live',
+    context: { currentTime: 4 },
+    inputGain: { gain: { setTargetAtTime: (...args) => values.push(args) } },
+    systemAudio,
+  };
+  client.run = run;
+  for (const microphoneGain of [0, 100, 200])
+    assert.equal(client.event({ type: 'microphone.gain', microphoneGain }), true);
+  assert.deepEqual(values, [
+    [0, 4, 0.015],
+    [1, 4, 0.015],
+    [2, 4, 0.015],
+  ]);
+  assert.equal(client.run, run);
+  assert.equal(client.run.systemAudio, systemAudio);
+});
+
 test('startup failure survives capture shutdown as a bounded diagnostic', async () => {
   const { worker, service, events } = fixture({ language: 'ru' });
   worker.send = async () => {
@@ -47,8 +72,11 @@ test('startup failure survives capture shutdown as a bounded diagnostic', async 
   assert.equal(service.snapshot().status, 'off');
   const failure = service.diagnostics().lastFailure;
   assert.equal(failure.code, 'ASR_START_MODEL');
-  assert.doesNotMatch(failure.message, /private/);
-  assert.equal(events.filter(({ type }) => type === 'microphone.error').length, 1);
+  assert.equal(failure.message, 'Install the selected recognition pack first.');
+  assert.deepEqual(
+    events.filter(({ type }) => type === 'microphone.error'),
+    [{ type: 'microphone.error', message: failure.message }],
+  );
 });
 
 test('microphone diagnostics retain only an allowlisted startup stage on startup failures', async () => {

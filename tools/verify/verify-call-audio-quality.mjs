@@ -23,7 +23,7 @@ app.whenReady().then(async()=>{
   const url=new URL(request.url);
   if(url.pathname==='/quality.html')return new Response('<!doctype html><meta charset="utf-8"><title>Offline call audio verification</title>',{headers:{'content-type':'text/html','content-security-policy':"default-src 'none'; script-src 'self'; connect-src 'none'"}});
   const name=url.pathname.slice(1);
-  if(!['voice-player.mjs','voice-effects.mjs','voice-effects-settings.mjs','call-audio-settings.mjs'].includes(name))return new Response('',{status:404});
+  if(!['voice-player.mjs','voice-effects.mjs','voice-effects-settings.mjs','voice-volume.mjs','call-audio-settings.mjs','call-audio-route.mjs','call-microphone.mjs'].includes(name))return new Response('',{status:404});
   return new Response(fs.readFileSync(path.join(${JSON.stringify(root)},'apps/desktop/renderer',name)),{headers:{'content-type':'text/javascript'}});
  });
  const window=new BrowserWindow({show:false,webPreferences:{contextIsolation:true,sandbox:true,nodeIntegration:false,backgroundThrottling:false}});

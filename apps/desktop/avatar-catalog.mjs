@@ -222,8 +222,7 @@ export function loadAvatarCatalog(manifestFile, { poseManifest, musicRoot } = {}
       ))
   )
     throw new Error('Invalid autonomous animation timing');
-  // Keep validating the complete artwork pack for installation and future rework.
-  // The framed portrait uses standing animation. Window seats have their own pose set.
+  // The portrait uses registered face frames and the reviewed ground poses.
   const portraitFrames = animated
     ? frames.filter(
         (frame) =>
@@ -282,6 +281,7 @@ const poseAnchors = new Map([
   ['pose-sit-edge', 'seat'],
   ['pose-sit-floor', 'ground'],
   ['pose-crouch', 'ground'],
+  ['pose-sleep', 'ground'],
 ]);
 
 function loadPoseFrames(file, canvas) {
@@ -340,7 +340,7 @@ function loadPoseFrames(file, canvas) {
       frameId: item.id,
       kind: 'reviewed_pose',
       pose: item.pose,
-      canPersist: name === 'ground',
+      canPersist: name === 'ground' && item.id !== 'pose-sleep',
       expression: 'neutral_small_smile',
       label: item.label,
       description: item.description,

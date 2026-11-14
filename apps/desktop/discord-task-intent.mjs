@@ -5,7 +5,7 @@ import {
   discordTaskRequest,
   validateDiscordRequest,
 } from './discord-application.mjs';
-import { mentionsDiscord } from './computer-mode-request.mjs';
+import { mentionsDiscord, ownerAppLaunch } from './computer-mode-request.mjs';
 
 // This is a final, conservative check of an already classified owner task. It
 // grants no permission and never accepts observations or generated reply text.
@@ -400,6 +400,25 @@ export function discordSingleOperationGoal(goal) {
         ),
     );
   return operations.length <= 1;
+}
+
+/** Discord is only the first app to open; channel and message policy stays enforced. */
+export function discordLaunchBeforeBrowser(goal) {
+  const { command } = commandForms(goal.normalize('NFKC'));
+  const next =
+    /^(?:open|launch|start|открой|запусти)\s+(?:discord|дискорд)(?:\s+(?:without\s+sending\s+(?:any\s+)?messages(?:\s+or\s+joining\s+(?:a\s+)?call)?|без\s+отправки\s+сообщений(?:\s+и\s+подключения\s+к\s+звонку)?))?(?:[.;,]\s*|\s+(?:and\s+)?)(?:(?:then|затем|потом)\s+)(?:switch\s+to|open|launch|start|переключись\s+на|открой|запусти)\s+(?:google\s+chrome|chrome|microsoft\s+edge|edge|firefox|brave|vivaldi|opera|хром)(?![\p{L}\p{N}])/iu.exec(
+      command,
+    );
+  if (!next) return null;
+  const remaining = command.slice(next[0].length);
+  if (
+    mentionsDiscord(remaining) ||
+    channel.test(remaining) ||
+    voice.test(remaining) ||
+    context.test(remaining)
+  )
+    return null;
+  return { ...ownerAppLaunch('Open Discord'), single: false };
 }
 
 /** Return a correction for the planner, never a replacement goal or message. */

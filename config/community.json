@@ -1,8 +1,12 @@
 {
-  "boosty": "https://boosty.to/overyx/donate",
+  "boosty": "https://boosty.to/overyx",
+  "lava": "https://app.lava.top/overyx",
   "tiktok": "https://www.tiktok.com/@overyx2",
+  "youtube": "https://www.youtube.com/@CapriChoom",
   "discord": "https://discord.gg/capricore",
   "github": "https://github.com/CapriChooms/CapriCore",
   "website": "https://capri-core.com/",
+  "faq": "https://capri-core.com/#faq",
+  "releases": "https://github.com/CapriChooms/CapriCore/releases/latest",
   "issues": "https://github.com/CapriChooms/CapriCore/issues/new/choose"
 }

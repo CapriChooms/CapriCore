@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { ControlTaskChain } from './control-task-chain.mjs';
+const taskChain = new ControlTaskChain(document.getElementById('control-task-chain'));
 // Thin edge-only procedural effects. The central content is never tinted.
 const canvas = document.getElementById('control-effects');
 const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
@@ -232,6 +234,9 @@ function render(now) {
   ctx.globalAlpha = 1;
 }
 globalThis.capriControl = Object.freeze({
+  plan(value) {
+    taskChain.update(value);
+  },
   configure(value) {
     settings = { ...settings, ...value };
     document.body.dataset.theme = settings.theme;
@@ -250,4 +255,11 @@ globalThis.capriControl = Object.freeze({
   },
 });
 frame = requestAnimationFrame(render);
-addEventListener('pagehide', () => cancelAnimationFrame(frame), { once: true });
+addEventListener(
+  'pagehide',
+  () => {
+    cancelAnimationFrame(frame);
+    taskChain.clear();
+  },
+  { once: true },
+);

@@ -106,7 +106,7 @@ export class DesktopTeleportMenu {
         if (release && watch?.id === Number(release[1]))
           watch.callback({ x: Number(release[2]), y: Number(release[3]) });
         const position =
-          /^anchor (\d+) (hidden|closed|visible)(?: (-?\d{1,10}) (-?\d{1,10}) (\d{1,10}) (\d{1,10}))?$/.exec(
+          /^anchor (\d+) (hidden|closed|unavailable|visible)(?: (-?\d{1,10}) (-?\d{1,10}) (\d{1,10}) (\d{1,10}))?$/.exec(
             line,
           );
         const anchor = this.windowWatch;

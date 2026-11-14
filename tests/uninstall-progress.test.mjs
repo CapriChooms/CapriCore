@@ -106,14 +106,29 @@ internal static class ProgressProbe {
             using (var progress = new UninstallProgress(messages, rtl, "")) {
                 Form form = Offscreen(progress);
                 for (int i = 0; i < 3; ++i) progress.Advance();
-                var failed = Task.Run(() => progress.Fail("Synthetic QA file could not be removed. No installation was opened."));
+                progress.Hide(); Wait(() => !UI(form, () => form.Visible));
+                var failed = Task.Run(() => progress.Fail("Synthetic QA file could not be removed. No installation was opened.",
+                    "UNINSTALL_LINKED_PATH", "1.0.4"));
                 Wait(() => UI(form, () => Field<TextBox>(progress, "details").Visible));
+                UI(form, () => {
+                    Button report = Field<Button>(progress, "report");
+                    Check(report.Visible && report.Enabled && report.Text == messages["reportBug"], "Report button is unavailable or untranslated.");
+                    foreach (string name in new[] { "report", "close" }) {
+                        Button button = Field<Button>(progress, name);
+                        Rectangle bounds = form.RectangleToClient(button.RectangleToScreen(button.ClientRectangle));
+                        Check(form.ClientRectangle.Contains(bounds), "Failure button is clipped by the form: " + name);
+                    }
+                });
                 Check(UI(form, () => Field<ProgressBar>(progress, "bar").Value) != 100, "Failure was reported as 100% complete.");
                 Check(!failed.IsCompleted, "Failure details disappeared before Close.");
                 snapshots["failure"] = Capture(progress, Path.Combine(args[2], args[1] + "-failure.png"));
                 UI(form, () => Field<Button>(progress, "close").PerformClick());
                 Check(failed.Wait(3000), "Close did not release the caller after failure.");
             }
+            string reportUrl = Uri.UnescapeDataString(UninstallProgress.ReportUrl("UNINSTALL_LINKED_PATH", "progressRemoving", "1.0.4", 3));
+            Check(reportUrl.Contains("template=bug_report.yml") && reportUrl.Contains("version=1.0.4") &&
+                reportUrl.Contains("UNINSTALL_LINKED_PATH\nPhase: progressRemoving\nItems processed: 3"), "Missing safe bug report fields.");
+            Check(!UninstallProgress.ReportUrl("private-code", "private-path", "private-version", 0).Contains("private"), "An arbitrary value was included in the report URL.");
             Console.WriteLine(Json.Serialize(new { language = args[1], snapshots = snapshots }));
             return 0;
         } catch (Exception error) { Console.Error.WriteLine(error); return 1; }

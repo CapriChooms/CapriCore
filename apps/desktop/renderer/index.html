@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="cyberpunk.css" />
     <link rel="stylesheet" href="avatar-headpat.css" />
+    <link rel="stylesheet" href="avatar-sleep.css" />
     <link rel="stylesheet" href="update-notification.css" />
     <link rel="stylesheet" href="thinking-mode.css" />
     <script type="module" src="app.js"></script>
@@ -111,10 +112,14 @@
             type="button"
             aria-label="Mute Capri"
             aria-pressed="true"
+            aria-controls="voice-volume-menu"
+            aria-expanded="false"
             title="Mute Capri"
           >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M3 8h3l4-4v12l-4-4H3zM13 7q3 3 0 6M15 4q6 6 0 12" />
+            <svg viewBox="0 0 20 20" aria-hidden="true" data-skill-icon>
+              <path d="M3 8h3l4-4v12l-4-4H3z" />
+              <path class="voice-waves" d="M13 7a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10" />
+              <path class="voice-muted" d="m13 8 4 4m0-4-4 4" />
             </svg>
           </button>
           <button
@@ -172,6 +177,7 @@
             </svg>
           </button>
           <button
+            id="applications-open"
             type="button"
             data-quick="applications"
             title="Application access"
@@ -182,6 +188,7 @@
             </svg>
           </button>
           <button
+            id="time-open"
             type="button"
             data-quick="time"
             title="Timers and reminders"
@@ -217,6 +224,11 @@
           </button>
         </div>
       </nav>
+      <section id="voice-volume-menu" aria-labelledby="voice-volume-label" data-hit-region hidden>
+        <label id="voice-volume-label" for="voice-volume">Capri’s voice volume</label>
+        <output id="voice-volume-value" for="voice-volume">100%</output>
+        <input id="voice-volume" type="range" min="0" max="100" step="1" value="100" />
+      </section>
       <section
         id="stopwatch-controls"
         data-hit-region
@@ -303,8 +315,10 @@
         </div>
         <canvas id="crt-screen" aria-hidden="true"></canvas
         ><img id="avatar-effect" alt="" aria-hidden="true" hidden />
+        <span id="sleep-indicator" class="avatar-dreams" aria-hidden="true" hidden
+          ><i></i><i></i><i></i
+        ></span>
       </div>
-      <span id="sleep-indicator" aria-hidden="true" hidden>Zzz.</span>
       <button
         id="presence-core"
         type="button"
@@ -417,6 +431,17 @@
             </svg>
           </button>
           <button
+            id="coding-toggle"
+            type="button"
+            aria-label="Coding mode"
+            aria-pressed="false"
+            title="Coding mode"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M6 5l-4 5 4 5M14 5l4 5-4 5M12 3L8 17" />
+            </svg>
+          </button>
+          <button
             id="thinking-toggle"
             type="button"
             aria-label="Thinking mode: Off"
@@ -480,14 +505,17 @@
       >
         <div class="history-heading">
           <h1>Conversation</h1>
-          <button
-            id="history-close"
-            type="button"
-            aria-label="Close conversation history"
-            title="Close history (Esc)"
-          >
-            ×
-          </button>
+          <div class="history-actions">
+            <button id="history-clear" type="button" disabled>Clear conversation</button>
+            <button
+              id="history-close"
+              type="button"
+              aria-label="Close conversation history"
+              title="Close history (Esc)"
+            >
+              ×
+            </button>
+          </div>
         </div>
         <div id="messages" role="log" aria-label="Conversation history" aria-live="off"></div>
         <p id="history-empty" hidden>No messages yet.</p>
@@ -800,12 +828,12 @@
             <option value="conversational">Conversational / up to 30 per hour</option>
           </select>
           <label for="initiative-hourly-limit"
-            >Maximum conversations per hour (1–30; blank uses the preset)</label
+            >Maximum conversations per hour (1–120; blank uses the preset)</label
           ><input
             id="initiative-hourly-limit"
             type="number"
             min="1"
-            max="30"
+            max="120"
             step="1"
             placeholder="10"
           />
@@ -981,21 +1009,27 @@
           <button id="time-close" type="button" aria-label="Close timers">×</button>
         </div>
         <div class="preferences-content">
+          <label for="time-kind">Type</label
+          ><select id="time-kind">
+            <option value="timer">Timer</option>
+            <option value="remind">Reminder</option>
+            <option value="stopwatch">Stopwatch</option>
+          </select>
+          <div id="time-duration" class="time-dials" role="group" aria-label="Duration"></div>
+          <label for="time-title">Title or reminder text</label
+          ><input id="time-title" type="text" maxlength="1000" />
+          <div id="time-presets" class="time-presets" role="group" aria-label="Preset">
+            <button type="button" data-seconds="60" data-untranslated>1:00</button>
+            <button type="button" data-seconds="300" data-untranslated>5:00</button>
+            <button type="button" data-seconds="600" data-untranslated>10:00</button>
+            <button type="button" data-seconds="900" data-untranslated>15:00</button>
+          </div>
+          <button id="time-create" type="button">Start</button>
+          <div id="time-list" data-untranslated></div>
           <p class="settings-help">
             Timers survive model unloading and are restored after restart. Keep Capri running for
             notifications. Missed reminders appear next time you open Capri.
           </p>
-          <label for="time-kind">Type</label
-          ><select id="time-kind">
-            <option value="remind">Reminder</option>
-            <option value="timer">Timer</option>
-            <option value="stopwatch">Stopwatch</option>
-          </select>
-          <label for="time-title">Title or reminder text</label
-          ><input id="time-title" type="text" maxlength="1000" />
-          <div id="time-duration" class="time-dials" role="group" aria-label="Duration"></div>
-          <button id="time-create" type="button">Start</button>
-          <div id="time-list" data-untranslated></div>
         </div>
       </section>
       <button id="computer-control-stop" class="danger-action" type="button" data-hit-region hidden>

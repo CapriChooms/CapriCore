@@ -4,7 +4,7 @@ import { saveSettings, settingsView } from './settings-view.mjs';
 import { SETTINGS_SECTIONS } from '../../apps/desktop/renderer/settings-registry.mjs';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
@@ -19,6 +19,7 @@ mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'ui-')),
   errors = [],
   checks = [];
+const version = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 let holdReplies = false,
   heldResponse;
 const server = createServer((req, res) => {
@@ -180,6 +181,7 @@ try {
       ['#api-skip-local-model', 'Skip local language model when using an API'],
       ['#call-output-share-replies', 'Send replies to call'],
       ['#music-listening-auto-bpm', 'Automatically match the track BPM'],
+      ['#settings-microphone-monitor', 'Listen to microphone'],
     ]) {
       const text = await controls
         .locator(selector)
@@ -192,6 +194,7 @@ try {
       ['#call-setup-license', 'License terms'],
       ['label[for="time-hours"]', 'Hours'],
       ['label[for="time-seconds"]', 'Seconds'],
+      ['#model-device-npu-advanced summary', 'Advanced NPU setup'],
     ])
       assert.equal(
         (await controls.locator(selector).textContent()).replace(/\s+/g, ' ').trim(),
@@ -238,10 +241,20 @@ try {
       uiText('Stop computer control (Esc)', locale.id),
     );
     assert.equal(await page.locator('html').getAttribute('dir'), locale.direction);
+    assert.equal(
+      (await page.locator('#history-clear').textContent()).trim(),
+      uiText('Clear conversation', locale.id),
+      locale.id + ': Conversation clear label',
+    );
+    assert.equal(
+      await page.locator('.message-copy').first().getAttribute('aria-label'),
+      uiText('Copy message', locale.id),
+      locale.id + ': Conversation copy label',
+    );
     for (const [selector, key] of [
-      ['#knowledge-panel h2', 'Brain and private memory'],
-      ['#workflows-panel h2', 'Task training'],
-      ['#user-tools-panel h2', 'User tools'],
+      ['#knowledge-panel h2:not(#skill-settings-title)', 'Brain and private memory'],
+      ['#workflows-panel h2:not(#skill-settings-title)', 'Task training'],
+      ['#user-tools-panel h2:not(#skill-settings-title)', 'User tools'],
       ['#brain-search', 'Search Brain'],
       ['#private-lock', 'Lock now'],
       ['#workflow-record', 'Start recording'],
@@ -252,10 +265,7 @@ try {
         uiText(key, locale.id),
         locale.id + ': ' + selector,
       );
-    assert.equal(
-      await page.locator('.portrait-foot > span').last().textContent(),
-      uiText('STAY A LITTLE LONGER', locale.id),
-    );
+    assert.equal(await page.locator('#capri-version').textContent(), 'v' + version);
     assert.deepEqual(await page.locator('.message-text').allTextContents(), expectedMessages);
     assert.equal(await page.locator('#message').inputValue(), 'Open');
     assert.equal(await page.locator('#localization-private-data').textContent(), 'Menu');

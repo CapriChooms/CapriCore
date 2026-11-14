@@ -1,4 +1,6 @@
 /** Capture is user-initiated and stays in memory from AudioWorklet to private IPC. */
+import { MICROPHONE_GAIN } from './speech-settings.mjs';
+
 // Five seconds of 100ms PCM absorbs short UI/disk stalls without dropping words.
 const MAX_QUEUED_PACKETS = 50;
 const LOOPBACK_GAIN = 0.4;
@@ -19,11 +21,23 @@ export class MicrophoneClient {
   constructor({ api, onState, onText, onInterrupt, onError, onLevel, onWake = () => {} }) {
     Object.assign(this, { api, onState, onText, onInterrupt, onError, onLevel, onWake });
     this.run = null;
-    this.state = { status: 'off', enabled: false, available: false, autoSend: true };
+    this.state = {
+      status: 'off',
+      enabled: false,
+      available: false,
+      autoSend: true,
+      microphoneGain: MICROPHONE_GAIN.default,
+    };
     this.playbackState = { speaking: false, text: '' };
   }
   settings(value) {
     this.state = { ...this.state, ...value };
+    if (value.microphoneGain !== undefined && this.run?.inputGain)
+      this.run.inputGain.gain.setTargetAtTime(
+        value.microphoneGain / 100,
+        this.run.context.currentTime,
+        0.015,
+      );
     if (value.status === 'off' && this.run?.id && value.stoppedSessionId === this.run.id)
       this.stop(false);
     this.onState(this.state);
@@ -76,6 +90,8 @@ export class MicrophoneClient {
       await run.context.audioWorklet.addModule(new URL('microphone-worklet.mjs', import.meta.url));
       if (this.run !== run) return;
       run.source = run.context.createMediaStreamSource(run.stream);
+      run.inputGain = run.context.createGain();
+      run.inputGain.gain.value = this.state.microphoneGain / 100;
       run.micGain = run.context.createGain();
       run.worklet = new AudioWorkletNode(run.context, 'capri-microphone-pcm', {
         numberOfInputs: 1,
@@ -91,7 +107,7 @@ export class MicrophoneClient {
       if (this.run !== run) return;
       run.worklet.connect(run.silence);
       run.silence.connect(run.context.destination);
-      run.source.connect(run.micGain);
+      run.source.connect(run.inputGain).connect(run.micGain);
       run.micGain.connect(run.worklet);
       this.settings({
         ...capture,
@@ -108,7 +124,7 @@ export class MicrophoneClient {
           ? 'Microphone access was denied. Check Windows microphone access for desktop apps.'
           : ['NotFoundError', 'NotReadableError', 'OverconstrainedError'].includes(error.name)
             ? 'The selected microphone is unavailable. Choose a device in Menu → Microphone input.'
-            : 'Speech recognition could not start. Check the selected language and setup-multilingual.cmd.',
+            : 'The microphone could not start.',
       );
     }
   }
@@ -277,6 +293,7 @@ export class MicrophoneClient {
         run.worklet.disconnect();
       }
       run.source?.disconnect();
+      run.inputGain?.disconnect();
       run.micGain?.disconnect();
       run.silence?.disconnect();
       for (const track of run.stream?.getTracks() ?? []) track.stop();
@@ -306,6 +323,10 @@ export class MicrophoneClient {
     }
     if (event.type === 'microphone.device-error') {
       this.onError(event.message);
+      return true;
+    }
+    if (event.type === 'microphone.gain') {
+      this.settings({ microphoneGain: event.microphoneGain });
       return true;
     }
     if (event.type === 'microphone.settings') {

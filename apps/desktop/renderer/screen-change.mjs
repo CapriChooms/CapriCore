@@ -7,17 +7,21 @@ export function validScreenSample(value) {
 }
 
 export function screenChanged(previous, current, threshold = 0.035) {
+  return screenDifference(previous, current) >= threshold;
+}
+
+export function screenDifference(previous, current) {
   if (!validScreenSample(current)) throw new Error('Invalid screen sample');
-  if (!previous) return true;
+  if (!previous) return 1;
   if (!validScreenSample(previous)) throw new Error('Invalid previous screen sample');
   let difference = 0;
   for (let i = 0; i < current.length; i++) difference += Math.abs(current[i] - previous[i]);
-  return difference / (current.length * 255) >= threshold;
+  return difference / (current.length * 255);
 }
 
 export function sampleScreen(video, canvas) {
-  canvas.width = SAMPLE_WIDTH;
-  canvas.height = SAMPLE_HEIGHT;
+  if (canvas.width !== SAMPLE_WIDTH) canvas.width = SAMPLE_WIDTH;
+  if (canvas.height !== SAMPLE_HEIGHT) canvas.height = SAMPLE_HEIGHT;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   context.drawImage(video, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
   const pixels = context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data;

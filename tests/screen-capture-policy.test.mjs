@@ -50,11 +50,11 @@ test('refresh retains the explicitly selected live source and an old stop cannot
     first.map((s) => s.id),
   );
   f.advance(60000);
-  await f.policy.renewSelection(again[1].id);
+  const beforeArming = f.calls.length;
   const old = f.policy.prepare(again[1].id, { mode: 'watch' });
   f.policy.release(old.id);
-  await f.policy.renewSelection(again[0].id);
   const current = f.policy.prepare(again[0].id, { mode: 'watch' });
+  assert.equal(f.calls.length, beforeArming, 'Arming must not delay the capture gesture');
   assert.equal(f.policy.release(old.id), false);
   assert.equal(f.policy.capture.id, current.id);
   assert.equal(f.policy.capture.nativeId, 'window:123:0');
@@ -270,7 +270,8 @@ test('ambiguous monitor identities cannot authorize a group, and a changed layou
   const f = monitorFixture();
   const selected = await f.selectGroup();
   f.displays[1].scaleFactor = 1.25;
-  await assert.rejects(f.policy.renewSelection(selected.id), /no longer available/);
+  f.policy.prepare(selected.id);
+  await f.policy.consume(f.request(), (reply) => assert.deepEqual(reply, {}));
   assert.throws(() => f.policy.prepare(selected.id), /available/);
   const changed = await f.selectGroup();
   assert.notEqual(changed.id, selected.id);
@@ -286,6 +287,16 @@ test('ambiguous monitor identities cannot authorize a group, and a changed layou
   f.native[2].display_id = f.native[1].display_id;
   assert.equal(await f.selectGroup(), undefined);
   assert.equal((await f.policy.discover()).filter(({ type }) => type === 'monitor').length, 2);
+});
+
+test('a reused monitor source ID cannot grant a different display', async () => {
+  const f = monitorFixture();
+  const selected = (await f.policy.discover()).find(({ type }) => type === 'monitor');
+  f.policy.prepare(selected.id, { mode: 'watch' });
+  f.native[1].display_id = '99';
+  await f.policy.consume(f.request(), (reply) => assert.deepEqual(reply, {}));
+  assert.equal(f.policy.snapshot().active, false);
+  assert.equal(f.policy.diagnostics().lastStop.reason, 'source-unavailable');
 });
 
 test('an in-flight monitor sample cannot survive revocation, expiry, a new frame or a topology change', async (t) => {

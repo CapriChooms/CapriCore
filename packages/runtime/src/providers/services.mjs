@@ -1,100 +1,134 @@
 import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { root, requireExecutable } from '../host/paths.mjs';
-import { nodePath, ollamaPath, openclawPath } from '../host/executables.mjs';
+import { nodePath, llamaPath, openclawPath } from '../host/executables.mjs';
+import { llamaBundleReady } from '../host/llama-bundle.mjs';
 import { settings } from '../config/settings.mjs';
 import { runtime, initialize, headers } from '../context.mjs';
 import { launch, managedProcess, stopProcess, requiresPrivacyRestart } from '../host/processes.mjs';
-import { request, waitFor } from '../http.mjs';
+import { request } from '../http.mjs';
 import { applyOpenClawCompatibility } from './openclaw-compat.mjs';
 import { waitForOwnedService } from '../host/readiness.mjs';
-import { requireOllamaBundle } from '../host/ollama-bundle.mjs';
-import { memorySampler } from '../hardware/memory.mjs';
 import { gpuBudget } from '../hardware/gpu-budget.mjs';
 import { applyDependencySecurityPatches } from './dependency-security.mjs';
-import { languageDeviceLaunch } from '../hardware/model-devices.mjs';
+import { migrateLanguageDevice, probeLanguageDevices } from '../hardware/model-devices.mjs';
 import { readModelDevices, modelsShareDevice } from '../model-device-settings.mjs';
 
 export async function stopManaged(name) {
-  if (name === 'ollama' && managedProcess(name)) {
-    const inventory = await request(`${runtime().ollamaUrl}/api/ps`, { timeout: 3000 }).catch(
-      () => ({ models: [] }),
-    );
-    await Promise.all(
-      (inventory.models ?? []).map((model) =>
-        request(`${runtime().ollamaUrl}/api/generate`, {
-          method: 'POST',
-          timeout: 30000,
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ model: model.name, keep_alive: 0, stream: false }),
-        }),
-      ),
-    );
-  }
-  return stopProcess(name);
+  await stopProcess(name);
+  if (name === 'llama') await Promise.all(['llama-chat', 'llama-embedding'].map(stopProcess));
 }
-export async function startOllama(
+
+let startingLlama;
+export function startLlama(rt, options) {
+  startingLlama ??= startLocalLlama(rt, options).finally(() => {
+    startingLlama = null;
+  });
+  return startingLlama;
+}
+
+async function startLocalLlama(
   rt = runtime(),
   { signal, voiceExpected = false, voiceReady = false } = {},
 ) {
   signal?.throwIfAborted();
-  requireExecutable(ollamaPath, 'Ollama');
-  requireOllamaBundle(ollamaPath);
+  const bundled = path.join(
+    root,
+    '.runtime',
+    `llama-${settings.llamaVersion}-vulkan`,
+    'llama-server.exe',
+  );
+  if (!llamaPath || (llamaPath === bundled && !llamaBundleReady(bundled)))
+    throw Object.assign(
+      new Error('The llama.cpp runtime is missing or incomplete. Run Capri Setup to repair it.'),
+      { code: 'CAPRI_LLAMA_BUNDLE_INCOMPLETE' },
+    );
   initialize(rt);
   const preferences = readModelDevices(root);
-  const marker = managedProcess('ollama');
-  if (marker && (marker.deviceKey ?? 'auto') !== preferences.language) await stopManaged('ollama');
-  // A previous build may still own raw stdout/stderr file descriptors. Adopt
-  // only services started with the current privacy log policy.
-  if (requiresPrivacyRestart(managedProcess('ollama'))) await stopManaged('ollama');
-  const current = await request(`${rt.ollamaUrl}/api/version`, { timeout: 1500, signal }).catch(
-    () => null,
-  );
-  signal?.throwIfAborted();
-  if (current && !managedProcess('ollama'))
-    throw new Error(
-      `Ollama port ${settings.ollamaPort} is already in use. Select a free managed port in config/core.local.json.`,
-    );
-  if (!current) {
-    const selection = await languageDeviceLaunch(root, ollamaPath);
-    const memory = await memorySampler.sample({ fresh: true });
-    signal?.throwIfAborted();
-    const budget = gpuBudget({
-      ...settings,
-      voiceExpected: voiceExpected && modelsShareDevice(preferences.language, preferences.voice),
-      voiceReady,
-      gpus: memory.gpus,
-    });
-    console.info('Qwen GPU budget:', JSON.stringify(budget));
-    // No guessed layer count: Ollama sizes weights + KV cache against free VRAM
-    // and this reserve. The same policy applies to warmup and real requests.
-    await launch('ollama', ollamaPath, ['serve'], rt, {
-      env: { OLLAMA_GPU_OVERHEAD: String(budget.overheadBytes), ...selection.env },
-      deviceKey: selection.key,
-    });
-  }
-  const version = await waitFor(() => request(`${rt.ollamaUrl}/api/version`, { signal }), {
-    label: 'Ollama',
-    signal,
-  });
-  const actual = String(version.version).match(/^(\d+)\.(\d+)\.(\d+)/),
-    minimum = settings.ollamaVersion.split('.').map(Number);
+  const configuration = createHash('sha256')
+    .update(
+      JSON.stringify([
+        settings.model,
+        settings.embeddingModel,
+        settings.contextTokens,
+        settings.keepAlive,
+        settings.cpuThreads,
+        settings.acceleration,
+        settings.generation,
+        settings.reasoningBudget,
+      ]),
+    )
+    .digest('hex')
+    .slice(0, 16);
+  // A running service from the previous version may still own this port.
+  if (managedProcess('ollama')) await stopProcess('ollama');
+  let marker = managedProcess('llama');
   if (
-    !actual ||
-    actual
-      .slice(1)
-      .map(Number)
-      .reduce((order, part, index) => order || Math.sign(part - minimum[index]), 0) < 0
-  )
-    throw new Error(
-      `This build needs Ollama ${settings.ollamaVersion} or newer; found ${version.version}. Update the selected Ollama executable.`,
+    marker &&
+    ((marker.deviceKey ?? 'auto') !== preferences.language || requiresPrivacyRestart(marker))
+  ) {
+    await stopManaged('llama');
+    marker = null;
+  }
+  const health = async () => {
+    const packet = await request(`${rt.ollamaUrl}/api/version`, { timeout: 1500, signal });
+    return packet.engine === 'llama.cpp' &&
+      packet.version === settings.llamaVersion &&
+      packet.configuration === configuration
+      ? packet
+      : null;
+  };
+  const current = marker ? await health().catch(() => null) : null;
+  signal?.throwIfAborted();
+  if (current) return current;
+  if (marker) await stopManaged('llama');
+  const occupied = await fetch(`${rt.ollamaUrl}/api/version`, {
+    redirect: 'error',
+    signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(1500)]),
+  }).catch(() => null);
+  signal?.throwIfAborted();
+  if (occupied) {
+    await occupied.body?.cancel();
+    throw Object.assign(
+      new Error(`Local inference port ${settings.ollamaPort} is already in use.`),
+      {
+        code: 'CAPRI_SERVICE_PORT_OCCUPIED',
+      },
     );
-  return version;
+  }
+  const id = preferences.language;
+  const explicit = id !== 'auto' && id !== 'cpu' && !id.startsWith('npu-');
+  const device = explicit
+    ? migrateLanguageDevice(id, await probeLanguageDevices(llamaPath)).find(
+        (entry) => entry.id === id && entry.available,
+      )
+    : null;
+  signal?.throwIfAborted();
+  const budget = gpuBudget({
+    ...settings,
+    voiceExpected: voiceExpected && modelsShareDevice(preferences.language, preferences.voice),
+    voiceReady,
+  });
+  await launch('llama', nodePath, [path.join(root, 'packages/runtime/bin/llama-host.mjs')], rt, {
+    env: {
+      CAPRI_LLAMA_PATH: llamaPath,
+      CAPRI_LLAMA_DEVICE: device ? `Vulkan${device.ordinal}` : explicit ? 'unavailable' : '',
+      CAPRI_LLAMA_FORCE_CPU: id === 'cpu' || id.startsWith('npu-') ? '1' : '0',
+      CAPRI_LLAMA_CONFIGURATION: configuration,
+      CAPRI_LLAMA_RESERVE_MIB: String(budget.overheadBytes / 1024 ** 2),
+    },
+    deviceKey: id,
+  });
+  return waitForOwnedService(health, { name: 'llama', label: 'llama.cpp', signal, timeout: 15000 });
 }
 export async function startGateway(rt = runtime(), { signal } = {}) {
   signal?.throwIfAborted();
   requireExecutable(nodePath, 'Node.js');
-  if (!existsSync(openclawPath)) throw new Error('OpenClaw is missing. Run npm ci.');
+  if (!existsSync(openclawPath))
+    throw Object.assign(new Error('OpenClaw is missing. Repair Capri with the installer.'), {
+      code: 'CAPRI_GATEWAY_RUNTIME_MISSING',
+    });
   initialize(rt);
   const security = applyDependencySecurityPatches(root);
   if (security.changed && managedProcess(rt.logPrefix)) await stopProcess(rt.logPrefix);
@@ -112,8 +146,11 @@ export async function startGateway(rt = runtime(), { signal } = {}) {
     }).catch(() => null);
     if (occupied) {
       await occupied.body?.cancel();
-      throw new Error(
-        `Gateway port ${rt.gatewayPort} is occupied by another installation. Choose a free local port.`,
+      throw Object.assign(
+        new Error(
+          `Gateway port ${rt.gatewayPort} is occupied by another installation. Choose a free local port.`,
+        ),
+        { code: 'CAPRI_SERVICE_PORT_OCCUPIED' },
       );
     }
   }
@@ -124,7 +161,9 @@ export async function startGateway(rt = runtime(), { signal } = {}) {
   }).catch(() => null);
   signal?.throwIfAborted();
   if (current && !managedProcess(rt.logPrefix))
-    throw new Error(`Gateway port ${rt.gatewayPort} belongs to another process.`);
+    throw Object.assign(new Error(`Gateway port ${rt.gatewayPort} belongs to another process.`), {
+      code: 'CAPRI_SERVICE_PORT_OCCUPIED',
+    });
   if (!current)
     await launch(
       rt.logPrefix,

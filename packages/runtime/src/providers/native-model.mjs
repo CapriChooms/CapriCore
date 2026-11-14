@@ -61,12 +61,36 @@ export async function ensureNativeLanguageModel(
 ) {
   signal?.throwIfAborted();
   if (!config.upstreamModel || config.upstreamModel === config.model) return;
+  if (rt.localEngine === 'llama.cpp') {
+    const description = await request(`${rt.ollamaUrl}/api/show`, {
+      signal,
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: config.model }),
+    }).catch((error) => {
+      signal?.throwIfAborted();
+      if (!/^HTTP 404 from /.test(error.message)) throw error;
+      throw Object.assign(
+        new Error('Download the selected local language model before starting Capri.'),
+        { code: 'CAPRI_LOCAL_LANGUAGE_MODEL_MISSING' },
+      );
+    });
+    if (
+      !description.template?.trim() ||
+      !['tools', 'thinking'].every((capability) => description.capabilities?.includes(capability))
+    )
+      throw new Error('The local language model is missing its native GGUF chat template.');
+    return;
+  }
   let upstream;
   try {
     upstream = JSON.parse(readFileSync(manifestFile(config.upstreamModel), 'utf8'));
   } catch {
-    throw new Error(
-      `Download ${config.upstreamModel} with scripts/pull-models.mjs before starting Capri.`,
+    throw Object.assign(
+      new Error(
+        `Download ${config.upstreamModel} with scripts/pull-models.mjs before starting Capri.`,
+      ),
+      { code: 'CAPRI_LOCAL_LANGUAGE_MODEL_MISSING' },
     );
   }
   const definition = nativeModelDefinition(

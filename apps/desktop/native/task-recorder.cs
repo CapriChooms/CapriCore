@@ -32,10 +32,19 @@ class TaskRecorder {
  static readonly BlockingCollection<Event> queue=new BlockingCollection<Event>(256);
  static readonly Stopwatch clock=Stopwatch.StartNew();
  static Hook mouseCallback=Mouse,keyCallback=Keyboard;
- static IntPtr mouseHook,keyHook;static int parentPid,fixturePid;static volatile bool done;static long previous;static int count;
+ static IntPtr mouseHook,keyHook;static int parentPid,fixturePid;static volatile bool done;static long previous,lastMove;static int count;static bool holding;
  static void Emit(object value){lock(json){Console.WriteLine(json.Serialize(value));Console.Out.Flush();}}
  static IntPtr Mouse(int code,IntPtr message,IntPtr data){
-  if(code>=0&&!done){int kind=message.ToInt32();if(kind==513||kind==514||kind==516||kind==522){var value=(MouseData)Marshal.PtrToStructure(data,typeof(MouseData));if((value.flags&1)==0||fixturePid>0)queue.TryAdd(new Event{action=kind==513?"down":kind==514?"up":kind==516?"right":"scroll",point=value.point,amount=(short)(value.data>>16)/120,at=clock.ElapsedMilliseconds,window=GetAncestor(WindowFromPoint(value.point),2)});}}
+  if(code>=0&&!done){
+   int kind=message.ToInt32();long now=clock.ElapsedMilliseconds;
+   if(kind==513||kind==514||kind==516||kind==522||(kind==512&&holding&&now-lastMove>=35)){
+    var value=(MouseData)Marshal.PtrToStructure(data,typeof(MouseData));
+    if((value.flags&1)==0||fixturePid>0){
+     if(kind==513)holding=true;else if(kind==514)holding=false;else if(kind==512)lastMove=now;
+     queue.TryAdd(new Event{action=kind==513?"down":kind==514?"up":kind==512?"move":kind==516?"right":"scroll",point=value.point,amount=(short)(value.data>>16)/120,at=now,window=GetAncestor(WindowFromPoint(value.point),2)});
+    }
+   }
+  }
   return CallNextHookEx(IntPtr.Zero,code,message,data);
  }
  static IntPtr Keyboard(int code,IntPtr message,IntPtr data){
@@ -58,26 +67,43 @@ class TaskRecorder {
   return new{label=label.Substring(0,Math.Min(label.Length,100)),role=current.ControlType.ProgrammaticName,automationId=id.Substring(0,Math.Min(id.Length,100)),x=Math.Max(0,Math.Min(1,(double)(point.x-rect.left)/(rect.right-rect.left))),y=Math.Max(0,Math.Min(1,(double)(point.y-rect.top)/(rect.bottom-rect.top)))};
  }
  static void Consume(){
-  Event down=null;object from=null;
+  Event down=null;object from=null;var path=new List<object>();Rect dragBounds=new Rect();
+  long lastPoint=0,pointInterval=35;bool displaced=false;
   foreach(var entry in queue.GetConsumingEnumerable()){
    if(done||count>=120)break;
    try{
+    if(entry.action=="move"){
+     if(down!=null&&entry.window==down.window&&
+         entry.point.x>=dragBounds.left&&entry.point.x<dragBounds.right&&
+         entry.point.y>=dragBounds.top&&entry.point.y<dragBounds.bottom){
+      displaced=displaced||Math.Abs(entry.point.x-down.point.x)>8||Math.Abs(entry.point.y-down.point.y)>8;
+      if(entry.at-lastPoint<pointInterval)continue;
+      if(path.Count==24){
+       for(int index=path.Count-1;index>0;index-=2)path.RemoveAt(index);
+       pointInterval*=2;
+      }
+      path.Add(new{x=(double)(entry.point.x-dragBounds.left)/(dragBounds.right-dragBounds.left),
+          y=(double)(entry.point.y-dragBounds.top)/(dragBounds.bottom-dragBounds.top)});
+      lastPoint=entry.at;
+     }
+     continue;
+    }
     uint pid;GetWindowThreadProcessId(entry.window,out pid);if(pid==0||pid==parentPid||(fixturePid>0&&pid!=fixturePid))continue;
     string exe;using(var process=Process.GetProcessById((int)pid)){if(process.SessionId!=Process.GetCurrentProcess().SessionId)continue;exe=process.MainModule.FileName;}
     if(String.IsNullOrEmpty(exe)||!exe.EndsWith(".exe",StringComparison.OrdinalIgnoreCase))continue;
     AutomationElement element=entry.action=="keys"?AutomationElement.FocusedElement:AutomationElement.FromPoint(new System.Windows.Point(entry.point.x,entry.point.y));
     if(element==null||element.Current.IsPassword)continue;
     var selector=entry.action=="keys"?null:Selector(element,entry.point,entry.window);
-    if(entry.action=="down"){down=entry;from=selector;continue;}
+    if(entry.action=="down"){down=entry;from=selector;path.Clear();GetWindowRect(entry.window,out dragBounds);lastPoint=entry.at;pointInterval=35;displaced=false;continue;}
     string action=entry.action;object destination=null;
     if(action=="up"){
      action="click";
-     if(down!=null&&down.window==entry.window&&Math.Sqrt(Math.Pow(entry.point.x-down.point.x,2)+Math.Pow(entry.point.y-down.point.y,2))>8){action="drag";destination=selector;selector=from;}
+     if(down!=null&&down.window==entry.window&&(displaced||Math.Sqrt(Math.Pow(entry.point.x-down.point.x,2)+Math.Pow(entry.point.y-down.point.y,2))>8)){action="drag";destination=selector;selector=from;}
      down=null;from=null;
     }
     if(action!="keys"&&selector==null)continue;
     if(action=="right")action="click";
-    count++;Emit(new{type="step",step=new{action,executable=exe,selector,to=destination,keys=entry.keys,amount=entry.amount,button=entry.action=="right"?"right":"left",delayMs=(int)Math.Max(0,Math.Min(2000,entry.at-previous-100))}});previous=entry.at;
+    count++;Emit(new{type="step",step=new{action,executable=exe,selector,to=destination,trajectory=action=="drag"?path.ToArray():null,keys=entry.keys,amount=entry.amount,button=entry.action=="right"?"right":"left",delayMs=(int)Math.Max(0,Math.Min(2000,entry.at-previous-100))}});previous=entry.at;
    }catch{/* Unknown/password/closed targets produce no recorded data. */}
   }
  }

@@ -82,6 +82,27 @@ async function inspect(state, { review = false } = {}) {
     },
   });
   await plan(state, { review });
+  if (review) {
+    const content = packet.messages[1].content;
+    const view = JSON.parse(
+      content
+        .split('\n\nLIVE OBSERVATION AFTER THE ACTIONS (the latest evidence):\n')[1]
+        .split('\n\nPRIOR ACTIONS AND PLAN:\n')[0],
+    );
+    return {
+      packet,
+      context: {
+        currentObservation: {
+          ...view,
+          targets: view.controls.map(({ label, value, ...target }) => ({
+            ...target,
+            untrustedLabel: label,
+            untrustedValue: value,
+          })),
+        },
+      },
+    };
+  }
   return {
     packet,
     context: JSON.parse(packet.messages[1].content.split('\n\nORIGINAL OWNER GOAL')[0]),
@@ -105,8 +126,8 @@ test('native Discord planning and review withhold unrelated messages, account na
       assert.equal(encoded.includes(secret), false, secret);
     const view = context.currentObservation;
     assert.equal(view.scene, null);
-    assert.equal(view.screenAvailable, false);
-    assert.equal(view.visionStatus, 'withheld_for_discord');
+    assert.equal(view.screenAvailable, review ? undefined : false);
+    assert.equal(view.visionStatus, review ? undefined : 'withheld_for_discord');
     assert.equal(view.application, undefined);
     assert.equal(view.privateExtra, undefined);
     assert.equal(view.window.privateDetails, undefined);

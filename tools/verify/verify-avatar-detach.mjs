@@ -160,7 +160,7 @@ try {
     ['#teleport-jaggedness', 'teleportJaggedness', 93],
     ['#teleport-branches', 'teleportBranches', 0],
   ];
-  const appearance = await settingsView(app, 'appearance');
+  const appearance = await settingsView(app, 'avatar-skill');
   for (const [id, , value] of sliders) await appearance.locator(id).fill(String(value));
   await appearance.locator('#teleport-reduced-flash').check();
   await saveSettings(appearance);
@@ -171,7 +171,7 @@ try {
     );
   }, sliders);
   await appearance.locator('#settings-window-close').evaluate((button) => button.click());
-  const reopened = await settingsView(app, 'appearance');
+  const reopened = await settingsView(app, 'avatar-skill');
   for (const [id, , value] of sliders)
     assert.equal(await reopened.locator(id).inputValue(), String(value));
   assert.ok(await reopened.locator('#teleport-reduced-flash').isChecked());

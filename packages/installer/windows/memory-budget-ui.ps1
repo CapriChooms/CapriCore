@@ -58,23 +58,23 @@ function Update-CapriMemoryBudgetView {
         $selection.voicePack=$selection.voiceMode -in @('bundled','custom')
     }
     if($selection.inferenceMode -eq 'api' -or $selection.modelSource -eq 'huggingface'){$selection.downloadModels=$false}
+    $selection.installedModel=$selection.profile -match '^hf-[a-f0-9]{24}$'
     if($script:fields.ContainsKey('storageEstimate')){
         $script:fields.storageEstimate.Text=Format-CapriStorageEstimate (Get-CapriStorageEstimate $selection $manifest $storageCatalog $rocmVoice $hardware)
     }
-    $unknown=$selection.inferenceMode -ne 'api' -and $selection.modelSource -eq 'huggingface'
+    $unknown=$selection.inferenceMode -ne 'api' -and ($selection.modelSource -eq 'huggingface' -or $selection.installedModel)
     $script:memoryBudget=if($unknown){@{mode='unknown'}}else{Get-CapriMemoryBudget $selection $hardware $memoryEstimates}
     $budgetTitle.Text=(Text-Capri 'budgetTitle')+$(if($selection.inferenceMode -eq 'api'){' | API'}elseif($unknown){' | Hugging Face'}else{' | 32K | '+$script:memoryBudget.mode.ToUpperInvariant()})
     $budgetRefresh.Text=Text-Capri 'budgetRefresh'
-    function RangeText($range){return (@($range|ForEach-Object{([Math]::Max(0,$_)).ToString('0.0')}) -join ' - ')+' GiB'}
     foreach($kind in @('ram','vram')){
         $controls=$budgetRows[$kind]
         $controls.bar.Visible=-not $unknown
         $controls.detail.Visible=-not $unknown
         if($unknown){$controls.label.Text=$kind.ToUpperInvariant()+' | '+(Text-Capri 'budgetUse')+': ?';continue}
         $row=$script:memoryBudget[$kind]
-        $controls.label.Text=$kind.ToUpperInvariant()+' | '+(Text-Capri 'budgetUse')+': '+(RangeText $row.estimate)
+        $controls.label.Text=$kind.ToUpperInvariant()+' | '+(Text-Capri 'budgetUse')+': '+(Format-CapriMemoryRange $row.estimate)
         $free=if($null -eq $row.available){Text-Capri 'unknown'}else{$row.available.ToString('0.0')+' GiB'}
-        $after=if($null -eq $row.remaining){Text-Capri 'unknown'}else{RangeText $row.remaining}
+        $after=if($null -eq $row.remaining){Text-Capri 'unknown'}else{Format-CapriMemoryRange $row.remaining}
         $controls.detail.Text=(Text-Capri 'budgetFree')+': '+$free+"`n"+(Text-Capri 'budgetAfter')+': '+$after
         $controls.detail.ForeColor=if($row.exceedsAvailable){[Drawing.Color]::FromArgb(155,57,20)}else{[Drawing.Color]::FromArgb(23,49,58)}
         $controls.bar.Tag=$row;$controls.bar.Invalidate()

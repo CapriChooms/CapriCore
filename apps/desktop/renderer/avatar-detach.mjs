@@ -14,7 +14,7 @@ import { showAvatarTapEffect } from './avatar-tap-effect.mjs';
 import { ReplyPages } from './reply-pages.mjs';
 import { detachedReplyLayout } from './detached-reply-layout.mjs';
 import { replyBubbleOutline } from './reply-bubble-outline.mjs';
-import { AvatarMouthLayer, avatarPoseLandmarks, drawPoseEyes } from './avatar-mouth.mjs';
+import { AvatarMouthLayer, avatarPoseLandmarks } from './avatar-mouth.mjs';
 import { AvatarDragTether } from './avatar-drag-tether.mjs';
 import { applyInterfaceTheme } from './interface-theme.mjs';
 import { musicAnimationReady } from './music-listening-settings.mjs';
@@ -91,11 +91,6 @@ let replySnapshot,
   replyDirty = false;
 let replyFontRevision = 0;
 const mouth = new AvatarMouthLayer(parkedImage);
-const gripFace = document.createElement('canvas');
-gripFace.className = 'avatar-grip-face';
-gripFace.setAttribute('aria-hidden', 'true');
-gripFace.hidden = true;
-portrait.append(gripFace);
 const tether = new AvatarDragTether();
 const pat = new AvatarHeadpat(document.body, redrawMouth);
 const context = effect.getContext('2d', { alpha: true });
@@ -123,9 +118,7 @@ let rasterPose;
 let movingLimbs = [];
 let motionFrame = 0;
 let lastSwing;
-let gripFaceTimer;
 let blinkTimer;
-let gripFaceRequest = 0;
 let mouthShape = 'closed';
 let music = {
   enabled: false,
@@ -209,7 +202,6 @@ function animateMusic(now) {
       !parked.hidden &&
       !document.hidden &&
       !musicDragging &&
-      gripFace.hidden &&
       pat.image(parkedImage) === parkedImage,
   );
   if (!pose) musicAnimation.reset();
@@ -260,7 +252,8 @@ function animateMusic(now) {
 }
 
 function frameIdFor(url) {
-  return /\/([a-z0-9_-]+)\.png$/i.exec(url)?.[1] ?? '';
+  const id = /\/([a-z0-9_-]+)\.png$/i.exec(url)?.[1];
+  return id === 'sprite' ? 'neutral' : (id ?? '');
 }
 
 function setMouth(shape) {
@@ -483,7 +476,6 @@ function showPose(url, dock) {
   const frameId = frameIdFor(url);
   const pose = avatarPoseLandmarks(frameId);
   if (parked.dataset.dock === name && parked.dataset.poseFrame === (pose ? frameId : '')) return;
-  clearGripExpression();
   parked.dataset.dock = name;
   parked.dataset.poseFrame = pose ? frameId : '';
   parked.toggleAttribute('data-legacy-seat', seated);
@@ -496,7 +488,6 @@ function showPose(url, dock) {
   gripFront.replaceChildren();
   parked.toggleAttribute('data-grip', Boolean(gripPose));
   stage.toggleAttribute('data-mirror', gripPose?.mirror === true);
-  gripFace.toggleAttribute('data-registered-face', Boolean(pose));
   if (gripPose) {
     const { head, layers } = gripPose;
     portrait.style.transform = `translate(${(head.x / 1254) * 100}%, ${(head.y / 1254) * 100}%) scale(${head.scale})`;
@@ -557,50 +548,6 @@ function prepareRasterMotion(frameId, url) {
   poseMotion.prepend(defs);
 }
 
-function clearGripExpression() {
-  gripFaceRequest++;
-  clearTimeout(gripFaceTimer);
-  gripFace.hidden = true;
-}
-
-async function showGripExpression(tone) {
-  if (rasterPose) {
-    if (!['curious', 'neutral', 'boundary', 'blink'].includes(tone)) return;
-    clearTimeout(gripFaceTimer);
-    if (gripFace.width !== 1254) gripFace.width = gripFace.height = 1254;
-    const painter = gripFace.getContext('2d');
-    if (!painter) return;
-    painter.clearRect(0, 0, 1254, 1254);
-    drawPoseEyes(painter, rasterPose, tone);
-    gripFace.dataset.frame = tone;
-    gripFace.hidden = false;
-    gripFaceTimer = setTimeout(clearGripExpression, tone === 'blink' ? 105 : 740);
-    return;
-  }
-  if (!gripPose) return;
-  const frame = { curious: 'skeptical', neutral: 'attentive', boundary: 'annoyed' }[tone];
-  if (!frame) return;
-  clearTimeout(gripFaceTimer);
-  const request = ++gripFaceRequest;
-  try {
-    const expression = await loadFrame(`capri://desktop/sprites/${frame}.png`);
-    if (request !== gripFaceRequest || parked.hidden) return;
-    const { naturalWidth: width, naturalHeight: height } = expression;
-    if (gripFace.width !== width) gripFace.width = width;
-    if (gripFace.height !== height) gripFace.height = height;
-    const painter = gripFace.getContext('2d');
-    if (!painter) return;
-    painter.clearRect(0, 0, width, height);
-    painter.drawImage(expression, 0, 0);
-    gripFace.dataset.frame = frame;
-    gripFace.hidden = false;
-    gripFaceTimer = setTimeout(clearGripExpression, 740);
-  } catch {
-    if (request === gripFaceRequest) clearGripExpression();
-    // Pulse feedback still works if the optional expression frame is absent.
-  }
-}
-
 function drawPoseMotion() {
   const now = Date.now();
   if (rasterPose) {
@@ -648,15 +595,14 @@ function scheduleBlink() {
   if (document.body.dataset.presentation === 'dialogue') return;
   if (
     parked.hidden ||
-    !rasterPose ||
+    !rasterPose?.eyes ||
     motionPreference.matches ||
     Object.hasOwn(MUSIC_POSES, frameIdFor(parkedImage.src))
   )
     return;
   blinkTimer = setTimeout(
     () => {
-      if (gripFace.hidden && pat.image(parkedImage) === parkedImage)
-        void showGripExpression('blink');
+      if (!pat.frameId && !pat.hearts) pat.react(parkedImage, frameIdFor(parkedImage.src), 'blink');
       scheduleBlink();
     },
     3300 + Math.random() * 2200,
@@ -950,11 +896,15 @@ function showHud() {
   setReplyNear(replyNear);
 }
 
-function setReply({ text, turnId, collapsed, history } = {}) {
+function setReply({ text, turnId, collapsed, autoCollapsed, history } = {}) {
   if (typeof text !== 'string' || typeof turnId !== 'string') return false;
   if (turnId !== replyTurn) {
     replyTurn = turnId;
     replyCollapsed = collapsed === true;
+  }
+  if (typeof autoCollapsed === 'boolean') {
+    replyCollapsed = autoCollapsed;
+    replyNear = false;
   }
   replySnapshot = { text, turnId, history };
   replyDirty = true;
@@ -988,7 +938,6 @@ function setStatus(value) {
   document.body.dataset.sleeping = String(sleeping);
   if (sleeping) {
     pat.clear();
-    clearGripExpression();
     document.getElementById('avatar-tap')?.remove();
   }
   if (typeof labels?.show === 'string' && typeof labels?.hide === 'string') {
@@ -1140,7 +1089,6 @@ function whenSettled() {
 async function play(startAt) {
   if (!prepared?.sprite || flight) return false;
   pat.clear();
-  clearGripExpression();
   frameRequest = undefined;
   parked.hidden = true;
   replyNear = false;
@@ -1189,13 +1137,12 @@ function pulse({ x, y, count, tone }) {
     headpat({ x, y });
     return;
   }
-  void showGripExpression(tone);
+  if (!pat.hearts) pat.react(parkedImage, frameIdFor(parkedImage.src), tone);
   showAvatarTapEffect(document.body, { x, y, count, tone, id: 'avatar-tap' });
 }
 
 function headpat(point) {
   if (!sleeping && !parked.hidden) {
-    clearGripExpression();
     pat.play(
       parkedImage,
       point,

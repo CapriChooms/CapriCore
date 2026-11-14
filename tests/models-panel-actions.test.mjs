@@ -83,6 +83,14 @@ test('a missing configured model can be repaired while an installed active model
   panel.value.profiles[0].installed = true;
   panel.value.inventoryUnavailable = false;
   panel.details();
+  assert.equal(
+    panel.get('prepare').disabled,
+    false,
+    'An orphaned alias still needs its source model',
+  );
+  assert.equal(panel.get('local').disabled, false);
+  panel.value.profiles[0].upstreamInstalled = true;
+  panel.details();
   assert.equal(panel.get('local').disabled, true);
 });
 

@@ -37,3 +37,112 @@ body {
   letter-spacing: 1px;
   white-space: nowrap;
 }
+/* Task progress lives above the effect canvas. Desktop input always passes through. */
+#control-task-chain {
+  position: fixed;
+  z-index: 3;
+  top: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(var(--task-count, 1) * 174px), 94vw);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+  font:
+    600 12px/1.3 'Segoe UI',
+    sans-serif;
+}
+#control-task-chain[hidden] {
+  display: none;
+}
+.control-task-step {
+  --step-corner: 8px;
+  --step-outline: #568b91;
+  --step-diagonal-edge: calc(var(--step-corner) * 0.70710678 + 1px);
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 11px 12px;
+  color: #c5e4e6;
+  border: 1px solid var(--step-outline);
+  background-color: #07151eef;
+  /* A rectangular border is clipped away at the two diagonal edges. */
+  background-image:
+    linear-gradient(
+      135deg,
+      var(--step-outline) var(--step-diagonal-edge),
+      transparent var(--step-diagonal-edge)
+    ),
+    linear-gradient(
+      315deg,
+      var(--step-outline) var(--step-diagonal-edge),
+      transparent var(--step-diagonal-edge)
+    );
+  background-origin: border-box;
+  background-position:
+    top left,
+    bottom right;
+  background-size: var(--step-corner) var(--step-corner);
+  background-repeat: no-repeat;
+  clip-path: polygon(
+    var(--step-corner) 0,
+    100% 0,
+    100% calc(100% - var(--step-corner)),
+    calc(100% - var(--step-corner)) 100%,
+    0 100%,
+    0 var(--step-corner)
+  );
+}
+.task-step-icon {
+  flex: none;
+  font-size: 18px;
+}
+.task-step-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.control-task-step[data-state='active'] {
+  --step-outline: #8effef;
+  color: #9efff4;
+  box-shadow: inset 0 -3px #7ffff6;
+}
+.control-task-step[data-state='active']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, #8cfff62b 50%, transparent 70%);
+  animation: task-scan 1.7s linear infinite;
+}
+.control-task-step[data-state='completed'] {
+  --step-outline: #70e695;
+  color: #b3ffce;
+  background-color: #0a3027f5;
+  box-shadow: inset 0 -3px #70e695;
+}
+#control-task-chain[data-replanning='true'] .control-task-step[data-state='active'] {
+  --step-outline: #ffe06e;
+}
+@keyframes task-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .control-task-step::after {
+    animation: none !important;
+  }
+}

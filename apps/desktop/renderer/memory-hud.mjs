@@ -406,7 +406,9 @@ export class MemoryHUD {
         row.className = 'resource-warning';
         row.dataset.warningDevice = device;
         const text = this.document.createElement('span');
+        text.className = 'resource-warning-message';
         const dismiss = this.document.createElement('button');
+        dismiss.className = 'resource-warning-dismiss';
         dismiss.type = 'button';
         dismiss.dataset.hitRegion = '';
         dismiss.textContent = '×';
@@ -415,8 +417,37 @@ export class MemoryHUD {
           this.drawWarnings(this.sample);
         };
         row.append(text, dismiss);
+        const actions = [];
+        if (!temperature) {
+          const group = this.document.createElement('div');
+          group.className = 'resource-warning-actions';
+          for (const [label, section] of [
+            ['Change local model', 'local-model'],
+            ['Change device', 'model-devices'],
+            ['Use API', 'api'],
+          ]) {
+            const button = this.document.createElement('button');
+            button.type = 'button';
+            button.dataset.hitRegion = '';
+            button.dataset.resourceAction = section;
+            button.onclick = async () => {
+              if (this.openingWarningSettings) return;
+              this.openingWarningSettings = true;
+              try {
+                await this.api.openSettings(section);
+              } catch (error) {
+                this.onError(error.message);
+              } finally {
+                this.openingWarningSettings = false;
+              }
+            };
+            group.append(button);
+            actions.push({ button, label });
+          }
+          row.append(group);
+        }
         this.warningList.append(row);
-        item = { row, text, dismiss };
+        item = { row, text, dismiss, actions };
         this.warningRows.set(device, item);
         layoutChanged = true;
       }
@@ -432,6 +463,7 @@ export class MemoryHUD {
       }
       item.dismiss.title = this.ui.text('Dismiss');
       item.dismiss.setAttribute('aria-label', `${item.dismiss.title} · ${message}`);
+      for (const { button, label } of item.actions) button.textContent = this.ui.text(label);
     }
     this.warningList.hidden = !warnings.length;
     if (layoutChanged) this.onLayout();

@@ -17,8 +17,16 @@ const microphoneOff = (text) =>
   /^(stop listening|microphone off|turn off (?:the )?microphone|не слушай|выключи микрофон|прекрати слушать)$/i.test(
     commandText(text),
   );
-const startupRepair =
-  'Speech recognition could not start. Check the selected language and setup-multilingual.cmd.';
+const startupMessages = Object.freeze({
+  ASR_START_PYTHON: 'Install the selected recognition pack first.',
+  ASR_START_MODEL: 'Install the selected recognition pack first.',
+  ASR_START_DETECTOR: 'Install the selected recognition pack first.',
+  ASR_START_DEPENDENCIES:
+    'Your saved data has been preserved. Repair Capri with the installer and try again.',
+  ASR_START_NATIVE_DLL:
+    'Your saved data has been preserved. Repair Capri with the installer and try again.',
+  ASR_START_TIMEOUT: 'Recognition worker startup timed out',
+});
 const workerStopped = 'The local speech recognizer stopped. Restart the microphone.';
 const canAutoSend = (config, capture) =>
   Boolean(config.autoSend && (!capture?.systemAudioReview || capture.systemAudioWake));
@@ -322,7 +330,11 @@ export class MicrophoneService {
       : startup
         ? 'ASR_START_SESSION'
         : 'ASR_WORKER_EXIT';
-    const message = startup ? startupRepair : workerStopped;
+    const message = startup
+      ? Object.hasOwn(startupMessages, code)
+        ? startupMessages[code]
+        : 'The microphone could not start.'
+      : workerStopped;
     this.lastFailure = {
       at: new Date().toISOString(),
       code,
@@ -579,6 +591,7 @@ export function audioPermission({
   origin,
   details,
   request = false,
+  url = 'capri://desktop/index.html',
 }) {
   if (
     (!armed && (!listingDevices || request)) ||
@@ -587,11 +600,9 @@ export function audioPermission({
     permission !== 'media'
   )
     return false;
-  if (owner.getURL() !== 'capri://desktop/index.html' || details?.isMainFrame === false)
-    return false;
+  if (owner.getURL() !== url || details?.isMainFrame === false) return false;
   if (origin && origin !== 'capri://desktop' && origin !== 'capri://desktop/') return false;
-  if (details?.requestingUrl && details.requestingUrl !== 'capri://desktop/index.html')
-    return false;
+  if (details?.requestingUrl && details.requestingUrl !== url) return false;
   return request
     ? Array.isArray(details?.mediaTypes) &&
         details.mediaTypes.length === 1 &&

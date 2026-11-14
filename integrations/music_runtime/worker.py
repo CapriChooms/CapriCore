@@ -136,7 +136,10 @@ class MusicClassifier:
             **self.tempo.estimate(
                 music=bool(
                     mean[self.config["classes"]["music"]] >= 0.6 and rms >= 0.0003
-                )
+                ),
+                retain_history=bool(
+                    rms >= 0.0003 and mean[self.config["classes"]["speech"]] < 0.2
+                ),
             ),
             "inferenceMs": round((time.perf_counter() - started) * 1000.0, 3),
         }

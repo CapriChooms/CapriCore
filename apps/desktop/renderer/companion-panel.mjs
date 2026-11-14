@@ -66,16 +66,26 @@ export class CompanionPanel {
           <div class="support-art" aria-hidden="true"><div class="support-orbit"></div><div class="support-heart">♥</div><i></i><i></i><i></i><i></i><span>CAPRI / COMMUNITY LINK</span></div>
           <h3>Help Capri grow</h3><p class="support-developer"><span>Developed by</span> <strong data-untranslated>Overyx</strong></p><p>Capri is free. If she makes your day a little brighter, you can support her development. Every contribution means a lot. Thank you for being here.</p>
           <div class="settings-actions support-links">
-            <button type="button" data-community="boosty" class="brand-boosty"><span class="brand-icon" aria-hidden="true"></span><span>Support on Boosty</span></button>
-            <button type="button" data-community="discord" class="brand-discord" data-untranslated><span class="brand-icon" aria-hidden="true"></span><span>Discord</span></button>
-            <button type="button" data-community="tiktok" class="brand-tiktok" data-untranslated><span class="brand-icon brand-video" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 8.5 16 12l-6 3.5z" fill="currentColor"/></svg></span><span>TikTok</span></button>
-            <button type="button" data-community="github" class="brand-github" data-untranslated><span class="brand-icon" aria-hidden="true"></span><span>GitHub</span></button>
-            <button type="button" data-community="website" class="brand-website" data-untranslated><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg></span><span>capri-core.com</span></button>
+            <div class="support-donations" dir="ltr">
+              <button type="button" data-community="boosty" class="brand-boosty" data-untranslated><span class="brand-icon" aria-hidden="true"></span><span>Boosty</span></button>
+              <button type="button" data-community="lava" class="brand-lava" data-untranslated><span class="brand-icon" aria-hidden="true"></span><span>Lava.top</span></button>
+            </div>
+            <div class="support-social">
+              <button type="button" data-community="discord" class="brand-discord" data-untranslated><span class="brand-icon" aria-hidden="true"></span><span>Discord</span></button>
+              <button type="button" data-community="tiktok" class="brand-tiktok" data-untranslated><span class="brand-icon brand-video" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="3" width="12" height="18" rx="3"/><path d="m10 9 5 3-5 3z" fill="currentColor" stroke="none"/></svg></span><span>TikTok</span></button>
+              <button type="button" data-community="youtube" class="brand-youtube" data-untranslated><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 8.5 16 12l-6 3.5z" fill="currentColor"/></svg></span><span>YouTube</span></button>
+              <button type="button" data-community="github" class="brand-github" data-untranslated><span class="brand-icon" aria-hidden="true"></span><span>GitHub</span></button>
+            </div>
+            <div class="support-resources">
+              <button type="button" data-community="website" class="brand-website" data-untranslated><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg></span><span>capri-core.com</span></button>
+              <button type="button" data-community="faq" data-untranslated><span>FAQ</span></button>
+              <button type="button" data-community="releases"><span>Download</span></button>
+            </div>
           </div>
-          <p class="settings-help">Payment methods and availability depend on Boosty and your country.</p>
+          <p class="settings-help">Payment methods and availability depend on Lava.top and your country.</p>
         </section>
         <section data-companion-tab="bug" hidden>
-          <p>Save a diagnostic ZIP with system details, voice checks and recent logs. Nothing is uploaded automatically. Review the archive before sharing.</p>
+          <p>Send your description and selected diagnostics privately to the Capri maintainer. You can also save and review a ZIP on this PC.</p>
           <label for="bug-category">Problem area</label><select id="bug-category"><option value="voice">Voice</option><option value="recognition">Speech recognition</option><option value="model">Language model</option><option value="startup">Startup</option><option value="interface">Interface</option><option value="installer">Installation</option><option value="other">Other</option></select>
           <label for="bug-title">Short title</label><input id="bug-title" type="text" maxlength="160" dir="auto">
           <label for="bug-description">What went wrong?</label>
@@ -85,7 +95,7 @@ export class CompanionPanel {
           <label for="bug-actual">Actual result</label><textarea id="bug-actual" rows="2" maxlength="1500" dir="auto"></textarea>
           <label><input type="checkbox" id="bug-logs" checked> <span>Include recent diagnostic logs</span></label>
           <p class="settings-help">Chat-history files, memory, recordings and screenshots are excluded. Known secrets and common personal paths are redacted. Review logs before sharing.</p>
-          <div class="settings-actions"><button type="button" id="bug-save">Save report</button><button type="button" data-community="issues">Open GitHub issues</button></div>
+          <div class="settings-actions"><button type="button" id="bug-send">Send report</button><button type="button" id="bug-save">Save report</button><button type="button" data-community="issues">Open GitHub issues</button></div>
         </section>
         <section data-companion-tab="settings" hidden>
           <h3>Qwen model</h3><div class="settings-actions"><button type="button" id="companion-models">Choose Qwen model</button></div>
@@ -129,8 +139,13 @@ export class CompanionPanel {
           <h3>Desktop presentation</h3>
           <label><input type="checkbox" id="minimized-chip">Show a restore chip when minimized</label>
           <label for="detached-style">Out-of-frame appearance</label><select id="detached-style"><option value="character">Character</option><option value="dialogue">Dialogue only</option></select>
-          <label><input id="reply-auto-hide" type="checkbox">Auto-hide completed replies</label>
-          <label for="reply-auto-hide-seconds">Delay after speech (seconds)</label><input id="reply-auto-hide-seconds" type="number" min="2" max="60" step="1" value="8" required>
+          <div id="reply-visibility-settings" class="general-setting general-switch-row">
+            <label class="general-toggle"><input id="reply-auto-hide" type="checkbox" role="switch" aria-describedby="reply-auto-hide-help"><span>Auto-hide completed replies</span><span class="general-switch-track" aria-hidden="true"></span></label>
+            <p id="reply-auto-hide-help">Hides the reply after playback, or after a delay when voice is off.</p>
+            <div class="general-reply-delay">
+              <label for="reply-auto-hide-seconds">Text-only reply delay (seconds)</label><input id="reply-auto-hide-seconds" type="number" min="2" max="60" step="1" value="8" required>
+            </div>
+          </div>
           <h3 id="companion-motion-heading">Window motion</h3>
           <div class="motion-preview" id="motion-preview" aria-hidden="true" data-untranslated><i></i><span>CAPRI<span>◇</span></span><i></i></div>
           <label><input id="companion-float-enabled" type="checkbox">Enable floating motion</label>
@@ -147,6 +162,11 @@ export class CompanionPanel {
           <p class="settings-help">Visual glitches briefly split the colours of Capri and her interface borders together. Ambient bursts happen while she is visible; speech and pose changes can trigger stronger bursts. Events are spaced at least six seconds apart. Ordinary clicks do not trigger them. Zero intensity is visually off.</p>
           <p class="settings-help" id="glitch-motion-help">Reduced motion disables moving glitches. CRT scanlines and button press feedback are separate effects.</p>
           <div class="settings-actions"><button type="button" id="glitch-preview">Preview glitch</button></div>
+          <h3>Desktop roaming</h3>
+          <label><input id="avatar-roaming" type="checkbox">Let Capri move around on her own</label>
+          <label class="drag-lightning-control" for="avatar-roam-interval">Time between moves <output id="avatar-roam-interval-value" data-untranslated></output></label>
+          <input id="avatar-roam-interval" type="range" min="30" max="1800" step="30" value="120">
+          <p class="settings-help">Random movement needs no screen access. Pauses while you talk, type or interact with Capri.</p>
           <h3>Teleport effects</h3>
           ${teleportSliders
             .map(
@@ -210,7 +230,9 @@ export class CompanionPanel {
       </div>`;
     document.getElementById('companion').append(this.panel);
     this.get = (id) =>
-      this.panel.querySelector('#' + id) ?? this.reminderSettings?.querySelector('#' + id);
+      this.panel.querySelector('#' + id) ??
+      this.reminderSettings?.querySelector('#' + id) ??
+      this.replySettings?.querySelector('#' + id);
     this.get('companion-close').onclick = () => this.open(false);
     this.savedMemory = new SavedMemoryPanel({
       element: this.get('saved-memory-view'),
@@ -279,6 +301,17 @@ export class CompanionPanel {
       this.get('wake-prepare').disabled = !voice;
     };
     this.get('wake-sound').addEventListener('change', this.wakeResponseControls);
+    this.roamingControls = () => {
+      const control = this.get('avatar-roam-interval');
+      control.disabled = !this.get('avatar-roaming').checked;
+      const seconds = control.valueAsNumber;
+      this.get('avatar-roam-interval-value').textContent =
+        seconds < 60
+          ? `${seconds} s`
+          : `${Math.floor(seconds / 60)} min${seconds % 60 ? ' 30 s' : ''}`;
+    };
+    for (const id of ['avatar-roaming', 'avatar-roam-interval'])
+      this.get(id).addEventListener('input', this.roamingControls);
     this.memoryControls = () => {
       this.get('memory-style').disabled = !this.get('memory-monitor').checked;
       this.get('memory-interval').disabled =
@@ -286,6 +319,10 @@ export class CompanionPanel {
     };
     this.get('memory-monitor').addEventListener('change', this.memoryControls);
     this.get('process-graphs').addEventListener('change', this.memoryControls);
+    this.replyVisibilityControls = () => {
+      this.get('reply-auto-hide-seconds').disabled = !this.get('reply-auto-hide').checked;
+    };
+    this.get('reply-auto-hide').addEventListener('change', this.replyVisibilityControls);
     this.motionControls = () => {
       const enabled = this.get('companion-float-enabled').checked;
       this.get('companion-float-amplitude').disabled = !enabled;
@@ -391,6 +428,8 @@ export class CompanionPanel {
       teleportReducedFlash: this.get('teleport-reduced-flash').checked,
       teleportSound: this.get('teleport-sound').value,
       avatarDragTether: this.get('avatar-drag-tether').checked,
+      avatarRoaming: this.get('avatar-roaming').checked,
+      avatarRoamIntervalSeconds: this.get('avatar-roam-interval').valueAsNumber,
       ...Object.fromEntries(
         dragLightningSliders.map(({ id, key }) => [key, this.get(id).valueAsNumber]),
       ),
@@ -467,19 +506,29 @@ export class CompanionPanel {
         await this.savedMemory.load();
       }
     });
+    const reportFields = () => ({
+      category: this.get('bug-category').value,
+      title: this.get('bug-title').value,
+      description: this.get('bug-description').value,
+      steps: this.get('bug-steps').value,
+      expected: this.get('bug-expected').value,
+      actual: this.get('bug-actual').value,
+      includeLogs: this.get('bug-logs').checked,
+    });
+    action('bug-send', async () => {
+      this.result('Sending report…');
+      try {
+        const value = await api.sendBugReport(reportFields());
+        this.result('Report sent.');
+        this.get('companion-result').append(' · ' + value.reportId);
+      } catch (error) {
+        this.result('');
+        throw error;
+      }
+    });
     action('bug-save', async () => {
       this.result('Collecting diagnostics…');
-      if (
-        await api.bugReport({
-          category: this.get('bug-category').value,
-          title: this.get('bug-title').value,
-          description: this.get('bug-description').value,
-          steps: this.get('bug-steps').value,
-          expected: this.get('bug-expected').value,
-          actual: this.get('bug-actual').value,
-          includeLogs: this.get('bug-logs').checked,
-        })
-      )
+      if (await api.bugReport(reportFields()))
         this.result('Report saved. Review it before sharing.');
       else this.result('');
     });
@@ -513,6 +562,7 @@ export class CompanionPanel {
     this.get('companion-reminder-wake').checked = value.wakeOnReminder !== false;
     this.get('companion-expand-reply').checked = value.expandOnReply !== false;
     this.get('reply-auto-hide').checked = value.replyAutoHide !== false;
+    this.replyVisibilityControls();
     this.get('minimized-chip').checked = value.minimizedChip !== false;
     this.get('detached-style').value = value.detachedStyle ?? 'character';
     this.get('reply-auto-hide-seconds').value = value.replyAutoHideSeconds ?? 8;
@@ -537,6 +587,9 @@ export class CompanionPanel {
     this.get('teleport-reduced-flash').checked = value.teleportReducedFlash === true;
     this.get('teleport-sound').value = value.teleportSound ?? 'spark';
     this.get('avatar-drag-tether').checked = value.avatarDragTether !== false;
+    this.get('avatar-roaming').checked = value.avatarRoaming === true;
+    this.get('avatar-roam-interval').value = value.avatarRoamIntervalSeconds ?? 120;
+    this.roamingControls();
     for (const { id, key, initial } of dragLightningSliders)
       this.get(id).value = value[key] ?? initial;
     this.get('avatar-snap-radius').value = value.avatarSnapRadius ?? 36;
@@ -590,6 +643,8 @@ export class CompanionPanel {
         'teleport-reduced-flash',
         'teleport-sound',
         'avatar-drag-tether',
+        'avatar-roaming',
+        'avatar-roam-interval',
         ...dragLightningSliders.map(({ id }) => id),
         'avatar-snap-radius',
         'avatar-tap-gap',

@@ -14,6 +14,10 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { sourceFiles } from './payload.mjs';
 import { requireCapriAvatar } from '../../../apps/desktop/avatar-catalog.mjs';
+import {
+  LANGUAGE_DEFAULTS,
+  validateLanguages,
+} from '../../../apps/desktop/renderer/language-settings.mjs';
 import { readVoiceSelections } from '../../../apps/desktop/voice-catalog-service.mjs';
 import voiceCatalog from '../../../config/tts-catalog.json' with { type: 'json' };
 import { apiSettings } from '../../../apps/desktop/inference-api.mjs';
@@ -33,19 +37,20 @@ import {
   noLinks,
 } from './policy.mjs';
 import { nodeBootstrapBytes } from './storage-estimate.mjs';
-import { validateVoicePack, importVoicePack, cacheBundledVoicePack } from './voice-pack.mjs';
+import {
+  validateVoicePack,
+  importVoicePack,
+  cacheBundledVoicePack,
+  validateRussianVoicePack,
+} from './voice-pack.mjs';
+import russianVoice from '../../../config/qwen-ru-voice.json' with { type: 'json' };
 import { prepareVoiceCatalog } from './voice-catalog-prepare.mjs';
 import { findFreePort } from './ports.mjs';
 import { installationLock } from './lock.mjs';
 import { waitWhilePaused } from './pause.mjs';
-import {
-  inspectOllamaBundle,
-  requireOllamaBundle,
-  inspectOllamaRocmBundle,
-  OLLAMA_ROCM_DIRECTORY,
-} from '../../runtime/src/host/ollama-bundle.mjs';
-import { needsOllamaRocm } from '../../runtime/src/hardware/llm-gpu.mjs';
+import { llamaBundleReady, LLAMA_VULKAN_FILES } from '../../runtime/src/host/llama-bundle.mjs';
 import { electronBundleReady } from '../../runtime/src/host/electron-bundle.mjs';
+import { applyInstallerModelSelection } from './model-selection.mjs';
 
 export async function install(
   request,
@@ -71,10 +76,12 @@ export async function install(
     version,
     hardware,
   });
-  const needsPython =
-    plan.recognition || plan.router || plan.voicePack || plan.voiceMode === 'qwen';
-  const needsVoice = plan.voicePack || plan.voiceMode === 'qwen';
-  const needsRocm = needsOllamaRocm({ ...plan, gpus: hardware.gpus });
+  let restoreModelSelection;
+  let restoreLanguages;
+  const russianQwen = plan.voiceMode === 'qwen-ru';
+  const qwen = plan.voiceMode === 'qwen' || russianQwen;
+  const needsVoice = Boolean(plan.voicePack || qwen);
+  const needsPython = plan.recognition || plan.router || needsVoice;
   const stages = [
     'node',
     'source',
@@ -116,6 +123,14 @@ export async function install(
     ).profile.id !== 'capri-en-v1'
   )
     throw new Error('The included Capri voice reference is incompatible with this Setup.');
+  if (russianQwen) {
+    const packaged = path.join(includedReference, 'russian');
+    validateRussianVoicePack(
+      hasIncludedReference && existsSync(packaged)
+        ? packaged
+        : path.join(plan.target, russianVoice.pack.directory),
+    );
+  }
   const root = plan.target,
     cache = path.join(root, '.runtime/installer'),
     journalFile = path.join(cache, 'state.json');
@@ -134,7 +149,15 @@ export async function install(
   ])
     noLinks(path.join(root, name));
   const inferenceFile = path.join(root, 'data/desktop/inference-api.json');
-  for (const name of ['desktop', 'capri', 'ollama', 'companion-voice']) {
+  for (const name of [
+    'desktop',
+    'capri',
+    'llama',
+    'llama-chat',
+    'llama-embedding',
+    'ollama',
+    'companion-voice',
+  ]) {
     const marker = path.join(root, 'data/run', name + '.json');
     if (!existsSync(marker)) continue;
     const saved = readJson(marker);
@@ -195,6 +218,7 @@ export async function install(
     TMP: path.join(root, '.runtime/tmp'),
     PYTHONUTF8: '1',
     PYTHONIOENCODING: 'utf-8',
+    CAPRI_INSTALL_FILE_PROGRESS: '1',
   };
   for (const inherited of [
     'OPENCLAW_STATE_DIR',
@@ -203,7 +227,7 @@ export async function install(
     'OPENCLAW_GATEWAY_TOKEN',
     'OPENCLAW_WORKSPACE_DIR',
     'CAPRI_PROJECT_ROOT',
-    'CAPRI_OLLAMA_PATH',
+    'CAPRI_LLAMA_PATH',
     'CAPRI_DESKTOP_VERIFICATION_DIR',
     'NODE_OPTIONS',
     'NODE_PATH',
@@ -212,6 +236,7 @@ export async function install(
     delete env[inherited];
   mkdirSync(env.TEMP, { recursive: true });
   let currentStep = '';
+  let routerNativeLibraryUnavailable = false;
   const activity = (action, component) =>
     emit({ type: 'activity', step: currentStep, action, component });
   // Multi-GB speech/model downloads can legitimately exceed one hour. Their
@@ -233,6 +258,34 @@ export async function install(
       signal,
       timeoutMs: (downloadSteps.has(currentStep) ? 8 : 1) * 60 * 60 * 1000,
       output: (message) => {
+        if (message.startsWith('{"capriFileTransfer"')) {
+          try {
+            const { capriFileTransfer: file, received, total, stageFraction } = JSON.parse(message);
+            if (
+              typeof file === 'string' &&
+              /^[\w.+-]{1,160}$/.test(file) &&
+              Number.isSafeInteger(received) &&
+              Number.isSafeInteger(total) &&
+              total > 0 &&
+              received >= 0 &&
+              received <= total &&
+              (stageFraction === undefined ||
+                (Number.isFinite(stageFraction) && stageFraction >= 0 && stageFraction <= 1))
+            ) {
+              emit({
+                type: 'download',
+                step: currentStep,
+                file,
+                received,
+                total,
+                stageFraction: stageFraction ?? 0,
+              });
+              return;
+            }
+          } catch {
+            // Ordinary child output still belongs to the setup log.
+          }
+        }
         if (currentStep === 'voice-pack' && message.startsWith('{"stage"')) {
           try {
             const { stage, progress } = JSON.parse(message);
@@ -255,7 +308,9 @@ export async function install(
           if (packageDownload)
             activity('downloadRuntime', packageDownload[1] === 'torch' ? 'PyTorch' : 'torchaudio');
         }
-        const match = message.match(/\b(\d{1,3})%/);
+        const match =
+          message.match(/(?:^|\s)(\d{1,3})% overall\b/) ??
+          (/^[\w.+-]+: \d{1,3}% \|/.test(message) ? null : message.match(/\b(\d{1,3})%/));
         if (match && Number(match[1]) <= 100)
           emit({ type: 'percent', step: currentStep, percent: Number(match[1]), message });
       },
@@ -297,67 +352,44 @@ export async function install(
   }
   async function runtime(name, executable, destinationOverride) {
     const stamp = path.join(cache, name + '.json'),
-      spec = manifest.artifacts[name];
-    const component = name === 'ollamaRocm' ? 'ollama' : name;
-    const totalOllamaBytes =
-      manifest.artifacts.ollama.bytes + (manifest.artifacts.ollamaRocm?.bytes ?? 0);
-    const stageFraction = (received, total) => {
-      const partial =
-        Number.isFinite(received) && Number.isFinite(total) && total > 0
-          ? Math.max(0, Math.min(1, received / total))
-          : 0;
-      return name === 'ollamaRocm'
-        ? (manifest.artifacts.ollama.bytes + partial * spec.bytes) / totalOllamaBytes
-        : (partial * spec.bytes) / totalOllamaBytes;
-    };
+      spec = manifest.artifacts[name],
+      component = name === 'llama' ? 'ollama' : name;
     activity('checkRuntime', component);
-    let receipt = null;
+    let receipt;
     try {
-      if (existsSync(stamp)) receipt = readJson(stamp, name === 'ollamaRocm' ? 1024 ** 2 : 65536);
+      if (existsSync(stamp)) receipt = readJson(stamp, 65536);
     } catch {
-      /* A damaged installation receipt is repaired from the pinned archive. */
+      /* A damaged receipt is repaired using the pinned archive. */
     }
-    let backendReady = true;
-    if (name === 'ollamaRocm') {
-      const backend = inspectOllamaRocmBundle(executable);
-      const hashes = receipt?.backendHashes;
-      backendReady =
-        backend.ready &&
-        hashes &&
-        Object.keys(hashes).length === backend.files.length &&
-        backend.files.every((file) => /^[a-f0-9]{64}$/.test(hashes[file] ?? ''));
-      if (backendReady) {
-        // All kernel/data files matter, not just ggml-hip.dll. Streaming hashes
-        // are bounded and run only during Setup verification/repair.
-        for (const file of backend.files) {
+    const verified = (file) =>
+      existsSync(file) &&
+      (name !== 'llama' || llamaBundleReady(file)) &&
+      (name !== 'electron' || electronBundleReady(path.dirname(path.dirname(file)), spec.version));
+    const currentRuntime = async () => {
+      if (
+        receipt?.sha256 !== spec.sha256 ||
+        !verified(executable) ||
+        receipt.executableSha256 !== (await fileHash(executable))
+      )
+        return false;
+      if (name === 'llama') {
+        for (const file of LLAMA_VULKAN_FILES) {
           signal?.throwIfAborted();
-          if ((await fileHash(path.join(backend.folder, file))) !== hashes[file]) {
-            backendReady = false;
-            break;
-          }
+          if (
+            !/^[a-f0-9]{64}$/.test(receipt.files?.[file] ?? '') ||
+            receipt.files[file] !== (await fileHash(path.join(path.dirname(executable), file)))
+          )
+            return false;
         }
       }
-    }
-    if (
-      receipt?.sha256 === spec.sha256 &&
-      existsSync(executable) &&
-      backendReady &&
-      (name !== 'ollama' || inspectOllamaBundle(executable, { bundled: true }).ready) &&
-      (name !== 'electron' ||
-        electronBundleReady(path.dirname(path.dirname(executable)), spec.version)) &&
-      receipt.executableSha256 === (await fileHash(executable))
-    ) {
+      return true;
+    };
+    if (await currentRuntime()) {
       emit({
         type: 'log',
         step: currentStep,
         message: 'Verified installation receipt found for ' + name,
       });
-      if (needsRocm && ['ollama', 'ollamaRocm'].includes(name))
-        emit({
-          type: 'fraction',
-          step: currentStep,
-          fraction: stageFraction(spec.bytes, spec.bytes),
-        });
       return;
     }
     activity('fetchRuntime', component);
@@ -372,98 +404,90 @@ export async function install(
           emit({
             type: 'log',
             step: currentStep,
-            message: `${name} ${spec.version}: ${index ? 'Trying download mirror' : 'Connecting to download source'} (${host}).`,
+            message:
+              name +
+              ' ' +
+              spec.version +
+              ': ' +
+              (index ? 'Trying download mirror' : 'Connecting to download source') +
+              ' (' +
+              host +
+              ').',
           });
         },
         progress: (value) =>
           emit({
             type: 'download',
             step: currentStep,
+            file: path.posix.basename(new URL(spec.url).pathname),
             ...value,
-            ...(needsRocm && ['ollama', 'ollamaRocm'].includes(name)
-              ? { stageFraction: stageFraction(value.received, value.total) }
-              : {}),
           }),
       });
     } catch (error) {
       signal?.throwIfAborted();
-      const failure = new Error(`${name} ${spec.version}: ${error.message} (${sourceHost}).`, {
-        cause: error,
-      });
+      const failure = new Error(
+        name + ' ' + spec.version + ': ' + error.message + ' (' + sourceHost + ').',
+        {
+          cause: error,
+        },
+      );
       if (typeof error.code === 'string') failure.code = error.code;
       throw failure;
     }
-    const stagedRocm =
-      name === 'ollamaRocm' ? path.join(cache, 'staging', 'ollama-rocm-' + randomUUID()) : null;
-    const destination =
-      stagedRocm ?? destinationOverride ?? path.join(root, '.runtime', spec.directory);
+    const destination = destinationOverride ?? path.join(root, '.runtime', spec.directory);
+    const stagingRoot = path.join(cache, 'staging');
+    const staged = name === 'llama' ? path.join(stagingRoot, 'llama-' + randomUUID()) : null;
     noLinks(destination);
-    if (stagedRocm && existsSync(stagedRocm))
-      throw new Error('AMD runtime staging folder is occupied.');
+    if (staged) {
+      noLinks(staged);
+      if (existsSync(staged)) throw new Error('Runtime staging folder is occupied.');
+    }
     activity('extractRuntime', component);
     try {
       await ps('packages/installer/windows/archive.ps1', [
         '-Archive',
         archive,
         '-Destination',
-        destination,
+        staged ?? destination,
       ]);
       activity('verifyRuntime', component);
-      if (!existsSync(executable)) throw new Error(name + ' executable was not installed');
-      if (name === 'ollama') requireOllamaBundle(executable, { bundled: true });
-      let backendHashes;
-      if (name === 'ollamaRocm') {
-        const backend = inspectOllamaRocmBundle(path.join(stagedRocm, 'ollama.exe'));
-        if (!backend.ready)
-          throw new Error('The AMD LLM runtime is incomplete. Retry Setup to repair its download.');
-        backendHashes = {};
-        for (const file of backend.files) {
+      const candidate = staged ? path.join(staged, path.basename(executable)) : executable;
+      if (!verified(candidate))
+        throw new Error(name + ' runtime is incomplete. Retry Setup to repair the download.');
+      const executableSha256 = await fileHash(candidate);
+      if (staged) {
+        const files = {};
+        for (const file of LLAMA_VULKAN_FILES) {
           signal?.throwIfAborted();
-          backendHashes[file] = await fileHash(path.join(backend.folder, file));
+          files[file] = await fileHash(path.join(staged, file));
         }
-        const live = path.join(path.dirname(executable), 'lib/ollama', OLLAMA_ROCM_DIRECTORY);
-        const backup = path.join(cache, 'backups', 'ollama-rocm-' + randomUUID());
-        const withinInstall = (file) =>
-          path
-            .resolve(file)
-            .toLowerCase()
-            .startsWith(path.resolve(root).toLowerCase() + path.sep);
-        if (![backend.folder, live, backup].every(withinInstall))
-          throw new Error('AMD runtime paths leave the installation.');
-        for (const file of [backend.folder, live, backup]) noLinks(file);
-        const replacing = existsSync(live);
-        if (replacing && !inspectOllamaRocmBundle(executable, { requireFiles: false }).ready)
-          throw new Error(
-            'The AMD runtime contains filesystem links. Its existing files were preserved.',
-          );
-        mkdirSync(path.dirname(live), { recursive: true });
+        const backup = path.join(cache, 'backups', 'llama-' + randomUUID());
+        noLinks(backup);
         mkdirSync(path.dirname(backup), { recursive: true });
-        if (replacing) renameRuntime(live, backup);
+        const replacing = existsSync(destination);
+        if (replacing) renameRuntime(destination, backup);
         try {
-          renameRuntime(backend.folder, live);
+          renameRuntime(staged, destination);
+          writeJsonAtomic(stamp, {
+            sha256: spec.sha256,
+            version: spec.version,
+            executableSha256,
+            files,
+          });
         } catch (error) {
-          if (replacing && !existsSync(live)) renameRuntime(backup, live);
+          if (existsSync(destination) && !existsSync(staged)) renameRuntime(destination, staged);
+          if (replacing) renameRuntime(backup, destination);
           throw error;
         }
+      } else {
+        writeJsonAtomic(stamp, { sha256: spec.sha256, version: spec.version, executableSha256 });
       }
-      if (name === 'electron' && !electronBundleReady(path.dirname(destination), spec.version))
-        throw new Error('The desktop runtime is incomplete. Retry Setup to repair its download.');
-      writeJsonAtomic(stamp, {
-        sha256: spec.sha256,
-        version: spec.version,
-        executableSha256: await fileHash(executable),
-        ...(backendHashes ? { backendHashes } : {}),
-      });
     } finally {
-      // This nonce directory was created by this archive extraction only. Its
-      // validated absolute target stays inside our staging root; models and
-      // previous backends are outside it. Node removes links without following.
-      if (stagedRocm && existsSync(stagedRocm)) {
-        const stagingRoot = path.resolve(cache, 'staging') + path.sep;
-        if (!path.resolve(stagedRocm).startsWith(stagingRoot))
-          throw new Error('Invalid AMD staging cleanup target.');
-        noLinks(stagedRocm);
-        rmSync(stagedRocm, { recursive: true, force: false });
+      if (staged && existsSync(staged)) {
+        if (path.dirname(path.resolve(staged)) !== path.resolve(stagingRoot))
+          throw new Error('Invalid runtime staging cleanup target.');
+        noLinks(staged);
+        rmSync(staged, { recursive: true, force: false });
       }
     }
   }
@@ -578,14 +602,14 @@ export async function install(
       noLinks(path.join(electronPackage, 'path.txt'));
       writeFileSync(path.join(electronPackage, 'path.txt'), 'electron.exe');
     });
-    const ollamaExecutable = path.join(root, '.runtime/ollama/ollama.exe');
-    await step('ollama', async () => {
-      await runtime('ollama', ollamaExecutable);
-      if (needsRocm) await runtime('ollamaRocm', ollamaExecutable);
-    });
-    // Explicit paths are strict at runtime. Publish this override only after
-    // the owned Ollama binary and its installation receipt have been verified.
-    env.CAPRI_OLLAMA_PATH = ollamaExecutable;
+    const llamaExecutable = path.join(
+      root,
+      '.runtime',
+      manifest.artifacts.llama.directory,
+      'llama-server.exe',
+    );
+    await step('ollama', () => runtime('llama', llamaExecutable));
+    env.CAPRI_LLAMA_PATH = llamaExecutable;
     await step('configuration', async () => {
       if (!existsSync(path.join(root, 'config/core.local.json'))) {
         const reserved = new Set(),
@@ -604,9 +628,7 @@ export async function install(
         voice.port = await findFreePort(voice.port, reserved);
         writeJsonAtomic(path.join(root, 'config/companion-voice.json'), voice);
       }
-      const languageFile = path.join(root, 'data/desktop/languages.json');
-      if (!existsSync(languageFile))
-        writeJsonAtomic(languageFile, { schemaVersion: 1, settings: plan.languages });
+      restoreModelSelection = applyInstallerModelSelection({ root, plan, hardware });
       const router = readJson(path.join(root, 'config/request-router.json'));
       router.enabled = plan.router;
       writeJsonAtomic(path.join(root, 'config/request-router.json'), router);
@@ -622,8 +644,23 @@ export async function install(
               : 'setup-multilingual-asr.ps1'),
         ),
       );
-    if (plan.router) await step('router', () => ps('tools/setup/setup-request-router.ps1'));
-    if (plan.voiceMode === 'qwen') {
+    if (plan.router)
+      await step('router', async () => {
+        try {
+          await ps('tools/setup/setup-request-router.ps1');
+        } catch (error) {
+          signal?.throwIfAborted();
+          if (
+            error.exitCode !== 22 ||
+            !String(error.outputTail ?? '').includes('CAPRI_ROUTER_NATIVE_LIBRARY_UNAVAILABLE')
+          )
+            throw error;
+          const file = path.join(root, 'config/request-router.json');
+          writeJsonAtomic(file, { ...readJson(file), enabled: false });
+          routerNativeLibraryUnavailable = true;
+        }
+      });
+    if (qwen) {
       await step('voice-runtime', async () => {
         if (plan.voicePack) {
           const relative = importVoicePack(
@@ -643,7 +680,11 @@ export async function install(
       await step('voice-pack', () =>
         command(
           path.join(root, '.runtime/qwen-tts-venv/Scripts/python.exe'),
-          ['-m', 'integrations.voice_runtime.qwen_provision'],
+          [
+            '-m',
+            'integrations.voice_runtime.qwen_provision',
+            ...(russianQwen ? ['--russian'] : []),
+          ],
           { timeoutMs: 8 * 60 * 60 * 1000 },
         ),
       );
@@ -677,7 +718,8 @@ export async function install(
     await step('models', () =>
       node('packages/runtime/bin/capri.mjs', [
         'models',
-        ...(!plan.downloadModels ? ['--embedding-only'] : []),
+        ...(!plan.downloadModels || plan.installedModel ? ['--embedding-only'] : []),
+        ...(plan.installedModel && plan.inferenceMode !== 'api' ? ['--repair-selected'] : []),
       ]),
     );
     await step('verify', async () => {
@@ -720,20 +762,33 @@ export async function install(
         ]),
       );
     await step('finalize', async () => {
+      const languageFile = path.join(root, 'data/desktop/languages.json');
+      noLinks(languageFile);
+      const savedLanguages = existsSync(languageFile) ? readJson(languageFile) : null;
+      const previous = savedLanguages?.schemaVersion === 1 ? savedLanguages.settings : null;
+      const speech = previous?.speech ?? plan.languages.speech;
+      const languages = validateLanguages({
+        ...LANGUAGE_DEFAULTS,
+        ...(previous ?? plan.languages),
+        interface: plan.languages.interface,
+        conversation: plan.languages.conversation,
+        customConversation: plan.languages.customConversation,
+        speech:
+          needsVoice ||
+          (!['off', 'follow'].includes(speech) && speech !== plan.languages.conversation)
+            ? 'follow'
+            : speech,
+      });
       if (needsVoice) {
         const language = plan.languages.conversation;
         const selections = readVoiceSelections(root, voiceCatalog.models);
-        const languageFile = path.join(root, 'data/desktop/languages.json');
-        noLinks(languageFile);
-        const languages = readJson(languageFile);
-        if (plan.voiceMode === 'qwen') selections[language] = 'qwen3-tts-0.6b-base';
+        if (qwen)
+          selections[language] = russianQwen ? 'qwen3-tts-1.7b-capri-ru' : 'qwen3-tts-0.6b-base';
         else delete selections[language]; // Use the bundled Chatterbox default for this language.
         writeJsonAtomic(path.join(root, 'data/speech/voice-selections.json'), {
           schemaVersion: 1,
           languages: selections,
         });
-        languages.settings.speech = 'follow';
-        writeJsonAtomic(languageFile, languages);
       }
       // A completed full repair supersedes an interrupted source-only update.
       const pendingUpdate = path.join(root, '.runtime/updates/active.json');
@@ -766,6 +821,11 @@ export async function install(
         const local = readJson(localFile);
         writeJsonAtomic(localFile, { ...local, modelSetupRequired: plan.modelSetupRequired });
       }
+      writeJsonAtomic(languageFile, { schemaVersion: 1, settings: languages });
+      restoreLanguages = () => {
+        if (savedLanguages) writeJsonAtomic(languageFile, savedLanguages);
+        else unlinkSync(languageFile);
+      };
     });
     journal.status = 'complete';
     save();
@@ -777,9 +837,14 @@ export async function install(
       modelSource: plan.modelSource,
       modelSetupRequired: plan.modelSetupRequired,
       voiceInstalled: Boolean(needsVoice),
+      ...(routerNativeLibraryUnavailable && { routerNativeLibraryUnavailable }),
     });
     return { target: root, modelsReady: plan.downloadModels };
   } catch (error) {
+    // A failed download must leave the user's previous model usable. All stages
+    // rerun on retry, so restoring these settings cannot skip the next switch.
+    restoreModelSelection?.();
+    restoreLanguages?.();
     journal.status = signal?.aborted ? 'cancelled' : 'failed';
     save();
     emit({ type: journal.status, step: currentStep, message: error.message.slice(0, 2500) });

@@ -1,0 +1,308 @@
+{
+  "sources": {
+    "tabletop": "https://rtalsoriangames.com/cyberpunk/",
+    "game": "https://www.cyberpunk.net/bd/en/cyberpunk-2077",
+    "edgerunners": "https://www.cyberpunk.net/en/edgerunners",
+    "edgerunners2": "https://www.cyberpunk.net/en/edgerunners2",
+    "capri": "https://x.com/edgerunners"
+  },
+  "world": [
+    {
+      "name": "Night City",
+      "aliases": [
+        "Cyberpunk",
+        "киберпанк",
+        "Night City",
+        "найт-сити",
+        "найт сити",
+        "ночного города",
+        "サイバーパンク",
+        "ナイトシティ",
+        "赛博朋克",
+        "夜之城",
+        "사이버펑크"
+      ],
+      "fact": "A fictional California metropolis with corporate enclaves, distinct districts and the Badlands nearby. Megacorporations, gangs, mercenaries and nomad families compete for power. The tabletop line runs from Cyberpunk 2020 through Cyberpunk RED (2045) to Cyberpunk 2077; both Edgerunners stories share the setting."
+    },
+    {
+      "name": "Cyberware and the Net",
+      "aliases": [
+        "cyberware",
+        "netrunner",
+        "netrunners",
+        "netrunning",
+        "braindance",
+        "Sandevistan",
+        "cyberpsychosis",
+        "киберимпланты",
+        "нетраннер",
+        "нетраннеры",
+        "нетраннинг",
+        "брейнданс",
+        "сандевистан",
+        "киберпсихоз"
+      ],
+      "fact": "Cyberware augments the body and nervous system. Netrunners interface with computer networks. Braindance records and replays a person's sensory experience. The Sandevistan is a reflex booster that makes events seem to slow down to its user."
+    },
+    {
+      "name": "Arasaka, Militech and Kang Tao",
+      "aliases": [
+        "Arasaka",
+        "Militech",
+        "Kang Tao",
+        "Soulkiller",
+        "Relic",
+        "engram",
+        "Maelstrom",
+        "Aldecaldos",
+        "арасака",
+        "арасаки",
+        "милитех",
+        "кан тао",
+        "канг тао",
+        "убийца душ",
+        "энграмма",
+        "энграммы",
+        "мальстрём",
+        "мальстрем",
+        "альдекальдо"
+      ],
+      "fact": "Arasaka, Militech and Kang Tao are major corporations. Soulkiller is tied to digitizing personalities into engrams. The Relic is Arasaka's chip technology for storing and, in the case of V's prototype, implanting an engram. Maelstrom is a Night City gang; the Aldecaldos are a nomad family."
+    },
+    {
+      "name": "Cyberpunk 2020 and Cyberpunk RED",
+      "aliases": [
+        "Cyberpunk 2020",
+        "Cyberpunk RED",
+        "киберпанк 2020",
+        "киберпанк ред",
+        "Fourth Corporate War",
+        "четвёртая корпоративная война",
+        "Pondsmith",
+        "пондсмит"
+      ],
+      "fact": "Mike Pondsmith created the tabletop Cyberpunk RPG. Cyberpunk RED is set around 2045, in the aftermath of the Fourth Corporate War."
+    },
+    {
+      "name": "Cyberpunk 2077 and Phantom Liberty",
+      "aliases": [
+        "Cyberpunk 2077",
+        "киберпанк 2077",
+        "Phantom Liberty",
+        "призрачная свобода",
+        "Dogtown",
+        "догтаун",
+        "догтауне",
+        "Konpeki Plaza",
+        "конпэки плаза"
+      ],
+      "fact": "The game follows V, a Night City mercenary whose failed Konpeki Plaza heist leaves them with Johnny Silverhand's engram on an experimental Relic. Phantom Liberty is a spy-thriller expansion set in Dogtown."
+    },
+    {
+      "name": "Cyberpunk: Edgerunners",
+      "aliases": [
+        "Edgerunners",
+        "бегущие по краю",
+        "бегущих по краю",
+        "эджраннеры",
+        "エッジランナーズ",
+        "边缘行者",
+        "엣지러너"
+      ],
+      "fact": "The first TRIGGER anime follows David Martinez as he joins Maine's crew and becomes close to Lucy. Rebecca, Pilar, Dorio and Kiwi are part of that crew's story; Faraday is a fixer and Adam Smasher works for Arasaka."
+    },
+    {
+      "name": "Cyberpunk: Edgerunners 2",
+      "aliases": [
+        "Edgerunners 2",
+        "Edgerunners season 2",
+        "бегущие по краю 2",
+        "бегущих по краю 2",
+        "второй сезон бегущих по краю",
+        "Edgerunners second season",
+        "エッジランナーズ2",
+        "边缘行者2"
+      ],
+      "fact": "A standalone TRIGGER anime in Night City with a new central cast, including D, Talia, Roman Carax, Weak Kingsley and Avida. Capri, an engram from Arasaka's Capricorn project, belongs to this story."
+    }
+  ],
+  "characters": [
+    {
+      "group": "Edgerunners 2",
+      "name": "Capri (Capricorn)",
+      "aliases": ["Capri", "Capricorn", "капри", "каприкорн", "カプリ", "卡普里"],
+      "fact": "An engram made from digitized netrunners in Arasaka's Capricorn project, an offshoot of Soulkiller. The Capri desktop companion is an adaptation of this fictional character.",
+      "look": "electric-green angular face, large blue cybernetic eyes, huge jagged crimson or magenta hair, thin black angular body; a digital apparition"
+    },
+    {
+      "group": "Edgerunners 2",
+      "name": "D",
+      "aliases": ["Snake Nation", "д из бегущих"],
+      "fact": "A Snake Nation netrunner seeking revenge for his clan.",
+      "look": "spiky dark teal hair, red facial marking or cyberware, bright blue high-collared jacket"
+    },
+    {
+      "group": "Edgerunners 2",
+      "name": "Talia",
+      "aliases": ["Talia", "Talia Yang", "талия", "талии", "талию", "талией", "タリア", "塔莉娅"],
+      "fact": "Avida and Kiril's daughter. She was raised in the corporate world and spent time with Maelstrom.",
+      "look": "asymmetrical pink-and-black hair, dark lower-face covering, black outfit with red or orange accents"
+    },
+    {
+      "group": "Edgerunners 2",
+      "name": "Roman Carax",
+      "aliases": ["Roman Carax", "Roman Karax", "роман каракс", "роман каракса"],
+      "fact": "A young film enthusiast who records life in a city dominated by braindance.",
+      "look": "short pale blond hair, handheld camera, white jacket over a red top"
+    },
+    {
+      "group": "Edgerunners 2",
+      "name": "Weak Kingsley",
+      "aliases": ["Weak Kingsley", "Kingsley", "кингсли", "уик кингсли"],
+      "fact": "A veteran edgerunner who once went by King.",
+      "look": "older, weathered man with facial cyberware, a bulky gray coat and a tall dark collar"
+    },
+    {
+      "group": "Edgerunners 2",
+      "name": "Avida",
+      "aliases": ["Avida", "авида", "авиды"],
+      "fact": "A former jazz singer and corporate insider, Talia's mother and Weak's former partner.",
+      "look": "long voluminous brown hair, tailored dark blue outfit, white collar and gold necklace"
+    },
+    {
+      "group": "Edgerunners 2",
+      "name": "Kiril",
+      "aliases": ["Kiril", "Kiril Yang", "кирил янг", "кирил"],
+      "fact": "A Kang Tao executive, Talia's father and Avida's husband.",
+      "look": "short dark hair with gray at the sides, severe black high-collared uniform with orange trim"
+    },
+    {
+      "group": "Edgerunners 2",
+      "name": "Jessie",
+      "aliases": ["Jessie", "джесси"],
+      "fact": "A braindance engineer at Sal Bigelow's Braindance Paradise.",
+      "look": "pale gray-green bob, yellow and dark blue outfit, colored sleeves"
+    },
+    {
+      "group": "Edgerunners 2",
+      "name": "Sal Bigelow",
+      "aliases": ["Sal Bigelow", "сэл бигелоу", "сал бигелоу"],
+      "fact": "Runs Sal Bigelow's Braindance Paradise.",
+      "look": "short blond hair, open light coat and exposed chest"
+    },
+    {
+      "group": "Edgerunners",
+      "name": "David Martinez",
+      "aliases": [
+        "David Martinez",
+        "David Martínez",
+        "David",
+        "дэвид",
+        "дэвид мартинес",
+        "давид мартинес",
+        "デイビッド",
+        "大卫·马丁内斯"
+      ],
+      "fact": "The first series' protagonist. He uses a Sandevistan and joins Maine's crew.",
+      "look": "brown undercut, shaved sides, yellow emergency-services jacket with reflective stripes"
+    },
+    {
+      "group": "Edgerunners",
+      "name": "Lucy (Lucyna Kushinada)",
+      "aliases": ["Lucy", "Lucyna Kushinada", "люси", "люцина кушинада", "ルーシー", "露西"],
+      "fact": "A netrunner from Maine's crew who dreams of going to the Moon.",
+      "look": "short pale bob with pastel tips, white off-shoulder sleeves, dark bodysuit"
+    },
+    {
+      "group": "Edgerunners",
+      "name": "Rebecca",
+      "aliases": ["Rebecca", "ребекка", "ребекки", "レベッカ", "丽贝卡"],
+      "fact": "A gunner from Maine's crew and Pilar's sister.",
+      "look": "very short, pale mint coloring, two mint pigtails, pink markings, oversized black jacket"
+    },
+    {
+      "group": "Edgerunners",
+      "name": "Maine",
+      "aliases": ["Maine", "мэйн", "мэйна", "мейна"],
+      "fact": "Leader of the crew and David Martinez's mentor.",
+      "look": "large muscular build, massive cyberarms and dark glasses"
+    },
+    {
+      "group": "Edgerunners",
+      "name": "Faraday",
+      "aliases": ["Faraday", "фарадей", "фарадея"],
+      "fact": "A fixer who hires Maine's crew for gigs.",
+      "look": "formal clothes and three stacked cybernetic eyes on one side of his face"
+    },
+    {
+      "group": "Edgerunners",
+      "name": "Pilar",
+      "aliases": ["Pilar", "пилар", "пилара"],
+      "fact": "Rebecca's brother and a techie in Maine's crew.",
+      "look": "lanky proportions, long cybernetic arms and oversized gold cyberhands"
+    },
+    {
+      "group": "Edgerunners",
+      "name": "Kiwi",
+      "aliases": ["Kiwi", "киви"],
+      "fact": "A netrunner associated with Maine's crew.",
+      "look": "tall slender figure, pale blond hair and angular red lower-face cyberware"
+    },
+    {
+      "group": "Edgerunners",
+      "name": "Dorio",
+      "aliases": ["Dorio", "дорио"],
+      "fact": "Maine's partner and a member of his crew.",
+      "look": "muscular build, short blond hair and substantial cyberarms"
+    },
+    {
+      "group": "Cyberpunk 2077 / Edgerunners",
+      "name": "Adam Smasher",
+      "aliases": ["Adam Smasher", "Smasher", "адам смешер", "смешер", "смэшер"],
+      "fact": "Arasaka's heavily augmented solo. He appears in Cyberpunk 2077 and the first Edgerunners.",
+      "look": "bulky almost fully mechanical body, skull-like faceplate and exposed cybernetics"
+    },
+    {
+      "group": "Cyberpunk 2077",
+      "name": "V",
+      "aliases": ["Vincent", "Valerie"],
+      "fact": "The customizable protagonist and a Night City mercenary. Appearance varies with player choices.",
+      "look": "customizable; identification needs distinctive game context or other corroborating evidence"
+    },
+    {
+      "group": "Cyberpunk 2077",
+      "name": "Johnny Silverhand",
+      "aliases": [
+        "Johnny Silverhand",
+        "Silverhand",
+        "джонни сильверхенд",
+        "сильверхенд",
+        "сильверхенда",
+        "ジョニー・シルヴァーハンド"
+      ],
+      "fact": "Anti-corporate rockerboy and frontman of Samurai. His engram shares V's mind via the Relic.",
+      "look": "shoulder-length dark hair, beard, aviator glasses, silver cyberarm"
+    },
+    {
+      "group": "Cyberpunk 2077",
+      "name": "Jackie Welles",
+      "aliases": ["Jackie Welles", "джеки уэллс", "джеки уэллес"],
+      "fact": "V's friend and partner from Heywood.",
+      "look": "stocky, dark topknot with shaved sides, facial cyberware, dark jacket"
+    },
+    {
+      "group": "Cyberpunk 2077",
+      "name": "Judy Álvarez",
+      "aliases": ["Judy", "Judy Álvarez", "джуди", "джуди альварес"],
+      "fact": "A gifted braindance technician in Night City.",
+      "look": "side-shaved dyed hair and visible tattoos; often wears overalls with one loose strap"
+    },
+    {
+      "group": "Cyberpunk 2077",
+      "name": "Panam Palmer",
+      "aliases": ["Panam", "Panam Palmer", "панам", "панам палмер"],
+      "fact": "A mercenary and nomad connected to the Aldecaldos.",
+      "look": "dark tied-back hair, nomad jacket with red accents, often shown in the Badlands"
+    }
+  ]
+}

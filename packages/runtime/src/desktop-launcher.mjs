@@ -6,9 +6,10 @@ import { launch, managedProcess } from './host/processes.mjs';
 import { ensureDesktopIdentity } from './host/desktop-identity.mjs';
 import { runtime } from './context.mjs';
 import { electronBundleReady } from './host/electron-bundle.mjs';
+import { updateBlocksStartup } from './host/update-state.mjs';
 
 export async function startDesktop({ wait = false } = {}) {
-  if (existsSync(path.join(root, '.runtime/updates/active.json')))
+  if (updateBlocksStartup(root))
     throw new Error(
       'An update is in progress or was interrupted. Wait for it to finish, or repair this folder with the full installer.',
     );

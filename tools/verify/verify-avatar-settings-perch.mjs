@@ -351,6 +351,21 @@ try {
   overlay = await assertSeat();
   await position({ ...initial, x: initial.x + 90, y: initial.y - 40, width: initial.width - 70 });
   overlay = await assertSeat();
+  const avatarPoint = () => app.evaluate(() => globalThis.testPerchedAvatar.desktopPoint);
+  async function waitForDeparture(before, oldDock = 'seat') {
+    for (let i = 0; i < 160; i++) {
+      const point = await app.evaluate((_electron, oldDock) => {
+        const avatar = globalThis.testPerchedAvatar;
+        return avatar.available && avatar.overlay.isVisible() && avatar.session.dock !== oldDock
+          ? avatar.desktopPoint
+          : null;
+      }, oldDock);
+      if (point && Math.hypot(point.x - before.x, point.y - before.y) > 30) return point;
+      await page.waitForTimeout(50);
+    }
+    throw new Error('Capri did not teleport away from the former Settings perch');
+  }
+  const beforeClose = await avatarPoint();
   await settings.locator('#settings-window-close').evaluate((button) => button.click());
   for (let i = 0; i < 100 && (await info(settingsUrl)).visible; i++) await page.waitForTimeout(50);
   assert.equal(
@@ -358,40 +373,15 @@ try {
     false,
     'Closing Settings hides its reusable window',
   );
-  await app.evaluate(async ({ BrowserWindow }) => {
-    const target = BrowserWindow.getAllWindows().find(
-      (window) => window.webContents.getURL() === 'capri://desktop/avatar-detach.html',
-    );
-    for (let i = 0; i < 160 && target?.isVisible(); i++)
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    if (target?.isVisible()) throw new Error('Avatar did not hide with Settings');
-  });
+  const afterClose = await waitForDeparture(beforeClose);
   await settingsView(app, 'general');
+  assert.deepEqual(await avatarPoint(), afterClose, 'Reopening Settings does not reclaim Capri');
+  await send('Sit on the Settings window');
   overlay = await assertSeat();
   if (process.argv.includes('--stacking')) await assertAboveSettings();
   if (process.argv.includes('--drag-restore')) {
-    const waitState = async (visible) => {
-      for (let attempt = 0; attempt < 100; attempt++) {
-        const state = await app.evaluate(() => {
-          const avatar = globalThis.testPerchedAvatar;
-          return {
-            visible: avatar.overlay.isVisible(),
-            pointer: Boolean(avatar.pointerTimer),
-            ignored: avatar.overlay.testIgnoresMouse,
-            press: Boolean(avatar.press),
-          };
-        });
-        if (state.visible === visible && state.pointer === visible) return state;
-        await page.waitForTimeout(50);
-      }
-      throw new Error('Perched avatar did not restore its pointer tracking');
-    };
-    for (let iteration = 0; iteration < 2; iteration++) {
-      if (iteration) {
-        await send('Sit on the Settings window');
-        overlay = await assertSeat();
-      }
-      const grab = await app.evaluate(({ screen }) => {
+    const grabPoint = () =>
+      app.evaluate(({ screen }) => {
         const avatar = globalThis.testPerchedAvatar;
         const rect = avatar.spriteRect();
         for (let v = 0.3; v <= 0.7; v += 0.05)
@@ -410,8 +400,15 @@ try {
             avatar.startPointer();
             return point;
           }
-        throw new Error('No grab point on seated Capri');
+        throw new Error('No grab point on Capri');
       });
+    for (let iteration = 0; iteration < 2; iteration++) {
+      if (iteration) {
+        await send('Sit on the Settings window');
+        overlay = await assertSeat();
+      }
+      const perchPoint = await avatarPoint();
+      let grab = await grabPoint();
       await overlay.mouse.move(grab.x, grab.y);
       await overlay.mouse.down();
       assert.equal(await app.evaluate(() => Boolean(globalThis.testPerchedAvatar.press)), true);
@@ -420,23 +417,19 @@ try {
           .find((view) => view.webContents.getURL() === 'capri://desktop/settings.html')
           .minimize(),
       );
-      const hidden = await waitState(false);
-      assert.equal(hidden.ignored, true);
-      assert.equal(hidden.press, false, 'Minimizing cancels an unfinished LMB hold');
-      await overlay.mouse.up();
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows()
           .find((view) => view.webContents.getURL() === 'capri://desktop/settings.html')
           .restore(),
       );
-      const restored = await waitState(true);
+      const before = await waitForDeparture(perchPoint);
       assert.equal(
-        restored.ignored,
+        await app.evaluate(() => Boolean(globalThis.testPerchedAvatar.press)),
         false,
-        'A stationary cursor can grab Capri immediately after restore',
+        'Minimizing cancels an unfinished LMB hold',
       );
-      await assertSeat();
-      const before = await app.evaluate(() => globalThis.testPerchedAvatar.desktopPoint);
+      await overlay.mouse.up();
+      grab = await grabPoint();
       await app.evaluate(() => {
         const avatar = globalThis.testPerchedAvatar;
         const drop = avatar.onDragDrop;
@@ -448,9 +441,12 @@ try {
       await overlay.mouse.move(grab.x, grab.y);
       await overlay.mouse.down();
       assert.equal(await app.evaluate(() => Boolean(globalThis.testPerchedAvatar.press)), true);
-      // Leave the original snap zone; a small move can correctly seat her back
-      // on the same edge and look stationary despite a successful drag.
-      await overlay.mouse.move(grab.x + 220, grab.y + 200, { steps: 5 });
+      const size = await overlay.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+      await overlay.mouse.move(
+        grab.x + (grab.x < size.width / 2 ? 220 : -220),
+        grab.y + (grab.y < size.height / 2 ? 120 : -120),
+        { steps: 5 },
+      );
       await overlay.mouse.up();
       for (let attempt = 0; attempt < 120; attempt++) {
         const moved = await app.evaluate((_electron, before) => {
@@ -522,22 +518,93 @@ try {
   await chooseMenu('Teleport Capri');
   await page.waitForFunction(() => window.__detachPhases.at(-1) === 'detached');
   overlay = await assertSeat(0.5);
+  const beforeDestroy = await avatarPoint();
   await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()
       .find((window) => window.webContents.getURL() === 'capri://desktop/settings.html')
       .destroy(),
   );
-  await overlay.waitForFunction(
-    () => !document.querySelector('#parked-avatar img').src.endsWith('/pose-sit-edge.png'),
-    undefined,
-    { timeout: 8000 },
-  );
+  await waitForDeparture(beforeDestroy);
+  if (process.platform === 'win32') {
+    const title = `Capri Perch Fixture ${path.basename(fixture).slice(-6)}`;
+    const targetEntry = path.join(fixture, 'perch-target.mjs');
+    writeFileSync(
+      targetEntry,
+      `
+import { app, BrowserWindow } from 'electron';
+void app.whenReady().then(async () => {
+  const window = new BrowserWindow({ show: false, title: ${JSON.stringify(title)} });
+  await window.loadURL(${JSON.stringify('data:text/html,' + encodeURIComponent(`<title>${title}</title>`))});
+  window.showInactive();
+});
+`,
+    );
+    const targetApp = await electron.launch({
+      executablePath: require('electron'),
+      args: [targetEntry, '--user-data-dir=' + path.join(fixture, 'perch-profile')],
+      env,
+      timeout: 20000,
+    });
+    try {
+      await targetApp.firstWindow();
+      const bounds = { ...initial, width: 360, height: 240 };
+      await targetApp.evaluate(
+        ({ BrowserWindow }, bounds) => BrowserWindow.getAllWindows()[0].setBounds(bounds),
+        bounds,
+      );
+      const dock = () => app.evaluate(() => globalThis.testPerchedAvatar.session.dock);
+      await send(`Sit on the ${title} window`);
+      assert.equal(await dock(), 'seat');
+      const beforeMinimize = await avatarPoint();
+      await targetApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize());
+      const afterMinimize = await waitForDeparture(beforeMinimize);
+      await targetApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].restore());
+      assert.deepEqual(await avatarPoint(), afterMinimize);
+
+      const native = await callApplicationBridge(root, { action: 'avatar_window', title });
+      assert.ok(native.windowId);
+      for (const [edge, pose] of [
+        ['left', 'dock-right'],
+        ['bottom', 'ceiling'],
+      ]) {
+        const point = await app.evaluate(
+          ({ screen }, { native, edge }) =>
+            screen.screenToDipPoint({
+              x: Math.round(native.x + (edge === 'bottom' ? native.width / 2 : 0)),
+              y: Math.round(native.y + native.height * (edge === 'bottom' ? 1 : 0.5)),
+            }),
+          { native, edge },
+        );
+        await app.evaluate(({ screen }, point) => {
+          screen.getCursorScreenPoint = () => point;
+        }, point);
+        await chooseMenu('Teleport Capri');
+        for (let i = 0; i < 160 && (await dock()) !== pose; i++) await page.waitForTimeout(50);
+        assert.equal(await dock(), pose);
+        if (edge === 'left') {
+          const beforeHide = await avatarPoint();
+          await targetApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].hide());
+          await waitForDeparture(beforeHide, pose);
+          await targetApp.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].showInactive(),
+          );
+        }
+      }
+      const beforeTargetClose = await avatarPoint();
+      await targetApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
+      await waitForDeparture(beforeTargetClose, 'ceiling');
+      assert.notEqual(await dock(), 'ceiling');
+    } finally {
+      await targetApp.close();
+    }
+  }
   assert.deepEqual(requests, []);
   assert.deepEqual(errors, []);
   console.log(
     'PASS Settings command and menu perching, movement, resize, close/reopen, destruction and same-process exclusions.' +
+      ' Separate application: top minimize, side hide, bottom close each detach and teleport.' +
       (process.argv.includes('--drag-restore')
-        ? ' Repeated minimize/restore reinstates LMB drag and native mouse hit testing.'
+        ? ' Repeated minimize/restore teleports Capri and allows a new LMB drag.'
         : '') +
       (process.argv.includes('--stacking')
         ? ' Native avatar z-order stays above Settings and another topmost app without taking keyboard focus.'

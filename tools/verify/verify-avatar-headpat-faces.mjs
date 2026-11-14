@@ -13,7 +13,10 @@ const parent = path.join(sourceRoot, '.runtime/headpat-faces');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'run-'));
 const frames = requireCapriAvatar(sourceRoot).frames.filter(
-  ({ id, kind }) => id === 'neutral' || kind === 'reviewed_pose' || kind === 'reviewed_music',
+  ({ id, kind }) =>
+    ['neutral', 'attentive'].includes(id) ||
+    (kind === 'reviewed_pose' && id !== 'pose-sleep') ||
+    kind === 'reviewed_music',
 );
 const files = Object.fromEntries([
   ...frames.map(({ url, file }) => [new URL(url).pathname, file]),
@@ -88,16 +91,17 @@ try {
       const { sprite, stage } = await make('Headpat');
       const pat = new AvatarHeadpat(stage);
       await pat.face.decode();
-      pat.setFace(sprite, pose, 'affectionate');
+      const music = frame.id.startsWith('music-');
+      pat.play(sprite, { x: 50, y: 80 }, { x: 0, y: 0, width: 200, height: 200 }, !music, frame.id);
       globalThis.reactions.push(pat);
       const canvas = pat.plate,
-        ctx = canvas.getContext('2d'),
-        after = ctx.getImageData(0, 0, 1254, 1254).data;
+        reactionSource = sprite.src;
       const reference = document.createElement('canvas');
       reference.width = reference.height = 1254;
       const baseCtx = reference.getContext('2d');
       baseCtx.drawImage(sprite, 0, 0);
       const before = baseCtx.getImageData(0, 0, 1254, 1254).data;
+      const after = canvas?.getContext('2d').getImageData(0, 0, 1254, 1254).data ?? before;
       let changed = 0,
         escaped = 0;
       for (let i = 0; i < before.length; i += 4) {
@@ -143,16 +147,27 @@ try {
         beforeBlue: blue(before),
         afterBlue: blue(after),
         mouthWorks,
-        visible: !canvas.hidden,
+        visible: Boolean(canvas && !canvas.hidden),
+        sameSource: reactionSource === frame.url,
+        hearts: Boolean(pat.hearts),
       });
     }
     return results;
   }, frames);
   for (const result of results) {
+    assert(
+      result.sameSource && result.hearts,
+      result.id + ' must preserve the current sprite and show hearts',
+    );
+    if (result.id.startsWith('music-')) {
+      assert.equal(result.changed, 0);
+      assert.equal(result.visible, false);
+      report.checks.push(result);
+      continue;
+    }
     assert(result.changed > 300, result.id + ' must show the affectionate expression');
     assert.equal(result.escaped, 0, result.id + ' must preserve hair, body and pose');
-    if (!result.id.startsWith('music-'))
-      assert(result.beforeBlue > 40, result.id + ' fixture must start with open blue eyes');
+    assert(result.beforeBlue > 40, result.id + ' fixture must start with open blue eyes');
     assert(
       result.afterBlue < 8,
       result.id + ' must replace the complete eye expression, without open iris rings',

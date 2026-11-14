@@ -50,6 +50,44 @@ def feed(tracker, audio, size=8000):
 
 
 class TempoTests(unittest.TestCase):
+    def test_soft_slow_notes_survive_louder_irregular_accents(self):
+        bpm, seconds = 52, 14
+        rng = np.random.default_rng(0)
+        audio = 0.025 * np.sin(2 * np.pi * 87.13 * np.arange(seconds * RATE) / RATE)
+
+        def add_note(onset, gain, frequency):
+            start = int(onset * RATE)
+            time = np.arange(min(22500, audio.size - start)) / RATE
+            attack = np.minimum(1, time / 0.10) ** 2 * np.exp(-2 * time)
+            angle = 2 * np.pi * frequency * time
+            audio[start : start + time.size] += gain * attack * (
+                np.sin(angle) + 0.33 * np.sin(2 * angle) + 0.08 * np.sin(3 * angle)
+            )
+
+        for index, onset in enumerate(np.arange(0.3, seconds, 60 / bpm)):
+            pitch = [196, 261.63, 220, 293.67, 246.94][index % 5]
+            add_note(onset + rng.uniform(-0.035, 0.035), 0.024, pitch)
+            if index % 3 != 1 and onset + 0.67 < seconds:
+                accent = [392, 369.99, 349.23, 329.63][index % 4]
+                add_note(onset + rng.uniform(0.27, 0.77), rng.uniform(0.045, 0.08), accent)
+
+        result = feed(TempoTracker(), audio[: 9 * RATE])
+        self.assertAlmostEqual(result["tempo"], bpm, delta=1.0)
+        self.assertGreaterEqual(result["tempoConfidence"], 0.45)
+
+    def test_uncertain_intro_retains_rhythm_but_does_not_publish_it(self):
+        tracker = TempoTracker()
+        audio = rhythm(120, seconds=6)
+        for index in range(0, len(audio), RATE):
+            tracker.accept(audio[index : index + RATE])
+            if index < 4 * RATE:
+                self.assertEqual(tracker.estimate(music=False, retain_history=True)["tempo"], 0)
+        self.assertEqual(tracker.sample_count, 6 * RATE)
+        tracker.estimate(music=False)
+        tracker.estimate(music=False)
+        tracker.estimate(music=False)
+        self.assertFalse(tracker.soft_onsets)
+
     def test_clear_beats_lock_without_a_fixed_seven_second_wait(self):
         for bpm in [90, 120, 150, 180, 240]:
             with self.subTest(bpm=bpm):
@@ -163,6 +201,7 @@ class TempoTests(unittest.TestCase):
         tracker = TempoTracker()
         feed(tracker, rhythm(120, seconds=32))
         self.assertLessEqual(len(tracker.onsets), 1200)
+        self.assertLessEqual(len(tracker.soft_onsets), 1200)
         self.assertLessEqual(len(tracker.times), 1200)
         self.assertLess(len(tracker.samples), 512)
         for _ in range(3):

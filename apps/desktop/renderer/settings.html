@@ -60,7 +60,7 @@
       </div>
     </div>
     <div id="settings-layout" inert>
-      <nav aria-label="Settings categories">
+      <nav id="settings-sidebar" aria-label="Settings categories">
         <input
           id="settings-search"
           aria-label="Search settings"
@@ -74,6 +74,14 @@
           <div id="settings-search-items"></div>
         </div>
       </nav>
+      <div
+        id="settings-divider"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Settings categories"
+        aria-controls="settings-sidebar"
+        tabindex="0"
+      ></div>
       <main id="companion" aria-busy="true">
         <div id="settings-panel-loading" class="settings-loading-content" aria-hidden="true">
           <i class="settings-skeleton skeleton-title"></i>

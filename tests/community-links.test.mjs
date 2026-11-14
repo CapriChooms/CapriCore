@@ -32,6 +32,14 @@ test('shipped community destinations and both Discord activity buttons use the s
   assert.equal(legacyLinks, COMMUNITY_LINKS, 'Existing imports retain the same safe allowlist');
   assert.deepEqual(configured, COMMUNITY_LINKS);
   assert.equal(COMMUNITY_LINKS.discord, 'https://discord.gg/capricore');
+  assert.equal(COMMUNITY_LINKS.boosty, 'https://boosty.to/overyx');
+  assert.equal(COMMUNITY_LINKS.lava, 'https://app.lava.top/overyx');
+  assert.equal(COMMUNITY_LINKS.youtube, 'https://www.youtube.com/@CapriChoom');
+  assert.equal(COMMUNITY_LINKS.faq, 'https://capri-core.com/#faq');
+  assert.equal(
+    COMMUNITY_LINKS.releases,
+    'https://github.com/CapriChooms/CapriCore/releases/latest',
+  );
   const buttons = activity().buttons;
   assert.deepEqual(buttons, [
     { label: 'Get Capri', url: COMMUNITY_LINKS.github },
@@ -84,14 +92,24 @@ test('a replacement invite updates presence and Support together without forward
   await open('discord');
   await open('github');
   await open('issues');
+  await open('lava');
+  await open('boosty');
+  await open('youtube');
+  await open('faq');
+  await open('releases');
   assert.deepEqual(opened, [
     presence.buttons[1].url,
     presence.buttons[0].url,
     COMMUNITY_LINKS.issues,
+    COMMUNITY_LINKS.lava,
+    COMMUNITY_LINKS.boosty,
+    COMMUNITY_LINKS.youtube,
+    COMMUNITY_LINKS.faq,
+    COMMUNITY_LINKS.releases,
   ]);
   for (const id of ['futurePrivateMetadata', '__proto__', 'constructor', 'file:///private'])
     await assert.rejects(open(id), /Unknown community link/);
-  assert.equal(opened.length, 3);
+  assert.equal(opened.length, 8);
 });
 
 test('malformed files and destinations outside their approved HTTPS origin use safe defaults', () => {

@@ -2,10 +2,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { visualReplyFailure } from '../apps/desktop/visual-response.mjs';
+import { uiText } from '../apps/desktop/renderer/interface-translations.mjs';
 
 test('visual errors explain truncation and timeout without blaming the attached file', () => {
   const limited = visualReplyFailure({ code: 'CAPRI_VISUAL_TRUNCATED' });
-  assert.match(limited.message, /reply limit.*Thinking mode/);
+  assert.match(limited.message, /reply limit.*shorter answer/);
+  assert.match(uiText(limited.message, 'ru'), /исчерпала лимит ответа/);
   assert.equal(limited.code, 'CAPRI_VISUAL_TRUNCATED');
   assert.equal(visualReplyFailure({}, { timedOut: true }).code, 'CAPRI_VISUAL_TIMEOUT');
   assert.equal(

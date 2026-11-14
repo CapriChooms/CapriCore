@@ -5,7 +5,7 @@
     "de": {
       "pages.5": "Zusammenfassung",
       "next": "Weiter",
-      "intro": "Der Assistent installiert Capri, eigene Laufzeitumgebungen und die ausgewählten Modelle. Eine Konsole oder eine systemweite Installation von Python oder Node ist nicht nötig. Für Downloads wird eine Internetverbindung benötigt. Erforderlich sind Windows 10 22H2/11 x64 und mindestens 8 GB RAM."
+      "intro": "Der Assistent installiert Capri, eigene Laufzeitumgebungen und die ausgewählten Modelle. Eine Konsole oder eine systemweite Installation von Python oder Node ist nicht nötig. Für Downloads wird eine Internetverbindung benötigt. Erforderlich sind Windows 10 1809 (LTSC 2019)/11 x64 und mindestens 8 GB RAM."
     },
     "fr": {
       "pages.5": "Récapitulatif"

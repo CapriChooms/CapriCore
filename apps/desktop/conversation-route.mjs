@@ -3,9 +3,12 @@
 export function conversationOnly(text, routing) {
   if (routing?.mode === 'fast' && routing.reason === 'simple-dialogue') return true;
   if (typeof text !== 'string' || text.length > 100) return false;
-  const greeting = text.normalize('NFKC').trim().toLowerCase();
+  const greeting = text.normalize('NFKC').trim().toLowerCase().replace(/\s+/gu, ' ');
   return (
-    /^(?:(?:hey|hi|hello|привет|здравствуй)[, ]+)?(?:capri|капри)[,! ]*(?:(?:how are you|как дела)[?!.]*)?$/u.test(
+    /^(?:how are you(?: doing)?|how(?:['’]s| is) it going|как (?:дела|ты|жизнь)|comment (?:vas-tu|ça va)|¿?cómo estás|wie geht(?:['’]s| es dir))\s*[?!.]*$/u.test(
+      greeting,
+    ) ||
+    /^(?:(?:hey|hi|hello|привет|здравствуй)[,! ]+)?(?:capri|капри)[,! ]*(?:(?:how are you(?: doing)?|как (?:твои )?дела|как ты)[?!.]*)?$/u.test(
       greeting,
     ) ||
     /^(?:(?:say|скажи)\s+)?(?:hi|hello|hey|привет|здравствуй)(?:[, ]+(?:capri|капри))?(?:\s+briefly)?[?!.]*$/u.test(

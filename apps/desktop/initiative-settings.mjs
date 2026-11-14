@@ -24,7 +24,7 @@ export function validateInitiative(value) {
     Object.keys(value).some((k) => !Object.hasOwn(INITIATIVE_DEFAULTS, k)) ||
     !['off', 'occasional', 'conversational'].includes(value.level) ||
     (value.hourlyLimit !== null &&
-      (!Number.isInteger(value.hourlyLimit) || value.hourlyLimit < 1 || value.hourlyLimit > 30)) ||
+      (!Number.isInteger(value.hourlyLimit) || value.hourlyLimit < 1 || value.hourlyLimit > 120)) ||
     ![value.quietStart, value.quietEnd].every((n) => Number.isInteger(n) && n >= 0 && n < 24) ||
     typeof value.returnReactions !== 'boolean' ||
     typeof value.quietHoursEnabled !== 'boolean' ||

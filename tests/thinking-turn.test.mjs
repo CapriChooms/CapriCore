@@ -134,6 +134,85 @@ test('thinking can use the classified dialogue scope without enabling tools or l
   assert.equal(f.events.at(-1).type, 'turn.completed');
 });
 
+test('default thinking generates one final reply and voices only that answer without a briefing', async () => {
+  const spoken = [];
+  const voice = new VoiceService({
+    url: 'http://127.0.0.1:18101',
+    headers: () => ({}),
+    emit: () => {},
+    fetchImpl: async (_url, options) => {
+      spoken.push(JSON.parse(options.body).text);
+      return new Response(Buffer.from(new Float32Array([0.1, -0.1]).buffer), {
+        headers: { 'content-type': 'application/octet-stream', 'x-sample-rate': '24000' },
+      });
+    },
+  });
+  voice.setReady(true);
+  try {
+    const f = fixture();
+    assert.equal(f.chat.prepareThinking, null);
+    await f.chat.send(
+      { id: randomUUID(), text: 'Check this equation.', thinking: true },
+      (event) => {
+        f.events.push(event);
+        voice.onChat(event);
+      },
+    );
+    for (let i = 0; i < 100 && !spoken.length; i++)
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.requests[0].headers['x-capri-thinking-once'], 'medium');
+    assert.equal(
+      f.events.some((event) => ['turn.preface', 'turn.approach'].includes(event.type)),
+      false,
+    );
+    assert.equal(f.events.at(-1).type, 'turn.completed');
+    assert.deepEqual(spoken, ['The checked answer is 42.']);
+  } finally {
+    voice.close();
+  }
+});
+
+test('default visual thinking keeps its reasoning request without generating an introduction', async () => {
+  const requests = [],
+    events = [];
+  const service = new VisualService({
+    url: 'http://127.0.0.1:11434',
+    model: 'fixture',
+    modelCapabilities: ['thinking'],
+    params: { num_ctx: 16384 },
+    persona: () => 'Public fixture.',
+    avatars: [],
+    rpc: { call: async () => ({ messages: [] }) },
+    fetchImpl: async (_url, options) => {
+      const payload = JSON.parse(options.body);
+      requests.push(payload);
+      return new Response(
+        JSON.stringify({
+          message: { content: 'The result is 42.' },
+          done: true,
+          done_reason: 'stop',
+        }) + '\n',
+      );
+    },
+  });
+  assert.equal(service.prepareThinking, null);
+  const result = await service.generate({
+    text: 'Check this diagram.',
+    png: visionImage(),
+    thinking: true,
+    signal: new AbortController().signal,
+    emit: (event) => events.push(event),
+  });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].think, true);
+  assert.equal(
+    events.some((event) => ['preface', 'approach'].includes(event.type)),
+    false,
+  );
+  assert.equal(result.text, 'The result is 42.');
+});
+
 test('private inline traces and separate reasoning fields never enter a thinking reply or speech stream', async () => {
   const hidden = '<think>PRIVATE_SYNTHETIC_TRACE</think><analysis>OTHER_PRIVATE_TRACE</analysis>42';
   const f = fixture({

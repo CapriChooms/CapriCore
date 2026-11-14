@@ -57,6 +57,63 @@ test('turn cancellation while voice is loading never starts stale queued speech'
   assert(!events.some((event) => event.type === 'voice.audio'));
 });
 
+test('a cold enabled voice starts on the first reply and drains it after text completion', async () => {
+  const { voice, events, requests } = service();
+  voice.setReady(false);
+  let starts = 0,
+    release;
+  const ready = new Promise((resolve) => {
+    release = resolve;
+  });
+  voice.ensureReady = async () => {
+    starts++;
+    await ready;
+    voice.setReady(true);
+  };
+  turn(voice, 'first', "Hi! I'm here.");
+  await until(() => starts === 1);
+  assert.equal(voice.turn.final, true);
+  assert.equal(requests.length, 0);
+  release();
+  await until(() => events.some((event) => event.type === 'voice.generated'));
+  assert.equal(requests.map(({ text }) => text).join(' '), "Hi! I'm here.");
+  assert.ok(events.some((event) => event.type === 'voice.audio' && event.turnId === 'first'));
+  turn(voice, 'warm', 'Ready.');
+  await until(() =>
+    events.some((event) => event.type === 'voice.generated' && event.turnId === 'warm'),
+  );
+  assert.equal(starts, 1);
+});
+
+test('muted and cancelled turns skip deferred startup and an unavailable voice clears its queue', async () => {
+  const { voice, events, requests } = service();
+  voice.setReady(false);
+  let starts = 0;
+  voice.ensureReady = async () => {
+    starts++;
+  };
+  voice.setEnabled(false);
+  turn(voice, 'muted', 'Keep this silent.');
+  voice.setEnabled(true);
+  turn(voice, 'cancelled', 'Cancel this one.');
+  voice.cancel();
+  await Promise.resolve();
+  assert.equal(starts, 0);
+  turn(voice, 'unavailable', 'Keep the text available.');
+  await until(() => events.some((event) => event.type === 'voice.error'));
+  assert.equal(starts, 1);
+  assert.equal(voice.diagnostics().queuedSentences, 0);
+  assert.equal(requests.length, 0);
+  assert.ok(
+    events.some((event) => event.type === 'voice.cancelled' && event.turnId === 'unavailable'),
+  );
+  voice.ensureReady = async () => voice.setReady(true);
+  turn(voice, 'retry', 'Ready again.');
+  await until(() =>
+    events.some((event) => event.type === 'voice.audio' && event.turnId === 'retry'),
+  );
+});
+
 test('call voice volume ramps existing output without restarting audio or changing the local output', () => {
   const player = new VoicePlayer({ onState() {}, onError() {} });
   assert.equal(player.callVoiceVolume, 50);
@@ -80,20 +137,63 @@ test('call voice volume ramps existing output without restarting audio or changi
   assert.equal(player.callVoiceVolume, 100);
 });
 
-test('English-only TTS rejects non-Latin replies before synthesis without changing conversation text', async () => {
+test('speaker volume ramps to silence independently of the call mix', () => {
+  const player = new VoicePlayer({ onState() {}, onError: assert.fail });
+  const ramps = [];
+  player.speakers.context = { state: 'running', currentTime: 3 };
+  player.speakers.voiceGain = {
+    gain: {
+      cancelAndHoldAtTime: (time) => assert.equal(time, 3),
+      linearRampToValueAtTime: (value, time) => ramps.push([value, time]),
+    },
+  };
+  player.callOutput = {
+    context: player.speakers.context,
+    voiceGain: { gain: { cancelAndHoldAtTime: () => assert.fail('Call gain changed') } },
+  };
+  for (const value of [42, 42, 0]) player.setSpeakerVolume(value);
+  assert.deepEqual(ramps, [
+    [0.42, 3.02],
+    [0, 3.02],
+  ]);
+  assert.equal(player.callVoiceVolume, 50);
+  for (const value of [-1, 101, '50', null, NaN])
+    assert.throws(() => player.setSpeakerVolume(value), /Invalid voice volume/);
+});
+
+test('English-only TTS reports unsupported text before synthesis without failing the text reply', async () => {
   assert.equal(speechLanguageMismatch('Привет, как дела?', 'en'), true);
   assert.equal(speechLanguageMismatch('Привет, как дела?', 'ru'), false);
   assert.equal(speechLanguageMismatch('Hey choom. Café at midnight?', 'en'), false);
   const { voice, events, requests } = service();
   turn(voice, 'mismatch', 'Привет, как дела?');
-  await until(() => events.some((event) => event.type === 'voice.error'));
+  await until(() => events.some((event) => event.type === 'voice.generated'));
   assert.equal(requests.length, 0);
-  assert.match(events.find((event) => event.type === 'voice.error').message, /English voice/);
-  assert.equal(
-    events.some((event) => event.type === 'voice.audio'),
-    false,
+  const warning = events.find((event) => event.type === 'voice.warning');
+  assert.match(warning.message, /English voice/);
+  assert.doesNotMatch(warning.message, /Choose|Settings/);
+  assert.equal(warning.turnId, 'mismatch');
+  assert.ok(
+    !events.some(({ type }) => ['voice.audio', 'voice.error', 'voice.cancelled'].includes(type)),
   );
-  assert.equal(voice.diagnostics().lastFailure.phase, 'synthesize');
+  assert.equal(voice.diagnostics().lastFailure.code, 'CAPRI_VOICE_LANGUAGE_MISMATCH');
+  assert.equal(voice.snapshot().ready, true);
+});
+
+test('mixed replies keep the English sentences in order and show a single warning per turn', async () => {
+  const { voice, events, requests } = service();
+  turn(voice, 'mixed', 'I am doing fine. Привет, как дела? До встречи. Happy to see you.');
+  await until(() => events.some((event) => event.type === 'voice.generated'));
+  assert.deepEqual(
+    requests.map(({ text }) => text),
+    ['I am doing fine.', 'Happy to see you.'],
+  );
+  assert.deepEqual(
+    events.filter(({ type }) => type === 'voice.audio').map(({ sequence }) => sequence),
+    [0, 1],
+  );
+  assert.equal(events.filter(({ type }) => type === 'voice.warning').length, 1);
+  assert.ok(!events.some(({ type }) => ['voice.error', 'voice.cancelled'].includes(type)));
 });
 
 const pcm = () =>

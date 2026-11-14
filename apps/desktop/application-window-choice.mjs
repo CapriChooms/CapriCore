@@ -5,7 +5,7 @@
 // entry still needs the currently observed window or one unambiguous candidate.
 export function chooseApplicationWindow(
   result,
-  { action, observedWindowId, ownerWindowTitle = '' } = {},
+  { action, observedWindowId, ownerWindowTitle = '', requireUnique = false } = {},
 ) {
   if (
     result?.ok !== true ||
@@ -22,6 +22,7 @@ export function chooseApplicationWindow(
   );
   const observed = candidates.find((window) => window.windowId === observedWindowId);
   if (observed) return observed;
-  if (candidates.length === 1 || action === 'launch') return candidates[0] ?? null;
+  if (candidates.length === 1 || (action === 'launch' && !requireUnique))
+    return candidates[0] ?? null;
   return null;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 const messages = {
   CAPRI_VISUAL_TRUNCATED:
-    'The model reached its reply limit. Enable Thinking mode or ask for a shorter solution.',
+    'The model reached its reply limit. Ask for a shorter answer or try another model.',
   CAPRI_VISUAL_INCOMPLETE: 'The model did not finish its reply. Please try again.',
   CAPRI_VISUAL_HTTP:
     'The API could not process the attachments. Check the connection in External AI provider settings.',

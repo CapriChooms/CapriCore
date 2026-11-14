@@ -17,6 +17,7 @@ import {
   defaultPersonality,
 } from '../packages/runtime/src/personality.mjs';
 import { GitHubAccess, GITHUB_ACCESS_URL, githubTokenUrl } from '../apps/desktop/github-access.mjs';
+import { EXPERIMENTAL_REPOSITORY } from '../packages/updater/src/releases.mjs';
 import { listReleases } from '../packages/updater/src/github.mjs';
 import { visuallySleeping } from '../apps/desktop/sleep-service.mjs';
 import { PresenceModel } from '../apps/desktop/renderer/presence-model.mjs';
@@ -103,7 +104,7 @@ test('disconnect uses resting artwork without reporting that models were unloade
     assert.equal(presence.snapshot().expanded, true);
   }
   assert.equal(visuallySleeping('awake', 'ready'), false);
-  assert.equal(visuallySleeping('awake', 'starting'), false);
+  assert.equal(visuallySleeping('awake', 'starting'), true);
   assert.equal(visuallySleeping('asleep', 'ready'), true);
 });
 test('private GitHub access is validated, encrypted and reused without GitHub CLI or token exposure', async () => {
@@ -115,6 +116,7 @@ test('private GitHub access is validated, encrypted and reused without GitHub CL
     root: destination,
     storage,
     verify: async (value) => {
+      assert.equal(value.repository, EXPERIMENTAL_REPOSITORY);
       seen.push(value.token);
       return [];
     },
@@ -124,6 +126,7 @@ test('private GitHub access is validated, encrypted and reused without GitHub CL
   });
   const status = await access.connect(token);
   assert.equal(status.connected, true);
+  assert.equal(status.repository, EXPERIMENTAL_REPOSITORY);
   assert.deepEqual(seen, [token]);
   const disk = readFileSync(access.file, 'utf8');
   assert.ok(!disk.includes(token));

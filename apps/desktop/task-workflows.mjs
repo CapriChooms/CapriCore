@@ -54,6 +54,21 @@ export function validateWorkflow(value) {
     if (step.action === 'drag') {
       if (!selectorValid(step.to)) throw new Error('Choose an accessible drag destination.');
       result.to = { label: step.to.label, role: step.to.role, automationId: step.to.automationId };
+      if (step.trajectory != null) {
+        if (
+          !Array.isArray(step.trajectory) ||
+          step.trajectory.length > 24 ||
+          step.trajectory.some(
+            (point) =>
+              !point ||
+              ![point.x, point.y].every(
+                (value) => Number.isFinite(value) && value >= 0 && value < 1,
+              ),
+          )
+        )
+          throw new Error('Invalid recorded drag path.');
+        result.trajectory = step.trajectory.map(({ x, y }) => ({ x, y }));
+      }
     }
     if (step.action === 'click') {
       if (!['left', 'right'].includes(step.button ?? 'left'))
@@ -313,7 +328,10 @@ export class TaskWorkflows {
               return variables[key];
             }),
           });
-        await this.control.execute(args, combined);
+        await this.control.execute(args, combined, {
+          workflowPath: step.trajectory,
+          ...(step.action === 'click' && { recordedClick: true }),
+        });
         // Fresh accessibility observation after every mutation; no claimed model verification.
         await this.control.execute({ action: 'observe', vision: false }, combined);
       }

@@ -171,8 +171,11 @@ public static class DiagnosticArchive {
         if(!String.IsNullOrEmpty(registry))c.Recent(Path.Combine(registry,"logs"),"*.jsonl",4,"logs/ui/");
         if(!String.IsNullOrEmpty(target))c.Recent(Path.Combine(target,".runtime/npm-cache/_logs"),"*.log",3,"logs/npm/");
         if(!String.IsNullOrEmpty(target)){
-            c.Log(Path.Combine(target,"logs/ollama.stderr.log"),"logs/runtime/ollama.stderr.log");
-            c.Log(Path.Combine(target,"logs/ollama.stdout.log"),"logs/runtime/ollama.stdout.log");
+            foreach(string name in new[]{"llama","llama-chat","llama-embedding","ollama"})
+                foreach(string stream in new[]{"stdout","stderr"}) {
+                    string file=name+"."+stream+".log";
+                    c.Log(Path.Combine(target,"logs",file),"logs/runtime/"+file);
+                }
         }
         return c;
     }
@@ -212,7 +215,7 @@ public static class DiagnosticArchive {
         metadata["bytesPerLog"]=FileLimit;
         metadata["totalLogBytesLimit"]=TotalLimit;
         string text="# Capri setup diagnostic report\n\nCreated (UTC): "+DateTime.UtcNow.ToString("o")+"\n\n## Reported setup failure\n\n"+(String.IsNullOrWhiteSpace(failure)?"Inspect setup.log for the setup events.":c.Clean(failure))+
-            "\n\n## Contents\n\n- setup.log contains setup events and recent npm/UI/Ollama log tails.\n- setup.json contains selected setup options, versions, system information and collection warnings.\n\n## Privacy\n\nNothing was uploaded. Models, recordings, screenshots, conversation history, personality, credentials and raw application configuration are excluded. Logs and personal paths receive best-effort redaction; review the ZIP before sharing. AdapterRAM in setup.json is not authoritative VRAM capacity.\n";
+            "\n\n## Contents\n\n- setup.log contains setup events and recent npm, UI and local inference log tails.\n- setup.json contains selected setup options, versions, system information and collection warnings.\n\n## Privacy\n\nNothing was uploaded. Models, recordings, screenshots, conversation history, personality, credentials and raw application configuration are excluded. Logs and personal paths receive best-effort redaction; review the ZIP before sharing. AdapterRAM in setup.json is not authoritative VRAM capacity.\n";
         var files=new Dictionary<string,string>{
             {"REPORT.md",text},
             {"setup.log",c.SetupLog(failure)},

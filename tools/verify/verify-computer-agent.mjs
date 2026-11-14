@@ -87,21 +87,15 @@ try {
         params: { num_ctx: Number(process.env.CAPRI_VERIFY_CONTEXT ?? 8192) },
       })
     : deterministic;
+  const tracedPlan = async (context, options) => {
+    const step = await plan(context, options);
+    console.log(JSON.stringify({ fixtureAction: step.action, review: options.review === true }));
+    return step;
+  };
+  if (plan.outline) tracedPlan.outline = plan.outline;
   const agent = new ComputerAgent({
     control,
-    plan: async (context, options) => {
-      let step;
-      try {
-        step = await plan(context, options);
-      } catch (error) {
-        console.log(JSON.stringify({ fixturePlanningError: error.message }));
-        throw error;
-      }
-      console.log(
-        JSON.stringify({ fixturePlan: step, targets: context.currentObservation.targets }),
-      );
-      return step;
-    },
+    plan: tracedPlan,
     applications: {
       operation: (_id, _args, run) => run(),
       execute: async () => {

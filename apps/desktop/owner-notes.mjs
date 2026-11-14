@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   constants,
@@ -10,11 +11,14 @@ import {
   readFileSync,
   readSync,
   realpathSync,
+  renameSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
 
 const maxNote = 1200;
+const maxFact = 280;
 const maxFile = 128 * 1024;
 const noteFile = 'capri-owner-notes.md';
 const optionalName = /^(?:(?:hey\s+)?(?:capri|капри)[,:!]?\s+)/iu;
@@ -165,6 +169,112 @@ function records(content) {
       return [];
     }
   });
+}
+
+function editableFacts(content) {
+  const occurrences = new Map();
+  return content.split(/\r?\n/u).flatMap((line, index) => {
+    const text = records(line)[0];
+    if (!text || text.length > maxFact) return [];
+    const occurrence = (occurrences.get(line) ?? 0) + 1;
+    occurrences.set(line, occurrence);
+    const id = createHash('sha256')
+      .update(line + '\0' + occurrence)
+      .digest('hex')
+      .slice(0, 24);
+    return [{ id, text, index }];
+  });
+}
+
+export function listOwnerFacts(workspace) {
+  let fd;
+  try {
+    fd = openNoteFile(workspace, false);
+    const facts = editableFacts(readFileSync(fd, 'utf8'));
+    return {
+      items: facts
+        .slice(-250)
+        .reverse()
+        .map(({ id, text }) => ({ id, text })),
+      truncated: facts.length > 250,
+      unavailable: false,
+    };
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    return { items: [], truncated: false, unavailable: false };
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+
+function assertFact(text) {
+  if (
+    typeof text !== 'string' ||
+    !text.trim() ||
+    text.length > maxFact ||
+    /[\p{Cc}\p{Zl}\p{Zp}]/u.test(text) ||
+    sensitive.test(text)
+  )
+    throw new Error('Enter a short memory without credentials.');
+}
+
+/** Send only a standalone, first-person candidate to the model for a yes/no decision. */
+export function automaticFactCandidate(input) {
+  if (typeof input !== 'string') return null;
+  const text = input.trim();
+  if (!text || /[?\r\n<>@\\/]|\d{6,}/u.test(text) || compound.test(text)) return null;
+  try {
+    assertFact(text);
+  } catch {
+    return null;
+  }
+  if (
+    /\b(?:today|tomorrow|yesterday|right now|currently)\b|сегодня|завтра|вчера|сейчас/iu.test(text)
+  )
+    return null;
+  return /^(?:I (?:like|love|prefer|enjoy|usually)\s|my favou?rite\s|мне нравит|я люблю|я предпочитаю|мо[йяёие] любим|eu (?:gosto|prefiro)\s)/iu.test(
+    text,
+  )
+    ? text
+    : null;
+}
+
+export function saveOwnerFact(workspace, text) {
+  assertFact(text);
+  const fact = text.trim();
+  if (listOwnerFacts(workspace).items.some((item) => item.text === fact))
+    return { saved: true, alreadySaved: true };
+  return saveOwnerNote(workspace, fact);
+}
+
+export function changeOwnerFact(workspace, { id, text } = {}) {
+  if (typeof id !== 'string' || !/^[a-f0-9]{24}$/u.test(id)) throw new Error('Invalid memory.');
+  if (text !== undefined) assertFact(text);
+  const fd = openNoteFile(workspace, false);
+  let content;
+  try {
+    content = readFileSync(fd, 'utf8');
+  } finally {
+    closeSync(fd);
+  }
+  const fact = editableFacts(content).find((item) => item.id === id);
+  if (!fact) throw new Error('This memory changed. Refresh and try again.');
+  const lines = content.split(/\r?\n/u);
+  if (text === undefined) lines.splice(fact.index, 1);
+  else lines[fact.index] = lines[fact.index].slice(0, 13) + JSON.stringify(text.trim());
+  const file = fileFor(workspace, false);
+  const temp = file + '.' + randomUUID() + '.tmp';
+  try {
+    writeFileSync(temp, lines.join('\n'), { flag: 'wx', mode: 0o600, flush: true });
+    renameSync(temp, file);
+  } finally {
+    try {
+      unlinkSync(temp);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
+  return listOwnerFacts(workspace);
 }
 
 /** Only this fixed Markdown file is written. OpenClaw indexes it under memory/. */

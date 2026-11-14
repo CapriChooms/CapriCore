@@ -83,11 +83,62 @@ try {
       );
     }
   }
+  await page.evaluate(() => {
+    const language = window.value.options.language;
+    language.push({
+      id: 'npu-setup-vitis',
+      name: 'AMD Ryzen AI NPU',
+      backend: 'npu',
+      available: true,
+      npuSetup: 'vitis',
+      model: 'Qwen 2.5 · 1.5B',
+      bytes: 2449820164,
+    });
+    language.push({
+      id: 'npu-setup-openvino',
+      name: 'Intel NPU',
+      backend: 'npu',
+      available: false,
+      npuSetup: 'openvino',
+      reason: 'Install or enable the NPU driver in Windows, then refresh devices.',
+      installLink: true,
+    });
+    window.panel.api.nativeNpu = async (value) => {
+      window.npuAction = value;
+    };
+    window.panel.show(window.value);
+  });
+  await language.selectOption('npu-setup-vitis');
+  assert.equal(
+    await page.locator('#model-device-apply').textContent(),
+    'Настроить NPU и перезапустить',
+  );
+  assert.match(await page.locator('#model-device-language-reason').textContent(), /Qwen 2\.5/);
+  assert.equal(await page.locator('#model-device-npu-advanced').getAttribute('open'), null);
+  await page.screenshot({ path: path.join(folder, 'amd-npu-ru.png') });
+  await page.locator('#model-device-apply').click();
+  assert.deepEqual(await page.evaluate(() => window.applied.at(-1)), {
+    language: 'npu-setup-vitis',
+    voice: 'cpu',
+  });
+  await language.selectOption('npu-setup-openvino');
+  assert.equal(await page.locator('#model-device-apply').isDisabled(), true);
+  await page.locator('#model-device-npu-guide').click();
+  assert.deepEqual(await page.evaluate(() => window.npuAction), {
+    op: 'install-guide',
+    backend: 'openvino',
+  });
   console.log(
     JSON.stringify({
       passed: true,
       folder,
-      checked: ['independent selection', 'unavailable device', 'English/Russian', '420/680 width'],
+      checked: [
+        'independent selection',
+        'unavailable device',
+        'English/Russian',
+        '420/680 width',
+        'NPU setup and driver guidance',
+      ],
     }),
   );
 } finally {

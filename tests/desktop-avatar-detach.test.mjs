@@ -45,6 +45,8 @@ function fixture({
   getCursorScreenPoint = () => ({ x: area.x, y: area.y }),
   verification = true,
   targetDisplay,
+  overlayBounds = (bounds) => bounds,
+  homeArea = area,
   parked = () => true,
   timeoutMs = 500,
 } = {}) {
@@ -52,7 +54,7 @@ function fixture({
   const overlays = [];
   const commands = [];
   const content = { x: -560, y: -100, width: 480, height: 650 };
-  const display = { id: 7, workArea: area };
+  const display = { id: 7, workArea: homeArea };
   class Overlay extends EventEmitter {
     constructor(options) {
       super();
@@ -99,7 +101,10 @@ function fixture({
       this.url = url;
     }
     getBounds() {
-      return this.options;
+      return overlayBounds(this.options, this);
+    }
+    setBounds(bounds) {
+      this.repositioned = bounds;
     }
     isDestroyed() {
       return this.destroyed === true;
@@ -141,6 +146,40 @@ function fixture({
   });
   return { controller, content, display, phases, overlays, commands };
 }
+
+test('leave frame accepts DPI rounding of one logical pixel but rejects a mispositioned layer', async () => {
+  const rounded = fixture({ overlayBounds: (bounds) => ({ ...bounds, width: bounds.width - 1 }) });
+  assert.equal(await rounded.controller.leave(geometry, sprite, canvas), true);
+  assert.equal(rounded.controller.phase, 'detached');
+  rounded.controller.reset();
+
+  const clipped = fixture({ overlayBounds: (bounds) => ({ ...bounds, width: bounds.width - 2 }) });
+  await assert.rejects(
+    clipped.controller.leave(geometry, sprite, canvas),
+    /could not cover the display/,
+  );
+  assert.equal(clipped.controller.phase, 'attached');
+});
+
+test('a 4K teleport overlay reapplies its target bounds if Windows initially limits the window', async () => {
+  const large = { x: 0, y: 0, width: 3840, height: 2112 };
+  const nativeBounds = (bounds, overlay) =>
+    bounds.width === 3840 && !overlay.repositioned ? { ...bounds, width: 1920 } : bounds;
+  const crossing = fixture({
+    targetDisplay: { id: 8, workArea: large },
+    overlayBounds: nativeBounds,
+  });
+  assert.equal(await crossing.controller.leave(geometry, sprite, canvas), true);
+  assert.equal(await crossing.controller.hop({ x: 3150, y: 800 }), true);
+  assert.deepEqual(crossing.overlays.at(-1).repositioned, large);
+  crossing.controller.reset();
+
+  const primary = { ...large, x: -3840, y: -180 };
+  const leaving = fixture({ homeArea: primary, overlayBounds: nativeBounds });
+  assert.equal(await leaving.controller.leave(geometry, sprite, canvas), true);
+  assert.deepEqual(leaving.overlays[0].repositioned, primary);
+  leaving.controller.reset();
+});
 
 test('drag dead zone measures the final cursor vector in logical pixels', () => {
   assert.equal(

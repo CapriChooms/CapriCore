@@ -286,7 +286,14 @@ export async function createDiagnosticReport({
   const installation = await meta('.capri-install.json'),
     journal = await meta('.runtime/installer/state.json');
   const processInfo = {};
-  for (const name of ['desktop', 'capri', 'ollama', 'companion-voice']) {
+  for (const name of [
+    'desktop',
+    'capri',
+    'llama',
+    'llama-chat',
+    'llama-embedding',
+    'companion-voice',
+  ]) {
     try {
       const marker = await json(root, `data/run/${name}.json`);
       if (path.resolve(marker.projectRoot ?? '') !== root) {
@@ -477,13 +484,9 @@ export async function createDiagnosticReport({
     findings.push('The selected language resolves to text-only speech.');
   const selectedResidency = resources.localModels?.models?.find((model) => model.selected);
   if (selectedResidency?.offload === 'cpu')
-    findings.push(
-      'Ollama reports the selected local model resident on CPU, despite any installed VRAM. See resources.json.',
-    );
+    findings.push('The selected local model is resident on CPU. See resources.json.');
   if (selectedResidency?.offload === 'partial')
-    findings.push(
-      'Ollama reports partial GPU offload for the selected local model. GPU capacity alone does not guarantee full offload. See resources.json.',
-    );
+    findings.push('The selected local model reports partial GPU offload. See resources.json.');
   if (system.ramBytes > 0 && system.availableRamBytes / system.ramBytes <= 0.1)
     findings.push(
       'System RAM is nearly full across all processes. This does not attribute all memory use to Capri. Compare resources.json with system.json.',
@@ -500,7 +503,11 @@ export async function createDiagnosticReport({
     findings.push('The voice adapter checksum differs from its profile.');
   if (snapshot.lastVoiceFailure)
     findings.push('The last voice startup attempt failed; see session.json and voice stderr logs.');
-  if (snapshot.voice?.lastFailure)
+  if (snapshot.voice?.lastFailure?.code === 'CAPRI_VOICE_LANGUAGE_MISMATCH')
+    findings.push(
+      'The local English voice skipped text in an unsupported script before synthesis.',
+    );
+  else if (snapshot.voice?.lastFailure)
     findings.push(
       `Voice ${snapshot.voice.lastFailure.phase ?? 'request'} failed; see session.json and voice stderr logs.`,
     );

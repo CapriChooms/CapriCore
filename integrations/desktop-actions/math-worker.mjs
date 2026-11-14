@@ -3,6 +3,7 @@ import { parentPort, workerData as input } from 'node:worker_threads';
 import mathBundle from 'mathjs/lib/browser/math.js';
 import { Temporal } from '@js-temporal/polyfill';
 import { SCIENTIFIC_FUNCTIONS, normalizeMathExpression } from './math-expression.mjs';
+import { calculatorInput } from './calculator-input.mjs';
 // One bundled module avoids loading hundreds of files on every short-lived worker.
 const math = mathBundle.create({ number: 'BigNumber', precision: 64, predictable: true });
 const names = new Set(SCIENTIFIC_FUNCTIONS);
@@ -178,7 +179,11 @@ try {
         remainingDays: calendar.days,
       };
     } else result = { result: from.add({ [input.dateUnit]: input.amount }).toString() };
-  } else result = numeric(visit(parse(input.expression)));
+  } else {
+    const tree = parse(input.expression);
+    result = numeric(visit(tree));
+    if (input.withNativeInput) result.nativeInput = calculatorInput(tree);
+  }
   parentPort.postMessage({
     ok: true,
     app: 'calculator',

@@ -2,6 +2,25 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { writeJsonAtomic } from './storage.mjs';
 const estimates = { core: 15, models: 12, recognition: 8, voice: 25 };
+const coreStartupMessages = Object.freeze({
+  CAPRI_LLAMA_BUNDLE_INCOMPLETE:
+    'Your saved data has been preserved. Repair Capri with the installer and try again.',
+  CAPRI_GATEWAY_RUNTIME_MISSING:
+    'Your saved data has been preserved. Repair Capri with the installer and try again.',
+  CAPRI_MEMORY_MODEL_MISSING:
+    'Your saved data has been preserved. Repair Capri with the installer and try again.',
+  CAPRI_LOCAL_LANGUAGE_MODEL_MISSING: 'Choose a language model in Settings → Language model.',
+  CAPRI_SERVICE_EXITED: 'Capri could not start.',
+  CAPRI_SERVICE_STARTUP_TIMEOUT: 'The local core is not ready yet.',
+  CAPRI_SERVICE_PORT_OCCUPIED: 'Could not reconnect. Check the local core.',
+});
+
+export function coreStartupFailure(error) {
+  if (!Object.hasOwn(coreStartupMessages, error?.code))
+    return { message: 'The local core is unavailable. Reconnect to try again.' };
+  return { code: error.code, message: coreStartupMessages[error.code] };
+}
+
 /** Stage completion is measured; ETA is an explicitly approximate local estimate. */
 export class StartupProgress {
   constructor({ file, emit, now = Date.now }) {

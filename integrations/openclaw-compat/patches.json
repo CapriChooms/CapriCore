@@ -460,9 +460,13 @@
         {
           "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
           "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+        },
+        {
+          "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+          "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
         }
       ],
-      "afterSha256": "b534105baadfdae2040083ff277befafc2a2fe1aaa9d92443cf4b72f72efb80b",
+      "afterSha256": "19244e378ef1735bf895dd7d484afb0197072bfb1e57b12cd01f8938f9f2c2b2",
       "upgrades": [
         {
           "beforeSha256": "91fc9bbe7dce6ae3dd02776b28cf201f59a98c016fc4f9df646353cefe01ae40",
@@ -502,6 +506,10 @@
             {
               "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
               "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            },
+            {
+              "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+              "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
             }
           ]
         },
@@ -535,6 +543,10 @@
             {
               "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
               "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            },
+            {
+              "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+              "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
             }
           ]
         },
@@ -560,6 +572,10 @@
             {
               "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
               "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            },
+            {
+              "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+              "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
             }
           ]
         },
@@ -581,6 +597,10 @@
             {
               "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
               "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            },
+            {
+              "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+              "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
             }
           ]
         },
@@ -598,6 +618,10 @@
             {
               "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
               "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            },
+            {
+              "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+              "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
             }
           ]
         },
@@ -611,6 +635,10 @@
             {
               "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
               "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            },
+            {
+              "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+              "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
             }
           ]
         },
@@ -620,6 +648,19 @@
             {
               "before": "req.headers[\"x-capri-tools-once\"] !== \"conversation\"",
               "after": "![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])"
+            },
+            {
+              "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+              "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "b534105baadfdae2040083ff277befafc2a2fe1aaa9d92443cf4b72f72efb80b",
+          "edits": [
+            {
+              "before": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"medium\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce === \"medium\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {",
+              "after": "\tif (capriThinkingOnce !== void 0 && (![\"off\", \"low\", \"medium\", \"high\"].includes(capriThinkingOnce) || agentId !== \"capri\" || !senderIsOwner || (capriThinkingOnce !== \"off\" && ![\"conversation\", \"dialogue\"].includes(req.headers[\"x-capri-tools-once\"])))) {"
             }
           ]
         }
@@ -656,9 +697,13 @@
         {
           "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
           "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+        },
+        {
+          "before": "\t\t\tthinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,",
+          "after": "\t\t\tthinkingOnce: [\"off\", \"low\", \"medium\", \"high\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
         }
       ],
-      "afterSha256": "aa16310465b3314f8cce19e058052b7db6a819d0fb5d2056f1e268f75888f44c",
+      "afterSha256": "765426a63ed80442fd056a05d3b7d4f04b37678fad0b9479eb4430c2e724577a",
       "upgrades": [
         {
           "beforeSha256": "7ea507b5d49303f07099e8f719eedff6f0e88556ce340de68637b7d143840831",
@@ -686,6 +731,10 @@
             {
               "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
               "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+            },
+            {
+              "before": "\t\t\tthinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,",
+              "after": "\t\t\tthinkingOnce: [\"off\", \"low\", \"medium\", \"high\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
             }
           ]
         },
@@ -711,6 +760,10 @@
             {
               "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
               "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+            },
+            {
+              "before": "\t\t\tthinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,",
+              "after": "\t\t\tthinkingOnce: [\"off\", \"low\", \"medium\", \"high\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
             }
           ]
         },
@@ -732,6 +785,10 @@
             {
               "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
               "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+            },
+            {
+              "before": "\t\t\tthinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,",
+              "after": "\t\t\tthinkingOnce: [\"off\", \"low\", \"medium\", \"high\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
             }
           ]
         },
@@ -749,6 +806,10 @@
             {
               "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
               "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+            },
+            {
+              "before": "\t\t\tthinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,",
+              "after": "\t\t\tthinkingOnce: [\"off\", \"low\", \"medium\", \"high\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
             }
           ]
         },
@@ -762,6 +823,10 @@
             {
               "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
               "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+            },
+            {
+              "before": "\t\t\tthinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,",
+              "after": "\t\t\tthinkingOnce: [\"off\", \"low\", \"medium\", \"high\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
             }
           ]
         },
@@ -771,6 +836,19 @@
             {
               "before": "toolsAllow: ({ conversation: [\"memory_search\", \"memory_get\"],",
               "after": "toolsAllow: ({ dialogue: [], conversation: [\"memory_search\", \"memory_get\"],"
+            },
+            {
+              "before": "\t\t\tthinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,",
+              "after": "\t\t\tthinkingOnce: [\"off\", \"low\", \"medium\", \"high\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
+            }
+          ]
+        },
+        {
+          "beforeSha256": "aa16310465b3314f8cce19e058052b7db6a819d0fb5d2056f1e268f75888f44c",
+          "edits": [
+            {
+              "before": "\t\t\tthinkingOnce: [\"off\", \"medium\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,",
+              "after": "\t\t\tthinkingOnce: [\"off\", \"low\", \"medium\", \"high\"].includes(params.capriThinkingOnce) ? params.capriThinkingOnce : void 0,"
             }
           ]
         }
@@ -817,11 +895,26 @@
     {
       "file": "dist/agent-command-DFdm3k6d.mjs",
       "beforeSha256": "4b4ba8d3800fde7402e38a5e0c5321c52a06af0280f99d5895b87cd1744225e6",
-      "afterSha256": "5207d4a5c80211ab1c9c602c1d890063fdaf617c02238d8da38202fa57467b65",
+      "afterSha256": "e7649efec11d33b8b79f42d5168c9b613cfecf69fc81e0642732966af586e9f1",
       "edits": [
         {
           "before": "const flushed = await memory.runMemoryFlushIfNeeded({\n\t\t\t\t...maintenanceParams,",
           "after": "const flushed = await memory.runMemoryFlushIfNeeded({\n\t\t\t\t...maintenanceParams,\n\t\t\t\tcapriForegroundPreflight: true,"
+        },
+        {
+          "before": "\t\t\tif (sessionEntry && sessionKey && !suppressVisibleSessionEffects) sessionEntry = await prepareCommandSessionDiffBaseline({",
+          "after": "\t\t\t// Capri desktop conversation uses its own workspace and coding integration.\n\t\t\tconst capriDesktopSession = sessionAgentId === \"capri\" && opts.messageChannel === \"webchat\" && process.env.OPENCLAW_WORKSPACE_DIR === workspaceDir && !sessionEntry?.worktree && (!cwd || cwd === workspaceDir);\n\t\t\tif (sessionEntry && sessionKey && !suppressVisibleSessionEffects && !capriDesktopSession) sessionEntry = await prepareCommandSessionDiffBaseline({"
+        }
+      ],
+      "upgrades": [
+        {
+          "beforeSha256": "5207d4a5c80211ab1c9c602c1d890063fdaf617c02238d8da38202fa57467b65",
+          "edits": [
+            {
+              "before": "\t\t\tif (sessionEntry && sessionKey && !suppressVisibleSessionEffects) sessionEntry = await prepareCommandSessionDiffBaseline({",
+              "after": "\t\t\t// Capri desktop conversation uses its own workspace and coding integration.\n\t\t\tconst capriDesktopSession = sessionAgentId === \"capri\" && opts.messageChannel === \"webchat\" && process.env.OPENCLAW_WORKSPACE_DIR === workspaceDir && !sessionEntry?.worktree && (!cwd || cwd === workspaceDir);\n\t\t\tif (sessionEntry && sessionKey && !suppressVisibleSessionEffects && !capriDesktopSession) sessionEntry = await prepareCommandSessionDiffBaseline({"
+            }
+          ]
         }
       ]
     },

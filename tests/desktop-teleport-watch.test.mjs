@@ -111,9 +111,15 @@ class WatchFixture {
       Assert((int)Get("anchorId") == 41, "A horizontal move changed the identity."); checks++;
 
       ShowWindow(window.Handle, 7); Pump(40); Call("PollAnchor");
-      Assert(Take() == "anchor 41 hidden" && (int)Get("anchorId") == 41, "Minimize must hide without closing.");
+      Assert(Take() == "anchor 41 hidden" && (int)Get("anchorId") == 0, "Minimize must end tracking.");
       ShowWindow(window.Handle, 4); Pump(40); Call("PollAnchor");
-      Assert(Take().StartsWith("anchor 41 visible "), "Restore did not resume tracking."); checks++;
+      Assert(Take() == "", "Restore reattached the ended perch."); checks++;
+
+      Bind(window); Set("anchorLifetime", window);
+      Call("FollowWindow", 51, window.Handle, (uint)Process.GetCurrentProcess().Id, Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks);
+      Take();
+      ShowWindow(window.Handle, 7); ShowWindow(window.Handle, 4); Pump(180);
+      Assert(Take() == "anchor 51 hidden" && (int)Get("anchorId") == 0, "A quick restore swallowed the minimize event."); checks++;
 
       Bind(window); Set("anchorLifetime", window);
       fallback = new System.Windows.Forms.Timer { Interval = 50 };
@@ -140,7 +146,7 @@ class WatchFixture {
       Observe("Unavailable", false, 1000); Observe("Unavailable", false, 1749);
       Assert(Take() == "" && (int)Get("anchorId") == 41, "Transient access denial did not hold the last verified placement.");
       Observe("Unavailable", false, 1750);
-      Assert(Take() == "anchor 41 hidden" && (int)Get("anchorId") == 41, "Persistent access denial must hide nonterminally.");
+      Assert(Take() == "anchor 41 unavailable" && (int)Get("anchorId") == 41, "Persistent access denial must hide nonterminally.");
       Assert(Call("ReadAnchorIdentity").ToString() == "Verified", "Recovery was not freshly verified.");
       Observe("Verified", true, 1800); Assert(Take().StartsWith("anchor 41 visible "), "Verified recovery did not resume.");
       Observe("Unavailable", false, 2000); Observe("Unavailable", false, 7000);
@@ -149,7 +155,7 @@ class WatchFixture {
       Bind(window); Observe("Verified", true, 0); Take();
       Observe("Verified", false, 10); Observe("Verified", false, 759);
       Assert(Take() == "", "Transient geometry failure hid the perch.");
-      Observe("Verified", false, 760); Assert(Take() == "anchor 41 hidden", "Unavailable geometry was not bounded.");
+      Observe("Verified", false, 760); Assert(Take() == "anchor 41 unavailable", "Unavailable geometry was not bounded.");
       Call("PollAnchor"); Assert(Take().StartsWith("anchor 41 visible "), "Fresh valid geometry did not resume."); checks++;
 
       Bind(window); Set("anchorProcess", (uint)Process.GetCurrentProcess().Id + 1); Call("PollAnchor");
@@ -184,7 +190,7 @@ class WatchFixture {
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), {
       passed: true,
-      checks: 8,
+      checks: 9,
       ownedWindowsOnly: true,
       autoElevation: false,
       inputInjected: false,

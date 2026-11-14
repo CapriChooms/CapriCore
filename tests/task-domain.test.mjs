@@ -9,6 +9,8 @@ test('standalone math accepts complete scientific expressions while preserving f
     ['Calculate 3^4 + 6! - sqrt(949) via calculator', '3^4 + 6! - sqrt(949)'],
     ['Calculate 3**4 + factorial(6) - sqrt(949)', '3**4 + factorial(6) - sqrt(949)'],
     ['Calculate 6!', '6!'],
+    ['Use calculator and calculate sqrt(5352) - ln(5)', 'sqrt(5352) - ln(5)'],
+    ['Используй калькулятор и посчитай 424-55^4', '424-55^4'],
     ['6!!', '6!!'],
     ['Find log(8, 2) using the calculator.', 'log(8, 2)'],
     ['Капри, посчитай nthRoot(125, 3) + 2² на калькуляторе', 'nthRoot(125, 3) + 2²'],
@@ -28,6 +30,7 @@ test('standalone math never consumes mixed tasks, prose, code or incomplete expr
   for (const request of [
     'Calculate 3^4 + 6! - sqrt(949) via calculator and explain the result.',
     'Calculate 2+2 then open Notepad',
+    'Use calculator and calculate 2+2 then open Notepad',
     'Type sqrt(25) in Chrome',
     'Remind me in 2+3 minutes',
     'My password is 1+2',

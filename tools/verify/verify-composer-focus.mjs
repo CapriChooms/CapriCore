@@ -264,9 +264,70 @@ try {
     () => document.documentElement.dataset.interfaceTheme === 'custom',
   );
   const time = await settingsView(application, 'time');
-  await time.locator('#companion-reminder-wake').waitFor();
-  await time.locator('.time-dial:has(#time-minutes)').dispatchEvent('wheel', { deltaY: -25 });
+  await time.locator('#companion-reminder-wake').waitFor({ state: 'attached' });
+  await time.emulateMedia({ reducedMotion: 'no-preference' });
+  const minuteReel = time.locator('.time-dial-reel:has(#time-minutes)');
+  const moving = await minuteReel.evaluate((reel) => {
+    reel.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -25 }));
+    return reel.querySelector('.time-dial-track').getAnimations().length;
+  });
+  assert.equal(moving, 1);
   assert.equal(await time.locator('#time-minutes').inputValue(), '06');
+  assert.equal(await minuteReel.locator('.time-dial-track > span').nth(3).textContent(), '06');
+  await time.locator('#time-presets [data-seconds="900"]').click();
+  assert.equal(await time.locator('#time-minutes').inputValue(), '15');
+  await time.locator('#time-seconds').fill('59');
+  await time.locator('#time-seconds').press('ArrowUp');
+  assert.equal(await time.locator('#time-minutes').inputValue(), '15');
+  assert.equal(await time.locator('#time-seconds').inputValue(), '00');
+  await time.locator('#time-minutes').fill('59');
+  await time.locator('#time-minutes').press('ArrowUp');
+  assert.equal(await time.locator('#time-hours').inputValue(), '00');
+  assert.equal(await time.locator('#time-minutes').inputValue(), '00');
+  const secondReel = time.locator('.time-dial-reel:has(#time-seconds)');
+  const flickSeconds = (holdMs = 0) =>
+    secondReel.evaluate(async (reel, holdMs) => {
+      // Keep samples in the same renderer clock. CDP mouse commands against a
+      // hidden native window can take longer than the entire momentum window.
+      reel.setPointerCapture = () => {};
+      const { y, height } = reel.getBoundingClientRect();
+      const dispatch = (type, progress) =>
+        reel.dispatchEvent(
+          new PointerEvent(type, { pointerId: 1, button: 0, clientY: y + height * progress }),
+        );
+      try {
+        dispatch('pointerdown', 0.8);
+        await new Promise((resolve) => setTimeout(resolve, 24));
+        dispatch('pointermove', 0.2);
+        if (holdMs) await new Promise((resolve) => setTimeout(resolve, holdMs));
+        const atRelease = Number(reel.querySelector('input').value);
+        dispatch('pointerup', 0.2);
+        return atRelease;
+      } finally {
+        delete reel.setPointerCapture;
+      }
+    }, holdMs);
+  const atRelease = await flickSeconds();
+  assert.equal(atRelease, 3);
+  await time.waitForFunction(
+    () => !document.getElementById('time-seconds').parentElement.hasAttribute('data-rolling'),
+  );
+  assert.ok(Number(await time.locator('#time-seconds').inputValue()) > atRelease);
+  assert.equal(await time.locator('#time-minutes').inputValue(), '00');
+  assert.equal(await time.locator('#time-hours').inputValue(), '00');
+  await time.locator('#time-seconds').fill('58');
+  assert.equal(await flickSeconds(160), 1);
+  assert.equal(await time.locator('#time-seconds').inputValue(), '01');
+  assert.equal(await time.locator('#time-minutes').inputValue(), '00');
+  await time.emulateMedia({ reducedMotion: 'reduce' });
+  const motionReduced = await minuteReel.evaluate((reel) => {
+    reel.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -25 }));
+    return reel.querySelector('.time-dial-track').getAnimations().length;
+  });
+  assert.equal(motionReduced, 0);
+  assert.equal(await time.locator('#time-minutes').inputValue(), '01');
+  await time.emulateMedia({ reducedMotion: null });
+  await time.evaluate(() => window.capri.setSkill({ id: 'capri.timers', enabled: true }));
   await time.locator('#time-minutes').fill('0');
   await time.locator('#time-seconds').fill('20');
   await time.locator('#time-title').fill('Draft verification timer');
@@ -336,21 +397,21 @@ try {
     1,
   );
   const links = await support.locator('.support-links').evaluate((group) => {
-    const featured = group.querySelector('.brand-boosty').getBoundingClientRect();
-    const bounds = group.getBoundingClientRect();
-    const social = [...group.querySelectorAll('button:not(.brand-boosty)')];
+    const boosty = group.querySelector('.brand-boosty').getBoundingClientRect();
+    const lava = group.querySelector('.brand-lava').getBoundingClientRect();
+    const social = [...group.querySelectorAll('.support-social button')];
     return {
-      centered: Math.abs(featured.x + featured.width / 2 - bounds.x - bounds.width / 2) < 1,
-      above: social.every((button) => button.getBoundingClientRect().top > featured.bottom),
+      aligned: boosty.y === lava.y && boosty.right < lava.left,
+      above: social.every((button) => button.getBoundingClientRect().top > lava.bottom),
       masks: social.map(
         (button) => getComputedStyle(button.querySelector('.brand-icon')).maskImage,
       ),
       oneColor: new Set(social.map((button) => getComputedStyle(button).color)).size === 1,
     };
   });
-  assert.equal(links.centered && links.above && links.oneColor, true);
+  assert.equal(links.aligned && links.above && links.oneColor, true);
   assert.match(links.masks[0], /discord\.svg/);
-  assert.match(links.masks[2], /github\.svg/);
+  assert.match(links.masks[3], /github\.svg/);
   console.log(
     'PASS settings draft highlighting and persistence, palette preview, memory and timer navigation, digital dials, contextual help and official marks.',
   );

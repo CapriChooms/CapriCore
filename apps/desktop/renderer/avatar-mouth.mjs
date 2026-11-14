@@ -5,92 +5,132 @@ const shapes = ['closed', 'small', 'round', 'wide'];
 // Measured on the normalized CapriDesign exports. Angles are relative to the
 // rendered raster, including the inverted jaw. The right grip is its own drawing.
 const poseLandmarks = Object.freeze({
-  'music-window': {
-    mouth: [655, 403, -0.46, 36],
-    face: [639, 375],
-    crown: 76,
+  neutral: {
+    mouth: [634, 426, -0.29, 36],
+    face: [631, 401],
+    crown: 115,
     eyes: [
-      [599, 376, 18],
-      [675, 346, 21],
+      [596, 399, 14],
+      [665, 378, 17],
     ],
+  },
+  'music-window': {
+    mouth: [650, 416, -0.38, 38],
+    face: [643, 379],
+    crown: 75,
   },
   'music-floor': {
-    mouth: [661, 642, -0.47, 39],
-    face: [645, 615],
-    crown: 296,
-    eyes: [
-      [605, 616, 19],
-      [683, 585, 22],
-    ],
+    mouth: [635, 642, -0.35, 38],
+    face: [625, 604],
+    crown: 295,
   },
   'pose-ceiling': {
-    mouth: [634, 396, -0.36, 32],
-    face: [625, 372],
-    crown: 76,
+    mouth: [628, 414, -0.28, 35],
+    face: [623, 386],
+    crown: 75,
     eyes: [
-      [592, 371, 18],
-      [661, 345, 21],
+      [589, 386, 14],
+      [655, 364, 16],
     ],
   },
   'pose-ceiling-upside-down': {
-    mouth: [621, 676, Math.PI, 33],
-    face: [623, 708],
+    mouth: [625, 689, Math.PI, 36],
+    face: [625, 718],
     crown: 84,
     inverted: true,
     eyes: [
-      [590, 714, 17],
-      [657, 711, 19],
+      [657, 721, 16],
+      [592, 724, 16],
     ],
   },
   'pose-dock-left': {
-    mouth: [593, 416, -0.32, 38],
-    face: [590, 389],
+    mouth: [599, 409, -0.27, 38],
+    face: [595, 382],
     crown: 76,
     eyes: [
-      [552, 386, 18],
-      [628, 364, 22],
+      [560, 379, 14],
+      [632, 360, 17],
     ],
   },
   'pose-dock-right': {
-    mouth: [572, 388, -0.36, 33],
-    face: [561, 357],
-    crown: 76,
+    mouth: [589, 382, -0.43, 36],
+    face: [575, 354],
+    crown: 75,
     eyes: [
-      [526, 361, 17],
-      [593, 333, 21],
+      [542, 357, 14],
+      [607, 327, 18],
     ],
   },
   'pose-sit-edge': {
-    mouth: [638, 430, -0.4, 33],
-    face: [624, 399],
-    crown: 111,
+    mouth: [627, 445, -0.34, 38],
+    face: [623, 417],
+    crown: 110,
     eyes: [
-      [592, 405, 18],
-      [667, 377, 22],
+      [587, 416, 14],
+      [659, 393, 17],
     ],
   },
   'pose-sit-floor': {
-    mouth: [620, 588, -0.41, 34],
-    face: [610, 559],
-    crown: 247,
+    mouth: [619, 597, -0.31, 37],
+    face: [616, 570],
+    crown: 255,
     eyes: [
-      [575, 562, 18],
-      [645, 532, 22],
+      [579, 565, 15],
+      [653, 545, 18],
     ],
   },
   'pose-crouch': {
-    mouth: [617, 679, -0.42, 36],
-    face: [609, 635],
-    crown: 339,
+    mouth: [628, 654, -0.37, 36],
+    face: [622, 633],
+    crown: 333,
     eyes: [
-      [570, 655, 17],
-      [643, 624, 22],
+      [588, 632, 14],
+      [654, 605, 17],
     ],
   },
+  'pose-sleep': { face: [399, 1036], crown: 709 },
 });
 
+// These expressions all use the same registered standing master.
+const standingFrames = new Set([
+  'annoyed',
+  'attentive',
+  'concerned',
+  'embarrassed',
+  'flirty',
+  'focused',
+  'happy',
+  'sad',
+  'skeptical',
+  'sleepy',
+  'smirk',
+  'surprised',
+  'thinking',
+  'idle-blink_closed',
+  'idle-blink_half',
+  'idle-excited',
+  'idle-laughing',
+  'idle-look_down',
+  'idle-look_left',
+  'idle-look_right',
+  'idle-look_up',
+  'idle-mouth_round',
+  'idle-mouth_small',
+  'idle-mouth_wide',
+  'idle-surprised_closed',
+  'idle-wink_closed',
+  'idle-wink_half',
+]);
+
+const frameAliases = new Map([
+  ['sit_floor-neutral', 'pose-sit-floor'],
+  ['sit_edge-neutral', 'pose-sit-edge'],
+  ['crouch-neutral', 'pose-crouch'],
+]);
+
 export function avatarPoseLandmarks(frameId) {
-  return Object.hasOwn(poseLandmarks, frameId) ? poseLandmarks[frameId] : null;
+  const id = standingFrames.has(frameId) ? 'neutral' : (frameAliases.get(frameId) ?? frameId);
+  return Object.hasOwn(poseLandmarks, id) ? poseLandmarks[id] : null;
 }
 
 function polygon(ctx, points, color) {
@@ -140,47 +180,6 @@ function drawPoseMouth(ctx, shape, [x, y, angle, width]) {
   );
 }
 
-/** Draw only the registered eyes. The mouth, hair and body stay on their own layers. */
-export function drawPoseEyes(ctx, pose, tone) {
-  for (const [index, [x, y, radius]] of pose.eyes.entries()) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(pose.mouth[2]);
-    ctx.scale(radius / 18, radius / 18);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 18, 18, 0, 0, 2 * Math.PI);
-    ctx.clip();
-    if (tone === 'blink' || tone === 'affectionate') {
-      ctx.fillStyle = '#06100f';
-      ctx.fillRect(-18, -18, 36, 36);
-      ctx.beginPath();
-      ctx.moveTo(-12, 2);
-      ctx.quadraticCurveTo(0, tone === 'affectionate' ? -13 : 7, 12, 2);
-    } else {
-      const side = index ? -1 : 1;
-      const tilt = tone === 'boundary' ? side * 7 : tone === 'curious' ? side * 4 : 0;
-      const line = tone === 'boundary' ? -1 : tone === 'curious' && !index ? -1 : -10;
-      polygon(
-        ctx,
-        [
-          [-18, -18],
-          [18, -18],
-          [18, line + tilt],
-          [-18, line - tilt],
-        ],
-        '#06100f',
-      );
-      ctx.beginPath();
-      ctx.moveTo(-12, line - tilt * 0.67);
-      ctx.lineTo(12, line + tilt * 0.67);
-    }
-    ctx.strokeStyle = '#52ffd9';
-    ctx.lineWidth = tone === 'blink' ? 2 : 3;
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
 /** A separate, bounded clock following actual playback amplitude. */
 export class AvatarVisemes {
   constructor() {
@@ -214,7 +213,7 @@ export class AvatarVisemes {
 // Landmarks on the existing registered 1254-pixel masters. The mouth is
 // occluded in the kiss and heart gestures, so those frames keep their face.
 function mouthAnchor(frameId) {
-  if (!frameId) return null;
+  if (!frameId || frameId === 'pose-sleep') return null;
   if (/heart_hands|kiss/.test(frameId)) return null;
   if (/^desktop-perch/.test(frameId)) return [655, 524];
   if (/^idle-wave/.test(frameId)) return [658, 443];

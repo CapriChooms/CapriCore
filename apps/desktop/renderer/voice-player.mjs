@@ -2,6 +2,7 @@ import { VoiceEffects } from './voice-effects.mjs';
 import { VOICE_EFFECT_DEFAULTS, validateVoiceEffects } from './voice-effects-settings.mjs';
 import { CALL_VOICE_VOLUME_DEFAULT, validateCallVoiceVolume } from './call-audio-settings.mjs';
 import { isVerifiedSeparateCallCable } from './call-audio-route.mjs';
+import { VOICE_VOLUME_DEFAULT, validateVoiceVolume } from './voice-volume.mjs';
 
 const validCallOutput = (id) =>
   typeof id === 'string' &&
@@ -42,6 +43,7 @@ export class VoicePlayer {
     this.output = this.speakers;
     this.callOutput = null;
     this.callVoiceVolume = CALL_VOICE_VOLUME_DEFAULT;
+    this.speakerVolume = VOICE_VOLUME_DEFAULT;
     this.turnId = null;
     this.queue = [];
     this.source = null;
@@ -64,9 +66,10 @@ export class VoicePlayer {
 
   async unlockOutput(output) {
     const { context } = output;
-    if (output !== this.speakers && !output.voiceGain && context.createGain) {
+    if (!output.voiceGain && context.createGain) {
       output.voiceGain = context.createGain();
-      output.voiceGain.gain.value = this.callVoiceVolume / 100;
+      output.voiceGain.gain.value =
+        (output === this.speakers ? this.speakerVolume : this.callVoiceVolume) / 100;
       output.voiceGain.connect(output.mixer ?? context.destination);
     }
     const destination = output.voiceGain ?? output.mixer ?? context.destination;
@@ -102,7 +105,17 @@ export class VoicePlayer {
 
   setCallVoiceVolume(value = CALL_VOICE_VOLUME_DEFAULT) {
     this.callVoiceVolume = validateCallVoiceVolume(value);
-    const output = this.callOutput;
+    this.applyVolume(this.callOutput, this.callVoiceVolume);
+  }
+
+  setSpeakerVolume(value = VOICE_VOLUME_DEFAULT) {
+    const volume = validateVoiceVolume(value);
+    if (volume === this.speakerVolume) return;
+    this.speakerVolume = volume;
+    this.applyVolume(this.speakers, this.speakerVolume);
+  }
+
+  applyVolume(output, value) {
     if (output?.voiceGain && output.context?.state !== 'closed') {
       const gain = output.voiceGain.gain,
         now = output.context.currentTime;
@@ -470,7 +483,10 @@ export class VoicePlayer {
         this.mirrorSources.add(mirror);
         mirror.buffer = buffer;
         mirror.connect(
-          this.speakers.effects?.input ?? this.speakers.analyser ?? speakers.destination,
+          this.speakers.effects?.input ??
+            this.speakers.analyser ??
+            this.speakers.voiceGain ??
+            speakers.destination,
         );
         mirror.onended = () => {
           mirror.disconnect();

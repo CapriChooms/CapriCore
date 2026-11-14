@@ -17,15 +17,36 @@ import { Preferences } from './preferences.mjs';
 import { writeJsonAtomic } from './storage.mjs';
 import { noLinks } from '../../packages/installer/src/policy.mjs';
 import {
+  installedUpdateVersion,
   managedInstallation,
   runtimeUpgradeRequired,
 } from '../../packages/updater/src/transaction.mjs';
 import { listReleases, githubCredential } from '../../packages/updater/src/github.mjs';
-import { selectRelease, releaseAsset, parseVersion } from '../../packages/updater/src/releases.mjs';
+import {
+  EXPERIMENTAL_REPOSITORY,
+  REPOSITORY,
+  compareVersions,
+  selectRelease,
+  releaseAsset,
+  releaseVersion,
+  parseVersion,
+} from '../../packages/updater/src/releases.mjs';
 import { downloadUpdate } from '../../packages/updater/src/download.mjs';
 import { stageUpdate } from '../../packages/updater/src/stage.mjs';
 import { fileHash } from '../../packages/installer/src/download.mjs';
 import { prepareUpdateHost } from '../../packages/updater/src/launcher.mjs';
+
+function isExperimentalRelease(release) {
+  // A private preview can be marked Latest on GitHub only as a regular release.
+  try {
+    return parseVersion(release.tag_name).pre.length > 0 || release.prerelease === true;
+  } catch {
+    return false;
+  }
+}
+
+const privateAccessMessage =
+  'GitHub access is unavailable for this private repository. Connect GitHub in Updates and check your Capri invitation and token approval.';
 
 export function validateUpdateSettings(value) {
   if (
@@ -70,7 +91,7 @@ export class UpdateService {
     );
     const metadata = JSON.parse(readFileSync(path.join(root, 'config/release.json'), 'utf8'));
     parseVersion(metadata.tag);
-    this.current = metadata.tag;
+    this.current = installedUpdateVersion(root, metadata.tag);
     this.mode = 'installer';
     try {
       managedInstallation(root);
@@ -124,6 +145,57 @@ export class UpdateService {
       return null;
     }
   }
+  async findRelease(experimental, signal, { reportPrivateFailure = false } = {}) {
+    const token = await this.optionalCredential();
+    signal.throwIfAborted();
+    const selection = {
+      current: this.current,
+      experimental,
+      kind: this.mode === 'managed' ? 'source' : 'installer',
+    };
+    const publicReleases = this.releases({ token, signal, allowAnonymousFallback: true });
+    const selectPublic = (items) => {
+      const release = selectRelease(items, selection);
+      return release && { ...release, repository: REPOSITORY };
+    };
+    if (!experimental || !token) {
+      const release = selectPublic(await publicReleases);
+      if (experimental && !token && !release && reportPrivateFailure)
+        throw Object.assign(new Error(privateAccessMessage), { code: 'GITHUB_ACCESS_REQUIRED' });
+      return release;
+    }
+
+    const previewSignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+    const [publicResult, previewResult] = await Promise.allSettled([
+      publicReleases,
+      this.releases({ token, signal: previewSignal, repository: EXPERIMENTAL_REPOSITORY }),
+    ]);
+    signal.throwIfAborted();
+    const publicRelease =
+      publicResult.status === 'fulfilled' ? selectPublic(publicResult.value) : null;
+    const previewRelease =
+      previewResult.status === 'fulfilled'
+        ? selectRelease(previewResult.value.filter(isExperimentalRelease), {
+            ...selection,
+            repository: EXPERIMENTAL_REPOSITORY,
+          })
+        : null;
+    if (
+      previewRelease &&
+      (!publicRelease ||
+        compareVersions(
+          releaseVersion(previewRelease, EXPERIMENTAL_REPOSITORY),
+          publicRelease.tag_name,
+        ) > 0)
+    )
+      return { ...previewRelease, repository: EXPERIMENTAL_REPOSITORY };
+    if (publicResult.status === 'rejected') throw publicResult.reason;
+    if (reportPrivateFailure && !publicRelease && previewResult.status === 'rejected') {
+      if (previewResult.reason?.code === 'GITHUB_ACCESS_REQUIRED') throw previewResult.reason;
+      throw new Error('GitHub update check failed. Try again.');
+    }
+    return publicRelease;
+  }
   checkOnStartup() {
     if (this.startupAttempted) return this.startupOperation ?? Promise.resolve(this.snapshot());
     this.startupAttempted = true;
@@ -143,19 +215,8 @@ export class UpdateService {
     );
     timer.unref?.();
     const probe = async () => {
-      const token = await this.optionalCredential();
+      const selected = await this.findRelease(experimental, controller.signal);
       controller.signal.throwIfAborted();
-      const items = await this.releases({
-        token,
-        signal: controller.signal,
-        allowAnonymousFallback: true,
-      });
-      controller.signal.throwIfAborted();
-      const selected = selectRelease(items, {
-        current: this.current,
-        experimental,
-        kind: this.mode === 'managed' ? 'source' : 'installer',
-      });
       if (!selected) return this.snapshot();
       this.selected = selected;
       this.prepared = null;
@@ -184,9 +245,93 @@ export class UpdateService {
   describeRelease(selected) {
     return {
       tag: selected.tag_name,
-      experimental: Boolean(selected.prerelease || parseVersion(selected.tag_name).pre.length),
+      experimental: isExperimentalRelease(selected),
       bytes: releaseAsset(selected, this.mode === 'managed' ? 'source' : 'installer').bytes,
+      ...(selected.repository === EXPERIMENTAL_REPOSITORY
+        ? { repository: EXPERIMENTAL_REPOSITORY }
+        : {}),
     };
+  }
+  async history(experimental = false) {
+    if (typeof experimental !== 'boolean') throw new Error('Invalid update channel.');
+    const token = await this.optionalCredential();
+    const signal = AbortSignal.timeout(20000);
+    const publicRequest = this.releases({ token, signal, allowAnonymousFallback: true });
+    const previewRequest =
+      experimental && token
+        ? this.releases({ token, signal, repository: EXPERIMENTAL_REPOSITORY })
+        : Promise.resolve(null);
+    const [publicResult, previewResult] = await Promise.allSettled([publicRequest, previewRequest]);
+    if (publicResult.status === 'rejected') throw publicResult.reason;
+    const entries = new Map();
+    const add = (items, repository) => {
+      for (const release of items) {
+        try {
+          const prerelease = isExperimentalRelease(release);
+          if (release.draft || (repository === EXPERIMENTAL_REPOSITORY && !prerelease)) continue;
+          if (prerelease && !experimental) continue;
+          const id = repository + '@' + release.tag_name;
+          entries.set(id, {
+            release: { ...release, repository },
+            view: {
+              id,
+              tag: release.tag_name,
+              experimental: prerelease,
+              notes: typeof release.body === 'string' ? release.body.slice(0, 12000) : '',
+              update:
+                compareVersions(releaseVersion(release, repository), this.current) > 0 &&
+                Boolean(releaseAsset(release, this.mode === 'managed' ? 'source' : 'installer')),
+            },
+          });
+        } catch {
+          // Ignore releases without a compatible version tag.
+        }
+      }
+    };
+    add(publicResult.value, REPOSITORY);
+    if (previewResult.status === 'fulfilled' && previewResult.value)
+      add(previewResult.value, EXPERIMENTAL_REPOSITORY);
+    this.historyEntries = entries;
+    this.historyExperimental = experimental;
+    return {
+      releases: [...entries.values()]
+        .sort((a, b) => compareVersions(releaseVersion(b.release), releaseVersion(a.release)))
+        .map(({ view }) => view),
+      previewUnavailable:
+        experimental && (previewResult.status === 'rejected' || !previewResult.value),
+    };
+  }
+  historyUrl(id) {
+    const entry = this.historyEntries?.get(id);
+    if (!entry) throw new Error('Load release history and choose a version.');
+    return (
+      'https://github.com/' +
+      entry.release.repository +
+      '/releases/tag/' +
+      encodeURIComponent(entry.release.tag_name)
+    );
+  }
+  async chooseHistory(id) {
+    const entry = this.historyEntries?.get(id);
+    if (!entry?.view.update) throw new Error('This version is not available as an in-app update.');
+    if (this.busy()) throw new Error('Wait for the update operation to finish.');
+    if (entry.release.repository === EXPERIMENTAL_REPOSITORY && !(await this.optionalCredential()))
+      throw new Error('Connect GitHub to access private preview versions.');
+    if (this.busy()) throw new Error('Wait for the update operation to finish.');
+    this.cancelStartup();
+    this.selected = entry.release;
+    this.prepared = null;
+    return this.publish({
+      phase: 'available',
+      release: this.describeRelease(entry.release),
+      checkedExperimental: this.historyExperimental,
+      error: null,
+      progress: null,
+      installerRequired: false,
+      installerReason: null,
+      needsAccess: false,
+      notification: null,
+    });
   }
   remindLater() {
     this.notificationDeferred = true;
@@ -208,6 +353,7 @@ export class UpdateService {
       error: null,
       installerRequired: false,
       installerReason: null,
+      needsAccess: false,
       checkedExperimental: undefined,
       notification: null,
     });
@@ -234,19 +380,11 @@ export class UpdateService {
     this.prepared = null;
     this.selected = null;
     try {
-      const token = await this.optionalCredential();
-      this.controller.signal.throwIfAborted();
-      const items = await this.releases({
-        token,
-        signal: this.controller.signal,
-        allowAnonymousFallback: true,
+      const selected = await this.findRelease(experimental, this.controller.signal, {
+        reportPrivateFailure: true,
       });
       this.controller.signal.throwIfAborted();
-      this.selected = selectRelease(items, {
-        current: this.current,
-        experimental,
-        kind: this.mode === 'managed' ? 'source' : 'installer',
-      });
+      this.selected = selected;
       return this.publish({
         phase: this.selected ? 'available' : 'current',
         release: this.selected ? this.describeRelease(this.selected) : null,
@@ -278,11 +416,14 @@ export class UpdateService {
     try {
       const token = await this.optionalCredential();
       this.controller.signal.throwIfAborted();
-      let archive = await this.download(asset, path.join(this.root, '.runtime/updates/downloads'), {
+      const downloadOptions = {
         token,
+        repository: this.selected.repository ?? REPOSITORY,
         signal: this.controller.signal,
         progress: (progress) => this.publish({ phase: 'downloading', progress }),
-      });
+      };
+      const folder = path.join(this.root, '.runtime/updates/downloads');
+      let archive = await this.download(asset, folder, downloadOptions);
       this.controller.signal.throwIfAborted();
       this.publish({ phase: 'verifying' });
       if (this.mode === 'managed') {
@@ -310,15 +451,7 @@ export class UpdateService {
               'This release requires its full installer, but no verified installer was published.',
             );
           this.publish({ phase: 'downloading', progress: null });
-          archive = await this.download(
-            installer,
-            path.join(this.root, '.runtime/updates/downloads'),
-            {
-              token,
-              signal: this.controller.signal,
-              progress: (progress) => this.publish({ phase: 'downloading', progress }),
-            },
-          );
+          archive = await this.download(installer, folder, downloadOptions);
           this.controller.signal.throwIfAborted();
           const executable = path.join(path.dirname(archive), installer.sha256 + '.exe');
           noLinks(executable);

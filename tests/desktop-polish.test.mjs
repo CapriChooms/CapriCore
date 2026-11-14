@@ -34,23 +34,32 @@ test('destructive confirmations accept only the active request and fail closed',
 test('a stopped or expired screen selection can be explicitly renewed without granting a different source', async () => {
   let now = 1;
   const native = [{ id: 'window:123:0', name: 'Selected' }];
+  const frame = { url: 'capri://desktop/index.html' };
   const policy = new ScreenCapturePolicy({
     sources: async () => native,
-    ownerFrame: () => ({}),
+    ownerFrame: () => frame,
     now: () => now,
   });
   const [selection] = await policy.discover();
   const first = policy.prepare(selection.id, { mode: 'watch' });
   policy.stop();
   now += 60000;
-  await policy.renewSelection(selection.id);
   const second = policy.prepare(selection.id, { mode: 'watch' });
   assert.notEqual(second.id, first.id);
-  policy.stop();
   native.length = 0;
-  await assert.rejects(policy.renewSelection(selection.id), /no longer available/);
+  await policy.consume(
+    {
+      frame,
+      securityOrigin: 'capri://desktop',
+      videoRequested: true,
+      audioRequested: false,
+      userGesture: true,
+    },
+    (reply) => assert.deepEqual(reply, {}),
+  );
+  assert.equal(policy.snapshot().active, false);
   policy.clear();
-  await assert.rejects(policy.renewSelection(selection.id), /Choose/);
+  assert.throws(() => policy.prepare(selection.id), /Choose/);
 });
 test('voice preparation failure releases queued speech instead of leaving a permanent pending turn', async () => {
   const events = [];

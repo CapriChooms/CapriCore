@@ -41,7 +41,7 @@ writeFileSync(
   entry,
   `
 import assert from 'node:assert/strict';
-import { app, desktopCapturer, ipcMain, session, shell } from 'electron';
+import { app, clipboard, desktopCapturer, ipcMain, session, shell } from 'electron';
 import { VisualService, snapshotBytes } from ${JSON.stringify(url('visual-service.mjs'))};
 import { CompanionRpc } from ${JSON.stringify(url('gateway-rpc.mjs'))};
 globalThis.attachmentFixture = [];
@@ -49,6 +49,9 @@ globalThis.attachmentFixtureHandlers = new Map();
 globalThis.attachmentExternalRequests = [];
 globalThis.attachmentShellRequests = [];
 globalThis.attachmentCaptureRequests = 0;
+globalThis.historyClipboard = [];
+globalThis.historyResets = 0;
+clipboard.writeText = (text) => globalThis.historyClipboard.push(text);
 desktopCapturer.getSources = async () => {
   globalThis.attachmentCaptureRequests++;
   throw new Error('Desktop capture is disabled in attachment verification.');
@@ -82,7 +85,8 @@ app.once('ready', () => {
   });
 });
 CompanionRpc.prototype.call = async function (method) {
-  assert.equal(method, 'capri.visual.commit', 'Fixture never reads prior owner history.');
+  assert.ok(['capri.visual.commit', 'sessions.reset'].includes(method), 'Unexpected gateway request');
+  if (method === 'sessions.reset') globalThis.historyResets++;
   return {};
 };
 VisualService.prototype.generate = async function ({ attachments, emit }) {
@@ -92,8 +96,9 @@ VisualService.prototype.generate = async function ({ attachments, emit }) {
     else assert.equal(typeof attachment.text, 'string');
   }
   globalThis.attachmentFixture.push(attachments.map((value) => value.text ?? Boolean(value.png)));
-  emit({ type: 'text', text: 'Attachment read.' });
-  return { text: 'Attachment read.' };
+  const text = 'Attachment read.\\nSecond line.';
+  emit({ type: 'text', text });
+  return { text };
 };
 app.on('browser-window-created', (_, window) => {
   window.webContents.setAudioMuted(true);
@@ -149,6 +154,8 @@ async function launch() {
   const snapshot = await page.evaluate(() => window.capri.bootstrap());
   assert.equal(snapshot.microphone.status, 'off');
   assert.equal(snapshot.voice.enabled, false);
+  assert.equal(snapshot.skills['capri.attachment-viewer'].enabled, true);
+  assert.equal(await page.locator('#attachment-open').isVisible(), true);
 }
 
 async function historyAttachments() {
@@ -339,6 +346,7 @@ try {
     null,
     { timeout: 12000 },
   );
+  await page.locator('#message').fill('Please read the attached files.');
   await page.locator('#send').evaluate((button) => button.click());
   await page.waitForFunction(
     () => document.getElementById('subtitle-text').textContent.includes('Attachment read.'),
@@ -463,6 +471,50 @@ try {
   );
   const restoredThumbnail = await historyAttachments();
   await verifyViewer(restoredThumbnail, 'escape');
+  for (const role of ['user', 'assistant']) {
+    const message = page.locator(`.message[data-role="${role}"] .message-text`).first();
+    await message.scrollIntoViewIfNeeded();
+    const line = await message.evaluate((node) => {
+      const range = document.createRange();
+      range.setStart(node.firstChild, 0);
+      range.setEnd(node.firstChild, 12);
+      const { left, right, top, height } = range.getBoundingClientRect();
+      return { left, right, y: top + height / 2 };
+    });
+    await page.mouse.move(line.left + 1, line.y);
+    await page.mouse.down();
+    await page.mouse.move(line.right, line.y, { steps: 4 });
+    await page.mouse.up();
+    assert.match(await page.evaluate(() => getSelection().toString()), /^(Please|Attachment)/);
+  }
+  const user = page.locator('.message[data-role="user"]').first();
+  await user.getByRole('button', { name: 'Copy message' }).click();
+  const assistant = page.locator('.message[data-role="assistant"]').first();
+  await assistant.getByRole('button', { name: 'Copy message' }).click();
+  await assistant.getByRole('button', { name: 'Message copied' }).waitFor();
+  assert.deepEqual(await app.evaluate(() => globalThis.historyClipboard), [
+    'Please read the attached files.',
+    'Attachment read.\nSecond line.',
+  ]);
+  assert.equal(await page.evaluate(() => window.capri.copyMessage('missing')), false);
+  const clear = page.locator('#history-clear');
+  const dialog = page.locator('#confirmation-dialog[open]');
+  await clear.click();
+  await dialog.locator('[data-choice="cancel"]').click();
+  await clear.waitFor();
+  await assistant.waitFor();
+  assert.equal(await app.evaluate(() => globalThis.historyResets), 0);
+  await page.waitForFunction(() => !document.getElementById('history-clear').disabled);
+  await clear.click();
+  await dialog.locator('[data-choice="confirm"]').click();
+  await page.locator('#history-empty').waitFor();
+  assert.equal(await page.locator('#messages .message').count(), 0);
+  assert.deepEqual(
+    JSON.parse(readFileSync(path.join(folder, 'desktop/transcript.json'), 'utf8')).messages,
+    [],
+  );
+  assert.equal(await clear.isDisabled(), true);
+  assert.equal(await app.evaluate(() => globalThis.historyResets), 1);
   assert.deepEqual(await app.evaluate(() => globalThis.attachmentFixture), []);
   assert.deepEqual(await app.evaluate(() => globalThis.attachmentExternalRequests), []);
   assert.deepEqual(await app.evaluate(() => globalThis.attachmentShellRequests), []);
@@ -470,7 +522,7 @@ try {
   assert.deepEqual(unexpectedRequests, []);
   assert.deepEqual(errors, []);
   console.log(
-    'PASS mixed attachment history, thumbnail restore, secure fullscreen viewer, Escape/close and rejected files. ' +
+    'PASS attachment history, fullscreen viewer, copying and confirmed transcript clearing. ' +
       folder,
   );
 } finally {

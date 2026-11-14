@@ -176,6 +176,11 @@ class UvRetryTests(unittest.TestCase):
                 result = invoke([*args, '--reinstall'])
                 self.assertNotEqual(result.returncode, 0, 'Incorrect transport hash was accepted')
                 self.assertIn('hash', result.stderr.lower())
+                lock.write_text('\n'.join(entries) + '\n', encoding='utf-8')
+                staged_args = ['pip', mode, '--python', str(python), '--offline', '--no-index', '--reinstall']
+                staged_args += [str(lock)] if mode == 'sync' else ['--exact', '-r', str(lock), '--overrides', str(lock)]
+                result = invoke(staged_args)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_localized_windows_transport_codes(self):
         for code in (10054, 10053, 10060):

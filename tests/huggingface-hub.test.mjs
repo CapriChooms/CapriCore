@@ -14,6 +14,7 @@ import {
 import path from 'node:path';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { HuggingFaceHub, parseRepository } from '../packages/runtime/src/huggingface/hub.mjs';
+import { HF_DRAFT_CHAT_ERROR } from '../packages/runtime/src/hardware/imported-model.mjs';
 import {
   downloadArtifact,
   safeFileName,
@@ -59,12 +60,8 @@ function fixture({ show, metadata, running = [] } = {}) {
         );
       if (String(url).includes('/resolve/'))
         return new Response(bytes, { headers: { 'content-length': String(bytes.length) } });
-      if (String(url).includes('/api/blobs/')) {
-        let received = 0;
-        for await (const chunk of options.body) received += chunk.length;
-        assert.equal(received, bytes.length);
-        return new Response(null, { status: 201 });
-      }
+      if (String(url).includes('/api/blobs/'))
+        assert.fail('GGUF imports reuse the downloaded file');
       if (String(url).endsWith('/api/create')) return json({ status: 'success' });
       if (String(url).endsWith('/api/show'))
         return json(
@@ -287,7 +284,7 @@ test('normal Hub entry points resolve, install, import, persist and remove a mod
     filename: artifact.path,
   });
   assert.equal(plan.downloadBytes, bytes.length);
-  assert.equal(plan.requiredBytes, bytes.length * 2 + 64 * 1024 ** 2);
+  assert.equal(plan.requiredBytes, bytes.length + 64 * 1024 ** 2);
   const receipt = await hub.install(plan);
   assert.equal(receipt.profile, undefined);
   const profile = await hub.importLanguageModel(receipt.id);
@@ -340,6 +337,40 @@ test('TTS metadata is discoverable but arbitrary voice snapshots cannot use the 
     hub.plan({ repository: 'ResembleAI/chatterbox', filename: 'weights.safetensors' }),
     /TTS adapter/,
   );
+});
+
+test('speculative GGUF drafts are flagged and cannot be downloaded as the primary model', async () => {
+  const siblings = [artifact.path, 'dspark-model-f16.gguf', 'drafts/model-dflash-f16.gguf'].map(
+    (rfilename) => ({ rfilename, lfs: { size: bytes.length, sha256 } }),
+  );
+  const { hub, calls } = fixture({ metadata: { sha: revision, siblings } });
+  const { files } = await hub.inspect('capri-test/model');
+  assert.deepEqual(
+    files.map(({ kind }) => kind),
+    ['gguf', 'draft', 'draft'],
+  );
+  for (const draft of siblings.slice(1))
+    await assert.rejects(hub.plan({ repository: 'capri-test/model', filename: draft.rfilename }), {
+      message: HF_DRAFT_CHAT_ERROR,
+    });
+  assert.ok(calls.every(({ url }) => url.includes('/revision/')));
+  const main = await hub.plan({ repository: 'capri-test/model', filename: artifact.path });
+  assert.equal(main.files[0].path, artifact.path);
+});
+
+test('engine metadata rejects a renamed DFlash draft that advertises completion', async () => {
+  const { hub, calls } = fixture({
+    show: {
+      template: '{{ .Messages }}',
+      capabilities: ['completion', 'thinking'],
+      model_info: { 'general.architecture': 'dflash', 'dflash.context_length': 32768 },
+    },
+  });
+  const plan = await hub.plan({ repository: 'capri-test/model', filename: artifact.path });
+  await hub.install(plan);
+  await assert.rejects(hub.importLanguageModel(plan.id), { message: HF_DRAFT_CHAT_ERROR });
+  assert.equal(hub.receipt(plan.id).profile, undefined);
+  assert.ok(calls.some(({ url }) => url.endsWith('/api/delete')));
 });
 
 test('incomplete split or unverifiable GGUF selections are rejected before download', async () => {

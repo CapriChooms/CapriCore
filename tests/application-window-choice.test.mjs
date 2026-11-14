@@ -18,6 +18,10 @@ test('launch activates the foremost verified application window when another app
     first,
   );
   assert.equal(chooseApplicationWindow(selection(), { action: 'launch' }), first);
+  assert.equal(
+    chooseApplicationWindow(selection(), { action: 'launch', requireUnique: true }),
+    null,
+  );
 });
 
 test('the observed native candidate has priority over front-to-back order', () => {

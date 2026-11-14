@@ -62,31 +62,12 @@ body {
   display: none;
 }
 
+#parked-avatar:has(.avatar-pose-motion[data-active]) .avatar-headpat-plate {
+  clip-path: url(#avatar-pose-static);
+}
+
 #parked-avatar[data-grip] .avatar-grip-svg {
   display: block;
-}
-
-.avatar-grip-face {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  clip-path: polygon(
-    45.5% 31.1%,
-    48.4% 28%,
-    50.4% 30.8%,
-    52.2% 27.4%,
-    56.8% 26%,
-    57% 32%,
-    55.5% 32.3%,
-    48% 32.3%,
-    46% 32.2%
-  );
-}
-
-.avatar-grip-face[data-registered-face] {
-  clip-path: none;
 }
 
 .avatar-seat-shins {

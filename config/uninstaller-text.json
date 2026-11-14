@@ -23,7 +23,9 @@
     "progressCleaning": "Cleaning up…",
     "progressItems": "{0} items processed",
     "progressFinishing": "Finishing removal…",
-    "progressClose": "Close"
+    "progressClose": "Close",
+    "reportBug": "Report a bug",
+    "linkedPathHelp": "Open the original installation folder. Content behind filesystem links is kept."
   },
   "ru": {
     "title": "Удаление Capri",
@@ -49,7 +51,9 @@
     "progressCleaning": "Очистка…",
     "progressItems": "Обработано элементов: {0}",
     "progressFinishing": "Завершение удаления…",
-    "progressClose": "Закрыть"
+    "progressClose": "Закрыть",
+    "reportBug": "Сообщить об ошибке",
+    "linkedPathHelp": "Откройте исходную папку установки. Данные, на которые указывают ссылки, сохранены."
   },
   "de": {
     "title": "Capri deinstallieren",
@@ -75,7 +79,9 @@
     "progressCleaning": "Aufräumen…",
     "progressItems": "{0} Elemente verarbeitet",
     "progressFinishing": "Entfernen wird abgeschlossen…",
-    "progressClose": "Schließen"
+    "progressClose": "Schließen",
+    "reportBug": "Fehler melden",
+    "linkedPathHelp": "Öffnen Sie den ursprünglichen Installationsordner. Die Ziele der Dateisystemverknüpfungen bleiben erhalten."
   },
   "fr": {
     "title": "Désinstaller Capri",
@@ -101,7 +107,9 @@
     "progressCleaning": "Nettoyage…",
     "progressItems": "{0} éléments traités",
     "progressFinishing": "Finalisation de la désinstallation…",
-    "progressClose": "Fermer"
+    "progressClose": "Fermer",
+    "reportBug": "Signaler un bug",
+    "linkedPathHelp": "Ouvrez le dossier d’installation d’origine. Le contenu visé par les liens du système de fichiers est conservé."
   },
   "es": {
     "title": "Desinstalar Capri",
@@ -127,7 +135,9 @@
     "progressCleaning": "Limpiando…",
     "progressItems": "{0} elementos procesados",
     "progressFinishing": "Finalizando la desinstalación…",
-    "progressClose": "Cerrar"
+    "progressClose": "Cerrar",
+    "reportBug": "Informar de un error",
+    "linkedPathHelp": "Abre la carpeta de instalación original. Se conserva el contenido al que apuntan los enlaces."
   },
   "it": {
     "title": "Disinstalla Capri",
@@ -153,7 +163,9 @@
     "progressCleaning": "Pulizia…",
     "progressItems": "{0} elementi elaborati",
     "progressFinishing": "Completamento della disinstallazione…",
-    "progressClose": "Chiudi"
+    "progressClose": "Chiudi",
+    "reportBug": "Segnala un bug",
+    "linkedPathHelp": "Apri la cartella di installazione originale. I contenuti a cui puntano i collegamenti sono conservati."
   },
   "pt": {
     "title": "Desinstalar Capri",
@@ -179,7 +191,9 @@
     "progressCleaning": "Limpando…",
     "progressItems": "{0} itens processados",
     "progressFinishing": "Finalizando a desinstalação…",
-    "progressClose": "Fechar"
+    "progressClose": "Fechar",
+    "reportBug": "Relatar um erro",
+    "linkedPathHelp": "Abra a pasta de instalação original. O conteúdo apontado pelos links é preservado."
   },
   "nl": {
     "title": "Capri verwijderen",
@@ -205,7 +219,9 @@
     "progressCleaning": "Opruimen…",
     "progressItems": "{0} items verwerkt",
     "progressFinishing": "Verwijderen afronden…",
-    "progressClose": "Sluiten"
+    "progressClose": "Sluiten",
+    "reportBug": "Fout rapporteren",
+    "linkedPathHelp": "Open de oorspronkelijke installatiemap. De inhoud achter bestandssysteemkoppelingen blijft behouden."
   },
   "pl": {
     "title": "Odinstaluj Capri",
@@ -231,7 +247,9 @@
     "progressCleaning": "Porządkowanie…",
     "progressItems": "Przetworzono elementów: {0}",
     "progressFinishing": "Kończenie odinstalowywania…",
-    "progressClose": "Zamknij"
+    "progressClose": "Zamknij",
+    "reportBug": "Zgłoś błąd",
+    "linkedPathHelp": "Otwórz oryginalny folder instalacji. Dane wskazywane przez dowiązania zostały zachowane."
   },
   "uk": {
     "title": "Видалити Capri",
@@ -257,7 +275,9 @@
     "progressCleaning": "Очищення…",
     "progressItems": "Оброблено елементів: {0}",
     "progressFinishing": "Завершення видалення…",
-    "progressClose": "Закрити"
+    "progressClose": "Закрити",
+    "reportBug": "Звітувати про помилку",
+    "linkedPathHelp": "Відкрийте початкову папку встановлення. Дані, на які вказують посилання, збережено."
   },
   "cs": {
     "title": "Odinstalovat Capri",
@@ -283,7 +303,9 @@
     "progressCleaning": "Úklid…",
     "progressItems": "Zpracované položky: {0}",
     "progressFinishing": "Dokončování odinstalace…",
-    "progressClose": "Zavřít"
+    "progressClose": "Zavřít",
+    "reportBug": "Nahlásit chybu",
+    "linkedPathHelp": "Otevřete původní instalační složku. Obsah odkazů v systému souborů zůstane zachován."
   },
   "sk": {
     "title": "Odstrániť Capri",
@@ -309,7 +331,9 @@
     "progressCleaning": "Čistenie…",
     "progressItems": "Spracované položky: {0}",
     "progressFinishing": "Dokončovanie odinštalovania…",
-    "progressClose": "Zavrieť"
+    "progressClose": "Zavrieť",
+    "reportBug": "Nahlásiť chybu",
+    "linkedPathHelp": "Otvorte pôvodný inštalačný priečinok. Obsah, na ktorý odkazujú prepojenia, zostane zachovaný."
   },
   "bg": {
     "title": "Деинсталиране на Capri",
@@ -335,7 +359,9 @@
     "progressCleaning": "Почистване…",
     "progressItems": "Обработени елементи: {0}",
     "progressFinishing": "Завършване на деинсталирането…",
-    "progressClose": "Затвори"
+    "progressClose": "Затвори",
+    "reportBug": "Съобщаване за грешка",
+    "linkedPathHelp": "Отворете първоначалната папка за инсталиране. Съдържанието зад връзките е запазено."
   },
   "hr": {
     "title": "Deinstaliraj Capri",
@@ -361,7 +387,9 @@
     "progressCleaning": "Čišćenje…",
     "progressItems": "Obrađeno stavki: {0}",
     "progressFinishing": "Dovršavanje deinstalacije…",
-    "progressClose": "Zatvori"
+    "progressClose": "Zatvori",
+    "reportBug": "Prijavi grešku",
+    "linkedPathHelp": "Otvorite izvornu instalacijsku mapu. Sadržaj na koji vode poveznice ostaje sačuvan."
   },
   "sr": {
     "title": "Deinstaliraj Capri",
@@ -387,7 +415,9 @@
     "progressCleaning": "Čišćenje…",
     "progressItems": "Obrađeno stavki: {0}",
     "progressFinishing": "Završavanje deinstalacije…",
-    "progressClose": "Zatvori"
+    "progressClose": "Zatvori",
+    "reportBug": "Prijavi grešku",
+    "linkedPathHelp": "Otvorite prvobitnu instalacionu fasciklu. Sadržaj na koji upućuju veze ostaje sačuvan."
   },
   "sl": {
     "title": "Odstranitev Capri",
@@ -413,7 +443,9 @@
     "progressCleaning": "Čiščenje…",
     "progressItems": "Obdelani elementi: {0}",
     "progressFinishing": "Zaključevanje odstranitve…",
-    "progressClose": "Zapri"
+    "progressClose": "Zapri",
+    "reportBug": "Poročanje o napaki",
+    "linkedPathHelp": "Odprite prvotno namestitveno mapo. Vsebina za povezavami se ohrani."
   },
   "ro": {
     "title": "Deinstalare Capri",
@@ -439,7 +471,9 @@
     "progressCleaning": "Se curăță…",
     "progressItems": "Elemente procesate: {0}",
     "progressFinishing": "Se finalizează dezinstalarea…",
-    "progressClose": "Închide"
+    "progressClose": "Închide",
+    "reportBug": "Raportare eroare",
+    "linkedPathHelp": "Deschideți folderul de instalare original. Conținutul indicat de legături este păstrat."
   },
   "hu": {
     "title": "A Capri eltávolítása",
@@ -465,7 +499,9 @@
     "progressCleaning": "Takarítás…",
     "progressItems": "{0} elem feldolgozva",
     "progressFinishing": "Eltávolítás befejezése…",
-    "progressClose": "Bezárás"
+    "progressClose": "Bezárás",
+    "reportBug": "Hibabejelentés",
+    "linkedPathHelp": "Nyissa meg az eredeti telepítési mappát. A fájlrendszer hivatkozásai mögötti tartalom megmarad."
   },
   "el": {
     "title": "Αφαίρεση Capri",
@@ -491,7 +527,9 @@
     "progressCleaning": "Εκκαθάριση…",
     "progressItems": "Στοιχεία που υποβλήθηκαν σε επεξεργασία: {0}",
     "progressFinishing": "Ολοκλήρωση απεγκατάστασης…",
-    "progressClose": "Κλείσιμο"
+    "progressClose": "Κλείσιμο",
+    "reportBug": "Επανεκκίνηση και ενημέρωση",
+    "linkedPathHelp": "Ανοίξτε τον αρχικό φάκελο εγκατάστασης. Το περιεχόμενο στο οποίο οδηγούν οι σύνδεσμοι διατηρείται."
   },
   "da": {
     "title": "Fjern Capri",
@@ -517,7 +555,9 @@
     "progressCleaning": "Rydder op…",
     "progressItems": "{0} elementer behandlet",
     "progressFinishing": "Afslutter afinstallation…",
-    "progressClose": "Luk"
+    "progressClose": "Luk",
+    "reportBug": "Rapportér en fejl",
+    "linkedPathHelp": "Åbn den oprindelige installationsmappe. Indhold bag filsystemlinks bevares."
   },
   "no": {
     "title": "Avinstaller Capri",
@@ -543,7 +583,9 @@
     "progressCleaning": "Rydder opp…",
     "progressItems": "{0} elementer behandlet",
     "progressFinishing": "Fullfører avinstallering…",
-    "progressClose": "Lukk"
+    "progressClose": "Lukk",
+    "reportBug": "Rapporter en feil",
+    "linkedPathHelp": "Åpne den opprinnelige installasjonsmappen. Innhold bak filsystemkoblinger beholdes."
   },
   "sv": {
     "title": "Avinstallera Capri",
@@ -569,7 +611,9 @@
     "progressCleaning": "Rensar…",
     "progressItems": "{0} objekt bearbetade",
     "progressFinishing": "Slutför avinstallationen…",
-    "progressClose": "Stäng"
+    "progressClose": "Stäng",
+    "reportBug": "Rapportera ett fel",
+    "linkedPathHelp": "Öppna den ursprungliga installationsmappen. Innehåll som filsystemlänkar pekar på sparas."
   },
   "fi": {
     "title": "Poista Capri",
@@ -595,7 +639,9 @@
     "progressCleaning": "Siivotaan…",
     "progressItems": "Käsiteltyjä kohteita: {0}",
     "progressFinishing": "Viimeistellään poistamista…",
-    "progressClose": "Sulje"
+    "progressClose": "Sulje",
+    "reportBug": "Raportoi virhe",
+    "linkedPathHelp": "Avaa alkuperäinen asennuskansio. Tiedostojärjestelmän linkkien kohteet säilytetään."
   },
   "et": {
     "title": "Capri eemaldamine",
@@ -621,7 +667,9 @@
     "progressCleaning": "Puhastamine…",
     "progressItems": "Töödeldud üksusi: {0}",
     "progressFinishing": "Eemaldamise lõpetamine…",
-    "progressClose": "Sulge"
+    "progressClose": "Sulge",
+    "reportBug": "Teata vigast",
+    "linkedPathHelp": "Avage algne paigalduskaust. Failisüsteemi linkide sihtkohad säilitatakse."
   },
   "lv": {
     "title": "Capri atinstalēšana",
@@ -647,7 +695,9 @@
     "progressCleaning": "Veic tīrīšanu…",
     "progressItems": "Apstrādātie vienumi: {0}",
     "progressFinishing": "Pabeidz noņemšanu…",
-    "progressClose": "Aizvērt"
+    "progressClose": "Aizvērt",
+    "reportBug": "Atsaukt kļūdu",
+    "linkedPathHelp": "Atveriet sākotnējo instalācijas mapi. Failu sistēmas saišu mērķu saturs tiek saglabāts."
   },
   "lt": {
     "title": "Pašalinti Capri",
@@ -673,7 +723,9 @@
     "progressCleaning": "Valoma…",
     "progressItems": "Apdorota elementų: {0}",
     "progressFinishing": "Baigiamas šalinimas…",
-    "progressClose": "Uždaryti"
+    "progressClose": "Uždaryti",
+    "reportBug": "Pranešti klaidą",
+    "linkedPathHelp": "Atidarykite pradinį diegimo aplanką. Failų sistemos nuorodų paskirties turinys išsaugomas."
   },
   "is": {
     "title": "Fjarlægja Capri",
@@ -699,7 +751,9 @@
     "progressCleaning": "Hreinsa til…",
     "progressItems": "Unnin atriði: {0}",
     "progressFinishing": "Lýk afuppsetningu…",
-    "progressClose": "Loka"
+    "progressClose": "Loka",
+    "reportBug": "Skila skýrslu",
+    "linkedPathHelp": "Opnaðu upprunalegu uppsetningarmöppuna. Efni sem skráakerfistenglar vísa á er varðveitt."
   },
   "ca": {
     "title": "Desinstalar Capri",
@@ -725,7 +779,9 @@
     "progressCleaning": "S'està netejant…",
     "progressItems": "{0} elements processats",
     "progressFinishing": "S'està finalitzant la desinstal·lació…",
-    "progressClose": "Tanca"
+    "progressClose": "Tanca",
+    "reportBug": "Informar d'un error",
+    "linkedPathHelp": "Obriu la carpeta d’instal·lació original. Es conserva el contingut al qual apunten els enllaços."
   },
   "ar": {
     "title": "إلغاء تثبيت Capri",
@@ -751,7 +807,9 @@
     "progressCleaning": "جارٍ التنظيف…",
     "progressItems": "العناصر التي تمت معالجتها: {0}",
     "progressFinishing": "جارٍ إنهاء إلغاء التثبيت…",
-    "progressClose": "إغلاق"
+    "progressClose": "إغلاق",
+    "reportBug": "تقرير خطأ",
+    "linkedPathHelp": "افتح مجلد التثبيت الأصلي. يُحتفظ بالمحتوى الذي تشير إليه روابط نظام الملفات."
   },
   "he": {
     "title": "הסר Capri",
@@ -777,7 +835,9 @@
     "progressCleaning": "מתבצע ניקוי…",
     "progressItems": "פריטים שעובדו: {0}",
     "progressFinishing": "ההסרה מסתיימת…",
-    "progressClose": "סגירה"
+    "progressClose": "סגירה",
+    "reportBug": "דווח על באג",
+    "linkedPathHelp": "יש לפתוח את תיקיית ההתקנה המקורית. התוכן שאליו מפנים הקישורים במערכת הקבצים נשמר."
   },
   "fa": {
     "title": "حذف Capri",
@@ -803,7 +863,9 @@
     "progressCleaning": "در حال پاک‌سازی…",
     "progressItems": "موارد پردازش‌شده: {0}",
     "progressFinishing": "در حال تکمیل حذف…",
-    "progressClose": "بستن"
+    "progressClose": "بستن",
+    "reportBug": "گزارش‌دهی یک باگ",
+    "linkedPathHelp": "پوشهٔ اصلی نصب را باز کنید. محتوای مقصد پیوندهای سامانهٔ فایل حفظ می‌شود."
   },
   "ur": {
     "title": "Capri ہٹائیں",
@@ -829,7 +891,9 @@
     "progressCleaning": "صفائی جاری ہے…",
     "progressItems": "پروسیس کیے گئے آئٹمز: {0}",
     "progressFinishing": "حذف کرنے کا عمل مکمل کیا جا رہا ہے…",
-    "progressClose": "بند کریں"
+    "progressClose": "بند کریں",
+    "reportBug": "غلطی کی رپورٹ کریں",
+    "linkedPathHelp": "اصل انسٹالیشن فولڈر کھولیں۔ فائل سسٹم کے لنکس کی منزل پر موجود مواد محفوظ رہتا ہے۔"
   },
   "hi": {
     "title": "Capri अनइंस्टॉल करें",
@@ -855,7 +919,9 @@
     "progressCleaning": "सफ़ाई हो रही है…",
     "progressItems": "प्रोसेस किए गए आइटम: {0}",
     "progressFinishing": "हटाने की प्रक्रिया पूरी की जा रही है…",
-    "progressClose": "बंद करें"
+    "progressClose": "बंद करें",
+    "reportBug": "एक बग रिपोर्ट करें",
+    "linkedPathHelp": "मूल इंस्टॉलेशन फ़ोल्डर खोलें। फ़ाइल सिस्टम लिंक जिन फ़ाइलों या फ़ोल्डरों की ओर इशारा करते हैं, उनकी सामग्री सुरक्षित है।"
   },
   "bn": {
     "title": "Capri আনইনস্টল করুন",
@@ -881,7 +947,9 @@
     "progressCleaning": "পরিষ্কার করা হচ্ছে…",
     "progressItems": "প্রক্রিয়াকৃত আইটেম: {0}",
     "progressFinishing": "অপসারণ সম্পন্ন করা হচ্ছে…",
-    "progressClose": "বন্ধ করুন"
+    "progressClose": "বন্ধ করুন",
+    "reportBug": "ত্রুটি রিপোর্ট করুন",
+    "linkedPathHelp": "মূল ইনস্টলেশন ফোল্ডার খুলুন। ফাইল সিস্টেম লিঙ্কের গন্তব্যের বিষয়বস্তু সংরক্ষিত থাকে।"
   },
   "ta": {
     "title": "Capri ஐ நீக்கு",
@@ -907,7 +975,9 @@
     "progressCleaning": "சுத்தம் செய்யப்படுகிறது…",
     "progressItems": "செயலாக்கப்பட்ட உருப்படிகள்: {0}",
     "progressFinishing": "அகற்றுதல் நிறைவடைகிறது…",
-    "progressClose": "மூடு"
+    "progressClose": "மூடு",
+    "reportBug": "பிழையை அறிக்கையிட",
+    "linkedPathHelp": "அசல் நிறுவல் கோப்புறையைத் திறக்கவும். கோப்பு முறைமை இணைப்புகள் சுட்டும் உள்ளடக்கம் பாதுகாக்கப்படும்."
   },
   "te": {
     "title": "Capri ను తొలగించండి",
@@ -933,7 +1003,9 @@
     "progressCleaning": "శుభ్రం చేస్తోంది…",
     "progressItems": "ప్రాసెస్ చేసిన అంశాలు: {0}",
     "progressFinishing": "తొలగింపును పూర్తి చేస్తోంది…",
-    "progressClose": "మూసివేయి"
+    "progressClose": "మూసివేయి",
+    "reportBug": "బగ్ నివేదించు",
+    "linkedPathHelp": "అసలు ఇన్‌స్టాలేషన్ ఫోల్డర్‌ను తెరవండి. ఫైల్ సిస్టమ్ లింకులు సూచించే కంటెంట్ అలాగే ఉంటుంది."
   },
   "mr": {
     "title": "Capri अनइंस्टॉल करा",
@@ -959,7 +1031,9 @@
     "progressCleaning": "साफसफाई सुरू आहे…",
     "progressItems": "प्रक्रिया केलेले घटक: {0}",
     "progressFinishing": "काढून टाकण्याची प्रक्रिया पूर्ण होत आहे…",
-    "progressClose": "बंद करा"
+    "progressClose": "बंद करा",
+    "reportBug": "त्रुटी अहवाल द्या",
+    "linkedPathHelp": "मूळ स्थापना फोल्डर उघडा. फाइल सिस्टमच्या दुव्यांनी निर्देशित केलेली सामग्री जतन केली जाते."
   },
   "gu": {
     "title": "Capri અનઇન્સ્ટોલ કરો",
@@ -985,7 +1059,9 @@
     "progressCleaning": "સફાઈ થઈ રહી છે…",
     "progressItems": "પ્રક્રિયા કરેલા ઘટકો: {0}",
     "progressFinishing": "દૂર કરવાની પ્રક્રિયા પૂર્ણ થઈ રહી છે…",
-    "progressClose": "બંધ કરો"
+    "progressClose": "બંધ કરો",
+    "reportBug": "બગ રિપોર્ટ કરો",
+    "linkedPathHelp": "મૂળ ઇન્સ્ટોલેશન ફોલ્ડર ખોલો. ફાઇલ સિસ્ટમની લિંક જ્યાં લઈ જાય છે ત્યાંની સામગ્રી જાળવવામાં આવે છે."
   },
   "pa": {
     "title": "Capri ਹਟਾਓ",
@@ -1011,7 +1087,9 @@
     "progressCleaning": "ਸਫ਼ਾਈ ਹੋ ਰਹੀ ਹੈ…",
     "progressItems": "ਪ੍ਰਕਿਰਿਆ ਕੀਤੀਆਂ ਆਈਟਮਾਂ: {0}",
     "progressFinishing": "ਹਟਾਉਣ ਦੀ ਪ੍ਰਕਿਰਿਆ ਪੂਰੀ ਹੋ ਰਹੀ ਹੈ…",
-    "progressClose": "ਬੰਦ ਕਰੋ"
+    "progressClose": "ਬੰਦ ਕਰੋ",
+    "reportBug": "ਗਲਤੀ ਬਾਰੇ ਰਿਪੋਰਟ ਕਰੋ",
+    "linkedPathHelp": "ਅਸਲ ਇੰਸਟਾਲੇਸ਼ਨ ਫੋਲਡਰ ਖੋਲ੍ਹੋ। ਫ਼ਾਈਲ ਸਿਸਟਮ ਲਿੰਕਾਂ ਦੀ ਮੰਜ਼ਿਲ ਵਾਲੀ ਸਮੱਗਰੀ ਸੁਰੱਖਿਅਤ ਰਹਿੰਦੀ ਹੈ।"
   },
   "zh": {
     "title": "卸载 Capri",
@@ -1037,7 +1115,9 @@
     "progressCleaning": "正在清理…",
     "progressItems": "已处理 {0} 个项目",
     "progressFinishing": "正在完成卸载…",
-    "progressClose": "关闭"
+    "progressClose": "关闭",
+    "reportBug": "报告错误",
+    "linkedPathHelp": "请打开原始安装文件夹。文件系统链接指向的内容会保留。"
   },
   "ja": {
     "title": "Capriのアンインストール",
@@ -1063,7 +1143,9 @@
     "progressCleaning": "クリーンアップ中…",
     "progressItems": "{0} 個の項目を処理済み",
     "progressFinishing": "アンインストールの最終処理中…",
-    "progressClose": "閉じる"
+    "progressClose": "閉じる",
+    "reportBug": "バグを報告",
+    "linkedPathHelp": "元のインストールフォルダーを開いてください。ファイルシステムのリンク先にある内容は保持されます。"
   },
   "ko": {
     "title": "Capri 제거",
@@ -1089,7 +1171,9 @@
     "progressCleaning": "정리 중…",
     "progressItems": "항목 {0}개 처리됨",
     "progressFinishing": "제거 마무리 중…",
-    "progressClose": "닫기"
+    "progressClose": "닫기",
+    "reportBug": "버그 보고",
+    "linkedPathHelp": "원래 설치 폴더를 여세요. 파일 시스템 링크가 가리키는 콘텐츠는 보존됩니다."
   },
   "vi": {
     "title": "Gỡ cài đặt Capri",
@@ -1115,7 +1199,9 @@
     "progressCleaning": "Đang dọn dẹp…",
     "progressItems": "Đã xử lý {0} mục",
     "progressFinishing": "Đang hoàn tất gỡ cài đặt…",
-    "progressClose": "Đóng"
+    "progressClose": "Đóng",
+    "reportBug": "Báo cáo lỗi",
+    "linkedPathHelp": "Hãy mở thư mục cài đặt gốc. Nội dung mà các liên kết hệ thống tệp trỏ đến được giữ lại."
   },
   "th": {
     "title": "ถอนการติดตั้ง Capri",
@@ -1141,7 +1227,9 @@
     "progressCleaning": "กำลังล้างข้อมูล…",
     "progressItems": "ประมวลผลแล้ว {0} รายการ",
     "progressFinishing": "กำลังดำเนินการถอนการติดตั้งให้เสร็จสมบูรณ์…",
-    "progressClose": "ปิด"
+    "progressClose": "ปิด",
+    "reportBug": "รายงานข้อผิดพลาด",
+    "linkedPathHelp": "เปิดโฟลเดอร์ที่ติดตั้งไว้เดิม เนื้อหาที่ลิงก์ของระบบไฟล์ชี้ไปจะยังคงอยู่"
   },
   "id": {
     "title": "Hapus Capri",
@@ -1167,7 +1255,9 @@
     "progressCleaning": "Membersihkan…",
     "progressItems": "{0} item diproses",
     "progressFinishing": "Menyelesaikan penghapusan…",
-    "progressClose": "Tutup"
+    "progressClose": "Tutup",
+    "reportBug": "Laporkan bug",
+    "linkedPathHelp": "Buka folder instalasi asli. Konten yang dituju oleh tautan sistem berkas tetap tersimpan."
   },
   "ms": {
     "title": "Nyahpasang Capri",
@@ -1193,7 +1283,9 @@
     "progressCleaning": "Membersihkan…",
     "progressItems": "{0} item telah diproses",
     "progressFinishing": "Melengkapkan penyahpasangan…",
-    "progressClose": "Tutup"
+    "progressClose": "Tutup",
+    "reportBug": "Laporkan ralat",
+    "linkedPathHelp": "Buka folder pemasangan asal. Kandungan yang dituju oleh pautan sistem fail dikekalkan."
   },
   "tl": {
     "title": "Tanggalin ang Capri",
@@ -1219,7 +1311,9 @@
     "progressCleaning": "Naglilinis…",
     "progressItems": "{0} item ang naproseso",
     "progressFinishing": "Tinatapos ang pag-uninstall…",
-    "progressClose": "Isara"
+    "progressClose": "Isara",
+    "reportBug": "Iulat ang bug",
+    "linkedPathHelp": "Buksan ang orihinal na folder ng pag-install. Mananatili ang nilalamang tinutukoy ng mga link sa file system."
   },
   "tr": {
     "title": "Capri'yi Kaldır",
@@ -1245,7 +1339,9 @@
     "progressCleaning": "Temizleniyor…",
     "progressItems": "{0} öğe işlendi",
     "progressFinishing": "Kaldırma işlemi tamamlanıyor…",
-    "progressClose": "Kapat"
+    "progressClose": "Kapat",
+    "reportBug": "Bir hata bildir",
+    "linkedPathHelp": "Özgün kurulum klasörünü açın. Dosya sistemi bağlantılarının hedefindeki içerik korunur."
   },
   "sw": {
     "title": "Ondoa Capri",
@@ -1271,7 +1367,9 @@
     "progressCleaning": "Inasafisha…",
     "progressItems": "Vipengee vilivyochakatwa: {0}",
     "progressFinishing": "Inakamilisha uondoaji…",
-    "progressClose": "Funga"
+    "progressClose": "Funga",
+    "reportBug": "Ripoti tatizo",
+    "linkedPathHelp": "Fungua folda ya awali ya usakinishaji. Maudhui yanayoelekezwa na viungo vya mfumo wa faili yanahifadhiwa."
   },
   "af": {
     "title": "Verwyder Capri",
@@ -1297,6 +1395,8 @@
     "progressCleaning": "Ruim op…",
     "progressItems": "{0} items verwerk",
     "progressFinishing": "Voltooi verwydering…",
-    "progressClose": "Sluit"
+    "progressClose": "Sluit",
+    "reportBug": "Rapporteer 'n fout",
+    "linkedPathHelp": "Maak die oorspronklike installasievouer oop. Die inhoud waarna lêerstelselskakels wys, word behou."
   }
 }

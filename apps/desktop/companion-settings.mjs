@@ -30,6 +30,8 @@ export const COMPANION_DEFAULTS = Object.freeze({
   teleportSound: 'spark',
   avatarTapGapSeconds: 10,
   avatarSnapRadius: 36,
+  avatarRoaming: false,
+  avatarRoamIntervalSeconds: 120,
   avatarDragTether: true,
   avatarDragTetherIntensity: 45,
   avatarDragTetherChaos: 55,
@@ -76,6 +78,10 @@ export function validateCompanionSettings(value) {
     next.avatarSnapRadius < 12 ||
     next.avatarSnapRadius > 100 ||
     typeof next.avatarDragTether !== 'boolean' ||
+    typeof next.avatarRoaming !== 'boolean' ||
+    !Number.isInteger(next.avatarRoamIntervalSeconds) ||
+    next.avatarRoamIntervalSeconds < 30 ||
+    next.avatarRoamIntervalSeconds > 1800 ||
     !Number.isInteger(next.avatarDragTetherIntensity) ||
     next.avatarDragTetherIntensity < 0 ||
     next.avatarDragTetherIntensity > 100 ||

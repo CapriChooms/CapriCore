@@ -26,7 +26,7 @@ test('appearance settings reject foreign fields and out-of-range effects without
     assert.throws(() => computerPreferences(value), /Invalid/);
   assert.equal(computerPreferences({ intensity: 0, pointerDuration: 0 }).intensity, 0);
 });
-test('indicators cover negative-origin full displays and a lost renderer closes all indicators exactly once', async () => {
+test('indicators cover negative-origin work areas and a lost renderer closes all indicators exactly once', async () => {
   class Window extends EventEmitter {
     constructor(options) {
       super();
@@ -46,7 +46,6 @@ test('indicators cover negative-origin full displays and a lost renderer closes 
     setBounds(value) {
       this.bounds = { ...value };
     }
-    setFullScreen() {}
     showInactive() {
       this.visible = true;
     }
@@ -62,20 +61,24 @@ test('indicators cover negative-origin full displays and a lost renderer closes 
     }
   }
   const displays = [
-    { bounds: { x: -1920, y: 0, width: 1920, height: 1080 } },
-    { bounds: { x: 0, y: 0, width: 2560, height: 1440 } },
+    { id: 1, workArea: { x: -1920, y: 0, width: 1920, height: 1080 } },
+    { id: 2, workArea: { x: 0, y: 0, width: 2560, height: 1392 } },
   ];
+  const screen = Object.assign(new EventEmitter(), {
+    getAllDisplays: () => displays,
+    getCursorScreenPoint: () => ({ x: 5, y: 10 }),
+  });
   let lost = 0;
   const overlay = new ControlOverlay({
     BrowserWindow: Window,
-    screen: { getAllDisplays: () => displays, getCursorScreenPoint: () => ({ x: 5, y: 10 }) },
+    screen,
     onLost: () => lost++,
   });
   await overlay.show('Test control');
   const windows = [...overlay.windows];
   assert.deepEqual(
     windows.map((w) => w.bounds),
-    displays.map((d) => d.bounds),
+    displays.map((d) => d.workArea),
   );
   assert(windows.every((w) => w.ignores && w.options.focusable === false));
   windows[0].webContents.emit('render-process-gone');

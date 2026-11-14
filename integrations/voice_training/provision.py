@@ -1,11 +1,12 @@
 """Pinned model download and offline integrity receipt."""
 
 import json
+import os
 import re
 from urllib.error import HTTPError
 
 from .dataset import ROOT, digest, write_json
-from integrations.model_download import ModelDownloadError, _regular_path, download_verified
+from integrations.model_download import ModelDownloadError, _regular_path, download_verified, emit_installer_transfer
 
 
 def download_model(config, *, root=ROOT, download=download_verified):
@@ -48,13 +49,19 @@ def download_model(config, *, root=ROOT, download=download_verified):
                 message = f"{overall}% overall | {message}"
             print(message, flush=flush)
 
+        def report(stage, received):
+            if stage == 'download':
+                emit_installer_transfer(name, received, spec['bytes'], (completed_bytes + received) / total_bytes)
+
         try:
-            download(f"{base}/{name}", folder / name, spec, timeout=25, attempts=5, emit=progress)
+            transfer_options = {'progress': report} if os.environ.get('CAPRI_INSTALL_FILE_PROGRESS') else {}
+            download(f"{base}/{name}", folder / name, spec, timeout=25, attempts=5, emit=progress, **transfer_options)
         except HTTPError as error:
             raise ModelDownloadError(
                 f"Could not download {name}: HTTP {error.code} from the model host. "
                 "Already verified models are preserved."
             ) from None
+        report('download', spec['bytes'])
         files[name] = spec["sha256"]
         completed_bytes += spec["bytes"]
         print(f"{min(99, completed_bytes * 100 // total_bytes)}% overall | {index}/{total} voice files verified", flush=True)

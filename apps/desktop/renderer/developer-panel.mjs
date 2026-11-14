@@ -82,6 +82,7 @@ export class DeveloperPanel {
         <div id="developer-turn-details" hidden>
           <p id="developer-turn-meta" class="settings-help" data-untranslated></p>
           <div id="developer-metrics" class="developer-metrics"></div>
+          <div class="settings-actions"><button id="developer-copy-turn" type="button">Copy timing summary</button></div>
           <h4>Pipeline stages</h4>
           <p class="settings-help" data-inline-help>Some stages overlap. Missing measurements are shown as a dash; stage times should not be added together.</p>
           <div id="developer-phases"></div>
@@ -105,6 +106,25 @@ export class DeveloperPanel {
     this.get('refresh').onclick = () => void this.refresh();
     this.get('folder').onclick = () => void this.api.openDeveloperLogs().catch(() => this.error());
     this.get('live').onchange = () => this.schedule();
+    this.get('copy-turn').onclick = async () => {
+      const turn = this.activeTurn;
+      if (!turn) return;
+      // Copy counters only. Exclude IDs, provider text, paths and timestamps.
+      const timing = {
+        status: turn.status,
+        firstTextMs: turn.firstTextMs,
+        firstPaintMs: turn.firstPaintMs,
+        totalMs: turn.totalMs,
+        stages: Object.fromEntries(turn.phases.map(({ id, durationMs }) => [id, durationMs])),
+        modelCalls: turn.calls.length,
+      };
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(timing, null, 2));
+        this.get('status').textContent = this.text('Timing summary copied.');
+      } catch {
+        this.error();
+      }
+    };
     this.get('turn').onchange = () => {
       this.followLatest = this.get('turn').value === this.value?.turns[0]?.id;
       this.renderKey = null;
@@ -258,6 +278,15 @@ export class DeveloperPanel {
     this.metric(metrics, 'Full reply', this.ms(turn.totalMs));
     this.metric(metrics, 'First interface paint', this.ms(turn.firstPaintMs));
     this.metric(metrics, 'Model calls', this.number(turn.calls.length));
+    const slowest = turn.phases
+      .filter(({ durationMs }) => Number.isFinite(durationMs) && durationMs > 0)
+      .sort((a, b) => b.durationMs - a.durationMs)[0];
+    if (slowest)
+      this.metric(
+        metrics,
+        'Longest measured stage',
+        this.text(labels[slowest.id]) + ' · ' + this.ms(slowest.durationMs),
+      );
     const phases = this.get('phases');
     phases.replaceChildren();
     const maximum = Math.max(turn.totalMs ?? 0, ...turn.phases.map((p) => p.durationMs ?? 0), 1);

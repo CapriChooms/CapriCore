@@ -26,6 +26,8 @@ const finite = (n) => (Number.isFinite(n) && n >= 0 ? n : null);
 const round = (n) => (Math.sign(n) * Math.round(Math.abs(n) * 10)) / 10 || 0;
 export function estimateMemoryBudget(selection, hardware) {
   const gpu = dedicatedGpu(hardware);
+  const freeVram = gpu ? finite(gpu.freeVramMiB) : null;
+  const gpuBudget = gpu ? (freeVram ?? gpu.vramMiB) / 1024 : 0;
   const ram = [...estimates.base.ram],
     vram = gpu ? [...estimates.base.vram] : [0, 0];
   const add = (part) => {
@@ -43,13 +45,34 @@ export function estimateMemoryBudget(selection, hardware) {
     add(estimates[english ? 'recognitionEnglish' : 'recognitionMultilingual']);
   if (selection.router) add(estimates.router);
   if (selection.voiceMode === 'qwen') add(estimates.voiceQwenCpu);
-  else if (selection.voiceMode && selection.voiceMode !== 'off')
-    add(estimates[english ? 'voiceEnglish' : 'voiceMultilingual']);
-  const freeVram = gpu ? finite(gpu.freeVramMiB) : null;
-  const offload = Boolean(
-    selection.downloadModels && gpu && vram[1] > (freeVram ?? gpu.vramMiB) / 1024,
-  );
-  if (offload) ram[1] += model.cpuRam[1];
+  else if (selection.voiceMode === 'qwen-ru') add(estimates.voiceQwenRussianCpu);
+  else if (selection.voiceMode && selection.voiceMode !== 'off') {
+    const voice = estimates[english ? 'voiceEnglish' : 'voiceMultilingual'];
+    if (!gpu) add({ ram: voice.cpuRam, vram: [0, 0] });
+    else {
+      const part = { ram: [], vram: [] };
+      for (let i = 0; i < 2; i++) {
+        // The production voice keeps T3 on GPU but chooses CPU acoustic
+        // decoding when less than 2.5 GiB remains after the backbone loads.
+        const decoder =
+          gpuBudget - vram[i] - voice.cpuDecoder.vram[i] < estimates.voiceDecoderPromotionGiB
+            ? voice.cpuDecoder
+            : voice;
+        part.ram[i] = decoder.ram[i];
+        part.vram[i] = decoder.vram[i];
+      }
+      add(part);
+    }
+  }
+  const offload = Boolean(selection.downloadModels && gpu && vram[1] > gpuBudget);
+  if (offload) {
+    for (let i = 0; i < 2; i++) {
+      // A small shortage is not a second, complete CPU copy of the LLM.
+      // Full spill replaces (rather than duplicates) its host-only overhead.
+      const fraction = Math.min(1, Math.max(0, vram[i] - gpuBudget) / model.vram[i]);
+      ram[i] += fraction * Math.max(0, model.cpuRam[i] - model.hostRam[i]);
+    }
+  }
   const row = (range, total, available) => ({
     estimate: range.map(round),
     total: finite(total),

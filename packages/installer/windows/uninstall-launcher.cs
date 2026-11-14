@@ -21,11 +21,14 @@ internal static class CapriUninstallLauncher {
         try {
             if (args.Length != 0 && !quiet) throw new ArgumentException("Invalid uninstall arguments.");
             string root = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            CapriSetupLocale.SelectInstalled(root);
+            if (HasLinkedPath(root)) {
+                if (!quiet) ShowError(CapriSetupLocale.Text("linkedPathHelp"), "UNINSTALL_LINKED_PATH");
+                return 1;
+            }
             string script = ResolveScript(root, Path.Combine(Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData), "Capri", "Uninstall"), CapriUninstallInfo.Recovery);
             if (script == null) {
-                if (!quiet) ShowError(CapriSetupLocale.Text("repairNeeded", "Capri's uninstall files are missing. Run Capri Setup to repair this installation."));
+                if (!quiet) ShowError(CapriSetupLocale.Text("repairNeeded", "Capri's uninstall files are missing. Run Capri Setup to repair this installation."), "UNINSTALL_REPAIR_REQUIRED");
                 return 1;
             }
             string powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
@@ -38,14 +41,14 @@ internal static class CapriUninstallLauncher {
             start.CreateNoWindow = true;
             using (Process process = Process.Start(start)) {
                 if (process == null) {
-                    if (!quiet) ShowError(CapriSetupLocale.Text("openFailed", "Could not open the uninstall window."));
+                    if (!quiet) ShowError(CapriSetupLocale.Text("openFailed", "Could not open the uninstall window."), "UNINSTALL_LAUNCH_FAILED");
                     return 1;
                 }
             }
             return 0;
         } catch (Exception error) {
             if (!quiet) ShowError(CapriSetupLocale.Text("openFailed", "Could not open the uninstall window.") +
-                "\r\n\r\n" + CapriSetupLocale.Text("technicalDetails") + ":\r\n" + error.Message);
+                "\r\n\r\n" + error.Message, "UNINSTALL_LAUNCH_FAILED");
             return 1;
         }
     }
@@ -183,21 +186,32 @@ internal static class CapriUninstallLauncher {
     }
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetFileInformationByHandle(SafeFileHandle file, out FileInformation information);
+    private static bool HasLinkedPath(string path) {
+        var parents = new Stack<string>();
+        for (string current = Path.GetFullPath(path); current != null; current = Path.GetDirectoryName(current))
+            parents.Push(current);
+        foreach (string parent in parents)
+            if ((File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) return true;
+        return false;
+    }
     private static bool SafeFile(string file) {
         try {
-            string current = Path.GetFullPath(file);
-            if ((File.GetAttributes(current) & FileAttributes.Directory) != 0) return false;
-            while (current != null) {
-                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return false;
-                current = Path.GetDirectoryName(current);
-            }
+            if (HasLinkedPath(file) || (File.GetAttributes(file) & FileAttributes.Directory) != 0) return false;
             using (FileStream stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete)) {
                 FileInformation information;
                 return GetFileInformationByHandle(stream.SafeFileHandle, out information) && information.NumberOfLinks == 1;
             }
         } catch { return false; }
     }
-    private static void ShowError(string message) {
+    private static void ShowError(string message, string code) {
+        var messages = new Dictionary<string, string>();
+        foreach (string key in new[] { "title", "failed", "technicalDetails", "progressPreparing", "progressItems", "progressClose", "reportBug" })
+            messages[key] = CapriSetupLocale.Text(key);
+        try {
+            using (var progress = new Capri.Setup.UninstallProgress(messages, CapriSetupLocale.RightToLeft, ""))
+                progress.Fail(message, code, "");
+            return;
+        } catch { }
         MessageBox.Show(message, CapriSetupLocale.Text("title", "Uninstall Capri"),
             MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1,
             CapriSetupLocale.RightToLeft ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : 0);

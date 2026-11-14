@@ -160,10 +160,10 @@ export class InitiativePolicy {
       if (blocked) return reason;
     if (candidate.category === 'media-app' && candidate.event.id !== this.foreground?.id)
       return 'stale_event';
-    const cooldown = Math.max(60000, 3600000 / initiativeLimit(s));
+    const cooldown = 3600000 / initiativeLimit(s);
     this.recent = this.recent.filter((t) => t > now - 3600000);
     if (now - this.lastSpoken < cooldown) return 'cooldown';
-    if (!admitted && now - this.lastAttempt < 60000) return 'attempt_cooldown';
+    if (!admitted && now - this.lastAttempt < Math.min(60000, cooldown)) return 'attempt_cooldown';
     if (this.recent.length >= initiativeLimit(s)) return 'hourly_limit';
     return 'ready';
   }

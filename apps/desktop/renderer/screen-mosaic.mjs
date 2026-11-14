@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 const WIDTH = 1280;
 const HEIGHT = 720;
+export const screenSnapshotWidth = 1920;
+export const screenSnapshotHeight = 1080;
+export const screenSnapshotBytes = 3 * 1024 * 1024;
 const MAX_MONITORS = 8;
 const GUTTER = 8;
 const LABEL_HEIGHT = 28;
 
 /** Compose the complete ordered set, preserving each monitor's aspect ratio. */
-export async function screenMosaic(tiles, label, isCurrent) {
+export async function screenMosaic(tiles, label, isCurrent, { detailed = false } = {}) {
   if (!isCurrent()) throw new Error('Screen capture was cancelled');
   if (!Array.isArray(tiles) || tiles.length < 2 || tiles.length > MAX_MONITORS)
     throw new Error('Invalid monitor frames');
@@ -22,10 +25,12 @@ export async function screenMosaic(tiles, label, isCurrent) {
         throw new Error('Invalid monitor dimensions');
     }
 
+    const width = detailed ? screenSnapshotWidth : WIDTH;
+    const height = detailed ? screenSnapshotHeight : HEIGHT;
     const columns = Math.ceil(Math.sqrt(images.length));
     const rows = Math.ceil(images.length / columns);
-    const cellWidth = Math.floor((WIDTH - GUTTER * (columns + 1)) / columns);
-    const maxImageHeight = Math.floor((HEIGHT - GUTTER * (rows + 1)) / rows) - LABEL_HEIGHT;
+    const cellWidth = Math.floor((width - GUTTER * (columns + 1)) / columns);
+    const maxImageHeight = Math.floor((height - GUTTER * (rows + 1)) / rows) - LABEL_HEIGHT;
     const sizes = images.map((image) => {
       const scale = Math.min(1, cellWidth / image.width, maxImageHeight / image.height);
       return {
@@ -37,7 +42,7 @@ export async function screenMosaic(tiles, label, isCurrent) {
       Math.max(...sizes.slice(row * columns, (row + 1) * columns).map(({ height }) => height)),
     );
     const canvas = document.createElement('canvas');
-    canvas.width = WIDTH;
+    canvas.width = width;
     canvas.height = rowHeights.reduce(
       (sum, height) => sum + height + LABEL_HEIGHT + GUTTER,
       GUTTER,
@@ -80,7 +85,23 @@ export async function screenMosaic(tiles, label, isCurrent) {
 }
 
 export async function screenPng(canvas) {
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-  if (!blob || blob.size > 3 * 1024 * 1024) throw new Error('Invalid screen frame');
+  const encode = (source) => new Promise((resolve) => source.toBlob(resolve, 'image/png'));
+  let blob = await encode(canvas);
+  if (blob?.size > screenSnapshotBytes && (canvas.width > WIDTH || canvas.height > HEIGHT)) {
+    const fallback = screenFrameCanvas(canvas, canvas.width, canvas.height, false);
+    blob = await encode(fallback);
+  }
+  if (!blob || blob.size > screenSnapshotBytes) throw new Error('Invalid screen frame');
   return blob;
+}
+
+export function screenFrameCanvas(image, width, height, detailed) {
+  const maxWidth = detailed ? screenSnapshotWidth : WIDTH;
+  const maxHeight = detailed ? screenSnapshotHeight : HEIGHT;
+  const scale = Math.min(1, maxWidth / width, maxHeight / height);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }

@@ -4,8 +4,12 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { _electron as electron } from 'playwright-core';
 import { environment, initialize, root, runtime } from '../../packages/runtime/src/index.mjs';
+import { callApplicationBridge } from '../../integrations/desktop-actions/service.mjs';
+
+const showWindow = process.platform === 'win32' && process.argv.includes('--show-window');
 
 const parent = path.join(root, '.runtime/desktop-verification');
 mkdirSync(parent, { recursive: true });
@@ -19,6 +23,13 @@ writeFileSync(
 writeFileSync(
   path.join(desktop, 'companion.json'),
   JSON.stringify({ schemaVersion: 1, settings: { glitchEnabled: false } }),
+);
+writeFileSync(
+  path.join(desktop, 'skills.json'),
+  JSON.stringify({
+    schemaVersion: 1,
+    settings: { 'capri.calculator': { enabled: true, showWindow } },
+  }),
 );
 const requests = [];
 const server = createServer((request, response) => {
@@ -59,6 +70,26 @@ const cases = [
   },
   { text: 'Calculate 6!', expression: '6!', result: '720', display: 'Result: 720' },
 ];
+if (showWindow) {
+  cases.push(
+    {
+      text: 'Use calculator and calculate sqrt(5352) - ln(5)',
+      expression: 'sqrt(5352) - ln(5)',
+      result: '71.547926720253427839964842304247080029537589732724',
+      display: 'Result: 71.54792672025343',
+      nativeExpression: /5352.*5.*=/,
+      nativeResult: /71[.,]5479267/,
+    },
+    {
+      text: 'calculate 424-55^4',
+      expression: '424-55^4',
+      result: '-9.150201e+6',
+      display: 'Result: -9.150201e+6',
+      nativeExpression: /424.*55.*4.*=/,
+      nativeResult: /[-−]9\D?150\D?201/,
+    },
+  );
+}
 let app;
 async function launch() {
   app = await electron.launch({
@@ -104,20 +135,31 @@ try {
     await page.locator('#message').fill(item.text);
     await page.waitForFunction(() => !document.getElementById('send').disabled);
     await page.locator('#message').press('Enter');
-    await page.waitForFunction(
-      async ({ display, expected }) => {
-        const { activeTurnId, messages } = await window.capri.bootstrap();
-        return (
-          !activeTurnId &&
-          messages.length === expected &&
-          messages.at(-1).status === 'complete' &&
-          messages.at(-1).text === display
-        );
-      },
-      { display: item.display, expected: (index + 1) * 2 },
-      { timeout: 15000 },
-    );
-    assert.equal(await page.locator('#subtitle-text').textContent(), item.display);
+    const expected = (index + 1) * 2;
+    const deadline = Date.now() + 15000;
+    while (true) {
+      const { activeTurnId, messages } = await page.evaluate(() => window.capri.bootstrap());
+      if (!activeTurnId && messages.length === expected && messages.at(-1).status === 'complete') {
+        assert.equal(messages.at(-1).text, item.display);
+        break;
+      }
+      assert.ok(Date.now() < deadline, 'The calculation did not complete.');
+      await delay(100);
+    }
+    if (item.nativeExpression) {
+      const { untrustedControls } = await callApplicationBridge(root, {
+        action: 'controls',
+        app: 'calculator',
+      });
+      assert.match(
+        untrustedControls.find(({ id }) => id === 'CalculatorExpression')?.name ?? '',
+        item.nativeExpression,
+      );
+      assert.match(
+        untrustedControls.find(({ id }) => id === 'CalculatorResults')?.name ?? '',
+        item.nativeResult,
+      );
+    }
   }
   assertHistory((await page.evaluate(() => window.capri.bootstrap())).messages);
   assertHistory(JSON.parse(readFileSync(path.join(desktop, 'transcript.json'), 'utf8')).messages);

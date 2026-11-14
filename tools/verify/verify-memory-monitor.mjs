@@ -147,7 +147,7 @@ try {
     }
     assert.fail('Timed out waiting for synthetic monitor sample');
   };
-  await vramWarning.getByRole('button').click();
+  await vramWarning.locator('.resource-warning-dismiss').click();
   await vramWarning.waitFor({ state: 'detached' });
   await waitSample(await sampleIndex());
   assert.equal(await vramWarning.count(), 0);
@@ -163,8 +163,8 @@ try {
     globalThis.monitorFixture.gpuFree = 3;
   });
   await vramWarning.waitFor();
-  await vramWarning.getByRole('button').click();
-  await ramWarning.getByRole('button').click();
+  await vramWarning.locator('.resource-warning-dismiss').click();
+  await ramWarning.locator('.resource-warning-dismiss').click();
   report.checks.push('Separate RAM/VRAM dismiss buttons; warning reappears only after recovery');
   const monitor = page.locator('#monitor-display');
   const ramCurve = page.locator('[data-metric="RAM"] path');

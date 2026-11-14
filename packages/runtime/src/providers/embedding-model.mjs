@@ -13,8 +13,14 @@ export async function ensureEmbeddingModel(
 ) {
   signal?.throwIfAborted();
   if (contains(inventory, model)) return inventory;
-  const repairMessage = `Memory model ${model} is missing. Run Capri Setup again to repair the installation.`;
-  if (model !== managedModel || !contains(inventory, baseModel)) throw new Error(repairMessage);
+  const repairError = () =>
+    Object.assign(
+      new Error(
+        `Memory model ${model} is missing. Run Capri Setup again to repair the installation.`,
+      ),
+      { code: 'CAPRI_MEMORY_MODEL_MISSING' },
+    );
+  if (model !== managedModel || !contains(inventory, baseModel)) throw repairError();
   try {
     const created = await requestImpl(`${rt.ollamaUrl}/api/create`, {
       method: 'POST',
@@ -29,13 +35,13 @@ export async function ensureEmbeddingModel(
       }),
     });
     signal?.throwIfAborted();
-    if (created?.error) throw new Error(repairMessage);
+    if (created?.error) throw repairError();
     const repaired = await requestImpl(`${rt.ollamaUrl}/api/tags`, { signal });
     signal?.throwIfAborted();
-    if (!contains(repaired, model)) throw new Error(repairMessage);
+    if (!contains(repaired, model)) throw repairError();
     return repaired;
   } catch {
     signal?.throwIfAborted();
-    throw new Error(repairMessage);
+    throw repairError();
   }
 }

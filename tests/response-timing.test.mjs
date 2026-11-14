@@ -53,6 +53,23 @@ test('timing records retain only bounded numeric metadata and validated technica
   assert.deepEqual(privateLogRecord(JSON.stringify(value)), value);
 });
 
+test('computer outcome logs retain bounded counts and known reasons without screen or task contents', () => {
+  const event = record({
+    stage: 'computer_outcome',
+    reason: 'checkpoint_pending',
+    steps: 1,
+    completedCheckpoints: 1,
+    remainingCheckpoints: 2,
+    goal: 'private goal',
+    scene: 'private screen',
+  });
+  const { goal, scene, ...expected } = event;
+  assert.deepEqual(privateLogRecord(JSON.stringify(event)), { schemaVersion: 1, ...expected });
+  const invalid = responseTimingRecord({ ...event, reason: 'private detail', steps: 101 });
+  assert.equal(invalid.reason, undefined);
+  assert.equal(invalid.steps, undefined);
+});
+
 test('timing logs rotate within a fixed bound without retaining ignored content', async () => {
   const parent = path.resolve('.runtime/response-timing-unit');
   mkdirSync(parent, { recursive: true });

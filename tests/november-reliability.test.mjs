@@ -165,9 +165,9 @@ test('initiative presets migrate and explicit hourly limits stay bounded', () =>
   assert.equal(validateInitiative(old).hourlyLimit, null);
   assert.equal(initiativeLimit({ ...old, level: 'occasional' }), 10);
   assert.equal(initiativeLimit({ ...old, level: 'conversational' }), 30);
-  for (const n of [1, 7, 30])
+  for (const n of [1, 7, 30, 120])
     assert.equal(initiativeLimit(validateInitiative({ ...old, hourlyLimit: n })), n);
-  for (const n of [0, 31, 2.5, '10', NaN])
+  for (const n of [0, 121, 2.5, '10', NaN])
     assert.throws(() => validateInitiative({ ...old, hourlyLimit: n }));
 });
 test('inactive and stale observation never transmit an old scene as current evidence', () => {

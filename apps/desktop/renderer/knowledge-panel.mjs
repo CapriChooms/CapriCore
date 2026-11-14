@@ -59,9 +59,9 @@ export class KnowledgePanel {
       this.onError(error.message);
     }
   }
-  async open() {
+  async open({ privateMemory = true } = {}) {
     this.show(await this.api.brainAction({ action: 'status' }));
-    await this.privateMemory.open();
+    if (privateMemory) await this.privateMemory.open();
   }
   show(value) {
     this.panel.querySelector('#brain-enabled').checked = value.enabled;

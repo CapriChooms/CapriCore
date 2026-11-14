@@ -190,6 +190,17 @@ export async function spotifyLinkTitle(uri, { fetchImpl = fetch, signal } = {}) 
   return metadata.title.trim();
 }
 
+function spotifySpawnFailure(error) {
+  if (error?.syscall?.startsWith('spawn') && ['UNKNOWN', 'EACCES', 'EPERM'].includes(error.code))
+    return Object.assign(
+      new Error(
+        'Windows could not start Capri.Spotify.exe. Check Windows Security → Protection history to see if the Spotify helper was blocked.',
+      ),
+      { code: 'CAPRI_SPOTIFY_HELPER_LAUNCH_FAILED', cause: error },
+    );
+  return error;
+}
+
 /** Private, serial stdio. Mutating commands are never retried automatically. */
 export class SpotifyWorker {
   constructor({ root, spawnImpl = spawn }) {
@@ -217,12 +228,18 @@ export class SpotifyWorker {
         .filter((name) => process.env[name])
         .map((name) => [name, process.env[name]]),
     );
-    const child = (this.child = this.spawnImpl(exe, [], {
-      cwd: this.root,
-      env,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }));
+    let child;
+    try {
+      child = this.spawnImpl(exe, [], {
+        cwd: this.root,
+        env,
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch (error) {
+      throw spotifySpawnFailure(error);
+    }
+    this.child = child;
     this.sourceHash = hash;
     let buffer = '';
     const fail = () => {
@@ -233,7 +250,12 @@ export class SpotifyWorker {
         ),
       );
     };
-    child.on('error', fail);
+    child.on('error', (error) => {
+      if (this.child !== child) return;
+      const launchError = spotifySpawnFailure(error);
+      if (launchError !== error) this.close(launchError);
+      else fail();
+    });
     child.on('exit', fail);
     child.stdin.on('error', fail);
     child.stderr.on('data', () => {});

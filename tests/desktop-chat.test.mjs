@@ -5,11 +5,17 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { ChatService, sseData, validateInput } from '../apps/desktop/chat-service.mjs';
+import { CompanionActions } from '../apps/desktop/companion-actions.mjs';
+import { createOwnerMemory } from '../apps/desktop/main/conversation-skills.mjs';
+import { clearSavedMemory } from '../apps/desktop/memory-controls.mjs';
+import { readSavedMemory } from '../apps/desktop/saved-memory.mjs';
 import { TranscriptStore } from '../apps/desktop/storage.mjs';
+import { CapriCore } from '../packages/core/src/index.mjs';
 import { root } from '../packages/runtime/src/index.mjs';
+import { ACTION_SKILLS, registerActionToolSkills } from '../packages/skills/src/action-tools.mjs';
 import { calculate } from '../integrations/desktop-actions/calculator.mjs';
 import { ApplicationService } from '../integrations/desktop-actions/service.mjs';
-import { ownerNoteRequest } from '../apps/desktop/owner-notes.mjs';
+import { ownerNoteRequest, recallOwnerNote, saveOwnerNote } from '../apps/desktop/owner-notes.mjs';
 
 mkdirSync(path.join(root, '.runtime/test-data'), { recursive: true });
 function store() {
@@ -38,13 +44,40 @@ function client(options = {}) {
   });
 }
 
-test('explicit owner notes persist and recall across fresh desktop sessions without model tools', async () => {
+test('built-in lore reaches ordinary chat by topic with owner memory disabled', async () => {
+  const prompts = [];
+  const service = client({
+    fetchImpl: async (_url, { body }) => {
+      prompts.push(JSON.parse(body).messages[1].content);
+      return response('Test reply.');
+    },
+  });
+  await service.send({ id: randomUUID(), text: 'Кто такая Талия из Бегущих по краю 2?' }, () => {});
+  await service.send({ id: randomUUID(), text: 'Как дела?' }, () => {});
+  assert.match(prompts[0], /Talia \(Edgerunners 2\).*Maelstrom/);
+  assert.doesNotMatch(prompts[1], /Cyberpunk fictional universe reference/);
+});
+
+function ownerMemoryFixture(t, workspace) {
+  const core = new CapriCore();
+  t.after(() => core.close());
+  const memory = createOwnerMemory(core, {
+    save: (note) => saveOwnerNote(workspace, note),
+    recall: (text) => recallOwnerNote(workspace, text),
+    read: () => readSavedMemory(workspace),
+    clear: () => clearSavedMemory({ workspace }, async () => {}),
+  });
+  return { core, memory };
+}
+
+test('explicit owner notes persist and recall across fresh desktop sessions without model tools', async (t) => {
   const workspace = mkdtempSync(path.join(root, '.runtime/test-data/owner-notes-'));
   const memory = path.join(workspace, 'memory', 'capri-owner-notes.md');
   writeFileSync(path.join(workspace, 'MEMORY.md'), '# Previously saved note\n');
+  const { core, memory: ownerMemory } = ownerMemoryFixture(t, workspace);
   const newSession = () =>
     client({
-      ownerMemoryWorkspace: workspace,
+      ownerMemory,
       interfaceState: () => ({ modelToolsAvailable: false }),
       prepareModel: () => assert.fail('Explicit memory requests should not load a model'),
       fetchImpl: () => assert.fail('Explicit memory requests should not reach the gateway'),
@@ -67,9 +100,20 @@ test('explicit owner notes persist and recall across fresh desktop sessions with
   assert.equal(await ask(newSession(), 'What is my test color?'), 'teal');
   assert.equal(await ask(first, 'Remember my test color is violet.'), 'Done.');
   assert.equal(await ask(newSession(), 'What is my test color?'), 'violet');
+  assert.deepEqual(ownerMemory.save('My test food is rice.', { source: 'settings' }), {
+    saved: true,
+  });
+  const saved = await ownerMemory.read();
+  assert(saved.items.some(({ text }) => text.includes('test food is rice')));
+  for (const command of ['read', 'clear'])
+    assert.throws(() => core.call({ skillId: 'capri.owner-memory', command }, { source: 'tool' }), {
+      code: 'skill_access_denied',
+    });
+  await ownerMemory.clear();
+  assert.deepEqual((await ownerMemory.read()).items, []);
 });
 
-test('explicit memory rejects credentials and linked paths without forwarding or falsely claiming success', async () => {
+test('explicit memory rejects credentials and linked paths without forwarding or falsely claiming success', async (t) => {
   const workspace = mkdtempSync(path.join(root, '.runtime/test-data/owner-notes-'));
   const outside = path.join(workspace, 'outside.md');
   const memory = path.join(workspace, 'memory', 'capri-owner-notes.md');
@@ -78,7 +122,7 @@ test('explicit memory rejects credentials and linked paths without forwarding or
   linkSync(outside, memory);
   let modelCalls = 0;
   const session = client({
-    ownerMemoryWorkspace: workspace,
+    ownerMemory: ownerMemoryFixture(t, workspace).memory,
     fetchImpl: () => {
       modelCalls++;
       return response('I can do that.');
@@ -689,6 +733,33 @@ test('Spotify planning respects permissions, cancellation and non-music verdicts
   assert.equal(events.at(-1).type, 'turn.cancelled');
 });
 
+test('failed Spotify preflight preserves diagnostic codes without attempting an action or blaming the local core in API mode', async () => {
+  const events = [];
+  const service = client({
+    externalInference: true,
+    interfaceState: () => ({ spotify: { enabled: true, prepared: true } }),
+    prepareMusic: async () => {
+      throw Object.assign(new Error('PRIVATE-UPSTREAM-BODY'), {
+        code: 'CAPRI_SPOTIFY_PLAN_HTTP_ERROR',
+        httpStatus: 400,
+      });
+    },
+    localMusic: () => assert.fail('An invalid plan must never change playback'),
+    computerTask: () => assert.fail('Music cannot fall back to a computer session'),
+    fetchImpl: () => assert.fail('A failed preflight must not retry through the gateway'),
+  });
+  await service.send({ id: randomUUID(), text: 'play something cool' }, (event) =>
+    events.push(event),
+  );
+  assert.equal(events.at(-1).type, 'turn.failed');
+  assert.match(events.at(-1).message, /API provider returned HTTP 400/);
+  assert.doesNotMatch(events.at(-1).message, /local core|PRIVATE/);
+  assert.equal(service.lastFailure.code, 'CAPRI_SPOTIFY_PLAN_HTTP_ERROR');
+  assert.equal(service.lastFailure.httpStatus, 400);
+  assert.equal(service.lastFailure.phase, 'spotify-planning');
+  assert.equal(service.active, null);
+});
+
 test('standalone calculator requests return the local result without preparing a model or opening a window', async () => {
   const events = [];
   const service = client({
@@ -751,21 +822,30 @@ test('standalone calculations respect app permissions and leave compound request
 });
 
 test('calculator requests with app wording and postfix factorial use verified local results and preserve their expressions', async () => {
+  let calculator = true;
   const applications = new ApplicationService({
     root,
     database: ':memory:',
-    permissionSnapshot: () => ({ calculator: true, notepad: false }),
+    permissionSnapshot: () => ({ calculator, notepad: false }),
     bridge: () => assert.fail('Standalone arithmetic must not open Windows Calculator'),
   });
   const calls = [];
+  const skills = new CapriCore();
+  registerActionToolSkills(skills, { applications });
+  const actions = {
+    skills,
+    authorizeAction(tool, args) {
+      assert.equal(tool, 'application_control');
+      calls.push(args);
+    },
+  };
+  const execute = (id, args, signal) =>
+    CompanionActions.prototype.execute.call(actions, 'application_control', id, args, signal);
   const service = client({
     interfaceState: () => ({ applications: { calculator: true } }),
     prepareModel: () => assert.fail('Standalone arithmetic must not load a model'),
     fetchImpl: () => assert.fail('Standalone arithmetic must not reach the gateway'),
-    localCalculation: (input, args, signal) => {
-      calls.push(args);
-      return applications.execute(input.id, args, signal);
-    },
+    localCalculation: (input, args, signal) => execute(input.id, args, signal),
   });
   try {
     for (const [text, expression, result, display] of [
@@ -801,7 +881,31 @@ test('calculator requests with app wording and postfix factorial use verified lo
       );
     }
     assert.equal(calls.length, 2);
+    assert.equal(
+      skills.describeSkills().find(({ id }) => id === ACTION_SKILLS.calculator).active,
+      true,
+    );
+    const input = { action: 'calculate', expression: '6!', showWindow: false };
+    assert.throws(
+      () =>
+        skills.call(
+          { skillId: ACTION_SKILLS.applications, command: 'execute', input },
+          { source: 'tool' },
+        ),
+      { code: 'invalid_skill_input' },
+    );
+    assert.throws(
+      () =>
+        skills.call(
+          { skillId: ACTION_SKILLS.calculator, command: 'calculate', input },
+          { source: 'companion' },
+        ),
+      { code: 'skill_access_denied' },
+    );
+    calculator = false;
+    await assert.rejects(execute(randomUUID(), input), /enable this application/);
   } finally {
+    await skills.close();
     await applications.close();
   }
 });
@@ -841,30 +945,34 @@ test('live clocks, permissions and repetition hints do not invalidate the system
   assert.ok(service.store.snapshot().every((m) => !m.text.includes('DESKTOP STATE')));
 });
 
-test('typed chat stays independent of microphone and voice state for both tool and text-only models', async () => {
+test('social chat omits device state and live screen evidence for tool and text-only models', async () => {
   for (const modelToolsAvailable of [true, false]) {
     const sent = [];
     const service = client({
-      interfaceState: () => ({ modelToolsAvailable, microphone: false, microphoneLanguage: 'en' }),
+      interfaceState: () => ({
+        modelToolsAvailable,
+        microphone: false,
+        microphoneLanguage: 'en',
+        screenObservation: {
+          active: true,
+          current: true,
+          observation: { summary: 'Unrelated live screen text' },
+        },
+      }),
+      prepareContext: (_input, options) => {
+        assert.equal(options.smallTalk, true);
+        return {};
+      },
       fetchImpl: async (_url, options) => {
         sent.push(JSON.parse(options.body).messages);
         return response('Hello.');
       },
     });
-    await service.send({ id: randomUUID(), text: 'Hello' }, () => {});
+    await service.send({ id: randomUUID(), text: 'How are you doing?' }, () => {});
     const [system, owner] = sent[0];
-    assert.match(
-      system.content,
-      /latest user message is available as text regardless of the current microphone state/,
-    );
-    assert.match(
-      system.content,
-      /Text chat, microphone capture and spoken replies are independent/,
-    );
-    assert.match(system.content, /Never infer internet status or hardware faults from audio flags/);
-    assert.doesNotMatch(system.content, /input is currently switched off/);
-    assert.equal(userText(owner.content), 'Hello');
-    assert.equal(turnState(owner.content).microphone, undefined);
+    assert.match(system.content, /Tools are unavailable/);
+    assert.doesNotMatch(system.content, /microphone state|CURRENT DESKTOP INTERFACE/);
+    assert.equal(owner.content, 'How are you doing?');
     assert.equal(service.store.snapshot().at(-1).text, 'Hello.');
   }
 });
@@ -1095,20 +1203,23 @@ test('desktop music instructions reflect actual disabled and enabled Spotify set
   const prompts = [];
   let spotify = { enabled: false, prepared: false };
   const service = client({
-    interfaceState: () => ({ spotify }),
+    interfaceState: () => ({
+      spotify,
+      activeSkills: new Set(spotify.enabled ? ['capri.spotify'] : []),
+    }),
     fetchImpl: async (_url, options) => {
       prompts.push(JSON.parse(options.body).messages);
       return response('Fixture.');
     },
   });
   await service.send({ id: randomUUID(), text: 'Can you use Spotify?' }, () => {});
-  assert.match(prompts[0][0].content, /Settings → Application access → Spotify/);
-  assert.equal(turnState(prompts[0][1].content).spotify.enabled, false);
+  assert.doesNotMatch(prompts[0][0].content, /Settings → Skills → Spotify|spotify_control/);
+  assert.doesNotMatch(prompts[0][1].content, /"spotify":/);
   spotify = { enabled: true, prepared: true };
   await service.send({ id: randomUUID(), text: 'Can you use Spotify?' }, () => {});
   assert.match(prompts[1][0].content, /Only when spotify_control is actually listed/);
   assert.equal(turnState(prompts[1][1].content).spotify.enabled, true);
-  assert.equal(prompts[0][0].content, prompts[1][0].content);
+  assert.notEqual(prompts[0][0].content, prompts[1][0].content);
 });
 
 test('aborted request releases the active turn; duplicates and concurrent sends are rejected', async () => {
@@ -1158,6 +1269,7 @@ test('microphone capability reflects current capture without changing shared con
   microphone = true;
   await service.send({ id: randomUUID(), text: 'RECOGNIZED INPUT' }, () => {});
   assert.equal(turnState(seen[0].body.messages[1].content).microphone, false);
+  assert.equal(turnState(seen[0].body.messages[1].content).speechLanguage, undefined);
   assert.equal(turnState(seen[1].body.messages[1].content).microphone, true);
   assert.equal(turnState(seen[1].body.messages[1].content).speechLanguage, 'English');
   assert.equal(seen[0].body.messages[0].content, seen[1].body.messages[0].content);
@@ -1168,16 +1280,46 @@ test('microphone capability reflects current capture without changing shared con
   );
 });
 
+test('changing the UI locale does not change the English reply prompt sent to the gateway', async () => {
+  let locale = 'fr';
+  let conversation = 'en';
+  const requests = [];
+  const service = client({
+    interfaceState: () => ({
+      languages: { interface: locale, conversation, speech: conversation, recognition: 'fr' },
+      microphone: false,
+      microphoneLanguage: 'fr',
+    }),
+    fetchImpl: async (_url, options) => {
+      requests.push(JSON.parse(options.body).messages);
+      return response('Hello.');
+    },
+  });
+  const send = () =>
+    service.send({ id: randomUUID(), text: 'Bonjour, comment vas-tu ?' }, () => {});
+  await send();
+  locale = 'de';
+  await send();
+  assert.deepEqual(requests[0], requests[1]);
+  assert.match(requests[0][0].content, /CURRENT CONVERSATION LANGUAGE: "English"/);
+  assert.doesNotMatch(requests[0][0].content, /\b(?:French|German)\b/);
+  assert.doesNotMatch(requests[0][1].content, /speechLanguage|French|German/);
+  assert.equal(userText(requests[0][1].content), 'Bonjour, comment vas-tu ?');
+
+  conversation = 'fr';
+  await send();
+  assert.match(requests[2][0].content, /CURRENT CONVERSATION LANGUAGE: "French"/);
+});
+
 test('social routing preserves shared history and leaves task tools available on the next turn', async () => {
   const seen = [],
     requests = [],
     events = [];
-  const modes = ['fast', 'normal'];
   const service = client({
     requestRouter: {
       classify: async (text, options) => {
         requests.push({ text, context: options.context });
-        return { mode: modes.shift(), reason: 'fixture' };
+        return { mode: 'normal', reason: 'fixture' };
       },
     },
     fetchImpl: async (_url, options) => {
@@ -1195,13 +1337,13 @@ test('social routing preserves shared history and leaves task tools available on
     seen[0].headers['x-openclaw-session-key'],
     seen[1].headers['x-openclaw-session-key'],
   );
-  assert.deepEqual(requests[1].context, ['Hello Capri.']);
+  assert.deepEqual(requests, [{ text: 'Check Spotify volume.', context: ['Hello Capri.'] }]);
   assert.equal(userText(seen[1].body.messages[1].content), 'Check Spotify volume.');
   assert.doesNotMatch(seen[0].body.messages[0].content, /spotify_control/);
   assert.match(seen[1].body.messages[0].content, /spotify_control/);
   assert.deepEqual(
     events.filter((e) => e.type === 'turn.routing').map((e) => e.mode),
-    ['fast', 'normal'],
+    ['normal'],
   );
 });
 
@@ -1268,7 +1410,7 @@ test('greetings use the dialogue scope without exposing permissions, including t
       await service.send({ id: randomUUID(), text }, () => {});
     for (const request of seen) {
       assert.equal(request.headers['x-capri-tools-once'], 'dialogue');
-      assert.match(request.body.messages[0].content, /one or two short sentences/);
+      assert.match(request.body.messages[0].content, /Answer the latest user message directly/);
       assert.doesNotMatch(
         request.body.messages[1].content,
         /fullComputerAccess|applications|microphone|screenObservation/,
@@ -1277,6 +1419,57 @@ test('greetings use the dialogue scope without exposing permissions, including t
     }
     assert.equal(seen[0].body.messages[1].content, 'hi capri');
   }
+});
+
+test('standalone greetings bypass stale agent context and complete despite a presentation error', async () => {
+  const calls = [];
+  const events = [];
+  const service = client({
+    interfaceState: () => ({ languages: { interface: 'en', conversation: 'ru' } }),
+    requestRouter: { classify: () => assert.fail('A greeting needs no classifier') },
+    computerIntent: () => assert.fail('A greeting needs no computer intent'),
+    prepareContext: () => ({
+      knowledgeContext: 'UNRELATED_CADDY',
+      userToolContext: 'TOOL_CONTEXT',
+    }),
+    fetchImpl: () => assert.fail('A standalone greeting does not wait for OpenClaw'),
+    directLocalDialogue: async (body) => {
+      calls.push(body);
+      return response('У меня всё хорошо. [[/reply_to:current]]');
+    },
+  });
+  const send = (text) =>
+    service.send({ id: randomUUID(), text }, (event) => {
+      events.push(event);
+      if (event.type === 'turn.completed') throw new ReferenceError('Fixture observer failed');
+    });
+  await send('Как дела?');
+  await send('Привет, Капри Как твои дела?');
+  service.store.clear();
+  await send('Как дела?');
+  assert.equal(calls.length, 3);
+  for (const body of calls) {
+    assert.equal(body.messages.length, 2);
+    assert.match(body.messages[0].content, /Test persona/);
+    assert.match(body.messages[0].content, /русском языке/);
+    assert.doesNotMatch(JSON.stringify(body), /UNRELATED_CADDY|TOOL_CONTEXT|permissions/);
+  }
+  assert.equal(events.filter(({ type }) => type === 'turn.completed').length, 3);
+  assert.ok(!events.some(({ type }) => type === 'turn.failed'));
+  assert.equal(service.store.snapshot().at(-1).text.trim(), 'У меня всё хорошо.');
+  let previousDialogue;
+  service.fetchImpl = async (_url, { body }) => {
+    const { messages } = JSON.parse(body);
+    previousDialogue = turnState(messages[1].content).previousDialogue;
+    return response('Сегодня всё спокойно.');
+  };
+  service.requestRouter = null;
+  service.computerIntent = null;
+  service.prepareContext = null;
+  await send('Что у тебя сегодня интересного?');
+  assert.equal(events.at(-1).type, 'turn.completed');
+  assert.equal(previousDialogue?.user, 'Как дела?');
+  assert.equal(previousDialogue?.reply.trim(), 'У меня всё хорошо.');
 });
 
 test('router failure falls back, while cancellation during classification sends no model request', async () => {
@@ -1412,6 +1605,29 @@ test('empty external-model replies use the existing API message and network diag
       code.startsWith('UND_') ? code : undefined,
     );
     assert.doesNotMatch(JSON.stringify(failed.diagnostics()), /private-network/);
+  }
+});
+
+test('a tool-free external turn does not request gateway tools and explains a provider size rejection', async () => {
+  for (const reply of [
+    Response.json({ error: 'private-canary' }, { status: 413 }),
+    response('', 'data: {"error":{"message":"413 Request Entity Too Large private-canary"}}\n\n'),
+  ]) {
+    const events = [];
+    const service = client({
+      externalInference: true,
+      interfaceState: () => ({ modelToolsAvailable: false }),
+      fetchImpl: async (_url, { headers }) => {
+        assert.equal(headers['x-capri-tools-once'], 'dialogue');
+        return reply;
+      },
+    });
+    await service.send({ id: randomUUID(), text: 'Tell me about forest ecology' }, (event) =>
+      events.push(event),
+    );
+    assert.match(events.at(-1).message, /HTTP 413.*request is too large/u);
+    assert.equal(service.diagnostics().lastFailure.httpStatus, 413);
+    assert.doesNotMatch(JSON.stringify(events), /private-canary/u);
   }
 });
 

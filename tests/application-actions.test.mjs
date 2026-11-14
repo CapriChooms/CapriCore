@@ -11,13 +11,14 @@ import {
 import { validateApplications } from '../integrations/desktop-actions/settings.mjs';
 import { writeJsonAtomic } from '../apps/desktop/storage.mjs';
 
-async function fixture(t, bridge) {
+async function fixture(t, bridge, showCalculatorWindow) {
   const parent = path.join(root, '.runtime/test-data');
   await fs.mkdir(parent, { recursive: true });
   const folder = await fs.mkdtemp(path.join(parent, 'apps-')),
     file = path.join(folder, 'permissions.json'),
     database = path.join(folder, 'operations.sqlite');
-  let service = new ApplicationService({ root, permissionsFile: file, database, bridge });
+  const options = { root, permissionsFile: file, database, bridge, showCalculatorWindow };
+  let service = new ApplicationService(options);
   t.after(() => service.close());
   return {
     file,
@@ -28,7 +29,7 @@ async function fixture(t, bridge) {
       writeJsonAtomic(file, { schemaVersion: 1, settings: { notepad: false, calculator: true } }),
     restart: async () => {
       await service.close();
-      service = new ApplicationService({ root, permissionsFile: file, database, bridge });
+      service = new ApplicationService(options);
     },
   };
 }
@@ -172,23 +173,46 @@ test('implicit Calculator does not infer ambiguous app actions or accept explici
   );
 });
 
-test('the model power spelling computes safely before an explicitly requested Calculator launch', async (t) => {
+test('the calculator setting sends the validated expression to Windows Calculator', async (t) => {
   const calls = [];
-  const f = await fixture(t, async (_root, command) => {
-    calls.push(command);
-    return { ok: true, launched: true };
-  });
+  const f = await fixture(
+    t,
+    async (_root, command) => {
+      calls.push(command);
+      return {
+        ok: true,
+        untrustedExpressionLabel: '424 − 55 ^ 4 =',
+        untrustedResultLabel: '-9,150,201',
+      };
+    },
+    () => true,
+  );
   const input = {
     action: 'calculate',
-    expression: '3**4 + factorial(6) - sqrt(949)',
-    showWindow: true,
+    expression: '424-55**4',
+    showWindow: false,
   };
   await assert.rejects(f.service.execute('no-grant-power', input), /enable/);
   assert.deepEqual(calls, []);
   f.grant();
   const result = await f.service.execute('window-power', input);
   assert.equal(result.ok, true);
-  assert.equal(result.displayResult, '770.1941563985013');
-  assert.deepEqual(calls, [{ action: 'launch', app: 'calculator' }]);
-  assert.equal(result.display.launched, true);
+  assert.equal(result.result, '-9.150201e+6');
+  assert.deepEqual(calls, [
+    {
+      action: 'calculate',
+      app: 'calculator',
+      buttons: '4 2 4 minus open 5 5 power 4 close',
+      expected: '-9.150201e+6',
+    },
+  ]);
+  assert.equal(result.display.ok, true);
+  assert.equal(result.untrustedResultLabel, '-9,150,201');
+  const unsupported = await f.service.execute('no-native-buttons', {
+    ...input,
+    expression: 'gcd(12, 20)',
+  });
+  assert.equal(unsupported.result, '4');
+  assert.equal(unsupported.display.ok, false);
+  assert.equal(calls.length, 1);
 });

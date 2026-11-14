@@ -31,6 +31,7 @@ export class ReplyVisibility {
         text: '',
         complete: false,
         generated: false,
+        spoken: false,
         playing: false,
         speechExpected,
         protected: false,
@@ -55,6 +56,7 @@ export class ReplyVisibility {
   expectSpeech(id) {
     if (id !== this.current?.id) return;
     this.current.speechExpected = true;
+    this.current.spoken = true;
     if (!this.manual) this.setHidden(false);
     this.arm();
   }
@@ -108,8 +110,8 @@ export class ReplyVisibility {
       return;
     const id = current.id;
     // Long text-only replies receive bounded extra reading time.
-    const delay = current.speechExpected
-      ? this.delayMs
+    const delay = current.spoken
+      ? 0
       : Math.max(this.delayMs, Math.min(30000, current.text.length * 30));
     this.timer = this.setTimer(() => {
       this.timer = undefined;

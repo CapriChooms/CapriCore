@@ -20,6 +20,20 @@ class ComputerControlFixture {
     doubleTarget.MouseUp+=(s,e)=>{if(e.Button==MouseButtons.Right)Record("right-click");if(e.Button==MouseButtons.Middle)Record("middle-click");};
     var menu=new ContextMenuStrip();menu.Items.Add("Insert verification clip",null,(s,e)=>Record("menu-action"));doubleTarget.ContextMenuStrip=menu;
     form.Controls.Add(field);form.Controls.Add(button);form.Controls.Add(paste);form.Controls.Add(clip);form.Controls.Add(timeline);form.Controls.Add(doubleTarget);
+    if(Array.IndexOf(args,"--pointer-regression")>=0){
+      form.Width=810;
+      var moving=new Button{Left=495,Top=90,Width=120,Height=40,Text="Relocating target"};
+      moving.MouseEnter+=(s,e)=>{if(moving.Left==495){moving.Left=645;Record("target-relocated");}};
+      moving.Click+=(s,e)=>Record("relocated-click");
+      var hidden=new Button{Left=495,Top=165,Width=180,Height=45,Text="Covered target"};
+      var cover=new Button{Left=495,Top=165,Width=180,Height=45,Text="Covering target"};
+      hidden.Click+=(s,e)=>Record("covered-click");
+      cover.Click+=(s,e)=>Record("cover-click");
+      var rename=new Button{Left=495,Top=240,Width=180,Height=45,Text="Changes after click"};
+      rename.Click+=(s,e)=>{Record("rename-click");rename.Text="Different action";};
+      form.Controls.AddRange(new Control[]{moving,hidden,cover,rename});
+      cover.BringToFront();
+    }
     clip.MouseDown+=(s,e)=>{if(e.Button==MouseButtons.Left){Record("drag-ctrl:"+((Control.ModifierKeys&Keys.Control)!=0));clip.DoDragDrop("Capri test clip",DragDropEffects.Copy);}};
     timeline.DragEnter+=(s,e)=>{if(e.Data.GetDataPresent(DataFormats.Text))e.Effect=DragDropEffects.Copy;};
     timeline.DragDrop+=(s,e)=>{if((string)e.Data.GetData(DataFormats.Text)=="Capri test clip"){timeline.Text="Clip placed";timeline.AccessibleName="Clip placed";Record("drop");}};

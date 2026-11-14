@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-/** Local, read-only notes. Never render memory as HTML or treat it as interface text. */
+/** Never render memory as HTML or treat it as interface text. */
 export class SavedMemoryPanel {
   constructor({ element, toggle, api, ui }) {
     Object.assign(this, { element, toggle, api, ui });
@@ -8,8 +8,8 @@ export class SavedMemoryPanel {
     this.state = 'idle';
     element.innerHTML = `
       <div class="saved-memory-heading"><strong>Saved memories</strong><button type="button" id="saved-memory-refresh">Refresh</button></div>
-      <p class="saved-memory-help">These are Capri’s saved notes, shown as written. Conversation history is separate.</p>
-      <label for="saved-memory-new">Add a memory</label><textarea id="saved-memory-new" rows="3" maxlength="1200" placeholder="A fact you want Capri to remember…"></textarea><button id="saved-memory-add" type="button">Save memory</button><p id="saved-memory-receipt" role="status"></p>
+      <p class="saved-memory-help">Facts Capri can recall in future conversations.</p>
+      <label for="saved-memory-new">Add a memory</label><textarea id="saved-memory-new" rows="3" maxlength="280" placeholder="A fact you want Capri to remember…"></textarea><button id="saved-memory-add" type="button">Save memory</button><button id="saved-memory-cancel" type="button" hidden>Cancel</button><p id="saved-memory-receipt" role="status"></p>
       <input id="saved-memory-search" type="search" maxlength="200" placeholder="Search saved memories…" aria-label="Search saved memories…" autocomplete="off" spellcheck="false">
       <p id="saved-memory-status" role="status" aria-live="polite"></p>
       <ul id="saved-memory-list" data-untranslated aria-label="Saved memories"></ul>
@@ -26,14 +26,23 @@ export class SavedMemoryPanel {
     const add = element.querySelector('#saved-memory-add'),
       note = element.querySelector('#saved-memory-new'),
       receipt = element.querySelector('#saved-memory-receipt');
+    const cancel = element.querySelector('#saved-memory-cancel');
+    this.stopEditing = () => {
+      this.editing = undefined;
+      note.value = '';
+      cancel.hidden = true;
+    };
+    cancel.onclick = this.stopEditing;
     add.onclick = async () => {
       if (!note.value.trim()) return;
       add.disabled = true;
       receipt.textContent = '';
       try {
-        const result = await api.saveMemory(note.value.trim());
-        if (result.saved !== true) throw new Error('The memory could not be verified.');
-        note.value = '';
+        if (this.editing)
+          await api.changeSavedMemory({ id: this.editing, text: note.value.trim() });
+        else if ((await api.saveMemory(note.value.trim())).saved !== true)
+          throw new Error('The memory could not be verified.');
+        this.stopEditing();
         receipt.textContent = ui.text('Memory saved and verified.');
         await this.load();
       } catch (error) {
@@ -65,7 +74,7 @@ export class SavedMemoryPanel {
     this.toggle.textContent = this.ui.text('View saved memories');
     this.items = [];
     this.search.value = '';
-    this.element.querySelector('#saved-memory-new').value = '';
+    this.stopEditing();
     this.element.querySelector('#saved-memory-receipt').textContent = '';
     this.list.replaceChildren();
     this.status.textContent = '';
@@ -105,36 +114,46 @@ export class SavedMemoryPanel {
     this.list.setAttribute('aria-label', this.ui.text('Saved memories'));
     const query = this.search.value.normalize('NFKC').toLocaleLowerCase(this.ui.language).trim();
     const words = query.split(/\s+/u).filter(Boolean);
-    const items = this.items.filter(({ text, source }) => {
-      const content = (text + ' ' + source).normalize('NFKC').toLocaleLowerCase(this.ui.language);
+    const items = this.items.filter(({ text }) => {
+      const content = text.normalize('NFKC').toLocaleLowerCase(this.ui.language);
       return words.every((word) => content.includes(word));
     });
     this.list.replaceChildren(
-      ...items.map(({ text, source, date }) => {
+      ...items.map(({ text, id }) => {
         const item = document.createElement('li');
         item.className = 'saved-memory-note';
         const content = document.createElement('p');
         content.dir = 'auto';
         content.textContent = text;
-        const meta = document.createElement('div');
-        meta.className = 'saved-memory-source';
-        const name = document.createElement('span');
-        name.dir = 'auto';
-        name.textContent = source;
-        meta.append(name);
-        if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-          const time = document.createElement('time');
-          time.dateTime = date;
-          const value = new Date(date + 'T12:00:00Z');
-          time.textContent = Number.isFinite(value.valueOf())
-            ? new Intl.DateTimeFormat(this.ui.language, {
-                dateStyle: 'medium',
-                timeZone: 'UTC',
-              }).format(value)
-            : date;
-          meta.append(time);
-        }
-        item.append(content, meta);
+        const actions = document.createElement('div');
+        actions.className = 'settings-actions';
+        const edit = document.createElement('button');
+        const remove = document.createElement('button');
+        edit.type = remove.type = 'button';
+        edit.textContent = this.ui.text('Edit');
+        remove.textContent = this.ui.text('Delete');
+        edit.onclick = () => {
+          const input = this.element.querySelector('#saved-memory-new');
+          this.editing = id;
+          input.value = text;
+          this.element.querySelector('#saved-memory-cancel').hidden = false;
+          input.focus();
+        };
+        remove.onclick = async () => {
+          remove.disabled = true;
+          const receipt = this.element.querySelector('#saved-memory-receipt');
+          try {
+            await this.api.changeSavedMemory({ id });
+            if (this.editing === id) this.stopEditing();
+            receipt.textContent = this.ui.text('Memory deleted.');
+            await this.load();
+          } catch (error) {
+            receipt.textContent = this.ui.text(error.message);
+            remove.disabled = false;
+          }
+        };
+        actions.append(edit, remove);
+        item.append(content, actions);
         return item;
       }),
     );

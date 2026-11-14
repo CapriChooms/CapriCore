@@ -4,7 +4,7 @@ import path from 'node:path';
 import { noLinks } from '../../packages/installer/src/policy.mjs';
 import { writeJsonAtomic } from './storage.mjs';
 import { githubCredential, listReleases } from '../../packages/updater/src/github.mjs';
-import { REPOSITORY } from '../../packages/updater/src/releases.mjs';
+import { EXPERIMENTAL_REPOSITORY } from '../../packages/updater/src/releases.mjs';
 
 export const GITHUB_ACCESS_URL =
   'https://github.com/settings/personal-access-tokens/new?name=Capri%20updates&description=Read%20Capri%20releases&target_name=CapriChooms&expires_in=90&contents=read';
@@ -93,7 +93,7 @@ export class GitHubAccess {
       connected,
       secureStorage: await this.storage.available(),
       checking: Boolean(this.controller),
-      repository: REPOSITORY,
+      repository: EXPERIMENTAL_REPOSITORY,
       error,
     };
   }
@@ -146,7 +146,7 @@ export class GitHubAccess {
     const controller = (this.controller = new AbortController());
     try {
       // Validates read access to this fixed repository, never arbitrary account URLs.
-      await this.verify({ token, signal: controller.signal });
+      await this.verify({ token, signal: controller.signal, repository: EXPERIMENTAL_REPOSITORY });
       controller.signal.throwIfAborted();
       const encrypted = await this.storage.encrypt(token);
       controller.signal.throwIfAborted();

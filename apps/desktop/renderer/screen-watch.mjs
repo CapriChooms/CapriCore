@@ -1,5 +1,11 @@
 import { sampleScreen } from './screen-change.mjs';
-import { screenMosaic, screenPng } from './screen-mosaic.mjs';
+import {
+  screenFrameCanvas,
+  screenMosaic,
+  screenPng,
+  screenSnapshotHeight,
+  screenSnapshotWidth,
+} from './screen-mosaic.mjs';
 
 /** Owns one explicitly selected source or monitor set and fences work to that lease. */
 export class ScreenWatch {
@@ -24,8 +30,8 @@ export class ScreenWatch {
       stream = await navigator.mediaDevices.getDisplayMedia({
         audio: false,
         video: {
-          width: { ideal: 1280, max: 1280 },
-          height: { ideal: 720, max: 720 },
+          width: { ideal: screenSnapshotWidth, max: screenSnapshotWidth },
+          height: { ideal: screenSnapshotHeight, max: screenSnapshotHeight },
           frameRate: { ideal: 1, max: 1 },
         },
       });
@@ -92,7 +98,7 @@ export class ScreenWatch {
     if (!this.video.videoWidth || !this.video.videoHeight)
       await waitForScreenFrame(this.video, 8000);
   }
-  async mosaic(run) {
+  async mosaic(run, detailed = false) {
     const isCurrent = () => this.run === run;
     // A foreground request waits for any sample in progress, then takes its own fresh set.
     const previous = run.mosaicRequest ?? Promise.resolve();
@@ -101,7 +107,7 @@ export class ScreenWatch {
       .then(async () => {
         if (!isCurrent()) throw new Error('Cancelled');
         const tiles = await this.api.screenMonitorFrames(run.id);
-        return screenMosaic(tiles, this.monitorLabel, isCurrent);
+        return screenMosaic(tiles, this.monitorLabel, isCurrent, { detailed });
       });
     run.mosaicRequest = request;
     try {
@@ -117,9 +123,9 @@ export class ScreenWatch {
     if (this.run !== run) throw new Error('Cancelled');
     return png;
   }
-  async image(run = this.run) {
+  async image(run = this.run, detailed = true) {
     if (!run?.ready || this.run !== run) throw new Error('Screen observation is off');
-    if (run.allMonitors) return this.png(run, await this.mosaic(run));
+    if (run.allMonitors) return this.png(run, await this.mosaic(run, detailed));
     // Grab from the permitted source track, independently of a hidden/throttled
     // preview element. Reusing its last decoded video frame can show old pixels.
     let bitmap;
@@ -158,14 +164,12 @@ export class ScreenWatch {
     }
     try {
       if (!run.ready || this.run !== run) throw new Error('Screen observation is off');
-      const image = bitmap ?? this.video;
-      const canvas = document.createElement('canvas'),
-        width = bitmap?.width ?? this.video.videoWidth,
-        height = bitmap?.height ?? this.video.videoHeight,
-        scale = Math.min(1, 1280 / width, 720 / height);
-      canvas.width = Math.max(1, Math.round(width * scale));
-      canvas.height = Math.max(1, Math.round(height * scale));
-      canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+      const canvas = screenFrameCanvas(
+        bitmap ?? this.video,
+        bitmap?.width ?? this.video.videoWidth,
+        bitmap?.height ?? this.video.videoHeight,
+        detailed,
+      );
       return await this.png(run, canvas);
     } finally {
       bitmap?.close();
@@ -195,7 +199,7 @@ export class ScreenWatch {
         this.mosaicPreview.hidden = false;
       }
       if (result.analyse) {
-        const png = mosaic ? await this.png(run, mosaic) : await this.image(run);
+        const png = mosaic ? await this.png(run, mosaic) : await this.image(run, false);
         if (this.run !== run) return;
         await this.api.screenWatchFrame({
           captureId: run.id,

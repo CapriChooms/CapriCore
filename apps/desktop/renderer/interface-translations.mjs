@@ -1,5 +1,6 @@
 import bundle from '../../shared/interface-locales.json' with { type: 'json' };
 import languages from '../../shared/languages.json' with { type: 'json' };
+import { SKILL_TEXT_RU } from '../../../packages/skills/src/settings-catalog.mjs';
 
 export const INTERFACE_LOCALES = Object.freeze(
   Object.values(bundle.locales).map(({ messages, ...meta }) => Object.freeze(meta)),
@@ -40,6 +41,8 @@ function interpolate(text, values) {
 export function uiText(text, language = 'en', values) {
   if (typeof text !== 'string') return text;
   const normalized = text.replace(/\s+/g, ' ').trim();
+  if (language === 'ru' && Object.hasOwn(SKILL_TEXT_RU, normalized))
+    return SKILL_TEXT_RU[normalized];
   if (
     !Object.hasOwn(bundle.locales.en.messages, text) &&
     Object.hasOwn(bundle.locales.en.messages, normalized)

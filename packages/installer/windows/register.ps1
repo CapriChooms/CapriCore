@@ -172,7 +172,7 @@ if($hasUninstallLauncher){
     $pendingUninstall=Join-Path $root ('.runtime/installer/uninstall-'+[Guid]::NewGuid().ToString('N')+'.exe')
     Assert-CapriNoLinks $uninstallLauncher
     try {
-        & $csc /nologo /target:winexe /platform:x64 /optimize+ ('/win32icon:'+(Join-Path $root 'assets/default/app.ico')) ('/out:'+$pendingUninstall) /reference:System.Windows.Forms.dll /reference:System.Web.Extensions.dll ('/resource:'+$uninstallCatalog+',CapriSetupTranslations') $launcherSource $localeSource $generatedUninstall
+        & $csc /nologo /target:winexe /platform:x64 /optimize+ ('/win32icon:'+(Join-Path $root 'assets/default/app.ico')) ('/out:'+$pendingUninstall) /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll ('/resource:'+$uninstallCatalog+',CapriSetupTranslations') $launcherSource $localeSource (Join-Path $PSScriptRoot 'uninstall-window.cs') $generatedUninstall
         if($LASTEXITCODE -ne 0){throw 'Could not create the Capri uninstaller.'}
         Move-Item -LiteralPath $pendingUninstall -Destination $uninstallLauncher -Force
     } finally {

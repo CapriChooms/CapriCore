@@ -343,7 +343,7 @@ export class TimeService {
     return result;
   }
   async tick() {
-    if (this.ticking || this.closed) return;
+    if (this.ticking || this.closed || this.suspended) return;
     this.ticking = true;
     try {
       let changed = false;
@@ -391,14 +391,20 @@ export class TimeService {
     }
   }
   start() {
+    this.suspended = false;
     if (!this.interval) {
       this.interval = setInterval(() => this.tick().catch(() => {}), 500);
       this.interval.unref?.();
     }
   }
+  suspend() {
+    this.suspended = true;
+    clearInterval(this.interval);
+    this.interval = null;
+  }
   close() {
     if (this.closed) return;
-    clearInterval(this.interval);
+    this.suspend();
     for (const row of this.snapshot().filter((item) => item.state === 'running'))
       this.db
         .prepare('UPDATE clocks SET elapsed=?,started=?,due=?,updated=? WHERE id=?')

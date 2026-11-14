@@ -2,11 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Microsoft.Win32.SafeHandles;
 
@@ -25,11 +27,11 @@ namespace Capri.Setup {
         private Label stage, count;
         private TextBox details;
         private ProgressBar bar;
-        private Button close;
+        private Button close, report;
         private Exception startupError;
-        private string stageKey = "progressPreparing", errorDetails;
+        private string stageKey = "progressPreparing", errorDetails, failureCode, version;
         private long processed;
-        private bool complete, failed, allowClose, disposeRequested;
+        private bool complete, failed, failureLayoutShown, allowClose, disposeRequested;
         [DllImport("user32.dll")]
         private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
 
@@ -72,8 +74,10 @@ namespace Capri.Setup {
                     if (File.Exists(iconPath)) window.Icon = new Icon(iconPath);
                     var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(22),
                         ColumnCount = 1, RowCount = 5 };
-                    foreach (int height in new[] { 52, 28, 26, 0, 52 })
+                    foreach (int height in new[] { 52, 28, 26 })
                         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+                    layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                    layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
                     stage = new Label { Name = "progress-stage", Dock = DockStyle.Fill,
                         Font = new Font(window.Font, FontStyle.Bold) };
                     count = new Label { Name = "progress-count", Dock = DockStyle.Fill };
@@ -83,9 +87,12 @@ namespace Capri.Setup {
                         Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Visible = false };
                     close = new Button { Name = "progress-close", Text = Text("progressClose", "Close"),
                         AutoSize = true, Enabled = false, Visible = false };
-                    var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill,
+                    report = new Button { Name = "progress-report", Text = Text("reportBug", "Report a bug"),
+                        AutoSize = true, Visible = false };
+                    var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true,
                         FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 12, 0, 0) };
                     buttons.Controls.Add(close);
+                    buttons.Controls.Add(report);
                     layout.Controls.Add(stage, 0, 0);
                     layout.Controls.Add(count, 0, 1);
                     layout.Controls.Add(bar, 0, 2);
@@ -93,6 +100,13 @@ namespace Capri.Setup {
                     layout.Controls.Add(buttons, 0, 4);
                     window.Controls.Add(layout);
                     close.Click += (sender, args) => window.Close();
+                    report.Click += (sender, args) => {
+                        if (!OpenReport(failureCode, stageKey, version, Interlocked.Read(ref processed))) {
+                            details.Text = ReportUrl(failureCode, stageKey, version, Interlocked.Read(ref processed));
+                            details.Focus();
+                            details.SelectAll();
+                        }
+                    };
                     window.FormClosing += (sender, args) => { if (!allowClose) args.Cancel = true; };
                     timer.Tick += (sender, args) => Render();
                     window.Shown += (sender, args) => {
@@ -121,11 +135,14 @@ namespace Capri.Setup {
                 close.Visible = close.Enabled = allowClose = true;
                 form.AcceptButton = close;
                 form.CancelButton = close;
-                if (failure && !details.Visible) {
-                    ((TableLayoutPanel)details.Parent).RowStyles[3].Height = 130;
-                    form.ClientSize = new Size(form.ClientSize.Width, form.ClientSize.Height + 130);
+                if (failure && !failureLayoutShown) {
+                    failureLayoutShown = true;
+                    int height = Math.Min(form.ClientSize.Height + 150 * form.DeviceDpi / 96,
+                        Screen.FromControl(form).WorkingArea.Height - (form.Height - form.ClientSize.Height));
+                    form.ClientSize = new Size(form.ClientSize.Width, height);
                     details.Text = Text("technicalDetails", "Technical details") + ":\r\n" + error;
                     details.Visible = true;
+                    report.Visible = true;
                 }
             }
         }
@@ -143,10 +160,33 @@ namespace Capri.Setup {
             Invoke(() => { Render(); form.Show(); });
             closed.Wait();
         }
-        public void Fail(string message) {
-            lock (stateLock) { failed = true; errorDetails = message; }
+        public void Fail(string message) { Fail(message, "UNINSTALL_FAILED", ""); }
+        public void Fail(string message, string code, string installedVersion) {
+            lock (stateLock) {
+                failed = true;
+                errorDetails = message;
+                failureCode = code;
+                version = installedVersion;
+            }
             Invoke(() => { Render(); form.Show(); });
             closed.Wait();
+        }
+        internal static string ReportUrl(string code, string phase, string version, long processed) {
+            if (!Regex.IsMatch(code ?? "", @"\AUNINSTALL_[A-Z_]{1,40}\z")) code = "UNINSTALL_FAILED";
+            if (!Regex.IsMatch(phase ?? "", @"\Aprogress(Preparing|Stopping|Removing|Cleaning|Finishing)\z"))
+                phase = "progressPreparing";
+            if (!Regex.IsMatch(version ?? "", @"\A[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}\z")) version = "";
+            string diagnostics = code + "\nPhase: " + phase + "\nItems processed: " + processed;
+            return "https://github.com/CapriChooms/CapriCore/issues/new?template=bug_report.yml" +
+                "&title=" + Uri.EscapeDataString("[Bug]: Capri uninstall failed") +
+                "&version=" + Uri.EscapeDataString(version) + "&diagnostics=" + Uri.EscapeDataString(diagnostics);
+        }
+        internal static bool OpenReport(string code, string phase, string version, long processed) {
+            try {
+                using (Process.Start(new ProcessStartInfo(ReportUrl(code, phase, version, processed)) { UseShellExecute = true })) {}
+                return true;
+            } catch (Win32Exception) { return false; }
+            catch (InvalidOperationException) { return false; }
         }
         public void Dispose() {
             disposeRequested = true;
@@ -310,8 +350,10 @@ namespace Capri.Setup {
                     WrapContents = false };
                 var cancel = new Button { Text = messages["cancel"], AutoSize = true, DialogResult = DialogResult.Cancel };
                 var remove = new Button { Text = messages["remove"], AutoSize = true, Enabled = false };
+                var report = new Button { Text = messages["reportBug"], AutoSize = true, Visible = false };
                 buttons.Controls.Add(cancel);
                 buttons.Controls.Add(remove);
+                buttons.Controls.Add(report);
                 add(buttons, 7);
                 form.CancelButton = cancel;
                 form.AcceptButton = remove;
@@ -340,7 +382,12 @@ namespace Capri.Setup {
                     } catch {
                         if (form.IsDisposed) return;
                         status.Text = messages["measureFailed"];
+                        report.Visible = true;
                     }
+                };
+                report.Click += (sender, args) => {
+                    if (!UninstallProgress.OpenReport("UNINSTALL_MEASURE_FAILED", "progressPreparing", "", 0))
+                        MessageBox.Show(form, UninstallProgress.ReportUrl("UNINSTALL_MEASURE_FAILED", "progressPreparing", "", 0), form.Text);
                 };
                 remove.Click += (sender, args) => {
                     if (MessageBox.Show(form, messages["confirm"], form.Text, MessageBoxButtons.YesNo,

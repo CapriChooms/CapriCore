@@ -167,19 +167,22 @@ export class ScreenCapturePolicy {
     for (const source of sources) {
       if (typeof source.id !== 'string' || !(windowId.test(source.id) || monitorId.test(source.id)))
         continue;
+      const displayId = String(source.display_id ?? '');
       const label = String(source.name ?? 'Selected source')
         .replace(/[\x00-\x1f]/g, '')
         .slice(0, 160);
       const token =
         previous.find(
           ([, selected]) =>
-            !selected.allMonitors && selected.nativeId === source.id && selected.label === label,
+            !selected.allMonitors &&
+            selected.nativeId === source.id &&
+            selected.displayId === displayId &&
+            selected.label === label,
         )?.[0] ?? randomUUID();
       this.catalog.set(token, {
         nativeId: source.id,
-        displayId: String(source.display_id ?? ''),
+        displayId,
         label,
-        expiresAt: this.now() + 30000,
       });
     }
     const layout = displayEpoch === this.displayEpoch ? this.monitorLayout(sources, true) : null;
@@ -195,7 +198,6 @@ export class ScreenCapturePolicy {
         layoutKey,
         monitorIds: Object.freeze(layout.map((monitor) => monitor.nativeId)),
         displayIds: Object.freeze(layout.map((monitor) => monitor.displayId)),
-        expiresAt: this.now() + 30000,
       });
     }
     return [...this.catalog.entries()].map(([id, s]) => ({
@@ -216,8 +218,9 @@ export class ScreenCapturePolicy {
     )
       throw new Error('Invalid screen capture mode');
     const selected = this.catalog.get(token);
-    if (!selected || selected.expiresAt < this.now())
-      throw new Error('Choose an available screen source again');
+    if (!selected) throw new Error('Choose an available screen source again');
+    // Arm immediately so Chromium can read the click's transient activation.
+    // consume() revalidates this exact selection before providing any pixels.
     this.stop();
     const id = randomUUID();
     this.capture = {
@@ -244,19 +247,12 @@ export class ScreenCapturePolicy {
       ...(selected.allMonitors && { allMonitors: true }),
     };
   }
-  async renewSelection(token) {
-    const selected = this.catalog.get(token),
-      epoch = this.epoch;
-    if (!selected) throw new Error('Choose an available screen source again');
-    const sources = await this.enumerate([
-      selected.nativeId.startsWith('window:') ? 'window' : 'screen',
-    ]);
-    if (epoch !== this.epoch || this.catalog.get(token) !== selected)
-      throw new Error('The selected source is no longer available');
-    if (selected.allMonitors) this.matchingMonitors(sources, selected);
-    else if (!sources.some((source) => source.id === selected.nativeId))
-      throw new Error('The selected source is no longer available');
-    selected.expiresAt = this.now() + 30000;
+  matchingSource(sources, capture) {
+    return sources.find(
+      (source) =>
+        source.id === capture.nativeId &&
+        (!capture.displayId || String(source.display_id ?? '') === capture.displayId),
+    );
   }
   permits(request) {
     if (!request || typeof request !== 'object') return false;
@@ -297,7 +293,7 @@ export class ScreenCapturePolicy {
         throw new Error('Screen capture was cancelled');
       const source = capture.allMonitors
         ? this.matchingMonitors(sources, capture)[0]
-        : sources.find((s) => s.id === capture.nativeId);
+        : this.matchingSource(sources, capture);
       if (!source) throw new Error('Selected screen source is no longer available');
       // Recheck the exact requesting frame after enumeration; no source fallback.
       if (request.frame !== this.ownerFrame() || request.frame.url !== desktopUrl)
@@ -317,7 +313,7 @@ export class ScreenCapturePolicy {
       if (capture.allMonitors) this.requireMonitorLease(capture, request.frame);
       reply({ video: source });
     } catch {
-      if (this.capture === capture) this.stop();
+      if (this.capture === capture) this.stop('source-unavailable');
       reply({});
     }
   }
@@ -406,7 +402,7 @@ export class ScreenCapturePolicy {
       if (capture.allMonitors) {
         this.requireMonitorLease(capture, capture.frame);
         this.matchingMonitors(sources, capture);
-      } else if (!sources.some((source) => source.id === capture.nativeId)) {
+      } else if (!this.matchingSource(sources, capture)) {
         this.stop('source-unavailable');
         return false;
       }

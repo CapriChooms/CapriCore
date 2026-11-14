@@ -1,13 +1,15 @@
 /** Bounded local service requests; callers may supply cancellation. */
 export async function request(
   url,
-  { timeout = 10000, maxBytes = 16 * 1024 * 1024, signal, ...options } = {},
+  { timeout = 10000, maxBytes = 16 * 1024 * 1024, signal, onHttpError, ...options } = {},
 ) {
   const timer = AbortSignal.timeout(timeout),
     combined = signal ? AbortSignal.any([timer, signal]) : timer;
   const response = await fetch(url, { ...options, redirect: 'error', signal: combined });
   if (!response.ok) {
     await response.body?.cancel();
+    const error = onHttpError?.(response);
+    if (error) throw error;
     throw new Error(`HTTP ${response.status} from ${new URL(url).origin}`);
   }
   const reader = response.body?.getReader();

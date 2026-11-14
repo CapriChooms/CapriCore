@@ -4,6 +4,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { createDesktopResources } from '../../apps/desktop/main/resources.mjs';
+
+const runtimeConfiguration = new Set(['config/memory-estimates.json', 'config/llama-models.json']);
+
 export function checkDependencies() {
   const resources = createDesktopResources({
     root,
@@ -49,7 +52,7 @@ export function checkDependencies() {
         if (
           name.startsWith('packages/runtime/src/') &&
           !relative.startsWith('packages/runtime/src/') &&
-          relative !== 'config/memory-estimates.json'
+          !runtimeConfiguration.has(relative)
         )
           errors.push(name + ': runtime depends on application code');
       }

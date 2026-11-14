@@ -60,7 +60,7 @@ test('missing base weights and missing custom models request Setup repair withou
         ...options,
         requestImpl: async () => assert.fail('No weights may be downloaded or substituted'),
       }),
-      /Run Capri Setup again to repair/,
+      { code: 'CAPRI_MEMORY_MODEL_MISSING', message: /Run Capri Setup again to repair/ },
     );
   }
   const current = inventory('custom-memory:latest');
@@ -82,7 +82,7 @@ test('a failed or unverified alias creation stays a startup failure with an acti
         requestImpl: async (url) =>
           url.endsWith('/api/create') ? response : inventory('bge-m3:latest'),
       }),
-      /Run Capri Setup again to repair/,
+      { code: 'CAPRI_MEMORY_MODEL_MISSING', message: /Run Capri Setup again to repair/ },
     );
   }
 });

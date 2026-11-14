@@ -8,6 +8,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
+import { skillPreferences } from '../../packages/skills/src/settings-catalog.mjs';
 import { settingsView } from './settings-view.mjs';
 
 const parent = path.join(root, '.runtime', 'screen-verification');
@@ -97,6 +98,14 @@ const rt = runtime({
   gatewayPort: port,
 });
 initialize(rt);
+mkdirSync(path.join(folder, 'desktop'), { recursive: true });
+writeFileSync(
+  path.join(folder, 'desktop/skills.json'),
+  JSON.stringify({
+    schemaVersion: 1,
+    settings: skillPreferences({ 'capri.screen': { enabled: true, showButton: true } }),
+  }),
+);
 const env = {
   ...environment(rt),
   CAPRI_DESKTOP_VERIFICATION_DIR: folder,
@@ -132,9 +141,9 @@ async function sampleMosaic(element) {
   };
 }
 
-function assertMosaic(frame, colors) {
-  assert.ok(frame.width > 0 && frame.width <= 1280);
-  assert.ok(frame.height > 0 && frame.height <= 720);
+function assertMosaic(frame, colors, detailed = false) {
+  assert.equal(frame.width, detailed ? 1920 : 1280);
+  assert.ok(frame.height > 0 && frame.height <= (detailed ? 1080 : 720));
   assert.deepEqual(frame.colors, colors);
 }
 
@@ -208,7 +217,7 @@ try {
     [255, 0, 0],
     [0, 0, 255],
   ];
-  assertMosaic(await preview.evaluate(sampleMosaic), originalColors);
+  assertMosaic(await preview.evaluate(sampleMosaic), originalColors, true);
   assert.equal((await companion.evaluate(() => window.capri.bootstrap())).screen.active, false);
 
   await settings.locator('#screen-watch-start').click();
@@ -233,7 +242,7 @@ try {
     { source: 'screen:1:0', gesture: true },
   ]);
 
-  async function checkAnalysis(request, colors) {
+  async function checkAnalysis(request, colors, detailed = false) {
     assert.deepEqual(request.tools, []);
     const images = request.messages.at(-1).images;
     assert.equal(images.length, 1);
@@ -250,7 +259,7 @@ try {
         }),
       };
     }, images[0]);
-    assertMosaic(sizeAndColors, colors);
+    assertMosaic(sizeAndColors, colors, detailed);
   }
   assert.match(analysisRequests[0].messages[0].content, /grid of separate monitors/);
   await checkAnalysis(analysisRequests[0], originalColors);
@@ -268,9 +277,9 @@ try {
   await companion.waitForSelector('.message[data-role="assistant"][data-status="complete"]', {
     state: 'attached',
   });
-  const foreground = analysisRequests.find((request) => request.options.num_predict === 384);
+  const foreground = analysisRequests.find((request) => request.options.num_predict > 192);
   assert.ok(foreground, 'An ordinary question should trigger a fresh mosaic');
-  await checkAnalysis(foreground, freshColors);
+  await checkAnalysis(foreground, freshColors, true);
   assert.equal(dialogueRequests.length, 1);
   assert.match(dialogueRequests[0].messages.at(-1).content, /Two generated colored screens/);
   assert.equal(JSON.stringify(dialogueRequests[0]).includes('iVBORw0KGgo'), false);

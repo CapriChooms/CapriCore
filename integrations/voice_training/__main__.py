@@ -16,7 +16,7 @@ from .dataset import (
 )
 
 
-def doctor(config):
+def doctor(config, *, inference_only=False):
     import torch
 
     from .provision import verify_model
@@ -34,31 +34,34 @@ def doctor(config):
     }
     from integrations.voice_runtime.compatibility import cuda_preflight
     report['cudaCompute'] = cuda_preflight(torch)
-    if report["cuda"]:
-        free, total = torch.cuda.mem_get_info()
-        report.update(
-            gpu=torch.cuda.get_device_name(),
-            freeVramGiB=round(free / 1024**3, 2),
-            totalVramGiB=round(total / 1024**3, 2),
-        )
+    if report["cudaCompute"].get("device"):
+        report["gpu"] = report["cudaCompute"]["device"]
+    if report["cudaCompute"]["kernelReady"]:
+        try:
+            free, total = torch.cuda.mem_get_info()
+            report.update(freeVramGiB=round(free / 1024**3, 2),
+                          totalVramGiB=round(total / 1024**3, 2))
+        except (RuntimeError, OSError, AttributeError):
+            report["vramTelemetryAvailable"] = False
     try:
         verify_model(config)
         report["modelReady"] = True
     except (OSError, ValueError) as error:
         report["modelReady"] = False
         report["modelNote"] = str(error)
-    report["datasetReady"] = False
-    try:
-        from .backend import verify_dataset
+    if not inference_only:
+        report["datasetReady"] = False
+        try:
+            from .backend import verify_dataset
 
-        verify_dataset(config)
-        report["datasetReady"] = True
-    except FileNotFoundError:
-        report["datasetNote"] = (
-            "Waiting for reviewed English recordings. Add clips, then run scan and prepare."
-        )
-    except (OSError, ValueError, KeyError) as error:
-        report["datasetNote"] = str(error)
+            verify_dataset(config)
+            report["datasetReady"] = True
+        except FileNotFoundError:
+            report["datasetNote"] = (
+                "Waiting for reviewed English recordings. Add clips, then run scan and prepare."
+            )
+        except (OSError, ValueError, KeyError) as error:
+            report["datasetNote"] = str(error)
     write_json(ROOT / "logs/voice-training-doctor.json", report)
     return report
 
@@ -79,12 +82,12 @@ def main():
         "scan",
         "prepare",
         "download",
-        "doctor",
         "cache",
         "train",
         "qualify",
     ]:
         commands.add_parser(name)
+    commands.add_parser("doctor").add_argument("--inference-only", action="store_true")
     preview = commands.add_parser("preview")
     preview.add_argument("--text", required=True)
     preview.add_argument("--emotion", default="neutral")
@@ -115,7 +118,7 @@ def main():
 
         print(f"Pinned model files ready: {len(download_model(config))}")
     elif args.command == "doctor":
-        print(json.dumps(doctor(config), indent=2))
+        print(json.dumps(doctor(config, inference_only=args.inference_only), indent=2))
     elif args.command == "cache":
         from .backend import build_cache
 

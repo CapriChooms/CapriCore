@@ -20,7 +20,7 @@ export const CALCULATOR_PROPERTIES = {
   showWindow: {
     type: 'boolean',
     description:
-      'Open Windows Calculator only when the owner requests the app. The verified advanced numeric result is returned separately.',
+      'Show the expression and result in Windows Calculator when the owner requests it and the app supports the calculation.',
   },
 };
 export function validateCalculation(command) {
@@ -82,7 +82,10 @@ export function validateCalculation(command) {
   return { ...command, mode };
 }
 /** No filesystem/network capability is exposed to expressions. Heavy work cannot block Electron. */
-export function calculate(command, { signal, timeoutMs = 5000, root } = {}) {
+export function calculate(
+  command,
+  { signal, timeoutMs = 5000, root, withNativeInput = false } = {},
+) {
   const value = validateCalculation(command);
   signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
@@ -90,7 +93,7 @@ export function calculate(command, { signal, timeoutMs = 5000, root } = {}) {
       ? pathToFileURL(path.join(root, 'integrations/desktop-actions/math-worker.mjs'))
       : new URL('./math-worker.mjs', import.meta.url);
     const worker = new Worker(workerFile, {
-      workerData: value,
+      workerData: { ...value, withNativeInput },
       execArgv: [],
       env: {},
       resourceLimits: { maxOldGenerationSizeMb: 96, maxYoungGenerationSizeMb: 16, stackSizeMb: 4 },

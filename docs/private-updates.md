@@ -1,16 +1,16 @@
-# Archived: private early-access updates
+# Private experimental updates
 
-> Historical guide for private early access. Current downloads and updates use the public [CapriChooms/CapriCore releases](https://github.com/CapriChooms/CapriCore/releases) without an account or token. Run [CapriSetup-1.0.1.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe) over the existing installation to switch from the old private channel. Do not create a token or request an invitation for normal public updates. See [current update instructions](updates.md). The instructions below apply only to the former private repository.
+Capri v1.1.0 and later can check the private repository for experimental builds. Stable updates use [CapriChooms/CapriCore releases](https://github.com/CapriChooms/CapriCore/releases) without an account or token. See [update instructions](updates.md).
 
 Anyone who has accepted an invitation to **CapriChooms/Capri** and has Read
 access can update inside Capri. Membership in the CapriChooms organization is
 optional. The repository stays private.
 
-Starting with v0.3.6, open **Settings → Updates → Connect GitHub for private
-updates**. GitHub CLI is optional, not a prerequisite.
+Open **Settings → Updates → Connect GitHub for private updates** and enable
+**Include experimental updates**. A saved token or existing GitHub CLI login can provide access.
 
-1. If you were invited directly to the repository, click **GitHub access token
-   (classic · repo)**. Sign in to GitHub with the account that accepted the
+1. If you were invited directly to the repository, expand **Create read-only token**
+   and click **GitHub access token (classic · repo)**. Sign in to GitHub with the account that accepted the
    repository invitation, keep the `repo` scope selected, and set an expiry.
 2. If you joined the organization, use **Create read-only token** to limit access
    to Capri. Select **CapriChooms → Only select repositories → Capri** and set

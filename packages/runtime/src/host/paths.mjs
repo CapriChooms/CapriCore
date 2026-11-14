@@ -52,20 +52,17 @@ export function resolveExecutables(
       extra: [/^node(?:\.exe)?$/i.test(path.basename(executable)) ? executable : null, bundledNode],
     }),
   );
-  const installed = env.LOCALAPPDATA
-    ? path.join(env.LOCALAPPDATA, 'Programs/Ollama/ollama.exe')
-    : null;
-  const ollama = explicit(
-    'CAPRI_OLLAMA_PATH',
-    findExecutable('ollama', {
+  const llama = explicit(
+    'CAPRI_LLAMA_PATH',
+    findExecutable('llama-server', {
       env,
       platform,
-      extra: [path.join(paths.cache, 'ollama/ollama.exe'), installed],
+      extra: [path.join(paths.cache, `llama-${settings.llamaVersion}-vulkan/llama-server.exe`)],
     }),
   );
   return Object.freeze({
     node,
-    ollama,
+    llama,
     openclaw: path.join(root, 'node_modules/openclaw/openclaw.mjs'),
   });
 }

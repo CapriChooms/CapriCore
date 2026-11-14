@@ -13,6 +13,43 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { noLinks, readJson } from './policy.mjs';
+import russian from '../../../config/qwen-ru-voice.json' with { type: 'json' };
+
+export function validateRussianVoicePack(source) {
+  noLinks(source);
+  for (const entry of russian.pack.files) {
+    const file = path.join(source, entry.file);
+    noLinks(file);
+    if (
+      !existsSync(file) ||
+      !lstatSync(file).isFile() ||
+      lstatSync(file).size !== entry.bytes ||
+      createHash('sha256').update(readFileSync(file)).digest('hex') !== entry.sha256
+    )
+      throw new Error('The included Russian voice pack is missing or failed verification.');
+  }
+}
+
+/** Copy only the two pinned Russian inference artifacts, with no dataset files. */
+export function copyRussianVoicePack(source, destination) {
+  validateRussianVoicePack(source);
+  noLinks(destination);
+  mkdirSync(destination, { recursive: true });
+  for (const { file } of russian.pack.files) {
+    const sourceFile = path.join(source, file);
+    const target = path.join(destination, file);
+    noLinks(target);
+    if (existsSync(target) && sameVoiceFile(sourceFile, target)) continue;
+    const temporary = target + '.' + randomUUID() + '.tmp';
+    try {
+      copyFileSync(sourceFile, temporary, constants.COPYFILE_EXCL);
+      noLinks(target);
+      renameSync(temporary, target);
+    } finally {
+      if (existsSync(temporary)) unlinkSync(temporary);
+    }
+  }
+}
 
 export function validateVoicePack(folder, expectedModel) {
   noLinks(folder);
@@ -136,5 +173,8 @@ export function cacheBundledVoicePack(folder, root, expectedModel) {
       if (existsSync(temporary)) unlinkSync(temporary);
     }
   }
+  const russianSource = path.join(folder, 'russian');
+  if (existsSync(russianSource))
+    copyRussianVoicePack(russianSource, path.join(root, russian.pack.directory));
   return destination;
 }

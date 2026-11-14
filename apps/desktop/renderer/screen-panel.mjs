@@ -1,5 +1,11 @@
 import { ScreenWatch, waitForScreenFrame } from './screen-watch.mjs';
-import { screenMosaic, screenPng } from './screen-mosaic.mjs';
+import {
+  screenFrameCanvas,
+  screenMosaic,
+  screenPng,
+  screenSnapshotHeight,
+  screenSnapshotWidth,
+} from './screen-mosaic.mjs';
 
 const IMAGE_WARNING = 'The active model cannot read images or video frames.';
 /** IPC may wrap a safe application message; never display arbitrary provider bodies. */
@@ -203,8 +209,8 @@ export class ScreenPanel {
       stream = await navigator.mediaDevices.getDisplayMedia({
         audio: false,
         video: {
-          width: { ideal: 1280, max: 1280 },
-          height: { ideal: 720, max: 720 },
+          width: { ideal: screenSnapshotWidth, max: screenSnapshotWidth },
+          height: { ideal: screenSnapshotHeight, max: screenSnapshotHeight },
           frameRate: 1,
         },
       });
@@ -217,7 +223,7 @@ export class ScreenPanel {
         for (const track of stream.getTracks()) track.stop();
         stream = null;
         const tiles = await this.api.screenMonitorFrames(grant.id);
-        canvas = await screenMosaic(tiles, this.monitorLabel, isCurrent);
+        canvas = await screenMosaic(tiles, this.monitorLabel, isCurrent, { detailed: true });
       } else {
         this.stream = stream;
         canvas = await snapshotCanvas(stream, isCurrent);
@@ -336,7 +342,7 @@ export class ScreenPanel {
   renderIndicator() {
     const value = this.captureState ?? {},
       indicator = document.getElementById('screen-indicator');
-    indicator.hidden = false;
+    if (!indicator.dataset.skillButton) indicator.hidden = false;
     indicator.setAttribute('aria-pressed', String(Boolean(value.active || this.clipping)));
     indicator.dataset.captureMode = this.clipping
       ? 'clip'
@@ -489,10 +495,5 @@ async function snapshotCanvas(stream, isCurrent) {
   if (video.readyState < 2 || !video.videoWidth || !video.videoHeight)
     await waitForScreenFrame(video, 5000);
   if (!isCurrent()) throw new Error('Cancelled');
-  const scale = Math.min(1, 1280 / video.videoWidth, 720 / video.videoHeight);
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas;
+  return screenFrameCanvas(video, video.videoWidth, video.videoHeight, true);
 }

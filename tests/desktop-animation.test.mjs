@@ -11,7 +11,7 @@ import { AvatarState } from '../apps/desktop/avatar-state.mjs';
 import { AvatarStreamParser, avatarInstructions } from '../apps/desktop/avatar-protocol.mjs';
 import { AnimationDirector } from '../apps/desktop/renderer/animation-director.mjs';
 import { AvatarVisemes } from '../apps/desktop/renderer/avatar-mouth.mjs';
-import { registeredAvatarRect } from '../apps/desktop/avatar-layout.mjs';
+import { registeredAvatarRect, sleepingAvatarRect } from '../apps/desktop/avatar-layout.mjs';
 
 const catalog = loadAvatarCatalog(path.join(root, ACTIVE_AVATAR_CATALOG));
 const data = catalog.publicAnimation(),
@@ -25,12 +25,12 @@ const create = () =>
     random: () => 0,
   });
 
-test('the artwork pack is retained, while only standing portrait frames and facial reactions are active', () => {
-  assert.equal(catalog.frames.length, 68);
+test('the portrait pack contains only registered standing frames and facial reactions', () => {
+  assert.equal(catalog.frames.length, 28);
   assert.equal(choices.length, 17);
   assert.equal(data.frames.length, 28);
-  assert.equal(catalog.frames.filter((f) => f.canPersist).length, 39);
-  assert.equal(catalog.frames.filter((f) => f.kind === 'effect').length, 1);
+  assert.equal(catalog.frames.filter((f) => f.canPersist).length, 14);
+  assert.ok(catalog.frames.every((f) => f.pose === 'idle'));
   for (const item of [...data.frames, ...data.clips, ...choices]) {
     assert.ok(!item.id.includes('walk'));
     assert.equal(item.file, undefined);
@@ -54,6 +54,28 @@ test('the artwork pack is retained, while only standing portrait frames and faci
   assert.ok(state.acknowledge(action));
   assert.equal(state.currentId, 'flirty');
   assert.equal(state.request('idle-wink_half'), null, 'LLM cannot select intermediate frames');
+});
+
+test('a headpat preserves its current pose until the reaction ends or Capri falls asleep', () => {
+  const artwork = requireCapriAvatar(root);
+  const { frames, clips, autonomy } = artwork.publicAnimation();
+  const director = new AnimationDirector({
+    choices: artwork.publicSprites(),
+    frames,
+    clips,
+    settings: autonomy,
+  });
+  director.select('pose-sit-floor', 1, 0);
+  director.select('happy', 2, 50);
+  assert.equal(
+    director.tick(100, { expanded: true, active: true, heldFrame: 'pose-sit-floor' }).frameId,
+    'pose-sit-floor',
+  );
+  assert.equal(director.tick(150, { expanded: true }).frameId, 'happy');
+  assert.equal(
+    director.tick(200, { expanded: true, sleeping: true, heldFrame: 'pose-sit-floor' }).frameId,
+    'pose-sleep',
+  );
 });
 
 test('all active facial frames are reachable through context choices, micro-animation or gaze', () => {
@@ -175,6 +197,34 @@ test('speech visemes use their own clock and leave every body expression or reac
     director.tick(winkAt, { expanded: true, speaking: true, level: 0.1 }).frameId,
     'idle-wink_closed',
   );
+});
+
+test('sleep uses the reclining system pose and restores the prior expression on wake', () => {
+  const installed = requireCapriAvatar(root);
+  const { frames, clips, autonomy } = installed.publicAnimation();
+  const choices = installed.publicSprites();
+  const director = new AnimationDirector({ choices, frames, clips, settings: autonomy });
+  assert.equal(
+    choices.some(({ id }) => id === 'pose-sleep'),
+    false,
+  );
+  director.select('concerned', 1, 0);
+  for (const reduced of [false, true]) {
+    assert.equal(
+      director.tick(200, { expanded: true, sleeping: true, reduced }).frameId,
+      'pose-sleep',
+    );
+    assert.equal(director.tick(250, { expanded: true, reduced }).frameId, 'concerned');
+  }
+  const frame = frames.find(({ id }) => id === 'pose-sleep');
+  const viewport = { x: 10, y: 20, width: 260, height: 175, baseSize: 175 };
+  const rect = sleepingAvatarRect(viewport, frame.visibleBounds, 3);
+  const scale = rect.width / installed.canvas.width;
+  const { x, y, width, height } = frame.visibleBounds;
+  assert.ok(rect.x + x * scale > viewport.x);
+  assert.ok(rect.x + (x + width) * scale < viewport.x + viewport.width);
+  assert.ok(rect.y + y * scale > viewport.y);
+  assert.ok(rect.y + (y + height) * scale < viewport.y + viewport.height);
 });
 
 test('reduced motion renders stable choices and contact registration preserves shared ground', () => {

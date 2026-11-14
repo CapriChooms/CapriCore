@@ -23,6 +23,18 @@ export function avatarDragCanTeleport(from, to, settings = {}) {
 const isRect = (value) =>
   value && keys.every((key) => Number.isFinite(value[key])) && value.width > 0 && value.height > 0;
 
+function matchesDisplay(bounds, area) {
+  // Electron round-trips through physical pixels on fractional-DPI displays.
+  // Compare the four edges so an actual offset or undersized window still fails.
+  return (
+    isRect(bounds) &&
+    Math.abs(bounds.x - area.x) <= 1 &&
+    Math.abs(bounds.y - area.y) <= 1 &&
+    Math.abs(bounds.x + bounds.width - area.x - area.width) <= 1 &&
+    Math.abs(bounds.y + bounds.height - area.y - area.height) <= 1
+  );
+}
+
 function intersection(a, b) {
   const x = Math.max(a.x, b.x);
   const y = Math.max(a.y, b.y);
@@ -297,7 +309,7 @@ export class AvatarDetach {
     };
   }
 
-  sendReply(value) {
+  sendReply({ autoCollapsed, ...value }) {
     if (value.turnId !== this.reply?.turnId) {
       this.replyCollapsed = false;
       this.replyNear = false;
@@ -305,12 +317,18 @@ export class AvatarDetach {
       this.replyControls = [];
     }
     this.reply = value;
-    if (typeof value.autoCollapsed === 'boolean') {
-      this.replyCollapsed = value.autoCollapsed;
+    if (typeof autoCollapsed === 'boolean') {
+      this.replyCollapsed = autoCollapsed;
+      this.replyNear = false;
+      this.replyGeometryEpoch++;
       if (this.replyCollapsed) this.replyControls = [];
     }
     if (this.available)
-      this.updateParked('setReply', { ...value, collapsed: this.replyCollapsed }).catch(() => {});
+      this.updateParked('setReply', {
+        ...value,
+        collapsed: this.replyCollapsed,
+        autoCollapsed,
+      }).catch(() => {});
   }
 
   sendStatus(value) {
@@ -932,8 +950,7 @@ export class AvatarDetach {
       this.spriteTarget(point) === press.kind
     ) {
       if (press.kind === 'head') {
-        if (!this.getSleeping()) this.playReaction('headpat', point);
-        this.onHeadpat();
+        if (this.onHeadpat() !== false && !this.getSleeping()) this.playReaction('headpat', point);
       } else {
         this.tapAt = point;
         this.onClick(press.kind);
@@ -1358,6 +1375,29 @@ export class AvatarDetach {
       const destination = this.cursorDestination(cursor, this.session, grabOffset, appearance);
       return this.travel('teleporting', point, destination.to, destination);
     }
+    if (appearance) {
+      const { frame, canvas, mask } = appearance;
+      const nextAnchor = { x: frame.anchor.x / canvas.width, y: frame.anchor.y / canvas.height };
+      const nextPoint = landing(
+        area,
+        this.owner.getContentBounds(),
+        point,
+        point.scale,
+        nextAnchor,
+        seen,
+      );
+      return this.travel(
+        'teleporting',
+        point,
+        focusPose(nextPoint, nextAnchor, frame.visibleBounds, canvas),
+        {
+          area,
+          displayId: this.session.displayId,
+          arrival: { anchor: nextAnchor, spriteUrl: frame.url, dock: frame.anchor.name },
+          mask: poseMask(frame, mask),
+        },
+      );
+    }
     const to = landing(area, this.owner.getContentBounds(), point, point.scale, anchor, seen);
     return this.travel('teleporting', point, to);
   }
@@ -1449,8 +1489,14 @@ export class AvatarDetach {
         throw new Error('The teleport renderer could not prepare the sprite.');
       for (const { overlay, area } of views) {
         if (!overlay.isVisible()) overlay.showInactive();
-        const bounds = overlay.getBounds();
-        if (!overlay.isVisible() || !keys.every((key) => bounds[key] === area[key]))
+        // Windows can size a hidden transparent window against its initial
+        // monitor. Apply the target work area again after the window is shown.
+        let bounds = overlay.getBounds();
+        if (!matchesDisplay(bounds, area)) {
+          overlay.setBounds(area);
+          bounds = overlay.getBounds();
+        }
+        if (!overlay.isVisible() || !matchesDisplay(bounds, area))
           throw new Error('The teleport layer could not cover the display.');
       }
       this.setPhase(phase);

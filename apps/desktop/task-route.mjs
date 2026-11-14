@@ -21,6 +21,10 @@ export function standaloneCalculation(text) {
     .trim()
     .replace(/^(?:capri|капри)[, ]+\s*/iu, '')
     .replace(
+      /^(?:(?:please\s+)?use\s+(?:the\s+)?calculator|(?:пожалуйста[, ]+)?используй\s+калькулятор)(?:\s+and\s+|\s+и\s+|[,.:]\s*|\s+)/iu,
+      '',
+    )
+    .replace(
       /^(?:please\s+|пожалуйста[, ]+)?(?:(?:what is|what's|calculate|compute|find)\s+(?:the\s+)?|(?:вычисли|посчитай|найди|чему равен)\s+)/iu,
       '',
     )

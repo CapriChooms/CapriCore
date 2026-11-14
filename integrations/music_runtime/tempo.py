@@ -12,6 +12,7 @@ import numpy as np
 
 
 UNKNOWN = {"tempo": 0.0, "tempoConfidence": 0.0, "beatPhase": 0.0}
+SOFT_ATTACK_SMOOTHING = np.hanning(11) / 5
 
 
 class TempoTracker:
@@ -27,6 +28,7 @@ class TempoTracker:
     def reset(self):
         self.samples = np.empty(0, dtype=np.float32)
         self.onsets = deque(maxlen=self.HISTORY_FRAMES)
+        self.soft_onsets = deque(maxlen=self.HISTORY_FRAMES)
         self.times = deque(maxlen=self.HISTORY_FRAMES)
         self.previous = None
         self.sample_count = 0
@@ -34,6 +36,8 @@ class TempoTracker:
         self.locked = None
         self.candidate = None
         self.candidate_count = 0
+        self.soft_candidate = None
+        self.soft_candidate_count = 0
 
     def accept(self, samples):
         """Consume one contiguous PCM block; the caller resets on sequence gaps."""
@@ -64,6 +68,14 @@ class TempoTracker:
             0.45 * difference[:, :8].mean(axis=1)
             + 0.35 * difference[:, 8:64].mean(axis=1)
             + 0.20 * difference[:, 64:].mean(axis=1)
+        )
+        # Compress amplitude in a separate envelope so piano note changes and
+        # quiet attacks are visible without sacrificing accents in the main path.
+        soft_difference = np.log1p(difference / (0.125 + previous))
+        self.soft_onsets.extend(
+            0.45 * soft_difference[:, :8].mean(axis=1)
+            + 0.35 * soft_difference[:, 8:64].mean(axis=1)
+            + 0.20 * soft_difference[:, 64:].mean(axis=1)
         )
         self.previous = spectra[-1].copy()
         for index, flux in enumerate(novelty):
@@ -97,13 +109,74 @@ class TempoTracker:
         offset = float(np.angle(vector) / (2 * np.pi))
         return offset, float(support[best])
 
-    def estimate(self, music=True):
+    @staticmethod
+    def _envelope(raw):
+        baseline = np.convolve(
+            np.pad(raw, (10, 10), mode="edge"), np.ones(21) / 21, "valid"
+        )
+        return np.maximum(raw - baseline, 0.0)
+
+    def _soft_tempo(self):
+        """A slow pulse can be supported by note entrances even without drums."""
+        raw = np.asarray(self.soft_onsets, dtype=np.float64)
+        times = np.asarray(self.times, dtype=np.float64)
+        envelope = np.convolve(self._envelope(raw), SOFT_ATTACK_SMOOTHING, "same")
+        peak = float(np.max(envelope))
+        peaks = np.flatnonzero(
+            (envelope[1:-1] >= envelope[:-2])
+            & (envelope[1:-1] > envelope[2:])
+            & (envelope[1:-1] >= peak * 0.17)
+        ) + 1
+        best = None
+        if peak >= 0.005 and peaks.size >= 5:
+            centred = envelope - float(np.mean(envelope))
+            end = self.sample_count / self.SAMPLE_RATE
+            weights = envelope[peaks]
+            for lag in range(55, 151):
+                direct = self._correlation(centred, lag)
+                period = lag / 100
+                if direct < 0.135 or end - times[peaks[-1]] > 2.2 * period:
+                    continue
+                offset, coherence = self._phase(times[peaks], weights, period)
+                if coherence < 0.50:
+                    continue
+                score = 0.63 * direct + 0.37 * coherence
+                if best is None or score > best[0]:
+                    best = score, period, offset
+        if best is None:
+            self.soft_candidate = None
+            self.soft_candidate_count = 0
+            return dict(UNKNOWN)
+        score, period, offset = best
+        bpm = 60 / period
+        if self.soft_candidate is not None and abs(bpm / self.soft_candidate - 1) < 0.035:
+            self.soft_candidate_count += 1
+        else:
+            self.soft_candidate_count = 1
+        self.soft_candidate = bpm
+        if self.soft_candidate_count < 3:
+            return dict(UNKNOWN)
+        self.locked = bpm
+        # Correlation is weaker on legato recordings. Require phase support
+        # in each window and agreement on tempo across three windows.
+        return {
+            "tempo": round(bpm, 3),
+            "tempoConfidence": round(min(1.0, 0.45 + score - 0.27), 6),
+            "beatPhase": min(0.999999, round((end / period - offset) % 1.0, 6)),
+        }
+
+    def estimate(self, music=True, retain_history=False):
         """Return bounded BPM/confidence and beat phase at the latest packet end.
 
         The classifier owns music-vs-speech gating. Three rejected classification
         windows clear prewarming so earlier tracks cannot animate later speech.
         """
         if not music:
+            if retain_history:
+                self.nonmusic = 0
+                self.soft_candidate = None
+                self.soft_candidate_count = 0
+                return dict(UNKNOWN)
             self.nonmusic += 1
             if self.nonmusic >= 3:
                 self.reset()
@@ -116,14 +189,19 @@ class TempoTracker:
         # waits for evidence; a clear faster beat can lock earlier.
         if len(self.onsets) < 300:
             return dict(UNKNOWN)
-        # Eight seconds responds to track changes; retained twelve-second history
-        # bounds memory and leaves room for future low-tempo confidence policies.
+        result = self._percussive_tempo()
+        if result["tempo"]:
+            self.soft_candidate = None
+            self.soft_candidate_count = 0
+            return result
+        return self._soft_tempo() if len(self.onsets) >= 500 else result
+
+    def _percussive_tempo(self):
+        # Eight seconds responds to track changes; the soft path uses up to
+        # twelve seconds to estimate longer periods from sparse note entrances.
         raw = np.asarray(self.onsets, dtype=np.float64)[-800:]
         times = np.asarray(self.times, dtype=np.float64)[-800:]
-        baseline = np.convolve(
-            np.pad(raw, (10, 10), mode="edge"), np.ones(21) / 21, "valid"
-        )
-        envelope = np.maximum(raw - baseline, 0.0)
+        envelope = self._envelope(raw)
         envelope = np.convolve(envelope, [0.25, 0.5, 0.25], "same")
         peak = float(np.max(envelope))
         if peak < 0.005:

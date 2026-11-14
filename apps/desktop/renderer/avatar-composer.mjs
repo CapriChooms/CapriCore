@@ -232,6 +232,7 @@ function applyState(value) {
   menu.disabled = false;
   message.disabled = false;
   applyDraft(state);
+  attach.hidden = state.showAttach === false;
   attach.disabled = !state.canAttach || Boolean(state.busy || submissionPending || pastePending);
   attach.title = labels.attach;
   attach.setAttribute('aria-label', labels.attach);
@@ -243,11 +244,13 @@ function applyState(value) {
   microphone.setAttribute('aria-pressed', String(Boolean(mic.listening)));
   microphone.setAttribute('aria-busy', String(Boolean(mic.loading)));
   microphone.dataset.loading = String(Boolean(mic.loading));
+  thinking.hidden = state.thinking?.visible === false;
   thinking.disabled = !connected || thinkingPending;
   thinking.setAttribute('aria-pressed', String(state.thinking?.enabled === true));
   thinking.setAttribute('aria-label', state.thinking?.label || 'Thinking mode: Off');
   thinking.title =
     (state.thinking?.label || 'Thinking mode: Off') + '\n' + (state.thinking?.hint || '');
+  internet.hidden = state.internet?.visible === false;
   internet.disabled = !connected || internetPending || Boolean(state.busy);
   internet.setAttribute('aria-pressed', String(state.internet?.enabled === true));
   internet.setAttribute('aria-label', state.internet?.label || 'Internet mode: Off');

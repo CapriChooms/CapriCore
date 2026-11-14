@@ -71,6 +71,38 @@ test('foreground screen context uses the post-submission frame even while typing
   assert.equal(Object.hasOwn(f.observer.session, 'png'), false);
 });
 
+test('reading a live screen preserves long, ordered text in its original language', async () => {
+  const transcription = Array.from(
+    { length: 88 },
+    (_, i) => `Строка ${i + 1}: сумма * 2 = 300.00 ₽`,
+  ).join('\n');
+  assert.ok(transcription.length > 2400);
+  const model = screenObserverModel({
+    url: 'http://127.0.0.1:11434',
+    model: 'test',
+    fetchImpl: async (_url, { body }) => {
+      const request = JSON.parse(body);
+      assert.match(request.messages[0].content, /preserving the original language/);
+      assert.doesNotMatch(request.messages[0].content, /under 60 words/);
+      assert.ok(request.options.num_predict > 384);
+      assert.deepEqual(request.tools, []);
+      return Response.json({
+        done: true,
+        message: { content: JSON.stringify({ summary: transcription }) },
+      });
+    },
+  });
+  const { observer } = fixture(model);
+  const context = await observer.foreground({
+    captureId: 'lease',
+    png: Buffer.from('generated fixture'),
+    signal: new AbortController().signal,
+    question: 'Прочитай весь текст на экране',
+  });
+  assert.equal(context.observation.summary, transcription);
+  assert.ok(observationText(context).includes(JSON.stringify(transcription)));
+});
+
 test('a stopped foreground capture cannot restore old private screen context', async () => {
   let resolve, observedSignal;
   const f = fixture((value) => {

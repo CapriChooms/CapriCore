@@ -5,11 +5,15 @@ import path from 'node:path';
 // Renderer requests identifiers, never arbitrary URLs. Presence and Support use
 // the same destinations so replacing an invite cannot leave an old RPC button.
 export const COMMUNITY_LINKS = Object.freeze({
-  boosty: 'https://boosty.to/overyx/donate',
+  boosty: 'https://boosty.to/overyx',
+  lava: 'https://app.lava.top/overyx',
   tiktok: 'https://www.tiktok.com/@overyx2',
+  youtube: 'https://www.youtube.com/@CapriChoom',
   discord: 'https://discord.gg/capricore',
   github: 'https://github.com/CapriChooms/CapriCore',
   website: 'https://capri-core.com/',
+  faq: 'https://capri-core.com/#faq',
+  releases: 'https://github.com/CapriChooms/CapriCore/releases/latest',
   issues: 'https://github.com/CapriChooms/CapriCore/issues/new/choose',
 });
 
@@ -37,7 +41,10 @@ export function loadCommunityLinks(root) {
       // has expired; it must not override the replacement in the new build.
       if (id === 'discord' && url.pathname.replace(/\/$/u, '') === '/ETMtqsGaZN')
         links[id] = COMMUNITY_LINKS.discord;
-      if (['github', 'issues'].includes(id) && /^\/CapriChooms\/Capri(?:\/|$)/u.test(url.pathname))
+      if (
+        ['github', 'issues', 'releases'].includes(id) &&
+        /^\/CapriChooms\/Capri(?:\/|$)/u.test(url.pathname)
+      )
         links[id] = COMMUNITY_LINKS[id];
     }
     return Object.freeze(links);

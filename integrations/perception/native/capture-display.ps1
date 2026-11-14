@@ -1,4 +1,4 @@
-param([string]$OwnedWindow = '',[switch]$Probe,[switch]$WithGeometry)
+param([string]$OwnedWindow = '',[string]$DisplayWindow = '',[switch]$Probe,[switch]$WithGeometry)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
@@ -20,7 +20,7 @@ public static class CapriScreenClip {
     [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr window, ref Point point);
     [DllImport("user32.dll")] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
 
-    public static string Capture(string ownedWindow, bool probe, bool withGeometry) {
+    public static string Capture(string ownedWindow, string displayWindow, bool probe, bool withGeometry) {
         IntPtr previous = SetThreadDpiAwarenessContext(new IntPtr(-4));
         if (previous == IntPtr.Zero) throw new InvalidOperationException("DPI context unavailable");
         try {
@@ -32,6 +32,8 @@ public static class CapriScreenClip {
                 area.Right += origin.X; area.Bottom += origin.Y; area.Left = origin.X; area.Top = origin.Y;
             } else {
                 IntPtr window = GetForegroundWindow(); if (window == IntPtr.Zero) throw new InvalidOperationException("No foreground window");
+                if (!String.IsNullOrEmpty(displayWindow) && window.ToInt64() != Int64.Parse(displayWindow))
+                    throw new InvalidOperationException("The foreground window changed before capture");
                 IntPtr monitor = MonitorFromWindow(window, 2); Monitor info = new Monitor(); info.Size = Marshal.SizeOf(typeof(Monitor));
                 if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) throw new InvalidOperationException("No active display");
                 area = info.Area;
@@ -51,4 +53,4 @@ public static class CapriScreenClip {
     }
 }
 '@
-[Console]::Out.Write([CapriScreenClip]::Capture($OwnedWindow,[bool]$Probe,[bool]$WithGeometry))
+[Console]::Out.Write([CapriScreenClip]::Capture($OwnedWindow,$DisplayWindow,[bool]$Probe,[bool]$WithGeometry))

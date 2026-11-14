@@ -33,8 +33,8 @@ async function fixture(options, verify) {
   const state = {
     settings,
     rt,
-    startOllama: async (_rt, value) => {
-      calls.push({ name: 'startOllama', options: value });
+    startLlama: async (_rt, value) => {
+      calls.push({ name: 'startLlama', options: value });
       options.afterOllama?.();
       return { version: 'fixture' };
     },
@@ -70,7 +70,10 @@ async function fixture(options, verify) {
         return options.releaseResponse ?? { done: true };
       }
       if (endpoint === '/api/embed') return { embeddings: [[0]] };
-      if (endpoint === '/api/chat') return { message: { content: 'Ready' } };
+      if (endpoint === '/api/chat') {
+        if (options.warmupFails) throw new Error('Synthetic model warmup timeout');
+        return { message: { content: 'Ready' } };
+      }
       assert.fail('Unexpected request: ' + endpoint);
     },
   };
@@ -81,7 +84,7 @@ async function fixture(options, verify) {
   const modules = new Map([
     ['../config/settings.mjs', 'export const settings = f.settings;'],
     ['../context.mjs', 'export const runtime = () => f.rt; export const headers = () => ({});'],
-    ['./services.mjs', functions('startOllama', 'startGateway', 'stopManaged')],
+    ['./services.mjs', functions('startLlama', 'startGateway', 'stopManaged')],
     ['../http.mjs', functions('request')],
     ['../host/processes.mjs', functions('managedProcess')],
     ['../client.mjs', functions('runCli')],
@@ -146,7 +149,7 @@ test('default and enabled API skip starts core without local language preparatio
           version: 'fixture',
         });
         assert.deepEqual(names(), [
-          'startOllama',
+          'startLlama',
           '/api/ps',
           '/api/tags',
           'ensureEmbeddingModel',
@@ -196,7 +199,7 @@ test('API skip releases only the exact resident configured language model even w
         noLanguageOrAgent(calls);
         if (!preload)
           assert.deepEqual(names(), [
-            'startOllama',
+            'startLlama',
             '/api/ps',
             '/api/generate',
             '/api/tags',
@@ -241,7 +244,7 @@ test('failed or unconfirmed release aborts startup before gateway and warmups', 
       { ...failure, resident: [{ name: 'fixture-language:latest' }] },
       async ({ core, rt, calls, names }) => {
         await assert.rejects(core.startCore(rt), /Synthetic unload failure|could not be unloaded/);
-        assert.deepEqual(names(), ['startOllama', '/api/ps', '/api/generate']);
+        assert.deepEqual(names(), ['startLlama', '/api/ps', '/api/generate']);
         noLanguageOrAgent(calls);
       },
     );
@@ -319,7 +322,7 @@ test('preload false prevents API opt-out chat and embedding warmup', async () =>
     async ({ core, rt, names }) => {
       await core.startCore(rt, { preload: false });
       assert.deepEqual(names(), [
-        'startOllama',
+        'startLlama',
         '/api/tags',
         'ensureEmbeddingModel',
         'startGateway',
@@ -337,9 +340,9 @@ test('local startup retains language preparation, required inventory and CPU war
       },
       async ({ core, rt, calls, names }) => {
         if (!installed) {
-          await assert.rejects(core.startCore(rt), /Model fixture-language:latest is missing/);
+          await assert.rejects(core.startCore(rt), { code: 'CAPRI_LOCAL_LANGUAGE_MODEL_MISSING' });
           assert.deepEqual(names(), [
-            'startOllama',
+            'startLlama',
             'ensureNativeLanguageModel',
             '/api/tags',
             'ensureEmbeddingModel',
@@ -366,6 +369,28 @@ test('local startup retains language preparation, required inventory and CPU war
   }
 });
 
+test('a failed optional warmup does not take an already verified local core offline', async () => {
+  await fixture(
+    {
+      remote: { enabled: false },
+      installed: ['fixture-memory:latest', 'fixture-language:latest'],
+      warmupFails: true,
+    },
+    async ({ core, rt }) => {
+      const stages = [];
+      assert.deepEqual(await core.startCore(rt, { onStage: (...stage) => stages.push(stage) }), {
+        version: 'fixture',
+      });
+      assert.deepEqual(stages, [
+        ['core', 'running'],
+        ['core', 'ready'],
+        ['models', 'running'],
+        ['models', 'failed'],
+      ]);
+    },
+  );
+});
+
 test('aborted startup and direct warmup perform no service or network work', async () => {
   await fixture({}, async ({ core, rt, calls }) => {
     const controller = new AbortController();
@@ -385,7 +410,7 @@ test('aborted startup and direct warmup perform no service or network work', asy
         core.startCore(rt, { signal: controller.signal }),
         /Synthetic startup cancelled/,
       );
-      assert.deepEqual(names(), ['startOllama']);
+      assert.deepEqual(names(), ['startLlama']);
     },
   );
   const duringWarmup = new AbortController();

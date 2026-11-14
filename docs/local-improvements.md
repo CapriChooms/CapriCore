@@ -10,7 +10,7 @@ Order follows implementation complexity; related dependencies may be completed t
 | 3     | Installer version, pre-alpha label and installation warning     | Implemented |
 | 4     | New application icon from the supplied image                    | Implemented |
 | 5     | Main function shortcuts and microphone button beside Send       | Implemented |
-| 6     | Support author panel: Boosty, TikTok @overyx2 and GitHub        | Implemented |
+| 6     | Support author panel: Lava.top, TikTok @overyx2 and GitHub      | Implemented |
 | 7     | Bug reporting with a reviewable, privacy-conscious report       | Implemented |
 | 8     | Speech animation using the approved mouth sprites               | Implemented |
 | 9     | Editable private personality prompt                             | Implemented |

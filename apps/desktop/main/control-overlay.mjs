@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-/** Transparent, click-through monitor indicators, including the taskbar area. */
+/** Transparent, click-through indicators within each monitor's work area. */
 import { computerPreferences } from '../computer-preferences.mjs';
+
+const sameBounds = (a, b) => ['x', 'y', 'width', 'height'].every((key) => a[key] === b[key]);
+
 export class ControlOverlay {
   constructor({
     BrowserWindow,
@@ -11,10 +14,24 @@ export class ControlOverlay {
   }) {
     Object.assign(this, { BrowserWindow, screen, owner, url, onLost });
     this.windows = [];
+    this.displayWindows = new Map();
     this.closed = false;
     this.controller = new AbortController();
     this.settings = computerPreferences();
   }
+  onDisplayMetricsChanged = (_event, display, metrics) => {
+    const border = this.displayWindows.get(display.id);
+    if (!border || this.closed || border.isDestroyed()) return;
+    if (!metrics.includes('workArea') && !metrics.includes('bounds')) return;
+    try {
+      border.setBounds(display.workArea, false);
+      if (!sameBounds(border.getBounds(), display.workArea))
+        throw Error('Computer control indicator could not cover the display work area.');
+      this.previous = null;
+    } catch {
+      this.lost('indicator_bounds_failed');
+    }
+  };
   configure(value) {
     this.settings = computerPreferences(value);
     this.script('configure', this.settings);
@@ -47,6 +64,10 @@ export class ControlOverlay {
   phase(value) {
     this.script('phase', value);
   }
+  plan(value) {
+    this.planView = value;
+    this.script('plan', value);
+  }
   assertOpen(border) {
     if (this.closed || border?.isDestroyed()) throw Error('Computer control indicator closed.');
   }
@@ -77,12 +98,15 @@ export class ControlOverlay {
   }
   async showWindows(caption) {
     try {
-      const displays = this.screen.getAllDisplays();
-      if (!displays.length) throw Error('Computer control indicator has no display.');
-      for (const display of displays) {
+      const displayIds = this.screen.getAllDisplays().map(({ id }) => id);
+      if (!displayIds.length) throw Error('Computer control indicator has no display.');
+      this.screen.on('display-metrics-changed', this.onDisplayMetricsChanged);
+      for (const displayId of displayIds) {
         this.assertOpen();
+        const display = this.screen.getAllDisplays().find(({ id }) => id === displayId);
+        if (!display) throw Error('Computer control indicator display was disconnected.');
         const border = new this.BrowserWindow({
-          ...display.bounds,
+          ...display.workArea,
           show: false,
           frame: false,
           transparent: true,
@@ -91,8 +115,7 @@ export class ControlOverlay {
           skipTaskbar: true,
           alwaysOnTop: true,
           resizable: false,
-          fullscreenable: true,
-          fullscreen: true,
+          fullscreenable: false,
           parent: this.owner,
           webPreferences: {
             nodeIntegration: false,
@@ -102,6 +125,7 @@ export class ControlOverlay {
           },
         });
         this.windows.push(border);
+        this.displayWindows.set(displayId, border);
         border.webContents.once('render-process-gone', (_event, details) =>
           this.lost(
             ['oom', 'crashed', 'killed'].includes(details?.reason)
@@ -132,8 +156,7 @@ export class ControlOverlay {
           ),
           border,
         );
-        border.setBounds(display.bounds, false);
-        border.setFullScreen(true);
+        if (this.planView) this.script('plan', this.planView, [border]);
         this.assertOpen(border);
         border.showInactive();
         await this.wait(
@@ -142,14 +165,15 @@ export class ControlOverlay {
           ),
           border,
         );
-        const actual = border.getBounds();
+        const currentDisplay = this.screen.getAllDisplays().find(({ id }) => id === displayId);
         if (
           this.closed ||
           border.isDestroyed() ||
           !border.isVisible() ||
-          !['x', 'y', 'width', 'height'].every((key) => actual[key] === display.bounds[key])
+          !currentDisplay ||
+          !sameBounds(border.getBounds(), currentDisplay.workArea)
         )
-          throw Error('Computer control indicator could not cover the complete display.');
+          throw Error('Computer control indicator could not cover the display work area.');
       }
       this.tracker = setInterval(() => {
         if (this.closed) return;
@@ -186,6 +210,8 @@ export class ControlOverlay {
     this.controller.abort(Error('Computer control indicator closed.'));
     clearInterval(this.tracker);
     this.tracker = null;
+    this.screen.off('display-metrics-changed', this.onDisplayMetricsChanged);
+    this.displayWindows.clear();
     const windows = this.windows;
     this.windows = [];
     for (const border of windows) {

@@ -15,6 +15,7 @@ export function registerScreenIpc(
   handle,
   {
     root,
+    requireEnabled = () => {},
     screenVisionAvailable = true,
     capturePolicy,
     screenObservation,
@@ -67,20 +68,21 @@ export function registerScreenIpc(
     screenPreviews.clear();
     return capturePolicy.discover();
   });
-  handle('capri:screen-prepare', async (id) => {
+  handle('capri:screen-prepare', (id) => {
+    requireEnabled();
     screenPreviews.clear();
-    await capturePolicy.renewSelection(id);
     return capturePolicy.prepare(id);
   });
   handle('capri:screen-monitor-frames', (id, { role, frame }) => {
+    requireEnabled();
     if (role !== 'companion') throw new Error('Companion frame required');
     return capturePolicy.monitorFrames(id, frame);
   });
-  handle('capri:screen-watch-prepare', async (value) => {
+  handle('capri:screen-watch-prepare', (value) => {
+    requireEnabled();
     if (!screenVisionAvailable) throw new Error(SCREEN_VISION_REQUIRED);
     const options = observationOptions(value);
     screenPreviews.clear();
-    await capturePolicy.renewSelection(value.sourceId);
     return capturePolicy.prepare(value.sourceId, { mode: 'watch', ...options });
   });
   handle('capri:screen-watch-sample', async (value) => {
@@ -109,6 +111,7 @@ export function registerScreenIpc(
     return true;
   });
   handle('capri:screen-watch-ask', (value) => {
+    requireEnabled();
     if (!screenVisionAvailable) throw new Error(SCREEN_VISION_REQUIRED);
     const capture = capturePolicy.capture;
     if (
@@ -129,6 +132,7 @@ export function registerScreenIpc(
     return submitSnapshot({ ...value, previewId: preview.id });
   });
   handle('capri:screen-finish', (id) => {
+    requireEnabled();
     const capture = capturePolicy.capture;
     if (capture?.id !== id || capture.phase !== 'capturing')
       throw new Error('No active selected-source capture');
@@ -152,5 +156,8 @@ export function registerScreenIpc(
     screenPreviews.clear();
     return true;
   });
-  handle('capri:screen-ask', submitSnapshot);
+  handle('capri:screen-ask', (value) => {
+    requireEnabled();
+    return submitSnapshot(value);
+  });
 }

@@ -5,6 +5,10 @@ import { existsSync, lstatSync, readFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { noLinks } from '../../packages/installer/src/policy.mjs';
+import { REASONING_BUDGETS } from '../../packages/skills/src/settings-catalog.mjs';
+import { CHATGPT_RESOURCE, ChatGPTPlanError } from './chatgpt-plan-auth.mjs';
+import { chatGPTCompletion } from './chatgpt-plan-completions.mjs';
+import { chatGPTFastEffort, chatGPTModelCapabilities } from './chatgpt-plan-models.mjs';
 import { writeJsonAtomic } from './storage.mjs';
 import { normalizeApiKey, validApiKey as validKey, apiKeyProblem } from './renderer/api-key.mjs';
 import {
@@ -25,6 +29,21 @@ const DEFAULT = {
 };
 const LEGACY_PROFILE = 'legacy';
 const MAX_PROFILES = 20;
+const OPENROUTER_ORIGIN = 'https://openrouter.ai';
+const GROQ_ORIGIN = 'https://api.groq.com';
+const GROQ_REASONING_MODELS = new Set([
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
+  'qwen/qwen3.8-27b',
+]);
+export const API_REQUEST_TOO_LARGE =
+  'API provider returned HTTP 413. The request is too large. Shorten the conversation context or remove large attachments.';
+
+export function openRouterFreeReplyTimeoutMs(config) {
+  if (config.model.endsWith(':free') && new URL(config.baseUrl).origin === OPENROUTER_ORIGIN)
+    return 60000;
+}
+
 const API_FAILURE_CODES = new Set([
   'CAPRI_API_NETWORK_ERROR',
   'CAPRI_API_PROVIDER_ERROR',
@@ -67,7 +86,8 @@ function hasImageInput(payload) {
   );
 }
 function conversationReasoning(payload, config) {
-  const selected = payload.reasoning_effort === 'medium';
+  const effort = payload.reasoning_effort;
+  const selected = Object.hasOwn(REASONING_BUDGETS, effort);
   const request = { ...payload };
   // This is an internal one-turn marker, not an arbitrary provider parameter.
   delete request.reasoning_effort;
@@ -75,14 +95,20 @@ function conversationReasoning(payload, config) {
   delete request.thinking;
   if (selected) {
     const requested = request.max_completion_tokens ?? request.max_tokens;
+    const limit = REASONING_BUDGETS[effort];
     request.max_tokens =
-      Number.isFinite(requested) && requested > 0 ? Math.min(requested, 8192) : 8192;
+      Number.isFinite(requested) && requested > 0 ? Math.min(requested, limit) : limit;
     delete request.max_completion_tokens;
-    if (new URL(config.baseUrl).origin === 'https://openrouter.ai')
-      request.reasoning = { effort: 'medium', exclude: true };
+    if (new URL(config.baseUrl).origin === OPENROUTER_ORIGIN)
+      request.reasoning = { effort, exclude: true };
+    if (new URL(config.baseUrl).origin === GROQ_ORIGIN && GROQ_REASONING_MODELS.has(config.model))
+      request.reasoning_effort = effort;
+    if (config.authMode === 'chatgpt') request.reasoning = { effort };
   } else {
     if (request.max_tokens > 2048) request.max_tokens = 2048;
     if (request.max_completion_tokens > 2048) request.max_completion_tokens = 2048;
+    if (config.authMode === 'chatgpt')
+      request.reasoning = { effort: chatGPTFastEffort(config.model) };
   }
   return { request, selected };
 }
@@ -183,9 +209,11 @@ const PROVIDER_ERRORS = {
   402: 'API provider returned HTTP 402. Check the account balance or key budget.',
   403: 'API provider returned HTTP 403. Check the key permissions for this model.',
   404: 'API provider returned HTTP 404. Check the base URL and the model ID for this provider.',
+  413: API_REQUEST_TOO_LARGE,
   429: 'API provider returned HTTP 429. The provider rate limit was reached.',
 };
 function publicApiError(error, failure) {
+  if (error instanceof ChatGPTPlanError) return error.message;
   if (error.code === 'MODEL_IMAGES_UNSUPPORTED') return IMAGES_UNSUPPORTED;
   if (error.message === PROXYAPI_CONNECT_TIMEOUT) return PROXYAPI_CONNECT_TIMEOUT;
   for (const message of [
@@ -225,7 +253,9 @@ export function apiSettings(value = DEFAULT) {
     typeof value !== 'object' ||
     Array.isArray(value) ||
     Object.keys(value).some(
-      (key) => !['profileId', 'tools'].includes(key) && !Object.hasOwn(DEFAULT, key),
+      (key) =>
+        !['profileId', 'tools', 'authMode', 'accountId', 'visionMode'].includes(key) &&
+        !Object.hasOwn(DEFAULT, key),
     )
   )
     throw new Error('Invalid API settings.');
@@ -269,6 +299,28 @@ export function apiSettings(value = DEFAULT) {
     result.model = lemonadeNpuModel(result.model);
   }
   result.baseUrl = url.href.replace(/\/+$/, '');
+  if (result.authMode !== undefined || result.accountId !== undefined) {
+    if (
+      result.authMode !== 'chatgpt' ||
+      result.baseUrl !== CHATGPT_RESOURCE ||
+      typeof result.accountId !== 'string' ||
+      !/^[a-f0-9-]{36}$/.test(result.accountId)
+    )
+      throw new Error('Invalid ChatGPT connection settings.');
+    if (
+      result.visionMode !== undefined &&
+      !['auto', 'catalog', 'manual'].includes(result.visionMode)
+    )
+      throw new Error('Invalid ChatGPT vision mode.');
+    result.visionMode ??= 'auto';
+    // Old ChatGPT connections were all created with vision:false. Resolve the
+    // actual model capability, while keeping an explicit manual override.
+    const capability = chatGPTModelCapabilities(result.model);
+    if (result.visionMode === 'auto' && typeof capability.vision === 'boolean')
+      result.vision = capability.vision;
+  } else if (result.visionMode !== undefined) {
+    throw new Error('Automatic vision selection requires a ChatGPT connection.');
+  }
   return result;
 }
 function loadApiSettings(file) {
@@ -304,7 +356,8 @@ export function readApiSettings(root) {
     return apiSettings({ setupRequired: true });
   }
 }
-const requiresKey = (settings) => !isLocalApiEndpoint(new URL(settings.baseUrl));
+const requiresKey = (settings) =>
+  settings.authMode !== 'chatgpt' && !isLocalApiEndpoint(new URL(settings.baseUrl));
 
 function withoutTools(payload) {
   const {
@@ -323,6 +376,31 @@ function withoutTools(payload) {
       .filter((message) => message.role !== 'assistant' || message.content)
       .map(({ tool_calls, tool_call_id, function_call, ...message }) => message),
   };
+}
+
+function latestTextTurn(payload) {
+  // Preserve the system instructions and latest user text verbatim. Never
+  // remove attachments, tool results or the current request to fit a limit.
+  const { messages } = payload;
+  const latest = messages.at(-1);
+  if (
+    payload.tools?.length ||
+    payload.functions?.length ||
+    payload.response_format ||
+    hasImageInput(payload) ||
+    latest?.role !== 'user' ||
+    messages.some(
+      ({ role, content, tool_calls, function_call }) =>
+        !['system', 'developer', 'user', 'assistant'].includes(role) ||
+        typeof content !== 'string' ||
+        tool_calls?.length ||
+        function_call,
+    )
+  )
+    return null;
+  const compact = messages.filter(({ role }) => role === 'system' || role === 'developer');
+  compact.push(latest);
+  return compact.length < messages.length ? { ...payload, messages: compact } : null;
 }
 
 function lemonadeNpuRequest({ messages, stop, stream, max_tokens, temperature }, vision) {
@@ -665,8 +743,15 @@ function streamingRedactor(key) {
 
 /** The real credential never enters OpenClaw, child environments, configuration, or diagnostics. */
 export class InferenceApi {
-  constructor({ root, storage, config = readApiSettings(root), fetchImpl = fetch, proxySession }) {
-    Object.assign(this, { root, storage, config, fetchImpl, proxySession });
+  constructor({
+    root,
+    storage,
+    config = readApiSettings(root),
+    fetchImpl = fetch,
+    proxySession,
+    chatgpt,
+  }) {
+    Object.assign(this, { root, storage, config, fetchImpl, proxySession, chatgpt });
     this.file = path.join(root, 'data/secrets/inference-api.json');
     this.profilesFile = path.join(root, 'data/secrets/inference-api-profiles.json');
     this.settingsFile = path.join(root, 'data/desktop/inference-api.json');
@@ -690,6 +775,9 @@ export class InferenceApi {
       activeRequests: this.controllers.size,
       lastFailure: structuredClone(this.lastFailure),
     };
+  }
+  requestTooLargeSince(startedAt) {
+    return Number.isFinite(startedAt) && this.lastChatSizeRejection >= startedAt;
   }
   recordFailure(error, { stage, streaming, startedAt, signal, httpStatus } = {}) {
     const networkCode = failureNetworkCode(error);
@@ -795,12 +883,17 @@ export class InferenceApi {
     }
   }
   async key() {
+    if (this.config.authMode === 'chatgpt') {
+      if (!this.chatgpt) throw new Error('ChatGPT connection is unavailable.');
+      return this.chatgpt.accessToken(this.config.accountId);
+    }
     if (this.activeCredentialError)
       throw new Error('Saved API access could not be read. Save your API key again.');
     return this.decodeKey(this.activeCredential);
   }
   async status() {
     const activeId = this.activeProfileId();
+    const accounts = this.chatgpt ? (await this.chatgpt.status()).profiles : [];
     return {
       activeId,
       setupRequired: this.config.setupRequired,
@@ -810,7 +903,13 @@ export class InferenceApi {
         name,
         ...settings,
         hasKey: Boolean(credential),
-        canConnect: Boolean(credential) || !requiresKey(settings),
+        canConnect:
+          settings.authMode === 'chatgpt'
+            ? accounts.some(
+                (account) =>
+                  account.id === settings.accountId && account.connected && account.sharing,
+              )
+            : Boolean(credential) || !requiresKey(settings),
       })),
     };
   }
@@ -835,6 +934,13 @@ export class InferenceApi {
       let credential = editing ? profiles[index].credential : null;
       key = normalizeApiKey(key);
       const replacingKey = key !== undefined && key !== '';
+      if (config.authMode === 'chatgpt') {
+        if (replacingKey)
+          throw new Error('Use ChatGPT sign-in instead of an API key for this connection.');
+        if (!this.chatgpt) throw new Error('ChatGPT connection is unavailable.');
+        await this.chatgpt.accessToken(config.accountId);
+        credential = null;
+      }
       if (!replacingKey && credential && credential.origin !== origin)
         throw new Error('Enter a new API key when changing the provider address.');
       if (requiresKey(config) || replacingKey || credential) {
@@ -867,6 +973,8 @@ export class InferenceApi {
   }
   async selectProfile(id, beforeCommit = () => {}) {
     const profile = id === null ? null : this.profile(id);
+    if (profile?.settings.authMode === 'chatgpt')
+      await this.chatgpt?.accessToken(profile.settings.accountId);
     if (profile && !(await this.decodeKey(profile.credential)) && requiresKey(profile.settings))
       throw new Error('Save an API key before enabling API inference.');
     const profiles = this.readProfiles();
@@ -895,9 +1003,15 @@ export class InferenceApi {
   }
   async testProfile(id) {
     const profile = this.profile(id);
-    const signal = AbortSignal.timeout(requiresKey(profile.settings) ? 15000 : 60000);
+    const timeoutMs =
+      openRouterFreeReplyTimeoutMs(profile.settings) ??
+      (requiresKey(profile.settings) ? 15000 : 60000);
+    const signal = AbortSignal.timeout(timeoutMs);
     const started = performance.now();
-    const key = await this.decodeKey(profile.credential);
+    const key =
+      profile.settings.authMode === 'chatgpt'
+        ? await this.chatgpt.accessToken(profile.settings.accountId)
+        : await this.decodeKey(profile.credential);
     const local = isLocalApiEndpoint(new URL(profile.settings.baseUrl));
     const lemonade = isLemonadeNpuEndpoint(
       new URL(profile.settings.baseUrl),
@@ -945,7 +1059,9 @@ export class InferenceApi {
         const networkCode = failureNetworkCode(error);
         const failure = Object.assign(
           new Error(
-            signal.aborted ? 'API request cancelled or timed out.' : 'API model returned no text.',
+            signal.aborted
+              ? 'The API provider did not finish its test reply in time.'
+              : 'API model returned no text.',
           ),
           {
             code: signal.aborted
@@ -1011,14 +1127,38 @@ export class InferenceApi {
     const startedAt = performance.now();
     if (hasImageInput(payload)) await this.assertImageSupport(signal, config);
     if (key === undefined) key = await this.key();
-    const remote = requiresKey(config);
-    if (!key && remote) throw new Error('API key is missing.');
+    const remote = !isLocalApiEndpoint(new URL(config.baseUrl));
+    if (!key && requiresKey(config)) throw new Error('API key is missing.');
     const endpoint = new URL(config.baseUrl);
     const proxyApi = endpoint.origin === PROXYAPI_ORIGIN;
     const prepared = config.tools === false ? withoutTools(payload) : payload;
     const request = isLemonadeNpuEndpoint(endpoint, config.model)
       ? lemonadeNpuRequest(prepared, config.vision)
       : prepared;
+    if (config.authMode === 'chatgpt') {
+      if (!this.chatgpt) throw new Error('ChatGPT connection is unavailable.');
+      const response = await chatGPTCompletion(
+        this.chatgpt,
+        { ...request, model: config.model, accountId: config.accountId },
+        signal,
+        key,
+      );
+      return { response, key };
+    }
+    // Nemotron enables reasoning by default. Keep short tests and ordinary
+    // replies within the answer budget, while honoring explicit thinking turns.
+    if (
+      endpoint.origin === OPENROUTER_ORIGIN &&
+      /^nvidia\/nemotron-3\.5-super-vl(?::free)?$/u.test(config.model) &&
+      request.reasoning === undefined
+    )
+      request.reasoning = { enabled: false };
+    if (endpoint.origin === GROQ_ORIGIN && GROQ_REASONING_MODELS.has(config.model)) {
+      const gptOss = config.model.startsWith('openai/');
+      request.reasoning_effort ??= gptOss ? 'low' : 'none';
+      if (gptOss) request.include_reasoning = false;
+      else request.reasoning_format = 'hidden';
+    }
     let response;
     try {
       const url = config.baseUrl + '/chat/completions';
@@ -1129,9 +1269,26 @@ export class InferenceApi {
         if (!Array.isArray(input.messages)) throw new Error('Invalid API conversation.');
         streaming = input.stream === true;
         const ollama = req.url === '/api/chat';
-        const selectedReasoning = ollama
-          ? input.think === true
-          : input.reasoning_effort === 'medium';
+        if (!ollama && streaming) this.lastChatSizeRejection = undefined;
+        // Native planners use root unions for llama.cpp's grammar. Responses
+        // requires an object root; nest the unchanged union and unwrap exactly
+        // once below so each planner still validates its original command shape.
+        const envelopeFormat =
+          ollama && this.config.authMode === 'chatgpt' && Array.isArray(input.format?.anyOf);
+        const outputSchema = envelopeFormat
+          ? {
+              type: 'object',
+              additionalProperties: false,
+              required: ['result'],
+              properties: { result: input.format },
+            }
+          : input.format;
+        const effort = Object.hasOwn(REASONING_BUDGETS, input.reasoning_effort)
+          ? input.reasoning_effort
+          : ollama && input.think === true
+            ? 'medium'
+            : undefined;
+        const selectedReasoning = Boolean(effort);
         if (selectedReasoning) {
           clearTimeout(timeout);
           timeout = setTimeout(timedOut, 300000);
@@ -1161,29 +1318,67 @@ export class InferenceApi {
               })),
               stream: false,
               max_tokens: selectedReasoning
-                ? Math.min(input.options?.num_predict || 8192, 8192)
+                ? Math.min(
+                    input.options?.num_predict || REASONING_BUDGETS[effort],
+                    REASONING_BUDGETS[effort],
+                  )
                 : Math.min(input.options?.num_predict || 768, 4096),
               temperature: input.options?.temperature ?? 0.85,
-              ...((imageRequest || input.format) &&
-              new URL(this.config.baseUrl).origin === 'https://openrouter.ai' &&
-              /^nvidia\/nemotron-3\.5-super-vl(?::free)?$/.test(this.config.model)
-                ? { reasoning: { enabled: false } }
+              ...(input.format
+                ? {
+                    response_format:
+                      this.config.authMode === 'chatgpt' &&
+                      typeof input.format === 'object' &&
+                      !Array.isArray(input.format)
+                        ? {
+                            type: 'json_schema',
+                            json_schema: {
+                              name: 'capri_result',
+                              schema: outputSchema,
+                              strict: false,
+                            },
+                          }
+                        : { type: 'json_object' },
+                  }
                 : {}),
-              ...(input.format ? { response_format: { type: 'json_object' } } : {}),
             }
           : conversation.request;
-        if (ollama && selectedReasoning)
+        if (ollama && (selectedReasoning || this.config.authMode === 'chatgpt'))
           payload = conversationReasoning(
-            { ...payload, reasoning_effort: 'medium' },
+            { ...payload, ...(selectedReasoning ? { reasoning_effort: effort } : {}) },
             this.config,
           ).request;
-        if (ollama && input.format)
+        if (envelopeFormat) {
+          const hint =
+            'Put the JSON response under the single root property "result", as required by the supplied schema. Do not add other root properties.';
+          const instruction = payload.messages.find(
+            (message) => message.role === 'system' && typeof message.content === 'string',
+          );
+          if (instruction) instruction.content += '\n' + hint;
+          else payload.messages.unshift({ role: 'system', content: hint });
+        }
+        if (ollama && input.format && this.config.authMode !== 'chatgpt')
           payload.messages.unshift({
             role: 'system',
             content: 'Return JSON matching this output schema: ' + JSON.stringify(input.format),
           });
         stage = 'upstream';
-        const { response, key } = await this.upstream(payload, controller.signal);
+        const key = await this.key();
+        let response;
+        try {
+          ({ response } = await this.upstream(payload, controller.signal, this.config, key));
+        } catch (error) {
+          const compact =
+            !ollama &&
+            streaming &&
+            this.config.tools === false &&
+            error.providerStatus === 413 &&
+            latestTextTurn(payload);
+          if (!compact) throw error;
+          controller.signal.throwIfAborted();
+          ({ response } = await this.upstream(compact, controller.signal, this.config, key));
+          this.lastFailure = null;
+        }
         stage = streaming && !ollama ? 'stream' : 'response';
         if (ollama || input.stream !== true) {
           const packet = withoutPrivateReasoning(
@@ -1196,9 +1391,22 @@ export class InferenceApi {
             const message = result.choices?.[0]?.message;
             if (!message || message.tool_calls?.length)
               throw new Error('API model returned an invalid tool-free response.');
+            let content = message.content ?? '';
+            if (envelopeFormat) {
+              const envelope = JSON.parse(content);
+              if (
+                !envelope ||
+                typeof envelope !== 'object' ||
+                Array.isArray(envelope) ||
+                Object.keys(envelope).length !== 1 ||
+                !Object.hasOwn(envelope, 'result')
+              )
+                throw new Error('API model returned an invalid tool-free response.');
+              content = JSON.stringify(envelope.result);
+            }
             const value = {
               model: this.config.model,
-              message: { role: 'assistant', content: message.content ?? '' },
+              message: { role: 'assistant', content },
               done: true,
               done_reason: result.choices[0].finish_reason,
               prompt_eval_count: result.usage?.prompt_tokens,
@@ -1235,6 +1443,13 @@ export class InferenceApi {
           error.providerStatus < 500
             ? error.providerStatus
             : 502;
+        if (
+          req.url === '/v1/chat/completions' &&
+          streaming &&
+          httpStatus === 413 &&
+          !res.headersSent
+        )
+          this.lastChatSizeRejection = performance.now();
         this.recordFailure(error, {
           stage,
           streaming,

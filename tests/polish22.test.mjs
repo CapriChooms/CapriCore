@@ -323,8 +323,8 @@ test('a reminder can prepare voice without loading the conversation model', asyn
   assert.equal(voices, 1);
   await service.wake();
   assert.equal(reloads, 1);
-  assert.equal(visuallySleeping('voice-awake', 'offline'), false);
-  assert.equal(visuallySleeping('notifying', 'offline'), false);
+  assert.equal(visuallySleeping('voice-awake', 'offline'), true);
+  assert.equal(visuallySleeping('notifying', 'offline'), true);
   assert.equal(visuallySleeping('asleep', 'offline'), true);
 });
 

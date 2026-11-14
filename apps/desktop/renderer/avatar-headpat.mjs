@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { avatarPoseLandmarks, drawPoseEyes } from './avatar-mouth.mjs';
+import { avatarPoseLandmarks } from './avatar-mouth.mjs';
 
 // Registered to the standing sprite's 1254 × 1254 canvas. The patch ends at
 // the bangs and jaw, so pose, silhouette, and hair grain stay on the live frame.
@@ -17,7 +17,7 @@ const faceOutline = [
   [582, 444],
 ];
 
-// Register the authored neutral expression to each pose's two eyes and mouth.
+// Register the 1.0.4 headpat drawing to each pose's eyes and mouth.
 // Reusing the whole local face removes the eye rings as well as the pupils;
 // drawing lids inside the pupil circles left the outer eyes visibly open.
 const faceRegistration = [
@@ -25,9 +25,17 @@ const faceRegistration = [
   [680, 373],
   [646, 430],
 ];
-export function headpatFaceTransform(pose) {
-  if (!pose) return [1, 0, 0, 1, 0, 0];
-  const [[sx, sy], [ex, ey], [mx, my]] = faceRegistration;
+const standing = avatarPoseLandmarks('neutral');
+const standingRegistration = [...standing.eyes, standing.mouth];
+const expressions = {
+  curious: 'skeptical',
+  neutral: 'attentive',
+  boundary: 'annoyed',
+  blink: 'idle-blink_closed',
+};
+
+export function headpatFaceTransform(pose, source = faceRegistration) {
+  const [[sx, sy], [ex, ey], [mx, my]] = source;
   const [[tx, ty], [ux, uy]] = pose.eyes;
   const [vx, vy] = pose.mouth;
   const ax = ex - sx,
@@ -50,13 +58,14 @@ export class AvatarHeadpat {
     this.face.src = 'headpat-face.png';
     this.face.addEventListener('load', () => this.refresh());
     this.spriteLoaded = () => this.refresh();
+    this.expressions = new Map();
   }
 
   play(sprite, { x, y }, bounds, showFace = true, frameId) {
     if (!sprite || !Number.isFinite(x) || !Number.isFinite(y)) return;
     const pose = avatarPoseLandmarks(frameId);
     // A hearts-only reaction must not install a face plate over the live pose.
-    if (showFace) this.setFace(sprite, pose, 'affectionate');
+    if (showFace && pose?.eyes) this.setFace(sprite, frameId, pose, 'affectionate');
     if (!this.hearts || performance.now() - this.burstAt >= 220) this.burst(x, y, bounds);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.clear(), 1450);
@@ -64,14 +73,14 @@ export class AvatarHeadpat {
 
   react(sprite, frameId, tone) {
     const pose = avatarPoseLandmarks(frameId);
-    if (!pose || !['curious', 'neutral', 'boundary'].includes(tone)) return false;
-    this.setFace(sprite, pose, tone);
+    if (!pose?.eyes || !Object.hasOwn(expressions, tone)) return false;
+    this.setFace(sprite, frameId, pose, tone);
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.clear(), 740);
+    this.timer = setTimeout(() => this.clear(), tone === 'blink' ? 130 : 740);
     return true;
   }
 
-  setFace(sprite, pose, tone) {
+  setFace(sprite, frameId, pose, tone) {
     if (sprite !== this.sprite) {
       this.clear();
       this.sprite = sprite;
@@ -83,21 +92,31 @@ export class AvatarHeadpat {
       sprite.after(this.plate);
       sprite.addEventListener('load', this.spriteLoaded);
     }
-    if (pose === this.pose && tone === this.tone && !this.plate.hidden) return;
+    if (frameId === this.frameId && tone === this.tone && !this.plate.hidden) return;
     this.pose = pose;
+    this.frameId = frameId;
+    this.sourceUrl = sprite.src;
     this.tone = tone;
+    this.plate.dataset.expression = tone;
     this.refresh();
   }
 
   refresh() {
-    const { face, pose, sprite, plate } = this;
-    const authoredFace = !pose || this.tone === 'affectionate';
+    const { pose, sprite, plate, tone } = this;
+    if (!plate) return;
+    if (this.sourceUrl !== sprite.src) {
+      this.clear();
+      return;
+    }
+    const affectionate = tone === 'affectionate';
+    const face = affectionate ? this.face : this.expressionAsset(tone);
     if (
       !sprite?.complete ||
       sprite.naturalWidth !== 1254 ||
       sprite.naturalHeight !== 1254 ||
-      (authoredFace &&
-        (!face.complete || face.naturalWidth !== 1254 || face.naturalHeight !== 1254))
+      !face.complete ||
+      face.naturalWidth !== 1254 ||
+      face.naturalHeight !== 1254
     )
       return;
     plate.width = sprite.naturalWidth;
@@ -106,25 +125,46 @@ export class AvatarHeadpat {
     if (!ctx) return;
     ctx.drawImage(sprite, 0, 0, plate.width, plate.height);
     ctx.globalCompositeOperation = 'source-atop';
-    if (!authoredFace) drawPoseEyes(ctx, pose, this.tone);
-    else {
-      ctx.save();
-      ctx.transform(...headpatFaceTransform(pose));
-      ctx.beginPath();
-      ctx.moveTo(...faceOutline[0]);
-      for (const [x, y] of faceOutline.slice(1)) ctx.lineTo(x, y);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(face, 0, 0);
-      ctx.restore();
+    ctx.transform(...headpatFaceTransform(pose));
+    // The contour was registered on the 1.0.4 headpat asset.
+    ctx.beginPath();
+    ctx.moveTo(...faceOutline[0]);
+    for (const [x, y] of faceOutline.slice(1)) ctx.lineTo(x, y);
+    ctx.closePath();
+    ctx.clip();
+    if (!affectionate) {
+      if (tone === 'blink') {
+        ctx.beginPath();
+        ctx.moveTo(560, 343);
+        ctx.lineTo(716, 295);
+        ctx.lineTo(716, 396);
+        ctx.lineTo(560, 443);
+        ctx.closePath();
+        ctx.clip();
+      }
+      ctx.resetTransform();
+      ctx.transform(...headpatFaceTransform(pose, standingRegistration));
     }
+    ctx.drawImage(face, 0, 0);
     plate.avatarTextureRevision = (plate.avatarTextureRevision ?? 0) + 1;
     plate.hidden = false;
     this.onFaceChange();
   }
 
   image(sprite) {
-    return this.sprite === sprite && !this.plate.hidden ? this.plate : sprite;
+    return this.sprite === sprite && this.sourceUrl === sprite.src && !this.plate.hidden
+      ? this.plate
+      : sprite;
+  }
+
+  expressionAsset(tone) {
+    if (!this.expressions.has(tone)) {
+      const image = new Image();
+      image.addEventListener('load', () => this.refresh(), { once: true });
+      image.src = `capri://desktop/sprites/${expressions[tone]}.png`;
+      this.expressions.set(tone, image);
+    }
+    return this.expressions.get(tone);
   }
 
   burst(x, y, bounds) {
@@ -162,6 +202,7 @@ export class AvatarHeadpat {
     this.plate = this.sprite = this.hearts = null;
     this.pose = null;
     this.tone = null;
+    this.frameId = null;
     if (faceVisible) this.onFaceChange();
   }
 }

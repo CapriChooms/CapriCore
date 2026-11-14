@@ -123,13 +123,17 @@ export function registerCompanionIpc(handle, deps) {
     try {
       await deps.prepareVoice();
       const { phrase, language, text } = selected;
-      const response = await fetch(`${deps.voiceUrl}/synthesize`, {
-        method: 'POST',
-        headers: { ...deps.voiceHeaders(), 'content-type': 'application/json' },
-        body: JSON.stringify({ text, language, requestId: `wake:${randomUUID()}` }),
-        signal: AbortSignal.timeout(90000),
-        redirect: 'error',
-      });
+      const request = { text, language, requestId: `wake:${randomUUID()}` };
+      const signal = AbortSignal.timeout(90000);
+      const response = deps.synthesizeVoice
+        ? await deps.synthesizeVoice(request, signal)
+        : await fetch(`${deps.voiceUrl}/synthesize`, {
+            method: 'POST',
+            headers: { ...deps.voiceHeaders(), 'content-type': 'application/json' },
+            body: JSON.stringify(request),
+            signal,
+            redirect: 'error',
+          });
       if (!response.ok || response.headers.get('x-sample-rate') !== '24000')
         throw new Error('The voice is unavailable. Enable it and retry.');
       const chunks = [];
@@ -157,6 +161,49 @@ export function registerCompanionIpc(handle, deps) {
   snapshot.prepareWakeVoice = prepareWakeVoice;
   handle('capri:reset-context', () => deps.resetContext());
   handle('capri:reset-memory', () => deps.resetMemory());
+  const createReport = (input) =>
+    (deps.createReport ?? createDiagnosticReport)({
+      root: deps.diagnosticRoot ?? root,
+      state,
+      rt,
+      input,
+      snapshot: deps.diagnosticSnapshot?.() ?? {},
+      resourceProbe: deps.diagnosticResources,
+      health: deps.verification
+        ? async () => ({
+            available: false,
+            error: 'Verification mode: real services were not queried',
+          })
+        : deps.voiceHealth,
+      ...(deps.verification ? { installerDirectory: null } : {}),
+    });
+  handle('capri:bug-report-send', async (value, { role }) => {
+    if (role !== 'settings' || deps.verification) throw new Error('Open Report a bug in Settings.');
+    const input = validateReport(value);
+    if (!input.description) throw new Error('Describe the problem before sending the report.');
+    if (collectingReport) throw new Error('A diagnostic report is already being collected.');
+    collectingReport = true;
+    try {
+      const report = await createReport(input);
+      if (report.bytes.length > 4 * 1024 ** 2)
+        throw new Error('The report is too large. Try sending without recent logs.');
+      const response = await fetch('https://capri-core.com/api/reports/v1', {
+        method: 'POST',
+        headers: { 'content-type': 'application/zip' },
+        credentials: 'omit',
+        redirect: 'error',
+        signal: AbortSignal.timeout(20000),
+        body: report.bytes,
+      }).catch(() => null);
+      const id = response?.headers.get('x-capri-report-id');
+      await response?.body?.cancel();
+      if (response?.status !== 202 || !/^[a-f0-9]{32}$/u.test(id ?? ''))
+        throw new Error('The report could not be sent. You can save a ZIP and share it manually.');
+      return { sent: true, reportId: id };
+    } finally {
+      collectingReport = false;
+    }
+  });
   handle('capri:bug-report', async (value) => {
     const input = validateReport(value);
     if (collectingReport) throw new Error('A diagnostic report is already being collected.');
@@ -169,21 +216,7 @@ export function registerCompanionIpc(handle, deps) {
         filters: [{ name: 'Diagnostic ZIP archive', extensions: ['zip'] }],
       });
       if (destination.canceled) return false;
-      const report = await (deps.createReport ?? createDiagnosticReport)({
-        root: deps.diagnosticRoot ?? root,
-        state,
-        rt,
-        input,
-        snapshot: deps.diagnosticSnapshot?.() ?? {},
-        resourceProbe: deps.diagnosticResources,
-        health: deps.verification
-          ? async () => ({
-              available: false,
-              error: 'Verification mode: real services were not queried',
-            })
-          : deps.voiceHealth,
-        ...(deps.verification ? { installerDirectory: null } : {}),
-      });
+      const report = await createReport(input);
       temporary = destination.filePath + '.' + randomUUID() + '.tmp';
       await writeFile(temporary, report.bytes, { flag: 'wx' });
       await rename(temporary, destination.filePath);

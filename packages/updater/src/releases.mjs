@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 export const REPOSITORY = 'CapriChooms/CapriCore';
+export const EXPERIMENTAL_REPOSITORY = 'CapriChooms/Capri';
+export const LEGACY_PREVIEW_TAG = 'v1.1.0';
+export const LEGACY_PREVIEW_VERSION = 'v1.1.0-experimental.1';
+
+export function releaseVersion(release, repository = release.repository) {
+  return repository === EXPERIMENTAL_REPOSITORY &&
+    release.prerelease === true &&
+    release.tag_name === LEGACY_PREVIEW_TAG
+    ? LEGACY_PREVIEW_VERSION
+    : release.tag_name;
+}
 export function parseVersion(tag) {
   const match =
     typeof tag === 'string' &&
@@ -48,8 +59,12 @@ export function releaseAsset(release, kind = 'source') {
     return null;
   return { id: asset.id, name, bytes: asset.size, sha256: asset.digest.slice(7) };
 }
-export function selectRelease(releases, { current, experimental = false, kind = 'source' }) {
+export function selectRelease(
+  releases,
+  { current, experimental = false, kind = 'source', repository = REPOSITORY },
+) {
   parseVersion(current);
+  const versionOf = (release) => releaseVersion(release, repository);
   return (
     releases
       .filter((release) => {
@@ -58,13 +73,13 @@ export function selectRelease(releases, { current, experimental = false, kind = 
           return (
             !release.draft &&
             (experimental || (!release.prerelease && !version.pre.length)) &&
-            compareVersions(release.tag_name, current) > 0 &&
+            compareVersions(versionOf(release), current) > 0 &&
             releaseAsset(release, kind)
           );
         } catch {
           return false;
         }
       })
-      .sort((a, b) => compareVersions(b.tag_name, a.tag_name))[0] ?? null
+      .sort((a, b) => compareVersions(versionOf(b), versionOf(a)))[0] ?? null
   );
 }

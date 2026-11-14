@@ -13,7 +13,9 @@ import { root } from '../../packages/runtime/src/host/paths.mjs';
 const parent = path.join(root, '.runtime', 'desktop-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'pose-mouth-'));
-const sprites = requireCapriAvatar(root).frames.filter(({ kind }) => kind === 'reviewed_pose');
+const sprites = requireCapriAvatar(root).frames.filter(
+  ({ id, kind }) => kind === 'reviewed_pose' && id !== 'pose-sleep',
+);
 assert.equal(sprites.length, 7);
 const entry = path.join(folder, 'main.mjs');
 const desktop = path.join(root, 'apps/desktop');
@@ -28,11 +30,23 @@ const files = Object.fromEntries([
     'avatar-headpat.css',
     'avatar-drag-tether.mjs',
     'avatar-teleport-motion.mjs',
+    'avatar-tap-effect.mjs',
+    'avatar-sleep.css',
+    'reply-pages.mjs',
+    'subtitles.mjs',
+    'speech-text.mjs',
+    'detached-reply-layout.mjs',
+    'reply-bubble-outline.mjs',
+    'interface-theme.mjs',
+    'presence-model.mjs',
+    'music-animation.mjs',
   ].map((name) => [`/${name}`, path.join(desktop, 'renderer', name)]),
-  ...['avatar-grip-rig.mjs', 'avatar-body-regions.mjs', 'avatar-pose-motion.mjs'].map((name) => [
-    `/${name}`,
-    path.join(desktop, name),
-  ]),
+  ...[
+    'avatar-grip-rig.mjs',
+    'avatar-body-regions.mjs',
+    'avatar-pose-motion.mjs',
+    'music-listening-settings.mjs',
+  ].map((name) => [`/${name}`, path.join(desktop, name)]),
   ['/headpat-face.png', path.join(root, 'assets/default/capri-headpat.png')],
 ]);
 writeFileSync(

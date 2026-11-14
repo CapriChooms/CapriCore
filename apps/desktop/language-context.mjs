@@ -1,8 +1,7 @@
-import { LANGUAGE_DEFAULTS, languageName } from './renderer/language-settings.mjs';
-import { LANGUAGE_PACKS } from './renderer/language-settings.mjs';
+import { LANGUAGE_DEFAULTS, LANGUAGE_PACKS, languageName } from './renderer/language-settings.mjs';
 
 const delivery = {
-  en: 'Reply only in English. Speech recognition language controls input transcription, not reply or voice language. Translate the meaning of non-English input into a natural English reply; never copy a whole foreign-language answer into the English voice.',
+  en: 'Reply only in English.',
   ru: 'Отвечай только на русском языке.',
   ja: '必ず日本語だけで答えてください。',
   zh: '请只用中文回答。',
@@ -17,11 +16,15 @@ const delivery = {
   he: 'עני רק בעברית.',
 };
 
-export function conversationInstruction(value = LANGUAGE_DEFAULTS) {
-  const name =
-    value.conversation === 'custom' ? value.customConversation : languageName(value.conversation);
-  const native = LANGUAGE_PACKS.find((p) => p.id === value.conversation)?.label ?? name;
-  return `CURRENT CONVERSATION LANGUAGE: ${JSON.stringify(name)} (${native}, ${value.conversation}). Write your entire user-facing reply in this language, even if the user's message or older conversation uses another language. Keep Capri's personality, shared memories, warmth and wit; adapt slang naturally instead of forcing English catchphrases. Do not add an English translation unless requested. A tool's confirmation is factual data: translate it into this language in one short sentence without adding claims. Proper names, song titles, file paths and code may keep their original spelling. Use plain text and punctuation only, with no emoji, asterisks or Markdown. This language choice applies to this interface and overrides older delivery instructions. Final answer language: ${name}. ${delivery[value.conversation] ?? `Respond only in ${name}.`}`;
+export function conversationInstruction(
+  { conversation, customConversation } = LANGUAGE_DEFAULTS,
+  { compact = false } = {},
+) {
+  const name = conversation === 'custom' ? customConversation : languageName(conversation);
+  const native = LANGUAGE_PACKS.find((p) => p.id === conversation)?.label ?? name;
+  if (compact)
+    return `CURRENT CONVERSATION LANGUAGE: ${JSON.stringify(name)}. ${delivery[conversation] ?? `Reply only in ${name}.`} Use plain text and punctuation. Keep proper names and requested quotations in their original language.`;
+  return `CURRENT CONVERSATION LANGUAGE: ${JSON.stringify(name)} (${native}, ${conversation}). Write your user-facing reply in this language, even when the input, older conversation, screen text or tool data uses another language. Any microphone language describes input transcription only. Keep Capri's personality, shared memories, warmth and wit; adapt slang naturally. A tool's confirmation is factual data: translate it into this language in one short sentence without adding claims. Proper names, song titles, file paths, code and text explicitly requested in another language may keep their original spelling. Use plain text and punctuation only, with no emoji, asterisks or Markdown. This conversation preference overrides older language instructions. ${delivery[conversation] ?? `Respond only in ${name}.`}`;
 }
 
 export const VOICE_PREVIEWS = Object.freeze({

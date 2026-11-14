@@ -38,6 +38,7 @@ class WorkerStartupTests(unittest.TestCase):
         def import_module(name, *args, **kwargs):
             if name == 'numpy':
                 phase('ASR_START_DEPENDENCIES')
+                return ModuleType('numpy')
             return original_import(name, *args, **kwargs)
 
         with patch.dict(sys.modules, {model.__name__: model, recognition.__name__: recognition}), \

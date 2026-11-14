@@ -17,9 +17,11 @@ const rendererFiles = [
   'credits.css',
   'credits-panel.mjs',
   'settings-app.mjs',
+  'settings-divider.mjs',
   'settings-loading.mjs',
   'settings-api.mjs',
   'settings-registry.mjs',
+  'skill-toolbar.mjs',
   'settings-search.mjs',
   'settings-location.mjs',
   'settings-help.html',
@@ -62,6 +64,7 @@ const rendererFiles = [
   'avatar-headpat.mjs',
   'avatar-tap-effect.mjs',
   'avatar-headpat.css',
+  'avatar-sleep.css',
   'avatar-teleport-motion.mjs',
   'avatar-teleport-sound.mjs',
   'dimming-settings.mjs',
@@ -71,6 +74,8 @@ const rendererFiles = [
   'subtitle-controller.mjs',
   'speech-text.mjs',
   'voice-player.mjs',
+  'voice-volume.mjs',
+  'voice-volume-menu.mjs',
   'reply-visibility.mjs',
   'call-audio-settings.mjs',
   'call-audio-route.mjs',
@@ -93,11 +98,17 @@ const rendererFiles = [
   'update-notification.mjs',
   'update-notification.css',
   'models-panel.mjs',
+  'npu-panel.mjs',
+  'coding-panel.mjs',
   'huggingface-panel.mjs',
   'voice-model-panel.mjs',
+  'external-tts-panel.mjs',
+  'external-tts-settings.mjs',
   'discord-panel.mjs',
   'inference-panel.mjs',
+  'desktop-ai-panel.mjs',
   'inference-picker.mjs',
+  'local-load-controls.mjs',
   'inference-endpoint.mjs',
   'api-key.mjs',
   'music-animation.mjs',
@@ -108,6 +119,7 @@ const rendererFiles = [
   'control-overlay.html',
   'control-overlay.css',
   'control-overlay.mjs',
+  'control-task-chain.mjs',
   'computer-appearance-panel.mjs',
   'confirmation-dialog.mjs',
   'confirmation-requests.mjs',
@@ -148,6 +160,18 @@ export function createDesktopResources({
       { file: path.join(directory, 'renderer', name), type: types[path.extname(name)] },
     ]),
   );
+  for (const module of [
+    'settings-catalog.mjs',
+    'attachment-formats.mjs',
+    'web-search/settings.mjs',
+  ]) {
+    const name = 'packages/skills/src/' + module;
+    resources.set('/' + name, { file: path.join(root, name), type: types['.mjs'] });
+  }
+  resources.set('/packages/runtime/src/hardware/imported-model.mjs', {
+    file: path.join(root, 'packages/runtime/src/hardware/imported-model.mjs'),
+    type: types['.mjs'],
+  });
   for (const name of [
     'clip-command.mjs',
     'credits-epithets.mjs',
@@ -183,7 +207,7 @@ export function createDesktopResources({
     file: path.join(root, 'assets/default/capri-headpat.png'),
     type: 'image/png',
   });
-  for (const brand of ['boosty', 'discord', 'github', 'capricore'])
+  for (const brand of ['boosty', 'lava', 'discord', 'github', 'capricore'])
     resources.set(`/brand/${brand}.svg`, {
       file: path.join(root, 'assets/default/brand', `${brand}.svg`),
       type: 'image/svg+xml',

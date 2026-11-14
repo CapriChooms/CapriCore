@@ -17,6 +17,6 @@
   "keepAlive": 300,
   "preloadModels": false,
   "nodeVersion": "24.22.1",
-  "ollamaVersion": "0.40.10",
+  "llamaVersion": "b12317",
   "openclawVersion": "2026.10.6"
 }

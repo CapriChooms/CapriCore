@@ -18,9 +18,34 @@ import { installNpmDependencies } from '../../installer/src/npm-install.mjs';
 import { ensureElectronRuntime } from '../../installer/src/electron-runtime.mjs';
 import { npmInstallRequired } from './npm-policy.mjs';
 import { writeJsonAtomic } from '../../runtime/src/atomic-json.mjs';
-import { compareVersions, parseVersion, REPOSITORY } from './releases.mjs';
+import {
+  compareVersions,
+  parseVersion,
+  REPOSITORY,
+  LEGACY_PREVIEW_TAG,
+  LEGACY_PREVIEW_VERSION,
+} from './releases.mjs';
 
 const hash = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
+
+/** E1's released installer and source archive both used an unsuffixed tag. */
+export function installedUpdateVersion(root, tag) {
+  if (tag !== LEGACY_PREVIEW_TAG) return tag;
+  const main = path.join(root, 'apps/desktop/main.mjs');
+  try {
+    noLinks(main);
+    const info = statSync(main);
+    if (
+      info.isFile() &&
+      info.size === 303663 &&
+      hash(main) === '2080df1ceecbe4e3a09a3f0007f4c9c6393760e647a9b9a1bd093dc2b4122083'
+    )
+      return LEGACY_PREVIEW_VERSION;
+  } catch {
+    // An unverified installation keeps its recorded version.
+  }
+  return tag;
+}
 const supportFile =
   /^(?:[^/]+\.cmd|README\.md|ROADMAP\.md|CONTRIBUTING\.md|SECURITY\.md|LICENSE|THIRD_PARTY_NOTICES\.md)$/i;
 const mutable = new Set([
@@ -149,7 +174,7 @@ function backupPath(name) {
 export function runtimeUpgradeRequired(root, source) {
   const before = readJson(path.join(root, 'config/installer.json'));
   const after = readJson(path.join(source, 'config/installer.json'));
-  return ['node', 'ollama', 'uv', 'git', 'electron'].some(
+  return ['node', 'ollama', 'llama', 'uv', 'git', 'electron'].some(
     (name) => before.artifacts[name]?.sha256 !== after.artifacts[name]?.sha256,
   );
 }
@@ -301,7 +326,9 @@ export async function applyUpdate(
     const installedTag = existsSync(path.join(root, 'config/release.json'))
       ? readJson(path.join(root, 'config/release.json')).tag
       : 'v' + identity.version + '-0';
-    if (compareVersions(tag, installedTag) <= 0)
+    const nextVersion = installedUpdateVersion(source, tag);
+    const currentVersion = installedUpdateVersion(root, installedTag);
+    if (compareVersions(nextVersion, currentVersion) <= 0)
       throw new Error('This release is already installed or is older.');
     // Runtime replacement requires the full installation wizard; never replace the running Node binary.
     if (runtimeUpgradeRequired(root, source))

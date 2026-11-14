@@ -120,12 +120,32 @@ export function operationLock(folder) {
 }
 
 export async function downloadArtifact(spec, folder, options = {}) {
-  const { signal, onProgress = () => {}, diskFree = freeBytes, retryDelay = 1000 } = options;
+  const {
+    signal,
+    onProgress = () => {},
+    diskFree = freeBytes,
+    retryDelay = 1000,
+    requestFile = hubResponse,
+    source = 'Hugging Face',
+    filename = spec.sha256,
+    existingFile,
+  } = options;
   if (!/^[a-f0-9]{64}$/.test(spec.sha256) || !Number.isSafeInteger(spec.bytes) || spec.bytes <= 0)
-    throw new Error('Hugging Face artifact has no verified size and SHA-256.');
+    throw new Error(`${source} artifact has no verified size and SHA-256.`);
+  if (filename !== spec.sha256 && filename !== `sha256-${spec.sha256}`)
+    throw new Error('Invalid artifact filename.');
+  if (existingFile) {
+    writablePartial(existingFile);
+    if (
+      existsSync(existingFile) &&
+      statSync(existingFile).size === spec.bytes &&
+      (await fileHash(existingFile, signal)) === spec.sha256
+    )
+      return existingFile;
+  }
   noLinks(folder);
   mkdirSync(folder, { recursive: true });
-  const file = noLinks(path.join(folder, spec.sha256)),
+  const file = noLinks(path.join(folder, filename)),
     partial = noLinks(file + '.partial');
   writablePartial(partial);
   if (
@@ -150,27 +170,30 @@ export async function downloadArtifact(spec, folder, options = {}) {
     signal?.throwIfAborted();
     let offset = existsSync(partial) ? statSync(partial).size : 0;
     if ((await diskFree(folder)) < spec.bytes - offset + 64 * 1024 ** 2)
-      throw new Error('There is not enough free disk space for this Hugging Face model.');
+      throw new Error(`There is not enough free disk space for this ${source} model.`);
     let response, reader, handle;
     try {
       onProgress({ status: 'connecting', completed: offset, total: spec.bytes, file: spec.path });
-      response = await hubResponse(spec.url, {
+      response = await requestFile(spec.url, {
         ...options,
         timeout: 2 * 60 * 60 * 1000,
         headers: offset ? { range: `bytes=${offset}-` } : {},
       });
-      if (![200, 206].includes(response.status)) throw httpError(response.status);
+      if (![200, 206].includes(response.status))
+        throw source === 'Hugging Face'
+          ? httpError(response.status)
+          : new Error(`${source} download failed (HTTP ${response.status}).`);
       if (
         response.status === 206 &&
         response.headers.get('content-range') !== `bytes ${offset}-${spec.bytes - 1}/${spec.bytes}`
       )
-        throw new Error('Hugging Face returned an invalid byte range.');
+        throw new Error(`${source} returned an invalid byte range.`);
       if (response.status === 200) offset = 0;
       const length = response.headers.get('content-length');
       if (length !== null && Number(length) !== spec.bytes - offset)
-        throw new Error('Hugging Face file size differs from the resolved manifest.');
+        throw new Error(`${source} file size differs from the resolved manifest.`);
       reader = response.body?.getReader();
-      if (!reader) throw new Error('Hugging Face returned an empty file.');
+      if (!reader) throw new Error(`${source} returned an empty file.`);
       writablePartial(partial);
       handle = await open(partial, offset ? 'a' : 'w', 0o600);
       let completed = offset,
@@ -182,12 +205,12 @@ export async function downloadArtifact(spec, folder, options = {}) {
         const chunk = await Promise.race([
           reader.read(),
           new Promise((_, reject) => {
-            timer = setTimeout(() => reject(new Error('Hugging Face download stalled.')), 45000);
+            timer = setTimeout(() => reject(new Error(`${source} download stalled.`)), 45000);
           }),
         ]).finally(() => clearTimeout(timer));
         if (chunk.done) break;
         completed += chunk.value.byteLength;
-        if (completed > spec.bytes) throw new Error('Hugging Face file exceeds its declared size.');
+        if (completed > spec.bytes) throw new Error(`${source} file exceeds its declared size.`);
         let written = 0;
         while (written < chunk.value.byteLength) {
           const result = await handle.write(chunk.value.subarray(written));
@@ -209,11 +232,11 @@ export async function downloadArtifact(spec, folder, options = {}) {
       await handle.sync();
       await handle.close();
       handle = null;
-      if (completed !== spec.bytes) throw new Error('Hugging Face download was incomplete.');
+      if (completed !== spec.bytes) throw new Error(`${source} download was incomplete.`);
       onProgress({ status: 'verifying', file: spec.path, completed, total: spec.bytes });
       if ((await fileHash(partial, signal)) !== spec.sha256) {
         unlinkSync(partial);
-        throw new Error('Hugging Face checksum verification failed.');
+        throw new Error(`${source} checksum verification failed.`);
       }
       noLinks(file);
       renameSync(partial, file);
@@ -229,8 +252,8 @@ export async function downloadArtifact(spec, folder, options = {}) {
           error.message,
         )
       ) {
-        if (/Hugging Face|disk space/.test(error.message)) throw error;
-        throw new Error('Hugging Face download could not be completed. Retry to resume.');
+        if (error.message?.includes(source) || /disk space/.test(error.message)) throw error;
+        throw new Error(`${source} download could not be completed. Retry to resume.`);
       }
       await delay(retryDelay * 2 ** attempt, undefined, { signal });
     }

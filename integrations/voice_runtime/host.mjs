@@ -10,8 +10,11 @@ import {
 import { LANGUAGE_PACKS } from '../../apps/desktop/renderer/language-settings.mjs';
 import { waitForVoiceReady } from './readiness.mjs';
 import { voiceStartupError } from './startup-error.mjs';
-import { voiceRuntimeEnvironment } from './environment.mjs';
-import { selectedVoiceModel, voicePython } from '../../apps/desktop/voice-catalog-service.mjs';
+import {
+  selectedVoiceModel,
+  voiceRuntime,
+  voiceRuntimeKind,
+} from '../../apps/desktop/voice-catalog-service.mjs';
 import { speechModelsInstalled } from '../../apps/desktop/language-models.mjs';
 import { readVoiceSettings } from '../../packages/runtime/src/voice-settings.mjs';
 import { requiresPrivacyRestart } from '../../packages/runtime/src/host/processes.mjs';
@@ -50,21 +53,15 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
   if (modelId !== undefined && (modelId !== 'chatterbox-turbo' || language !== 'en'))
     throw new Error('Unsupported voice validation override.');
   const selected = modelId ? { backend: 'chatterbox-turbo' } : selectedVoiceModel(root, language);
-  const expectedEngine =
-    selected.backend === 'chatterbox-turbo'
-      ? 'turbo'
-      : selected.backend === 'qwen3-tts'
-        ? 'qwen3-tts'
-        : 'multilingual-v3';
+  const expectedEngine = voiceRuntimeKind(selected);
   const profile = path.resolve(root, config.profileDir);
   if (!profile.startsWith(root + path.sep))
     throw new Error('Voice profile must stay in this project.');
   const expected = JSON.parse(readFileSync(path.join(profile, 'voice-profile.json'), 'utf8'));
-  const python = voicePython(root, selected);
+  const deviceKey = readModelDevices(root).voice;
+  const { python, env: runtimeEnv } = voiceRuntime(root, selected, deviceKey);
   if (!existsSync(python))
     throw new Error('Install the voice environment with setup-voice-training.cmd.');
-  const runtimeEnv = voiceRuntimeEnvironment(root);
-  const deviceKey = readModelDevices(root).voice;
   const marker = managedProcess('companion-voice');
   if (marker && (marker.deviceKey ?? 'auto') !== deviceKey) await stopManaged('companion-voice');
   if (requiresPrivacyRestart(managedProcess('companion-voice')))
@@ -101,7 +98,9 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
   const startedAt = Date.now();
   let worker = managedProcess('companion-voice');
   if (!current && !worker) {
-    const device = await voiceDeviceLaunch(root, python, runtimeEnv);
+    const device = await voiceDeviceLaunch(root, python, runtimeEnv, {
+      qwen: selected.backend === 'qwen3-tts',
+    });
     worker = await launch(
       'companion-voice',
       python,

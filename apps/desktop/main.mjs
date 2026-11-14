@@ -1,13 +1,55 @@
-import { InferenceApi, apiSettings, readApiSettings } from './inference-api.mjs';
+import {
+  InferenceApi,
+  apiSettings,
+  openRouterFreeReplyTimeoutMs,
+  readApiSettings,
+} from './inference-api.mjs';
+import { CapriCore } from '../../packages/core/src/index.mjs';
+import { codingSkill } from '../../packages/skills/src/coding.mjs';
+import { computerSkill } from '../../packages/skills/src/computer.mjs';
+import { avatarSkill } from '../../packages/skills/src/avatar/index.mjs';
+import { discordPresenceSkill } from '../../packages/skills/src/discord-presence.mjs';
+import { reasoningSkill } from '../../packages/skills/src/reasoning/index.mjs';
+import { webSearchSkill } from '../../packages/skills/src/web-search/index.mjs';
+import { installCodingBridge } from './main/coding-bridge.mjs';
+import { createMediaSkills } from './main/media-skills.mjs';
+import { createConversationSkills, createOwnerMemory } from './main/conversation-skills.mjs';
+import { createVoiceSkills } from './main/voice-skills.mjs';
+import { SkillSettings } from './main/skill-settings.mjs';
+import { skillPreferences } from '../../packages/skills/src/settings-catalog.mjs';
+import { ACTION_SKILLS } from '../../packages/skills/src/action-tools.mjs';
+import { NpuInference } from '../../packages/runtime/src/providers/npu-inference.mjs';
+import { NpuSetupService, prepareIntelNpu } from './npu-setup-service.mjs';
+import { CodingService } from './coding-service.mjs';
+import { CodingAgent } from './coding-agent.mjs';
+import { discoverCodingEditors } from './coding-editors.mjs';
+import { windowsCompatibility } from '../../packages/runtime/src/host/windows-compatibility.mjs';
+import {
+  readNpuSettings,
+  saveNpuSettings,
+} from '../../packages/runtime/src/providers/npu-settings.mjs';
+import {
+  readModelDevices,
+  saveModelDevices,
+} from '../../packages/runtime/src/model-device-settings.mjs';
+import { ExternalTts } from './external-tts.mjs';
+import { ChatGPTPlanAuth, CHATGPT_RESOURCE } from './chatgpt-plan-auth.mjs';
+import { chatGPTCompletion } from './chatgpt-plan-completions.mjs';
+import { DesktopAiDiscovery } from './desktop-ai-discovery.mjs';
+import { AvatarRoaming } from './avatar-roaming.mjs';
+import { LocalModelLoad } from './local-model-load.mjs';
 import { openLocalModelFolder } from './local-model-folder.mjs';
 import { isLemonadeNpuEndpoint, isLocalApiEndpoint } from './renderer/inference-endpoint.mjs';
 import { ComputerControl } from './computer-control.mjs';
-import { thinkingBriefing } from './thinking-briefing.mjs';
 import { WebSearch } from './web-search.mjs';
-import { prepareInternetSearch } from './internet-search.mjs';
 import { webSources } from './web-sources.mjs';
 import { visualReplyFailure } from './visual-response.mjs';
 import { NativeEscapeStop } from './native-escape-stop.mjs';
+import {
+  VOICE_VOLUME_DEFAULT,
+  validateVoiceVolume,
+  voiceVolumeSettings,
+} from './renderer/voice-volume.mjs';
 import { ResolveAdapter } from '../../integrations/resolve/service.mjs';
 import { ComputerAgent } from './computer-agent.mjs';
 import { steamGameLauncher } from './steam-game-launch.mjs';
@@ -29,6 +71,7 @@ import {
   ResponseTimingLog,
   configureResponseTimings,
   withResponseTiming,
+  markResponseTiming,
   acknowledgeResponsePaint,
 } from '../../packages/runtime/src/response-timing.mjs';
 import { timingFetch } from '../../packages/runtime/src/response-probe.mjs';
@@ -63,7 +106,6 @@ import { TaskWorkflows } from './task-workflows.mjs';
 import { UserTools } from './user-tools.mjs';
 import { interfaceThemeColors } from './renderer/interface-theme.mjs';
 import { FileService } from '../../integrations/filesystem/service.mjs';
-import { TimeConversation } from './time-conversation.mjs';
 import { ReminderDelivery } from './reminder-delivery.mjs';
 import { speakReminder } from './reminder-playback.mjs';
 import {
@@ -87,7 +129,11 @@ import { GitHubAccess, githubTokenUrl, credentialStorage } from './github-access
 import { installSpeechComponents } from '../../packages/installer/src/speech-components.mjs';
 import { SpeechInstallService } from './speech-install-service.mjs';
 import { ModelService } from './model-service.mjs';
-import { HuggingFaceHub } from '../../packages/runtime/src/huggingface/hub.mjs';
+import {
+  HuggingFaceHub,
+  hasSpeculativeDraft,
+} from '../../packages/runtime/src/huggingface/hub.mjs';
+import { HF_DRAFT_CHAT_ERROR } from '../../packages/runtime/src/hardware/imported-model.mjs';
 import { HuggingFaceService } from './huggingface-service.mjs';
 import { HuggingFaceCredentials } from './huggingface-credentials.mjs';
 import { VoiceCatalogService, voiceBackendChanged } from './voice-catalog-service.mjs';
@@ -102,7 +148,10 @@ import {
   saveInferenceSettings,
 } from '../../packages/runtime/src/hardware/model-profile.mjs';
 import { validateContextChoice } from '../../packages/runtime/src/config/context-policy.mjs';
-import { responsiveness } from '../../packages/runtime/src/hardware/responsiveness.mjs';
+import {
+  responsiveness,
+  windowsX64Emulation,
+} from '../../packages/runtime/src/hardware/responsiveness.mjs';
 import { consumeFirstLaunchPreload, startModelServices } from './model-startup.mjs';
 import { memorySampler } from '../../packages/runtime/src/hardware/memory.mjs';
 import { ProcessLoadSampler } from './process-load.mjs';
@@ -121,9 +170,15 @@ import {
   validateCompanionSettings,
 } from './companion-settings.mjs';
 import { clearSavedMemory } from './memory-controls.mjs';
-import { readSavedMemory } from './saved-memory.mjs';
-import { saveOwnerNote } from './owner-notes.mjs';
-import { StartupProgress } from './startup-progress.mjs';
+import {
+  automaticFactCandidate,
+  changeOwnerFact,
+  listOwnerFacts,
+  recallOwnerNote,
+  saveOwnerFact,
+  saveOwnerNote,
+} from './owner-notes.mjs';
+import { StartupProgress, coreStartupFailure } from './startup-progress.mjs';
 import { loadStartupIntro, startupIntroSnapshot } from './startup-intro-assets.mjs';
 import { StartupIntroGate } from './main/startup-intro.mjs';
 import {
@@ -135,6 +190,7 @@ import { VOICE_PREVIEWS } from './language-context.mjs';
 import {
   app,
   BrowserWindow,
+  clipboard,
   ipcMain,
   Menu,
   Tray,
@@ -156,7 +212,7 @@ import { fileURLToPath } from 'node:url';
 import {
   root,
   nodePath,
-  ollamaPath,
+  llamaPath,
   settings,
   runtime,
   initialize,
@@ -182,6 +238,7 @@ import {
   visibleWindowBounds,
 } from './geometry.mjs';
 import { loadInstalledAvatar } from './avatar-catalog.mjs';
+import { matchCharacterPortrait } from './character-portraits.mjs';
 import { AvatarState } from './avatar-state.mjs';
 import { DEFAULT_AVATAR_LAYOUT, validateAvatarLayout } from './avatar-layout.mjs';
 import { VoiceService } from './voice-service.mjs';
@@ -201,13 +258,16 @@ import { callResponseGenerator } from './call-response.mjs';
 import { CallAudioSetup } from './call-audio-setup.mjs';
 import { VirtualCableInstaller } from './virtual-cable-installer.mjs';
 import {
-  callAudioCommand,
   callAudioPreferences,
   callAudioState,
   callOutputDevices,
   speakerSelectionAllowed,
 } from './main/call-audio.mjs';
-import { validateSpeechSettings } from './renderer/speech-settings.mjs';
+import {
+  SPEECH_DEFAULTS,
+  validateMicrophoneGain,
+  validateSpeechSettings,
+} from './renderer/speech-settings.mjs';
 import { DIMMING_DEFAULTS, validateDimming } from './renderer/dimming-settings.mjs';
 import { RequestRouter } from './request-router.mjs';
 import { randomUUID } from 'node:crypto';
@@ -258,11 +318,7 @@ import {
   settingsAvatarWindowId,
   watchAvatarSettingsWindow,
 } from './main/avatar-settings-window.mjs';
-import {
-  desktopAvatarCommand,
-  isSettingsWindowTitle,
-  randomAvatarDestination,
-} from './desktop-avatar-commands.mjs';
+import { isSettingsWindowTitle, randomAvatarDestination } from './desktop-avatar-commands.mjs';
 import {
   AvatarClickReactions,
   avatarClickCue,
@@ -330,6 +386,38 @@ else {
     app.on('browser-window-created', (_event, window) => window.setIcon(applicationIcon));
 }
 async function initializeDesktop() {
+  const skillSettings = new SkillSettings(path.join(state, 'skills.json'));
+  const skillEnabled = (id) => skillSettings.enabled(id);
+  const skills = new CapriCore({
+    operationSignal: (request) => skillSettings.operationSignal(request),
+  });
+  const callSkill = (skillId, command, input, { source = 'host', signal } = {}) =>
+    skills.call({ skillId, command, input }, { source, signal });
+  const requestComputerAccess = (enabled, { signal, source = 'chat' } = {}) =>
+    callSkill('capri.computer', 'requestAccess', enabled, { signal, source });
+  const runComputerSkill = (
+    goal,
+    {
+      signal,
+      previousTask,
+      ownerRequestedCall,
+      planningEffort,
+      applicationHint,
+      source = 'chat',
+    } = {},
+  ) =>
+    callSkill(
+      'capri.computer',
+      'run',
+      {
+        goal,
+        previousTask,
+        ownerRequestedCall,
+        ...(source === 'chat' && planningEffort && { planningEffort }),
+        ...(source === 'chat' && applicationHint && { applicationHint }),
+      },
+      { signal, source },
+    );
   configureResponseTimings(
     new ResponseTimingLog(
       path.join(verification ? verificationFolder : root, 'logs/response-desktop.jsonl'),
@@ -348,13 +436,52 @@ async function initializeDesktop() {
     keyFile: path.join(state, 'private-data-key.json'),
     storage: credentialStorage(safeStorage),
   });
+  const chatgpt = new ChatGPTPlanAuth({
+    root: verification ? verificationFolder : root,
+    storage: credentialStorage(safeStorage),
+    openBrowser: (url) => shell.openExternal(url),
+    fetchImpl: (url, options) =>
+      session.fromPartition('capri-chatgpt', { cache: false }).fetch(url, {
+        ...options,
+        bypassCustomProtocolHandlers: true,
+      }),
+  });
   const inferenceApi = new InferenceApi({
     root: verification ? verificationFolder : root,
     storage: credentialStorage(safeStorage),
     proxySession: () => session.fromPartition('capri-inference-proxy', { cache: false }),
+    chatgpt,
     ...(verification ? { config: apiSettings() } : {}),
   });
   rt.remote = inferenceApi.config;
+  let nativeNpu = null;
+  if (
+    !rt.remote.enabled &&
+    readModelDevices(verification ? verificationFolder : root).language.startsWith('npu-')
+  ) {
+    try {
+      nativeNpu = new NpuInference({ root: verification ? verificationFolder : root });
+    } catch {
+      nativeNpu = new NpuInference({
+        root,
+        config: { backend: 'openvino', modelPath: '', python: '', contextTokens: 8192 },
+      });
+    }
+    if (!nativeNpu.active)
+      nativeNpu.ready = async () => {
+        throw Error('The native NPU selection changed. Select your NPU again in Model devices.');
+      };
+    rt.nativeNpu = nativeNpu; // A bad NPU selection must fail visibly, never load an unrelated CPU/GPU model.
+  }
+  const externalTts = new ExternalTts({
+    root: verification ? verificationFolder : root,
+    storage: credentialStorage(safeStorage),
+    fetchImpl: (url, options) =>
+      session.fromPartition('capri-voice-api', { cache: false }).fetch(url, {
+        ...options,
+        bypassCustomProtocolHandlers: true,
+      }),
+  });
   const diagnosticModel = diagnosticModelId(rt.remote.enabled ? rt.remote.model : settings.model);
   if (diagnosticModel)
     writeModelSelectionLog(
@@ -362,30 +489,29 @@ async function initializeDesktop() {
       diagnosticModel,
     );
   const npuDialogue =
-    rt.remote.enabled && isLemonadeNpuEndpoint(new URL(rt.remote.baseUrl), rt.remote.model);
-  const screenVisionAvailable = rt.remote.enabled
-    ? rt.remote.vision
-    : !settings.modelCapabilities || settings.modelCapabilities.includes('vision');
+    Boolean(rt.nativeNpu) ||
+    (rt.remote.enabled && isLemonadeNpuEndpoint(new URL(rt.remote.baseUrl), rt.remote.model));
+  const screenVisionAvailable = rt.nativeNpu
+    ? false
+    : rt.remote.enabled
+      ? rt.remote.vision
+      : !settings.modelCapabilities || settings.modelCapabilities.includes('vision');
   rt.inferenceUrl = rt.remote.enabled ? `http://127.0.0.1:${rt.gatewayPort + 2}` : rt.ollamaUrl;
   rt.remoteProxyToken = inferenceApi.proxyToken;
-  const inferenceOptions = rt.remote.enabled
-    ? {
-        fetchImpl: inferenceApi.localFetch,
-        modelCapabilities: [
-          ...(rt.remote.tools ? ['tools'] : []),
-          ...(rt.remote.vision ? ['vision'] : []),
-        ],
-      }
-    : { fetchImpl: localTimingFetch };
+  const inferenceOptions = rt.nativeNpu
+    ? { fetchImpl: nativeNpu.fetch, modelCapabilities: [] }
+    : rt.remote.enabled
+      ? {
+          fetchImpl: inferenceApi.localFetch,
+          modelCapabilities: [
+            ...(rt.remote.tools ? ['tools'] : []),
+            ...(rt.remote.vision ? ['vision'] : []),
+          ],
+        }
+      : { fetchImpl: localTimingFetch };
   const auxiliaryRunnerParams = Object.freeze({
-    num_ctx: settings.contextTokens,
+    num_ctx: nativeNpu?.config.contextTokens ?? settings.contextTokens,
     ...(!rt.remote.enabled ? localRunnerOptions(settings) : {}),
-  });
-  const prepareThinking = thinkingBriefing({
-    url: rt.inferenceUrl,
-    model: settings.model,
-    params: auxiliaryRunnerParams,
-    ...inferenceOptions,
   });
   if (!Number.isInteger(rt.gatewayPort) || rt.gatewayPort < 1024 || rt.gatewayPort > 65535)
     throw new Error('Invalid local Gateway port');
@@ -554,8 +680,8 @@ async function initializeDesktop() {
   let perch,
     desktopFrame,
     avatarRoamCapture,
-    avatarRoamAt = 0,
     avatarDesktopUpdate = false;
+  const avatarRoaming = new AvatarRoaming();
   let settingsHost;
   let settingsPreview = {};
   const liveCompanionSettings = () => settingsPreview.companion ?? companionPreferences.value;
@@ -574,8 +700,10 @@ async function initializeDesktop() {
   let temporal;
   let reminders,
     sessionLocked = false;
+  let pendingMemoryDecision, latestMemoryCandidate;
   const reminderListeners = new Set();
   let shuttingDown = false;
+  let maintenance = false;
   let rendererReady = false;
   let rendererFailed = false,
     rendererRecovery = null,
@@ -647,6 +775,11 @@ async function initializeDesktop() {
     INFERENCE_STARTUP_DEFAULTS,
     inferenceStartupSettings,
   );
+  const localModelLoad = new LocalModelLoad({
+    root,
+    dataRoot: verification ? verificationFolder : root,
+  });
+  let localInferenceTasks = 0;
   const computerAppearance = new Preferences(
     path.join(state, 'computer-control.json'),
     COMPUTER_DEFAULTS,
@@ -693,11 +826,18 @@ async function initializeDesktop() {
       if (!verification) await stopManaged('companion-voice');
     },
     ready: async () => {
-      voiceAvailable = verification || companionVoiceInstalled();
+      voiceAvailable = externalTts.config.enabled || verification || companionVoiceInstalled();
       voiceAllowed =
         voiceAvailable && (!verification || process.env.CAPRI_DESKTOP_VERIFICATION_VOICE === '1');
       asrInstalled = recognitionInstalled(asrConfig.language);
       microphone.publish({ available: asrAllowed && asrInstalled });
+      if (
+        skillEnabled('capri.voice-output') &&
+        voiceAvailable &&
+        !voice.enabled &&
+        voiceVolume.value.volume > 0
+      )
+        changeVoice(true);
       emit({
         type: 'speech-components',
         speechAvailability: Object.fromEntries(
@@ -717,17 +857,20 @@ async function initializeDesktop() {
     token: () => hfCredentials.tokenFor('https://huggingface.co'),
   });
   const importedProfiles = async () =>
-    (await hfHub.list()).filter((item) => item.profile).map((item) => item.profile);
-  const localModelName =
-    hfHub.list().find((item) => item.profile?.alias === settings.model)?.repository ??
-    settings.upstreamModel ??
-    settings.model;
+    hfHub
+      .list()
+      .filter((item) => item.profile && !hasSpeculativeDraft(item))
+      .map((item) => item.profile);
+  const activeHfPackage = hfHub.list().find((item) => item.profile?.alias === settings.model);
+  const localModelName = activeHfPackage?.repository ?? settings.upstreamModel ?? settings.model;
   const localResidency = new LocalModelResidencySampler({ url: rt.ollamaUrl });
   const models = new ModelService({ rt, config: settings, emit, customProfiles: importedProfiles });
+  const npuSetup = new NpuSetupService({ root: verification ? verificationFolder : root });
   const modelDevices = new ModelDeviceService({
     root: verification ? verificationFolder : root,
-    ollama: ollamaPath,
+    ollama: llamaPath,
     config: settings,
+    npuSetup,
   });
   const developerDiagnostics = new DeveloperDiagnostics({
     root: verification ? verificationFolder : root,
@@ -891,6 +1034,11 @@ async function initializeDesktop() {
   });
   let listingAudioInputs = false,
     audioInputRefresh;
+  let microphoneMonitorGrant;
+  function stopMicrophoneMonitor() {
+    microphoneMonitorGrant = undefined;
+    settingsHost?.send({ type: 'microphone.monitor-stop' });
+  }
   let listingCallOutputs = 0,
     enablingCallOutput = false,
     callMicrophoneArmed = false,
@@ -926,11 +1074,56 @@ async function initializeDesktop() {
       : {}),
   });
   const responseTiming = responsiveness({ ...settings, availableRamBytes: freemem() });
+  const emulatedX64 = windowsX64Emulation();
   const internetSearch = new WebSearch();
+  const coding = new CodingService({ root: verification ? verificationFolder : root });
+  const codingAgent = new CodingAgent({
+    service: coding,
+    url: rt.inferenceUrl,
+    model: settings.model,
+    ...inferenceOptions,
+    params: auxiliaryRunnerParams,
+    emit,
+  });
+  skills.register(webSearchSkill, {
+    searchWeb: (query, options) =>
+      internetSearch.search(query, {
+        ...options,
+        settings: skillSettings.preferences.value['capri.web-search']?.search,
+      }),
+  });
+  skills.register(reasoningSkill, { prepareThinking: () => null });
+  skills.register(avatarSkill, {
+    react: (part) => avatarClickReactions.press({ part }),
+  });
+  skills.subscribe({ skillId: 'capri.reasoning', event: 'settings' }, ({ data: settings }) =>
+    emit({ type: 'thinking.settings', settings }),
+  );
+  skills.subscribe({ skillId: 'capri.web-search', event: 'settings' }, ({ data: settings }) =>
+    emit({ type: 'internet.settings', settings }),
+  );
+  skills.register(codingSkill, {
+    service: coding,
+    agent: codingAgent,
+    assertModelIdle,
+    installBridge: (editor, { signal }) => installCodingBridge(root, editor, signal),
+  });
+  skills.subscribe({ skillId: 'capri.coding', event: 'settings' }, ({ data }) =>
+    emit({ type: 'coding.settings', ...data }),
+  );
+  const ownerMemory = createOwnerMemory(skills, {
+    save: (note) => saveOwnerNote(rt.workspace, note),
+    recall: (text) =>
+      skillEnabled('capri.owner-memory') ? recallOwnerNote(rt.workspace, text) : null,
+    read: () => listOwnerFacts(rt.workspace),
+    clear: () => clearSavedMemory(rt),
+  });
   const chat = new ChatService({
+    skills,
+    codingTask: (goal, { signal } = {}) =>
+      callSkill('capri.coding', 'run', goal, { source: 'chat', signal }),
     externalInference: rt.remote.enabled,
-    prepareThinking,
-    searchWeb: (query, options) => internetSearch.search(query, options),
+    externalRequestTooLargeSince: (startedAt) => inferenceApi.requestTooLargeSince(startedAt),
     firstTextTimeoutMs: responseTiming.firstTextTimeoutMs,
     timeoutMs: responseTiming.timeoutMs,
     gatewayUrl: rt.gatewayUrl,
@@ -939,39 +1132,68 @@ async function initializeDesktop() {
     token: () => readFileSync(rt.tokenPath, 'utf8').trim(),
     persona: () => (npuDialogue ? sharedOwnerPersona(1000) : livePersona()),
     store,
-    ownerMemoryWorkspace: rt.workspace,
+    ownerMemory,
     avatarSprites: catalog.publicSprites(),
     defaultAvatarId: catalog.defaultId,
     interfaceState: () => ({
-      applications: applicationAccess.mask(applications.snapshot()),
+      reasoningEffort: skillSettings.preferences.value['capri.reasoning']?.effort,
+      activeSkills: new Set(
+        Object.entries(skillSettings.snapshot())
+          .filter(([, preference]) => preference.enabled)
+          .map(([id]) => id),
+      ),
+      applications: {
+        notepad:
+          skillEnabled('capri.applications') &&
+          applicationAccess.mask(applications.snapshot()).notepad,
+        calculator: skillEnabled('capri.calculator'),
+      },
       spotify: {
         ...spotify.snapshot(),
-        enabled: applicationAccess.enabled && spotify.snapshot().enabled,
+        enabled: skillEnabled('capri.spotify') && spotify.snapshot().enabled,
       },
-      applicationAccess: applicationAccess.enabled,
-      fullComputerAccess: fullComputerAccess.enabled && applicationAccess.enabled,
+      applicationAccess: skillEnabled('capri.applications') && applicationAccess.enabled,
+      computerSkillEnabled: skillEnabled('capri.computer'),
+      fullComputerAccess:
+        skillEnabled('capri.computer') && fullComputerAccess.enabled && applicationAccess.enabled,
       followUp: liveCompanionSettings().followUp && microphone.status === 'listening',
       languages: liveLanguages(),
       microphone: microphone.status === 'listening',
       microphoneLanguage: microphone.config.language,
       wakePhrase: microphone.config.wakeWord?.enabled ? 'Capri / Hey, Capri' : null,
-      screenObservation: screenObservation?.context(),
-      screenVisionAvailable,
-      modelToolsAvailable: rt.remote.enabled
-        ? rt.remote.tools
-        : !settings.modelCapabilities || settings.modelCapabilities.includes('tools'),
-      recentScreenshot: lastScreenshot,
-      temporalContext: temporal?.context(),
+      screenObservation: skillEnabled('capri.screen') ? media.screen.context() : null,
+      screenVisionAvailable: skillEnabled('capri.screen') && screenVisionAvailable,
+      modelToolsAvailable: rt.nativeNpu
+        ? false
+        : rt.remote.enabled
+          ? rt.remote.tools
+          : !settings.modelCapabilities || settings.modelCapabilities.includes('tools'),
+      recentScreenshot: skillEnabled('capri.screen') ? lastScreenshot : null,
+      temporalContext: skillEnabled('capri.timers') ? temporal?.context() : '',
     }),
     requestRouter,
+    directLocalDialogue:
+      !verification && !npuDialogue && !rt.remote.enabled
+        ? (payload, signal) =>
+            inferenceOptions.fetchImpl(rt.inferenceUrl + '/v1/chat/completions', {
+              method: 'POST',
+              redirect: 'error',
+              headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+              body: JSON.stringify({ ...payload, model: settings.model, reasoning_effort: 'none' }),
+              signal,
+            })
+        : null,
     npuDialogue: npuDialogue
       ? (payload, signal) =>
-          inferenceApi.localFetch(rt.inferenceUrl + '/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
-            body: JSON.stringify(payload),
-            signal,
-          })
+          (rt.nativeNpu ? nativeNpu.fetch : inferenceApi.localFetch)(
+            rt.inferenceUrl + '/v1/chat/completions',
+            {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+              body: JSON.stringify(payload),
+              signal,
+            },
+          )
       : null,
     commitNpuDialogue:
       npuDialogue && !verification
@@ -1014,12 +1236,12 @@ async function initializeDesktop() {
         value: enabled,
       });
       if (enabled) applicationAccess.assertAllowed('desktop_control', { action: 'run_task' });
-      return computerRequests.configure(enabled, options);
+      return requestComputerAccess(enabled, options);
     },
     computerTask: async (goal, options) => {
       chat.assertToolAllowed('desktop_control', { action: 'run_task' });
       applicationAccess.assertAllowed('desktop_control', { action: 'run_task' });
-      const result = await computerRequests.execute(goal, options);
+      const result = await runComputerSkill(goal, options);
       if (!verification)
         void metadataRpc
           .call('chat.inject', {
@@ -1033,9 +1255,17 @@ async function initializeDesktop() {
       return result;
     },
     prepareContext: async (input, options) => ({
-      ...(await prepareScreenContext(input, options)),
-      knowledgeContext: brain.context(input.text, { remote: rt.remote.enabled }),
-      userToolContext: await userTools.context(input.text, options),
+      ...(skillEnabled('capri.screen') && !options.smallTalk
+        ? await media.screen.prepare(input, options)
+        : {}),
+      knowledgeContext:
+        !options.smallTalk && skillEnabled('capri.brain')
+          ? conversation.brain.context(input.text, { remote: rt.remote.enabled })
+          : '',
+      userToolContext:
+        !options.smallTalk && skillEnabled('capri.user-tools')
+          ? await userTools.context(input.text, options)
+          : '',
     }),
     prepareModel: verification
       ? null
@@ -1043,11 +1273,21 @@ async function initializeDesktop() {
           void requestRouter.start();
           await mutedVoiceResidency.release();
           signal.throwIfAborted();
-          if (rt.remote.enabled) return { remote: true };
+          if (rt.remote.enabled) {
+            const firstTextTimeoutMs = openRouterFreeReplyTimeoutMs(rt.remote);
+            return {
+              remote: true,
+              ...(firstTextTimeoutMs && {
+                conversationBudget: { firstTextTimeoutMs, source: 'remote-provider' },
+              }),
+            };
+          }
+          if (rt.nativeNpu) return nativeNpu.ready({ signal });
           const budgetOptions = {
             session: contextSampler.peekSession(),
             model: settings.model,
             contextTokens: settings.contextTokens,
+            emulatedX64,
             historyCharacters: store
               .snapshot()
               .reduce((count, item) => count + (item.text?.length ?? 0), 0),
@@ -1075,7 +1315,7 @@ async function initializeDesktop() {
   });
   // Speech is opt-in for each desktop session, including upgrades with an old
   // enabled preference. Installing a voice/language does not load it into memory.
-  let voiceEnabled = false;
+  let voiceEnabled = skillEnabled('capri.voice-output');
   if (verification && process.env.CAPRI_DESKTOP_VERIFICATION_VOICE === '1') {
     voiceEnabled = true;
     try {
@@ -1083,10 +1323,18 @@ async function initializeDesktop() {
         JSON.parse(readFileSync(path.join(state, 'voice.json'), 'utf8')).enabled === true;
     } catch {}
   }
-  let voiceAvailable = verification || companionVoiceInstalled();
+  let voiceAvailable = externalTts.config.enabled || verification || companionVoiceInstalled();
   let voiceAllowed =
     voiceAvailable && (!verification || process.env.CAPRI_DESKTOP_VERIFICATION_VOICE === '1');
+  const voiceVolumeDefaults = { volume: VOICE_VOLUME_DEFAULT, lastAudible: VOICE_VOLUME_DEFAULT };
+  const voiceVolume = new Preferences(
+    path.join(state, 'voice-volume.json'),
+    voiceVolumeDefaults,
+    voiceVolumeSettings,
+  );
+  const voiceSnapshot = () => ({ ...voice.snapshot(), volume: voiceVolume.value.volume });
   const speechInstalled = (language) => {
+    if (externalTts.config.enabled) return true;
     if (verification && ['0', '1'].includes(process.env.CAPRI_DESKTOP_VERIFICATION_MOCK_PACKS))
       return (
         process.env.CAPRI_DESKTOP_VERIFICATION_MOCK_PACKS === '1' &&
@@ -1097,12 +1345,17 @@ async function initializeDesktop() {
   const voice = new VoiceService({
     url: companionVoiceUrl(),
     headers: companionVoiceHeaders,
+    external: externalTts,
+    ensureReady: () => connectVoice(),
     emit,
-    enabled: voiceAllowed && voiceEnabled,
+    enabled: voiceAllowed && voiceEnabled && voiceVolume.value.volume > 0,
     language: voiceAvailable ? resolveLanguages(languages.value).speech : 'off',
   });
   const asrConfig = JSON.parse(readFileSync(path.join(root, 'config/companion-asr.json'), 'utf8'));
-  const speechDefaults = { trailingSilenceSeconds: asrConfig.trailingSilenceSeconds };
+  const speechDefaults = {
+    ...SPEECH_DEFAULTS,
+    trailingSilenceSeconds: asrConfig.trailingSilenceSeconds,
+  };
   const speechPreferences = new Preferences(
     path.join(state, 'speech.json'),
     speechDefaults,
@@ -1138,26 +1391,42 @@ async function initializeDesktop() {
     return true;
   }
   const turnOrigins = new Map();
-  let thinkingMode = false;
-  let internetMode = false;
   function thinkingInput(value) {
-    return validateInput({
+    const input = validateInput({
       ...value,
-      thinking: value?.thinking === undefined ? thinkingMode : value.thinking,
-      internet: value?.internet === undefined ? internetMode : value.internet,
+      mode: value?.mode ?? (callSkill('capri.coding', 'enabled') ? 'coding' : undefined),
+      thinking:
+        value?.thinking === undefined ? callSkill('capri.reasoning', 'mode') : value.thinking,
+      internet:
+        value?.internet === undefined ? callSkill('capri.web-search', 'mode') : value.internet,
     });
+    if (input.mode)
+      skillSettings.require(input.mode === 'coding' ? 'capri.coding' : 'capri.computer');
+    if (input.thinking) skillSettings.require('capri.reasoning');
+    if (input.internet) skillSettings.require('capri.web-search');
+    return input;
   }
   async function submitMessage(value, origin = 'text') {
-    return withResponseTiming(value?.id, () => submitMessageTurn(value, origin));
+    localInferenceTasks++;
+    try {
+      return await withResponseTiming(value?.id, () => submitMessageTurn(value, origin));
+    } finally {
+      localInferenceTasks--;
+    }
   }
   async function submitMessageTurn(value, origin = 'text') {
+    if (maintenance) throw new Error('Wait for the current reply or operation to finish.');
+    if (chatgpt.signingIn)
+      throw new Error('Finish ChatGPT sign-in or cancel it before sending a message.');
     avatarClickReactions?.cancel();
     const input = thinkingInput(value);
-    const movement = desktopAvatarCommand(input.text);
+    const movement = skillEnabled('capri.avatar-interaction')
+      ? callSkill('capri.avatar-interaction', 'interpret', input.text)
+      : null;
     if (movement) return submitAvatarCommand(input, movement);
     if (voiceTraining.busy())
       throw new Error('Wait for voice training to finish, or cancel it in Languages.');
-    if (settings.modelSetupRequired && !rt.remote.enabled)
+    if (settings.modelSetupRequired && !rt.remote.enabled && !rt.nativeNpu)
       throw new Error('Choose and prepare a language model in Settings → Language model first.');
     if (speechInstaller.busy())
       throw new Error('Wait for speech installation to finish, or cancel it in Languages.');
@@ -1198,7 +1467,8 @@ async function initializeDesktop() {
       emit({ type: 'turn.completed', turnId: input.id, assistant });
       return { ok: true };
     }
-    const elapsedReply = !currentChatTask && temporal?.read(input.text);
+    const elapsedReply =
+      skillEnabled('capri.timers') && !currentChatTask && temporal?.read(input.text);
     if (elapsedReply) {
       const createdAt = new Date().toISOString();
       const user = {
@@ -1333,7 +1603,7 @@ async function initializeDesktop() {
       await submitMessage(value, 'microphone');
     },
   });
-  const callAudioAvailable = () =>
+  const callAudioWindowAvailable = () =>
     process.platform === 'win32' &&
     !sessionLocked &&
     !shuttingDown &&
@@ -1342,6 +1612,7 @@ async function initializeDesktop() {
     companionPresent() &&
     !window.isMinimized() &&
     window.webContents.getURL() === rendererUrl;
+  const callAudioAvailable = () => skillEnabled('capri.voice-calls') && callAudioWindowAvailable();
   const systemAudio = new SystemAudioCapture({
     ownerFrame: () => window?.webContents.mainFrame,
     sessionId: () =>
@@ -1349,6 +1620,7 @@ async function initializeDesktop() {
     enableReview: (id, wake) => microphone.enableSystemAudioReview(id, wake),
   });
   const musicAvailable = () =>
+    skillEnabled('capri.music') &&
     process.platform === 'win32' &&
     !sessionLocked &&
     !shuttingDown &&
@@ -1388,9 +1660,79 @@ async function initializeDesktop() {
     sessionId: () => (musicAvailable() ? musicListening.session?.id : null),
     available: musicAvailable,
   });
+  const media = createMediaSkills(skills, {
+    microphone: {
+      start: startMicrophone,
+      confirm: (id) => microphone.confirm(id),
+      listen: listenMicrophone,
+      devices: refreshAudioInputs,
+      selectDevice: changeAudioInput,
+      stop: ({ id, keepModelWarm }) => {
+        const stopped = microphone.stop(id);
+        if (stopped && !keepModelWarm) {
+          microphone.worker.close();
+          microphone.publish();
+        }
+        return stopped;
+      },
+      snapshot: () => microphone.snapshot(),
+    },
+    music: {
+      configure: (value) => {
+        musicPreferences.set(validateMusicListeningSettings(value));
+        return musicListening.publish();
+      },
+      start: () => {
+        musicPreferences.set({ ...musicPreferences.snapshot(), enabled: true });
+        return musicListening.start();
+      },
+      ready: (id) => musicListening.ready(id),
+      stop: (id) => {
+        musicAudio.revoke();
+        return musicListening.stop(id);
+      },
+      snapshot: () => musicListening.snapshot(),
+    },
+    screen: {
+      context: () => screenObservation?.context() ?? null,
+      prepare: prepareScreenContext,
+      configure: (value) => screenPreferences.set(observationOptions(value)),
+      preferences: () => screenPreferences.snapshot(),
+      snapshot: () => screenObservation.snapshot(),
+      stop: () => screenObservation.stop(),
+    },
+  });
   function stopMusicListening() {
-    musicAudio.revoke();
-    return musicListening.stop();
+    return media.music.stop(undefined, 'host');
+  }
+  async function startMicrophone() {
+    if (speechInstaller.busy())
+      throw new Error('Wait for speech installation to finish, or cancel it in Languages.');
+    if (shuttingDown || !['ready', 'asleep'].includes(backendState.phase))
+      throw new Error('The local core is not ready yet.');
+    if (!asrAllowed || !asrInstalled)
+      throw new Error('Install the selected recognition pack first.');
+    const capture = { ...(await microphone.start()), ...liveMicrophone() };
+    if (
+      !verification &&
+      liveCompanionSettings().wakeSound === 'voice' &&
+      sleepService.phase === 'awake' &&
+      !currentChatTask &&
+      !chat.active &&
+      !voice.generating &&
+      !playbackBusy
+    )
+      void prepareWakeAudio().catch((error) => {
+        const type = error.code === 'CAPRI_VOICE_DISABLED' ? 'voice.warning' : 'wake.error';
+        emit({ type, message: error.message });
+      });
+    return capture;
+  }
+  function listenMicrophone() {
+    if (speechInstaller.busy())
+      throw new Error('Wait for speech installation to finish, or cancel it in Languages.');
+    if (shuttingDown || !['ready', 'asleep'].includes(backendState.phase)) return false;
+    return microphone.listenNow();
   }
   function callAudioSnapshot() {
     return {
@@ -1422,7 +1764,7 @@ async function initializeDesktop() {
     emit({ type: 'call-audio.reset' });
   }
   async function listCallAudioDevices(includeGroup, all = false) {
-    if (!callAudioAvailable()) return [];
+    if (!callAudioWindowAvailable()) return [];
     listingCallOutputs++;
     let timer;
     try {
@@ -1437,7 +1779,11 @@ async function initializeDesktop() {
           );
         }),
       ]);
-      return callAudioAvailable() ? (all ? devices : callOutputDevices(devices, includeGroup)) : [];
+      return callAudioWindowAvailable()
+        ? all
+          ? devices
+          : callOutputDevices(devices, includeGroup)
+        : [];
     } finally {
       listingCallOutputs--;
       clearTimeout(timer);
@@ -1521,6 +1867,15 @@ async function initializeDesktop() {
     platform: verification ? 'verification' : process.platform,
     onChange: (value) => emit({ type: 'discord.presence', settings: value }),
   });
+  skills.register(discordPresenceSkill, {
+    start: () => discordPresence.start(),
+    stop: () => discordPresence.close(),
+    snapshot: () => discordPresence.snapshot(),
+    configure: (value) => {
+      const enabled = skillEnabled('capri.discord-presence');
+      return discordPresence.configure({ ...value, enabled }, { active: enabled });
+    },
+  });
   const contextSampler = new ContextSampler({
     rpc: metadataRpc,
     sessionKey: chatSessionKey,
@@ -1528,6 +1883,7 @@ async function initializeDesktop() {
     contextTokens: rt.remote.enabled ? rt.remote.contextTokens : settings.contextTokens,
   });
   function sharedOwnerPersona(limit = 4000) {
+    if (!skillEnabled('capri.owner-memory')) return livePersona();
     let memory = '';
     for (const name of ['USER.md', 'MEMORY.md'])
       try {
@@ -1550,10 +1906,11 @@ async function initializeDesktop() {
           expiresAt: capture.expiresAt,
           intervalMs: capture.intervalMs,
         });
-      else if (!value.active && screenObservation?.session) screenObservation.stop();
+      else if (!value.active && screenObservation?.session) media.screen.stop();
       emit({ type: 'screen.status', settings: value });
     },
   });
+  const identifyPortrait = (png) => matchCharacterPortrait(nativeImage.createFromBuffer(png));
   screenObservation = new ScreenObservation({
     infer: screenObserverModel({
       url:
@@ -1562,13 +1919,18 @@ async function initializeDesktop() {
       modelCapabilities: settings.modelCapabilities,
       ...inferenceOptions,
       params: { ...auxiliaryRunnerParams, ...settings.generation },
+      identifyPortrait,
     }),
     state: () => ({
       busy: Boolean(chat.active || currentChatTask || initiative?.active),
       typing: draftBusy,
       speaking: playbackBusy,
       userSpeech: Date.now() < lastSpeechUntil,
-      offline: !screenVisionAvailable || backendState.phase !== 'ready' || shuttingDown,
+      offline:
+        !screenVisionAvailable ||
+        backendState.phase !== 'ready' ||
+        shuttingDown ||
+        Boolean(chatgpt.signingIn),
       hidden: !companionPresent(),
     }),
     onChange: (value) => emit({ type: 'screen.observation', settings: value }),
@@ -1578,7 +1940,7 @@ async function initializeDesktop() {
   async function prepareScreenContext(input, { signal }) {
     return prepareScreenObservationContext(
       {
-        enabled: screenVisionAvailable,
+        enabled: screenVisionAvailable && !chatgpt.signingIn,
         capturePolicy,
         clipFrames,
         validImage: (png) => !nativeImage.createFromBuffer(png).isEmpty(),
@@ -1706,7 +2068,8 @@ async function initializeDesktop() {
     }
   }
   const visual = new VisualService({
-    prepareThinking,
+    skills,
+    identifyPortrait,
     url: rt.inferenceUrl,
     model: settings.model,
     modelCapabilities: settings.modelCapabilities,
@@ -1801,11 +2164,10 @@ async function initializeDesktop() {
       try {
         let webContext = '';
         if (input.internet === true) {
-          const result = await prepareInternetSearch({
-            query: input.text,
+          const result = await chat.prepareWebSearch(input, {
             language: languages.value.conversation,
             signal,
-            search: (query, options) => internetSearch.search(query, options),
+            source: 'visual-turn',
             emit: (event) => emitChat({ type: 'turn.web-search', turnId: input.id, ...event }),
           });
           webContext = result.context;
@@ -1815,11 +2177,13 @@ async function initializeDesktop() {
           }
         }
         const result = await visual.generate({
+          requestId: input.id,
           text: input.text,
           png,
           source,
           attachments: attachments?.map(({ metadata, ...file }) => file),
           thinking: input.thinking,
+          effort: skillSettings.preferences.value['capri.reasoning']?.effort,
           webContext,
           signal,
           emit: (event) => {
@@ -1914,7 +2278,7 @@ async function initializeDesktop() {
       ),
       speaking: playbackBusy,
       userSpeech: Date.now() < lastSpeechUntil,
-      offline: backendState.phase !== 'ready' || shuttingDown,
+      offline: !skillEnabled('capri.initiative') || backendState.phase !== 'ready' || shuttingDown,
       hidden: !companionPresent(),
     }),
     budget: initiativeBudget,
@@ -1954,15 +2318,94 @@ async function initializeDesktop() {
         assistant: { ...message, text: '', status: 'streaming' },
         source: 'initiative',
       });
-      voice.onChat({ type: 'turn.started', turnId: message.turnId });
-      voice.onChat({ type: 'turn.delta', turnId: message.turnId, text: message.text });
+      voiceSkills.output.turn({ type: 'turn.started', turnId: message.turnId });
+      voiceSkills.output.turn({ type: 'turn.delta', turnId: message.turnId, text: message.text });
       emit({ type: 'turn.delta', turnId: message.turnId, text: message.text });
-      voice.onChat({ type: 'turn.completed', turnId: message.turnId });
+      voiceSkills.output.turn({ type: 'turn.completed', turnId: message.turnId });
       emit({ type: 'turn.completed', turnId: message.turnId, assistant: message });
     },
   });
+  const conversation = createConversationSkills(skills, {
+    initiative: {
+      async configure(value) {
+        const settings = initiativeSettings.set(value);
+        emit({ type: 'initiative.settings', settings });
+        try {
+          await syncInitiative();
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            observer.publish('failed');
+            emit({
+              type: 'initiative.error',
+              message: 'App awareness could not start. Apply its settings to try again.',
+            });
+          }
+        }
+        return settings;
+      },
+      dismiss() {
+        initiative.dismiss();
+        if (voice.turn?.id === latestInitiativeTurnId) voice.cancel();
+        return true;
+      },
+      restore() {
+        initiative.restore();
+        return true;
+      },
+      test() {
+        initiative.tick(true);
+        return initiative.snapshot();
+      },
+      snapshot: () => initiative.snapshot(),
+    },
+    brain: {
+      service: brain,
+      async open() {
+        await shell.openPath(brain.folder);
+        return true;
+      },
+    },
+    privateMemory: { service: privateMemory },
+    files: { permissions: filePermissions, snapshot: fileAccessSnapshot },
+    attachments: { open: (id) => attachmentViewer.open(id) },
+  });
+  const voiceSkills = createVoiceSkills(skills, {
+    setVoiceEnabled: changeVoice,
+    onVoiceTurn: (event) => {
+      if (skillEnabled('capri.voice-output')) voice.onChat(event);
+    },
+    readCallAudio: callAudioSnapshot,
+    canConfigureCallAudio: () => settingsHost?.window?.isVisible(),
+    configureCallAudio: applyCallAudioCommand,
+    configureSpeech: applySpeechSettings,
+  });
+  function applyCallAudioCommand(command) {
+    if (command.action === 'allow-model' || command.action === 'voice-volume') {
+      const policy = callAudioPolicy.set({
+        ...callAudioPolicy.snapshot(),
+        ...(command.action === 'allow-model'
+          ? { allowModel: command.enabled }
+          : { callVoiceVolume: command.volume }),
+      });
+      if (!policy.allowModel && (voicePreviewRequest?.model || callVoiceTurn?.model))
+        cancelCallVoice();
+      emit({ type: 'call-audio.policy', ...policy });
+      return callAudioSnapshot();
+    }
+    if (!callAudioAvailable()) throw new Error('Enable Voice calls in Settings and open Capri.');
+    return executeCallAudio(command);
+  }
+  async function applySpeechSettings(value) {
+    const previousPause = speechPreferences.value.trailingSilenceSeconds;
+    const next = speechPreferences.set({ ...speechPreferences.value, ...value });
+    if (previousPause !== next.trailingSilenceSeconds)
+      await microphone.configurePause(settingsPreview.speechPause ?? next.trailingSilenceSeconds);
+    emit({ type: 'speech.settings', settings: next });
+    return next;
+  }
   function avatarReactionAvailable(awakened = false) {
     return (
+      skillEnabled('capri.avatar-interaction') &&
       !shuttingDown &&
       !quitting &&
       !sessionLocked &&
@@ -2009,8 +2452,9 @@ async function initializeDesktop() {
       emit({ type: 'avatar.tap', part, tone, count, pulse });
     },
     speakCue: (tone, mood) => {
-      if (!voice.enabled || !voice.ready || voice.language === 'off') return;
-      const cue = avatarClickCue(tone, mood, voice.language);
+      const language = liveLanguages().conversation;
+      if (!voice.enabled || !voice.ready || voice.language !== language) return;
+      const cue = avatarClickCue(tone, mood, language);
       if (!cue) return;
       const turnId = randomUUID();
       emit({ type: 'voice.preview-started', turnId });
@@ -2036,7 +2480,9 @@ async function initializeDesktop() {
 
   function recordAvatarClick(kind = 'body') {
     initiative.activity();
-    avatarClickReactions.press({ part: kind });
+    if (!skillEnabled('capri.avatar-interaction')) return false;
+    callSkill('capri.avatar-interaction', 'react', kind);
+    return true;
   }
 
   observer.on('observation', (event) => initiative.observe(event));
@@ -2052,7 +2498,8 @@ async function initializeDesktop() {
       observer,
       prepare: ensureAwareness,
       enabled: Boolean(
-        settings.level !== 'off' &&
+        skillEnabled('capri.initiative') &&
+          settings.level !== 'off' &&
           companionPresent() &&
           !shuttingDown &&
           !verification &&
@@ -2077,6 +2524,7 @@ async function initializeDesktop() {
     stop: () => stopManaged('companion-voice'),
   });
   async function connectVoice() {
+    if (!skillEnabled('capri.voice-output')) return false;
     if (mutedVoiceResidency.pending) await mutedVoiceResidency.pending.catch(() => {});
     if (
       !voiceAllowed ||
@@ -2092,7 +2540,11 @@ async function initializeDesktop() {
     )
       return voiceStartPromise;
     screenObservation?.activity();
-    if (!verification && !speechModelsInstalled(root, voice.language)) {
+    if (
+      !externalTts.config.enabled &&
+      !verification &&
+      !speechModelsInstalled(root, voice.language)
+    ) {
       voice.fail(
         voice.language === 'en'
           ? ENGLISH_VOICE_SETUP_MESSAGE
@@ -2101,7 +2553,11 @@ async function initializeDesktop() {
       return;
     }
     const controller = (voiceStartController = new AbortController());
-    voiceStartPromise = startCompanionVoice({ language: voice.language, signal: controller.signal })
+    voiceStartPromise = (
+      externalTts.config.enabled
+        ? Promise.resolve()
+        : startCompanionVoice({ language: voice.language, signal: controller.signal })
+    )
       .then(async () => {
         if (!shuttingDown && !controller.signal.aborted) {
           await voice.prepareLanguage();
@@ -2133,19 +2589,124 @@ async function initializeDesktop() {
     return voiceStartPromise;
   }
   function changeVoice(enabled) {
+    if (enabled) skillSettings.require('capri.voice-output');
     if (!enabled) cancelCallVoice();
     voicePreviewRequest = null;
     if (enabled && !voiceAvailable) throw new Error(ENGLISH_VOICE_SETUP_MESSAGE);
+    if (enabled && voiceVolume.value.volume === 0)
+      voiceVolume.set({ ...voiceVolume.value, volume: voiceVolume.value.lastAudible });
     voice.setEnabled(enabled);
     if (enabled) connectVoice();
     else
       void mutedVoiceResidency
         .release()
         .catch((error) => console.warn('Muted voice release failed:', error.message));
-    return voice.snapshot();
+    return voiceSnapshot();
+  }
+
+  function changeVoiceVolume(value) {
+    const volume = validateVoiceVolume(value);
+    const previous = voiceVolume.value;
+    const enable = !voice.enabled && volume > 0;
+    if (volume === previous.volume && !enable) return voiceSnapshot();
+    if (enable) {
+      skillSettings.require('capri.voice-output');
+      if (!voiceAvailable || voice.language === 'off') throw new Error(VOICE_REQUIRED_MESSAGE);
+    }
+    voiceVolume.set({ volume, lastAudible: volume || previous.lastAudible });
+    if (volume === 0 || enable) return changeVoice(enable);
+    emit({ type: 'voice.settings', ...voiceSnapshot() });
+    return voiceSnapshot();
+  }
+
+  async function applySkillActivation(id, enabled) {
+    switch (id) {
+      case 'capri.microphone':
+        if (!enabled) {
+          media.microphone.stop({ keepModelWarm: false }, 'host');
+          microphone.worker.close();
+          microphone.publish();
+          resetCallAudio();
+        } else if (asrAllowed && asrInstalled && ['ready', 'asleep'].includes(backendState.phase))
+          emit({ type: 'microphone.toggle-request' });
+        break;
+      case 'capri.voice-output':
+        if (!enabled || (voiceAvailable && voiceVolume.value.volume > 0)) changeVoice(enabled);
+        break;
+      case 'capri.music':
+        if (!enabled) stopMusicListening();
+        break;
+      case 'capri.screen':
+        if (!enabled) {
+          capturePolicy.clear();
+          screenPreviews.clear();
+          media.screen.stop();
+          lastScreenshot = null;
+        }
+        break;
+      case 'capri.reasoning':
+      case 'capri.web-search':
+        callSkill(id, 'setMode', enabled);
+        break;
+      case 'capri.coding':
+        if (!enabled) callSkill(id, 'resetMode');
+        break;
+      case 'capri.applications':
+        if (enabled) await applicationAccess.set(true);
+        else companionActions.approvals.cancel();
+        break;
+      case 'capri.computer':
+        if (enabled) await applicationAccess.set(true);
+        else if (computerAgent.running || computerControl.session) await emergencyComputerStop();
+        break;
+      case 'capri.workflows':
+        if (!enabled) workflows.cancel();
+        break;
+      case 'capri.user-tools':
+        if (!enabled) userTools.cancel();
+        break;
+      case 'capri.spotify':
+        if (!enabled) await spotifyService.close();
+        break;
+      case 'capri.voice-calls':
+        if (!enabled) {
+          resetCallAudio();
+          if (window && !window.isDestroyed())
+            await executeCallAudio({ action: 'output-off' }).catch(() => {});
+        }
+        break;
+      case 'capri.initiative':
+        if (!enabled) initiative.cancel();
+        else initiative.activity();
+        await syncInitiative();
+        break;
+      case 'capri.avatar-interaction':
+        if (!enabled) avatarClickReactions.cancel();
+        break;
+      case 'capri.timers':
+        if (enabled) companionActions.time.start();
+        else companionActions.time.suspend();
+        break;
+      case 'capri.brain':
+        brain.configure({ enabled, shareWithApi: brain.snapshot().shareWithApi });
+        break;
+      case 'capri.private-memory':
+        if (!enabled) privateMemory.lock();
+        break;
+      case 'capri.discord-presence':
+        discordPresence.configure({ ...discordPresence.preferences.snapshot(), enabled });
+        break;
+      case 'capri.attachment-viewer':
+        if (!enabled) {
+          attachmentDrafts.clear();
+          attachmentViewer.close();
+        }
+        break;
+    }
   }
 
   function emit(event) {
+    if (event.type === 'voice.settings') event = { ...event, volume: voiceVolume.value.volume };
     callAudioDiagnostics.observe(event);
     if (
       ['companion.settings', 'languages', 'speech.settings', 'initiative.settings'].includes(
@@ -2155,7 +2716,7 @@ async function initializeDesktop() {
       event = { ...event, settingsVersions: settingsVersions() };
     if (event.type === 'file-access') companionActions.approvals.cancel();
     for (const listener of [...reminderListeners]) listener(event);
-    if (event.type === 'conversation.cleared' && temporal) temporal.focus = null;
+    if (event.type === 'conversation.cleared') temporal?.clear();
     const openSection = {
       'open-companion': 'appearance',
       'open-voice-effects': 'voice',
@@ -2164,6 +2725,7 @@ async function initializeDesktop() {
       'open-file-access': 'files',
       'open-time': 'time',
       'open-applications': 'applications',
+      'open-spotify': 'spotify',
       'open-initiative': 'initiative',
       'open-screen': 'screen',
       'open-dimming': 'dimming',
@@ -2270,7 +2832,99 @@ async function initializeDesktop() {
     pendingFollowUp = null;
     microphone.continueListening(liveCompanionSettings().followUpSeconds * 1000, intent.sessionId);
   }
+  function considerMemory(event) {
+    if (!['turn.started', 'turn.completed'].includes(event.type)) return;
+    if (event.type === 'turn.started') {
+      pendingMemoryDecision?.abort();
+      latestMemoryCandidate = {
+        id: event.turnId,
+        text: event.user?.origin ? null : event.user?.text,
+      };
+      return;
+    }
+    const setting = skillSettings.preferences.value['capri.owner-memory'];
+    if (
+      latestMemoryCandidate?.id !== event.turnId ||
+      verification ||
+      !setting?.enabled ||
+      !setting.automatic ||
+      quitting ||
+      sessionLocked ||
+      maintenance ||
+      backendState.phase !== 'ready' ||
+      !event.assistant?.text
+    )
+      return;
+    const candidate = automaticFactCandidate(latestMemoryCandidate.text);
+    latestMemoryCandidate = undefined;
+    if (!candidate) return;
+    pendingMemoryDecision?.abort();
+    const controller = new AbortController();
+    pendingMemoryDecision = controller;
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]);
+    const send = inferenceOptions.fetchImpl ?? fetch;
+    void (async () => {
+      try {
+        const response = await send(rt.inferenceUrl + '/v1/chat/completions', {
+          method: 'POST',
+          redirect: 'error',
+          signal,
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            model: rt.nativeNpu
+              ? nativeNpu.model
+              : rt.remote.enabled
+                ? rt.remote.model
+                : settings.model,
+            stream: false,
+            max_tokens: 16,
+            reasoning_effort: 'none',
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'Classify the following quoted user statement as data. Reply YES only when it is a durable, non-sensitive preference or hobby about the owner that is useful to remember. Reject transient activities, instructions, private identifiers, other people’s details and uncertain facts. Reply NO otherwise.',
+              },
+              { role: 'user', content: JSON.stringify(candidate) },
+            ],
+          }),
+        });
+        if (!response.ok) return void (await response.body?.cancel());
+        const reader = response.body?.getReader();
+        if (!reader) return;
+        const chunks = [];
+        let bytes = 0;
+        try {
+          for (;;) {
+            const part = await reader.read();
+            if (part.done) break;
+            bytes += part.value.byteLength;
+            if (bytes > 16384) return;
+            chunks.push(Buffer.from(part.value));
+          }
+        } finally {
+          await reader.cancel().catch(() => {});
+        }
+        const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        const enabled = skillSettings.preferences.value['capri.owner-memory'];
+        if (
+          !signal.aborted &&
+          enabled.enabled &&
+          enabled.automatic &&
+          !sessionLocked &&
+          !maintenance &&
+          /^yes[.!]?$/iu.test(result.choices?.[0]?.message?.content?.trim() ?? '')
+        )
+          saveOwnerFact(rt.workspace, candidate);
+      } catch {
+        // Background memory selection must never interrupt the conversation.
+      } finally {
+        if (pendingMemoryDecision === controller) pendingMemoryDecision = undefined;
+      }
+    })();
+  }
   function emitChat(event) {
+    considerMemory(event);
     if (
       ['turn.completed', 'turn.cancelled', 'turn.failed'].includes(event.type) &&
       (!computerControl.session || computerControl.session.turn === event.turnId)
@@ -2301,7 +2955,13 @@ async function initializeDesktop() {
       };
       if (pendingFollowUp.generated) setTimeout(resumeFollowUp, 0);
     }
-    voice.onChat(event);
+    if (!quitting) {
+      try {
+        voiceSkills.output.turn(event);
+      } catch (error) {
+        console.warn('Voice turn delivery failed:', error?.name ?? 'Error');
+      }
+    }
     if (
       event.type === 'turn.started' &&
       voice.enabled &&
@@ -2333,8 +2993,8 @@ async function initializeDesktop() {
     emit(event);
   }
 
-  function setBackend(phase, message) {
-    backendState = { phase, message };
+  function setBackend(phase, message, code) {
+    backendState = { phase, message, ...(code && { code }) };
     console.info('Capri local core:', phase);
     emit({ type: 'backend', ...backendState });
   }
@@ -2437,7 +3097,16 @@ async function initializeDesktop() {
   let remoteGatewayStarted = false;
   async function connectBackend({ preload = true } = {}) {
     if (voiceTraining.busy()) return;
-    if (settings.modelSetupRequired && !rt.remote.enabled) {
+    if (
+      !rt.remote.enabled &&
+      !rt.nativeNpu &&
+      activeHfPackage &&
+      hasSpeculativeDraft(activeHfPackage)
+    ) {
+      setBackend('offline', HF_DRAFT_CHAT_ERROR);
+      return;
+    }
+    if (settings.modelSetupRequired && !rt.remote.enabled && !rt.nativeNpu) {
       setBackend('offline', 'Choose a language model in Settings → Language model.');
       return;
     }
@@ -2476,14 +3145,12 @@ async function initializeDesktop() {
           );
         if (!shuttingDown) setBackend('ready', 'Ready');
       } catch (error) {
-        console.error('Core startup failed:', error.message);
-        if (!shuttingDown && sleepService.phase !== 'sleeping')
-          setBackend(
-            'offline',
-            error.code === 'CAPRI_OLLAMA_BUNDLE_INCOMPLETE'
-              ? error.message
-              : 'The local core is unavailable. Reconnect to try again.',
-          );
+        console.error('Core startup failed:', error.code ?? '', error.message);
+        if (!shuttingDown && sleepService.phase !== 'sleeping') {
+          startup.end('core', true);
+          const { code, message } = coreStartupFailure(error);
+          setBackend('offline', message, code);
+        }
         throw error;
       } finally {
         backendPromise = null;
@@ -2583,8 +3250,8 @@ async function initializeDesktop() {
     void computerControl.stop();
     processLoad.stop();
     systemCpu.stop();
+    if (!verification || capturePolicy.capture) discardScreens('companion-hidden');
     if (!verification) {
-      discardScreens('companion-hidden');
       initiative.cancel();
       observer.stop();
     }
@@ -2612,11 +3279,7 @@ async function initializeDesktop() {
     }
     if (!avatarDetach?.available) return false;
     // Settings closes with its owner; release that seat before hiding either surface.
-    if (perch?.localTracking) {
-      clearPerch();
-      const frame = desktopFrame ?? frameIds.get('neutral');
-      if (frame) await avatarDetach.updateFrame(frame, catalog.canvas, maskFor(frame.id, frame));
-    }
+    if (perch?.localTracking) await finishPerch(perch, true);
     if (!avatarDetach.available || shuttingDown || quitting || sessionLocked) return false;
     avatarOnly = true;
     window.hide();
@@ -2736,8 +3399,8 @@ async function initializeDesktop() {
         });
       }
     }
+    avatarRoaming.postpone(liveCompanionSettings(), 60000);
     if (await tryAvatarDock(cursor)) return true;
-    avatarRoamAt = Date.now() + 60000;
     const wasPerched = Boolean(perch);
     const arrival = wasPerched && avatarTravelPose(desktopFrame ?? frameIds.get('neutral'), true);
     clearPerch();
@@ -2757,7 +3420,7 @@ async function initializeDesktop() {
     if (!canTeleport()) return false;
     if (avatarOnly) restoreCompanion(false);
     clearPerch();
-    avatarRoamAt = Date.now() + 90000;
+    avatarRoaming.postpone(liveCompanionSettings(), 90000);
     if (avatarDetach.available) {
       if (windowFootprint) clampWindow({ footprint: null });
       const { x, y } = window.getContentBounds();
@@ -2845,8 +3508,15 @@ async function initializeDesktop() {
     display = perch?.display,
     restoring = false,
   ) {
-    let frame = avatarDockFrame(dockFrames, perch?.dock ?? defaultSeat);
-    if (musicAnimationReady(musicListening.snapshot()) && !avatarSleeping()) {
+    let frame =
+      desktopFrame?.id === 'pose-sleep'
+        ? desktopFrame
+        : avatarDockFrame(dockFrames, perch?.dock ?? defaultSeat);
+    if (
+      frame?.id !== 'pose-sleep' &&
+      musicAnimationReady(musicListening.snapshot()) &&
+      !avatarSleeping()
+    ) {
       const id =
         frame?.anchor?.name === 'seat'
           ? 'music-window'
@@ -2868,10 +3538,21 @@ async function initializeDesktop() {
     previous?.stopTracking?.();
   }
 
-  async function finishPerch(attempt) {
+  async function finishPerch(attempt, teleport = false) {
     if (perch !== attempt) return;
     clearPerch();
     if (!avatarDetach.available) return;
+    if (teleport) {
+      avatarRoaming.postpone(liveCompanionSettings(), 60000);
+      const frame = desktopFrame ?? frameIds.get('neutral');
+      if (
+        await avatarDetach
+          .hop(undefined, undefined, avatarTravelPose(frame, true))
+          .catch(() => false)
+      )
+        return;
+      if (!avatarDetach.available) return;
+    }
     avatarDetach.showParked();
     if (desktopFrame)
       await avatarDetach.updateFrame(desktopFrame, catalog.canvas, maskFor(desktopFrame.id));
@@ -2879,15 +3560,18 @@ async function initializeDesktop() {
 
   async function followPerch(attempt) {
     if (perch !== attempt || attempt.updating || !avatarDetach.available) return;
+    if (attempt.targetLost) {
+      if (canTeleport()) await finishPerch(attempt, true);
+      return;
+    }
     if (attempt.lease && capturePolicy.capture !== attempt.lease) return finishPerch(attempt);
     const target = attempt.pending;
     if (!target) return;
-    if (avatarDetach.press && target.state !== 'hidden') return;
+    if (avatarDetach.press && target.state === 'visible') return;
     attempt.pending = null;
     attempt.updating = true;
     try {
-      if (target.state === 'closed') return await finishPerch(attempt);
-      if (target.state === 'hidden') {
+      if (target.state === 'unavailable') {
         attempt.hidden = true;
         avatarDetach.hideParked();
         syncAvatarComposer();
@@ -2915,7 +3599,8 @@ async function initializeDesktop() {
       syncAvatarComposer(avatarComposer?.pointer);
     } finally {
       attempt.updating = false;
-      if (attempt.pending && perch === attempt) void followPerch(attempt).catch(() => {});
+      if ((attempt.targetLost || attempt.pending) && perch === attempt)
+        void followPerch(attempt).catch(() => {});
     }
   }
 
@@ -2926,7 +3611,8 @@ async function initializeDesktop() {
     grab,
     stillAllowed = () => true,
   ) {
-    const arrival = avatarDockFrame(dockFrames, dock);
+    const arrival =
+      desktopFrame?.id === 'pose-sleep' ? desktopFrame : avatarDockFrame(dockFrames, dock);
     if (
       (!target && !dock.display) ||
       !arrival ||
@@ -2961,10 +3647,12 @@ async function initializeDesktop() {
       if (attempt.seated && allowed()) {
         if (record) {
           const changed = (value) => {
-            if (perch !== attempt) return;
+            if (perch !== attempt || attempt.targetLost) return;
             attempt.lastNativeUpdate = Date.now();
-            attempt.pending = value;
-            void followPerch(attempt).catch(() => {});
+            if (value.state === 'closed' || value.state === 'hidden') attempt.targetLost = true;
+            else attempt.pending = value;
+            // The local Settings tracker emits its first state while being installed.
+            queueMicrotask(() => void followPerch(attempt).catch(() => {}));
           };
           const localWatch = watchAvatarSettingsWindow(settingsHost?.window, record, {
             processId: process.pid,
@@ -2985,7 +3673,7 @@ async function initializeDesktop() {
   async function submitAvatarCommand(input, movement) {
     if (currentChatTask || chat.active) throw new Error('A reply is already in progress.');
     initiative.activity();
-    avatarRoamAt = Date.now() + 90000;
+    avatarRoaming.postpone(liveCompanionSettings(), 90000);
     const ru = languages.value.conversation === 'ru';
     const work =
       movement.action === 'return'
@@ -3031,120 +3719,157 @@ async function initializeDesktop() {
     }
   }
 
+  function avatarRoamingAllowed() {
+    if (!skillEnabled('capri.avatar-interaction')) return false;
+    return Boolean(
+      liveCompanionSettings().avatarRoaming &&
+        canTeleport() &&
+        !focusMode &&
+        backendState.phase === 'ready' &&
+        !avatarDetach.operation &&
+        !avatarDetach.press &&
+        !pointer?.avatarPress &&
+        !pointer?.drag &&
+        !interfaceBusy &&
+        !settingsHost?.window?.isVisible() &&
+        !draftBusy &&
+        !currentChatTask &&
+        !chat.active &&
+        !playbackBusy &&
+        !voice.generating &&
+        !avatarClickReactions?.active &&
+        !avatarComposerPicking &&
+        !detachedReplyHovered &&
+        Date.now() >= lastSpeechUntil &&
+        sleepService.phase === 'awake' &&
+        !screenObservation.snapshot().analysing &&
+        !perch?.hidden,
+    );
+  }
+
+  async function roamDesktopAvatar(watching, revision) {
+    const allowed = () =>
+      avatarRoaming.current(liveCompanionSettings(), revision) &&
+      avatarRoamingAllowed() &&
+      (!watching || capturePolicy.capture === watching);
+    const randomSeat = { ...defaultSeat, fraction: 0.2 + Math.random() * 0.6 };
+    if (watching?.nativeId.startsWith('window:')) {
+      const target = await avatarWindow({ windowId: watching.nativeId.split(':')[1] });
+      if (allowed()) await perchOn(target, watching, randomSeat, undefined, allowed);
+      return;
+    }
+    const displays = screen.getAllDisplays();
+    const approved = watching
+      ? displays.filter(
+          ({ id }) =>
+            (watching.allMonitors || watching.displayId || displays.length === 1) &&
+            captureIncludesDisplay(watching, id),
+        )
+      : [
+          screen.getDisplayNearestPoint(
+            avatarDetach.desktopPoint ?? {
+              x: window.getBounds().x + window.getBounds().width / 2,
+              y: window.getBounds().y + window.getBounds().height / 2,
+            },
+          ),
+        ];
+    const display = approved[Math.floor(Math.random() * approved.length)];
+    if (!display || !allowed()) return;
+    // Only inspect/perch on apps with an existing screen-observation grant.
+    // Purely geometric random movement does not capture or inspect the screen.
+    if (watching && Math.random() < 0.35) {
+      const target = await avatarWindow();
+      if (!allowed()) return;
+      if (
+        target &&
+        screen.getDisplayNearestPoint(windowDock(target)).id === display.id &&
+        (await perchOn(target, watching, randomSeat, undefined, allowed))
+      )
+        return;
+    }
+    const point = randomAvatarDestination(
+      display.workArea,
+      window.getBounds(),
+      avatarDetach.desktopPoint,
+    );
+    if (!point || !allowed()) return;
+    const wasPerched = Boolean(perch);
+    const arrival = wasPerched && avatarTravelPose(desktopFrame ?? frameIds.get('neutral'), true);
+    clearPerch();
+    try {
+      await launchAvatarTo(point, allowed, undefined, arrival);
+    } finally {
+      if (wasPerched && !perch && desktopFrame && avatarDetach.available)
+        await avatarDetach.updateFrame(desktopFrame, catalog.canvas, maskFor(desktopFrame.id));
+    }
+  }
+
   async function updateDesktopAvatar() {
+    const roam = avatarRoaming.due(liveCompanionSettings(), {
+      blocked:
+        !avatarRoamingAllowed() ||
+        Boolean(perch?.updating || perch?.pending || (perch && !perch.seated)),
+    });
     if (
       avatarDesktopUpdate ||
       !canTeleport() ||
       avatarDetach.operation ||
-      avatarDetach.press ||
       pointer?.avatarPress ||
       pointer?.drag
     )
       return;
+    if (perch?.targetLost) {
+      await followPerch(perch);
+      return;
+    }
     const now = Date.now();
     const capture = capturePolicy.capture;
     const watching = capture?.mode === 'watch' && capturePolicy.snapshot().active ? capture : null;
     if (watching !== avatarRoamCapture) {
       avatarRoamCapture = watching;
-      avatarRoamAt = Math.max(avatarRoamAt, now + 20000);
+      if (watching) avatarRoaming.postpone(liveCompanionSettings(), 20000);
     }
-    if (perch?.stopTracking && (perch.localTracking || desktopTeleportMenu?.session?.ready)) {
-      await followPerch(perch);
-      return;
-    }
-    if (
-      !perch &&
-      (!watching ||
-        now < avatarRoamAt ||
-        verification ||
-        interfaceBusy ||
-        draftBusy ||
-        currentChatTask ||
-        chat.active ||
-        controlBorder ||
-        playbackBusy ||
-        voice.generating ||
-        Date.now() < lastSpeechUntil ||
-        sleepService.phase !== 'awake' ||
-        screenObservation.snapshot().analysing)
-    )
-      return;
-    if (perch?.pending) {
-      await followPerch(perch);
+    if (roam && avatarRoaming.due(liveCompanionSettings())) {
+      avatarDesktopUpdate = true;
+      avatarRoaming.postpone(liveCompanionSettings());
+      const revision = avatarRoaming.revision;
+      try {
+        await roamDesktopAvatar(watching, revision);
+      } finally {
+        if (avatarRoaming.current(liveCompanionSettings(), revision))
+          avatarRoaming.postpone(liveCompanionSettings());
+        avatarDesktopUpdate = false;
+      }
       return;
     }
     if (
-      perch &&
-      (!perch.record ||
-        !perch.seated ||
-        now < perch.nextCheck ||
-        (perch.lastNativeUpdate && desktopTeleportMenu?.session?.ready))
-    )
+      perch?.stopTracking &&
+      (perch.localTracking || (perch.lastNativeUpdate && desktopTeleportMenu?.session?.ready))
+    ) {
+      await followPerch(perch);
       return;
+    }
+    if (!perch) return;
+    if (perch.pending) {
+      await followPerch(perch);
+      return;
+    }
+    const current = perch;
+    if (!current.record || !current.seated || now < current.nextCheck) return;
     avatarDesktopUpdate = true;
     try {
-      if (perch) {
-        const current = perch;
-        current.nextCheck = now + 1800;
-        const target =
-          (!current.lease || current.lease === watching) && (await avatarWindow(current.record));
-        if (perch !== current || !canTeleport() || !avatarDetach.available || avatarDetach.press)
-          return;
-        if (!target) {
-          await finishPerch(current);
-        } else {
-          const point = windowDock(target, current.dock);
-          const display = screen.getDisplayNearestPoint(point);
-          if (current.lease && !captureIncludesDisplay(current.lease, display.id)) {
-            await finishPerch(current);
-            return;
-          }
-          if (perch === current) {
-            current.seatPoint = point;
-            current.display = display;
-            await updateSeatedFrame(point, display);
-          }
-        }
+      current.nextCheck = now + 1800;
+      if (current.lease && current.lease !== watching) {
+        await finishPerch(current);
         return;
       }
-      avatarRoamAt = now + 45000 + Math.floor(Math.random() * 35000);
-      if (watching.nativeId.startsWith('window:')) {
-        const target = await avatarWindow({ windowId: watching.nativeId.split(':')[1] });
-        if (capturePolicy.capture === watching && !avatarDetach.press && !pointer?.avatarPress)
-          await perchOn(target, watching);
-        return;
+      const target = await avatarWindow(current.record);
+      if (perch !== current || !canTeleport() || !avatarDetach.available) return;
+      if (!target) await finishPerch(current, true);
+      else {
+        current.pending = { ...target, state: 'visible' };
+        await followPerch(current);
       }
-      const displays = screen.getAllDisplays();
-      const approved = displays.filter(
-        ({ id }) =>
-          (watching.allMonitors || watching.displayId || displays.length === 1) &&
-          captureIncludesDisplay(watching, id),
-      );
-      const display = approved[Math.floor(Math.random() * approved.length)];
-      if (!display) return;
-      if (Math.random() < 0.35) {
-        const target = await avatarWindow();
-        if (capturePolicy.capture !== watching || avatarDetach.press || pointer?.avatarPress)
-          return;
-        if (
-          target &&
-          screen.getDisplayNearestPoint(windowDock(target)).id === display.id &&
-          (await perchOn(target, watching))
-        )
-          return;
-      }
-      const point = randomAvatarDestination(
-        display.workArea,
-        window.getBounds(),
-        avatarDetach.desktopPoint,
-      );
-      if (
-        point &&
-        capturePolicy.capture === watching &&
-        !avatarDetach.press &&
-        !pointer?.avatarPress
-      )
-        await launchAvatarTo(point, () => capturePolicy.capture === watching);
     } finally {
       avatarDesktopUpdate = false;
     }
@@ -3226,6 +3951,7 @@ async function initializeDesktop() {
       microphone: (id) => audioInputs.describe(id),
       speechPause: (pause) =>
         validateSpeechSettings({ trailingSilenceSeconds: pause }).trailingSilenceSeconds,
+      microphoneGain: validateMicrophoneGain,
       computerAppearance: computerPreferences,
       musicListening: validateMusicListeningSettings,
     };
@@ -3277,6 +4003,10 @@ async function initializeDesktop() {
       await microphone.configurePause(
         next.speechPause ?? speechPreferences.value.trailingSilenceSeconds,
       );
+    if (changed('microphoneGain'))
+      send('microphone.gain', {
+        microphoneGain: next.microphoneGain ?? speechPreferences.value.microphoneGain,
+      });
     return true;
   }
 
@@ -3358,8 +4088,10 @@ async function initializeDesktop() {
     );
   }
   async function shutdownForRestart(message) {
+    pendingMemoryDecision?.abort();
     await computerControl.stop();
     shuttingDown = true;
+    await localModelLoad.stop();
     attachmentViewer?.close();
     attachmentDrafts.clear();
     avatarDetach?.reset();
@@ -3428,6 +4160,7 @@ async function initializeDesktop() {
     }
     shuttingDown = true;
     // Keep a parked avatar visible long enough to show DISCONNECTING.
+    await localModelLoad.close();
     attachmentViewer?.close();
     attachmentDrafts.clear();
     if (avatarDetach?.available) avatarDetach.stopPointer();
@@ -3500,7 +4233,7 @@ async function initializeDesktop() {
         label: 'Voice',
         type: 'checkbox',
         checked: voice.enabled,
-        click: (item) => changeVoice(item.checked),
+        click: (item) => voiceSkills.output.setEnabled(item.checked, 'host'),
       },
       {
         label: 'Voice effects…',
@@ -3766,6 +4499,7 @@ async function initializeDesktop() {
   const nativeEscape = process.platform === 'win32' ? new NativeEscapeStop({ root }) : null;
   const computerControl = new ComputerControl({
     allowed: () => fullComputerAccess.enabled && applicationAccess.enabled,
+    visionAvailable: () => screenVisionAvailable,
     canStart: () =>
       Boolean(
         (workflowTurn || (chat.active && !chat.active.controller.signal.aborted)) && !shuttingDown,
@@ -3790,16 +4524,20 @@ async function initializeDesktop() {
         Boolean(chat.active) &&
         !shuttingDown,
     }),
-    capture: async ({ signal }) => {
-      const result = await captureActiveDisplay(root, { signal, withGeometry: true });
-      const source = nativeImage.createFromBuffer(result.png),
-        original = source.getSize();
+    capture: async ({ signal, displayWindow }) => {
+      const { png, bounds } = await captureActiveDisplay(root, {
+        signal,
+        displayWindow,
+        withGeometry: true,
+      });
+      const source = nativeImage.createFromBuffer(png);
+      const original = source.getSize();
       const factor = Math.min(1, 1280 / original.width, 720 / original.height);
       const image = source.resize({
         width: Math.max(1, Math.round(original.width * factor)),
         height: Math.max(1, Math.round(original.height * factor)),
       });
-      return { png: image.toPNG(), ...image.getSize(), bounds: result.bounds };
+      return { png: image.toPNG(), ...image.getSize(), bounds };
     },
     describe: computerVision({
       url: rt.inferenceUrl,
@@ -3870,6 +4608,7 @@ async function initializeDesktop() {
     },
   });
   const computerAgent = new ComputerAgent({
+    onPlan: (value) => controlBorder?.plan(value),
     control: computerControl,
     applications: desktopCatalog,
     callFocusWindow: () => {
@@ -3881,7 +4620,13 @@ async function initializeDesktop() {
         ? steamGameLauncher({ openExternal: (uri) => shell.openExternal(uri) })
         : undefined,
     language: () => languages.value.conversation,
-    audit: (event) => console.log('Computer task:', JSON.stringify(event)),
+    audit: ({ lastOutcome, plan }) =>
+      markResponseTiming('computer_outcome', {
+        reason: lastOutcome?.reason,
+        steps: lastOutcome?.steps,
+        completedCheckpoints: plan?.completed,
+        remainingCheckpoints: plan?.remaining,
+      }),
     plan: computerPlanner({
       url: rt.inferenceUrl,
       model: settings.model,
@@ -3899,6 +4644,12 @@ async function initializeDesktop() {
     access: fullComputerAccess,
     run: (goal, options) => computerAgent.run(goal, options),
     language: () => languages.value.conversation,
+  });
+  skills.register(computerSkill, {
+    access: fullComputerAccess,
+    requests: computerRequests,
+    agent: computerAgent,
+    isApplicationAccessEnabled: () => applicationAccess.enabled,
   });
   function emergencyComputerStop() {
     workflows?.cancel();
@@ -3942,10 +4693,37 @@ async function initializeDesktop() {
     });
   });
   const companionActions = new CompanionActions({
+    skills,
     userTools,
     workflows,
     authorizeAction: (tool, args) => {
-      applicationAccess.assertAllowed(tool, args);
+      if (tool === 'desktop_control' && !['end_control', 'control_status'].includes(args?.action)) {
+        const appAction = [
+          'apps',
+          'find_app',
+          'launch',
+          'launch_executable',
+          'inspect',
+          'browser_input',
+          'open_url',
+        ].includes(args?.action);
+        if (!appAction || !skillEnabled('capri.computer'))
+          skillSettings.require(appAction ? 'capri.applications' : 'capri.computer');
+      }
+      if (tool === 'settings_control' && args?.action === 'request') {
+        const id = {
+          screenObservation: 'capri.screen',
+          notepad: 'capri.applications',
+          calculator: 'capri.calculator',
+          spotify: 'capri.spotify',
+        }[args.setting];
+        if (id) skillSettings.require(id);
+      }
+      if (
+        tool === 'desktop_control' ||
+        (tool === 'application_control' && args?.action !== 'calculate')
+      )
+        applicationAccess.assertAllowed(tool, args);
       if (
         (tool === 'workflow_control' && args?.action === 'run') ||
         /^capri_tool_\d{2}$/.test(tool)
@@ -3961,24 +4739,21 @@ async function initializeDesktop() {
         value: enabled,
       });
       if (enabled) applicationAccess.assertAllowed('desktop_control', { action: 'run_task' });
-      return computerRequests.configure(enabled, options);
+      return requestComputerAccess(enabled, { ...options, source: 'tool' });
     },
     runComputerTask: (goal, options) => {
       chat.assertToolAllowed('desktop_control', { action: 'run_task' });
       applicationAccess.assertAllowed('desktop_control', { action: 'run_task' });
-      return chat.active?.computerTaskResult ?? computerRequests.execute(goal, options);
+      return (
+        chat.active?.computerTaskResult ?? runComputerSkill(goal, { ...options, source: 'tool' })
+      );
     },
     spotify: {
       execute: (id, args, signal) => {
-        applicationAccess.assertAllowed('spotify_control', args);
         const access = spotify.snapshot();
         if (!access.enabled || !access.prepared)
           throw new Error('Enable Spotify in Settings → Application access first.');
-        return spotifyService.execute(
-          id,
-          args,
-          AbortSignal.any([applicationAccess.signal, ...(signal ? [signal] : [])]),
-        );
+        return spotifyService.execute(id, args, signal);
       },
       close: () => spotifyService.close(),
     },
@@ -3986,8 +4761,11 @@ async function initializeDesktop() {
       root,
       permissionsFile: path.join(state, 'applications.json'),
       database: path.join(state, 'fixed-applications.sqlite'),
+      showCalculatorWindow: () =>
+        skillSettings.preferences.value['capri.calculator']?.showWindow === true,
       permissionSnapshot: () => ({
         ...applicationAccess.mask(applications.snapshot()),
+        calculator: skillEnabled('capri.calculator'),
         ...(fullComputerAccess.enabled && applicationAccess.enabled
           ? { notepad: true, calculator: true }
           : {}),
@@ -4084,7 +4862,7 @@ async function initializeDesktop() {
         });
       const panel = {
         screenObservation: 'screen',
-        spotify: 'applications',
+        spotify: 'spotify',
         languages: 'languages',
         models: 'models',
       }[setting];
@@ -4113,7 +4891,7 @@ async function initializeDesktop() {
             confirmation: {
               screenObservation:
                 'Choose a window or monitor in Screen snapshot, then press Start observation. Capture has not started yet.',
-              spotify: 'Opened Application access. Enable Spotify there to connect it.',
+              spotify: 'Opened Spotify settings. Connect Spotify there.',
               languages:
                 'Opened Languages. Choose the languages, then press Apply languages. No language was changed yet.',
               models:
@@ -4124,16 +4902,16 @@ async function initializeDesktop() {
       });
     },
     deliver: (object) => reminders.enqueue(object),
+    formatElapsed: (time) =>
+      uiText('Elapsed time: {time}.', languages.value.conversation, { time }),
   });
 
-  temporal = new TimeConversation({
-    service: () => companionActions.time,
-    language: () => languages.value.conversation,
-  });
+  temporal = companionActions.time.conversation;
 
   reminders = new ReminderDelivery({
     file: path.join(state, 'reminder-delivery.json'),
     visual: async (object) => {
+      skillSettings.require('capri.timers');
       if (!rendererReady) throw new Error('Reminder waits for the interface.');
       emit({ type: 'time.due', object });
       if (!verification && Notification.isSupported()) {
@@ -4154,6 +4932,7 @@ async function initializeDesktop() {
     },
     ready: () => {
       if (
+        !skillEnabled('capri.timers') ||
         !rendererReady ||
         shuttingDown ||
         currentChatTask ||
@@ -4208,6 +4987,24 @@ async function initializeDesktop() {
   });
   reminders.start();
 
+  function assertModelIdle({ spotifyChange = false } = {}) {
+    if (speechInstaller.busy())
+      throw new Error('Wait for speech installation to finish, or cancel it in Languages.');
+    if (
+      shuttingDown ||
+      currentChatTask ||
+      chat.active ||
+      visualTurn ||
+      backendPromise ||
+      updates.busy() ||
+      huggingface.busy() ||
+      voiceCatalog.busy() ||
+      voiceTraining.busy() ||
+      models.busy() ||
+      (!spotifyChange && spotify.busy())
+    )
+      throw new Error('Wait for the current reply or operation to finish.');
+  }
   function installIpc() {
     const miniHandle = (name, callback, visible = false) =>
       ipcMain.handle(`capri:avatar-composer-${name}`, (event, value) => {
@@ -4395,12 +5192,38 @@ async function initializeDesktop() {
       return { ...memory, context, processLoad: load, cpu };
     });
     handle('capri:settings-versions', settingsVersions);
+    handle('capri:skill-settings', async (change, { role }) => {
+      if (change === undefined) return skillSettings.snapshot();
+      if (role !== 'settings') throw new Error('Open Settings → Skills to configure a skill.');
+      const before = skillEnabled(change?.id);
+      const settings = skillSettings.set(change);
+      if (
+        change.id === 'capri.owner-memory' &&
+        (change.enabled === false || change.automatic === false)
+      )
+        pendingMemoryDecision?.abort();
+      emit({
+        type: 'skills.settings',
+        settings,
+        ...(typeof change.enabled === 'boolean' && before !== change.enabled
+          ? { changed: change.id }
+          : {}),
+      });
+      if (typeof change.enabled === 'boolean' && before !== change.enabled)
+        await applySkillActivation(change.id, change.enabled);
+      return skillSettings.snapshot();
+    });
     handle('capri:settings-open', async (section) => {
       if (focusMode) return false;
       startupIntroGate.claim('skip');
       emit({ type: 'startup-intro.skip' });
       section = section == null ? null : settingsSection(section);
-      const focus = section === 'model-context' ? 'context' : null;
+      const focus =
+        new Map([
+          ['model-context', 'context'],
+          ['model-devices', 'devices'],
+          ['local-model', 'model'],
+        ]).get(section) ?? null;
       if (focus) section = 'models';
       if (section !== null && !SETTINGS_SECTIONS.some((row) => row[0] === section))
         section = 'general';
@@ -4449,10 +5272,12 @@ async function initializeDesktop() {
       }
     });
     async function resetDesktopSettings() {
+      const previousSkills = skillSettings.snapshot();
       const changes = [
         [companionPreferences, COMPANION_DEFAULTS],
         [inferenceStartup, INFERENCE_STARTUP_DEFAULTS],
         [voiceEffects, VOICE_EFFECT_DEFAULTS],
+        [voiceVolume, voiceVolumeDefaults],
         [speechPreferences, speechDefaults],
         [initiativeSettings, INITIATIVE_DEFAULTS],
         [screenPreferences, observationOptions()],
@@ -4464,6 +5289,11 @@ async function initializeDesktop() {
         write: (next) => preferences.set(next),
       }));
       changes.push(
+        {
+          previous: previousSkills,
+          value: skillPreferences(),
+          write: (next) => skillSettings.replace(next),
+        },
         {
           previous: saved.alwaysOnTop !== false,
           value: true,
@@ -4511,6 +5341,10 @@ async function initializeDesktop() {
         );
       }
       await updateSettingsPreview({});
+      emit({ type: 'skills.settings', settings: skillSettings.snapshot() });
+      for (const [id, value] of Object.entries(previousSkills))
+        if (value.enabled) await applySkillActivation(id, false);
+      emit({ type: 'voice.settings', ...voiceSnapshot() });
       stopMusicListening();
       const result = {
         alwaysOnTop: saved.alwaysOnTop,
@@ -4521,7 +5355,7 @@ async function initializeDesktop() {
         voiceEffects: voiceEffects.snapshot(),
         speech: speechPreferences.snapshot(),
         initiative: initiativeSettings.snapshot(),
-        screenSettings: screenPreferences.snapshot(),
+        screenSettings: media.screen.preferences(),
         computerAppearance: computerAppearance.snapshot(),
         musicListening: musicListening.snapshot(),
         settingsVersions: settingsVersions(),
@@ -4572,6 +5406,7 @@ async function initializeDesktop() {
           return false;
         if (action === 'return-to-frame') return returnAvatar();
         if (!catalog.animated) return false;
+        avatarRoaming.postpone(liveCompanionSettings(), 60000);
         const frame = frameIds.get(value?.frameId);
         return avatarDetach.leave(value, frame, catalog.canvas, frame && maskFor(frame.id));
       }
@@ -4605,10 +5440,7 @@ async function initializeDesktop() {
       } else throw new Error('Unsupported window action');
       return true;
     });
-    handle('capri:initiative-test', () => {
-      initiative.tick(true);
-      return initiative.snapshot();
-    });
+    handle('capri:initiative-test', (_value, { role }) => conversation.initiative.test(role));
     handle('capri:glitch-preview', (value = {}) => {
       if (
         Object.keys(value).some(
@@ -4655,6 +5487,8 @@ async function initializeDesktop() {
           (!Number.isFinite(command.duration) || command.duration < 0.5 || command.duration > 120))
       )
         throw new Error('Invalid screen form command');
+      if (['start', 'ask', 'capture'].includes(command.action))
+        skillSettings.require('capri.screen');
       if (!window || window.isDestroyed() || !rendererReady)
         throw new Error('Screen interface is not ready.');
       // Fixed local function and JSON data only. Preserve this explicit user gesture for getDisplayMedia.
@@ -4668,6 +5502,7 @@ async function initializeDesktop() {
       return true;
     });
     handle('capri:reminder-retry', (id) => {
+      skillSettings.require('capri.timers');
       if (!voice.enabled || voice.language === 'off')
         throw new Error('Enable Capri’s voice to hear this reminder.');
       return reminders.retry(id);
@@ -4682,7 +5517,9 @@ async function initializeDesktop() {
     });
     handle('capri:time-status', () => companionActions.time.snapshot());
     handle('capri:time-action', async (value) => {
-      const result = await companionActions.time.execute(randomUUID(), value);
+      const result = await companionActions.time.execute(randomUUID(), value, {
+        source: 'settings',
+      });
       if (value.action === 'cancel') reminders.cancel(result.object?.id ?? value.id);
       return result;
     });
@@ -4706,9 +5543,11 @@ async function initializeDesktop() {
     handle('capri:application-access', async (value) => {
       if (value === undefined) return applicationAccess.snapshot();
       if (typeof value !== 'boolean') throw new Error('Invalid application access setting.');
+      if (value) skillSettings.require('capri.applications');
       return applicationAccess.set(value);
     });
     handle('capri:screen-select-source', async (_, { role }) => {
+      skillSettings.require('capri.screen');
       if (role !== 'companion' || !companionPresent())
         throw new Error('Open Capri to choose a screen source.');
       const sources = await capturePolicy.discover();
@@ -4789,8 +5628,8 @@ async function initializeDesktop() {
         return { ok: true, cancelled: true };
       return desktopCatalog.restore(id);
     });
-    handle('capri:screen-settings', (value) => {
-      return screenPreferences.set(observationOptions(value));
+    handle('capri:screen-settings', (value, { role }) => {
+      return media.screen.configure(value, role);
     });
     handle('capri:spotify-status', () => spotify.snapshot());
     handle('capri:spotify-check', () => {
@@ -4846,7 +5685,98 @@ async function initializeDesktop() {
       const language = resolveLanguages(liveLanguages()).speech;
       return language && language !== 'off' ? language : 'en';
     };
-    handle('capri:model-devices', () => modelDevices.refresh(voiceDeviceLanguage()));
+    handle('capri:model-devices', async () => ({
+      ...(await modelDevices.refresh(voiceDeviceLanguage())),
+      external: rt.remote.enabled,
+    }));
+    handle('capri:coding', async ({ op, value, enabled } = {}, { role }) => {
+      if (op === 'status') return callSkill('capri.coding', 'status', undefined, { source: role });
+      if (op === 'editors') return discoverCodingEditors();
+      if (op === 'folder' || op === 'executable') {
+        const selected = await dialog.showOpenDialog({
+          properties: [op === 'folder' ? 'openDirectory' : 'openFile'],
+          ...(op === 'executable'
+            ? { filters: [{ name: 'Executable', extensions: ['exe'] }] }
+            : {}),
+        });
+        return selected.canceled ? null : selected.filePaths[0];
+      }
+      if (op === 'save') return callSkill('capri.coding', 'save', value, { source: role });
+      if (op === 'install-bridge')
+        return callSkill('capri.coding', 'installBridge', undefined, { source: role });
+      if (op === 'mode' && typeof enabled === 'boolean') {
+        const result = callSkill('capri.coding', 'mode', enabled, { source: role });
+        if (result.projectRequired && role === 'companion') await settingsHost?.open('coding');
+        return result;
+      }
+      throw Error('Invalid coding operation.');
+    });
+    async function restartWithModelDevice(selected, npuConfig) {
+      assertModelIdle();
+      await shutdownForRestart('Preparing to restart Capri...');
+      let restoreDevices, restoreNpu, inferenceChange;
+      try {
+        if (npuConfig) restoreNpu = saveNpuSettings(root, npuConfig);
+        restoreDevices = modelDevices.save(selected);
+        inferenceChange = saveInferenceSettings({
+          root,
+          rt,
+          overrides: { acceleration: selected.language === 'cpu' ? 'cpu' : 'auto' },
+        });
+        if (npuConfig && rt.remote.enabled) await inferenceApi.selectProfile(null);
+        queueDesktopRelaunch();
+      } catch (error) {
+        inferenceChange?.restore();
+        restoreDevices?.();
+        restoreNpu?.();
+        shuttingDown = false;
+        setBackend('offline', 'Reconnect to try again.');
+        throw error;
+      }
+      app.quit();
+      return true;
+    }
+    handle('capri:native-npu', async ({ op, config, backend } = {}) => {
+      if (op === 'setup-status') return npuSetup.status ?? null;
+      if (op === 'install-guide')
+        return npuSetup.openInstallGuide(backend, (url) => shell.openExternal(url));
+      if (op === 'status') return { config: readNpuSettings(root), active: Boolean(rt.nativeNpu) };
+      if (op === 'folder' || op === 'python') {
+        const selected = await dialog.showOpenDialog({
+          properties: [op === 'folder' ? 'openDirectory' : 'openFile'],
+          ...(op === 'python' ? { filters: [{ name: 'Python', extensions: ['exe'] }] } : {}),
+        });
+        return selected.canceled ? null : selected.filePaths[0];
+      }
+      if (verification) throw Error('Model changes are disabled in desktop verification.');
+      assertModelIdle();
+      if (npuSetup.status) throw Error('NPU setup is already running.');
+      if (op === 'install') {
+        await prepareIntelNpu(root);
+        return true;
+      }
+      if (!['test', 'use'].includes(op)) throw Error('Invalid native NPU operation.');
+      const candidate = new NpuInference({ root, config });
+      try {
+        await candidate.test();
+      } finally {
+        candidate.stop();
+      }
+      if (op === 'test') return { ready: true };
+      if (
+        !(await confirmations.request({
+          title: 'Native NPU',
+          detail:
+            'Capri will restart using the tested native NPU model. Conversation and memory will be kept.',
+          confirmLabel: 'Use NPU and restart',
+        }))
+      )
+        return false;
+      return restartWithModelDevice(
+        { language: candidate.deviceId, voice: readModelDevices(root).voice },
+        candidate.config,
+      );
+    });
     handle('capri:developer-diagnostics', (_value, { role }) => {
       if (role !== 'settings') throw new Error('Settings window required.');
       return developerDiagnostics.snapshot();
@@ -4866,6 +5796,15 @@ async function initializeDesktop() {
       assertModelIdle();
       const selected = await modelDevices.validate(value, voiceDeviceLanguage());
       const current = modelDevices.current();
+      const wantsNpu = selected.language.startsWith('npu-');
+      if (npuSetup.status) throw Error('NPU setup is already running.');
+      if (wantsNpu && (selected.language !== current.language || rt.remote.enabled)) {
+        const prepared = await npuSetup.prepare(selected.language);
+        return restartWithModelDevice(
+          { ...selected, language: prepared.deviceId },
+          prepared.config,
+        );
+      }
       if (selected.language === current.language && selected.voice === current.voice) return false;
       if (
         !(await confirmations.request({
@@ -4876,26 +5815,7 @@ async function initializeDesktop() {
         }))
       )
         return false;
-      assertModelIdle();
-      await shutdownForRestart('Preparing to restart Capri...');
-      let restore, inferenceChange;
-      try {
-        restore = modelDevices.save(selected);
-        inferenceChange = saveInferenceSettings({
-          root,
-          rt,
-          overrides: { acceleration: selected.language === 'cpu' ? 'cpu' : 'auto' },
-        });
-        queueDesktopRelaunch();
-      } catch (error) {
-        inferenceChange?.restore();
-        restore?.();
-        shuttingDown = false;
-        setBackend('offline', 'Reconnect to try again.');
-        throw error;
-      }
-      app.quit();
-      return true;
+      return restartWithModelDevice(selected);
     });
     handle('capri:models-refresh', () => models.refresh());
     handle('capri:models-cancel', () => models.cancel());
@@ -4913,24 +5833,6 @@ async function initializeDesktop() {
         throw new Error('Wait for the current operation to finish.');
       return models.prepare(id);
     });
-    const assertModelIdle = ({ spotifyChange = false } = {}) => {
-      if (speechInstaller.busy())
-        throw new Error('Wait for speech installation to finish, or cancel it in Languages.');
-      if (
-        shuttingDown ||
-        currentChatTask ||
-        chat.active ||
-        visualTurn ||
-        backendPromise ||
-        updates.busy() ||
-        huggingface.busy() ||
-        voiceCatalog.busy() ||
-        voiceTraining.busy() ||
-        models.busy() ||
-        (!spotifyChange && spotify.busy())
-      )
-        throw new Error('Wait for the current reply or operation to finish.');
-    };
     handle('capri:huggingface-status', () => huggingface.refresh());
     handle('capri:huggingface-search', (value) => huggingface.search(value));
     handle('capri:huggingface-inspect', (repository) => huggingface.inspect(repository));
@@ -4969,11 +5871,63 @@ async function initializeDesktop() {
       await hfCredentials.remove();
       return huggingface.refresh();
     });
-    handle('capri:voice-catalog', () => voiceCatalog.snapshot());
+    handle('capri:voice-catalog', () => voiceCatalog.refresh());
+    const voiceApiStatus = async () => ({
+      ...externalTts.status(),
+      secureStorage: await credentialStorage(safeStorage).available(),
+    });
+    const beforeVoiceApiChange = async () => {
+      assertModelIdle();
+      if (voice.generating || playbackBusy || voicePreviewRequest || externalTts.controllers.size)
+        throw new Error('Wait for the current reply or preview to finish.');
+      await stopVoiceForChange();
+    };
+    const afterVoiceApiChange = async () => {
+      voiceAvailable = externalTts.config.enabled || verification || companionVoiceInstalled();
+      voiceAllowed =
+        voiceAvailable && (!verification || process.env.CAPRI_DESKTOP_VERIFICATION_VOICE === '1');
+      voice.setLanguage(voiceAvailable ? resolveLanguages(languages.value).speech : 'off');
+      if (!voiceAvailable) voice.setEnabled(false);
+      emit({
+        type: 'speech-components',
+        speechAvailability: Object.fromEntries(
+          LANGUAGE_PACKS.map((p) => [p.id, speechInstalled(p.id)]),
+        ),
+        recognitionAvailability: recognitionAvailability(),
+      });
+      const value = await voiceApiStatus();
+      emit({ type: 'voice-api.settings', settings: value });
+      if (voice.enabled) void connectVoice();
+      return value;
+    };
+    handle('capri:voice-api-status', voiceApiStatus);
+    handle('capri:voice-api-save', async (value) => {
+      try {
+        await externalTts.save(value, beforeVoiceApiChange);
+      } catch (error) {
+        if (voice.enabled && !voice.ready) void connectVoice();
+        throw error;
+      }
+      return afterVoiceApiChange();
+    });
+    handle('capri:voice-api-remove', async () => {
+      try {
+        await externalTts.remove(beforeVoiceApiChange);
+      } catch (error) {
+        if (voice.enabled && !voice.ready) void connectVoice();
+        throw error;
+      }
+      return afterVoiceApiChange();
+    });
+    handle('capri:voice-api-test', () => {
+      if (externalTts.controllers.size)
+        throw new Error('Wait for the current reply or preview to finish.');
+      return externalTts.test();
+    });
     handle('capri:voice-model-select', async (selection) => {
       assertModelIdle();
       const result = await voiceCatalog.select(selection);
-      voiceAvailable = verification || companionVoiceInstalled();
+      voiceAvailable = externalTts.config.enabled || verification || companionVoiceInstalled();
       voiceAllowed =
         voiceAvailable && (!verification || process.env.CAPRI_DESKTOP_VERIFICATION_VOICE === '1');
       if (voice.enabled) void connectVoice();
@@ -5026,9 +5980,129 @@ async function initializeDesktop() {
           available: !verification && !shuttingDown,
         }),
         startup: inferenceStartup.snapshot(),
+        localLoad: localModelLoad.snapshot(),
       };
     };
+    const desktopAi = new DesktopAiDiscovery({
+      discover: (query, refresh) => desktopCatalog.discoverForOwner(query, refresh),
+    });
+    handle('capri:desktop-ai-scan', async (refresh, { role }) => {
+      if (role !== 'settings' || typeof refresh !== 'boolean')
+        throw new Error('Open API connections in Settings.');
+      ensureDesktopActions();
+      return desktopAi.scan(refresh);
+    });
+    handle('capri:chatgpt-plan', async (value, { role }) => {
+      if (
+        role !== 'settings' ||
+        !value ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        Object.keys(value).some((key) => !['action', 'accountId', 'model', 'id'].includes(key))
+      )
+        throw new Error('Open API connections in Settings.');
+      const { action, accountId, model } = value;
+      if (action === 'status') return chatgpt.status();
+      if (action === 'cancel-sign-in') {
+        chatgpt.cancelSignIn();
+        return true;
+      }
+      if (action === 'manage-usage') return chatgpt.manageUsage();
+      if (action === 'sign-in') {
+        if (verification) throw new Error('Browser sign-in is disabled in desktop verification.');
+        assertModelIdle();
+        media.screen.stop();
+        capturePolicy.clear();
+        screenPreviews.clear();
+        emit({ type: 'screen.reset' });
+        initiative.cancel();
+        observer.stop();
+        try {
+          return await chatgpt.signIn(accountId ?? null);
+        } finally {
+          void syncInitiative();
+        }
+      }
+      if (action === 'select-account') return chatgpt.select(accountId);
+      if (action === 'models') return chatgpt.models(accountId);
+      if (action === 'sign-out') {
+        if (rt.remote.authMode === 'chatgpt' && rt.remote.accountId === accountId)
+          throw new Error(
+            'Switch Capri to another AI connection before signing out of this account.',
+          );
+        return chatgpt.signOut(accountId);
+      }
+      if (action === 'add-local') {
+        const connection = desktopAi.connection(value.id, model);
+        const existing = inferenceApi
+          .readProfiles()
+          .find(
+            (p) => p.settings.baseUrl === connection.settings.baseUrl && p.settings.model === model,
+          );
+        if (!existing) await inferenceApi.saveProfile(connection);
+        return inferenceStatus();
+      }
+      if (action === 'add-connection' || action === 'test') {
+        if (typeof model !== 'string' || !/^[a-zA-Z0-9:._/-]{1,128}$/.test(model))
+          throw new Error('Choose an available ChatGPT model.');
+        const available = await chatgpt.models(accountId);
+        const selectedModel = available.find((item) => item.id === model);
+        if (!selectedModel)
+          throw new Error('Refresh the ChatGPT model list and choose an available model.');
+        if (action === 'test') {
+          const started = performance.now(),
+            signal = AbortSignal.timeout(60000);
+          const accessToken = await chatgpt.accessToken(accountId);
+          const response = await chatGPTCompletion(
+            chatgpt,
+            {
+              accountId,
+              model,
+              messages: [{ role: 'user', content: 'Reply with exactly: Ready.' }],
+              stream: false,
+              max_tokens: 1024,
+            },
+            signal,
+            accessToken,
+          );
+          const result = await response.json();
+          if (!result.choices?.some((choice) => choice.message?.content?.trim()))
+            throw new Error('ChatGPT returned no text.');
+          return { elapsedMs: Math.round(performance.now() - started) };
+        }
+        const existing = inferenceApi
+          .readProfiles()
+          .find(
+            (p) =>
+              p.settings.authMode === 'chatgpt' &&
+              p.settings.accountId === accountId &&
+              p.settings.model === model,
+          );
+        if (!existing)
+          await inferenceApi.saveProfile({
+            name: 'ChatGPT plan',
+            settings: {
+              enabled: true,
+              authMode: 'chatgpt',
+              accountId,
+              baseUrl: CHATGPT_RESOURCE,
+              model,
+              contextTokens: 32768,
+              tools: selectedModel.capabilities?.tools !== false,
+              vision: selectedModel.capabilities?.vision === true,
+              visionMode:
+                typeof selectedModel.capabilities?.vision === 'boolean' ? 'catalog' : 'auto',
+            },
+          });
+        return inferenceStatus();
+      }
+      throw new Error('Unknown AI connection action.');
+    });
     handle('capri:inference-api-status', inferenceStatus);
+    handle('capri:local-model-load-set', (value, { role }) => {
+      if (role !== 'companion') throw new Error('Open the Local menu in Capri.');
+      return localModelLoad.set(value);
+    });
     handle('capri:inference-startup-set', async (value, { role }) => {
       if (role !== 'settings' || !settingsHost?.window?.isVisible())
         throw new Error('Open Settings to change model startup.');
@@ -5099,7 +6173,7 @@ async function initializeDesktop() {
       assertModelIdle();
       if (
         id === inferenceApi.activeProfileId() &&
-        (id !== null || !rt.remote.enabled) &&
+        (id !== null || (!rt.remote.enabled && !rt.nativeNpu)) &&
         !rt.remote.setupRequired
       )
         return false;
@@ -5119,12 +6193,19 @@ async function initializeDesktop() {
       assertModelIdle();
       const previousApi = readApiSettings(root);
       let selectionTouched = false;
+      let restoreNpuDevice;
       try {
         await shutdownForRestart('Preparing to restart Capri...');
+        if (id === null && rt.nativeNpu)
+          restoreNpuDevice = saveModelDevices(root, {
+            language: 'auto',
+            voice: readModelDevices(root).voice,
+          });
         selectionTouched = true;
         await inferenceApi.selectProfile(id);
         queueDesktopRelaunch();
       } catch (error) {
+        restoreNpuDevice?.();
         if (selectionTouched) writeJsonAtomic(inferenceApi.settingsFile, previousApi);
         shuttingDown = false;
         setBackend('offline', 'Reconnect to try again.');
@@ -5145,15 +6226,12 @@ async function initializeDesktop() {
         inferenceApi.removeProfile(id);
       return inferenceStatus();
     });
-    handle('capri:computer-access-status', () => ({
-      ...fullComputerAccess.snapshot(),
-      paused: !applicationAccess.enabled,
-    }));
-    handle('capri:computer-access-set', (enabled) => {
+    handle('capri:computer-access-status', () => callSkill('capri.computer', 'accessStatus'));
+    handle('capri:computer-access-set', (enabled, { role }) => {
       if (enabled) applicationAccess.assertAllowed('desktop_control', { action: 'run_task' });
-      return fullComputerAccess.configure(enabled);
+      return callSkill('capri.computer', 'setAccess', enabled, { source: role });
     });
-    handle('capri:computer-task-status', () => computerAgent.snapshot());
+    handle('capri:computer-task-status', () => callSkill('capri.computer', 'status'));
     handle('capri:computer-appearance', () => computerAppearance.snapshot());
     handle('capri:computer-appearance-set', (value) => {
       const saved = computerAppearance.set(value);
@@ -5184,8 +6262,12 @@ async function initializeDesktop() {
         throw new Error('Enable Full computer access in Settings → Computer control first.');
       return submitMessage({ id: randomUUID(), text, mode: 'computer' }, 'text');
     });
-    handle('capri:discord-status', () => discordPresence.snapshot());
-    handle('capri:discord-configure', (value) => discordPresence.configure(value));
+    handle('capri:discord-status', (_value, { role }) =>
+      callSkill('capri.discord-presence', 'snapshot', undefined, { source: role }),
+    );
+    handle('capri:discord-configure', (value, { role }) =>
+      callSkill('capri.discord-presence', 'configure', value, { source: role }),
+    );
     handle('capri:discord-portal', () =>
       shell.openExternal('https://discord.com/developers/applications'),
     );
@@ -5206,9 +6288,15 @@ async function initializeDesktop() {
       const previousApi = readApiSettings(root);
       const applied = await models.apply(async (profile) => {
         let change;
+        let restoreNpuDevice;
         let selectionTouched = false;
         try {
           await shutdownForRestart('Switching language model...');
+          if (rt.nativeNpu)
+            restoreNpuDevice = saveModelDevices(root, {
+              language: 'auto',
+              voice: readModelDevices(root).voice,
+            });
           change = saveModelProfile({
             root,
             rt: rt.remote.enabled
@@ -5224,6 +6312,7 @@ async function initializeDesktop() {
           }
           queueDesktopRelaunch();
         } catch (error) {
+          restoreNpuDevice?.();
           change?.restore();
           if (selectionTouched) writeJsonAtomic(inferenceApi.settingsFile, previousApi);
           shuttingDown = false;
@@ -5285,6 +6374,18 @@ async function initializeDesktop() {
     });
     handle('capri:update-settings', (value) => updates.setSettings(value));
     handle('capri:update-check', (value) => updates.check(value));
+    handle('capri:update-versions', (experimental, { role }) => {
+      if (role !== 'settings') throw new Error('Open Updates in Settings.');
+      return updates.history(experimental);
+    });
+    handle('capri:update-version-choose', (id, { role }) => {
+      if (role !== 'settings') throw new Error('Open Updates in Settings.');
+      return updates.chooseHistory(id);
+    });
+    handle('capri:update-version-open', (id, { role }) => {
+      if (role !== 'settings') throw new Error('Open Updates in Settings.');
+      return shell.openExternal(updates.historyUrl(id));
+    });
     handle('capri:update-download', () => updates.prepare());
     handle('capri:update-cancel', () => updates.cancel());
     handle('capri:update-install', async () => {
@@ -5327,6 +6428,13 @@ async function initializeDesktop() {
       return installed;
     });
     handle('capri:confirmation', (value) => confirmations.respond(value));
+    handle('capri:copy-message', (id) => {
+      if (typeof id !== 'string' || id.length > 100 || sessionLocked || shuttingDown) return false;
+      const message = store.messages.find((entry) => entry.id === id);
+      if (!message?.text.trim() || message.status === 'streaming') return false;
+      clipboard.writeText(message.text);
+      return true;
+    });
     const assertIdle = ({ requireBackend = true } = {}) => {
       if (
         shuttingDown ||
@@ -5337,7 +6445,6 @@ async function initializeDesktop() {
       )
         throw new Error('Wait for the current reply to finish.');
     };
-    let maintenance = false;
     handle('capri:user-tool', async (value, { role }) => {
       if (
         role !== 'settings' ||
@@ -5349,18 +6456,52 @@ async function initializeDesktop() {
       if (
         !value ||
         Object.keys(value).some(
-          (key) => !['action', 'id', 'enabled', 'parameters', 'settings'].includes(key),
+          (key) => !['action', 'id', 'enabled', 'parameters', 'settings', 'metadata'].includes(key),
         )
       )
         throw new Error('Invalid user-tool action.');
-      if (value.action === 'status') return userTools.list();
+      if (['status', 'refresh', 'stop', 'example'].includes(value.action))
+        return callSkill(ACTION_SKILLS.userTools, value.action, undefined, { source: role });
       if (value.action === 'open') {
         await shell.openPath(userTools.folder);
         return true;
       }
-      if (value.action === 'refresh') return userTools.refresh();
-      if (value.action === 'enable') return userTools.enable(value.id, value.enabled);
-      if (value.action === 'settings') return userTools.saveSettings(value.id, value.settings);
+      if (value.action === 'edit') return userTools.edit(value.id, value.metadata);
+      if (value.action === 'open-tool')
+        return shell.openPath(await userTools.toolDirectory(value.id));
+      if (value.action === 'remove') {
+        const t = (text) => uiText(text, languages.value.interface);
+        const { response } = await dialog.showMessageBox(settingsHost.window, {
+          type: 'warning',
+          message: t('Move this tool to the Recycle Bin?'),
+          buttons: [t('Cancel'), t('Delete')],
+          defaultId: 0,
+          cancelId: 0,
+        });
+        return response === 1
+          ? userTools.remove(value.id, (folder) => shell.trashItem(folder))
+          : userTools.list();
+      }
+      if (value.action === 'enable')
+        return callSkill(
+          ACTION_SKILLS.userTools,
+          'enable',
+          {
+            id: value.id,
+            enabled: value.enabled,
+          },
+          { source: role },
+        );
+      if (value.action === 'settings')
+        return callSkill(
+          ACTION_SKILLS.userTools,
+          'settings',
+          {
+            id: value.id,
+            settings: value.settings,
+          },
+          { source: role },
+        );
       if (value.action === 'inputs') {
         const selected = await dialog.showOpenDialog(settingsHost.window, {
           title: uiText('Choose input files', languages.value.interface),
@@ -5368,12 +6509,13 @@ async function initializeDesktop() {
         });
         return selected.canceled ? { count: 0 } : userTools.inputs(value.id, selected.filePaths);
       }
-      if (value.action === 'stop') {
-        userTools.cancel();
-        return true;
-      }
-      if (value.action === 'test') return userTools.run(value.id, value.parameters ?? {});
-      if (value.action === 'example') return userTools.example();
+      if (value.action === 'test')
+        return callSkill(
+          ACTION_SKILLS.userTools,
+          'test',
+          { name: value.id, parameters: value.parameters ?? {} },
+          { source: role },
+        );
       throw new Error('Invalid user-tool action.');
     });
     handle('capri:workflow', async (value, { role }) => {
@@ -5389,25 +6531,22 @@ async function initializeDesktop() {
         Object.keys(value).some((key) => !['action', 'workflow', 'id', 'variables'].includes(key))
       )
         throw new Error('Invalid workflow action.');
-      if (value.action === 'status')
-        return {
-          status: workflows.snapshot(),
-          workflows: workflows.list(),
-          draft: structuredClone(workflows.draft),
-        };
-      if (value.action === 'record') {
-        if (!applicationAccess.enabled) throw new Error('Enable application access first.');
-        return workflows.start();
-      }
-      if (value.action === 'stop') {
-        workflows.cancel();
-        return { steps: await workflows.stopRecording() };
-      }
-      if (value.action === 'save') return workflows.save(value.workflow);
-      if (value.action === 'remove') return workflows.remove(value.id);
+      if (value.action === 'record' && !applicationAccess.enabled)
+        throw new Error('Enable application access first.');
+      if (['status', 'record', 'stop'].includes(value.action))
+        return callSkill(ACTION_SKILLS.workflows, value.action, undefined, { source: role });
+      if (value.action === 'save')
+        return callSkill(ACTION_SKILLS.workflows, 'save', value.workflow, { source: role });
+      if (value.action === 'remove')
+        return callSkill(ACTION_SKILLS.workflows, 'remove', value.id, { source: role });
       if (value.action === 'run') {
         if (chat.active) throw new Error('Wait for the current reply to finish.');
-        return workflows.run(value.id, value.variables ?? {});
+        return callSkill(
+          ACTION_SKILLS.workflows,
+          'run',
+          { id: value.id, variables: value.variables ?? {} },
+          { source: role },
+        );
       }
       throw new Error('Invalid workflow action.');
     });
@@ -5450,23 +6589,17 @@ async function initializeDesktop() {
         )
       )
         throw new Error('Invalid private-memory action.');
-      if (value.action === 'status') return privateMemory.snapshot();
-      if (value.action === 'lock') {
-        privateMemory.lock();
-        return privateMemory.snapshot();
-      }
-      if (value.action === 'create' || value.action === 'unlock')
-        return privateMemory.unlock(value.password, { create: value.action === 'create' });
-      if (value.action === 'list') return privateMemory.list();
-      if (value.action === 'add') return privateMemory.add(value.text);
-      if (value.action === 'remove') return privateMemory.remove(value.id);
-      if (value.action === 'password')
-        return privateMemory.changePassword(value.oldPassword, value.password);
-      if (value.action === 'chat')
+      if (value.action === 'chat') {
+        skillSettings.require('capri.private-memory');
         return privateMemory.chat(value.text, respondPrivately, {
           allowApi: value.allowApi === true,
         });
-      throw new Error('Invalid private-memory action.');
+      }
+      if (value.action === 'create' && !skillEnabled('capri.private-memory')) {
+        await conversation.privateMemory.settings(value);
+        return conversation.privateMemory.settings({ action: 'lock' });
+      }
+      return conversation.privateMemory.settings(value);
     });
     handle('capri:brain', async (value, { role }) => {
       if (
@@ -5483,16 +6616,9 @@ async function initializeDesktop() {
         )
       )
         throw new Error('Invalid Brain action.');
-      if (value.action === 'status') return brain.snapshot();
-      if (value.action === 'open') {
-        await shell.openPath(brain.folder);
-        return true;
-      }
-      if (value.action === 'refresh') return brain.refresh();
-      if (value.action === 'search') return brain.search(value.query);
-      if (value.action === 'configure')
-        return brain.configure({ enabled: value.enabled, shareWithApi: value.shareWithApi });
-      throw new Error('Invalid Brain action.');
+      return conversation.brain.settings(
+        value.action === 'configure' ? { ...value, enabled: skillEnabled('capri.brain') } : value,
+      );
     });
     handle('capri:memory-save', async (value, { role }) => {
       if (
@@ -5504,15 +6630,19 @@ async function initializeDesktop() {
       )
         throw new Error('Open Memory controls in Settings.');
       if (typeof value !== 'string') throw new Error('Enter a memory to save.');
-      return saveOwnerNote(rt.workspace, value.trim());
+      return saveOwnerFact(rt.workspace, value);
     });
     handle('capri:saved-memory', async (value, { role }) => {
-      if (role !== 'settings' || !settingsHost?.window?.isVisible() || value !== undefined)
+      if (role !== 'settings' || !settingsHost?.window?.isVisible())
         throw new Error('Open Memory controls in Settings.');
       if (sessionLocked || shuttingDown || maintenance)
         return { items: [], truncated: false, unavailable: true };
       try {
-        return await readSavedMemory(rt.workspace);
+        if (value !== undefined) {
+          pendingMemoryDecision?.abort();
+          return changeOwnerFact(rt.workspace, value);
+        }
+        return await ownerMemory.read();
       } catch {
         // A private path or memory content must never enter a renderer error/diagnostic.
         throw new Error('Saved memories could not be loaded. Try again.');
@@ -5520,6 +6650,7 @@ async function initializeDesktop() {
     });
     const confirmReset = async (memory) => {
       assertIdle();
+      pendingMemoryDecision?.abort();
       if (maintenance) return false;
       maintenance = true;
       try {
@@ -5538,10 +6669,11 @@ async function initializeDesktop() {
         initiative.cancel();
         if (memory) {
           setBackend('starting', 'Updating shared memory…');
+          contextSampler.invalidate();
           metadataRpc.stop();
-          await stopManaged(rt.logPrefix);
           try {
-            await clearSavedMemory(rt);
+            await stopManaged(rt.logPrefix);
+            await ownerMemory.clear();
           } finally {
             await connectBackend();
           }
@@ -5578,8 +6710,19 @@ async function initializeDesktop() {
       },
       voiceUrl: companionVoiceUrl(),
       voiceHeaders: companionVoiceHeaders,
+      synthesizeVoice: (request, signal) =>
+        externalTts.config.enabled
+          ? externalTts.synthesize({ text: request.text, signal })
+          : fetch(`${companionVoiceUrl()}/synthesize`, {
+              method: 'POST',
+              redirect: 'error',
+              signal,
+              headers: { ...companionVoiceHeaders(), 'content-type': 'application/json' },
+              body: JSON.stringify(request),
+            }),
       wakeLanguage: () => (voice.language === 'off' ? 'en' : voice.language),
       wakeIdentity: () => {
+        if (externalTts.config.enabled) return JSON.stringify(externalTts.config);
         const config = companionVoiceSettings();
         try {
           return (
@@ -5608,6 +6751,7 @@ async function initializeDesktop() {
               readProcess: () => processLoad.sample(),
             }),
       diagnosticSnapshot: () => ({
+        windowsCompatibility: windowsCompatibility(),
         artwork: installedAvatar.diagnostics,
         response: chat.diagnostics(),
         inferenceTransport: inferenceApi.diagnostics(),
@@ -5631,7 +6775,7 @@ async function initializeDesktop() {
             .apps()
             .map(({ launch, inspect, text }) => ({ launch, inspect, text })),
         },
-        computerTask: computerAgent.diagnostics(),
+        computerTask: callSkill('capri.computer', 'diagnostics'),
         screenCapture: capturePolicy.diagnostics(),
         screenObservation: (() => {
           const { source, ...state } = screenObservation.snapshot();
@@ -5645,7 +6789,9 @@ async function initializeDesktop() {
           voiceEnabled: voice.enabled && voice.language !== 'off',
         }),
         speechInstallation: speechInstaller.snapshot(),
+        voiceCatalog: voiceCatalog.diagnostics(),
         voiceResidency: mutedVoiceResidency.diagnostics(),
+        voiceApi: externalTts.diagnostics(),
         voiceInstalled: voiceAvailable,
         voiceAllowed,
         lastVoiceFailure,
@@ -5658,9 +6804,15 @@ async function initializeDesktop() {
           status: microphone.status,
         },
         inference: {
-          provider: rt.remote.enabled ? 'external-api' : 'local',
-          model: rt.remote.enabled ? rt.remote.model : settings.model,
-          modelCapabilities: settings.modelCapabilities,
+          provider: rt.nativeNpu ? 'native-npu' : rt.remote.enabled ? 'external-api' : 'local',
+          model: rt.nativeNpu
+            ? nativeNpu.model
+            : rt.remote.enabled
+              ? rt.remote.model
+              : settings.model,
+          modelCapabilities: rt.remote.enabled
+            ? inferenceOptions.modelCapabilities
+            : settings.modelCapabilities,
           resourceProfile: settings.resourceProfile,
           acceleration: settings.acceleration,
           cpuThreads: settings.cpuThreads,
@@ -5692,19 +6844,26 @@ async function initializeDesktop() {
       if (role === 'companion') rendererReady = true;
       return {
         attachmentVision: screenVisionAvailable,
-        thinking: { enabled: thinkingMode },
-        internet: { enabled: internetMode },
+        skills: skillSettings.snapshot(),
+        thinking: { enabled: callSkill('capri.reasoning', 'mode') },
+        coding: { enabled: callSkill('capri.coding', 'enabled') },
+        internet: { enabled: callSkill('capri.web-search', 'mode') },
         time: companionActions.time.snapshot(),
         inference: {
           remote: rt.remote.enabled,
           vision: rt.remote.vision,
           setupRequired: rt.remote.setupRequired,
-          model: rt.remote.enabled ? rt.remote.model : localModelName,
+          model: rt.nativeNpu
+            ? nativeNpu.model
+            : rt.remote.enabled
+              ? rt.remote.model
+              : localModelName,
+          ...(rt.remote.authMode === 'chatgpt' ? { authMode: 'chatgpt' } : {}),
           ...(rt.remote.enabled ? { providerHost: new URL(rt.remote.baseUrl).hostname } : {}),
         },
         windowSettings: { alwaysOnTop: saved.alwaysOnTop !== false, focusMode, avatarOnly },
         settingsVersions: settingsVersions(),
-        screenSettings: screenPreferences.snapshot(),
+        screenSettings: media.screen.preferences(),
         spotify: spotify.snapshot(),
         models: models.snapshot(),
         updates: updates.snapshot(),
@@ -5716,7 +6875,9 @@ async function initializeDesktop() {
         warning:
           [
             installedAvatar.warning,
-            !voiceAvailable && resolveLanguages(languages.value).speech !== 'off'
+            skillEnabled('capri.voice-output') &&
+            !voiceAvailable &&
+            resolveLanguages(languages.value).speech !== 'off'
               ? ENGLISH_VOICE_SETUP_MESSAGE
               : null,
             store.warning,
@@ -5736,11 +6897,12 @@ async function initializeDesktop() {
         avatar: avatar.snapshot(),
         avatarLayout,
         dimming,
-        voice: voice.snapshot(),
+        voice: voiceSnapshot(),
         speech: speechPreferences.snapshot(),
         microphone: {
           ...microphone.snapshot(),
           ...audioInputs.snapshot(),
+          microphoneGain: settingsPreview.microphoneGain ?? speechPreferences.value.microphoneGain,
           available: asrAllowed && asrInstalled,
         },
         presence: { pinned: presencePinned },
@@ -5760,7 +6922,7 @@ async function initializeDesktop() {
         initiative: initiativeSettings.snapshot(),
         awareness: { ...observer.snapshot(), scheduling: initiative.snapshot() },
         screen: capturePolicy.snapshot(),
-        screenObservation: screenObservation.snapshot(),
+        screenObservation: media.screen.snapshot(),
         lastScreenshot,
       };
     });
@@ -5772,18 +6934,12 @@ async function initializeDesktop() {
     });
     handle('capri:thinking-mode-set', (enabled) => {
       if (typeof enabled !== 'boolean') throw new Error('Invalid thinking mode');
-      thinkingMode = enabled;
-      const settings = { enabled };
-      emit({ type: 'thinking.settings', settings });
-      return settings;
+      return callSkill('capri.reasoning', 'setMode', enabled, { source: 'companion' });
     });
     handle('capri:internet-mode-set', (enabled) => {
       if (typeof enabled !== 'boolean') throw new Error('Invalid internet mode');
       if (currentChatTask || chat.active) throw new Error('Wait for the current reply to finish.');
-      internetMode = enabled;
-      const settings = { enabled };
-      emit({ type: 'internet.settings', settings });
-      return settings;
+      return callSkill('capri.web-search', 'setMode', enabled, { source: 'companion' });
     });
     handle('capri:web-source-open', async (value, { role }) => {
       if (
@@ -5807,9 +6963,13 @@ async function initializeDesktop() {
       if (!verification) await shell.openExternal(source.url);
       return true;
     });
-    handle('capri:attachment-add', (value, { frame }) => attachmentDrafts.add(value, frame));
+    handle('capri:attachment-add', (value, { frame }) => {
+      skillSettings.require('capri.attachment-viewer');
+      return attachmentDrafts.add(value, frame);
+    });
     handle('capri:attachment-remove', (id, { frame }) => attachmentDrafts.remove(id, frame));
     handle('capri:attachment-send', (value, { frame }) => {
+      skillSettings.require('capri.attachment-viewer');
       const input = thinkingInput(value);
       if (shuttingDown || backendState.phase !== 'ready' || currentChatTask || chat.active)
         throw new Error('The conversation is busy');
@@ -5823,7 +6983,7 @@ async function initializeDesktop() {
         attachments,
       });
     });
-    handle('capri:attachment-open', (id) => attachmentViewer.open(id));
+    handle('capri:attachment-open', conversation.attachments.open);
     handle('capri:speech-availability', () =>
       Object.fromEntries(LANGUAGE_PACKS.map((p) => [p.id, speechInstalled(p.id)])),
     );
@@ -5848,6 +7008,7 @@ async function initializeDesktop() {
     });
     registerScreenIpc(handle, {
       root,
+      requireEnabled: () => skillSettings.require('capri.screen'),
       screenVisionAvailable,
       capturePolicy,
       screenObservation,
@@ -5866,37 +7027,14 @@ async function initializeDesktop() {
       dialog: localizedDialog(dialog, (text) => uiText(text, languages.value.interface)),
       getWindow: () => (settingsHost?.window?.isVisible() ? settingsHost.window : window),
       getInterfaceLanguage: () => languages.value.interface,
-      filePermissions,
-      fileAccessSnapshot,
+      files: conversation.files,
       applications,
       ensureDesktopActions,
       emit,
     });
-    handle('capri:initiative', async (value) => {
-      const settings = initiativeSettings.set(value);
-      emit({ type: 'initiative.settings', settings });
-      try {
-        await syncInitiative();
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          observer.publish('failed');
-          emit({
-            type: 'initiative.error',
-            message: 'App awareness could not start. Apply its settings to try again.',
-          });
-        }
-      }
-      return settings;
-    });
-    handle('capri:initiative-dismiss', () => {
-      initiative.dismiss();
-      if (voice.turn?.id === latestInitiativeTurnId) voice.cancel();
-      return true;
-    });
-    handle('capri:initiative-restore', () => {
-      initiative.restore();
-      return true;
-    });
+    handle('capri:initiative', (value, { role }) => conversation.initiative.configure(value, role));
+    handle('capri:initiative-dismiss', (_value, { role }) => conversation.initiative.dismiss(role));
+    handle('capri:initiative-restore', (_value, { role }) => conversation.initiative.restore(role));
     handle('capri:activity', () => {
       initiative.activity();
       screenObservation.activity();
@@ -5936,45 +7074,27 @@ async function initializeDesktop() {
       }
       return true;
     });
-    handle('capri:microphone-start', async () => {
-      if (speechInstaller.busy())
-        throw new Error('Wait for speech installation to finish, or cancel it in Languages.');
-      if (
-        !asrAllowed ||
-        !asrInstalled ||
-        shuttingDown ||
-        !['ready', 'asleep'].includes(backendState.phase)
-      )
-        throw new Error(
-          'The selected speech recognition model is unavailable. Run setup-multilingual.cmd.',
-        );
-      const capture = { ...(await microphone.start()), ...liveMicrophone() };
-      if (
-        !verification &&
-        liveCompanionSettings().wakeSound === 'voice' &&
-        sleepService.phase === 'awake' &&
-        !currentChatTask &&
-        !chat.active &&
-        !voice.generating &&
-        !playbackBusy
-      )
-        void prepareWakeAudio().catch((error) => {
-          const type = error.code === 'CAPRI_VOICE_DISABLED' ? 'voice.warning' : 'wake.error';
-          emit({ type, message: error.message });
-        });
-      return capture;
+    handle('capri:microphone-start', media.microphone.start);
+    handle('capri:microphone-devices', (_value, { role }) => media.microphone.devices(role));
+    handle('capri:microphone-monitor', (enabled, { role, frame }) => {
+      if (role !== 'settings' || typeof enabled !== 'boolean') return false;
+      microphoneMonitorGrant = undefined;
+      if (!enabled) return true;
+      if (sessionLocked || shuttingDown || !settingsHost?.window?.isVisible()) return false;
+      microphoneMonitorGrant = { frame, expiresAt: performance.now() + 5000 };
+      return true;
     });
-    handle('capri:microphone-devices', refreshAudioInputs);
-    handle('capri:microphone-device', changeAudioInput);
+    handle('capri:microphone-device', (value, { role }) =>
+      media.microphone.selectDevice(value, role),
+    );
     handle('capri:system-audio-prepare', (value, { frame }) =>
       systemAudio.prepare(value?.id, frame, value?.wake),
     );
     handle('capri:system-audio-cancel', (id, { frame }) => systemAudio.cancel(id, frame));
-    handle('capri:music-status', () => musicListening.snapshot());
+    handle('capri:music-status', media.music.snapshot);
     handle('capri:music-settings', (value, { role }) => {
       if (role !== 'settings') throw Error('Open Music listening in Settings.');
-      musicPreferences.set(validateMusicListeningSettings(value));
-      return musicListening.publish();
+      return media.music.configure(value, { role });
     });
     handle('capri:music-command', async (action, { role }) => {
       if (
@@ -6007,18 +7127,12 @@ async function initializeDesktop() {
       } finally {
         clearTimeout(timer);
       }
-      return musicListening.snapshot();
+      return media.music.snapshot();
     });
-    handle('capri:music-audio-start', () => {
-      musicPreferences.set({ ...musicPreferences.snapshot(), enabled: true });
-      return musicListening.start();
-    });
-    handle('capri:music-audio-ready', (id) => musicListening.ready(id));
+    handle('capri:music-audio-start', media.music.start);
+    handle('capri:music-audio-ready', media.music.ready);
     handle('capri:music-audio-packet', (value) => musicListening.packet(value));
-    handle('capri:music-audio-stop', (id) => {
-      musicAudio.revoke();
-      return musicListening.stop(id);
-    });
+    handle('capri:music-audio-stop', (id) => media.music.stop(id));
     handle('capri:music-audio-prepare', (id, { frame }) => musicAudio.prepare(id, frame));
     handle('capri:music-audio-cancel', (id, { frame }) => musicAudio.cancel(id, frame));
     handle('capri:call-audio-devices', (_, { role }) => {
@@ -6026,26 +7140,7 @@ async function initializeDesktop() {
         return [];
       return listCallAudioDevices(role === 'companion');
     });
-    handle('capri:call-audio-command', async (value, { role }) => {
-      if (role !== 'settings') throw new Error('Open Voice calls in Settings.');
-      const command = callAudioCommand(value);
-      if (command.action === 'state') return callAudioSnapshot();
-      if (!callAudioAvailable() || !settingsHost?.window?.isVisible())
-        throw new Error('Call audio requires an open Capri window.');
-      if (command.action === 'allow-model' || command.action === 'voice-volume') {
-        const policy = callAudioPolicy.set({
-          ...callAudioPolicy.snapshot(),
-          ...(command.action === 'allow-model'
-            ? { allowModel: command.enabled }
-            : { callVoiceVolume: command.volume }),
-        });
-        const { allowModel } = policy;
-        if (!allowModel && (voicePreviewRequest?.model || callVoiceTurn?.model)) cancelCallVoice();
-        emit({ type: 'call-audio.policy', ...policy });
-        return callAudioSnapshot();
-      }
-      return executeCallAudio(command);
-    });
+    handle('capri:call-audio-command', (value, { role }) => voiceSkills.calls.command(value, role));
     handle('capri:call-audio-setup', async (action, { role }) => {
       if (role !== 'settings' || !settingsHost?.window?.isVisible())
         throw new Error('Open Voice calls in Settings.');
@@ -6148,30 +7243,15 @@ async function initializeDesktop() {
         if (voicePreviewRequest === request) voicePreviewRequest = null;
       }
     });
-    handle('capri:speech-settings', async (value) => {
-      const next = speechPreferences.set(value);
-      await microphone.configurePause(next.trailingSilenceSeconds);
-      emit({ type: 'speech.settings', settings: next });
-      return next;
-    });
-    handle('capri:microphone-ready', (id) => microphone.confirm(id));
-    handle('capri:microphone-listen', () => {
-      if (speechInstaller.busy())
-        throw new Error('Wait for speech installation to finish, or cancel it in Languages.');
-      if (shuttingDown || !['ready', 'asleep'].includes(backendState.phase)) return false;
-      return microphone.listenNow();
-    });
+    handle('capri:speech-settings', (value, { role }) => voiceSkills.speech.configure(value, role));
+    handle('capri:microphone-ready', media.microphone.confirm);
+    handle('capri:microphone-listen', media.microphone.listen);
     handle('capri:microphone-stop', (value) => {
       const { id, keepModelWarm = false } =
         value && typeof value === 'object' ? value : { id: value };
       if (typeof keepModelWarm !== 'boolean' || (id !== undefined && typeof id !== 'string'))
         throw new Error('Invalid microphone stop mode');
-      const stopped = microphone.stop(id);
-      if (stopped && !keepModelWarm) {
-        microphone.worker.close();
-        microphone.publish();
-      }
-      return stopped;
+      return media.microphone.stop({ id, keepModelWarm });
     });
     handle('capri:quit', quitAndUnload);
     handle('capri:microphone-audio', (value) => microphone.audio(value));
@@ -6190,7 +7270,8 @@ async function initializeDesktop() {
       if (cancelled) emit({ type: 'avatar.selection', selection: avatar.invalidatePending() });
       return cancelled || visualCancelled;
     });
-    handle('capri:voice-enabled', changeVoice);
+    handle('capri:voice-enabled', (value, { role }) => voiceSkills.output.setEnabled(value, role));
+    handle('capri:voice-volume', changeVoiceVolume);
     handle('capri:languages', async (value) => {
       const next = validateLanguages(value),
         resolved = resolveLanguages(next),
@@ -6209,9 +7290,13 @@ async function initializeDesktop() {
       )
         throw new Error('Wait for the current reply to finish before changing languages.');
       const oldSpeech = resolveLanguages(languages.value).speech;
-      const restartVoice = !verification && voiceBackendChanged(root, oldSpeech, resolved.speech);
+      const restartVoice =
+        !externalTts.config.enabled &&
+        !verification &&
+        voiceBackendChanged(root, oldSpeech, resolved.speech);
       if (restartVoice) await stopVoiceForChange();
       if (behaviorChanged) {
+        avatarClickReactions?.cancel();
         initiative.cancel();
         screenObservation?.activity();
       }
@@ -6245,6 +7330,7 @@ async function initializeDesktop() {
       return settings;
     });
     handle('capri:voice-preview', async (value) => {
+      if (voiceVolume.value.volume === 0) throw new Error(VOICE_REQUIRED_MESSAGE);
       const effects = value === undefined ? undefined : validateVoiceEffects(value);
       initiative.activity();
       screenObservation.activity();
@@ -6432,12 +7518,14 @@ async function initializeDesktop() {
       const press = pointer.avatarPress;
       if (
         !pointer.endAvatar(click ? value.point : undefined, (kind, point) => {
-          if (kind === 'head' && !avatarSleeping()) emit({ type: 'avatar.headpat', point });
+          if (kind === 'head' && skillEnabled('capri.avatar-interaction') && !avatarSleeping())
+            emit({ type: 'avatar.headpat', point });
           recordAvatarClick(kind);
         })
       )
         return false;
       if (!click) {
+        avatarRoaming.postpone(liveCompanionSettings(), 60000);
         saveAvatarLayout();
         const content = window.getContentBounds();
         const release = value?.drop;
@@ -6649,6 +7737,7 @@ async function initializeDesktop() {
       quitting: () => shuttingDown || quitting,
       onBusy: (value) => {
         interfaceBusy = value;
+        if (!value) microphoneMonitorGrant = undefined;
         if (!value) privateMemory.lock();
         if (!value && Object.keys(settingsPreview).length)
           void updateSettingsPreview({}).catch((error) => console.error(error.message));
@@ -6791,6 +7880,8 @@ async function initializeDesktop() {
   if (hasSingleInstanceLock) {
     app.on('second-instance', () => restoreCompanion());
     app.on('before-quit', (event) => {
+      if (quitting) return;
+      nativeNpu?.stop();
       recordingIndicator?.destroy();
       userTools.close();
       workflows?.close();
@@ -6818,7 +7909,9 @@ async function initializeDesktop() {
       processLoad.stop();
       systemCpu.stop();
       inferenceApi.close();
-      discordPresence.close();
+      externalTts.close();
+      chatgpt.close();
+      void localModelLoad.close();
       void computerControl.stop();
       companionActions.close();
       sleepService.close();
@@ -6854,12 +7947,13 @@ async function initializeDesktop() {
       saveDimming();
       globalShortcut.unregisterAll();
       tray?.destroy();
+      void skills.close();
     });
     app.on('window-all-closed', () => app.quit());
     app
       .whenReady()
       .then(async () => {
-        if (!verification) brain.start();
+        if (!verification && skillEnabled('capri.brain')) brain.start();
         await userTools
           .refresh()
           .catch(() => console.warn('User tools could not be listed. Open Settings to retry.'));
@@ -6867,6 +7961,31 @@ async function initializeDesktop() {
           asrAllowed &&
           Boolean(microphone.capture) &&
           ['arming', 'listening'].includes(microphone.status);
+        const microphoneMonitorPermission = (contents, permission, origin, details, request) => {
+          const view = settingsHost?.window;
+          const grant = microphoneMonitorGrant;
+          if (
+            !grant ||
+            performance.now() >= grant.expiresAt ||
+            sessionLocked ||
+            shuttingDown ||
+            !view?.isVisible() ||
+            view.webContents.mainFrame !== grant.frame ||
+            !audioPermission({
+              armed: true,
+              owner: view.webContents,
+              contents,
+              permission,
+              origin,
+              details,
+              request,
+              url: settingsUrl,
+            })
+          )
+            return false;
+          if (request) microphoneMonitorGrant = undefined;
+          return true;
+        };
         const displayPermission = (contents, permission, origin, details) =>
           permission === 'display-capture' &&
           (Boolean(capturePolicy.capture) || systemAudio.armed() || musicAudio.armed()) &&
@@ -6889,6 +8008,13 @@ async function initializeDesktop() {
             respond(
               displayPermission(contents, permission, details.securityOrigin, details) ||
                 callSpeakerPermission(contents, permission, details.securityOrigin, details) ||
+                microphoneMonitorPermission(
+                  contents,
+                  permission,
+                  details.securityOrigin,
+                  details,
+                  true,
+                ) ||
                 audioPermission({
                   armed:
                     micArmed() ||
@@ -6910,6 +8036,7 @@ async function initializeDesktop() {
           (contents, permission, origin, details) =>
             displayPermission(contents, permission, origin, details) ||
             callSpeakerPermission(contents, permission, origin, details) ||
+            microphoneMonitorPermission(contents, permission, origin, details, false) ||
             audioPermission({
               armed:
                 micArmed() ||
@@ -6937,6 +8064,9 @@ async function initializeDesktop() {
           resourceResponse(req, allowedResources, { attachments: attachmentHistory }),
         );
         await companionActions.start();
+        if (!skillEnabled('capri.timers')) companionActions.time.suspend();
+        for (const id of ['capri.reasoning', 'capri.web-search'])
+          if (skillEnabled(id)) callSkill(id, 'setMode', true);
         installIpc();
         const preload = consumeFirstLaunchPreload(state);
         createWindow();
@@ -6945,17 +8075,18 @@ async function initializeDesktop() {
             if (!shuttingDown && !focusMode)
               void settingsHost.open('api', 'api-key').catch(console.error);
           });
-        else if (settings.modelSetupRequired && !rt.remote.enabled)
+        else if (settings.modelSetupRequired && !rt.remote.enabled && !rt.nativeNpu)
           window.once('ready-to-show', () => {
             if (!shuttingDown) void settingsHost.open('models', 'hf-query').catch(console.error);
           });
-        discordPresence.start();
+        if (skillEnabled('capri.discord-presence')) callSkill('capri.discord-presence', 'start');
         window.on('minimize', resetCallAudio);
         powerMonitor.on('unlock-screen', () => {
           sessionLocked = false;
           void reminders.pump();
         });
         powerMonitor.on('lock-screen', () => {
+          pendingMemoryDecision?.abort();
           recordingIndicator?.hide();
           userTools.cancel();
           workflows?.cancel();
@@ -6964,12 +8095,14 @@ async function initializeDesktop() {
           stopMusicListening();
           void computerControl.stop();
           sessionLocked = true;
+          stopMicrophoneMonitor();
           avatarClickReactions.cancel();
           avatarDetach.reset();
           discardScreens('screen-locked');
           cancelVisual();
         });
         powerMonitor.on('suspend', () => {
+          stopMicrophoneMonitor();
           recordingIndicator?.hide();
           userTools.cancel();
           workflows?.cancel();
@@ -6989,6 +8122,18 @@ async function initializeDesktop() {
           });
         });
         controlTimer = setInterval(() => {
+          localModelLoad.synchronize(
+            !verification &&
+              !shuttingDown &&
+              !rt.remote.enabled &&
+              Boolean(
+                localInferenceTasks ||
+                  chat.active ||
+                  initiative.active ||
+                  avatarClickReactions?.active ||
+                  backendState.phase === 'starting',
+              ),
+          );
           computerControl.supervise({
             indicatorVisible: Boolean(controlBorder),
             escapeAvailable:

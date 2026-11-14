@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 
 test(
-  'Python bootstrap supports hidden AppData ancestors, owns its Unicode runtime and rejects junctions',
+  'Python bootstrap uses the owned runtime and lets uv detect CPU capabilities',
   { skip: process.platform !== 'win32' },
   () => {
     const parent = path.join(root, '.runtime/installer-python-tests');
@@ -32,6 +32,7 @@ $existing=Join-Path $outside 'python3.11.exe'
 [IO.File]::WriteAllText($existing,'unmanaged executable canary')
 $env:UV_PYTHON_BIN_DIR=$outside
 $env:UV_PYTHON_INSTALL_DIR=Join-Path ${literal(session)} 'inherited-outside-python'
+$env:OPENSSL_ia32cap='0x200000:0x0'
 $env:CAPRI_PYTHON_FIXTURE_LOG=Join-Path ${literal(session)} 'install.log'
 Add-Type -OutputAssembly $uv -OutputType ConsoleApplication -TypeDefinition @'
 using System;
@@ -40,6 +41,10 @@ using System.Linq;
 using System.Diagnostics;
 public class PythonBootstrapFixture {
   public static int Main(string[] args) {
+    if(Environment.GetEnvironmentVariable("OPENSSL_ia32cap")!=null) {
+      Console.Error.WriteLine("Fatal Error: HW capability found: 0x178BFBFF 0xBED8320B, but HW capability requested: 0x200000 0x00.");
+      return 46;
+    }
     string self=Process.GetCurrentProcess().MainModule.FileName;
     if(Path.GetFileName(self).Equals("python.exe",StringComparison.OrdinalIgnoreCase)) {
       Console.WriteLine(Environment.GetEnvironmentVariable("CAPRI_PYTHON_FIXTURE_VERSION")??"Python 3.11.17");return 0;

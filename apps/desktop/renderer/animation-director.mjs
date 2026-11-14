@@ -82,6 +82,7 @@ export class AnimationDirector {
       sleeping = false,
       reduced = false,
       dragging = false,
+      heldFrame = null,
     } = {},
   ) {
     const gap = this.lastTick === null ? 0 : Math.max(0, now - this.lastTick);
@@ -97,20 +98,18 @@ export class AnimationDirector {
       this.sequence = null;
       this.nextActivity = now + this.settings.firstActivityMs;
       this.nextBlink = now + 3000;
-      return this.result(
-        this.frames.has('idle-blink_closed') ? 'idle-blink_closed' : this.base.frameId,
-        'sleep',
-      );
+      return this.result(this.frames.has('pose-sleep') ? 'pose-sleep' : this.base.frameId, 'sleep');
     }
     if (!expanded) {
       if (this.sequence) this.sequence.start += dt;
       this.nextActivity = now + this.settings.firstActivityMs;
       return this.result(this.base.frameId);
     }
-    if (dragging) {
+    if (dragging || heldFrame) {
       if (this.sequence) this.sequence.start += dt;
       this.nextActivity = now + this.settings.firstActivityMs;
     }
+    if (this.frames.has(heldFrame)) return this.result(heldFrame, 'reaction');
     if (active || typing || speaking) this.attend(now);
     if (reduced) {
       this.sequence = null;

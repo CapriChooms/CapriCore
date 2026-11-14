@@ -10,6 +10,7 @@ import { CompanionPanel } from './companion-panel.mjs';
 import { UpdatesPanel } from './updates-panel.mjs';
 import { UpdateNotification } from './update-notification.mjs';
 import { ThinkingMode } from './thinking-mode.mjs';
+import { showComposerSkill, skillToolbar } from './skill-toolbar.mjs';
 import { InternetMode } from './internet-mode.mjs';
 import { ModelsPanel } from './models-panel.mjs';
 import { ConfirmationDialog } from './confirmation-dialog.mjs';
@@ -18,6 +19,7 @@ import { ButtonFeedback } from './button-feedback.mjs';
 import { inferencePrivacy } from './inference-privacy.mjs';
 import { renderInferenceLabel } from './inference-panel.mjs';
 import { InferencePicker } from './inference-picker.mjs';
+import { VoiceVolumeMenu } from './voice-volume-menu.mjs';
 import { StartupPanel } from './startup-panel.mjs';
 import { StartupIntro } from './startup-intro.mjs';
 import { interfaceThemeColors } from './interface-theme.mjs';
@@ -37,12 +39,7 @@ import { validateDimming, shadeBounds } from './dimming-settings.mjs';
 import { DimmingMask } from './dimming-mask.mjs';
 import { OverflowTicker } from './overflow-ticker.mjs';
 import { isClipCommand } from './clip-command.mjs';
-import {
-  avatarTapsSleeping,
-  isSleepCommand,
-  sleepCaption,
-  visuallySleeping,
-} from './sleep-service.mjs';
+import { avatarTapsSleeping, isSleepCommand, visuallySleeping } from './sleep-service.mjs';
 import { WakeFeedback, playScreenshotShutter } from './wake-feedback.mjs';
 import { PresenceModel, SIGNAL_STATES } from './presence-model.mjs';
 import { SignalFX } from './signal-fx.mjs';
@@ -59,6 +56,7 @@ import {
   DEFAULT_AVATAR_LAYOUT,
   avatarRect,
   registeredAvatarRect,
+  sleepingAvatarRect,
   avatarFacePoint,
   centerAvatarFace,
   clippedAvatarRect,
@@ -108,6 +106,23 @@ const internetMode = new InternetMode({
     }
   },
 });
+let codingEnabled = false;
+const codingProjectHint = 'Choose and save a project folder to enable coding mode.';
+const codingButton = document.getElementById('coding-toggle');
+function showCodingMode(value) {
+  codingEnabled = value?.enabled === true;
+  codingButton.setAttribute('aria-pressed', String(codingEnabled));
+  codingButton.title = ui.text(codingEnabled ? 'Coding mode: On' : 'Coding mode: Off');
+  if (value?.projectRequired) notice(codingProjectHint, 'warning');
+  else if (codingEnabled && noticeSource === codingProjectHint) notice();
+}
+codingButton.onclick = async () => {
+  try {
+    showCodingMode(await api.coding({ op: 'mode', enabled: !codingEnabled }));
+  } catch (error) {
+    notice(error.message);
+  }
+};
 let musicState = {
   enabled: false,
   hearingMusic: false,
@@ -223,6 +238,7 @@ const elements = Object.fromEntries(
     'history-panel',
     'history-toggle',
     'history-close',
+    'history-clear',
     'history-empty',
   ].map((id) => [id, document.getElementById(id)]),
 );
@@ -288,6 +304,7 @@ const inferencePicker = new InferencePicker({
 document.getElementById('notice-report').onclick = () => api.openSettings('bug');
 document.getElementById('notice-dismiss').onclick = () => notice();
 let applicationAccessState = { enabled: true };
+let skillState = {};
 function showApplicationAccess(value) {
   applicationAccessState = value;
   const button = document.querySelector('[data-quick="applications"]');
@@ -375,8 +392,7 @@ for (const id of [
   }
 }
 let backend = { phase: 'starting', message: 'Starting local core…' };
-let power = { phase: 'awake' },
-  sleepAt = 0;
+let power = { phase: 'awake' };
 function showPower(value) {
   power = value ?? { phase: 'awake' };
   controls();
@@ -386,7 +402,6 @@ function syncSleepingVisual() {
   presence.setSleeping(visuallySleeping(power.phase, backend.phase));
   document.body.dataset.sleeping = String(presence.sleeping);
   if (avatarTapsSleeping(power.phase, backend.phase)) headpat.clear();
-  if (presence.sleeping && !wasSleeping) sleepAt = performance.now();
   document.getElementById('sleep-indicator').hidden = !presence.sleeping;
   if (wasSleeping && !presence.sleeping) {
     presence.wakeUp({ reveal: presence.expandOnReply });
@@ -396,6 +411,7 @@ function syncSleepingVisual() {
 let activeTurnId = null;
 const pendingSpotifyTools = new Set();
 let submitting = false;
+let clearingHistory = false;
 const responsePaintStarts = new Map();
 let ready = false;
 let miniDraftRevision = 0,
@@ -439,7 +455,13 @@ replyVisibility = new ReplyVisibility({
     document.getElementById('subtitle-collapse').hidden = hidden;
     document.getElementById('subtitle-reveal').hidden = !hidden;
     subtitleController?.setHidden(hidden);
-    if (desktopCue?.turnId === turnId && avatarDetachPhase !== 'attached')
+    const subtitle = subtitleController?.state;
+    if (
+      subtitle &&
+      desktopCue?.turnId === subtitle.id &&
+      (subtitle.turnId ?? subtitle.id) === turnId &&
+      avatarDetachPhase !== 'attached'
+    )
       void api.avatarReply({ ...desktopCue, autoCollapsed: hidden }).catch(() => {});
     scheduleRegions();
   },
@@ -475,9 +497,13 @@ subtitleController = new SubtitleController({
         fullText === desktopCue.fullText)
     )
       return;
+    const newDesktopReply = desktopCue?.turnId !== turnId;
     desktopCue = { text, turnId, fullText };
     void api
-      .avatarReply({ ...desktopCue, ...(replyVisibility.hidden && { autoCollapsed: true }) })
+      .avatarReply({
+        ...desktopCue,
+        ...(newDesktopReply && replyVisibility.hidden && { autoCollapsed: true }),
+      })
       .catch(() => {});
   },
 });
@@ -832,12 +858,21 @@ document.getElementById('call-speak').onclick = () => speakInCall(elements.messa
 document.getElementById('call-speak-last').onclick = () => speakInCall(lastCallReply());
 document.getElementById('call-ask').onclick = () => speakInCall(elements.message.value, true);
 document.getElementById('call-output-stop').onclick = () => voicePlayer.disableCallOutput();
+const voiceButton = document.getElementById('voice-toggle');
+const voiceVolumeMenu = new VoiceVolumeMenu({
+  button: voiceButton,
+  api,
+  ui,
+  player: voicePlayer,
+  onError: notice,
+  onLayout: scheduleRegions,
+});
 function showVoiceSettings(value) {
   const changedLanguage = value.language !== voiceSettings.language;
   voiceSettings = value;
   if (changedLanguage && companionSettings.wakeSound === 'voice')
     wakeFeedback.configure(companionSettings, () => api.wakeAudio());
-  const button = document.getElementById('voice-toggle');
+  const button = voiceButton;
   button.setAttribute('aria-pressed', String(value.enabled));
   const label = ui.text(
     value.language === 'off'
@@ -855,6 +890,7 @@ function showVoiceSettings(value) {
       ? ui.text('Capri’s voice is loading…')
       : label;
   if (!value.enabled || value.error || value.language === 'off') voicePlayer.stop();
+  voiceVolumeMenu.show(value);
 }
 function stopReply() {
   callSpeechRequest = null;
@@ -893,7 +929,7 @@ function avatarHitRegion(rect) {
   sprite.enabled =
     presence.snapshot().expanded &&
     avatarDetachPhase === 'attached' &&
-    !startupIntro?.pending &&
+    (!startupIntro?.pending || presence.sleeping) &&
     !startupIntro?.active &&
     !document.body.dataset.avatarArriving;
   if (sprite.enabled && document.body.dataset.crt === 'webgl') {
@@ -1086,9 +1122,12 @@ function redrawAvatar() {
     `${Math.round(document.getElementById('input-dock').getBoundingClientRect().height)}px`,
   );
   const viewport = avatarViewport();
-  const rect = director
-    ? registeredAvatarRect(avatarPlacement, viewport, renderedFrame)
-    : avatarRect(avatarPlacement, viewport);
+  const rect =
+    renderedFrame?.id === 'pose-sleep'
+      ? sleepingAvatarRect(viewport, renderedFrame.visibleBounds, avatarPlacement.zoom)
+      : director
+        ? registeredAvatarRect(avatarPlacement, viewport, renderedFrame)
+        : avatarRect(avatarPlacement, viewport);
   const viewportStyle = document.getElementById('avatar-viewport').style;
   viewportStyle.clipPath = `inset(${viewport.y}px ${innerWidth - viewport.x - viewport.width}px ${innerHeight - viewport.y - viewport.height}px ${viewport.x}px)`;
   if (document.body.dataset.avatarArriving) {
@@ -1105,16 +1144,25 @@ function redrawAvatar() {
   style.top = `${rect.y}px`;
   style.width = `${rect.width}px`;
   style.height = `${rect.height}px`;
+  if (renderedFrame?.id === 'pose-sleep') {
+    const dreams = document.getElementById('sleep-indicator').style;
+    dreams.left = style.left;
+    dreams.top = style.top;
+    dreams.width = style.width;
+    dreams.height = style.height;
+  }
   elements['sprite-region'].dataset.zoom = String(avatarPlacement.zoom);
   scheduleRegions();
 }
 
 function centeredHomePlacement() {
+  const frame =
+    renderedFrame?.id === 'pose-sleep' ? frameCatalog.get(director?.base?.frameId) : renderedFrame;
   return centerAvatarFace(
     avatarPlacement,
     avatarViewport(),
-    renderedFrame,
-    avatarPoseLandmarks(renderedFrame?.id)?.face,
+    frame,
+    avatarPoseLandmarks(frame?.id)?.face,
   );
 }
 
@@ -1476,13 +1524,14 @@ async function showAvatar(selection) {
   }
 }
 
-let spriteReaction, spriteReactionTimer, poseSettle;
+let poseSettle;
 const avatarVisemes = new AvatarVisemes();
 const portraitMouth = new AvatarMouthLayer(elements.sprite);
 let mouthShape = 'closed',
   desktopMouth;
 function animateCharacter(now, snapshot, reduced) {
   if (avatarDetachPhase !== 'attached' && companionSettings?.detachedStyle === 'dialogue') return;
+  if (startupIntro?.active && presence.sleeping) startupIntro.cancel();
   if (startupIntro?.active) {
     musicNotes?.clear();
     startupIntro.tick(now);
@@ -1504,20 +1553,13 @@ function animateCharacter(now, snapshot, reduced) {
     musicNotes?.clear();
     return;
   }
-  if (presence.sleeping) {
-    const label = document.getElementById('sleep-indicator');
-    label.textContent = sleepCaption(reduced ? 1500 : now - sleepAt);
-    const box = elements['sprite-region'].getBoundingClientRect();
-    const origin = document.getElementById('companion').getBoundingClientRect();
-    label.style.left = `${Math.min(innerWidth - 95, Math.max(16, box.x - origin.x + box.width * 0.7))}px`;
-    label.style.top = `${Math.max(92, box.y - origin.y + box.height * 0.12)}px`;
-  }
   const state = director.tick(now, {
     expanded: detached || snapshot.expanded,
     active: Boolean(activeTurnId),
     typing: Boolean(elements.message.value.trim() || microphoneText),
     speaking: presence.speaking,
     dragging: Boolean(spriteDrag || dragPointer !== null),
+    heldFrame: avatarDetachPhase === 'attached' ? headpat.frameId : null,
     reduced: reduced || startupIntro?.pending,
     sleeping: presence.sleeping,
   });
@@ -1529,9 +1571,8 @@ function animateCharacter(now, snapshot, reduced) {
       !activeTurnId &&
       !elements.message.value.trim() &&
       !microphoneText &&
-      !spriteReaction &&
       !startupIntro?.pending &&
-      headpat.image(elements.sprite) === elements.sprite,
+      !headpat.frameId,
   );
   if (musicActive && frameCatalog.has('music-floor')) {
     state.frameId = 'music-floor';
@@ -1556,10 +1597,6 @@ function animateCharacter(now, snapshot, reduced) {
       clip: document.getElementById('avatar-viewport').getBoundingClientRect(),
     });
   else musicNotes?.clear();
-  if (spriteReaction && frameCatalog.has(spriteReaction) && !presence.sleeping && !spriteDrag) {
-    state.frameId = spriteReaction;
-    state.activity = 'reaction';
-  }
   const effect = document.getElementById('avatar-effect');
   effect.hidden = detached || !state.effect || !snapshot.expanded;
   if (!effect.hidden) {
@@ -1591,8 +1628,9 @@ function animateCharacter(now, snapshot, reduced) {
         return;
       if (ticket !== frameTicket || state.revision !== avatarRevision) return;
       const poseChanged = renderedFrame && frame.pose !== renderedFrame.pose;
+      const sleepTransition = frame.id === 'pose-sleep' || renderedFrame?.id === 'pose-sleep';
       const previousFace =
-        poseChanged && avatarDetachPhase === 'attached' && !spriteDrag
+        poseChanged && !sleepTransition && avatarDetachPhase === 'attached' && !spriteDrag
           ? avatarFacePoint(
               avatarPlacement,
               avatarViewport(),
@@ -1639,7 +1677,9 @@ function animateCharacter(now, snapshot, reduced) {
         }[state.activity];
       setAvatarExpression(activity ?? avatars.get(state.choiceId)?.label ?? frame.label);
       if (avatarDetachPhase === 'attached') redrawAvatar();
-      if (poseChanged && avatarDetachPhase === 'attached') centerHomeAvatar();
+      if (sleepTransition) cancelAvatarCentering();
+      else if (poseChanged && avatarDetachPhase === 'attached') centerHomeAvatar();
+      signalFx?.invalidate();
       if (reviewedTransition && !reduced && avatarDetachPhase === 'attached') {
         poseSettle?.cancel();
         poseSettle = document
@@ -1694,6 +1734,7 @@ function renderMicrophoneLabel(value) {
     language + ' // ' + ui.text(label) + (microphoneText ? '\n' + microphoneText : '');
 }
 function refreshInterface() {
+  voiceVolumeMenu.render();
   thinkingMode.refresh();
   internetMode.refresh();
   renderInferenceLabel(inference, ui);
@@ -1730,6 +1771,7 @@ function refreshInterface() {
     );
     view.node.querySelector('.message-label').textContent =
       view.message.role === 'user' ? ui.text('You') : 'Capri';
+    labelCopyButton(view.copy);
     view.status.textContent = ui.text(
       view.message.status === 'interrupted'
         ? 'Stopped'
@@ -1755,6 +1797,7 @@ function controls() {
     callSpeechPending ||
     Boolean(activeTurnId) ||
     languagePanel.installation?.phase === 'installing';
+  updateHistoryClear();
   internetMode.setReady(ready);
   internetMode.setBusy(busy || Boolean(attachmentComposer?.pending));
   const draft = elements.message.value.trim();
@@ -1848,7 +1891,10 @@ function publishAvatarComposer(force = false) {
     draft: elements.message.value,
     draftRevision: miniDraftRevision,
     canSend: !elements.send.disabled,
-    canAttach: !attachmentComposer.button.disabled,
+    canAttach:
+      skillState['capri.attachment-viewer']?.enabled === true &&
+      !attachmentComposer.button.disabled,
+    showAttach: showComposerSkill(skillState, 'capri.attachment-viewer'),
     busy: Boolean(
       submitting ||
         activeTurnId ||
@@ -1857,12 +1903,18 @@ function publishAvatarComposer(force = false) {
         languagePanel.installation?.phase === 'installing',
     ),
     attachments: attachmentComposer.items.map(({ id, name }) => ({ id, name })),
-    thinking: thinkingMode.snapshot(),
-    internet: internetMode.snapshot(),
+    thinking: {
+      ...thinkingMode.snapshot(),
+      visible: showComposerSkill(skillState, 'capri.reasoning'),
+    },
+    internet: {
+      ...internetMode.snapshot(),
+      visible: showComposerSkill(skillState, 'capri.web-search'),
+    },
     microphone: {
       loading,
       listening,
-      disabled: headerMic.disabled || loading,
+      disabled: skillState['capri.microphone']?.enabled !== true || headerMic.disabled || loading,
       label: ui.text(
         loading ? 'Preparing speech recognition…' : listening ? 'Stop voice input' : 'Speak now',
       ),
@@ -1947,6 +1999,22 @@ function scrollToLatest() {
   if (followOutput) elements.messages.scrollTop = elements.messages.scrollHeight;
 }
 
+function updateHistoryClear() {
+  elements['history-clear'].disabled =
+    !ready ||
+    backend.phase !== 'ready' ||
+    submitting ||
+    Boolean(activeTurnId) ||
+    clearingHistory ||
+    messages.size === 0;
+}
+
+function labelCopyButton(button) {
+  const label = ui.text(button.hasAttribute('data-copied') ? 'Message copied' : 'Copy message');
+  button.title = label;
+  button.setAttribute('aria-label', label);
+}
+
 function putMessage(message) {
   let view = messages.get(message.id);
   if (!view) {
@@ -1956,6 +2024,30 @@ function putMessage(message) {
     const label = document.createElement('div');
     label.className = 'message-label';
     label.textContent = message.role === 'user' ? ui.text('You') : 'Capri';
+    const heading = document.createElement('div');
+    heading.className = 'message-heading';
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'message-copy';
+    copy.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 5h8v9H5zM3 11H2V2h8v1"/><path d="m3 8 3 3 7-7"/></svg>`;
+    labelCopyButton(copy);
+    let resetCopy;
+    copy.onclick = async () => {
+      try {
+        if (!(await api.copyMessage(message.id))) throw new Error();
+        copy.dataset.copied = '';
+        labelCopyButton(copy);
+        elements.announcement.textContent = ui.text('Message copied');
+        clearTimeout(resetCopy);
+        resetCopy = setTimeout(() => {
+          delete copy.dataset.copied;
+          labelCopyButton(copy);
+        }, 1500);
+      } catch {
+        notice('Could not copy the message.', 'warning');
+      }
+    };
+    heading.append(label, copy);
     const text = document.createElement('p');
     text.className = 'message-text';
     text.dir = 'auto';
@@ -1967,13 +2059,14 @@ function putMessage(message) {
     const sources = document.createElement('section');
     sources.className = 'message-web-sources';
     sources.hidden = true;
-    node.append(label, attachments, text, sources, status);
+    node.append(heading, attachments, text, sources, status);
     elements.messages.append(node);
-    view = { node, text, attachments, sources, status, message: { ...message } };
+    view = { node, text, attachments, sources, status, copy, message: { ...message } };
     messages.set(message.id, view);
   }
   view.message = { ...message };
-  view.text.textContent = message.text;
+  if (view.text.textContent !== message.text) view.text.textContent = message.text;
+  view.copy.disabled = !message.text.trim() || message.status === 'streaming';
   historyAttachments.render(view.attachments, message.attachments);
   internetMode.renderSources(view.sources, message.role === 'assistant' ? message.webSources : [], {
     turnId: message.turnId,
@@ -1987,10 +2080,24 @@ function putMessage(message) {
         : '',
   );
   elements['history-empty'].hidden = messages.size > 0;
+  updateHistoryClear();
   scrollToLatest();
 }
 
 function onEvent(event) {
+  if (event.type === 'skills.settings') {
+    skillState = event.settings;
+    if (event.changed === 'capri.attachment-viewer' && !skillState[event.changed]?.enabled)
+      attachmentComposer.clear();
+    skillButtons.render(event.settings);
+    voiceVolumeMenu.position();
+    publishAvatarComposer();
+    return;
+  }
+  if (event.type === 'coding.settings') {
+    showCodingMode(event);
+    return;
+  }
   if (event.type === 'application.access') {
     showApplicationAccess(event.settings);
     return;
@@ -2055,23 +2162,8 @@ function onEvent(event) {
       return;
     }
     if (event.pulse) showAvatarTap(event.count, event.tone);
-    const localized = ['reviewed_pose', 'reviewed_music'].includes(renderedFrame?.kind);
-    if (localized && avatarDetachPhase === 'attached')
-      headpat.react(elements.sprite, renderedFrame.id, event.tone);
-    spriteReaction = localized
-      ? undefined
-      : {
-          affectionate: 'happy',
-          curious: 'skeptical',
-          neutral: 'attentive',
-          boundary: 'annoyed',
-        }[event.tone];
-    signalFx?.invalidate();
-    clearTimeout(spriteReactionTimer);
-    spriteReactionTimer = setTimeout(() => {
-      spriteReaction = undefined;
-      signalFx?.invalidate();
-    }, 740);
+    if (event.part !== 'head' && avatarDetachPhase === 'attached' && !headpat.hearts)
+      headpat.react(elements.sprite, renderedFrame?.id, event.tone);
     return;
   }
   if (event.type === 'avatar.detach') {
@@ -2099,6 +2191,7 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'voice.warning') {
+    if (event.turnId) replyVisibility.protect(event.turnId);
     notice(event.message, 'warning');
     return;
   }
@@ -2252,9 +2345,12 @@ function onEvent(event) {
     attachmentComposer?.clear();
     voicePlayer.stop();
     subtitleController.clear();
+    if (elements['history-panel'].contains(document.getSelection()?.anchorNode))
+      document.getSelection().removeAllRanges();
     messages.clear();
     elements.messages.replaceChildren();
     elements['history-empty'].hidden = false;
+    updateHistoryClear();
     setPacketOrigin();
     setPacketInput();
     elements['subtitle-text'].textContent = '';
@@ -2280,6 +2376,7 @@ function onEvent(event) {
   }
   if (event.type === 'speech.settings') {
     speechPanel.show(event.settings);
+    microphoneClient.settings({ microphoneGain: event.settings.microphoneGain });
     return;
   }
   if (event.type === 'open-file-access') {
@@ -2378,6 +2475,7 @@ function onEvent(event) {
   }
   if (event.type === 'languages') {
     languagePanel.show(event.settings);
+    skillButtons.render();
     modelsPanel.setConversationLanguage(event.settings.conversation);
     updateNotification.refresh();
     return;
@@ -2430,6 +2528,8 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'voice.audio') {
+    if (voicePlayer.turnId === event.turnId && voicePlayer.sequence === event.sequence)
+      replyVisibility.playback(event.turnId, true);
     voicePlayer.accept(event);
     return;
   }
@@ -2592,7 +2692,8 @@ attachmentComposer = new AttachmentComposer({
     sizeInput();
     controls();
   },
-  canAttach: () => !attachmentComposer.button.disabled,
+  canAttach: () =>
+    skillState['capri.attachment-viewer']?.enabled === true && !attachmentComposer.button.disabled,
   isRemote: () => Boolean(inference?.remote),
   canSee: () => attachmentVision,
 });
@@ -2900,10 +3001,11 @@ elements.message.addEventListener('keydown', (event) => {
   }
 });
 elements.stop.addEventListener('click', stopReply);
-document.getElementById('voice-toggle').addEventListener('click', () => {
+voiceButton.addEventListener('click', async () => {
+  if (!voiceSettings.enabled || voiceSettings.error) voicePlayer.unlock().catch(() => {});
+  await voiceVolumeMenu.flush();
   const enabled = voiceSettings.error ? true : !voiceSettings.enabled;
-  if (enabled) voicePlayer.unlock().catch(() => {});
-  else voicePlayer.stop();
+  if (!enabled) voicePlayer.stop();
   api
     .setVoiceEnabled(enabled)
     .then(showVoiceSettings)
@@ -2927,6 +3029,18 @@ elements['history-toggle'].addEventListener('click', () =>
   setHistory(elements['history-panel'].hidden),
 );
 elements['history-close'].addEventListener('click', () => setHistory(false));
+elements['history-clear'].addEventListener('click', async () => {
+  clearingHistory = true;
+  updateHistoryClear();
+  try {
+    if (await api.resetContext()) elements['history-close'].focus();
+  } catch (error) {
+    notice(error.message, 'warning');
+  } finally {
+    clearingHistory = false;
+    updateHistoryClear();
+  }
+});
 document.getElementById('dimming-close').addEventListener('click', () => setDimmingPanel(false));
 document.getElementById('dimming-enabled').addEventListener('change', updateDimming);
 document.getElementById('dimming-level').addEventListener('input', updateDimming);
@@ -2983,12 +3097,19 @@ document.fonts.ready.then(() => {
   if (subtitleController.state.id) showSubtitles(subtitleController.state);
   scheduleRegions();
 });
+const skillButtons = skillToolbar({
+  ui,
+  openSettings: (section) => api.openSettings(section).catch((error) => notice(error.message)),
+  onLayout: scheduleRegions,
+  inputMic,
+});
 const unsubscribe = api.onEvent(onEvent);
 startupIntro = new StartupIntro({
   canvas: document.getElementById('startup-intro'),
   api,
   eligible: () =>
     ready &&
+    !presence.sleeping &&
     presence.snapshot().expanded &&
     document.body.dataset.presence === 'portrait' &&
     avatarDetachPhase === 'attached' &&
@@ -3001,7 +3122,7 @@ startupIntro = new StartupIntro({
     Boolean(
       activeTurnId ||
         voiceBusy ||
-        presence.sleeping ||
+        (presence.sleeping && backend.phase !== 'starting') ||
         presence.speaking ||
         elements.message.value.trim() ||
         microphoneText ||
@@ -3059,9 +3180,12 @@ window.addEventListener(
 
 try {
   const snapshot = await api.bootstrap();
+  skillState = snapshot.skills ?? {};
+  skillButtons.render(snapshot.skills);
   showApplicationAccess(snapshot.applicationAccess ?? { enabled: true });
   thinkingMode.configure(snapshot.thinking);
   internetMode.configure(snapshot.internet);
+  showCodingMode(snapshot.coding);
   if (snapshot.musicListening) musicState = snapshot.musicListening;
   renderMusicState();
   musicNotes = new MusicNotesLayer(

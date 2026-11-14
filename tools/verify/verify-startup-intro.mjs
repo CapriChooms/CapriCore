@@ -85,12 +85,14 @@ async function show() {
 }
 try {
   const page = await launch('normal');
-  const centered = await page.evaluate(() => {
+  const centered = await page.evaluate(async () => {
+    const { avatarPoseLandmarks } = await import('./avatar-mouth.mjs');
+    const [faceX, faceY] = avatarPoseLandmarks('neutral').face;
     const sprite = document.getElementById('sprite-region').getBoundingClientRect();
     const frame = document.getElementById('portrait-panel').getBoundingClientRect();
     return {
-      x: sprite.x + (sprite.width * 646) / 1254 - (frame.x + frame.width / 2),
-      y: sprite.y + (sprite.height * 400) / 1254 - (frame.y + 14 + (frame.height - 44) / 2),
+      x: sprite.x + (sprite.width * faceX) / 1254 - (frame.x + frame.width / 2),
+      y: sprite.y + (sprite.height * faceY) / 1254 - (frame.y + 14 + (frame.height - 44) / 2),
       zoom: document.getElementById('sprite-region').dataset.zoom,
     };
   });

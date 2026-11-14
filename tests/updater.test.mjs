@@ -17,7 +17,12 @@ import { EventEmitter } from 'node:events';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { writeJsonAtomic } from '../packages/runtime/src/atomic-json.mjs';
 import { sourceFiles } from '../packages/installer/src/payload.mjs';
-import { compareVersions, selectRelease, REPOSITORY } from '../packages/updater/src/releases.mjs';
+import {
+  compareVersions,
+  selectRelease,
+  EXPERIMENTAL_REPOSITORY,
+  REPOSITORY,
+} from '../packages/updater/src/releases.mjs';
 import { githubFetch, listReleases, approvedUrl } from '../packages/updater/src/github.mjs';
 import { downloadUpdate } from '../packages/updater/src/download.mjs';
 import {
@@ -37,7 +42,7 @@ function put(base, name, bytes) {
   mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, bytes);
 }
-function fixture() {
+function fixture({ modular = false } = {}) {
   const source = folder(),
     target = folder();
   for (const base of [source, target]) {
@@ -67,6 +72,24 @@ function fixture() {
   put(target, 'data/desktop/transcript.json', 'private conversation');
   put(target, 'data/workspace/PERSONALITY.md', 'my personality');
   put(target, 'config/core.local.json', '{"myProfile":true}');
+  if (modular) {
+    const workspaces = ['packages/core', 'packages/skill-sdk', 'packages/skills'];
+    const packages = { '': { name: 'capri', version: '0.3.0', workspaces } };
+    writeJsonAtomic(path.join(source, 'package.json'), {
+      name: 'capri',
+      version: '0.3.0',
+      workspaces,
+    });
+    for (const workspace of workspaces) {
+      const name = '@capri/' + path.basename(workspace);
+      const metadata = { name, version: '0.3.0' };
+      packages[workspace] = metadata;
+      packages['node_modules/' + name] = { resolved: workspace, link: true };
+      writeJsonAtomic(path.join(source, workspace, 'package.json'), metadata);
+      put(source, workspace + '/src/index.mjs', 'export const ready = true;');
+    }
+    writeJsonAtomic(path.join(source, 'package-lock.json'), { lockfileVersion: 3, packages });
+  }
   const files = sourceFiles(source).map((name) => {
     const bytes = readFileSync(path.join(source, name));
     return { path: name, bytes: bytes.length, sha256: digest(bytes) };
@@ -114,6 +137,31 @@ test('updates use semantic ordering, stable/experimental channels and never down
       experimental: true,
     }),
     null,
+  );
+});
+
+test('the legacy private E1 tag sorts before E2 and E3 without redefining stable 1.1.0', () => {
+  const build = (tag, prerelease) => {
+    const value = release(tag, prerelease);
+    value.assets[0].name = 'Capri-1.1.0-source.zip';
+    return value;
+  };
+  const items = [
+    build('v1.1.0', true),
+    build('v1.1.0-experimental.3', false),
+    build('v1.1.0-experimental.2', false),
+  ];
+  const experimental = { experimental: true, repository: EXPERIMENTAL_REPOSITORY };
+  for (const current of ['v1.0.4', 'v1.1.0-experimental.1', 'v1.1.0-experimental.2'])
+    assert.equal(
+      selectRelease(items, { ...experimental, current }).tag_name,
+      'v1.1.0-experimental.3',
+    );
+  for (const current of ['v1.1.0-experimental.3', 'v1.1.0'])
+    assert.equal(selectRelease(items, { ...experimental, current }), null);
+  assert.equal(
+    selectRelease([build('v1.1.0', false)], { current: 'v1.1.0-experimental.3' }).tag_name,
+    'v1.1.0',
   );
 });
 
@@ -213,6 +261,33 @@ test('new public updater preserves existing private installation data when apply
   assert.ok(phases.includes('complete'));
   assert.equal(existsSync(path.join(plan.root, '.runtime/updates/active.json')), false);
   await assert.rejects(applyUpdate(plan, { execute: async () => {} }), /already installed/);
+});
+
+test('an update from an older installation includes and synchronizes new local Capri packages', async () => {
+  const plan = fixture({ modular: true });
+  let installs = 0;
+  await applyUpdate(plan, {
+    execute: async (_exe, args, { cwd }) => {
+      if (!args.includes('ci')) return;
+      installs++;
+      assert.equal(cwd, plan.root);
+      const { workspaces } = json(path.join(plan.root, 'package.json'));
+      assert.deepEqual(workspaces, ['packages/core', 'packages/skill-sdk', 'packages/skills']);
+      const lock = json(path.join(plan.root, 'package-lock.json'));
+      for (const workspace of workspaces) {
+        const name = '@capri/' + path.basename(workspace);
+        assert.equal(json(path.join(plan.root, workspace, 'package.json')).name, name);
+        assert.equal(lock.packages['node_modules/' + name].resolved, workspace);
+        assert.ok(existsSync(path.join(plan.root, workspace, 'src/index.mjs')));
+      }
+    },
+  });
+  assert.equal(installs, 1);
+  assert.equal(
+    readFileSync(path.join(plan.root, 'data/desktop/transcript.json'), 'utf8'),
+    'private conversation',
+  );
+  assert.equal(json(path.join(plan.root, '.capri-install.json')).releaseTag, plan.tag);
 });
 
 test('failed registration rolls back source and identity, and a retry succeeds', async () => {

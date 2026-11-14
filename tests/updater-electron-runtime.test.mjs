@@ -15,29 +15,29 @@ function put(root, file, value) {
   mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, value);
 }
-function bundle(root) {
+function bundle(root, version = '45.0.0') {
   for (const file of ELECTRON_RUNTIME_FILES) put(root, 'dist/' + file, 'verified fixture');
-  put(root, 'dist/version', '45.0.0');
+  put(root, 'dist/version', version);
 }
-function fixture() {
+function fixture(version = '45.0.0') {
   const root = mkdtempSync(path.join(parent, 'case-'));
-  put(root, 'package.json', JSON.stringify({ devDependencies: { electron: '45.0.0' } }));
+  put(root, 'package.json', JSON.stringify({ devDependencies: { electron: version } }));
   put(
     root,
     'config/installer.json',
     JSON.stringify({
       artifacts: {
         electron: {
-          version: '45.0.0',
+          version,
           sha256: 'a'.repeat(64),
           bytes: 10,
-          url: 'https://github.com/electron/electron/releases/download/v45.0.0/electron.zip',
+          url: `https://github.com/electron/electron/releases/download/v${version}/electron.zip`,
         },
       },
     }),
   );
   const directory = path.join(root, 'node_modules/electron');
-  put(directory, 'package.json', JSON.stringify({ version: '45.0.0' }));
+  put(directory, 'package.json', JSON.stringify({ version }));
   const calls = [];
   const options = {
     download: async (spec, cache) => {
@@ -46,7 +46,7 @@ function fixture() {
     },
     command: async (file, args) => {
       calls.push(['extract', file]);
-      bundle(path.dirname(args[args.indexOf('-Destination') + 1]));
+      bundle(path.dirname(args[args.indexOf('-Destination') + 1]), version);
     },
   };
   return { root, directory, calls, options };
@@ -66,6 +66,14 @@ test('a package-only npm install is repaired with the pinned archive before rest
   assert.equal(f.calls[0][0], 'download');
   assert.equal(f.calls[0][1], 'a'.repeat(64));
   assert.equal(f.calls[1][0], 'extract');
+});
+test('updating the npm package also replaces the previous Electron executable', async () => {
+  const f = fixture('45.3.1');
+  bundle(f.directory, '45.0.0');
+  assert.equal(electronBundleReady(f.directory, '45.3.1'), false);
+  assert.equal(await ensureElectronRuntime(f.root, f.options), true);
+  assert.equal(electronBundleReady(f.directory, '45.3.1'), true);
+  assert.equal(await ensureElectronRuntime(f.root, f.options), false);
 });
 test('an unverified download or incomplete archive cannot replace the previous runtime', async () => {
   const f = fixture();

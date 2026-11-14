@@ -24,8 +24,13 @@ function referencedText(target, attribute) {
 /** Capture owned captions before status, profile and device data populate the forms. */
 export function indexSettings(scopes) {
   const entries = [];
-  for (const { section, sectionLabel, roots } of scopes) {
-    entries.push({ section, sectionLabel, name: sectionLabel });
+  for (const { section, sectionLabel, description, roots } of scopes) {
+    entries.push({
+      section,
+      sectionLabel,
+      name: sectionLabel,
+      descriptions: description ? [description] : [],
+    });
     for (const root of roots) {
       let heading;
       for (const target of root.querySelectorAll(controls)) {

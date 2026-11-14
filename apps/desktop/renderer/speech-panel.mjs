@@ -1,4 +1,9 @@
-import { SPEECH_DEFAULTS, SPEECH_PAUSE, validateSpeechSettings } from './speech-settings.mjs';
+import {
+  MICROPHONE_GAIN,
+  SPEECH_DEFAULTS,
+  SPEECH_PAUSE,
+  validateSpeechSettings,
+} from './speech-settings.mjs';
 import { uiText } from './interface-translations.mjs';
 
 export class SpeechPanel {
@@ -27,6 +32,22 @@ export class SpeechPanel {
     document.getElementById('speech-close').addEventListener('click', () => this.open(false));
     this.show(SPEECH_DEFAULTS);
   }
+  bindGain(input, output, preview) {
+    this.gainInput = input;
+    this.gainOutput = output;
+    this.previewGain = preview;
+    input.min = MICROPHONE_GAIN.min;
+    input.max = MICROPHONE_GAIN.max;
+    input.value = this.value.microphoneGain;
+    input.addEventListener('input', () => this.renderValue());
+    this.renderValue();
+  }
+  draft() {
+    return {
+      trailingSilenceSeconds: Number(this.input.value),
+      ...(this.gainInput && { microphoneGain: Number(this.gainInput.value) }),
+    };
+  }
   renderValue() {
     this.output.textContent = this.ui.text('{value} s', {
       value: new Intl.NumberFormat(this.ui.language, {
@@ -34,19 +55,24 @@ export class SpeechPanel {
         maximumFractionDigits: 1,
       }).format(Number(this.input.value)),
     });
+    if (this.gainInput) {
+      this.gainOutput.value = new Intl.NumberFormat(this.ui.language, { style: 'percent' }).format(
+        Number(this.gainInput.value) / 100,
+      );
+      this.previewGain();
+    }
   }
   show(value) {
     this.value = validateSpeechSettings(value);
     this.input.value = this.value.trailingSilenceSeconds;
+    if (this.gainInput) this.gainInput.value = this.value.microphoneGain;
     this.renderValue();
   }
   async save() {
     if (this.apply.disabled) return;
     this.apply.disabled = true;
     try {
-      this.show(
-        await this.api.setSpeechSettings({ trailingSilenceSeconds: Number(this.input.value) }),
-      );
+      this.show(await this.api.setSpeechSettings(this.draft()));
       return true;
     } catch {
       this.onError('Microphone settings could not be saved.');

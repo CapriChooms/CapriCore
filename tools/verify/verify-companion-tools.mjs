@@ -10,7 +10,7 @@ import {
   initialize,
   startGateway,
   stopManaged,
-  startOllama,
+  startLlama,
   managedProcess,
   settings,
 } from '../../packages/runtime/src/index.mjs';
@@ -77,10 +77,10 @@ const chat = new ChatService({
   },
 });
 const report = { passed: false, folder, ownerHistoryChanged: false, turns };
-const previousOllama = managedProcess('ollama');
+const previousLlama = managedProcess('llama');
 try {
   await actions.start();
-  await startOllama(rt);
+  await startLlama(rt);
   await startGateway(rt);
   for (const text of [
     'Remind me in ten minutes to drink tea.',
@@ -108,7 +108,7 @@ try {
 } finally {
   actions.close();
   await stopManaged('companion-tools-verification');
-  if (!previousOllama) await stopManaged('ollama');
+  if (!previousLlama) await stopManaged('llama');
   writeFileSync(path.join(folder, 'result.json'), JSON.stringify(report, null, 2));
 }
 console.log(JSON.stringify(report));

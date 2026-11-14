@@ -3,7 +3,7 @@ import { LOCAL_RUNNER_POLICY } from '../../packages/runtime/src/providers/runner
 import { randomUUID } from 'node:crypto';
 import { plainDialogueText } from '../../packages/runtime/src/text.mjs';
 import { communicationInstruction } from '../../packages/runtime/src/communication.mjs';
-import { conversationInstruction } from './language-context.mjs';
+import { LANGUAGE_DEFAULTS, languageName } from './renderer/language-settings.mjs';
 import { avatarParts, avatarReactionTone } from './avatar-body-regions.mjs';
 
 const welcoming = new Set([
@@ -56,8 +56,7 @@ const reactionGuidance = {
     'Respond firmly and set a personal boundary. Keep the line nonsexual and do not describe anatomy.',
 };
 
-// Short local cues never consume an inference turn. Their language follows the
-// loaded voice, including when Speech is set to Automatic.
+// Short local cues are selected by the conversation language.
 const spokenCues = {
   en: ['Aww.', 'Easy.', 'Hm?', 'Yeah?', 'Hands off.'],
   ar: ['يا سلام.', 'على مهلك.', 'هم؟', 'نعم؟', 'لا تلمسني.'],
@@ -100,11 +99,36 @@ function reactionText(value) {
     !text ||
     text.length > 160 ||
     text.split(/\s+/).length > 24 ||
-    /[\p{Cc}<>]|\[(?:avatar|аватар):|;listen/iu.test(text)
+    /[\p{Cc}<>]|\[(?:avatar|аватар):|\[\[\/?reply_to\b|;listen/iu.test(text)
   )
     return '';
   return text;
 }
+
+const reactionLanguage = ({ conversation, customConversation } = LANGUAGE_DEFAULTS) => ({
+  id: conversation,
+  name: conversation === 'custom' ? customConversation : languageName(conversation),
+});
+const distinctiveScripts = {
+  am: /\p{Script=Ethiopic}/u,
+  ar: /\p{Script=Arabic}/u,
+  be: /\p{Script=Cyrillic}/u,
+  bg: /\p{Script=Cyrillic}/u,
+  bn: /\p{Script=Bengali}/u,
+  el: /\p{Script=Greek}/u,
+  fa: /\p{Script=Arabic}/u,
+  he: /\p{Script=Hebrew}/u,
+  hi: /\p{Script=Devanagari}/u,
+  ja: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
+  ko: /\p{Script=Hangul}/u,
+  ru: /\p{Script=Cyrillic}/u,
+  ta: /\p{Script=Tamil}/u,
+  te: /\p{Script=Telugu}/u,
+  th: /\p{Script=Thai}/u,
+  uk: /\p{Script=Cyrillic}/u,
+  ur: /\p{Script=Arabic}/u,
+  zh: /\p{Script=Han}/u,
+};
 
 /** Short, tool-free inference through the configured loopback endpoint. */
 export function avatarClickGenerator({
@@ -122,6 +146,8 @@ export function avatarClickGenerator({
   const endpoint = new URL('/api/chat', base).href;
   return async ({ gesture, headpat, part, mood, variation, awakened = false }, { signal }) => {
     signal.throwIfAborted();
+    const language = reactionLanguage(languages());
+    const tone = avatarReactionTone(headpat ? 'head' : (part ?? 'body'));
     const target = Object.hasOwn(avatarParts, part) ? `your ${avatarParts[part]}` : 'you';
     const response = await fetchImpl(endpoint, {
       method: 'POST',
@@ -144,21 +170,26 @@ export function avatarClickGenerator({
               ' ' +
               (awakened
                 ? 'You were asleep. Repeated tapping just woke you up. You are groggy and annoyed: briefly scold the user for waking you, with a firm but non-abusive boundary. Do not thank them or welcome the tapping.'
-                : reactionGuidance[avatarReactionTone(headpat ? 'head' : (part ?? 'body'))]) +
+                : reactionGuidance[tone]) +
               ' ' +
               (approaches[variation] ?? approaches[0]) +
               '\n' +
               communicationInstruction(style()) +
               '\n' +
-              conversationInstruction(languages()),
+              `Write the reaction entirely in ${language.name}, even though the event description is in English.`,
           },
           {
             role: 'user',
-            content: awakened
-              ? 'The user woke you from sleep by repeatedly tapping your character. Tell them off briefly for waking you.'
-              : headpat
-                ? 'The user patted your head many times in rapid succession.'
-                : (gestures[gesture] ?? gestures.single).replace('tapped you', `tapped ${target}`),
+            content:
+              `Reply in ${language.name}. ` +
+              (awakened
+                ? 'The user woke you from sleep by repeatedly tapping your character. Tell them off briefly for waking you.'
+                : headpat
+                  ? 'The user patted your head many times in rapid succession.'
+                  : (gestures[gesture] ?? gestures.single).replace(
+                      'tapped you',
+                      `tapped ${target}`,
+                    )),
           },
         ],
       }),
@@ -176,7 +207,19 @@ export function avatarClickGenerator({
     signal.throwIfAborted();
     const result = JSON.parse(body + decoder.decode());
     if (result.done_reason === 'length' || result.message?.tool_calls?.length) return '';
-    return reactionText(result.message?.content);
+    const text = reactionText(result.message?.content);
+    const current = reactionLanguage(languages());
+    if (!text || current.id !== language.id || current.name !== language.name) return '';
+    const script = distinctiveScripts[language.id];
+    if (script && !script.test(text)) {
+      if (awakened && language.id === 'ru') return 'Эй, ты меня разбудил!';
+      return avatarClickCue(
+        awakened ? 'boundary' : tone,
+        mood === 'reserved' ? 'annoyed' : mood,
+        language.id,
+      );
+    }
+    return text;
   };
 }
 

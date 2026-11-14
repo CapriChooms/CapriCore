@@ -16,6 +16,9 @@ import {
   validateAvatarComposerAction,
 } from '../apps/desktop/main/avatar-composer-bridge.mjs';
 import { visionImage } from './fixtures/vision-image.mjs';
+import { CapriCore } from '../packages/core/src/index.mjs';
+import { reasoningSkill } from '../packages/skills/src/reasoning/index.mjs';
+import { webSearchSkill } from '../packages/skills/src/web-search/index.mjs';
 
 const source = { title: 'Public fixture announcement', url: 'https://example.com/announcement' };
 const searchResult = () => ({
@@ -143,6 +146,125 @@ test('Internet is opt-in and an omitted or false flag never invokes search', asy
   for (const request of f.requests)
     assert(!JSON.parse(request.body).messages[0].content.includes(WEB_SEARCH_INSTRUCTION));
   assert.equal(f.events.at(-1).type, 'turn.completed');
+});
+
+test('registered turn skills preserve opt-in, source isolation, and correlated events', async (t) => {
+  const core = new CapriCore();
+  t.after(() => core.close());
+  const requests = [];
+  core.register(webSearchSkill, {
+    searchWeb: async (query, { language, signal }) => {
+      assert.equal(language, 'ru');
+      assert.equal(signal.aborted, false);
+      requests.push(['web', query]);
+      return searchResult();
+    },
+  });
+  core.register(reasoningSkill, {
+    prepareThinking: async ({ text, language, signal }) => {
+      assert.equal(language, 'Russian');
+      assert.equal(signal.aborted, false);
+      requests.push(['reasoning', text]);
+      return { text: 'I’ll check the evidence.', approach: 'Compare public sources.' };
+    },
+  });
+  const settings = [];
+  core.subscribe({ event: 'settings' }, ({ skillId, data }) => settings.push([skillId, data]));
+  const getMode = (skillId) => core.call({ skillId, command: 'mode' }, { source: 'host' });
+  const webId = webSearchSkill.manifest.id;
+  const reasoningId = reasoningSkill.manifest.id;
+  assert.equal(getMode(webId), false);
+  assert.equal(getMode(reasoningId), false);
+  assert.deepEqual(
+    core.call({ skillId: webId, command: 'setMode', input: true }, { source: 'companion' }),
+    { enabled: true },
+  );
+  assert.equal(getMode(webId), true);
+  assert.equal(getMode(reasoningId), false);
+  assert.deepEqual(settings, [[webId, { enabled: true }]]);
+  const f = fixture({
+    skills: core,
+    searchWeb: async () => assert.fail('The registered skill owns search.'),
+    prepareThinking: async () => assert.fail('The registered skill owns reasoning.'),
+  });
+  await f.send('An ordinary reply.');
+  assert.deepEqual(requests, []);
+  const id = randomUUID();
+  const query = 'What was publicly announced?';
+  await f.chat.send({ id, text: query, thinking: true, internet: true }, (event) =>
+    f.events.push(event),
+  );
+  assert.deepEqual(requests, [
+    ['web', query],
+    ['reasoning', query],
+  ]);
+  assert.deepEqual(
+    f.events
+      .filter(({ type }) => type === 'turn.web-search')
+      .map(({ phase, turnId }) => [phase, turnId]),
+    [
+      ['searching', id],
+      ['ready', id],
+    ],
+  );
+  assert.equal(f.events.find(({ type }) => type === 'turn.preface').turnId, id);
+  const answer = f.events.at(-1);
+  assert.equal(answer.type, 'turn.completed');
+  assert.deepEqual(answer.assistant.webSources, [source]);
+  assert.match(JSON.parse(f.requests.at(-1).body).messages[0].content, /Take time to solve/u);
+
+  const visualId = randomUUID();
+  const visualText = 'Compare this screenshot with public information.';
+  const visualEvents = [];
+  const visualProgress = [];
+  const signal = new AbortController().signal;
+  const web = await f.chat.prepareWebSearch(
+    { id: visualId, text: visualText },
+    { language: 'ru', source: 'visual-turn', signal, emit: (event) => visualProgress.push(event) },
+  );
+  const visual = new VisualService({
+    url: 'http://127.0.0.1:11434',
+    model: 'fixture',
+    persona: () => 'Synthetic fixture.',
+    avatars: [],
+    languages: () => ({ conversation: 'ru' }),
+    rpc: { call: async () => ({ messages: [] }) },
+    skills: core,
+    fetchImpl: async (_url, request) => {
+      const body = JSON.parse(request.body);
+      assert(body.messages[0].content.includes(THINKING_INSTRUCTION));
+      assert(body.messages.at(-1).content.endsWith(web.context));
+      return new Response(
+        JSON.stringify({
+          message: { content: 'Fixture reply.' },
+          done: true,
+          done_reason: 'stop',
+        }) + '\n',
+      );
+    },
+  });
+  await visual.generate({
+    text: visualText,
+    requestId: visualId,
+    png: visionImage(),
+    source: { kind: 'window', label: 'Synthetic fixture' },
+    thinking: true,
+    webContext: web.context,
+    signal,
+    emit: (event) => visualEvents.push(event),
+  });
+  assert.deepEqual(requests.slice(2), [
+    ['web', visualText],
+    ['reasoning', visualText],
+  ]);
+  assert.deepEqual(
+    visualProgress.map(({ phase }) => phase),
+    ['searching', 'ready'],
+  );
+  assert.equal(
+    visualEvents.find(({ type }) => type === 'preface').text,
+    'I’ll check the evidence.',
+  );
 });
 
 test('enabled search receives only the current query, language and cancellation signal', async () => {

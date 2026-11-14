@@ -3,12 +3,15 @@ import { saveSettings, settingsView } from './settings-view.mjs';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
-import { mkdirSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, rmdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/index.mjs';
-import { SETTINGS_SECTIONS } from '../../apps/desktop/renderer/settings-registry.mjs';
+import {
+  SETTINGS_GROUPS,
+  SETTINGS_SECTIONS,
+} from '../../apps/desktop/renderer/settings-registry.mjs';
 
 const parent = path.join(root, '.runtime/desktop-verification');
 mkdirSync(parent, { recursive: true });
@@ -134,36 +137,143 @@ try {
     await settings.locator(`[data-section="${section}"]`).click();
     await settings.waitForFunction(
       (id) =>
-        document.querySelector(`[data-section="${id}"]`).getAttribute('aria-current') === 'page',
+        document.querySelector(`[data-section="${id}"]`).getAttribute('aria-current') === 'page' &&
+        document.getElementById('companion').getAttribute('aria-busy') === 'false',
       section,
       { timeout: 20000 },
     );
   };
+  const codingHint = 'Choose and save a project folder to enable coding mode.';
+  const setSkill = (id, enabled) =>
+    settings.evaluate(({ id, enabled }) => window.capri.setSkill({ id, enabled }), { id, enabled });
+  const skill = (id) => settings.locator('[data-skill="' + id + '"]');
+  assert.equal(await skill('capri.coding').isChecked(), false);
+  assert.deepEqual(
+    await page
+      .locator('#quick-actions [data-skill-button]:not([hidden])')
+      .evaluateAll((buttons) => buttons.map((button) => button.dataset.skillButton)),
+    ['capri.microphone', 'capri.voice-output'],
+  );
+  await navigate('coding');
+  assert.equal(await settings.locator('[data-code="folder"]').isEnabled(), true);
+  await settings.locator('#skill-show-button').check();
+  await page.waitForSelector('#coding-toggle:not([hidden])', { state: 'attached' });
+  assert.equal(await skill('capri.coding').isChecked(), false);
+  await page.evaluate(() => document.getElementById('coding-toggle').click());
+  await settings.waitForSelector('[data-section="coding"][aria-current="page"]');
+  assert.equal(await settings.locator('#skill-settings-title').textContent(), 'Coding mode');
+  await skill('capri.coding').check();
+  await page.waitForSelector('#coding-toggle[data-skill-enabled="true"]', { state: 'attached' });
+  await page.waitForFunction(
+    () => document.getElementById('coding-toggle').dataset.skillEnabled === 'true',
+  );
+  await page.evaluate(() => document.getElementById('coding-toggle').click());
+  await page.waitForFunction(
+    (hint) => document.getElementById('notice-message').textContent === hint,
+    codingHint,
+  );
+  assert.equal(await page.locator('#notice').getAttribute('data-severity'), 'warning');
+  assert.equal(await page.locator('#notice-report').isVisible(), false);
+  assert.equal(await page.locator('#coding-toggle').getAttribute('aria-pressed'), 'false');
+  await settings.evaluate(() => document.querySelector('[data-code="enable"]').click());
+  await settings.waitForFunction(
+    (hint) => document.querySelector('[data-code="status"]').textContent === hint,
+    codingHint,
+  );
+  const codingProject = mkdtempSync(path.join(parent, 'coding-project-'));
+  try {
+    const codingEditor = { executable: process.execPath, kind: 'vscode' };
+    await settings.evaluate((value) => window.capri.coding({ op: 'save', value }), {
+      workspace: codingProject,
+      editor: codingEditor,
+      tasks: [],
+      bridge: true,
+    });
+    await navigate('general');
+    await navigate('coding');
+    const codingControl = (key) => settings.locator(`#coding-panel [data-code="${key}"]`);
+    assert.equal(await codingControl('bridge').isChecked(), true);
+    assert.equal(await codingControl('installBridge').isEnabled(), true);
+    await codingControl('kind').selectOption('notepad++');
+    assert.equal(await codingControl('bridgeOptions').isVisible(), false);
+    assert.equal(await codingControl('bridge').isChecked(), false);
+    assert.equal(await codingControl('editor').inputValue(), '');
+    const editors = await settings.evaluate(() => window.capri.coding({ op: 'editors' }));
+    const notepad = editors.find(({ kind }) => kind === 'notepad++');
+    if (notepad) {
+      await codingControl('detect').click();
+      await codingControl('editors')
+        .getByRole('button', { name: notepad.name, exact: true })
+        .click();
+    } else {
+      await codingControl('editor').evaluate(
+        (input, executable) => (input.value = executable),
+        process.execPath,
+      );
+    }
+    assert.equal(
+      await codingControl('editor').inputValue(),
+      notepad?.executable ?? process.execPath,
+    );
+    assert.equal(await codingControl('installBridge').isVisible(), false);
+    await codingControl('save').click();
+    await settings.waitForFunction(async (executable) => {
+      const { config } = await window.capri.coding({ op: 'status' });
+      return (
+        config.editor?.kind === 'notepad++' &&
+        config.editor.executable === executable &&
+        config.bridge === false
+      );
+    }, notepad?.executable ?? process.execPath);
+    record('Switching from VS Code to Notepad++ saves without the live editor bridge', {
+      installedEditor: Boolean(notepad),
+    });
+    await settings.evaluate(() => document.querySelector('[data-code="enable"]').click());
+    await page.waitForSelector('#coding-toggle[aria-pressed="true"]', { state: 'attached' });
+    assert.equal(await page.locator('#notice').isVisible(), false);
+    await settings.evaluate(() => document.querySelector('[data-code="enable"]').click());
+    await page.waitForSelector('#coding-toggle[aria-pressed="false"]', { state: 'attached' });
+    await settings.evaluate(() =>
+      window.capri.coding({ op: 'save', value: { workspace: '', editor: null, tasks: [] } }),
+    );
+  } finally {
+    rmdirSync(codingProject);
+  }
+  record('Coding mode without a project opens setup and shows guidance without a report button');
+  await skill('capri.coding').uncheck();
+  await settings.locator('#skill-show-button').uncheck();
+  await page.waitForSelector('#coding-toggle[hidden]', { state: 'attached' });
+  record('Disabled skills remain configurable and toolbar visibility is independent');
+  for (const [section] of SETTINGS_GROUPS.find(({ id }) => id === 'skills').sections) {
+    await navigate(section);
+    assert.ok(await settings.locator('#skill-settings-description').textContent());
+    assert.equal(await settings.locator('#skill-show-button').isVisible(), true);
+  }
+  await navigate('microphone');
+  assert.equal(await settings.locator('#language-recognition').isVisible(), true);
+  await settings.screenshot({ path: path.join(folder, 'settings-skills.png') });
+  record('Every disabled skill opens its own settings with an independent toolbar switch');
+  await navigate('general');
   const navigation = settings.locator('#settings-navigation');
   const groupedSections = await navigation
     .locator('[data-settings-group]')
     .evaluateAll((groups) =>
-      Object.fromEntries(
-        groups.map((group) => [
-          group.dataset.settingsGroup,
-          [...group.querySelectorAll('[data-section]')].map((node) => node.dataset.section),
-        ]),
-      ),
+      groups.map((group) => [
+        group.dataset.settingsGroup,
+        [...group.querySelectorAll('[data-section]')].map((node) => node.dataset.section),
+      ]),
     );
-  assert.deepEqual(groupedSections, {
-    capri: ['general', 'appearance', 'window'],
-    conversation: ['dialogue', 'initiative', 'languages', 'microphone', 'voice', 'calls'],
-    models: ['models', 'api'],
-    capabilities: ['computer', 'screen', 'applications', 'files', 'time'],
-    community: ['updates', 'discord', 'bug', 'support'],
-  });
+  assert.deepEqual(
+    groupedSections,
+    SETTINGS_GROUPS.map(({ id, sections }) => [id, sections.map(([section]) => section)]),
+  );
   await settings.screenshot({ path: path.join(folder, 'settings-grouped.png') });
   record('Settings sidebar groups all existing tabs and shows each one once');
 
   const search = settings.locator('#settings-search');
   const results = settings.locator('#settings-search-results');
   const generalControls = settings.locator('#general-panel .general-setting');
-  assert.equal(await generalControls.count(), 12);
+  assert.equal(await generalControls.count(), 10);
   assert.equal(await generalControls.locator('#general-reset-settings').count(), 1);
   assert.equal(
     await generalControls.evaluateAll((rows) =>
@@ -701,6 +811,8 @@ try {
   );
   record('Electronic voice produces real modulation sidebands without clipping', audio);
   await navigate('time');
+  await setSkill('capri.timers', true);
+  await settings.locator('#skill-show-button').check();
   const stopwatch = await page.evaluate(() => window.capri.timeAction({ action: 'stopwatch' }));
   await page.waitForSelector('#stopwatch-hud:not([hidden])');
   await page.waitForFunction(
@@ -761,9 +873,13 @@ try {
   await settings.waitForFunction(() => document.querySelector('.model-progress-card').hidden);
   record('Idle model selection has no download progress card');
   await navigate('updates');
-  await settings.locator('#updates-access-details').evaluate((node) => (node.open = true));
-  assert.equal(await settings.locator('#updates-classic-token-page').isVisible(), true);
-  record('Classic token path is visible without a failed access attempt');
+  const githubAccess = settings.locator('#updates-access-details');
+  await githubAccess.evaluate((node) => (node.open = true));
+  assert.equal(await githubAccess.locator('#updates-token').isVisible(), true);
+  await githubAccess.locator('details').evaluate((node) => (node.open = true));
+  assert.equal(await githubAccess.locator('#updates-token-page').isVisible(), true);
+  assert.equal(await githubAccess.locator('#updates-classic-token-page').isVisible(), false);
+  record('Optional GitHub access exposes the fine-grained read-only token path');
   await application.evaluate(({ BrowserWindow }) => {
     const owner = BrowserWindow.getAllWindows().find(
       (w) => w.webContents.getURL() === 'capri://desktop/index.html',
@@ -804,6 +920,8 @@ try {
   const endpoint = JSON.parse(
     readFileSync(path.join(folder, 'data/secrets/desktop-actions.json'), 'utf8'),
   );
+  await setSkill('capri.screen', true);
+  await setSkill('capri.files', true);
   const permissionResponse = await fetch(new URL('/action', endpoint.url), {
     method: 'POST',
     headers: { authorization: 'Bearer ' + endpoint.token, 'content-type': 'application/json' },

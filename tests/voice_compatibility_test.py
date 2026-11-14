@@ -2,11 +2,12 @@
 import importlib.util
 import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace as NS
 import unittest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 
-from integrations.voice_runtime.compatibility import cuda_preflight
+from integrations.voice_runtime.compatibility import cuda_preflight, qwen_compute
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('voice_selection', ROOT / 'tools/setup/select-voice-runtime.py')
@@ -15,6 +16,43 @@ spec.loader.exec_module(selection)
 
 
 class VoiceCompatibilityTests(unittest.TestCase):
+    def test_installer_voice_check_survives_unavailable_rocm_memory_telemetry(self):
+        from integrations.voice_training import __main__ as training
+
+        torch = NS(__version__='rocm fixture', cuda=NS(
+            is_available=lambda: True,
+            mem_get_info=Mock(side_effect=RuntimeError('HIP memory query failed')),
+        ))
+        config = {'engine': 'chatterbox-turbo', 'language': 'en'}
+        with (patch.dict(sys.modules, {'torch': torch}),
+              patch('importlib.metadata.version', return_value='fixture'),
+              patch('integrations.voice_runtime.compatibility.cuda_preflight',
+                    return_value={'available': True, 'kernelReady': True, 'backend': 'rocm'}),
+              patch('integrations.voice_training.provision.verify_model'),
+              patch.object(training, 'write_json')):
+            report = training.doctor(config, inference_only=True)
+        self.assertTrue(report['modelReady'])
+        self.assertTrue(report['cudaCompute']['kernelReady'])
+        self.assertNotIn('datasetReady', report)
+        self.assertNotIn('freeVramGiB', report)
+
+    def test_qwen_rocm_uses_verified_bf16_device_and_checks_vram(self):
+        matrix = MagicMock()
+        matrix.__matmul__.return_value.sum.return_value.item.return_value = 4.0
+        torch = NS(
+            version=NS(hip='7.2', cuda=None), bfloat16=object(),
+            eye=Mock(return_value=matrix),
+            cuda=NS(is_available=lambda: True, device_count=lambda: 2,
+                    mem_get_info=lambda device: (1 if device == 'cuda:0' else 8 * 1024 ** 3, 0)),
+        )
+        self.assertEqual(qwen_compute(torch, 'cuda:0', True, 6), ('cuda:1', 'AMD ROCm'))
+        torch.eye.assert_called_once_with(4, device='cuda:1', dtype=torch.bfloat16)
+        with self.assertRaisesRegex(RuntimeError, '6 GiB'):
+            qwen_compute(torch, 'cuda:0', False, 6)
+        self.assertEqual(qwen_compute(torch, 'cuda:0', True, 12)[0], 'cpu')
+        torch.eye.side_effect = RuntimeError('BF16 kernel unavailable')
+        self.assertEqual(qwen_compute(torch, 'cuda:0', True, 6)[0], 'cpu')
+
     def test_generation_matrix_from_pascal_through_blackwell(self):
         # Official NVIDIA capabilities; name fallback is also tested with no CC.
         families = [

@@ -4,7 +4,7 @@ import {
   avatarTapsSleeping,
   isSleepCommand,
   SleepService,
-  sleepCaption,
+  visuallySleeping,
 } from '../apps/desktop/sleep-service.mjs';
 
 test('tap effects stay suppressed throughout sleep, disconnected resting visuals and the complete wake', () => {
@@ -101,36 +101,14 @@ test('failed wake remains retryable and closing prevents model resurrection', as
   await assert.rejects(service.wake(), /shutting down/);
 });
 
-test('sleep caption changes twice per second with low-bit-first capitals and one to three dots', () => {
-  assert.deepEqual(
-    Array.from({ length: 24 }, (_, i) => sleepCaption(i * 500)),
-    [
-      'zzz.',
-      'zzz..',
-      'zzz...',
-      'Zzz.',
-      'Zzz..',
-      'Zzz...',
-      'zZz.',
-      'zZz..',
-      'zZz...',
-      'ZZz.',
-      'ZZz..',
-      'ZZz...',
-      'zzZ.',
-      'zzZ..',
-      'zzZ...',
-      'ZzZ.',
-      'ZzZ..',
-      'ZzZ...',
-      'zZZ.',
-      'zZZ..',
-      'zZZ...',
-      'ZZZ.',
-      'ZZZ..',
-      'ZZZ...',
-    ],
-  );
-  assert.equal(sleepCaption(12000), 'zzz.');
-  assert.equal(sleepCaption(499), 'zzz.');
+test('connection phases take priority over awake and reminder visuals', () => {
+  for (const phase of ['starting', 'stopping', 'offline']) {
+    for (const power of ['awake', 'waking', 'notifying', 'voice-awake']) {
+      assert.equal(visuallySleeping(power, phase), true, `${power}/${phase}`);
+      assert.equal(avatarTapsSleeping(power, phase), true, `${power}/${phase}`);
+    }
+  }
+  assert.equal(visuallySleeping('awake', 'ready'), false);
+  assert.equal(visuallySleeping('asleep', 'ready'), true);
+  assert.equal(visuallySleeping('voice-awake', 'asleep'), false);
 });

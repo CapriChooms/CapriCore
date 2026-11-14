@@ -25,6 +25,15 @@ export function profileOverrides(profile) {
       profile.capabilities && !profile.capabilities.includes('thinking') ? 'off' : 'low',
   };
 }
+
+export function modelProfileContext(current, profile) {
+  return (
+    contextChoicesFor({ model: profile.alias, modelContextLimit: profile.contextLimit })
+      .filter((tokens) => tokens <= Math.min(current.contextTokens, profile.contextLimit ?? 262144))
+      .at(-1) ?? 8192
+  );
+}
+
 /** Called only after the owning core has stopped. Retains unrelated overrides and shared memory. */
 export function saveModelProfile({
   root,
@@ -43,12 +52,7 @@ export function saveModelProfile({
       rt,
       overrides: {
         ...profileOverrides(profile),
-        contextTokens:
-          contextChoicesFor({ model: profile.alias, modelContextLimit: profile.contextLimit })
-            .filter(
-              (tokens) => tokens <= Math.min(current.contextTokens, profile.contextLimit ?? 262144),
-            )
-            .at(-1) ?? 8192,
+        contextTokens: modelProfileContext(current, profile),
       },
       write,
     }),

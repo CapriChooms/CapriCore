@@ -26,11 +26,26 @@ import { TranscriptStore } from '../apps/desktop/storage.mjs';
 import { AvatarStreamParser, avatarInstructions } from '../apps/desktop/avatar-protocol.mjs';
 import { WakePhraseGate } from '../apps/desktop/wake-phrase.mjs';
 import { fetchArtifact } from '../packages/installer/src/download.mjs';
-import { StartupProgress } from '../apps/desktop/startup-progress.mjs';
+import { StartupProgress, coreStartupFailure } from '../apps/desktop/startup-progress.mjs';
 import { StartupPanel } from '../apps/desktop/renderer/startup-panel.mjs';
 import { MicrophoneService } from '../apps/desktop/microphone-service.mjs';
 import { EventEmitter } from 'node:events';
 import { pullModel } from '../packages/runtime/src/providers/pull-model.mjs';
+
+test('core startup keeps repair guidance and a stable code without leaking raw errors', () => {
+  const error = { code: 'CAPRI_MEMORY_MODEL_MISSING', message: 'private model path' };
+  assert.deepEqual(coreStartupFailure(error), {
+    code: error.code,
+    message: 'Your saved data has been preserved. Repair Capri with the installer and try again.',
+  });
+  assert.equal(
+    coreStartupFailure({ ...error, code: 'CAPRI_SERVICE_PORT_OCCUPIED' }).code,
+    'CAPRI_SERVICE_PORT_OCCUPIED',
+  );
+  assert.deepEqual(coreStartupFailure({ ...error, code: 'unrecognized' }), {
+    message: 'The local core is unavailable. Reconnect to try again.',
+  });
+});
 
 const fixture = () => mkdtempSync(path.join(os.tmpdir(), 'capri-companion-'));
 test('Ollama model download pauses its owned request and resumes through the verified pull API', async () => {

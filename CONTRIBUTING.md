@@ -43,6 +43,25 @@ and report anything you could not run. GPU, physical audio and live-model
 qualification are separate from fixture tests: state the exact Windows version,
 hardware, model, backend and installed speech packs when claiming such coverage.
 
+For cross-module code navigation, Graphify is available as an optional local CLI.
+It uses the Windows Python launcher (`py`) and stores its environment and index
+under `.runtime/graphify`. It indexes tracked working copies of source files
+from the application, packages, integrations, scripts, tools and tests. Stage new
+source files before indexing them, and rebuild after changes. Code extraction
+runs locally with model backends and query logging disabled. Check inferred
+connections against the source before editing.
+
+```powershell
+npm run dev:graphify -- install
+npm run dev:graphify -- build
+npm run dev:graphify -- html
+npm run dev:graphify -- query "Native NPU worker initialization and shutdown"
+npm run dev:graphify -- path "NpuInference" "NpuWorker"
+```
+
+Open the path printed by `html` in a browser. Group names come from their most
+represented source file and a connected symbol, without using a model.
+
 Keep host APIs in `packages/runtime`, presentation in `apps/desktop/renderer`,
 and platform/model work behind adapters. Preserve cancellation, bounded queues,
 explicit permissions and CPU/text fallback. Add meaningful regressions at failure
@@ -56,6 +75,23 @@ history, memory, recordings or private model weights. Never use a contributor's
 real chats or accounts as an automated fixture. Keep discussion respectful and
 describe any data/configuration migration or remaining limitation in the pull
 request.
+
+## CapriCore skills
+
+Keep feature contracts in `packages/skills/src` and shared protocol types in
+`packages/skill-sdk`. A built-in skill declares its ID, API version, command
+input/output validators, allowed origins and required ports. Register it through
+`CapriCore.register(definition, ports)` from a trusted host adapter. Supply only
+the ports it declares. Use `core.dispatch` for safe result envelopes and
+`core.call` for compatibility adapters that need the original result and error
+shape. Use the operation signal for all cancellable work.
+
+Keep device acquisition, exact-frame consent, credentials and raw PCM or frame
+streams in their host adapters. Route Settings and toolbar actions through the
+same registered command and preserve the existing preload, protocol and locale
+boundaries. User tools continue to run through the existing isolated execution
+path. See the [refactor plan](docs/plans/capricore-modular-refactor.md) for
+migration and release checks.
 
 ## Licensing
 

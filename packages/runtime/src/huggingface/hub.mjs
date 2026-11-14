@@ -7,7 +7,6 @@ import {
   statSync,
   unlinkSync,
   rmdirSync,
-  createReadStream,
   openSync,
   readSync,
   closeSync,
@@ -15,7 +14,7 @@ import {
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { writeJsonAtomic } from '../atomic-json.mjs';
-import { validateImportedProfile } from '../hardware/imported-model.mjs';
+import { HF_DRAFT_CHAT_ERROR, validateImportedProfile } from '../hardware/imported-model.mjs';
 import { hubJson } from './transport.mjs';
 import {
   downloadArtifact,
@@ -74,6 +73,11 @@ function modelKind(file) {
   if (!/\.gguf$/i.test(file)) return 'other';
   return /(?:^|\/)(?:mmproj|projector)/i.test(file) ? 'projector' : 'gguf';
 }
+
+const speculativeDraft = (file) =>
+  modelKind(file) === 'gguf' && /(?:^|[/_.-])(?:dspark|dflash)(?=[/_.-])/i.test(file);
+export const hasSpeculativeDraft = (receipt) =>
+  receipt.files.some(({ path }) => speculativeDraft(path));
 
 function splitFile(file) {
   const match = /^(.*)-(\d{5})-of-(\d{5})\.gguf$/i.exec(file);
@@ -219,7 +223,7 @@ export class HuggingFaceHub {
       local.search ||
       local.hash
     )
-      throw new Error('Hugging Face model import requires the owned local Ollama endpoint.');
+      throw new Error('Hugging Face model import requires the owned local inference endpoint.');
     this.ollamaUrl = local.origin;
   }
   options(signal) {
@@ -295,7 +299,7 @@ export class HuggingFaceHub {
       const sha256 = typeof digest === 'string' ? digest.replace(/^sha256:/, '') : null;
       files.push({
         path: name,
-        kind: modelKind(name),
+        kind: speculativeDraft(name) ? 'draft' : modelKind(name),
         bytes: Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null,
         sha256: /^[a-f0-9]{64}$/.test(sha256 ?? '') ? sha256 : null,
         split: /-\d{5}-of-\d{5}\.gguf$/i.test(name),
@@ -332,6 +336,7 @@ export class HuggingFaceHub {
       throw new Error('Install this voice through a supported Capri TTS adapter.');
     const selected = filename ?? parsed.filename;
     if (typeof selected !== 'string') throw new Error('Choose a GGUF model file.');
+    if (speculativeDraft(selected)) throw new Error(HF_DRAFT_CHAT_ERROR);
     const split = splitFile(selected);
     let weights = [selected];
     if (split) {
@@ -384,7 +389,7 @@ export class HuggingFaceHub {
     return {
       ...plan,
       downloadBytes,
-      requiredBytes: downloadBytes + plan.totalBytes + reserveBytes,
+      requiredBytes: downloadBytes + reserveBytes,
       diskFreeBytes: await this.diskFree(this.folder),
       memoryEstimated: true,
       estimatedCpuRamGiB: Math.ceil((plan.totalBytes / 1024 ** 3) * 1.3 + 4),
@@ -431,14 +436,15 @@ export class HuggingFaceHub {
 
   async install(plan, { signal, onProgress = () => {} } = {}) {
     validatePlan(plan);
+    if (hasSpeculativeDraft(plan)) throw new Error(HF_DRAFT_CHAT_ERROR);
     const release = operationLock(this.folder);
     try {
       const needed = plan.files.reduce(
         (sum, file) => sum + (existsSync(path.join(this.blobs, file.sha256)) ? 0 : file.bytes),
         0,
       );
-      if ((await this.diskFree(this.folder)) < needed + plan.totalBytes + reserveBytes)
-        throw new Error('There is not enough free disk space for download and model import.');
+      if ((await this.diskFree(this.folder)) < needed + reserveBytes)
+        throw new Error('There is not enough free disk space for the model download.');
       let completed = 0;
       for (const file of plan.files) {
         signal?.throwIfAborted();
@@ -548,27 +554,13 @@ export class HuggingFaceHub {
       const receipt = this.receipt(id),
         alias = `capri-${id}:latest`,
         files = {};
+      if (hasSpeculativeDraft(receipt)) throw new Error(HF_DRAFT_CHAT_ERROR);
       previousProfile = receipt.profile ?? null;
       for (const item of receipt.files) {
         const file = noLinks(path.join(this.blobs, item.sha256));
         if ((await fileHash(file, signal)) !== item.sha256)
           throw new Error('Hugging Face package checksum changed. Repair the model.');
         checkGguf(file);
-        const stream = createReadStream(file);
-        try {
-          await this.localRequest('/api/blobs/sha256:' + item.sha256, {
-            method: 'POST',
-            body: stream,
-            duplex: 'half',
-            signal,
-            headers: {
-              'content-type': 'application/octet-stream',
-              'content-length': String(item.bytes),
-            },
-          });
-        } finally {
-          stream.destroy();
-        }
         files[item.path] = 'sha256:' + item.sha256;
       }
       const result = await this.localRequest('/api/create', {
@@ -587,6 +579,7 @@ export class HuggingFaceHub {
       });
       const info = description?.model_info ?? {},
         architecture = info['general.architecture'];
+      if (architecture === 'dflash') throw new Error(HF_DRAFT_CHAT_ERROR);
       const limit =
         typeof architecture === 'string' ? info[architecture + '.context_length'] : null;
       if (!Number.isInteger(limit) || limit < 8192 || !description.template?.trim())

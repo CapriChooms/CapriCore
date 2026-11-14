@@ -13,14 +13,37 @@ const sorted = (value) =>
         )
       : value;
 
-/** Ignore only Capri/workspace version labels, never a third-party version or integrity hash. */
+function capriWorkspaceLocations(pkg, packages) {
+  if (!Array.isArray(pkg.workspaces) || !Array.isArray(packages['']?.workspaces)) return [];
+  const locked = new Set(packages[''].workspaces);
+  return pkg.workspaces.filter((location) => {
+    if (typeof location !== 'string' || !locked.has(location)) return false;
+    const match = /^(apps|packages)\/([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(location);
+    if (!match) return false;
+    const name = match[1] === 'apps' ? `capri-${match[2]}` : `@capri/${match[2]}`;
+    const workspace = packages[location];
+    const alias = packages['node_modules/' + name];
+    return (
+      workspace?.name === name &&
+      !workspace.link &&
+      !Object.hasOwn(workspace, 'integrity') &&
+      !Object.hasOwn(workspace, 'resolved') &&
+      alias?.link === true &&
+      alias.resolved === location &&
+      !Object.hasOwn(alias, 'integrity')
+    );
+  });
+}
+
+/** Normalize release versions only for verified local Capri workspaces. */
 export function npmDependencySignature(pkg, lock) {
   pkg = structuredClone(pkg);
   lock = structuredClone(lock);
   delete pkg.version;
   delete lock.version;
-  for (const name of ['', 'apps/desktop', 'packages/runtime']) {
-    if (lock.packages && Object.hasOwn(lock.packages, name)) delete lock.packages[name].version;
+  const packages = lock.packages ?? {};
+  for (const location of ['', ...capriWorkspaceLocations(pkg, packages)]) {
+    if (packages[location]) delete packages[location].version;
   }
   return JSON.stringify(sorted({ pkg, lock }));
 }

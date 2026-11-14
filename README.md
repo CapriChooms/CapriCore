@@ -1,33 +1,37 @@
 <img src="assets/default/icon-source.png" alt="CapriCore lightning logo" width="72" align="right">
 
-# CapriCore · Capri 1.0.4
+# CapriCore · Capri 1.1.0
 
 A Windows AI desktop companion powered by OpenClaw: bundled local LLMs, Hugging Face GGUF models or OpenAI-compatible APIs, with shared conversation and memory, 50 interface languages, optional voice and explicitly enabled desktop tools.
 
 [Website](https://capri-core.com/) · [Discord](https://discord.gg/capricore) · [Documentation](docs/README.md) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
-**[Download Capri 1.0.4 for Windows](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.4/CapriSetup-1.0.4.exe)** · [Release notes](docs/releases/1.0.4.md) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
+**[Download the latest Capri for Windows](https://github.com/CapriChooms/CapriCore/releases/latest)** · [1.1.0 release notes](docs/releases/1.1.0.md) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
 
 The public repository and releases are **CapriChooms/CapriCore**. Downloads and update checks do not require a GitHub account, invitation or token.
 
 ## What Capri can do
 
 - **Choose your inference.** Use bundled Qwen3.5 models, BETA Gemma/Ministral alternatives, compatible Hugging Face GGUF imports, or saved OpenAI-compatible API connections. Switch from the Local/API control without clearing the conversation.
+- **Reserve resources.** The Local menu has a live [CPU/GPU load control](docs/local-model-load.md), enabled at 85% by default. GPU utilization is an adaptive target; brief peaks remain possible.
 - **Talk and remember.** Text chat, optional local speech recognition and voice, independent language settings, communication styles, searchable memory facts and a local document knowledge base.
 - **Live on the desktop.** Animated expressions and mouth layers, headpats, lightning teleports, window-edge poses, floating dialogue, compact controls, tray mode, themes and resource monitoring.
+- **Choose how much she moves.** Optional [desktop roaming](docs/desktop-roaming.md), with a 30-second to 30-minute interval and automatic pauses during interaction.
 - **Use tools with permission.** Scoped app/file actions, Spotify, Discord desktop control, web search, deep-thinking mode, recorded workflows and approved user tools. Computer control is BETA and uses a visible indicator with Escape cancellation.
 - **React to music and calls.** Optional local system-audio music detection with BPM animation, and microphone/system-audio call features with a separately configured virtual cable.
 
 Capabilities depend on the selected model, its tool/image support and your permissions. Complex workflows, individual GPU backends and additional voices still need configuration and can require your help; see [current limits](docs/releases/1.0.0.md#limits-to-know).
 
+[Set up native NPU and editor integration, follow desktop task progress, and check experimental Windows 10 compatibility](docs/native-npu-and-coding.md).
+
 ## Quick installation
 
-On Windows 10 22H2/11 x64, run **CapriSetup-1.0.4.exe** from the release, or extract the source package and double-click **Install Capri.cmd**. The wizard installs per-installation Node/npm/Ollama runtimes, selected models and optional speech components; the CPU request classifier is included. Choose local LLMs, Hugging Face model selection, or API mode (BETA). API mode skips local conversation-model downloads and, by default, startup loading. No global Python/Node installation or terminal is required.
+On Windows 10 22H2/11 x64, run the **CapriSetup** executable for your release, or extract the source package and double-click **Install Capri.cmd**. The wizard installs private runtimes, selected models and optional speech components. The CPU request classifier is included. Choose local LLMs, Hugging Face model selection, or API mode (BETA). API mode skips local conversation-model downloads and, by default, startup loading. No global Python/Node installation or terminal is required.
 
 For a first installation, complete this wizard before opening **Capri.exe**. Use
 the same wizard and installation folder to repair missing runtimes or dependencies.
 
-**Upgrading from private early access:** run the 1.0.4 installer and select your existing Capri installation folder. Do not uninstall first. This switches future updates to the public repository while preserving local data, downloaded models and personal settings. Old private-channel updaters cannot discover the new repository themselves.
+**Upgrading from private early access or 1.0.4:** run the 1.1.0 installer and select your existing Capri installation folder. This updates the installed runtime and keeps local data, compatible downloaded models and personal settings. The stable update channel uses the public repository.
 
 For voice replies on a supported GPU, choose your **Conversation language** and the included **Capri · Chatterbox** voice. Setup installs English or the matching multilingual voice. The CPU Qwen3-TTS option is separate and BETA. No separate voice ZIP, destination folder, recording or training is needed for the included reference. Add or prepare voices later in **Settings → Language model → Voice models**. [Voice installation guide](docs/voice-installation.md), [release packaging](docs/voice-distribution.md).
 
@@ -38,7 +42,7 @@ License/download consent, hardware profiles, language choices, progress, cancell
 ## Start from source
 
 For manual local-model development on Windows 10/11 x64, install Node.js 24.22.1
-(or a compatible later 24.x), npm and Ollama, then reopen PowerShell. Open the
+(or a compatible later 24.x), npm and the [llama.cpp Windows x64 Vulkan runtime](https://github.com/ggml-org/llama.cpp/releases/tag/b12317). Set `CAPRI_LLAMA_PATH` to the full path of `llama-server.exe` before starting Capri. Open the
 extracted or cloned folder containing **package.json** and run:
 
 ```powershell
@@ -58,7 +62,7 @@ before continuing. If startup reports `Cannot find module` or
 recognized, install Node.js with npm and reopen PowerShell, or use the graphical
 installation above. [Detailed setup and repair](docs/installation.md).
 
-Setup explains hardware profiles and saves an ignored local override; it downloads no models. The model command downloads only the selected text model and memory embedding model. Allow several GB of disk space. A separately managed Ollama process uses the configured project port and model store. `npm stop` releases managed resources.
+Setup explains hardware profiles and saves an ignored local override. The model command downloads the selected text model and memory embedding model. Allow several GB of disk space. Capri manages `llama-server` locally and can reuse compatible weights from an existing model store. `npm stop` releases managed resources.
 
 The source package includes the reviewed Capri sprites and animations, plus a procedural fallback avatar. Recordings and trained voice weights remain separate optional packs. Missing speech packs leave text chat available. [Installation](docs/installation.md).
 
@@ -68,12 +72,12 @@ The source package includes the reviewed Capri sprites and animations, plus a pr
 **8 GiB system RAM**. Requirements above that depend on where the language model
 runs and which speech components you enable.
 
-| Inference mode                     | System RAM                                      | Dedicated GPU / VRAM                                         | Model storage                                    |
-| ---------------------------------- | ----------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------ |
-| Cloud API (BETA)                   | 8 GiB planning minimum; local speech needs more | No dedicated GPU required for text chat                      | No local conversation-model weights              |
-| Bundled local LLM                  | See the hardware profiles below                 | Optional for CPU inference; enough free VRAM for GPU offload | Selected model weights plus runtimes             |
-| Hugging Face local GGUF (BETA)     | Depends on model, quantization and context      | Depends on model and offload; CPU execution is possible      | Selected files, download cache and Ollama import |
-| Local API, such as Lemonade (BETA) | Capri plus the local server's requirements      | Depends on the server's CPU/GPU/NPU backend                  | Models managed by that server                    |
+| Inference mode                     | System RAM                                      | Dedicated GPU / VRAM                                         | Model storage                               |
+| ---------------------------------- | ----------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------- |
+| Cloud API (BETA)                   | 8 GiB planning minimum; local speech needs more | No dedicated GPU required for text chat                      | No local conversation-model weights         |
+| Bundled local LLM                  | See the hardware profiles below                 | Optional for CPU inference; enough free VRAM for GPU offload | Selected model weights plus runtimes        |
+| Hugging Face local GGUF (BETA)     | Depends on model, quantization and context      | Depends on model and offload; CPU execution is possible      | Selected files and temporary download space |
+| Local API, such as Lemonade (BETA) | Capri plus the local server's requirements      | Depends on the server's CPU/GPU/NPU backend                  | Models managed by that server               |
 
 **RAM, VRAM and free disk space are separate resources.** GPU-offloaded weights
 use VRAM; CPU inference uses RAM, and partial offload uses both. Shared GPU memory
@@ -81,7 +85,7 @@ borrows system RAM. Leave room for Windows, games and other applications.
 
 ### API connections (BETA)
 
-Choose **Use API** during installation, or open **Settings → External AI provider**
+Choose **Use API** during installation, or open **Settings → API connections**
 to add, test and switch between saved connections.
 
 | Provider preset                     | API base URL                                               |
@@ -107,7 +111,9 @@ default. Keep **Skip local language model when using an API** enabled to retain
 that startup behavior; turning it off can warm an already installed local model.
 Capri's interface,
 local embedding model and CPU request classifier still run locally. Recognition
-and TTS remain local, optional components with their own requirements. A model
+remains local. TTS is local by default; **Settings → Voice API** can independently
+offload speech to an external provider and unload the local voice model.
+See [external voice](docs/external-tts.md) for setup and privacy details. A model
 served by Lemonade on the same PC still consumes that PC's resources.
 
 ### Hugging Face models (BETA)
@@ -115,7 +121,7 @@ served by Lemonade on the same PC still consumes that PC's resources.
 For **local language models**, choose Hugging Face in the installer, then select
 a model in **Settings → Language model**. Capri downloads a selected **GGUF**
 quantization, including all parts of split GGUF models, and imports it into the
-managed Ollama runtime. The model architecture must be supported by that runtime.
+managed llama.cpp runtime. The model architecture must be supported by that runtime.
 Vision also needs compatible model/projector files; tool and image support are
 checked separately. Arbitrary Transformers/Safetensors repositories are not
 automatically compatible.
@@ -147,7 +153,7 @@ targets describe total PC capacity. They do not include optional speech.
 | Ministral 3 3B (BETA) | 3.5–6 GiB                   | 12 GiB                                | 16 GiB                               |
 | Gemma 4 E2B (BETA)    | 8–12 GiB                    | 16 GiB                                | 24 GiB                               |
 
-GPU acceleration depends on the installed Ollama backend and drivers. A card
+GPU acceleration uses the installed llama.cpp Vulkan backend and a compatible driver. A card
 needs additional headroom for the display, other applications and any GPU voice.
 CPU execution and partial offload can be slower and consume more system RAM.
 
@@ -180,13 +186,18 @@ sizes. Chatterbox voice uses NVIDIA CUDA or experimental support for selected
 AMD ROCm GPUs on Windows 11; Qwen3-TTS provides the separate CPU voice option.
 See [AMD voice requirements](docs/amd-voice.md) and [hardware policy](docs/hardware.md).
 
+**Settings → API connections → AI apps and ChatGPT plan** can discover installed
+AI apps and local model servers. Add a detected local server or authorize a
+separate ChatGPT plan connection through the official sign-in flow. Claude and
+Gemini use their API-key connections; app logins and conversations are not
+imported. See [AI app connections](docs/desktop-ai-providers.md).
+
 ### Free disk space
 
 For reference, the current **API text-only** clean-install estimate is roughly
 **3 GiB of downloads and 8 GiB free disk space**, including runtimes and local
 helpers, with recognition and voice deselected. Local LLMs, speech packs and
-their dependencies add to this. Hugging Face imports can temporarily need both
-the download cache and an Ollama copy of the selected weights.
+their dependencies add to this. Hugging Face imports use the verified downloaded weights directly.
 
 The installer recalculates downloads and required free space for the selected
 components and checks the destination drive before installation. Keep extra room
@@ -232,7 +243,7 @@ Choose **Language model** in Settings to download and switch between Qwen3.5
 0.8B, 2B, 4B and 9B, or the BETA Gemma 4 E2B and Ministral 3 3B choices. The same
 choices and separate RAM/VRAM estimates are available during installation. [Model selection](docs/models.md).
 
-Optional inference routes include [external AI providers](docs/external-api.md), local Hugging Face GGUF imports, and the bundled Qwen3.5, Ministral 3 and Gemma 4 models. Speech is a separate choice: GPU Chatterbox or CPU Qwen3-TTS (BETA). [AMD speech requirements](docs/amd-voice.md).
+Optional inference routes include [external AI providers](docs/external-api.md), local Hugging Face GGUF imports, and the bundled Qwen3.5, Ministral 3 and Gemma 4 models. Speech is a separate choice: local GPU Chatterbox, CPU Qwen3-TTS (BETA), or an optional [external voice API](docs/external-tts.md). [AMD speech requirements](docs/amd-voice.md).
 
 ## Privacy and safety
 

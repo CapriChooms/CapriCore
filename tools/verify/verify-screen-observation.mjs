@@ -1,4 +1,4 @@
-/** Owned generated window only; optional real local vision, isolated chat and no physical audio. */
+/** Local capture verification with isolated chat and no physical audio. */
 import assert from 'node:assert/strict';
 import { saveSettings, settingsView } from './settings-view.mjs';
 import { createServer } from 'node:http';
@@ -7,12 +7,16 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
+import { skillPreferences } from '../../packages/skills/src/settings-catalog.mjs';
 
 const real = process.argv.includes('--real'),
   unsupported = process.argv.includes('--unsupported'),
+  monitor = process.argv.includes('--monitor'),
+  slowEnumeration = process.argv.includes('--slow-enumeration'),
   locale = process.argv.includes('--locale=ru') ? 'ru' : 'en',
   parent = path.join(root, '.runtime/screen-observation-verification');
 assert(!(real && unsupported), 'The unsupported fixture cannot contact a real model.');
+assert(!monitor || (!real && !unsupported), 'Monitor verification must use the loopback fixture.');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'run-'));
 let application,
@@ -32,7 +36,7 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(text);
   if (req.url === '/api/chat') {
     analyses++;
-    screenFrames.push(body.messages.at(-1).images[0]);
+    if (!monitor) screenFrames.push(body.messages.at(-1).images[0]);
     assert.deepEqual(body.tools, []);
     assert.ok(body.messages.at(-1).images.length === 1);
     if (unsupported) {
@@ -47,7 +51,7 @@ const server = createServer(async (req, res) => {
       );
       return;
     }
-    if (rejectForegroundFrame && body.options.num_predict === 384) {
+    if (rejectForegroundFrame && body.options.num_predict > 192) {
       res.writeHead(502).end();
       return;
     }
@@ -85,8 +89,15 @@ const port = server.address().port,
     gatewayPort: port,
   });
 initialize(rt);
+mkdirSync(path.join(folder, 'desktop'), { recursive: true });
+writeFileSync(
+  path.join(folder, 'desktop/skills.json'),
+  JSON.stringify({
+    schemaVersion: 1,
+    settings: skillPreferences({ 'capri.screen': { enabled: true, showButton: true } }),
+  }),
+);
 if (unsupported) {
-  mkdirSync(path.join(folder, 'desktop'), { recursive: true });
   writeFileSync(
     path.join(folder, 'desktop/languages.json'),
     JSON.stringify({
@@ -114,7 +125,7 @@ const report = {
   passed: false,
   realVision: real,
   folder,
-  capturedSource: 'Owned generated fixture only',
+  capturedSource: monitor ? 'Monitor, loopback only' : 'Owned generated fixture only',
   physicalAudioMuted: true,
   userHistoryUsed: false,
   ...(unsupported ? { unsupportedFixture: true, locale } : {}),
@@ -131,6 +142,10 @@ try {
   const companion = await application.firstWindow();
   let page = companion;
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (message) => {
+    if (message.text().startsWith('Capri screen startup failed:'))
+      processLog.push(message.text() + '\n');
+  });
   const waitState = async (predicate, timeout = 30000) => {
     const until = Date.now() + timeout;
     while (Date.now() < until) {
@@ -169,7 +184,8 @@ try {
   );
   const source = await page
     .locator('#screen-source option')
-    .filter({ hasText: 'CAPRI OBSERVATION FIXTURE' })
+    .filter({ hasText: monitor ? /^Monitor:/ : 'CAPRI OBSERVATION FIXTURE' })
+    .first()
     .getAttribute('value');
   await page.locator('#screen-source').selectOption(source);
   await page.locator('#screen-refresh').click({ force: true });
@@ -182,9 +198,28 @@ try {
   await page.locator('#screen-watch-interval').fill('15');
   await saveSettings(page);
   await page.locator('#settings-draft-actions').waitFor({ state: 'hidden' });
+  if (slowEnumeration)
+    await application.evaluate(({ desktopCapturer }, monitor) => {
+      const original = desktopCapturer.getSources;
+      desktopCapturer.getSources = async (options) => {
+        if (options.types.length === 1 && options.types[0] === (monitor ? 'screen' : 'window')) {
+          desktopCapturer.getSources = original;
+          await new Promise((resolve) => setTimeout(resolve, 5500));
+        }
+        return original.call(desktopCapturer, options);
+      };
+    }, monitor);
   const observationStarted = performance.now();
   await page.locator('#screen-watch-start').click({ force: true });
-  if (unsupported) {
+  if (monitor) {
+    await waitState((state) => Boolean(state.screenObservation.lastAnalysedAt), 15000);
+    assert.equal(analyses, 1);
+    report.firstDescriptionMs = Math.round(performance.now() - observationStarted);
+    await page.locator('#screen-watch-stop').click({ force: true });
+    await waitState((state) => !state.screenObservation.active);
+    assert.deepEqual(errors, []);
+    report.passed = true;
+  } else if (unsupported) {
     const expected =
       locale === 'en'
         ? 'The active model cannot read images or video frames.'
@@ -238,7 +273,7 @@ try {
   } else {
     await waitState((state) => state.screenObservation.active);
     await companion.waitForSelector('#screen-indicator:not([hidden])');
-    assert.equal(await companion.locator('#screen-indicator').textContent(), 'OBS');
+    assert.equal(await companion.locator('#screen-indicator').getAttribute('aria-pressed'), 'true');
     assert.equal(await companion.locator('#screen-indicator').isVisible(), true);
     await waitState((state) => Boolean(state.screenObservation.lastAnalysedAt));
     report.firstDescriptionMs = Math.round(performance.now() - observationStarted);
@@ -440,7 +475,7 @@ try {
     }))
     .catch(() => null);
   const page = application?.windows()[0];
-  if (page) {
+  if (page && !monitor) {
     report.ui = await page
       .evaluate(async () => ({
         snapshot: await window.capri.bootstrap(),
@@ -454,7 +489,7 @@ try {
   await application?.close();
   await new Promise((resolve) => server.close(resolve));
   writeFileSync(
-    unsupported
+    unsupported || monitor
       ? path.join(folder, 'report.json')
       : path.join(
           root,

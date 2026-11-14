@@ -1,7 +1,8 @@
-# Loaded by wizard.ps1, which owns DPI initialization, diagnostics and the recovery lease.
+﻿# Loaded by wizard.ps1, which owns DPI initialization, diagnostics and the recovery lease.
 # SPDX-License-Identifier: GPL-3.0-only
 . (Join-Path $PSScriptRoot 'common.ps1')
 . (Join-Path $PSScriptRoot 'install-discovery.ps1')
+. (Join-Path $PSScriptRoot 'installed-models.ps1')
 . (Join-Path $PSScriptRoot 'localization.ps1')
 . (Join-Path $PSScriptRoot 'memory-budget.ps1')
 . (Join-Path $PSScriptRoot 'model-language-recommendations.ps1')
@@ -14,6 +15,9 @@ Add-Type -AssemblyName System.Drawing
 . (Join-Path $PSScriptRoot 'cyberpunk-theme.ps1')
 $sourceRoot=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../../..')).Path
 $manifest=Read-CapriJson (Join-Path $sourceRoot 'config/installer.json')
+$script:catalogProfiles=@($manifest.profiles)
+$script:currentModelProfile=$null
+$script:installedModelNames=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
 $storageCatalog=Read-CapriStorageCatalog $sourceRoot
 $memoryEstimates=Read-CapriJson (Join-Path $sourceRoot 'config/memory-estimates.json')
 $modelBenchmark=$null
@@ -44,7 +48,26 @@ $voiceGpu=($hardware.gpu -match 'NVIDIA') -or (([Environment]::OSVersion.Version
 $rocmVoice=$hardware.gpu -notmatch 'NVIDIA' -and $hardware.gpu -match '\b(?:RX (?:9070(?: XT)?|9060 XT|7900 XTX|7700)|(?:AI )?PRO (?:R9700|W7900(?: Dual Slot)?))\b'
 if(-not $BundledVoicePack -and (Test-Path -LiteralPath (Join-Path $sourceRoot '.bundled-voice/voice-profile.json'))){$BundledVoicePack=Join-Path $sourceRoot '.bundled-voice'}
 if($BundledVoicePack){$BundledVoicePack=Assert-CapriVoicePack $BundledVoicePack}
-$qwenVoice=@((Read-CapriJson (Join-Path $sourceRoot 'config/tts-catalog.json')).models|Where-Object{$_.id -eq 'qwen3-tts-0.6b-base'})[0]
+$voiceCatalog=(Read-CapriJson (Join-Path $sourceRoot 'config/tts-catalog.json')).models
+$qwenVoice=@($voiceCatalog|Where-Object{$_.id -eq 'qwen3-tts-0.6b-base'})[0]
+$russianVoice=@($voiceCatalog|Where-Object{$_.id -eq 'qwen3-tts-1.7b-capri-ru'})[0]
+$russianPack=(Read-CapriJson (Join-Path $sourceRoot 'config/qwen-ru-voice.json')).pack
+$russianVoiceLabel=$russianVoice.name+' / CPU / NVIDIA CUDA'
+function Test-CapriRussianVoicePack([string]$Folder) {
+    if(-not $Folder){return $false}
+    try{
+        foreach($entry in $russianPack.files){
+            $file=Join-Path $Folder $entry.file
+            Assert-CapriNoLinks $file
+            if(-not(Test-Path -LiteralPath $file -PathType Leaf) -or
+               (Get-Item -LiteralPath $file -Force).Length -ne $entry.bytes -or
+               (Get-CapriHash $file) -ne $entry.sha256){return $false}
+        }
+        return $true
+    }catch{return $false}
+}
+$script:bundledRussianVoiceAvailable=$BundledVoicePack -and (Test-CapriRussianVoicePack (Join-Path $BundledVoicePack 'russian'))
+$script:russianVoiceAvailable=$script:bundledRussianVoiceAvailable
 $recommendation='minimal'
 foreach($candidate in @($manifest.profiles|Where-Object{$_.id -in @('balanced','desktop','quality')})){
     $ram=Get-CapriRequiredRam $candidate $hardware $memoryEstimates
@@ -73,10 +96,13 @@ $initialInstallation=Select-CapriInitialInstallation $script:installations ([ver
 if($initialInstallation){$options.target=$initialInstallation.path}
 $script:page=0;
 $script:settingsTarget=$null
+$script:customConversation=''
 $script:fields=@{};
 $script:worker=$null;
 $script:session=$null;
 $script:result=$null;
+$script:completionSession=$null;$script:completionTray=$null;$script:completionTimer=$null
+$script:completionNoticeCount=0
 $script:launchOnFinish=$true
 $script:preloadOnFirstLaunch=$true
 $script:failure='';
@@ -243,6 +269,7 @@ function Capri-SetupError([string]$Message,[string]$Code='') {
     return (Get-CapriSetupError $translations $installerLanguage $Message $Code)
 }
 function Fit-CapriPage {
+    $body.CloseDropDowns()
     # A newly visible scrollbar narrows anchored labels. Settle their wrapped
     # height now, rather than on the next pause/progress event (a visible jump).
     for($pass=0;$pass -lt 3;$pass++){
@@ -279,7 +306,8 @@ function Fit-CapriPageRows {
         }
     }
     $offset=0
-    $rows=@($body.Controls|Sort-Object Top)
+    $diskWarning=$script:fields['diskWarning']
+    $rows=@($body.Controls|Where-Object{$_ -ne $diskWarning -or $script:diskReviewBlocked}|Sort-Object Top)
     for($index=0;$index -lt $rows.Count;){
         $top=$rows[$index].Top;$group=@();$originalBottom=$top;$bottom=$top
         while($index -lt $rows.Count -and [Math]::Abs($rows[$index].Top-$top) -le (D 4)){$group+=$rows[$index];$index++}
@@ -295,6 +323,7 @@ function Fit-CapriPageRows {
         }
         foreach($control in $group){
             $originalBottom=[Math]::Max($originalBottom,$control.Bottom)
+            if($control -eq $diskWarning){$control.Width=[Math]::Max(1,($helpRight-$control.Left))}
             if($control -is [Windows.Forms.Label] -or $control -is [Windows.Forms.CheckBox] -or $control -is [Windows.Forms.RadioButton]){
                 if($script:page -eq 5 -and $control -is [Windows.Forms.Label]){
                     # Use the Label's own wrapping and padding rules on the compact review page.
@@ -357,12 +386,21 @@ function Add-CapriCombo([string]$Key,[int]$Y,$Items,[string]$Selected){$c=New-Ob
     $script:fields[$Key]=$c;
     return $c}
 function Selected-Capri([string]$Key){return ($script:fields[$Key].SelectedItem -split '\|')[0].Trim()}
+function Get-CapriConversationChoices {
+    $catalog|ForEach-Object{$_.id+' | '+$_.label}
+    if($script:customConversation){'custom | '+$script:customConversation}
+}
 function Format-CapriModelChoice($Profile,[bool]$Recommended) {
     $beta=if($Profile.PSObject.Properties['experimental'] -and $Profile.experimental){' (BETA)'}else{''}
-    $vram=$memoryEstimates.models.PSObject.Properties[$Profile.id].Value.vram -join '-'
-    $ram=Get-CapriRequiredRam $Profile $hardware $memoryEstimates
+    $estimate=$memoryEstimates.models.PSObject.Properties[$Profile.id]
+    $vram=if($estimate){$estimate.Value.vram -join '-'}else{'?'}
+    $ram=if($estimate){[string](Get-CapriRequiredRam $Profile $hardware $memoryEstimates)+'+'}else{'?'}
     $badge=if($Recommended){' | '+[char]0x2605+' '+(Text-Capri 'modelRecommended')}else{''}
-    return $Profile.id+' | '+$Profile.model+$beta+' | VRAM ~'+$vram+' GiB | RAM '+$ram+'+ GiB'+$badge
+    $alias=if($Profile.model -like 'qwen3.5:*'){'capri-'+$Profile.model}else{$Profile.model}
+    $status=''
+    if($Profile.id -eq $script:currentModelProfile){$status+=(Text-Capri 'modelCurrent')+' | '}
+    if($script:installedModelNames.Contains($Profile.model) -or $script:installedModelNames.Contains($alias)){$status+=(Text-Capri 'modelInstalled')+' | '}
+    return $Profile.id+' | '+$status+$Profile.model+$beta+' | VRAM ~'+$vram+' GiB | RAM '+$ram+' GiB'+$badge
 }
 function Update-CapriHardwareLabel {
     if(-not $script:fields.ContainsKey('modelHardware')){return}
@@ -418,8 +456,19 @@ function Update-CapriDiskReview($Available) {
     if($script:page -ne 5 -or -not $script:fields.ContainsKey('reviewSummary')){return}
     if(-not $PSBoundParameters.ContainsKey('Available')){$available=Get-CapriAvailableDiskBytes $options.target}
     $fits=$null -ne $available -and $available -ge $script:reviewStorage.requiredBytes
-    $script:fields.reviewSummary.Text=$script:reviewSummary+"`n"+(Format-CapriAvailableDisk $options.target $available)
-    if(-not $fits){$script:fields.reviewSummary.Text+="`n"+(Text-Capri 'diskSpaceError')}
+    $freeText=Format-CapriAvailableDisk $options.target $available
+    $script:diskReviewBlocked=-not $fits
+    $script:fields.diskWarning.Visible=$script:diskReviewBlocked
+    $storage=Format-CapriStorageEstimate $script:reviewStorage
+    if($fits){
+        $storage+="`n"+$freeText
+    }else{
+        $storage=(Text-Capri 'download')+': ~'+(Format-CapriGiB $script:reviewStorage.downloadBytes)
+        $required=(Text-Capri 'storage')+': '+(Format-CapriGiB $script:reviewStorage.requiredBytes)
+        $title=if($null -eq $available){$freeText}else{Text-Capri 'diskSpaceError'}
+        $script:fields.diskWarning.Text=if($null -eq $available){"$title`n$required"}else{"$title`n$required`n$freeText"}
+    }
+    $script:fields.reviewSummary.Text=$script:reviewSummary+"`n`n"+$storage+"`n"+(Text-Capri 'dataLabel')+': '+(Join-Path $options.target 'data')
     $next.Enabled=$script:fields.consent.Checked -and $fits
 }
 function Add-CapriInferenceChoice([string]$Mode,[string]$Key,[int]$Y){
@@ -438,7 +487,7 @@ function Save-CapriPage{
         2{$options.target=$script:fields.target.Text.Trim()}
         3{$options.inferenceMode=if($script:fields.api.Checked){'api'}else{'local'}
             $options.modelSource=if($script:fields.huggingface.Checked){'huggingface'}else{'catalog'}
-            if($script:fields.conversationLanguage.Enabled){$options.conversationLanguage=Selected-Capri 'conversationLanguage'}
+            $options.conversationLanguage=Selected-Capri 'conversationLanguage'
             $options.profile=Selected-Capri 'profile'}
         4{foreach($key in @('recognition','models','desktop','startMenu')){$name=@{models='downloadModels';
                     desktop='desktopShortcut';
@@ -448,13 +497,25 @@ function Save-CapriPage{
             $options.interfaceLanguage=Selected-Capri 'interfaceLanguage';
             $options.conversationLanguage=Selected-Capri 'conversationLanguage';
             $options.voiceMode=Selected-Capri 'voiceMode';
-            $options.voicePack=switch($options.voiceMode){'bundled'{$BundledVoicePack};'custom'{$script:fields.voicePack.Text.Trim()};default{''}}}
+            $options.voicePack=switch($options.voiceMode){'bundled'{$options.bundledVoicePack};'custom'{$script:fields.voicePack.Text.Trim()};default{''}}}
         5{$options.acceptDownloads=$script:fields.consent.Checked}
         7{if($script:result){
             $script:launchOnFinish=$script:fields.launch.Checked
             $script:preloadOnFirstLaunch=$options.inferenceMode -eq 'local' -and $options.modelSource -ne 'huggingface' -and $script:fields.preloadOnFirstLaunch.Checked
         }}
     }
+}
+function Find-CapriInstalledVoicePack([string]$Target) {
+    foreach($relative in @('data/speech/bundled-voice','.runtime/installer/bundled-voice','data/voices/capri/en/exports/capri-en-v1')){
+        try{
+            $folder=Assert-CapriVoicePack (Join-Path $Target $relative)
+            $profile=Read-CapriJson (Join-Path $folder 'voice-profile.json')
+            if($profile.id -eq 'capri-en-v1'){return $folder}
+        }catch{
+            # An incomplete older pack cannot be offered as the bundled voice.
+        }
+    }
+    return ''
 }
 function Load-CapriRepairSettings {
     if($script:settingsTarget -ieq $options.target){return}
@@ -463,9 +524,18 @@ function Load-CapriRepairSettings {
     $options.modelSource='catalog'
     $options.inferenceMode='local'
     $options.profile=$recommendation
+    $script:currentModelProfile=$null
+    $manifest.profiles=@(Get-CapriSetupModels $options.target $script:catalogProfiles)
     $options.interfaceLanguage=$installerLanguage
     $options.conversationLanguage='en'
+    $script:customConversation=''
+    $options.bundledVoicePack=[string]$BundledVoicePack
+    $options.voiceMode=if($BundledVoicePack -and $voiceGpu){'bundled'}else{'off'}
+    $options.voicePack=if($options.voiceMode -eq 'bundled'){$BundledVoicePack}else{''}
+    $script:russianVoiceAvailable=($BundledVoicePack -and $script:bundledRussianVoiceAvailable) -or
+        (Test-CapriRussianVoicePack (Join-Path $options.target $russianPack.directory))
     if(-not(Test-Path -LiteralPath (Join-Path $options.target '.capri-install.json'))){return}
+    if(-not $options.bundledVoicePack){$options.bundledVoicePack=Find-CapriInstalledVoicePack $options.target}
     $local=Join-Path $options.target 'config/core.local.json'
     $options['repair']=Test-Path -LiteralPath $local
     $journal=Join-Path $options.target '.runtime/installer/state.json'
@@ -479,9 +549,9 @@ function Load-CapriRepairSettings {
     }
     if(Test-Path -LiteralPath $local){Assert-CapriNoLinks $local;
         $config=Read-CapriJson $local;
-        if($config.PSObject.Properties['resourceProfile'] -and $config.resourceProfile -in $manifest.profiles.id){$options.profile=$config.resourceProfile}
-        if(($config.PSObject.Properties['modelSetupRequired'] -and $config.modelSetupRequired) -or
-           ($config.PSObject.Properties['model'] -and $config.model -match '^capri-hf-[a-f0-9]{24}:latest$')){$options.modelSource='huggingface'}}
+        $selected=Get-CapriSetupProfileForConfig $config $manifest.profiles
+        if($selected){$options.profile=$selected;$script:currentModelProfile=$selected}
+        if($config.PSObject.Properties['modelSetupRequired'] -and $config.modelSetupRequired){$options.modelSource='huggingface'}}
     $inference=Join-Path $options.target 'data/desktop/inference-api.json'
     if(Test-Path -LiteralPath $inference){
         Assert-CapriNoLinks $inference
@@ -495,7 +565,18 @@ function Load-CapriRepairSettings {
     if(Test-Path -LiteralPath $languages){Assert-CapriNoLinks $languages;
         $saved=Read-CapriJson $languages;
         $options.interfaceLanguage=$saved.settings.interface;
-        $options.conversationLanguage=$saved.settings.conversation}
+        $options.conversationLanguage=$saved.settings.conversation
+        if($options.conversationLanguage -eq 'custom' -and $saved.settings.PSObject.Properties['customConversation']){
+            $script:customConversation=[string]$saved.settings.customConversation
+        }
+        $speech=if($saved.settings.PSObject.Properties['speech']){$saved.settings.speech}else{''}
+        if($speech -eq 'off'){
+            $options.voiceMode='off'
+            $options.voicePack=''
+        }elseif($speech -and $options.bundledVoicePack -and $voiceGpu){
+            $options.voiceMode='bundled'
+            $options.voicePack=$options.bundledVoicePack
+        }}
     $voiceSelections=Join-Path $options.target 'data/speech/voice-selections.json'
     if(Test-Path -LiteralPath $voiceSelections){
         Assert-CapriNoLinks $voiceSelections
@@ -504,6 +585,9 @@ function Load-CapriRepairSettings {
             $savedVoice=$voices.languages.PSObject.Properties[$options.conversationLanguage]
             if($savedVoice -and $savedVoice.Value -eq $qwenVoice.id){
                 $options.voiceMode='qwen'
+                $options.voicePack=''
+            }elseif($savedVoice -and $savedVoice.Value -eq $russianVoice.id -and $script:russianVoiceAvailable){
+                $options.voiceMode='qwen-ru'
                 $options.voicePack=''
             }
         }catch{}
@@ -616,8 +700,7 @@ function Render-CapriPage{
             $null=Add-CapriInfo 'api' 116
             $null=Add-CapriInfo 'huggingface' 149
             $null=Add-CapriLabel (Text-Capri 'conversationLanguage') 181 25
-            $conversationChoice=Add-CapriCombo 'conversationLanguage' 208 @($catalog|ForEach-Object{$_.id+' | '+$_.label}) $options.conversationLanguage
-            $conversationChoice.Enabled=-not ($options.ContainsKey('repair') -and $options.repair)
+            $conversationChoice=Add-CapriCombo 'conversationLanguage' 208 @(Get-CapriConversationChoices) $options.conversationLanguage
             $null=Add-CapriInfo 'conversationLanguage' 208
             $null=Add-CapriInfo 'profile' 245
             $script:fields.modelRecommendations=Add-CapriLabel '' 279 26
@@ -633,7 +716,7 @@ function Render-CapriPage{
             $updateInferenceChoice={
                 $useApi=$script:fields.api.Checked
                 $useHub=$script:fields.huggingface.Checked
-                $script:fields.profile.Enabled=-not ($useApi -or $useHub -or ($options.ContainsKey('repair') -and $options.repair))
+                $script:fields.profile.Enabled=-not ($useApi -or $useHub)
                 Update-CapriModelRecommendations
                 Update-CapriMemoryBudgetView
                 Fit-CapriPage
@@ -653,7 +736,7 @@ function Render-CapriPage{
             $null=Add-CapriInfo 'interfaceLanguage' 113 302
             $languageLabel=Add-CapriLabel (Text-Capri 'conversationLanguage') 85 25;Set-CapriBounds $languageLabel 348 85 268 25;$languageLabel.Anchor='Top,Left'
             $script:fields.conversationLanguageLabel=$languageLabel
-            $languageChoice=Add-CapriCombo 'conversationLanguage' 113 @($catalog|ForEach-Object{$_.id+' | '+$_.label}) $options.conversationLanguage;Set-CapriBounds $languageChoice 348 113 268 29
+            $languageChoice=Add-CapriCombo 'conversationLanguage' 113 @(Get-CapriConversationChoices) $options.conversationLanguage;Set-CapriBounds $languageChoice 348 113 268 29
             $null=Add-CapriInfo 'conversationLanguage' 113 622
             $null=Add-CapriCheck 'recognition' 158 $options.recognition;
             $null=Add-CapriInfo 'recognition' 158
@@ -717,10 +800,11 @@ function Render-CapriPage{
                 $previous=if($combo.SelectedIndex -ge 0){Selected-Capri 'voiceMode'}else{$options.voiceMode}
                 $items=@('off | '+(Text-Capri 'voiceOff'))
                 if($supported -and $voiceGpu){
-                    if($BundledVoicePack){$items+=('bundled | Chatterbox / Capri / '+(Text-Capri 'conversationLanguage'))}
+                    if($options.bundledVoicePack){$items+=('bundled | Chatterbox / Capri / '+(Text-Capri 'conversationLanguage'))}
                     $items+=('custom | '+(Text-Capri 'voiceCustom'))
                 }
                 if($selectedLanguage -in $qwenVoice.languages){$items+=('qwen | '+(Text-Capri 'voiceHuggingFace'))}
+                if($script:russianVoiceAvailable -and $selectedLanguage -in $russianVoice.languages){$items+=('qwen-ru | '+$russianVoiceLabel)}
                 $combo.BeginUpdate()
                 try{
                     $combo.Items.Clear()
@@ -736,7 +820,6 @@ function Render-CapriPage{
             & $refreshVoiceSupport
             foreach($key in @('recognition','models')){$script:fields[$key].Add_CheckedChanged({Update-CapriMemoryBudgetView})}
             foreach($key in @('conversationLanguage','voiceMode')){$script:fields[$key].Add_SelectedIndexChanged({Update-CapriMemoryBudgetView})}
-            if($options.ContainsKey('repair') -and $options.repair){$script:fields.interfaceLanguage.Enabled=$false;$script:fields.conversationLanguage.Enabled=$false}
 
         }
         5{
@@ -746,12 +829,19 @@ function Render-CapriPage{
                 $modelSummary+="`n"+(Text-Capri 'models')+': '+(Text-Capri 'off')
             }
             $script:reviewStorage=Get-CapriStorageEstimate $options $manifest $storageCatalog $rocmVoice $hardware
-            $storage=Format-CapriStorageEstimate $script:reviewStorage
-            $voiceSummary=if($options.voiceMode -eq 'qwen'){Text-Capri 'voiceHuggingFace'}elseif($options.voicePack){'Chatterbox / Capri / '+$options.conversationLanguage+' / '+(Text-Capri 'on')}else{Text-Capri 'voiceOff'}
-            $summary=$options.target+"`n"+$modelSummary+"`n"+(Text-Capri 'uiLanguage')+': '+$options.interfaceLanguage+'  |  '+(Text-Capri 'conversationLanguage')+': '+$options.conversationLanguage+"`n"+(Text-Capri 'recognition')+': '+$(if($options.recognition){Text-Capri 'on'}else{Text-Capri 'off'})+'  |  '+(Text-Capri 'classifierIncluded')+"`n"+(Text-Capri 'voiceChoice')+': '+$voiceSummary+"`n`n"+$storage+"`n"+(Text-Capri 'dataLabel')+': '+(Join-Path $options.target 'data')
+            $voiceSummary=if($options.voiceMode -eq 'qwen-ru'){$russianVoiceLabel}elseif($options.voiceMode -eq 'qwen'){Text-Capri 'voiceHuggingFace'}elseif($options.voicePack){'Chatterbox / Capri / '+$options.conversationLanguage+' / '+(Text-Capri 'on')}else{Text-Capri 'voiceOff'}
+            $summary=$options.target+"`n"+$modelSummary+"`n"+(Text-Capri 'uiLanguage')+': '+$options.interfaceLanguage+'  |  '+(Text-Capri 'conversationLanguage')+': '+$options.conversationLanguage+"`n"+(Text-Capri 'recognition')+': '+$(if($options.recognition){Text-Capri 'on'}else{Text-Capri 'off'})+'  |  '+(Text-Capri 'classifierIncluded')+"`n"+(Text-Capri 'voiceChoice')+': '+$voiceSummary
             # Compact minimum rows. Fit-CapriPageRows grows each block to its
             # wrapped height and preserves the gap before the next one.
             $script:reviewSummary=$summary
+            $warning=New-Object Capri.Setup.Cyberpunk.BlockingWarning
+            $warning.Name='disk-space-warning'
+            $warning.Font=New-CapriFont 11 'Bold'
+            $warning.Padding=New-Object Windows.Forms.Padding((D 16),(D 9),(D 16),(D 9))
+            $warning.Visible=$false
+            Set-CapriBounds $warning 28 68 620 0
+            $body.Controls.Add($warning)
+            $script:fields.diskWarning=$warning
             $script:fields.reviewSummary=Add-CapriLabel $summary 76 24
             $consent=Add-CapriCheck 'consent' 108 $options.acceptDownloads
             $null=Add-CapriInfo 'consent' 108
@@ -763,22 +853,33 @@ function Render-CapriPage{
         6{
             $script:fields.stage=Add-CapriLabel (Text-Capri 'working') 90 55;
             $bar=New-Object Capri.Setup.Cyberpunk.ProgressBar;
-            Set-CapriBounds $bar (28) (158) (620) (18);
+            $sleepSprite=Join-Path $sourceRoot 'assets/default/capri-installer-sleep.png'
+            $progressOffset=0
+            $logHeight=198
+            if(Test-Path -LiteralPath $sleepSprite -PathType Leaf){
+                # Visible bounds of the reviewed sleep-v2 export, with two pixels of padding.
+                $bar.SetMarker($sleepSprite,[Drawing.Rectangle]::new(74,707,1106,461))
+                Set-CapriBounds $bar 28 148 620 112
+                $progressOffset=84
+                $logHeight=148
+            }else{
+                Set-CapriBounds $bar 28 158 620 18
+            }
             $bar.Style='Continuous';
             $body.Controls.Add($bar);
             $script:fields.progress=$bar
-            $script:fields.progressText=Add-CapriLabel (Format-CapriInstallProgress) 188 42;
-            $script:fields.warning=Add-CapriLabel (Text-Capri 'installationWarning') 242 28;
+            $script:fields.progressText=Add-CapriLabel (Format-CapriInstallProgress) (188+$progressOffset) 42;
+            $script:fields.warning=Add-CapriLabel (Text-Capri 'installationWarning') (242+$progressOffset) 28;
             $box=New-Object Capri.Setup.Cyberpunk.TextBox;
             $box.Multiline=$true;
             $box.ReadOnly=$true;
             $box.ScrollBars='Vertical';
-            Set-CapriBounds $box (28) (326) (620) (198);
+            Set-CapriBounds $box 28 (326+$progressOffset) 620 $logHeight;
             $box.Anchor='Top,Left,Right';
             $body.Controls.Add($box);
             $script:fields.log=$box;
-            $script:fields.recovery=Add-CapriLabel $(if($script:recovered){Text-Capri 'recovered'}else{''}) 536 76
-            Add-CapriReportButtons 278
+            $script:fields.recovery=Add-CapriLabel $(if($script:recovered){Text-Capri 'recovered'}else{''}) (338+$progressOffset+$logHeight) 76
+            Add-CapriReportButtons (278+$progressOffset)
             if($script:progressView){
                 $script:fields.stage.Text=$script:progressView.stage;$script:fields.progress.Style=$script:progressView.style
                 $script:fields.progress.Value=$script:progressView.value;$script:fields.progressText.Text=$script:progressView.text;$script:fields.log.Text=$script:progressView.log
@@ -789,7 +890,13 @@ function Render-CapriPage{
         7{
             if($script:result){$heading.Text=Text-Capri 'complete';
                 $null=Add-CapriLabel $(if($options.inferenceMode -eq 'api'){Text-Capri 'inferenceSetup'}elseif($options.modelSource -eq 'huggingface'){Text-Capri 'inferenceHuggingFaceSetup'}elseif($script:result.modelsReady){Text-Capri 'ready'}else{Text-Capri 'deferred'}) 95 90;
-                $null=Add-CapriLabel ($options.target+"`n`n"+(Text-Capri 'dataLabel')+': '+(Join-Path $options.target 'data')+"`n"+(Text-Capri 'logsLabel')+': '+(Join-Path $options.target 'logs')) 215 145;
+                $routerUnavailable=$script:result.PSObject.Properties['routerNativeLibraryUnavailable'] -and $script:result.routerNativeLibraryUnavailable
+                if($routerUnavailable){
+                    $routerWarning=if($language -eq 'ru'){'Классификатор запросов недоступен. Для его включения установите Microsoft Visual C++ Redistributable (x64) и повторите установку Capri. Чат доступен.'}else{'The request classifier is unavailable. Install Microsoft Visual C++ Redistributable (x64) and rerun Capri Setup to enable it. Chat is available.'}
+                    $null=Add-CapriLabel $routerWarning 187 62
+                }
+                $pathsTop=if($routerUnavailable){254}else{215}
+                $null=Add-CapriLabel ($options.target+"`n`n"+(Text-Capri 'dataLabel')+': '+(Join-Path $options.target 'data')+"`n"+(Text-Capri 'logsLabel')+': '+(Join-Path $options.target 'logs')) $pathsTop (360-$pathsTop);
                 $launch=Add-CapriCheck 'launch' 389 $script:launchOnFinish
                 $null=Add-CapriInfo 'launch' 389
                 $launch.Anchor='Top,Left,Right'
@@ -832,7 +939,7 @@ function Start-CapriInstall{
         [Windows.Forms.MessageBox]::Show($details,(Text-Capri 'error'),'OK','Warning')|Out-Null
         return
     }
-    Initialize-CapriDefaultTarget $options.target
+    Initialize-CapriProgramFilesTarget $options.target
     if($script:session){Clear-CapriSession}
     $options.updating=Test-CapriUpdateTarget $options.target $version
     $newSession=New-CapriSession
@@ -850,6 +957,43 @@ function Start-CapriInstall{
     $script:cancelRequested=$false;
     $script:page=6;
     Render-CapriPage
+}
+function Clear-CapriCompletionNotice {
+    if($script:completionTimer){$script:completionTimer.Stop();$script:completionTimer.Dispose();$script:completionTimer=$null}
+    if($script:completionTray){$script:completionTray.Visible=$false;$script:completionTray.Dispose();$script:completionTray=$null}
+}
+function Show-CapriCompletionNotice {
+    if(-not $script:result -or $script:failure -or -not $script:session -or $script:completionSession -eq $script:session){return}
+    $script:completionSession=$script:session
+    $script:completionNoticeCount++
+    $script:uiDiagnostics.Record('installation-complete-notification','success')
+    # Fixture runs verify the completion transition without sending false desktop alerts.
+    if($VerificationDirectory){return}
+    if(-not $form.ContainsFocus){[Capri.Setup.Display]::CompletionAttention($form.Handle,$true)}
+    try{
+        Clear-CapriCompletionNotice
+        $script:completionTray=New-Object Windows.Forms.NotifyIcon
+        $script:completionTray.Icon=$form.Icon
+        $label=Text-Capri 'title';$script:completionTray.Text=$label.Substring(0,[Math]::Min(63,$label.Length))
+        $script:completionTray.BalloonTipTitle='CAPRI v'+$version
+        $script:completionTray.BalloonTipText=Text-Capri 'complete'
+        $script:completionTray.BalloonTipIcon='Info'
+        $open={
+            if(-not $form.IsDisposed){if($form.WindowState -eq 'Minimized'){$form.WindowState='Normal'};$form.Show();$form.Activate();$form.BringToFront()}
+            Clear-CapriCompletionNotice
+        }
+        $script:completionTray.Add_BalloonTipClicked($open)
+        $script:completionTray.Add_Click($open)
+        $script:completionTray.Visible=$true
+        $script:completionTray.ShowBalloonTip(15000)
+        $script:completionTimer=New-Object Windows.Forms.Timer
+        $script:completionTimer.Interval=30000
+        $script:completionTimer.Add_Tick({Clear-CapriCompletionNotice})
+        $script:completionTimer.Start()
+    }catch{
+        Clear-CapriCompletionNotice
+        $script:uiDiagnostics.Record('completion-notification-unavailable',$_.Exception.GetType().Name)
+    }
 }
 function Poll-CapriInstall{
     if(-not $script:session){return}
@@ -870,11 +1014,21 @@ function Poll-CapriInstall{
             if($script:fields.recovery.Text){$script:fields.recovery.Text='';Fit-CapriPage}
         }
         $exited=if($script:worker){$script:worker.HasExited}else{-not(Test-CapriWorker $script:session)}
-        if($exited -and $script:eventsCursor.AtEnd){if(-not $script:result -and -not $script:failure){$script:failure=Text-Capri 'workerStopped'};
+        if($exited -and $script:eventsCursor.AtEnd){
+            $exitCode=$null
+            if($script:worker){$exitCode=$script:worker.ExitCode}
+            else{
+                $done=Join-Path $script:session 'worker.done.json'
+                if(Test-Path -LiteralPath $done -PathType Leaf){Assert-CapriNoLinks $done;$exitCode=(Read-CapriJson $done).exitCode}
+            }
+            if($null -ne $exitCode -and $exitCode -ne 0){$script:result=$null}
+            if(-not $script:result -and -not $script:failure){$script:failure=Text-Capri 'workerStopped'};
             if($script:worker){$script:worker.Dispose()}
             $script:worker=$null;
             $script:page=7;
-            Render-CapriPage}
+            Render-CapriPage
+            if($null -ne $exitCode -and $exitCode -eq 0){Show-CapriCompletionNotice}
+        }
     }catch{
         $message=($_|Out-String)
         if($message -ne $script:lastPollError){$script:uiDiagnostics.Record('ui-poll-error',$message);$script:lastPollError=$message}
@@ -941,7 +1095,7 @@ $next.Add_Click({try{
         if($script:page -eq 2){$options.target=Assert-CapriTarget $options.target $sourceRoot (Read-CapriJson (Join-Path $sourceRoot 'package.json')).version;
             Load-CapriRepairSettings}
         if($script:page -eq 3 -and $options.inferenceMode -eq 'local' -and $options.modelSource -ne 'huggingface'){$selected=@($manifest.profiles|Where-Object{$_.id -eq $options.profile})[0];
-            if(-not(Test-CapriProfileRam $hardware.ramGiB (Get-CapriRequiredRam $selected $hardware $memoryEstimates))){throw 'This profile requires more RAM.'}}
+            if($memoryEstimates.models.PSObject.Properties[$selected.id] -and -not(Test-CapriProfileRam $hardware.ramGiB (Get-CapriRequiredRam $selected $hardware $memoryEstimates))){throw 'This profile requires more RAM.'}}
         if($script:page -eq 4 -and $options.voiceMode -in @('bundled','custom')){$options.voicePack=Assert-CapriVoicePack $options.voicePack}
     if($script:page -eq 5 -or ($script:page -eq 7 -and -not $script:result)){Start-CapriInstall;
             return}
@@ -1010,7 +1164,8 @@ $form.Add_VisibleChanged({
         if(-not $form.Visible -and (Test-CapriWorker $script:session)){[Capri.Setup.SessionIO]::Pause($script:session,'ui-window-hidden')}
     }
 })
-$form.Add_FormClosed({param($sender,$eventArgs)$script:uiDiagnostics.Record('form-closed',[string]$eventArgs.CloseReason)})
+$form.Add_Activated({[Capri.Setup.Display]::CompletionAttention($form.Handle,$false)})
+$form.Add_FormClosed({param($sender,$eventArgs)Clear-CapriCompletionNotice;$script:uiDiagnostics.Record('form-closed',[string]$eventArgs.CloseReason)})
 if(-not $VerificationDirectory){
     $area=[Windows.Forms.Screen]::FromPoint([Windows.Forms.Cursor]::Position).WorkingArea
     $form.MinimumSize=New-Object Drawing.Size(([Math]::Min((D 936),$area.Width)),([Math]::Min((D 719),$area.Height)))
@@ -1046,6 +1201,130 @@ if($VerificationDirectory){
     $form.Show();
     [Windows.Forms.Application]::DoEvents()
     if([Capri.Setup.Display]::AppId() -ne 'Capri.Setup'){throw 'The installer taskbar identity is not Capri.Setup.'}
+    if($VerificationFault -eq 'russian-voice-selection'){
+        if(-not $script:bundledRussianVoiceAvailable){throw 'Verification needs the Russian LoRA pack.'}
+        $voiceGpu=$false
+        $options.target=Join-Path $check 'fresh Capri'
+        Load-CapriRepairSettings
+        $script:page=4;Render-CapriPage
+        $conversationPicker=$script:fields.conversationLanguage
+        $voice=$script:fields.voiceMode
+        if($voice.FindString('qwen-ru |') -ge 0){throw 'Russian LoRA was offered for English.'}
+        $conversationPicker.SelectedIndex=$conversationPicker.FindString('ru |')
+        $russianIndex=$voice.FindString('qwen-ru |')
+        if($russianIndex -lt 0 -or $voice.FindString('qwen |') -lt 0){throw 'Russian LoRA or the multilingual Qwen choice is missing.'}
+        if(-not ([string]$voice.Items[$russianIndex]).EndsWith(' / CPU / NVIDIA CUDA')){throw 'Russian LoRA does not show both supported compute options.'}
+        $voice.SelectedIndex=$voice.FindString('qwen |')
+        $baseDisk=$script:fields.storageEstimate.Text
+        $baseMemory=$script:memoryBudget
+        $voice.SelectedIndex=$russianIndex
+        Save-CapriPage
+        if($options.voiceMode -ne 'qwen-ru' -or $options.voicePack -or $options.conversationLanguage -ne 'ru' -or
+           $script:fields.storageEstimate.Text -eq $baseDisk -or $script:memoryBudget.ram.estimate[1] -le $baseMemory.ram.estimate[1] -or
+           $script:memoryBudget.vram.estimate[1] -ne $baseMemory.vram.estimate[1]){throw 'The Russian voice choice was not saved or its budgets are incorrect.'}
+        $script:page=5;Render-CapriPage
+        if(-not $script:reviewSummary.Contains($russianVoiceLabel)){throw 'The Russian voice is missing from the review.'}
+        $upgrade=Join-Path $check 'existing Capri'
+        $cached=Join-Path $upgrade 'data/speech/bundled-voice'
+        [IO.Directory]::CreateDirectory((Split-Path -Parent $cached))|Out-Null
+        Copy-Item -LiteralPath $BundledVoicePack -Destination $cached -Recurse
+        Write-CapriJson (Join-Path $upgrade '.capri-install.json') @{schemaVersion=1;productId='capri.desktop';root=$upgrade;version='1.1.0';installId=[Guid]::NewGuid().ToString()}
+        Write-CapriJson (Join-Path $upgrade 'data/desktop/languages.json') @{schemaVersion=1;settings=@{interface='en';conversation='ru';speech='follow'}}
+        Write-CapriJson (Join-Path $upgrade 'data/speech/voice-selections.json') @{schemaVersion=1;languages=@{ru=$russianVoice.id}}
+        $BundledVoicePack='';$options.target=$upgrade;Load-CapriRepairSettings
+        $script:page=4;Render-CapriPage
+        if((Selected-Capri 'voiceMode') -ne 'qwen-ru'){throw 'An update did not restore the installed Russian LoRA choice.'}
+        $script:fields.conversationLanguage.SelectedIndex=$script:fields.conversationLanguage.FindString('en |')
+        if((Selected-Capri 'voiceMode') -ne 'off' -or $script:fields.voiceMode.FindString('qwen-ru |') -ge 0){throw 'Switching languages left the Russian voice enabled.'}
+        $options.target=Join-Path $check 'without LoRA';Load-CapriRepairSettings
+        $options.conversationLanguage='ru';Render-CapriPage
+        if($script:fields.voiceMode.FindString('qwen-ru |') -ge 0){throw 'The wizard offered an unavailable adapter.'}
+        Write-CapriJson (Join-Path $check 'russian-voice.json') @{passed=$true;checks=@('language-filter','cpu-compatible','cuda-label','storage-and-memory','review','restore-on-upgrade','missing-pack')}
+        $timer.Dispose();$form.Dispose();return
+    }
+    if($VerificationFault -eq 'update-voice-scroll'){
+        if(-not $BundledVoicePack){throw 'Verification needs a compatible Capri voice pack.'}
+        $voiceGpu=$true
+        $upgrade=Join-Path $check 'voice-upgrade'
+        $cached=Join-Path $upgrade 'data/speech/bundled-voice'
+        [IO.Directory]::CreateDirectory((Split-Path -Parent $cached))|Out-Null
+        Copy-Item -LiteralPath $BundledVoicePack -Destination $cached -Recurse
+        Write-CapriJson (Join-Path $upgrade '.capri-install.json') @{schemaVersion=1;productId='capri.desktop';root=$upgrade;version='1.0.4';installId=[Guid]::NewGuid().ToString()}
+        Write-CapriJson (Join-Path $upgrade 'config/core.local.json') @{model='gemma4:e2b';upstreamModel='gemma4:e2b';resourceProfile='balanced'}
+        $languages=Join-Path $upgrade 'data/desktop/languages.json'
+        $options.target=$upgrade
+        foreach($scenario in @('embedded','cached','text-only')){
+            if($scenario -eq 'cached'){$BundledVoicePack=''}
+            $speech=if($scenario -eq 'text-only'){'off'}else{'follow'}
+            Write-CapriJson $languages @{schemaVersion=1;settings=@{interface='en';conversation='en';speech=$speech}}
+            $script:settingsTarget=$null
+            Load-CapriRepairSettings
+            $script:page=4;Render-CapriPage
+            $expected=if($speech -eq 'off'){'off'}else{'bundled'}
+            if((Selected-Capri 'voiceMode') -ne $expected -or
+               -not @($script:fields.voiceMode.Items|Where-Object{$_ -like 'bundled | Chatterbox*'}).Count){throw ('Chatterbox selection failed during update: '+$scenario)}
+            if($scenario -eq 'text-only'){$script:fields.voiceMode.SelectedIndex=1}
+            Save-CapriPage
+            $pack=if($scenario -eq 'embedded'){$BundledVoicePack}else{$cached}
+            if($options.voiceMode -ne 'bundled' -or $options.voicePack -ne $pack){throw ('Update request used the wrong voice pack: '+$scenario)}
+        }
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class CapriSetupScrollVerification {
+    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
+}
+'@
+        $script:page=3;Render-CapriPage
+        $combo=$script:fields.profile
+        $combo.SelectedIndex=2
+        $combo.Focus()|Out-Null
+        $body.AutoScrollMinSize=[Drawing.Size]::new(0,$body.Height+300)
+        $body.AutoScrollPosition=[Drawing.Point]::Empty
+        $index=$combo.SelectedIndex
+        $wheelDown=[IntPtr](-120 -shl 16)
+        [CapriSetupScrollVerification]::SendMessage($combo.Handle,0x020A,$wheelDown,[IntPtr]::Zero)|Out-Null
+        if($combo.SelectedIndex -ne $index -or $body.AutoScrollPosition.Y -ge 0){throw 'Wheel over a model picker must scroll the page without changing the model.'}
+        $body.AutoScrollPosition=[Drawing.Point]::Empty
+        $combo.DroppedDown=$true
+        if(-not $combo.DroppedDown){throw 'The model list did not open for scroll verification.'}
+        [CapriSetupScrollVerification]::SendMessage($body.Handle,0x020A,$wheelDown,[IntPtr]::Zero)|Out-Null
+        if($combo.DroppedDown -or $combo.SelectedIndex -ne $index -or $body.AutoScrollPosition.Y -ge 0){throw 'Wheel scrolling left the model popup open or changed the model.'}
+        $body.AutoScrollPosition=[Drawing.Point]::Empty
+        $combo.DroppedDown=$true
+        [CapriSetupScrollVerification]::SendMessage($body.Handle,0x0115,[IntPtr]1,[IntPtr]::Zero)|Out-Null
+        if($combo.DroppedDown -or $combo.SelectedIndex -ne $index -or $body.AutoScrollPosition.Y -ge 0){throw 'Scrollbar scrolling left the model popup open or changed the model.'}
+        [CapriSetupScrollVerification]::SendMessage($combo.Handle,0x0100,[IntPtr]0x28,[IntPtr]1)|Out-Null
+        if($combo.SelectedIndex -ne $index+1){throw 'Keyboard model selection no longer works.'}
+        Write-CapriJson (Join-Path $check 'update-voice-scroll.json') @{passed=$true;voice=@('embedded','cached','text-only');scroll=@('wheel over model','wheel with popup open','scrollbar with popup open');installationStarted=$false}
+        $form.Close();$timer.Dispose();return
+    }
+    if($VerificationFault -eq 'completion'){
+        $timer.Stop()
+        $checks=@()
+        foreach($case in @('complete','failed','cancelled','complete-then-failed')){
+            $options.target=Join-Path $check ('fixture-'+$case)
+            $folder=New-CapriSession;Open-CapriSession $folder;Render-CapriPage
+            $events=if($case -eq 'complete-then-failed'){@(@{type='complete';modelsReady=$true})}else{@(@{type=$case;modelsReady=$true;message='Synthetic setup failure'})}
+            [IO.File]::WriteAllLines((Join-Path $folder 'events.jsonl'),[string[]]@($events|ForEach-Object{$_|ConvertTo-Json -Compress}))
+            Write-CapriJson (Join-Path $folder 'worker.done.json') @{exitCode=$(if($case -eq 'complete'){0}else{1})}
+            $before=$script:completionNoticeCount
+            if($case -eq 'complete'){
+                Write-CapriJson (Join-Path $folder 'worker.json') @{pid=$PID;stamp=[Capri.Setup.SessionIO]::Stamp($PID)}
+                Poll-CapriInstall
+                if($script:page -ne 6 -or $script:completionNoticeCount -ne $before){throw 'Completion notice appeared before the worker exited.'}
+                Remove-Item -LiteralPath (Join-Path $folder 'worker.json')
+            }
+            Poll-CapriInstall;Poll-CapriInstall;Show-CapriCompletionNotice
+            $expected=if($case -eq 'complete'){1}else{0}
+            if($script:page -ne 7 -or $script:completionNoticeCount-$before -ne $expected){throw ('Incorrect completion notice: '+$case)}
+            if($case -eq 'complete' -and $script:fields.heading.Text -ne (Text-Capri 'complete')){throw 'Completion did not retain its localized finish page.'}
+            $checks+=@{case=$case;notifications=$expected;finishPage=$script:page}
+            Clear-CapriSession
+        }
+        Write-CapriJson (Join-Path $check 'completion.json') @{passed=$true;checks=$checks;noticeText=(Text-Capri 'complete');desktopAlertsSent=$false}
+        $form.Close();$timer.Dispose();return
+    }
     if($VerificationFault -eq 'report-export'){
         $script:page=6;Render-CapriPage;Update-CapriDownloadProgress ([pscustomobject]@{received=1024;total=$null})
         if($script:fields.progress.Style -ne 'Continuous' -or $script:installProgress.value -ne 0 -or -not $script:installProgress.transfer){throw 'Unknown download size did not retain overall progress and transfer text.'}
@@ -1165,8 +1444,7 @@ if($VerificationDirectory){
             Render-CapriPage;
             if($form.Text -cne $translations.$language.title){throw ('Installer title was not translated: '+$language)}
             if($number -eq 2 -and $language -eq $verificationIds[0]){
-                $defaultTarget=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Capri'
-                if($script:fields.target.Text -ne $defaultTarget){throw 'A new installation must default to Program Files.'}
+                if($script:fields.target.Text -ne (Get-CapriDefaultTarget)){throw 'A new installation must default to the current user folder.'}
                 $older=Join-Path $check 'older Capri'
                 $previous=Join-Path $check 'previous Capri'
                 foreach($entry in @(@($older,'0.0.1'),@($previous,'0.0.2'))){
@@ -1186,9 +1464,55 @@ if($VerificationDirectory){
                 if($script:fields.existing.SelectedIndex -lt 0 -or -not $script:fields.existing.Text.StartsWith('v0.0.1 | ')){
                     throw 'Typing the previous path did not select its existing installation.'
                 }
-                $options.target=$defaultTarget
+                $options.target=Get-CapriDefaultTarget
                 $script:installations=@()
                 Render-CapriPage
+            }
+            if($number -eq 3 -and $language -eq $verificationIds[0]){
+                $beforeModelOptions=$options.Clone();$beforeSettingsTarget=$script:settingsTarget;$beforeCustomConversation=$script:customConversation
+                $upgrade=Join-Path $check 'model-upgrade'
+                Write-CapriJson (Join-Path $upgrade '.capri-install.json') @{schemaVersion=1;productId='capri.desktop';root=$upgrade;version='1.0.0';installId=[Guid]::NewGuid().ToString()}
+                Write-CapriJson (Join-Path $upgrade 'config/core.local.json') @{model='gemma4:e2b';upstreamModel='gemma4:e2b';resourceProfile='balanced'}
+                Write-CapriJson (Join-Path $upgrade 'data/model-inventory.json') @{models=@(@{name='gemma4:e2b'},@{name='capri-qwen3.5:2b'},@{name='capri-embed:latest'})}
+                Write-CapriJson (Join-Path $upgrade 'data/desktop/languages.json') @{schemaVersion=1;settings=@{interface='en';conversation='en';speech='off'}}
+                try{
+                    $options.target=$upgrade;Load-CapriRepairSettings;Render-CapriPage
+                    if(-not $script:fields.profile.Enabled -or (Selected-Capri 'profile') -ne 'gemma4-e2b'){throw 'Update must select the actual current model and leave its picker enabled.'}
+                    $downloaded=@($script:fields.profile.Items|Where-Object{([string]$_).Contains((Text-Capri 'modelInstalled'))})
+                    if($downloaded.Count -ne 2 -or -not $script:fields.profile.Text.Contains((Text-Capri 'modelCurrent'))){throw 'Installed and current model badges are incomplete.'}
+                    $script:fields.profile.DroppedDown=$true;[Windows.Forms.Application]::DoEvents();$script:fields.profile.DroppedDown=$false
+                    $modelCheck=Join-Path $check 'update-models';[IO.Directory]::CreateDirectory($modelCheck)|Out-Null
+                    $bitmap=New-Object Drawing.Bitmap($form.Width,$form.Height)
+                    try{$form.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$form.Width,$form.Height)));$bitmap.Save((Join-Path $modelCheck 'hardware.png'))}finally{$bitmap.Dispose()}
+                    $script:fields.profile.SelectedIndex=3;Save-CapriPage
+                    if($options.profile -ne 'quality'){throw 'Update did not retain the requested new model.'}
+                    Render-CapriPage
+                    if((Selected-Capri 'profile') -ne 'quality' -or -not $script:fields.profile.Enabled){throw 'Returning to Hardware lost the new model choice.'}
+                    Write-CapriJson (Join-Path $modelCheck 'result.json') @{passed=$true;current='gemma4-e2b';selected=$options.profile;downloaded=$downloaded.Count}
+                    if(-not $script:fields.conversationLanguage.Enabled -or (Selected-Capri 'conversationLanguage') -ne 'en'){throw 'Update must preselect the installed conversation language and leave it editable.'}
+                    $choice=$script:fields.conversationLanguage
+                    $choice.SelectedIndex=$choice.FindString('ru |')
+                    Save-CapriPage
+                    $script:page=4;Render-CapriPage
+                    if(-not $script:fields.conversationLanguage.Enabled -or (Selected-Capri 'conversationLanguage') -ne 'ru' -or -not $script:fields.interfaceLanguage.Enabled){throw 'Update Components lost the editable Russian language choice.'}
+                    $choice=$script:fields.conversationLanguage
+                    $choice.SelectedIndex=$choice.FindString('en |')
+                    $choice.SelectedIndex=$choice.FindString('ru |')
+                    $choice=$script:fields.interfaceLanguage
+                    $choice.SelectedIndex=$choice.FindString('ru |')
+                    Save-CapriPage
+                    if($options.conversationLanguage -ne 'ru' -or $options.interfaceLanguage -ne 'ru'){throw 'Update request lost the selected language values.'}
+                    $script:page=5;Render-CapriPage
+                    if(-not $script:fields.reviewSummary.Text.Contains(': ru')){throw 'Review did not show the changed languages.'}
+                    Write-CapriJson (Join-Path $modelCheck 'languages.json') @{passed=$true;interface=$options.interfaceLanguage;conversation=$options.conversationLanguage}
+                }finally{
+                    $script:page=3
+                    foreach($key in @($options.Keys)){if(-not $beforeModelOptions.ContainsKey($key)){$options.Remove($key)}}
+                    foreach($key in $beforeModelOptions.Keys){$options[$key]=$beforeModelOptions[$key]}
+                    $script:settingsTarget=$beforeSettingsTarget;$script:currentModelProfile=$null;$script:customConversation=$beforeCustomConversation
+                    $manifest.profiles=@(Get-CapriSetupModels $options.target $script:catalogProfiles)
+                    Render-CapriPage
+                }
             }
             $helpButtons=@($body.Controls|Where-Object{$_.Name -like 'info-*'})
             if(-not $helpButtons.Count -or @($helpButtons|Where-Object{$_.AccessibleDescription.Length -lt 12}).Count){
@@ -1232,6 +1556,7 @@ if($VerificationDirectory){
                         if($options.profile -ne $model.id){throw ('Selected model was not saved: '+$model.id)}
                         $script:page=5
                         Render-CapriPage
+                        Update-CapriDiskReview -Available $script:reviewStorage.requiredBytes
                         if(-not $script:fields.reviewSummary.Text.Contains($estimate) -or
                            -not $script:fields.reviewSummary.Text.Contains($model.model)){throw ('Review lost the selected model or disk estimate: '+$model.id)}
                         $script:page=3
@@ -1343,12 +1668,35 @@ if($VerificationDirectory){
                     throw ('Review rows overlap or have excessive spacing: '+$language)
                 }
                 $script:fields.consent.Checked=$true
-                Update-CapriDiskReview -Available ($script:reviewStorage.requiredBytes-1)
-                if($next.Enabled -or -not $script:fields.reviewSummary.Text.Contains((Text-Capri 'diskSpaceError'))){
-                    throw 'Insufficient space must block installation and show the warning.'
+                $lowSpace=[long]($script:reviewStorage.requiredBytes/3)
+                Update-CapriDiskReview -Available $lowSpace
+                Fit-CapriPage
+                $warning=$script:fields.diskWarning
+                if($next.Enabled -or -not $warning.Visible -or
+                   -not $warning.Text.StartsWith((Text-Capri 'diskSpaceError')) -or
+                   -not $warning.Text.Contains((Format-CapriAvailableDisk $options.target $lowSpace)) -or
+                   -not $warning.Text.Contains((Format-CapriGiB $script:reviewStorage.requiredBytes)) -or
+                   $warning.Top -lt $script:fields.heading.Bottom -or $warning.Bottom -gt $script:fields.reviewSummary.Top -or
+                   $warning.Right -gt $body.ClientSize.Width -or $warning.Bottom -gt $body.ClientSize.Height){
+                    throw ('Insufficient disk space must block installation and display a fully visible alert above the review details: '+$language)
+                }
+                if($language -eq $verificationIds[0]){
+                    $alertCheck=Join-Path $check 'disk-space'
+                    [IO.Directory]::CreateDirectory($alertCheck)|Out-Null
+                    $image=New-Object Drawing.Bitmap($form.Width,$form.Height)
+                    try{$form.DrawToBitmap($image,(New-Object Drawing.Rectangle(0,0,$form.Width,$form.Height)));$image.Save((Join-Path $alertCheck ($language+'.png')))}
+                    finally{$image.Dispose()}
+                }
+                Update-CapriDiskReview -Available $null
+                if($next.Enabled -or -not $warning.Text.StartsWith((Format-CapriAvailableDisk $options.target $null))){
+                    throw ('An unavailable disk probe must keep installation blocked: '+$language)
                 }
                 Update-CapriDiskReview -Available $script:reviewStorage.requiredBytes
-                if(-not $next.Enabled){throw 'Setup did not enable installation after space was freed.'}
+                Fit-CapriPage
+                $headingGap=$script:fields.reviewSummary.Top-$script:fields.heading.Bottom
+                if(-not $next.Enabled -or $warning.Visible -or $headingGap -lt (D 8) -or $headingGap -gt (D 16)){
+                    throw ('Setup did not clear the warning and enable installation after space was freed: '+$language)
+                }
                 $script:fields.consent.Checked=$options.acceptDownloads
             }
             if($number -eq 7 -and $language -eq $verificationIds[0]){
@@ -1385,6 +1733,11 @@ if($VerificationDirectory){
             }
             if($number -eq 3){Write-CapriJson (Join-Path $check ($language+'-models.json')) @{items=@($script:fields.profile.Items);index=$script:fields.profile.SelectedIndex;text=$script:fields.profile.Text}}
             if($number -eq 0){Write-CapriJson (Join-Path $check ($language+'-selection.json')) @{items=@($script:fields.installerLanguage.Items);index=$script:fields.installerLanguage.SelectedIndex;text=$script:fields.installerLanguage.Text}}
+        if($number -eq 6){
+            $script:fields.progress.Value=76
+            $script:fields.progressText.Text=(Text-Capri 'progressOverall') -f 76
+            Fit-CapriPage
+        }
         $image=New-Object Drawing.Bitmap($form.Width,$form.Height);
             $form.DrawToBitmap($image,(New-Object Drawing.Rectangle(0,0,$form.Width,$form.Height)));
             $image.Save((Join-Path $check ($language+'-'+$number+'.png')));

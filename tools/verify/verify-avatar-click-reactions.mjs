@@ -661,11 +661,10 @@ try {
         window.capriAvatarDetach.setMouth('wide');
         window.capriAvatarDetach.pulse({ x: 100, y: 100, count: 1, tone: 'boundary' });
       });
-      await overlay.locator('.avatar-grip-face[data-frame="boundary"]').waitFor();
+      const expression = overlay.locator('.avatar-headpat-plate[data-expression="boundary"]');
+      await expression.waitFor();
       assert.equal(
-        await overlay
-          .locator('.avatar-grip-face')
-          .evaluate((face) => getComputedStyle(face).visibility),
+        await expression.evaluate((face) => getComputedStyle(face).visibility),
         'visible',
       );
       assert.equal(await overlay.locator('.avatar-mouth-plate').isVisible(), true);

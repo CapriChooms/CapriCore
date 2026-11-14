@@ -43,7 +43,10 @@ export class VoiceModelPanel {
       <label for="voice-model-language">Voice language</label><select id="voice-model-language"></select>
       <label for="voice-model-choice">Voice model</label><select id="voice-model-choice"></select>
       <p id="voice-model-details" class="settings-help"></p>
-      <div class="settings-actions"><button id="voice-model-install" type="button">Download voice model</button><button id="voice-model-install-cancel" type="button" hidden>Cancel download</button><button id="voice-model-select" type="button">Use this voice model</button></div>
+      <div class="settings-actions"><button id="voice-model-install" type="button">Download voice model</button><button id="voice-model-install-cancel" type="button" hidden>Cancel download</button><button id="voice-model-select" type="button">Use this voice model</button><button id="voice-model-cuda" type="button" hidden>Install NVIDIA acceleration</button></div>
+      <p id="voice-model-cuda-help" class="settings-help" hidden></p>
+      <div id="voice-model-rocm-actions" class="settings-actions" hidden><button id="voice-model-rocm" type="button">Install AMD ROCm acceleration</button></div>
+      <p id="voice-model-rocm-help" class="settings-help" hidden></p>
       <p id="voice-model-install-status" role="status" aria-live="polite"></p>
       <button id="voice-model-cpu-alternative" type="button" data-untranslated hidden></button>
       <h4>Capri voice training</h4>
@@ -90,6 +93,12 @@ export class VoiceModelPanel {
       language: this.get('language').value,
     });
     action('select', async () => this.show(await api.selectVoiceModel(selection())));
+    action('cuda', async () =>
+      this.show(await api.installVoiceModel({ ...selection(), cuda: true })),
+    );
+    action('rocm', async () =>
+      this.show(await api.installVoiceModel({ ...selection(), rocm: true })),
+    );
     action('install', async () => {
       const model = this.value.models.find((item) => item.id === selection().modelId);
       if (model.backend === 'qwen3-tts') this.show(await api.installVoiceModel(selection()));
@@ -174,9 +183,38 @@ export class VoiceModelPanel {
     this.get('install').disabled = busy || !model || model.installed;
     this.get('install').hidden = Boolean(model?.installed);
     this.get('install-cancel').hidden = !installing;
+    const russianVoiceInstalled = model?.installed && model.id === 'qwen3-tts-1.7b-capri-ru';
+    const accelerated = russianVoiceInstalled && this.value.russianQwenCudaReady;
+    const qwen = model?.backend === 'qwen3-tts';
+    const rocmInstalled = qwen && this.value.qwenRocmReady;
+    const rocmOffered = qwen && this.value.qwenRocmSupported;
+    this.get('rocm-actions').hidden = !model?.installed || !rocmOffered || rocmInstalled;
+    this.get('rocm').disabled = busy;
+    this.get('rocm-help').hidden = !rocmInstalled && !rocmOffered;
+    this.get('rocm-help').textContent = this.ui.text(
+      rocmInstalled
+        ? 'AMD ROCm is installed. Select a Radeon GPU or Automatic in Model devices.'
+        : 'AMD ROCm requires Windows 11, a supported Radeon GPU, a compatible AMD driver and 12 GiB of free disk space.',
+    );
+    this.get('cuda').hidden = !russianVoiceInstalled || accelerated;
+    this.get('cuda').disabled = busy;
+    this.get('cuda-help').hidden = !russianVoiceInstalled;
+    this.get('cuda-help').textContent = this.ui.text(
+      accelerated
+        ? 'NVIDIA acceleration is installed. Automatic uses the GPU when at least 6 GiB of VRAM are free. Choose CPU in Model devices to keep using the CPU.'
+        : 'Optional NVIDIA acceleration needs a GPU with BF16 support and 12 GiB of free disk space.',
+    );
     this.get('import').disabled = busy;
+    const identity = model?.training
+      ? this.ui.text('Fine-tuning supported')
+      : model?.voiceIdentity === 'trained-capri-adapter'
+        ? 'LoRA'
+        : this.ui.text('Capri reference voice');
+    const devices = qwen
+      ? ['CPU', ...(accelerated ? ['NVIDIA CUDA'] : []), ...(rocmInstalled ? ['AMD ROCm'] : [])]
+      : model?.devices;
     this.get('details').textContent = model
-      ? `${model.repository} · ${this.ui.text(model.installed ? 'Installed' : 'Not installed')} · ${this.ui.text(model.training ? 'Fine-tuning supported' : 'Capri reference voice')} · ${model.devices.join(' / ')}${model.downloadBytes ? ` · ${this.ui.text('Model weights')} ≈ ${(model.downloadBytes / 1e9).toFixed(2)} GB` : ''}${model.minimumFreeBytes ? ` · ${this.ui.text('Required free space')} ≈ ${(model.minimumFreeBytes / 1e9).toFixed(1)} GB` : ''}${model.backend === 'qwen3-tts' ? '. ' + this.ui.text('CPU speech is experimental and can be slower than real time.') : ''}`
+      ? `${model.repository} · ${this.ui.text(model.installed ? 'Installed' : 'Not installed')} · ${identity} · ${devices.join(' / ')}${model.downloadBytes ? ` · ${this.ui.text('Model weights')} ≈ ${(model.downloadBytes / 1e9).toFixed(2)} GB` : ''}${model.minimumFreeBytes ? ` · ${this.ui.text('Required free space')} ≈ ${(model.minimumFreeBytes / 1e9).toFixed(1)} GB` : ''}${qwen && !accelerated && !rocmInstalled ? '. ' + this.ui.text('CPU speech is experimental and can be slower than real time.') : ''}`
       : '';
     const trainable = model?.id === 'chatterbox-turbo' && language === 'en';
     this.get('train').disabled = busy || !trainable || !this.training?.available;
@@ -196,21 +234,53 @@ export class VoiceModelPanel {
       checking: 'Checking speech components…',
       python: 'Preparing speech installer…',
       'voice-pack': 'Preparing Capri’s included voice…',
-      dependencies: 'Installing voice dependencies…',
+      dependencies: install.cuda
+        ? 'Unpacking and installing NVIDIA packages…'
+        : install.rocm
+          ? 'Unpacking and installing AMD ROCm packages…'
+          : 'Installing voice dependencies…',
+      'cuda-prepare': 'Checking cached NVIDIA packages…',
+      'cuda-connect': 'Connecting to the NVIDIA package source…',
+      'cuda-download': 'Downloading NVIDIA packages…',
+      'cuda-retry': 'NVIDIA download interrupted. Retrying…',
+      'rocm-prepare': 'Checking cached AMD ROCm packages…',
+      'rocm-connect': 'Connecting to the AMD ROCm package source…',
+      'rocm-download': 'Downloading AMD ROCm packages…',
+      'rocm-retry': 'AMD ROCm download interrupted. Retrying…',
       'voice-runtime': 'Installing voice dependencies…',
       'voice-models': 'Downloading multilingual voice…',
-      verify: 'Checking voice files…',
+      verify: install.cuda
+        ? 'Verifying NVIDIA acceleration…'
+        : install.rocm
+          ? 'Verifying AMD ROCm acceleration…'
+          : 'Checking voice files…',
     };
     this.get('install-status').textContent = this.ui.text(
       install.error ??
         (install.phase === 'installing'
           ? (stages[install.stage] ?? 'Downloading voice model…')
           : install.phase === 'ready'
-            ? 'Voice model installed.'
+            ? install.cuda
+              ? 'NVIDIA acceleration is installed.'
+              : install.rocm
+                ? 'AMD ROCm is installed.'
+                : 'Voice model installed.'
             : ''),
     );
     const progress = voiceModelInstallProgress(install);
-    if (progress !== null) this.get('install-status').textContent += ` ${Math.round(progress)}%`;
+    if (progress !== null) {
+      const { received, total } = install.progress;
+      if (
+        (install.cuda || install.rocm) &&
+        Number.isSafeInteger(received) &&
+        Number.isSafeInteger(total)
+      ) {
+        const format = new Intl.NumberFormat(this.ui.language, { maximumFractionDigits: 2 });
+        this.get('install-status').textContent +=
+          ` ${format.format(received / 2 ** 30)} / ${format.format(total / 2 ** 30)} GiB`;
+      }
+      if (progress >= 1) this.get('install-status').textContent += ` · ${Math.floor(progress)}%`;
+    }
     this.get('cpu-alternative').textContent =
       this.ui.text('Voice model') + ' · Qwen3-TTS · CPU (BETA)';
     this.get('cpu-alternative').title = this.ui.text(

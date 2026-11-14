@@ -12,7 +12,12 @@ import {
 import { LANGUAGE_PACKS } from './renderer/language-settings.mjs';
 export { SentenceBuffer, spokenText, MAX_SPEECH_SENTENCE } from './renderer/speech-text.mjs';
 
+const VOICE_LANGUAGE_MISMATCH = 'CAPRI_VOICE_LANGUAGE_MISMATCH';
+const VOICE_LANGUAGE_WARNING =
+  'The English voice cannot read this response language. Text replies remain available.';
+const VOICE_START_WARNING = 'Capri’s voice could not start. Text replies are still available.';
 const voiceFailureCodes = new Set([
+  VOICE_LANGUAGE_MISMATCH,
   'CAPRI_VOICE_SPEECH_LIMIT',
   'CAPRI_VOICE_CUDA_OOM',
   'CAPRI_VOICE_MODEL_MISSING',
@@ -44,11 +49,20 @@ async function voiceHttpFailure(response) {
 
 /** Turn-scoped sentence queue. Text replies never wait for synthesis. */
 export class VoiceService {
-  constructor({ url, headers, emit, fetchImpl = fetch, enabled = true, language = 'en' }) {
+  constructor({
+    url,
+    headers,
+    emit,
+    fetchImpl = fetch,
+    enabled = true,
+    language = 'en',
+    external,
+    ensureReady,
+  }) {
     const endpoint = new URL(url);
     if (endpoint.protocol !== 'http:' || endpoint.hostname !== '127.0.0.1')
       throw new Error('Voice service must use loopback');
-    Object.assign(this, { url, headers, emit, fetchImpl, enabled });
+    Object.assign(this, { url, headers, emit, fetchImpl, enabled, external, ensureReady });
     this.turn = null;
     this.ready = false;
     this.running = false;
@@ -61,6 +75,7 @@ export class VoiceService {
       ready: this.ready && this.language !== 'off',
       language: this.language,
       error: this.error,
+      source: this.external?.config.enabled ? 'api' : 'local',
     };
   }
   diagnostics() {
@@ -106,6 +121,12 @@ export class VoiceService {
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(600000)]);
     this.setReady(false);
     try {
+      if (this.external?.config.enabled) {
+        await this.external.prepare();
+        if (this.prepareController === controller && this.language === language && !signal.aborted)
+          this.setReady(true);
+        return;
+      }
       let response;
       do {
         response = await this.fetchImpl(`${this.url}/prepare`, {
@@ -137,9 +158,11 @@ export class VoiceService {
         this.emit({ type: 'voice.settings', ...this.snapshot() });
         this.emit({
           type: 'voice.error',
-          message: error.message.includes('Multilingual voice')
+          message: this.external?.config.enabled
             ? error.message
-            : 'The selected voice could not start. Text replies remain available. Check setup-multilingual.cmd.',
+            : error.message.includes('Multilingual voice')
+              ? error.message
+              : 'The selected voice could not start. Text replies remain available. Check setup-multilingual.cmd.',
         });
       }
     } finally {
@@ -176,7 +199,7 @@ export class VoiceService {
     if (turn) {
       turn.controller.abort();
       this.turn = null;
-      if (turn.requestId)
+      if (turn.requestId && !turn.external)
         this.fetchImpl(`${this.url}/cancel`, {
           method: 'POST',
           headers: { ...this.headers(), 'content-type': 'application/json' },
@@ -192,10 +215,11 @@ export class VoiceService {
   beginTurn(turnId, preview = false) {
     this.cancel();
     if (this.error && !this.ready) return;
-    if ((this.enabled || preview) && this.language !== 'off')
-      this.turn = {
+    if ((this.enabled || preview) && this.language !== 'off') {
+      const turn = (this.turn = {
         id: turnId,
         language: this.language,
+        external: this.external?.config.enabled === true,
         controller: new AbortController(),
         buffer: new SentenceBuffer(),
         queue: [],
@@ -204,7 +228,27 @@ export class VoiceService {
         segments: 0,
         started: performance.now(),
         timing: currentResponseTiming(),
-      };
+      });
+      if (!this.ready && this.ensureReady) {
+        // Start beside text generation and give the renderer the turn before a
+        // startup failure or a fast provider can publish voice events for it.
+        void Promise.resolve().then(async () => {
+          if (this.turn !== turn || this.ready || this.prepareController) return;
+          try {
+            await this.ensureReady();
+          } catch {
+            // The host handles startup diagnostics and may already have failed this turn.
+          }
+          if (this.turn === turn && !this.ready && !this.prepareController) {
+            // A busy installer or another temporary blocker can make the host
+            // decline startup. Complete only this turn's voice path so the next
+            // reply can try again without requiring a speaker toggle.
+            this.cancel();
+            this.emit({ type: 'voice.error', turnId: turn.id, message: VOICE_START_WARNING });
+          }
+        });
+      }
+    }
   }
   preview(turnId, text) {
     if (!this.ready || this.language === 'off')
@@ -279,15 +323,19 @@ export class VoiceService {
           if (turn.final) this.emit({ type: 'voice.generated', turnId: turn.id });
           break;
         }
+        if (!turn.external && speechLanguageMismatch(text, turn.language)) {
+          if (!turn.languageWarning) {
+            turn.languageWarning = true;
+            this.recordFailure(
+              Object.assign(new Error(VOICE_LANGUAGE_WARNING), { code: VOICE_LANGUAGE_MISMATCH }),
+              'synthesis',
+            );
+            this.emit({ type: 'voice.warning', turnId: turn.id, message: VOICE_LANGUAGE_WARNING });
+          }
+          continue;
+        }
         try {
           const started = Date.now();
-          if (speechLanguageMismatch(text, turn.language))
-            throw Object.assign(
-              new Error(
-                'The English voice cannot read this response language. Choose the matching conversation and voice language in Languages. Text replies remain available.',
-              ),
-              { code: 'SPEECH_LANGUAGE_MISMATCH' },
-            );
           turn.requestId = `${turn.id}:${turn.sequence}`;
           if (turn.sequence === 0 && turn.timing)
             markResponseTiming(
@@ -296,18 +344,21 @@ export class VoiceService {
               { turn: turn.timing },
             );
           let response;
-          do {
-            response = await this.fetchImpl(`${this.url}/synthesize`, {
-              method: 'POST',
-              headers: { ...this.headers(), 'content-type': 'application/json' },
-              body: JSON.stringify({ text, language: turn.language, requestId: turn.requestId }),
-              redirect: 'error',
-              signal: AbortSignal.any([turn.controller.signal, AbortSignal.timeout(90000)]),
-            });
-            if (response.status !== 409) break;
-            await response.body?.cancel();
-            await delay(50, undefined, { signal: turn.controller.signal });
-          } while (Date.now() - started < 90000);
+          if (turn.external) {
+            response = await this.external.synthesize({ text, signal: turn.controller.signal });
+          } else
+            do {
+              response = await this.fetchImpl(`${this.url}/synthesize`, {
+                method: 'POST',
+                headers: { ...this.headers(), 'content-type': 'application/json' },
+                body: JSON.stringify({ text, language: turn.language, requestId: turn.requestId }),
+                redirect: 'error',
+                signal: AbortSignal.any([turn.controller.signal, AbortSignal.timeout(90000)]),
+              });
+              if (response.status !== 409) break;
+              await response.body?.cancel();
+              await delay(50, undefined, { signal: turn.controller.signal });
+            } while (Date.now() - started < 90000);
           if (!response.ok) throw await voiceHttpFailure(response);
           if (
             response.headers.get('content-type') !== 'application/octet-stream' ||
@@ -359,12 +410,11 @@ export class VoiceService {
             this.cancel();
             this.emit({
               type: 'voice.error',
-              message:
-                error.code === 'CAPRI_VOICE_SPEECH_LIMIT'
+              message: turn.external
+                ? error.message
+                : error.code === 'CAPRI_VOICE_SPEECH_LIMIT'
                   ? 'This sentence could not be spoken. Voice is still ready.'
-                  : error.code === 'SPEECH_LANGUAGE_MISMATCH'
-                    ? error.message
-                    : 'Capri’s voice is unavailable. Text replies are still available.',
+                  : 'Capri’s voice is unavailable. Text replies are still available.',
             });
             console.error('Voice request failed:', error.message);
           }

@@ -1,13 +1,25 @@
 {
   "schemaVersion": 1,
   "contextTokens": 32768,
-  "basis": "Planning ranges for the bundled quantized models, one active conversation. Not measured guarantees; loading, long audio and image analysis may peak higher.",
-  "base": { "ram": [2, 4], "vram": [0.2, 1.2] },
+  "basis": "Resident planning ranges for one conversation at 32K with flash attention and q8_0 KV cache, CPU memory embeddings, reference-encoder release and FP16 multilingual T3. Loading, long audio and image analysis may peak higher; these are not guarantees or CPU/GPU utilization percentages.",
+  "voiceDecoderPromotionGiB": 2.5,
+  "base": { "ram": [2, 3.5], "vram": [0.1, 0.5] },
   "recognitionEnglish": { "ram": [1, 3], "vram": [0, 0] },
   "recognitionMultilingual": { "ram": [2, 5], "vram": [0, 0] },
-  "voiceEnglish": { "ram": [2, 4], "vram": [2.5, 4] },
-  "voiceMultilingual": { "ram": [3, 6], "vram": [3, 6] },
+  "voiceEnglish": {
+    "ram": [1.5, 2.8],
+    "vram": [2.4, 3.5],
+    "cpuRam": [3, 4.5],
+    "cpuDecoder": { "ram": [2.1, 3.5], "vram": [1.9, 2.5] }
+  },
+  "voiceMultilingual": {
+    "ram": [1.8, 3],
+    "vram": [1.5, 2.5],
+    "cpuRam": [3.5, 5.5],
+    "cpuDecoder": { "ram": [2.4, 4], "vram": [1.05, 1.8] }
+  },
   "voiceQwenCpu": { "ram": [4, 8], "vram": [0, 0] },
+  "voiceQwenRussianCpu": { "ram": [6, 12], "vram": [0, 0] },
   "router": { "ram": [0.1, 0.5], "vram": [0, 0] },
   "models": {
     "minimal": {
@@ -16,9 +28,14 @@
       "hostRam": [0.5, 1],
       "gpuSystemRamGiB": 8
     },
-    "balanced": { "vram": [2.8, 4], "cpuRam": [3, 5], "hostRam": [0.5, 1.5], "gpuSystemRamGiB": 8 },
+    "balanced": {
+      "vram": [2.6, 3.4],
+      "cpuRam": [3, 4.5],
+      "hostRam": [0.5, 1.5],
+      "gpuSystemRamGiB": 8
+    },
     "desktop": { "vram": [4, 6], "cpuRam": [4.5, 7], "hostRam": [1, 2], "gpuSystemRamGiB": 12 },
-    "quality": { "vram": [7, 10], "cpuRam": [8, 12], "hostRam": [1.5, 3], "gpuSystemRamGiB": 16 },
+    "quality": { "vram": [6, 7.5], "cpuRam": [7, 9], "hostRam": [0.8, 1.8], "gpuSystemRamGiB": 16 },
     "ministral-3-3b": {
       "vram": [3.5, 6],
       "cpuRam": [4, 7],

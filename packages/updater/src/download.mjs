@@ -2,15 +2,16 @@
 import { resumableArtifact } from '../../installer/src/resumable-download.mjs';
 import { fileHash } from '../../installer/src/download.mjs';
 import { approvedUrl, assetUrl, githubFetch } from './github.mjs';
-/** Public API asset -> approved CDN. Range retries retain verified partial bytes. */
+import { REPOSITORY } from './releases.mjs';
+/** GitHub API asset -> approved CDN. Range retries retain verified partial bytes. */
 export async function downloadUpdate(
   asset,
   folder,
-  { token, signal, progress = () => {}, fetchImpl = fetch } = {},
+  { token, repository = REPOSITORY, signal, progress = () => {}, fetchImpl = fetch } = {},
 ) {
-  const request = githubFetch({ token, fetchImpl, allowAnonymousFallback: true });
+  const request = githubFetch({ token, repository, fetchImpl, allowAnonymousFallback: true });
   return resumableArtifact(
-    { url: assetUrl(asset.id), sha256: asset.sha256, bytes: asset.bytes },
+    { url: assetUrl(asset.id, repository), sha256: asset.sha256, bytes: asset.bytes },
     folder,
     {
       signal,
@@ -25,6 +26,6 @@ export async function downloadUpdate(
           headers: { ...options.headers, accept: 'application/octet-stream' },
         }),
     },
-    { artifactUrl: approvedUrl, fileHash },
+    { artifactUrl: (url) => approvedUrl(url, repository), fileHash },
   );
 }

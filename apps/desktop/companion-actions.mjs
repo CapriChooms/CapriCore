@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import path from 'node:path';
+import { CapriCore } from '../../packages/core/src/index.mjs';
+import {
+  ACTION_SKILLS,
+  isUserToolAlias,
+  registerActionToolSkills,
+} from '../../packages/skills/src/action-tools.mjs';
+import { timerClient, timerSkill } from '../../packages/skills/src/timers/index.mjs';
 import { TimeService } from '../../packages/runtime/src/time/service.mjs';
 import { ActionBroker, ActionApprovals } from './action-broker.mjs';
 import { COMPUTER_ACTIONS } from './computer-control.mjs';
@@ -26,6 +33,8 @@ export class CompanionActions {
     userTools,
     authorizeAction = () => {},
     onResult = () => {},
+    formatElapsed = (time) => 'Elapsed time: ' + time + '.',
+    skills,
   }) {
     Object.assign(this, { emit, settings, setSetting, requestSetting, desktop });
     Object.assign(this, {
@@ -43,11 +52,36 @@ export class CompanionActions {
       authorizeAction,
     });
     this.approvals = new ActionApprovals({ emit });
-    this.time = new TimeService({
-      file: path.join(root, 'data/desktop/time.sqlite'),
-      deliver,
-      changed: (objects) => emit({ type: 'time.changed', objects }),
+    this.skills = skills ?? new CapriCore();
+    this.ownsSkills = !skills;
+    registerActionToolSkills(this.skills, {
+      spotify,
+      applications,
+      files,
+      workflows,
+      userTools,
+      ...(typeof desktop?.execute === 'function'
+        ? {
+            trash: (id, args, signal) =>
+              desktop.execute(
+                id,
+                args,
+                this.fullAccess() ? { propose: (proposal) => proposal.execute() } : this.approvals,
+                signal,
+              ),
+          }
+        : {}),
     });
+    this.skills.register(timerSkill, {
+      formatElapsed,
+      createTimeService: (changed) =>
+        new TimeService({ file: path.join(root, 'data/desktop/time.sqlite'), deliver, changed }),
+    });
+    this.unsubscribeTime = this.skills.subscribe(
+      { skillId: timerSkill.manifest.id, event: 'changed' },
+      ({ data: objects }) => emit({ type: 'time.changed', objects }),
+    );
+    this.time = timerClient(this.skills);
     this.broker = new ActionBroker({
       root,
       execute: ({ tool, id, args, signal }) => this.execute(tool, id, args, signal),
@@ -85,9 +119,11 @@ export class CompanionActions {
     // Enforce the active owner's domain before any generated tool can create
     // an overlay, request broader access or send native input.
     this.authorizeAction?.(tool, args);
-    if (/^capri_tool_(0[1-9]|1\d|20)$/.test(tool)) {
+    const invoke = (skillId, command, input) =>
+      this.skills.call({ skillId, command, input, requestId: id }, { source: 'tool', signal });
+    if (isUserToolAlias(tool)) {
       if (!this.userTools) throw new Error('User tools are unavailable.');
-      return { ok: true, data: await this.userTools.run(tool, args, signal) };
+      return invoke(ACTION_SKILLS.userTools, 'run', { name: tool, parameters: args });
     }
     if (tool === 'workflow_control') {
       if (
@@ -96,14 +132,12 @@ export class CompanionActions {
         Object.keys(args).some((key) => !['action', 'id', 'variables'].includes(key))
       )
         throw new Error('Invalid workflow request.');
-      if (args.action === 'list')
-        return {
-          ok: true,
-          workflows: this.workflows
-            .list()
-            .map(({ id, name, steps }) => ({ id, name, steps: steps.length })),
-        };
-      if (args.action === 'run') return this.workflows.run(args.id, args.variables ?? {}, signal);
+      if (args.action === 'list') return invoke(ACTION_SKILLS.workflows, 'list');
+      if (args.action === 'run')
+        return invoke(ACTION_SKILLS.workflows, 'run', {
+          id: args.id,
+          variables: args.variables ?? {},
+        });
       throw new Error('Choose list or run for a saved workflow.');
     }
     if (tool === 'desktop_control' && args?.action === 'run_task') {
@@ -119,10 +153,15 @@ export class CompanionActions {
     )
       throw new Error('Wait for the current computer task or stop it with Escape.');
     if (['spotify_control', 'application_control'].includes(tool)) {
-      const service = tool === 'spotify_control' ? this.spotify : this.applications;
-      if (!service) throw new Error('The requested application is unavailable.');
-      const result = await service.execute(id, args, signal);
-      return result;
+      const calculation = tool === 'application_control' && args?.action === 'calculate';
+      const skillId =
+        tool === 'spotify_control'
+          ? ACTION_SKILLS.spotify
+          : calculation
+            ? ACTION_SKILLS.calculator
+            : ACTION_SKILLS.applications;
+      if (!this.skills?.has(skillId)) throw new Error('The requested application is unavailable.');
+      return invoke(skillId, calculation ? 'calculate' : 'execute', args);
     }
     if (tool === 'desktop_control' && COMPUTER_ACTIONS.has(args?.action)) {
       if (!this.computer) throw new Error('Computer control is unavailable.');
@@ -130,20 +169,16 @@ export class CompanionActions {
         ? this.computer.execute(args, signal)
         : this.desktop.operation(id, args, () => this.computer.execute(args, signal), signal);
     }
-    if (['time_control', 'desktop_control', 'filesystem_control'].includes(tool)) {
-      const value =
-        tool === 'time_control'
-          ? await this.time.execute(id, args)
-          : tool === 'filesystem_control' && args?.action !== 'trash'
-            ? await this.files.execute(id, args, signal)
-            : await this.desktop.execute(
-                id,
-                args,
-                this.fullAccess() ? { propose: (proposal) => proposal.execute() } : this.approvals,
-                signal,
-              );
-      return value;
-    }
+    if (tool === 'time_control') return this.time.execute(id, args, { source: 'tool', signal });
+    if (tool === 'filesystem_control')
+      return invoke(ACTION_SKILLS.files, args?.action === 'trash' ? 'trash' : 'execute', args);
+    if (tool === 'desktop_control')
+      return this.desktop.execute(
+        id,
+        args,
+        this.fullAccess() ? { propose: (proposal) => proposal.execute() } : this.approvals,
+        signal,
+      );
     if (
       tool !== 'settings_control' ||
       !args ||
@@ -202,7 +237,8 @@ export class CompanionActions {
     this.closed = true;
     this.approvals.cancel();
     this.broker.close();
-    this.time.close();
+    this.unsubscribeTime();
+    if (this.ownsSkills) void this.skills.close();
     void this.files?.close();
     this.spotify?.close();
     void this.applications?.close();

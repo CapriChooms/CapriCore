@@ -52,30 +52,60 @@ export const rejectsDesktopAction = (text) =>
   );
 
 const recoveredMode =
-  /^(?:useful\s+(?:computer|pc|desktop)\s+(?:access|control)|use\s+my\s+(?:computer|pc|desktop)\s+via\s+full\s+access)(?=\s|[,.:;!?]|$)/iu;
+  /^(?:useful\s+(?:computer|pc|desktop)\s+(?:access|control)|use\s+my\s+(?:computer|pc|desktop)\s+via\s+full\s+access|используй\s+мой\s+(?:компьютер|пк)(?=\s*[,.:;]|\s+и\s))(?=\s|[,.:;!?]|$)/iu;
 const launchPrefix =
-  /^(?:open|launch|start|открой|запусти|abre|abrir|inicia|iniciar|lanza|lanzar)\s+/iu;
+  /^(?:open|launch|start|открой|запусти|abre|abrir|inicia|iniciar|lanza|lanzar|ouvre|ouvrez|ouvrir|lance|lancez|lancer|démarre|démarrez|démarrer)\s+/iu;
 const chainSeparator =
-  /(?:[,.;:]\s*(?:(?:then|потом|затем)\s+)?|\s+(?:and\s+(?:then\s+)?|then\s+|потом\s+|затем\s+|и\s+))(?=(?:go\s+to|click|open|launch|search|find|google|type|write|press|show|play|do|перейди|открой|нажми|найди|напиши|введи|запусти)(?:\s|$))/iu;
+  /(?:[,.;:]\s*(?:(?:then|потом|затем|puis|ensuite)\s+)?|\s+(?:and\s+(?:then\s+)?|then\s+|потом\s+|затем\s+|и\s+|et\s+(?:(?:puis|ensuite)\s+)?|puis\s+|ensuite\s+))(?=(?:go\s+to|switch\s+to|click|open|launch|search|find|google|type|write|press|show|play|do|close|quit|перейди|переключись|открой|нажми|найди|напиши|введи|запусти|закрой|va|ouvre|ouvrez|lance|lancez|clique|cliquez|cherche|recherche|tape|écris|ferme|quitte)(?:\s|$))/iu;
+const section = String.raw`(?:library|settings|preferences|downloads|history|inbox|biblioth[eè]que|param[eè]tres|pr[eé]f[eé]rences|t[eé]l[eé]chargements|historique|библиотек[ау]|настройки|загрузки|истори[яю]|входящие)`;
+const sectionFirst = new RegExp(
+  String.raw`^(?:(?:the|my|la|les|ma|mes|мою)\s+)?(${section})\s+(?:(?:in|of|dans|de|в)\s+)?(.+)$`,
+  'iu',
+);
+const sectionLast = new RegExp(String.raw`^(.+?)\s+(${section})$`, 'iu');
+const appName = /^[\p{L}\p{N}][\p{L}\p{N} ._+&'’\-]{0,79}$/u;
+const clientName = (name) =>
+  name.replace(
+    /^(?:l['’](?:application|appli)|le client|the (?:app|application|client)|приложение|клиент)\s+/iu,
+    '',
+  );
 
 export function ownerAppLaunch(text) {
-  const request = requestText(text).replace(/^(?:por\s+favor[,\s]+|(?:puedes|podrías)\s+)/iu, '');
+  const request = requestText(text).replace(
+    /^(?:(?:por\s+favor|s['’]il (?:te|vous) plaît)[,\s]+|(?:puedes|podrías|peux-tu|pourrais-tu|pouvez-vous)\s+)/iu,
+    '',
+  );
   const access = enable.exec(request) ?? using.exec(request) ?? recoveredMode.exec(request);
   const command = (access ? request.slice(access[0].length) : request)
     .replace(/^[,.:;\s]+/u, '')
-    .replace(/^(?:and|to|и)\s+/iu, '');
+    .replace(/^(?:and|to|и)\s+/iu, '')
+    .replace(trailing, '');
   if (!launchPrefix.test(command) || computerAppReference(command)) return null;
   const remainder = command.replace(launchPrefix, '');
   const separator = remainder.search(chainSeparator);
-  const name = (separator < 0 ? remainder : remainder.slice(0, separator))
+  let name = (separator < 0 ? remainder : remainder.slice(0, separator))
     .replace(/[.!?]+$/u, '')
-    .replace(/(?:\s+please|,?\s+пожалуйста)$/iu, '')
+    .replace(/(?:\s+please|,?\s+(?:пожалуйста|s['’]il (?:te|vous) plaît))$/iu, '')
     .trim()
     .replace(
       /^(?:"([^"]+)"|«([^»]+)»|“([^”]+)”)$/u,
       (_, straight, french, curly) => straight ?? french ?? curly,
     );
-  if (!/^[\p{L}\p{N}][\p{L}\p{N} ._+&'’\-]{0,79}$/u.test(name)) return null;
+  const before = sectionFirst.exec(name),
+    after = before ? null : sectionLast.exec(name);
+  const destination = before?.[1] ?? after?.[2];
+  const literalName = name;
+  name = clientName(before?.[2] ?? after?.[1] ?? name);
+  if (/^стим(?:а|е)?$/iu.test(name)) name = 'Steam';
+  if (!appName.test(name)) return null;
+  if (destination)
+    return {
+      name,
+      single: false,
+      section: destination,
+      literalName,
+      ...(separator < 0 && { sectionOnly: true }),
+    };
   return { name, single: separator < 0 };
 }
 
@@ -88,6 +118,22 @@ export const computerTaskFollowUp = (text) =>
 // Keep the settings and desktop tools available for semantic paraphrases, without
 // treating a mere mention as permission or starting a session.
 export const mentionsComputerMode = (text) => mention.test(String(text).normalize('NFKC'));
+
+export function exactClickLabel(text) {
+  const request = requestText(text);
+  const access = enable.exec(request) ?? using.exec(request) ?? recoveredMode.exec(request);
+  const command = (access ? request.slice(access[0].length) : request)
+    .replace(/^[,.:;\s]+/u, '')
+    .replace(/^(?:and|to|и)\s+/iu, '')
+    .replace(trailing, '');
+  return (
+    /^(?:click|press|нажми|кликни|clique(?:z)? sur|pulsa|haz clic en)\s+(?:(?:the\s+)?button\s+|(?:на\s+)?кнопку\s+)?(?:"([^"\r\n]{1,100})"|«([^»\r\n]{1,100})»|“([^”\r\n]{1,100})”)[.!?\s]*$/iu
+      .exec(command)
+      ?.slice(1)
+      .find(Boolean)
+      ?.trim() || null
+  );
+}
 
 function musicRequestScope(text) {
   const value = String(text).normalize('NFKC');
@@ -305,7 +351,7 @@ export function computerModeRequest(text, { fullComputerAccess = false } = {}) {
     const command = value
       .slice(recovered[0].length)
       .replace(/^[,.:;\s]+/u, '')
-      .replace(/^(?:and|to)\s+/iu, '');
+      .replace(/^(?:and|to|и)\s+/iu, '');
     if (action.test(command) || /^(?:do|switch|press|navigate|go)\s/iu.test(command))
       return { enabled: true, run: true };
   }
@@ -315,6 +361,7 @@ export function computerModeRequest(text, { fullComputerAccess = false } = {}) {
   if (dedicatedMusicRequest(value)) return null;
   if (fullComputerAccess) {
     if (authorizedDiscordCommand(text)) return { enabled: true, run: true };
+    if (exactClickLabel(text)) return { enabled: true, run: true };
     if (cyberpunkSteamLaunch(value) || edgerunnersTeaserRequest(value))
       return { enabled: true, run: true };
     const opening = ownerAppLaunch(value);

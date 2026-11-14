@@ -5,19 +5,31 @@ import { EventEmitter } from 'node:events';
 import { ControlOverlay } from '../apps/desktop/main/control-overlay.mjs';
 
 const displays = [
-  { bounds: { x: -1280, y: 0, width: 1280, height: 720 } },
-  { bounds: { x: 0, y: 0, width: 1920, height: 1080 } },
+  {
+    id: 1,
+    bounds: { x: -1280, y: 0, width: 1280, height: 720 },
+    workArea: { x: -1232, y: 0, width: 1232, height: 720 },
+  },
+  {
+    id: 2,
+    bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    workArea: { x: 0, y: 0, width: 1920, height: 1032 },
+  },
 ];
 const deferred = () => {
   let resolve;
   const promise = new Promise((done) => (resolve = done));
   return { promise, resolve };
 };
-function fixture({ blocked, destroyFailure = false, duringFullscreen } = {}) {
+function fixture({ blocked, destroyFailure = false } = {}) {
   const entered = deferred(),
     pending = deferred(),
     views = [],
     losses = [];
+  const screen = Object.assign(new EventEmitter(), {
+    getAllDisplays: () => displays,
+    getCursorScreenPoint: () => ({ x: 5, y: 5 }),
+  });
   const wait = (stage, value) => {
     if (stage !== blocked) return Promise.resolve(value);
     entered.resolve();
@@ -28,7 +40,9 @@ function fixture({ blocked, destroyFailure = false, duringFullscreen } = {}) {
       super();
       this.index = views.length;
       views.push(this);
-      this.bounds = { ...options };
+      const { x, y, width, height } = options;
+      this.bounds = { x, y, width, height };
+      this.options = options;
       this.webContents = new EventEmitter();
       this.webContents.executeJavaScript = (source) => {
         const stage = source.startsWith('Boolean')
@@ -49,9 +63,6 @@ function fixture({ blocked, destroyFailure = false, duringFullscreen } = {}) {
     }
     setBounds(bounds) {
       this.bounds = { ...bounds };
-    }
-    setFullScreen() {
-      duringFullscreen?.();
     }
     getBounds() {
       return this.bounds;
@@ -82,10 +93,10 @@ function fixture({ blocked, destroyFailure = false, duringFullscreen } = {}) {
   }
   const overlay = new ControlOverlay({
     BrowserWindow: Window,
-    screen: { getAllDisplays: () => displays, getCursorScreenPoint: () => ({ x: 5, y: 5 }) },
+    screen,
     onLost: (reason) => losses.push(reason),
   });
-  return { overlay, views, losses, entered, pending };
+  return { overlay, screen, views, losses, entered, pending };
 }
 
 test('stopping during any pending initialization cancels immediately and cannot resurrect a border', async (t) => {
@@ -135,13 +146,21 @@ test('one native destruction error cannot strand a visible monitor or a cursor t
   assert.doesNotThrow(() => f.overlay.hide());
 });
 
-test('a reentrant stop during fullscreen setup prevents showInactive', async () => {
-  let overlay;
-  const f = fixture({ duringFullscreen: () => overlay.hide() });
-  overlay = f.overlay;
-  await assert.rejects(overlay.show('Fixture'), /indicator closed/);
-  assert.equal(f.views[0].shows, 0);
-  assert.equal(f.views[0].isDestroyed(), true);
+test('borders use each work area and follow changes to the taskbar', async () => {
+  const f = fixture();
+  await f.overlay.show('Fixture');
+  assert.deepEqual(
+    f.views.map((view) => view.getBounds()),
+    displays.map((d) => d.workArea),
+  );
+  assert.ok(f.views.every((view) => view.options.fullscreenable === false));
+  const movedTaskbar = { ...displays[1], workArea: { x: 0, y: 48, width: 1920, height: 1032 } };
+  f.screen.emit('display-metrics-changed', {}, movedTaskbar, ['workArea']);
+  assert.deepEqual(f.views[0].getBounds(), displays[0].workArea);
+  assert.deepEqual(f.views[1].getBounds(), movedTaskbar.workArea);
+  assert.ok(f.views.every((view) => view.shows === 1));
+  f.overlay.hide();
+  assert.equal(f.screen.listenerCount('display-metrics-changed'), 0);
 });
 
 test('renderer loss cancels a pending show and reports the loss only once', async () => {

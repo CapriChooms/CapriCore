@@ -1,5 +1,5 @@
 # Official alternate delivery host for the SAME Windows CPython 3.11 wheels.
 # SHA-256 values from https://download.pytorch.org/whl/cu124/{package}/ (2026-11-01).
-# Used only after a transient download-r2.pytorch.org transport failure.
+# Pins the installer wheel and its alternate source; both hosts deliver the same bytes.
 torch @ https://download.pytorch.org/whl/cu124/torch-2.6.0%2Bcu124-cp311-cp311-win_amd64.whl#sha256=6a1fb2714e9323f11edb6e8abf7aad5f79e45ad25c081cde87681a18d99c29eb
 torchaudio @ https://download.pytorch.org/whl/cu124/torchaudio-2.6.0%2Bcu124-cp311-cp311-win_amd64.whl#sha256=a25e146ce66ea9a6aed39008cc2001891bdf75253af479a4c32096678b2073b3

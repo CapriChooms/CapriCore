@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { HF_DRAFT_CHAT_ERROR } from '../../../packages/runtime/src/hardware/imported-model.mjs';
+
 export class HuggingFacePanel {
   constructor({ api, ui, host, onError }) {
     Object.assign(this, { api, ui, onError });
@@ -132,22 +134,25 @@ export class HuggingFacePanel {
         /\.gguf$/i.test(file.path ?? file.filename ?? file.name),
       );
       const isProjector = (file) => file.kind === 'projector';
+      const weights = files.filter((file) => !isProjector(file) && file.kind !== 'draft');
       const options = (items) =>
         items.map((file) => {
           const name = file.path ?? file.filename ?? file.name;
           return new Option(`${name} · ${this.size(file.bytes ?? file.size)}`, name);
         });
-      this.get('file').replaceChildren(...options(files.filter((file) => !isProjector(file))));
-      if (info.selectedFilename && files.some((file) => file.path === info.selectedFilename))
+      this.get('file').replaceChildren(...options(weights));
+      if (info.selectedFilename && weights.some((file) => file.path === info.selectedFilename))
         this.get('file').value = info.selectedFilename;
       this.get('projector').replaceChildren(
         new Option('—', ''),
         ...options(files.filter(isProjector)),
       );
       this.get('compatibility').textContent = this.ui.text(
-        files.length
-          ? 'Choose one quantization. Split model files are resolved together.'
-          : 'This repository needs a compatible runtime. Select supported voice models in Languages.',
+        files.some((file) => file.kind === 'draft')
+          ? HF_DRAFT_CHAT_ERROR
+          : weights.length
+            ? 'Choose one quantization. Split model files are resolved together.'
+            : 'This repository needs a compatible runtime. Select supported voice models in Languages.',
       );
       this.get('size').textContent = '';
     }

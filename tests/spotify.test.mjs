@@ -170,6 +170,15 @@ test('worker uses an owned executable, private stdio and an environment without 
   );
   assert.equal((await pending).data.playing, false);
   worker.close();
+  const blocked = Object.assign(new Error('spawn UNKNOWN'), { code: 'UNKNOWN', syscall: 'spawn' });
+  const checkBlocked = { code: 'CAPRI_SPOTIFY_HELPER_LAUNCH_FAILED' };
+  const denied = worker.send({ action: 'status' });
+  child.emit('error', blocked);
+  await assert.rejects(denied, checkBlocked);
+  worker.spawnImpl = () => {
+    throw blocked;
+  };
+  assert.throws(() => worker.send({ action: 'status' }), checkBlocked);
   writeFileSync(path.join(native, 'SpotifyBridge.cs'), 'changed source');
   assert.throws(() => worker.start(), /rebuilding/);
 });

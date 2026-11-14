@@ -81,7 +81,51 @@ export class UserToolsPanel {
           ),
         );
       card.append(title, description, permissions, toggle);
+      const manage = document.createElement('div');
+      manage.className = 'settings-actions';
+      for (const [label, action] of [
+        ['Open tool folder', 'open-tool'],
+        ['Delete', 'remove'],
+      ]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = this.ui.text(label);
+        button.onclick = () =>
+          this.run(async () => {
+            const result = await this.api.userToolAction({ action, id: row.id });
+            if (Array.isArray(result)) this.show(result);
+          });
+        manage.append(button);
+      }
+      card.append(manage);
       if (!row.error) {
+        const edit = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = this.ui.text('Edit tool details');
+        const nameField = document.createElement('input');
+        nameField.value = row.name;
+        nameField.setAttribute('aria-label', this.ui.text('Name'));
+        const descriptionField = document.createElement('textarea');
+        descriptionField.value = row.description;
+        descriptionField.setAttribute('aria-label', this.ui.text('Description'));
+        const saveDetails = document.createElement('button');
+        saveDetails.type = 'button';
+        saveDetails.textContent = this.ui.text('Save changes');
+        saveDetails.onclick = () =>
+          this.run(async () => {
+            this.show(
+              await this.api.userToolAction({
+                action: 'edit',
+                id: row.id,
+                metadata: {
+                  name: nameField.value.trim(),
+                  description: descriptionField.value.trim(),
+                },
+              }),
+            );
+          });
+        edit.append(summary, nameField, descriptionField, saveDetails);
+        card.append(edit);
         const secretLabel = document.createElement('label'),
           secrets = document.createElement('input'),
           save = document.createElement('button');

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /** Resting artwork does not claim that an offline service has unloaded its models. */
 export function visuallySleeping(powerPhase, connectionPhase) {
+  if (['starting', 'stopping', 'offline'].includes(connectionPhase)) return true;
   if (['notifying', 'voice-awake'].includes(powerPhase)) return false;
   return (
-    ['sleeping', 'asleep'].includes(powerPhase) || ['offline', 'stopping'].includes(connectionPhase)
+    ['sleeping', 'asleep'].includes(powerPhase) || ['sleeping', 'asleep'].includes(connectionPhase)
   );
 }
-
 export function avatarTapsSleeping(powerPhase, connectionPhase) {
   return (
     visuallySleeping(powerPhase, connectionPhase) ||
@@ -114,13 +114,4 @@ export class SleepService {
     })();
     return this.pending;
   }
-}
-
-/** The first Z is the low bit: 000, 100, 010, 110, 001, 101, 011, 111. */
-export function sleepCaption(elapsedMs) {
-  const tick = Math.floor(Math.max(0, elapsedMs) / 500);
-  const mask = Math.floor(tick / 3) % 8;
-  return (
-    [0, 1, 2].map((bit) => (mask & (1 << bit) ? 'Z' : 'z')).join('') + '.'.repeat((tick % 3) + 1)
-  );
 }

@@ -2,6 +2,7 @@
 import { HuggingFacePanel } from './huggingface-panel.mjs';
 import { VoiceModelPanel } from './voice-model-panel.mjs';
 import { ModelDevicePanel } from './model-device-panel.mjs';
+import { NpuPanel } from './npu-panel.mjs';
 const states = {
   idle: 'Choose a language model for this PC.',
   checking: 'Checking local models...',
@@ -55,6 +56,12 @@ export class ModelsPanel {
       ui,
       onError,
       host: this.panel.querySelector('.preferences-content'),
+    });
+    this.npu = new NpuPanel({
+      api,
+      ui,
+      onError,
+      host: this.devices.get('npu-advanced'),
     });
     this.hub = new HuggingFacePanel({
       api,
@@ -116,11 +123,13 @@ export class ModelsPanel {
     if (!value) return;
     this.value = value;
     const active = value.profiles?.find((profile) => profile.alias === value.current);
-    this.get('current').textContent = value.remoteActive
-      ? this.ui.text('API connections')
-      : active?.source === 'huggingface'
-        ? active.family
-        : (value.current?.replace('capri-', '') ?? '');
+    this.get('current').textContent = value.nativeActive
+      ? value.nativeModel
+      : value.remoteActive
+        ? this.ui.text('API connections')
+        : active?.source === 'huggingface'
+          ? active.family
+          : (value.current?.replace('capri-', '') ?? '');
     const context = this.get('context'),
       draft = context.value;
     context.replaceChildren(
@@ -189,7 +198,7 @@ export class ModelsPanel {
           name(profile),
           this.size(profile),
           ...(profile.experimental ? ['BETA'] : []),
-          ...(profile.installed ? [this.ui.text('Downloaded')] : []),
+          ...(profile.upstreamInstalled ? [this.ui.text('Downloaded')] : []),
         ].join(' · '),
         profile.id,
       );
@@ -257,9 +266,9 @@ export class ModelsPanel {
             ? 'Cannot check downloaded models. Start the local core and refresh the list.'
             : !profile.supported
               ? 'This model needs more system RAM.'
-              : profile.active && !this.setupRequired
+              : profile.active && profile.upstreamInstalled && !this.setupRequired
                 ? 'You are already using this model.'
-                : profile.installed
+                : profile.upstreamInstalled
                   ? 'Downloaded on this PC.'
                   : 'This model will be downloaded when you prepare it.',
         )
@@ -274,19 +283,16 @@ export class ModelsPanel {
     const active =
       profile?.active &&
       !this.value?.remoteActive &&
+      !this.value?.nativeActive &&
       !this.setupRequired &&
-      profile?.installed &&
+      profile?.upstreamInstalled === true &&
       !this.value?.inventoryUnavailable;
     this.get('prepare').disabled = busy || !profile?.supported || active;
     this.get('prepare').textContent = this.ui.text(
-      profile?.installed ? 'Prepare model' : 'Download and prepare',
+      profile?.upstreamInstalled ? 'Prepare model' : 'Download and prepare',
     );
-    const configured = profile?.configured && (this.value?.remoteActive || this.setupRequired);
     const prepared = this.value?.phase === 'ready' && this.value.selected === profile?.id;
-    const prepareFirst =
-      !profile?.installed ||
-      this.value?.inventoryUnavailable ||
-      (!configured && !prepared && profile?.upstreamInstalled !== true);
+    const prepareFirst = !profile?.upstreamInstalled || this.value?.inventoryUnavailable;
     this.get('local').disabled = Boolean(busy || !profile?.supported || active);
     const explanation = busy
       ? 'Wait for the model operation to finish.'
@@ -320,9 +326,9 @@ export class ModelsPanel {
     try {
       if (
         profile.configured &&
-        profile.installed &&
+        profile.upstreamInstalled &&
         !this.value.inventoryUnavailable &&
-        (this.value.remoteActive || this.setupRequired)
+        (this.value.remoteActive || this.value.nativeActive || this.setupRequired)
       )
         return await this.api.useInferenceApi(null);
       let prepared = this.value;
@@ -371,6 +377,7 @@ export class ModelsPanel {
       }
       this.show(await this.api.refreshModels());
       void this.devices.refresh();
+      void this.npu.refresh();
       if (this.api.huggingFaceStatus) await this.hub.refresh();
       if (this.api.voiceCatalog) await this.voices.refresh(this.conversationLanguage);
       this.ui.apply(this.ui.language);

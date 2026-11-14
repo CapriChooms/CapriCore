@@ -20,7 +20,7 @@ export class PrivateMemoryPanel {
           password,
         });
         this.show(value);
-        await this.load();
+        if (value.unlocked) await this.load();
       });
     $('private-lock').onclick = () =>
       this.run(async () => this.show(await api.privateMemory({ action: 'lock' })));

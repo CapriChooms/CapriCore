@@ -93,15 +93,20 @@ body {
   background: transparent;
   user-select: none;
 }
-/* Interface labels are controls, not a document. Keep deliberate reply copying
-   and ordinary text editing without leaving selections on resource readings. */
+/* Conversation text and input fields allow deliberate selection. */
 input,
 textarea,
 [contenteditable='true'] {
   user-select: text;
 }
 #subtitle-text,
-.message[data-role='assistant'] .message-text {
+#history-panel {
+  user-select: text;
+}
+#history-panel :is(.history-actions button, .message-copy) {
+  user-select: none;
+}
+#history-panel :is(.message-attachment-details, .message-web-sources li > button) {
   user-select: text;
 }
 #subtitle-text {
@@ -559,23 +564,6 @@ body[data-phase='ready']:not([data-replying='true']) #status {
   border: 1px solid currentColor;
   background: #071820;
 }
-#screen-indicator[aria-pressed='false'] {
-  color: var(--muted);
-  box-shadow: none;
-}
-#sleep-indicator {
-  position: absolute;
-  z-index: 6;
-  top: 40%;
-  left: 65%;
-  color: var(--cyan);
-  font-size: clamp(20px, 5vw, 32px);
-  letter-spacing: 3px;
-  text-shadow:
-    0 0 12px #8ef5ed99,
-    2px 2px #06161c;
-  pointer-events: none;
-}
 #history-panel {
   position: absolute;
   z-index: 5;
@@ -595,8 +583,63 @@ body[data-phase='ready']:not([data-replying='true']) #status {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 9px 12px;
   border-bottom: 1px solid #a2e9e31f;
+}
+.history-actions,
+.message-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.message-heading {
+  justify-content: space-between;
+  margin-block-end: 4px;
+}
+#history-clear,
+.message-copy {
+  border: 1px solid var(--ui-line, #8ef5ed65);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--cyan);
+  font: inherit;
+}
+#history-clear {
+  padding: 4px 7px;
+  font-size: 11px;
+}
+.message-copy {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+}
+.message-copy svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  pointer-events: none;
+}
+#history-clear:hover:not(:disabled),
+.message-copy:hover:not(:disabled),
+.message-copy[data-copied] {
+  border-color: var(--cyan);
+  background: var(--ui-line, #8ef5ed30);
+}
+#history-clear:disabled,
+.message-copy:disabled {
+  opacity: 0.45;
+}
+.message-copy path:last-child,
+.message-copy[data-copied] path:first-child {
+  display: none;
+}
+.message-copy[data-copied] path:last-child {
+  display: inline;
 }
 .history-heading h1 {
   margin: 0;
@@ -621,7 +664,6 @@ body[data-phase='ready']:not([data-replying='true']) #status {
   font-size: 10px;
   letter-spacing: 1px;
   color: #b1c5c9;
-  margin-bottom: 5px;
 }
 .message[data-role='assistant'] .message-label {
   color: var(--pink);

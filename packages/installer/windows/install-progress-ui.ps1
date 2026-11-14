@@ -30,6 +30,7 @@ function Update-CapriDownloadProgress($Event) {
         $progress=$script:installProgress
         $amount=([Math]::Round($received/1e6,1)).ToString()
         if($total -gt 0){
+            if($received -gt $total){return}
             $fraction=if($Event.PSObject.Properties['stageFraction']){[double]$Event.stageFraction}else{$received/$total}
             if([double]::IsNaN($fraction) -or [double]::IsInfinity($fraction) -or $fraction -lt 0 -or $fraction -gt 1){return}
             Set-CapriProgressFraction $progress $(if($Event.PSObject.Properties['step']){$Event.step}else{$progress.step}) (0.9*$fraction)
@@ -41,6 +42,10 @@ function Update-CapriDownloadProgress($Event) {
             if($estimate -gt 0 -and $estimate -le 86400){$progress.transferEta=$estimate;$progress.transferEtaAt=[DateTime]::UtcNow}
         }
         $progress.transfer=(Text-Capri 'progressTransferred') -f ($amount+' MB')
+        if($total -gt 0 -and $Event.PSObject.Properties['file'] -and $Event.file -match '^[\w.+-]{1,160}$'){
+            $percent=if($received -eq $total){100}else{[Math]::Floor(100*$received/$total)}
+            $progress.transfer=$Event.file+'  |  '+$percent+'%  |  '+$progress.transfer
+        }
     }catch{$script:uiDiagnostics.Record('invalid-download-progress',($_|Out-String))}
 }
 function Read-CapriInstallProgress([bool]$Paused) {

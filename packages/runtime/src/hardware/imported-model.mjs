@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
+export const HF_DRAFT_CHAT_ERROR =
+  'Draft GGUF files require a base model. Choose the main GGUF file.';
+
 export function validateImportedProfile(profile) {
   if (
     !profile ||

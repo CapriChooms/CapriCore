@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ScreenWatch, waitForScreenFrame } from '../apps/desktop/renderer/screen-watch.mjs';
+import { screenFrameCanvas, screenPng } from '../apps/desktop/renderer/screen-mosaic.mjs';
 import { registerScreenIpc } from '../apps/desktop/main/screen-ipc.mjs';
 import { CompanionActions } from '../apps/desktop/companion-actions.mjs';
 import {
@@ -10,6 +11,30 @@ import {
   screenObservationText,
 } from '../apps/desktop/renderer/screen-panel.mjs';
 import { screenFormState } from '../apps/desktop/main/screen-form-state.mjs';
+
+test('detailed screen frames keep 1080p and oversized PNGs fall back to the background size', async (t) => {
+  const previous = globalThis.document;
+  const encoded = [];
+  globalThis.document = {
+    createElement: () => ({
+      getContext: () => ({ drawImage() {} }),
+      toBlob(resolve) {
+        encoded.push([this.width, this.height]);
+        resolve({ size: this.width > 1280 ? 4 * 1024 * 1024 : 123 });
+      },
+    }),
+  };
+  t.after(() => (globalThis.document = previous));
+  const detailed = screenFrameCanvas({}, 2560, 1440, true);
+  assert.deepEqual([detailed.width, detailed.height], [1920, 1080]);
+  assert.equal((await screenPng(detailed)).size, 123);
+  assert.deepEqual(encoded, [
+    [1920, 1080],
+    [1280, 720],
+  ]);
+  const portrait = screenFrameCanvas({}, 1080, 1920, false);
+  assert.deepEqual([portrait.width, portrait.height], [405, 720]);
+});
 
 test('an unsupported-image warning survives settings IPC and is announced once without a capture error', (t) => {
   const warning = 'The active model cannot read images or video frames.';

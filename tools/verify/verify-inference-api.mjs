@@ -4,6 +4,7 @@ import path from 'node:path';
 import { mkdirSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { InferenceApi } from '../../apps/desktop/inference-api.mjs';
+import { ChatService } from '../../apps/desktop/chat-service.mjs';
 import { ActionBroker } from '../../apps/desktop/action-broker.mjs';
 import {
   root,
@@ -61,13 +62,18 @@ const report = {
   toolRoundTrip: false,
 };
 let socialPhase = 'conversation',
-  scopedPhase = null;
+  scopedPhase = null,
+  rejectLargeRequest = false;
 const options = {
   root: folder,
   storage,
   fetchImpl: async (_, options) => {
     const payload = JSON.parse(options.body);
     report.calls++;
+    if (rejectLargeRequest) {
+      assert.equal((payload.tools ?? []).length, 0);
+      return Response.json({ error: { message: 'private-canary' } }, { status: 413 });
+    }
     if (scopedPhase) {
       const expected = {
         calculator: 'application_control',
@@ -315,6 +321,28 @@ try {
   assert.equal(report.scientificToolRoundTrip, true);
   assert.equal(report.desktopToolRoundTrip, true);
   assert.match(JSON.stringify(result), /Ready/);
+  rejectLargeRequest = true;
+  const stored = new Map();
+  const chat = new ChatService({
+    gatewayUrl: rt.gatewayUrl,
+    agentId: 'capri',
+    sessionKey: 'agent:capri:oversize-fixture',
+    token: () => readFileSync(rt.tokenPath, 'utf8').trim(),
+    persona: () => 'Fixture persona.',
+    store: { snapshot: () => [...stored.values()], put: (item) => stored.set(item.id, item) },
+    interfaceState: () => ({ modelToolsAvailable: false }),
+    externalInference: true,
+    externalRequestTooLargeSince: (startedAt) => api.requestTooLargeSince(startedAt),
+  });
+  const events = [];
+  await chat.send(
+    { id: '64069c34-e112-4272-a675-1cebc8d556bc', text: 'Explain why the sky is blue.' },
+    (event) => events.push(event),
+  );
+  assert.equal(api.diagnostics().lastFailure.providerStatus, 413);
+  assert.match(events.at(-1).message, /HTTP 413.*request is too large/u);
+  assert.doesNotMatch(JSON.stringify(events), /private-canary/u);
+  report.providerSizeError = true;
   report.passed = true;
 } finally {
   await stopManaged(rt.logPrefix);

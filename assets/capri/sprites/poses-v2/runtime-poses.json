@@ -7,18 +7,18 @@
       "pose": "ceiling_hands",
       "anchor": {
         "name": "ceiling",
-        "x": 626,
-        "y": 119
+        "x": 615,
+        "y": 111
       },
       "visibleBounds": {
-        "x": 186,
-        "y": 76,
-        "width": 881,
+        "x": 208,
+        "y": 75,
+        "width": 836,
         "height": 1102
       },
       "label": "Ceiling grip",
       "description": "Hanging from an edge by both hands.",
-      "sha256": "2a90ca00f62ce6ad3e455ba083fac0636b39245c800ee55cdcd2ce3969320e11"
+      "sha256": "7da68fc88fbdcaa18fdef6ab4341acbe6aaba2b177d95abf9a8823c95efe7ee3"
     },
     {
       "id": "pose-dock-left",
@@ -26,18 +26,18 @@
       "pose": "wall_left",
       "anchor": {
         "name": "dock-left",
-        "x": 215,
-        "y": 458
+        "x": 239,
+        "y": 555
       },
       "visibleBounds": {
-        "x": 195,
+        "x": 219,
         "y": 76,
-        "width": 863,
-        "height": 1102
+        "width": 815,
+        "height": 1101
       },
       "label": "Left wall grip",
       "description": "Holding a vertical edge to her left.",
-      "sha256": "2eb4fecbce035bcc528c3bf6ab06e83bf65536e25647ee208841913ed502f7e8"
+      "sha256": "4c8a9e5663ea5c004d96e0be10befa8581abb8457b0f59004478c1cb5c00c887"
     },
     {
       "id": "pose-dock-right",
@@ -45,18 +45,18 @@
       "pose": "wall_right",
       "anchor": {
         "name": "dock-right",
-        "x": 1038,
-        "y": 425
+        "x": 994,
+        "y": 505
       },
       "visibleBounds": {
-        "x": 198,
-        "y": 76,
-        "width": 859,
-        "height": 1102
+        "x": 212,
+        "y": 75,
+        "width": 831,
+        "height": 1103
       },
       "label": "Right wall grip",
       "description": "Holding a vertical edge to her right.",
-      "sha256": "7d7030a85efd9d7a0232b53f79388442d1ad22c6b10dd951e07330be9110b40c"
+      "sha256": "5fdffb1af571117f1e410cb48af7ece15b8434345fe52d753c5e6f6759537dee"
     },
     {
       "id": "pose-sit-edge",
@@ -64,18 +64,18 @@
       "pose": "seat",
       "anchor": {
         "name": "seat",
-        "x": 609,
-        "y": 787
+        "x": 599,
+        "y": 773
       },
       "visibleBounds": {
-        "x": 182,
-        "y": 111,
-        "width": 891,
+        "x": 183,
+        "y": 110,
+        "width": 887,
         "height": 1067
       },
       "label": "Sitting on an edge",
       "description": "Resting on the top edge of an open window.",
-      "sha256": "e9a487ce91a391045b5e8f4ba2a3a00b85483ceedd6911b00a9be2442cc96c5d"
+      "sha256": "35419f53130169fc66a5e5ce48a1ea8c937d7d3ea9b82431bb4cfdebf3f347ff"
     },
     {
       "id": "pose-ceiling-upside-down",
@@ -83,18 +83,18 @@
       "pose": "ceiling_feet",
       "anchor": {
         "name": "ceiling-upside-down",
-        "x": 626,
-        "y": 88
+        "x": 629,
+        "y": 94
       },
       "visibleBounds": {
-        "x": 182,
+        "x": 201,
         "y": 84,
-        "width": 889,
+        "width": 851,
         "height": 933
       },
       "label": "Upside-down hang",
       "description": "Hanging from the top of the display by her feet.",
-      "sha256": "3604f4d9804db90bbc546fa473d18efd644d4f6260d631a6cba6d0a40d56402c"
+      "sha256": "f15ec6420ea017f8e16af7c7b6f5407ff0ec51836855b4f843faf16844f094f9"
     },
     {
       "id": "pose-sit-floor",
@@ -102,18 +102,18 @@
       "pose": "sit_floor",
       "anchor": {
         "name": "ground",
-        "x": 643,
+        "x": 627,
         "y": 1166
       },
       "visibleBounds": {
-        "x": 185,
-        "y": 247,
+        "x": 186,
+        "y": 255,
         "width": 884,
-        "height": 920
+        "height": 911
       },
       "label": "Sitting on the floor",
       "description": "Relaxed and seated on the ground.",
-      "sha256": "111377a8486400569a70d088f83bb076cb182532f9780a3e78159d73d8cfca67"
+      "sha256": "8c50c4cffa948024941f1d18187f99d2f252f8a64f86c69012ec8fcd1d9ed4dd"
     },
     {
       "id": "pose-crouch",
@@ -121,18 +121,37 @@
       "pose": "crouch",
       "anchor": {
         "name": "ground",
-        "x": 625,
+        "x": 627,
         "y": 1166
       },
       "visibleBounds": {
-        "x": 185,
-        "y": 339,
-        "width": 883,
-        "height": 832
+        "x": 225,
+        "y": 333,
+        "width": 803,
+        "height": 834
       },
       "label": "Crouching",
       "description": "Low, attentive crouch.",
-      "sha256": "83bc69576286372a428bcc00704a973b5b47de1b3f6e59921ff20dc6a30adc31"
+      "sha256": "4115f89be5fb05c44be1b0344f6536d41c173de1ca1d6ad257e5b8d0cb33fcfc"
+    },
+    {
+      "id": "pose-sleep",
+      "file": "capri-sleep.png",
+      "pose": "sleep",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 76,
+        "y": 709,
+        "width": 1102,
+        "height": 457
+      },
+      "label": "Sleeping",
+      "description": "Asleep on her side.",
+      "sha256": "f76c310daa7ebd0cc683b01d03ff84bb02d9c51985f38a7e1adaabc2b2a734d5"
     }
   ]
 }

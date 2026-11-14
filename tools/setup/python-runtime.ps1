@@ -3,6 +3,9 @@ function Get-CapriPythonRuntime {
     param([Parameter(Mandatory=$true)][string]$ProjectRoot,[ValidateSet('3.11.17','3.12.12')][string]$Version='3.11.17')
     [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
     $OutputEncoding = [Console]::OutputEncoding
+    # uv's AWS-LC aborts if an inherited CPU mask requests unavailable features.
+    # Let it detect this CPU for every child of the component setup process.
+    Remove-Item -LiteralPath Env:OPENSSL_ia32cap -ErrorAction SilentlyContinue
     $ProjectRoot = [IO.Path]::GetFullPath($ProjectRoot)
     $capriBundledUv = Join-Path $ProjectRoot '.runtime/uv/uv.exe'
     $capriUvCommand = Get-Command uv.exe -CommandType Application -ErrorAction SilentlyContinue
@@ -74,7 +77,7 @@ function Get-CapriPythonRuntime {
 }
 
 function Ensure-CapriVirtualEnvironment {
-    param([Parameter(Mandatory=$true)][string]$ProjectRoot,[Parameter(Mandatory=$true)][ValidateSet('asr-venv','router-venv','voice-training-venv','qwen-tts-venv')][string]$Name,[Parameter(Mandatory=$true)]$Runtime)
+    param([Parameter(Mandatory=$true)][string]$ProjectRoot,[Parameter(Mandatory=$true)][ValidateSet('asr-venv','router-venv','voice-training-venv','qwen-tts-venv','qwen-tts-cuda-venv','qwen-tts-rocm-venv','npu-openvino')][string]$Name,[Parameter(Mandatory=$true)]$Runtime)
     $capriRuntimeRoot=[IO.Path]::GetFullPath((Join-Path $ProjectRoot '.runtime')).TrimEnd('\')
     $capriVenv=[IO.Path]::GetFullPath((Join-Path $capriRuntimeRoot $Name))
     if(-not $capriVenv.StartsWith($capriRuntimeRoot+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Invalid owned Python environment path.'}

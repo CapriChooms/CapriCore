@@ -6,6 +6,11 @@ dates, kisses and quiet companionship are welcome. Intimate scenes stay
 non-graphic and can fade to black. The romantic relationship is a project
 adaptation, rather than an assertion about anime canon.
 
+Communication style shapes that same character. Neutral is observant and dry,
+Romantic is warmer and playfully attentive, Business gives the decision or
+result first, and Wild turns a detail from the conversation into a sharper joke
+or image. The setting takes effect on the next reply.
+
 ## One editable source
 
 The active prompt is data/workspace/PERSONALITY.md. Settings edits this exact
@@ -18,9 +23,9 @@ depends on the selected model; saving instructions does not guarantee compliance
 The only shipped prompt template is config/workspace/PERSONALITY.md. First-run
 setup copies it into the owner's private workspace. Restore original character,
 or saving an empty field, writes this template into the same active file and
-updates the editor. Later application updates do not overwrite a populated
-PERSONALITY.md. Existing history and memory remain unchanged; use Clear context
-separately when you want a fresh scene.
+updates the editor. Updates can refresh an exact copy of a known factory
+profile. Capri backs up that copy first and preserves user edits. Use Clear
+context separately when you want a fresh scene.
 
 Tool definitions, active interface state and language delivery are supplied by
 code. They describe actual permissions and protocol, not an additional editable
@@ -30,8 +35,8 @@ not alternative personality prompts.
 
 ## Migration from older layouts
 
-On startup an existing nonempty PERSONALITY.md wins and is preserved byte for
-byte. If it is absent, a previous custom personality.json is imported first,
+On startup an existing nonempty PERSONALITY.md takes priority. If it is absent,
+a previous custom personality.json is imported first,
 then SOUL.md, then the shipped template. An explicitly empty Markdown file means
 restore the template; it never resurrects a legacy override.
 

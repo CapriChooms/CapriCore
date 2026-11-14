@@ -12,6 +12,22 @@ RX 9060 XT, RX 7900 XTX, RX 7700, Radeon AI PRO R9700 and PRO W7900 / Dual Slot.
 Other Radeon models, integrated graphics, Windows 10 and NPUs are not qualified
 by this runtime. Do not spoof a GPU architecture to bypass the installer check.
 
+## Qwen3-TTS
+
+In **Settings → Skills → Spoken replies → Local**, download a Qwen voice and
+select **Install AMD ROCm acceleration**. This applies to Qwen3-TTS 0.6B and the
+Russian 1.7B LoRA. The installer requires 12 GiB of free disk space and checks a
+BF16 GPU operation before making the runtime available. Both Qwen voices share
+the installed AMD runtime. Existing voice weights and profiles are reused.
+
+In **Settings → Language model → Model devices**, choose the Radeon for voice or
+use **Automatic**. Automatic uses the CPU if the selected runtime cannot find a
+working GPU with 3 GiB free for 0.6B or 6 GiB free for the Russian 1.7B voice.
+Select **CPU** to keep synthesis on the processor. On a system with both Qwen GPU
+runtimes installed, select the Radeon explicitly to use ROCm for the Russian voice.
+
+## Chatterbox
+
 Setup automatically selects this profile when a supported Radeon is detected
 and NVIDIA is absent. To select explicitly from the installation folder:
 

@@ -12,9 +12,25 @@ import {
 import {
   discordRequestProblem,
   discordSingleOperationGoal,
+  discordLaunchBeforeBrowser,
 } from '../apps/desktop/discord-task-intent.mjs';
 
 const hash = (text) => createHash('sha256').update(text).digest('hex');
+test('Discord launch before a browser task does not authorize a channel, message or call', () => {
+  assert.deepEqual(
+    discordLaunchBeforeBrowser(
+      'Open Discord without sending any messages or joining a call. Then switch to Google Chrome, open Wikipedia.',
+    ),
+    { name: 'Discord', single: false },
+  );
+  assert.equal(
+    discordLaunchBeforeBrowser(
+      'Open Discord. Then open Chrome and send a message in that channel.',
+    ),
+    null,
+  );
+  assert.equal(discordLaunchBeforeBrowser('Open Discord, send a message, then open Chrome.'), null);
+});
 const request = (side = 'right', text = 'hi') => ({ action: 'send_current_message', text, side });
 const composer = (id = 'right', x = 80, context = 'Lounge') => ({
   targetId: id,

@@ -33,6 +33,17 @@ const ERROR_CODES = new Set([
   'MODULE_NOT_FOUND',
   'ERR_DLOPEN_FAILED',
   'CAPRI_VOICE_GPU_UNSUPPORTED',
+  'CAPRI_VOICE_PYTHON_VERSION',
+  'CAPRI_VOICE_REFERENCE_MISSING',
+  'CAPRI_VOICE_DEPENDENCIES',
+  'CAPRI_VOICE_CUDA_DOWNLOAD',
+  'CAPRI_VOICE_RUNTIME_VERIFICATION',
+  'CAPRI_VOICE_MODEL_DOWNLOAD',
+  'CAPRI_VOICE_MODEL_VERIFICATION',
+  'CAPRI_VOICE_INSTALL_FAILED',
+  'CAPRI_ROUTER_NATIVE_LIBRARY_UNAVAILABLE',
+  'CAPRI_LOCAL_LANGUAGE_MODEL_MISSING',
+  'CAPRI_MODEL_WARMUP_FAILED',
   'CUDA_OUT_OF_MEMORY',
   'CUDA_ARCH_UNSUPPORTED',
   'NATIVE_LIBRARY_LOAD_FAILED',
@@ -40,6 +51,12 @@ const ERROR_CODES = new Set([
 ]);
 const STAGES = new Set([
   'checking',
+  'dependencies',
+  'cuda-prepare',
+  'cuda-connect',
+  'cuda-download',
+  'cuda-retry',
+  'verify',
   'preparing',
   'downloading',
   'installing',
@@ -181,10 +198,13 @@ export function privateLog(input) {
     if (record.event === 'activity' && !record.code && !record.exception && !record.stage)
       omitted++;
     else records.push(record);
-    if (records.length >= 500) break;
   }
   if (omitted) records.push({ schemaVersion: 1, event: 'private-lines-omitted', count: omitted });
-  return records.map((value) => JSON.stringify(value)).join('\n');
+  // Preserve the latest failure, not the oldest 500 events in the log tail.
+  return records
+    .slice(-500)
+    .map((value) => JSON.stringify(value))
+    .join('\n');
 }
 
 /** One-time/startup cleanup of owned legacy runtime logs, never user documents. */

@@ -69,9 +69,13 @@ try {
             version=$version} }
     if(Test-Path -LiteralPath $CancelFile) { throw 'Installation cancelled.' }
     $manifest=Read-CapriJson (Join-Path $sourceRoot 'config/installer.json')
-    if([Environment]::OSVersion.Version.Build -lt $manifest.minimumWindowsBuild){throw 'Windows 10 22H2 or newer is required.'}
+    if([Environment]::OSVersion.Version.Build -lt $manifest.minimumWindowsBuild){throw 'Windows 10 1809 (build 17763) x64 or newer is required.'}
+    if([Environment]::OSVersion.Version.Build -lt 19045){
+        Publish-CapriEvent @{type='activity';step='node';message='Older Windows compatibility mode: current local AI runtimes and GPU/NPU drivers may require a newer Windows version. API mode remains an alternative.'}
+    }
     $spec=$manifest.artifacts.node
-    if($spec.url -notmatch '^https://nodejs\.org/dist/v[0-9.]+/node-v[0-9.]+-win-x64\.zip$' -or $spec.sha256 -notmatch '^[a-f0-9]{64}$') { throw 'Invalid Node bootstrap manifest.' }
+    $nodeSources=@(Get-CapriNodeBootstrapSources $spec)
+    $nodeArchiveName=[IO.Path]::GetFileName(([Uri]$nodeSources[0]).AbsolutePath)
     $node=Join-Path $target ('.runtime/'+$spec.directory+'/node.exe')
     $stamp=Join-Path $cache 'node.json'
     Assert-CapriNoLinks $stamp;
@@ -80,6 +84,7 @@ try {
     if(-not ((Test-Path -LiteralPath $node) -and (Test-Path -LiteralPath $stamp) -and (Read-CapriJson $stamp).sha256 -eq $spec.sha256 -and (Read-CapriJson $stamp).executableSha256 -eq (Get-CapriHash $node) -and (Test-CapriNodeRuntime $node))) {
         $archive=Join-Path $cache ($spec.sha256+'.zip')
         Assert-CapriNoLinks $archive;
+        Assert-CapriArchiveSingleLink $archive
         Assert-CapriNoLinks ($archive+'.part')
         $valid=(Test-Path -LiteralPath $archive) -and (Get-CapriHash $archive) -eq $spec.sha256
         if(-not $valid) {
@@ -87,6 +92,10 @@ try {
                 param($NextAttempt,$Maximum)
                 Publish-CapriEvent @{type='log';step='node';message=('Node download interrupted. Retrying '+$NextAttempt+'/'+$Maximum+'...')}
             } -Operation {
+            param($Attempt)
+            $sourceIndex=($Attempt-1)%$nodeSources.Count
+            $source=$nodeSources[$sourceIndex]
+            if($sourceIndex){Publish-CapriEvent @{type='log';step='node';message=('Connecting to Node download mirror ('+([Uri]$source).Host+').')}}
             while(Test-Path -LiteralPath $env:CAPRI_INSTALL_PAUSE_FILE){
                 if(Test-Path -LiteralPath $CancelFile){throw 'Installation cancelled.'}
                 Start-Sleep -Milliseconds 200
@@ -96,11 +105,13 @@ try {
             $handler=New-Object Net.Http.HttpClientHandler;
             $handler.AllowAutoRedirect=$false
             $client=New-Object Net.Http.HttpClient($handler);
-            $client.Timeout=[TimeSpan]::FromMinutes(15)
+            $client.Timeout=[TimeSpan]::FromSeconds(30)
             $response=$null;
             $capriDownloadStream=$null;
             $output=$null;
-            $partial=$archive+'.part'
+            $partial=$archive+'.part'+$(if($sourceIndex){'.'+$sourceIndex})
+            Assert-CapriNoLinks $partial
+            Assert-CapriArchiveSingleLink $partial
             try {
                 [long]$offset=0
                 if(Test-Path -LiteralPath $partial){
@@ -110,8 +121,8 @@ try {
                 }
                 if($offset -gt 0){$client.DefaultRequestHeaders.Range=New-Object Net.Http.Headers.RangeHeaderValue($offset,$null)}
                 Publish-CapriEvent @{type='activity';step='node';action='connectRuntime';component='node'}
-                $pending=$client.GetAsync($spec.url,[Net.Http.HttpCompletionOption]::ResponseHeadersRead)
-                Wait-CapriDownloadTask $pending -Cancelled {Test-Path -LiteralPath $CancelFile} -TimeoutMilliseconds 900000
+                $pending=$client.GetAsync($source,[Net.Http.HttpCompletionOption]::ResponseHeadersRead)
+                Wait-CapriDownloadTask $pending -Cancelled {Test-Path -LiteralPath $CancelFile} -TimeoutMilliseconds 30000
                 $response=$pending.GetAwaiter().GetResult()
                 $response.EnsureSuccessStatusCode() | Out-Null
                 if([int]$response.StatusCode -eq 206){
@@ -120,6 +131,7 @@ try {
                 }else{$offset=0}
                 $capriDownloadStream=$response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
                 Publish-CapriEvent @{type='activity';step='node';action='downloadRuntime';component='node'}
+                Publish-CapriEvent @{type='download';step='node';file=$nodeArchiveName;received=$offset;total=$spec.bytes}
                 $output=[IO.File]::Open($partial,$(if($offset -gt 0){[IO.FileMode]::Append}else{[IO.FileMode]::Create}),[IO.FileAccess]::Write);
                 $buffer=New-Object byte[] 1048576;
                 [long]$bytes=$offset;
@@ -137,8 +149,9 @@ try {
                     $bytes+=$count;
                     if($bytes -gt $spec.bytes){throw 'Bootstrap exceeds pinned size.'};
                     $output.Write($buffer,0,$count)
-                    if(([DateTime]::UtcNow-$last).TotalMilliseconds -ge 250) { Publish-CapriEvent @{type='download';
+                    if($bytes -eq $spec.bytes -or ([DateTime]::UtcNow-$last).TotalMilliseconds -ge 250) { Publish-CapriEvent @{type='download';
                             step='node';
+                            file=$nodeArchiveName;
                             received=$bytes;
                             total=$spec.bytes};
                         $last=[DateTime]::UtcNow }

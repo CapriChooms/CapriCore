@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Metadata only. Selection delegates to the existing guarded restart capability.
+// Opening reads metadata only. Selection uses the guarded restart capability;
+// the explicit local-load controls apply independently without a model restart.
+import { LocalLoadControls } from './local-load-controls.mjs';
 export function inferenceChoices(value = {}) {
   return [
     {
@@ -15,6 +17,9 @@ export function inferenceChoices(value = {}) {
       model: profile.model,
       active: profile.id === value.activeId,
       available: profile.canConnect === true,
+      ...(profile.authMode === 'chatgpt'
+        ? { unavailableReason: 'Sign in to ChatGPT and allow plan usage first.' }
+        : {}),
     })),
   ];
 }
@@ -95,6 +100,7 @@ export class InferencePicker {
   }
 
   render() {
+    this.loadControls?.flush();
     this.menu.replaceChildren();
     this.menu.setAttribute('aria-busy', 'false');
     const busy = Boolean(this.isBusy());
@@ -125,7 +131,11 @@ export class InferencePicker {
       detail.textContent = choice.model;
       const state = document.createElement('span');
       state.textContent = this.ui.text(
-        choice.active ? 'Active' : choice.available ? '' : 'No API key is saved.',
+        choice.active
+          ? 'Active'
+          : choice.available
+            ? ''
+            : (choice.unavailableReason ?? 'No API key is saved.'),
       );
       if (choice.id === null && choice.active) {
         const residency = localResidencyPresentation(this.value.localResidency, (text) =>
@@ -138,6 +148,15 @@ export class InferencePicker {
       button.append(title, detail, state);
       button.onclick = () => this.select(choice);
       this.menu.append(button);
+    }
+    if (this.value.localLoad) {
+      this.loadControls = new LocalLoadControls({
+        api: this.api,
+        ui: this.ui,
+        value: this.value.localLoad,
+        onLayout: () => this.position(),
+      });
+      this.menu.append(this.loadControls.element);
     }
     const actions = document.createElement('div');
     actions.className = 'inference-picker-settings';
@@ -216,7 +235,7 @@ export class InferencePicker {
   }
 
   items() {
-    return [...this.menu.querySelectorAll('button:not(:disabled)')];
+    return [...this.menu.querySelectorAll('button:not(:disabled), input:not(:disabled)')];
   }
 
   key(event) {
@@ -227,7 +246,17 @@ export class InferencePicker {
       this.close();
       return;
     }
-    if (event.key === 'Tab') return this.close();
+    if (event.key === 'Tab') {
+      const items = this.items();
+      const index = items.indexOf(document.activeElement) + (event.shiftKey ? -1 : 1);
+      if (this.loadControls && items[index]) {
+        event.preventDefault();
+        items[index].focus();
+        return;
+      }
+      return this.close(false);
+    }
+    if (event.target.closest?.('.inference-load-controls')) return;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -260,6 +289,7 @@ export class InferencePicker {
   }
 
   close(focus = true) {
+    this.loadControls?.flush();
     ++this.request;
     const visible = !this.menu.hidden;
     this.menu.hidden = true;

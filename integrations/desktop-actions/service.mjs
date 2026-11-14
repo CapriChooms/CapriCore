@@ -151,7 +151,7 @@ export function callApplicationBridge(root, command, { signal, stillAllowed = ()
             'The application did not respond in time; its current state must be checked before retrying.',
           ),
         ),
-      12000,
+      command.action === 'calculate' ? 20000 : 12000,
     );
     const permissionCheck = setInterval(() => {
       try {
@@ -208,8 +208,9 @@ export class ApplicationService {
     database,
     bridge = callApplicationBridge,
     permissionSnapshot,
+    showCalculatorWindow = () => false,
   }) {
-    Object.assign(this, { root, permissionsFile, bridge });
+    Object.assign(this, { root, permissionsFile, bridge, showCalculatorWindow });
     this.permissions = permissionSnapshot ?? (() => applicationPermissions(this.permissionsFile));
     this.tail = Promise.resolve();
     this.waiting = 0;
@@ -274,24 +275,34 @@ export class ApplicationService {
         .run(id, fingerprint, 'started');
     let result;
     if (command.action === 'calculate') {
-      result = await calculate(command, { signal, root: this.root });
       const simple =
         command.mode === 'scientific' &&
         /^(-?\d{1,9}(?:\.\d{1,6})?)\s*([+*/-])\s*(-?\d{1,9}(?:\.\d{1,6})?)$/.test(
           command.expression,
         );
-      if (command.showWindow === true || (command.showWindow !== false && simple)) {
-        const displayed = simple
+      const show = this.showCalculatorWindow() || (command.showWindow ?? simple);
+      const { nativeInput, ...calculation } = await calculate(command, {
+        signal,
+        root: this.root,
+        withNativeInput: show,
+      });
+      result = calculation;
+      if (show) {
+        const displayed = nativeInput
           ? await this.bridge(
               this.root,
-              { action: 'calculate', app: 'calculator', expression: command.expression },
+              {
+                action: 'calculate',
+                app: 'calculator',
+                buttons: nativeInput,
+                expected: calculation.result,
+              },
               { signal, stillAllowed },
-            )
-          : await this.bridge(
-              this.root,
-              { action: 'launch', app: 'calculator' },
-              { signal, stillAllowed },
-            );
+            ).catch(() => {
+              signal?.throwIfAborted();
+              return { ok: false };
+            })
+          : { ok: false };
         result = {
           ...result,
           display: displayed,

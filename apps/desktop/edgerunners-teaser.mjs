@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { canClickTarget } from './computer-click-target.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { browserNavigationState } from './browser-search-state.mjs';
 
@@ -133,8 +134,12 @@ export async function runEdgerunnersTeaser({ navigate, observe, input, signal })
     view = await observe();
     if (state(view) !== 'ready') return { stage: 'teaser', status: state(view) };
     const controls = pageControls(view);
-    const labels = controls.filter((t) => teaserLabel.test(normalize(t.untrustedLabel)));
-    const clickable = labels.filter((t) => /\.(?:Button|Hyperlink)$/u.test(t.role ?? ''));
+    const labels = controls.filter(
+      (t) => canClickTarget(t) && teaserLabel.test(normalize(t.untrustedLabel)),
+    );
+    const clickable = labels.filter((t) =>
+      /\.(?:Button|Hyperlink)$/u.test(t.actionRole ?? t.role ?? ''),
+    );
     const candidates = clickable.length
       ? clickable
       : labels.filter((t) => /\.(?:Image|Text)$/u.test(t.role ?? ''));

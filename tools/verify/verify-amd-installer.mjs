@@ -45,6 +45,7 @@ const metadata = [
   'multilingual-candidates.json',
   'multilingual-runtime.json',
   'qwen-tts-upstream.json',
+  'qwen-ru-voice.json',
   'qwen-download-sizes.json',
 ];
 const required = new Set([
@@ -53,6 +54,7 @@ const required = new Set([
   'assets/default/app.ico',
   'apps/shared/languages.json',
   'packages/runtime/src/hardware/model-language-benchmark.json',
+  'packages/runtime/src/hardware/llm-gpu-support.json',
 ]);
 const approved = sourceFiles(root);
 const copied = approved.filter(
@@ -140,7 +142,8 @@ foreach($language in @('en','ru')){
     if($qualityFits -ne $script:amdFixture.qualityFits){throw 'The quality profile did not enforce the appropriate GPU/CPU host RAM policy.'}
     if($script:amdFixture.qualityFits -and $qualityRequired -ne $memoryEstimates.models.quality.gpuSystemRamGiB){throw 'Quality did not use gpuSystemRamGiB.'}
     if(-not $script:amdFixture.qualityFits -and $qualityRequired -ne $quality.ramGiB){throw 'Insufficient VRAM incorrectly bypassed the CPU RAM requirement.'}
-    if($qualityBudget.offload -ne (-not $script:amdFixture.qualityFits)){throw 'The quality profile did not show partial offload when dedicated VRAM was insufficient.'}
+    $qualityFootprint=$memoryEstimates.base.vram[1]+$memoryEstimates.models.quality.vram[1]
+    if($qualityBudget.offload -ne ($qualityFootprint -gt $hardware.vramGiB)){throw 'Partial offload must follow the calibrated footprint, not the larger profile recommendation.'}
     $choice=[string]$script:fields.profile.SelectedItem
     if(-not $choice.Contains(('RAM '+$required+'+ GiB'))){throw 'The model list shows the wrong host RAM requirement.'}
     $legacyHardware=@{ramGiB=$hardware.ramGiB;availableRamGiB=$hardware.availableRamGiB;gpu=$hardware.gpu;vramGiB=0;availableVramGiB=$null}

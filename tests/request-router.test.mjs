@@ -128,10 +128,12 @@ test('the reviewed Gateway override allows owner-only one-shot reasoning for con
   assert.equal(call('off'), 'off');
   assert.equal(call('off', 'capri', true, 'dialogue'), 'off');
   assert.equal(call('medium'), 'medium');
+  assert.equal(call('low'), 'low');
+  assert.equal(call('high'), 'high');
   assert.equal(call('medium', 'capri', true, 'dialogue'), 'medium');
   assert.equal(call(undefined), undefined);
   for (const args of [
-    ['high'],
+    ['xhigh'],
     ['off', 'other'],
     ['off', 'capri', false],
     [['off', 'off']],

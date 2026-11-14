@@ -96,7 +96,6 @@ try {
         mouthVisible: Boolean(mouth && !mouth.hidden),
         mouthWidth: mouth?.width,
         facePlates: document.querySelectorAll('.avatar-headpat-plate').length,
-        gripFaceVisible: !document.querySelector('.avatar-grip-face').hidden,
         hearts: document.querySelectorAll('.avatar-headpat-hearts i').length,
       };
     });
@@ -145,7 +144,7 @@ try {
     );
     for (const gesture of ['headpat', 'pulse']) {
       await page.evaluate((gesture) => {
-        const observed = (window.musicTapFixture = { facePlates: 0, gripFaces: 0, sparks: 0 });
+        const observed = (window.musicTapFixture = { facePlates: 0, sparks: 0 });
         observed.observer = new MutationObserver((records) => {
           for (const record of records) {
             if (record.type === 'childList') {
@@ -154,16 +153,12 @@ try {
                 observed.facePlates += Number(node.matches('.avatar-headpat-plate'));
                 observed.sparks += Number(node.id === 'avatar-tap');
               }
-            } else if (record.target.matches('.avatar-grip-face') && !record.target.hidden) {
-              observed.gripFaces++;
             }
           }
         });
         observed.observer.observe(document.body, {
           childList: true,
           subtree: true,
-          attributes: true,
-          attributeFilter: ['hidden'],
         });
         capriAvatarDetach[gesture]({ x: 500, y: 450, count: 1, tone: 'curious' });
       }, gesture);
@@ -175,7 +170,6 @@ try {
       assert.equal(later.image, first.image);
       assert.equal(during.hearts, 4);
       assert.equal(during.facePlates, 0);
-      assert.equal(during.gripFaceVisible, false);
       assert(during.noteVisible && later.noteVisible);
       assert.notEqual(during.rotation, later.rotation, 'Music keeps moving during tap hearts.');
       assert(
@@ -191,7 +185,7 @@ try {
           delete window.musicTapFixture;
           return observed;
         }),
-        { facePlates: 0, gripFaces: 0, sparks: 0 },
+        { facePlates: 0, sparks: 0 },
       );
     }
     report.checks.push(

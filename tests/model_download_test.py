@@ -78,7 +78,7 @@ class Downloads(unittest.TestCase):
 
     def test_connection_reset_changes_official_source_and_keeps_range(self):
         self.partial.write_bytes(self.data[:5])
-        calls = []
+        calls, progress = [], []
         def open_response(request, **_):
             calls.append(request.full_url)
             self.assertEqual(request.get_header('Range'), 'bytes=5-')
@@ -86,11 +86,14 @@ class Downloads(unittest.TestCase):
             if len(calls) == 1:
                 raise urllib.error.URLError(ConnectionResetError(10054, 'fixture'))
             return Response(self.data[5:], 206, {'Content-Range': f'bytes 5-{len(self.data)-1}/{len(self.data)}'})
-        self.get(open_response, fallback_urls=['https://api.github.com/fixture/model'])
+        self.get(open_response, fallback_urls=['https://api.github.com/fixture/model'],
+                 progress=lambda stage, received: progress.append((stage, received)))
         self.assertEqual(calls, ['https://huggingface.co/fixture/model', 'https://api.github.com/fixture/model'])
         self.assertEqual(self.target.read_bytes(), self.data)
         self.assertTrue(any('remote server closed' in line for line in self.lines))
         self.assertTrue(any('alternate official source' in line for line in self.lines))
+        self.assertEqual(progress, [('connect', 5), ('retry', 5), ('connect', 5),
+                                    ('download', 5), ('download', len(self.data))])
 
     def test_default_retries_allow_longer_outage_and_honor_retry_after(self):
         delays, calls = [], []

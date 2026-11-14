@@ -35,14 +35,18 @@ function Write-CapriJson([string]$Path, $Value) {
 }
 function Assert-CapriNoLinks([string]$Path) {
     $cursor = [IO.Path]::GetFullPath($Path)
+    $parents = New-Object 'Collections.Generic.Stack[string]'
     while ($cursor) {
-        if (Test-Path -LiteralPath $cursor) {
-            $item = Get-Item -LiteralPath $cursor -Force
-            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Installation paths cannot contain filesystem links.' }
-        }
+        $parents.Push($cursor)
         $parent = [IO.Path]::GetDirectoryName($cursor)
         if ($parent -eq $cursor) { break };
         $cursor = $parent
+    }
+    foreach($entry in $parents){
+        try{$attributes=[IO.File]::GetAttributes($entry)}
+        catch [IO.FileNotFoundException]{return}
+        catch [IO.DirectoryNotFoundException]{return}
+        if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'Installation paths cannot contain filesystem links.'}
     }
 }
 function Resolve-CapriInstallFolder([string]$Directory,[string]$Source,[string]$Version) {
@@ -192,11 +196,24 @@ function Assert-CapriVoicePack([string]$Folder) {
     }
     return [IO.Path]::GetFullPath($Folder)
 }
+function Get-CapriNodeBootstrapSources($Spec) {
+    if($Spec.version -cnotmatch '^\d+\.\d+\.\d+$' -or $Spec.sha256 -cnotmatch '^[a-f0-9]{64}$' -or $Spec.bytes -le 0){throw 'Invalid Node bootstrap manifest.'}
+    $version='v'+$Spec.version
+    $file='node-'+$version+'-win-x64.zip'
+    if($Spec.url -cne ('https://nodejs.org/dist/'+$version+'/'+$file)){throw 'Invalid Node bootstrap manifest.'}
+    $sources=@([string]$Spec.url)
+    if($Spec.PSObject.Properties['mirrors']){
+        $mirrors=@($Spec.mirrors)
+        if($mirrors.Count -ne 1 -or $mirrors[0] -cne ('https://cdn.npmmirror.com/binaries/node/'+$version+'/'+$file)){throw 'Invalid Node bootstrap mirror.'}
+        $sources+=$mirrors
+    }
+    return $sources
+}
 function Invoke-CapriDownloadRetry {
     param([Parameter(Mandatory=$true)][ScriptBlock]$Operation,[ScriptBlock]$Cancelled={ $false },[ScriptBlock]$Notify={},[int]$Attempts=3,[int]$DelayMilliseconds=1000)
     for($attempt=1;$attempt -le $Attempts;$attempt++) {
         if(& $Cancelled){throw 'Installation cancelled.'}
-        try { return (& $Operation) }
+        try { return (& $Operation $attempt) }
         catch {
             if(& $Cancelled){throw 'Installation cancelled.'}
             $exception=$_.Exception

@@ -31,6 +31,26 @@ PC may keep that inference local, but its configuration and logs are controlled
 by that server. Provider retention, pricing and privacy policies apply; see
 [external AI providers](docs/external-api.md).
 
+The optional ChatGPT plan connection has its own browser authorization, PKCE,
+signed identity validation and account-bound encrypted token store. It does not
+reuse ChatGPT, Codex, Claude or Gemini credentials from installed applications.
+Access tokens are sent only to OpenAI's official public API. The renderer
+receives account presentation and model IDs, never tokens. Account switching,
+refresh, revocation, cancellation and plan-use consent are documented in
+[AI app connections](docs/desktop-ai-providers.md). Screen observation is paused
+before opening sign-in. App discovery runs on demand and never executes detected
+AI command-line programs or imports their private settings.
+
+**Voice API** is a separate, disabled-by-default choice. When enabled, only the
+text selected for speech (including explicitly requested previews and wake replies)
+is sent to the configured voice provider, with the selected voice and model IDs.
+It does not send microphone audio, reference recordings, screen images or the
+conversation history. The spoken reply can itself contain personal information;
+the provider's retention policy applies. Its key has separate account-bound
+DPAPI storage. Provider error bodies and audio are excluded from diagnostics.
+There is no automatic local fallback that silently reloads a voice model.
+See [external voice](docs/external-tts.md).
+
 Screen, microphone, file access and computer actions require their applicable
 permissions. Review grants before enabling full computer control or a third-party
 user tool. A local tool can have its own network and file behavior; declaring a

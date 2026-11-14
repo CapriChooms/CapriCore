@@ -5,7 +5,9 @@ import { assertPrivatePath, writePrivateBytesAtomic } from './safe-file.mjs';
 
 export const deviceSelectionId = (value) =>
   typeof value === 'string' &&
-  /^(?:auto|cpu|(?:cuda|rocm|vulkan):\d{1,2}:[a-f0-9]{16})$/.test(value);
+  /^(?:auto|cpu|(?:cuda|rocm|vulkan|npu-openvino|npu-vitis|npu-qnn):\d{1,2}:[a-f0-9]{16})$/.test(
+    value,
+  );
 export function deviceSettingsFile(root) {
   const file = path.join(root, 'data/desktop/model-devices.json');
   assertPrivatePath(file);
@@ -23,7 +25,8 @@ export function readModelDevices(root, fallback = {}) {
     value?.schemaVersion !== 1 ||
     Object.keys(value).some((key) => !['schemaVersion', 'language', 'voice'].includes(key)) ||
     !deviceSelectionId(value.language) ||
-    !deviceSelectionId(value.voice)
+    !deviceSelectionId(value.voice) ||
+    value.voice.startsWith('npu-')
   )
     throw Error('Invalid model device settings.');
   return value;
@@ -33,7 +36,8 @@ export function saveModelDevices(root, value) {
     !value ||
     Object.keys(value).some((key) => !['language', 'voice'].includes(key)) ||
     !deviceSelectionId(value.language) ||
-    !deviceSelectionId(value.voice)
+    !deviceSelectionId(value.voice) ||
+    value.voice.startsWith('npu-')
   )
     throw Error('Invalid model device selection.');
   const file = deviceSettingsFile(root),
@@ -102,6 +106,7 @@ export function unrestrictedDeviceEnvironment(env) {
 
 /** Do not reserve a future voice model on a different explicitly selected GPU. */
 export function modelsShareDevice(language, voice) {
+  if (language?.startsWith('npu-')) return false;
   if (language === 'cpu' || voice === 'cpu') return false;
   if (language === 'auto' || voice === 'auto') return true;
   const [left, index] = language.split(':'),

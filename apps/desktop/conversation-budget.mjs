@@ -12,6 +12,7 @@ export function conversationBudget({
   timeoutMs = 180000,
   residentBytes,
   residentGpuBytes,
+  emulatedX64 = false,
 }) {
   const positive = (n) => Number.isFinite(n) && n > 0;
   const window = positive(contextTokens) ? Math.min(contextTokens, 262144) : 32768;
@@ -34,9 +35,10 @@ export function conversationBudget({
   // Automatic acceleration can fall back to CPU. Use observed allocation,
   // rather than only the saved device preference, for the prefill allowance.
   const observedCpu = positive(residentBytes) && residentGpuBytes === 0;
-  const initialDeadline = observedCpu
-    ? Math.min(timeoutMs, Math.max(firstTextTimeoutMs, 120000))
-    : firstTextTimeoutMs;
+  const initialDeadline = Math.min(
+    timeoutMs,
+    Math.max(firstTextTimeoutMs, emulatedX64 ? 180000 : observedCpu ? 120000 : 0),
+  );
   const cap = Math.max(initialDeadline, Math.min(150000, timeoutMs - 30000));
   const firstReplyMs =
     promptTokens > 4096

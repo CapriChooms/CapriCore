@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-only
 function Get-CapriDefaultTarget {
-    Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Capri'
+    Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs/Capri'
 }
 function Select-CapriInitialInstallation($Installations,[version]$SetupVersion) {
     $Installations | Where-Object{[version]$_.version -le $SetupVersion} |
         Sort-Object @{Expression={[version]$_.version};Descending=$true},path | Select-Object -First 1
 }
-function Initialize-CapriDefaultTarget([string]$Target) {
-    if($Target -ine (Get-CapriDefaultTarget)){return}
+function Initialize-CapriProgramFilesTarget([string]$Target) {
+    if($Target -ine (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Capri')){return}
     if(-not (Test-Path -LiteralPath $Target -PathType Container)){
         if($env:CAPRI_SETUP_LAUNCHER){
             $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
@@ -35,8 +35,8 @@ function Get-CapriInstallations {
         foreach($key in @(Get-ChildItem -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue|Where-Object{$_.PSChildName -like 'Capri.*'})){
             try{$entry=Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction Stop;if($entry.InstallLocation){$null=$paths.Add([string]$entry.InstallLocation)}}catch{}
         }
-        $null=$paths.Add((Join-Path $env:LOCALAPPDATA 'Programs/Capri'))
         $null=$paths.Add((Get-CapriDefaultTarget))
+        $null=$paths.Add((Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Capri'))
     }
     foreach($candidate in $paths){try{
         if(-not [IO.Path]::IsPathRooted($candidate) -or $candidate.StartsWith('\\')){continue}

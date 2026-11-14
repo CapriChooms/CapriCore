@@ -7,7 +7,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { UpdateService } from '../apps/desktop/update-service.mjs';
-import { verifyPayload } from '../packages/updater/src/transaction.mjs';
+import { runtimeUpgradeRequired, verifyPayload } from '../packages/updater/src/transaction.mjs';
 import { installerRequired } from '../packages/updater/src/payload-policy.mjs';
 
 const parent = path.join(root, '.runtime/update-installer-fallback');
@@ -17,6 +17,19 @@ const json = (file, value) => {
   mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, JSON.stringify(value));
 };
+
+test('a changed local inference runtime requires the full installer', () => {
+  const installRoot = mkdtempSync(path.join(parent, 'runtime-from-'));
+  const sourceRoot = mkdtempSync(path.join(parent, 'runtime-to-'));
+  const runtime = (dir, artifacts) => json(path.join(dir, 'config/installer.json'), { artifacts });
+  runtime(installRoot, { ollama: { sha256: 'old' } });
+  runtime(sourceRoot, { llama: { sha256: 'new' } });
+  assert.equal(runtimeUpgradeRequired(installRoot, sourceRoot), true);
+  runtime(installRoot, { llama: { sha256: 'new' } });
+  assert.equal(runtimeUpgradeRequired(installRoot, sourceRoot), false);
+  runtime(sourceRoot, { llama: { sha256: 'newer' } });
+  assert.equal(runtimeUpgradeRequired(installRoot, sourceRoot), true);
+});
 
 function fixture({ installer = true, stage, download, launch } = {}) {
   const installRoot = mkdtempSync(path.join(parent, 'case-'));

@@ -45,7 +45,7 @@ export function transientModelPull(error) {
     )
   );
 }
-/** Ollama retains verified layers/partial blobs when its pull request is cancelled. */
+/** Verified layers and partial blobs are retained when the request is cancelled. */
 export async function pullModel(
   rt,
   model,
@@ -113,6 +113,15 @@ export async function pullModel(
           total: Number.isSafeInteger(item.total) && item.total > 0 ? item.total : null,
           completed:
             Number.isSafeInteger(item.completed) && item.completed >= 0 ? item.completed : null,
+          ...(typeof item.file === 'string' &&
+          /^[\w.+-]{1,160}$/.test(item.file) &&
+          Number.isSafeInteger(item.fileCompleted) &&
+          Number.isSafeInteger(item.fileTotal) &&
+          item.fileCompleted >= 0 &&
+          item.fileCompleted <= item.fileTotal &&
+          item.fileTotal > 0
+            ? { file: item.file, fileCompleted: item.fileCompleted, fileTotal: item.fileTotal }
+            : {}),
         });
         const step =
           item.total && typeof item.completed === 'number'
@@ -153,7 +162,7 @@ export async function pullModel(
           if (codes.length)
             throw Object.assign(
               new Error(
-                `The local model download connection failed (${[...new Set(codes)].join(', ')}). Downloaded layers are retained. Retry setup and include the Ollama logs from Save report (ZIP) if it continues.`,
+                `The local model download connection failed (${[...new Set(codes)].join(', ')}). Downloaded layers are retained. Retry setup and use Save report (ZIP) if it continues.`,
                 { cause: error },
               ),
               { code: 'CAPRI_MODEL_PULL_CONNECTION_FAILED' },
@@ -171,7 +180,7 @@ export async function pullModel(
           Boolean(recoverTls);
         retryMs = 2000 * 2 ** failures++;
         emit(
-          `Model download connection interrupted: ${modelPullMessage(error.message)}${networkCodes(error).length ? ' [' + [...new Set(networkCodes(error))].join(', ') + ']' : ''}. Retrying ${failures + 1}/4 in ${retryMs / 1000}s; Ollama retains verified layers and partial downloads.`,
+          `Model download connection interrupted: ${modelPullMessage(error.message)}${networkCodes(error).length ? ' [' + [...new Set(networkCodes(error))].join(', ') + ']' : ''}. Retrying ${failures + 1}/4 in ${retryMs / 1000}s. Verified layers and partial downloads are retained.`,
         );
       }
     } finally {

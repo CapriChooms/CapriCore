@@ -5,7 +5,7 @@ import {
   root,
   runtime,
   settings,
-  startOllama,
+  startLlama,
   request,
   headers,
   runCli,
@@ -16,7 +16,7 @@ import { ensureNativeLanguageModel } from '../../packages/runtime/src/providers/
 import { writeJsonAtomic } from '../../apps/desktop/storage.mjs';
 
 const rt = runtime();
-await startOllama(rt);
+await startLlama(rt);
 await ensureNativeLanguageModel(rt);
 const config = JSON.parse(readFileSync(rt.configPath, 'utf8'));
 const models = config.models.providers.ollama.models,
@@ -81,6 +81,6 @@ console.log(
     upstream: settings.upstreamModel,
     reasoningBudget: reasoningBudget(),
     historyPreserved: true,
-    note: 'Restart the owned Ollama process when changing the native reasoning budget.',
+    note: 'Restart Capri when changing the local reasoning budget.',
   }),
 );

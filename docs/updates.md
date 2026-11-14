@@ -14,15 +14,15 @@ publication timestamps. Drafts, older versions and releases without a verified a
 are ignored. Current public releases start at **v1.0.0**. Legacy Preview tags remain
 readable for upgrade compatibility. Turning the checkbox off never downgrades an installed version.
 
-The default and fixed update source is [CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases), including when old local settings or optional GitHub credentials are retained. Downloads use only its GitHub release API and approved GitHub asset
+The stable update source is [CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases). With experimental updates enabled, Capri also checks for prereleases in the private [CapriChooms/Capri](https://github.com/CapriChooms/Capri/releases) repository if a GitHub credential is available. The newest eligible version is offered, with the public repository preferred when the versions match. Downloads use the selected repository's release API and approved GitHub asset
 hosts. GitHub's asset size and SHA-256 digest are required. Extracted source files are
 checked against SOURCE_MANIFEST.json, and config/release.json must match the release tag.
 This is transport and integrity verification, not a publisher code signature. Current
 Windows installers are unsigned.
 
-Public releases work without an account, invitation or token, subject to GitHub rate limits. Startup checks and manual checks use the public release channel. A GitHub token is optional; saved tokens remain encrypted for the local OS account, and the renderer receives connection status only. Expired or unreadable optional access does not block anonymous public updates. Rate limits, cancellation and integrity failures remain errors. Capri never distributes the author's credentials or sends GitHub credentials to CDN redirects.
+Public releases work without an account, invitation or token, subject to GitHub rate limits. Startup and manual checks use the same channel selection. For private previews, accept the invitation to CapriChooms/Capri, connect GitHub in Updates and enable **Include experimental updates**. Saved tokens remain encrypted for the local OS account. If private access is unavailable, Capri can still check the public channel. Capri never sends GitHub credentials to CDN redirects. See [private preview setup](private-updates.md).
 
-Installations from the former private `CapriChooms/Capri` channel need a one-time full-installer upgrade: download [Capri 1.0.2](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.2/CapriSetup-1.0.2.exe), select the existing installation folder, and keep its data. Updating the new code does not retrospectively redirect an already installed old updater. The [old private-access guide](private-updates.md) is historical documentation.
+Capri v1.1.0 introduces this two-repository configuration. If your installed version does not list the private preview, download its installer from the private release page and select your existing installation folder to keep its data.
 
 ## What is preserved
 
@@ -42,7 +42,7 @@ On initialization, v0.3.6 refreshes only the reviewed, untouched old factory
 Personality, with a backup. Customized Personality text is retained. Communication
 styles are separate delivery preferences; see [communication styles](communication-styles.md).
 
-If pinned Node/Ollama/uv/Git runtimes change, Capri automatically downloads the full
+If pinned Node/llama.cpp/uv/Git runtimes change, Capri automatically downloads the full
 installer instead. It closes the managed app before opening the installer. Select the
 same managed installation folder to keep existing data. New base package versions
 can now upgrade the existing installation; deliberate downgrades require a separate

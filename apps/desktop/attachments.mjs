@@ -3,15 +3,21 @@ import { randomUUID } from 'node:crypto';
 import { crc32, inflateRawSync } from 'node:zlib';
 import { snapshotBytes } from './visual-service.mjs';
 import { attachmentName } from './attachment-history.mjs';
+import {
+  TEXT_ATTACHMENTS,
+  OFFICE_ATTACHMENTS,
+  IMAGE_ATTACHMENTS,
+  FRAME_ATTACHMENTS,
+} from '../../packages/skills/src/attachment-formats.mjs';
 
 const MAX_FILES = 4;
 const MAX_TEXT = 12000;
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_IMAGE_TOTAL = 5 * 1024 * 1024;
 const LEASE_MS = 15 * 60 * 1000;
-const textFiles = new Set(['txt', 'md', 'csv', 'tsv', 'json', 'log', 'pdf']);
-const officeFiles = { docx: 'word/document.xml', odt: 'content.xml' };
-const mediaFiles = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']);
+const textFiles = new Set(TEXT_ATTACHMENTS);
+const officeFiles = OFFICE_ATTACHMENTS;
+const mediaFiles = new Set([...IMAGE_ATTACHMENTS, ...FRAME_ATTACHMENTS]);
 
 function officeXml(bytes, name) {
   const end = bytes.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));

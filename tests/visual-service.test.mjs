@@ -60,7 +60,7 @@ function inferenceFixture(raw, options = {}) {
     rpc: { call: async () => ({ messages: [] }) },
     fetchImpl: async (_url, request) => {
       requests.push(JSON.parse(request.body));
-      return new Response(typeof raw === 'function' ? raw() : raw);
+      return new Response(typeof raw === 'function' ? raw(requests.length) : raw);
     },
     ...options,
   });
@@ -76,6 +76,25 @@ function inferenceFixture(raw, options = {}) {
       }),
   };
 }
+
+test('image attachments use the same fictional identity as snapshots; documents do not', async () => {
+  const fixture = inferenceFixture(
+    JSON.stringify({ message: { content: 'Это мой аватар.' }, done: true }) + '\n',
+    { languages: () => ({ conversation: 'ru' }), identifyPortrait: () => 'Capri (Capricorn)' },
+  );
+  const png = visionImage();
+  await fixture.generate({ text: 'Кто на картинке?', png: undefined, attachments: [{ png }] });
+  await fixture.generate({
+    text: 'Что в документе?',
+    png: undefined,
+    attachments: [{ text: 'Fixture' }],
+  });
+  const [picture, document] = fixture.requests.map(({ messages }) => messages[0].content);
+  assert.ok(picture.includes(CAPRI_SCREEN_SELF));
+  assert.match(picture, /Image 1 matches a reference portrait of Capri/);
+  assert.match(picture, /Отвечай только на русском языке/);
+  assert.doesNotMatch(document, /Fictional character reference|Reference portrait matches/);
+});
 
 test('ordinary visual maths has room beyond 768 tokens and reserves its actual answer budget', async () => {
   const answer = Array.from(
@@ -152,6 +171,70 @@ test('visual explicit truncation and incomplete streams preserve typed causes', 
     await assert.rejects(inferenceFixture(raw).generate(), { code });
 });
 
+test('visual thinking retries once with a direct answer when the first pass runs out of tokens', async () => {
+  const solution = 'v(t) = 12t − 48. При t = 9 с скорость равна 60 м/с.';
+  const raw = (attempt) =>
+    attempt === 1
+      ? [
+          { message: { thinking: 'Private reasoning in a dedicated field' } },
+          { message: { content: '<think>More private reasoning' } },
+          { done: true, done_reason: 'length' },
+        ]
+          .map((part) => JSON.stringify(part))
+          .join('\n')
+      : JSON.stringify({
+          message: { content: '<think>Private again</think>' + solution },
+          done: true,
+          done_reason: 'stop',
+        });
+  const f = inferenceFixture(raw, { modelCapabilities: ['vision', 'thinking'] });
+  const emitted = [];
+  const controller = new AbortController();
+  assert.equal(
+    (
+      await f.generate({
+        text: 'Найдите скорость в момент t = 9 с по формуле на изображении.',
+        attachments: [{ png: visionImage() }],
+        thinking: true,
+        effort: 'medium',
+        signal: controller.signal,
+        emit: (event) => emitted.push(event),
+      })
+    ).text,
+    solution,
+  );
+  assert.equal(f.requests.length, 2);
+  const [initial, retry] = f.requests;
+  assert.equal(initial.think, true);
+  assert.equal(initial.reasoning_effort, 'medium');
+  assert.equal(retry.think, false);
+  assert.equal(retry.reasoning_effort, undefined);
+  assert.equal(retry.options.num_predict, 2048);
+  assert.deepEqual(retry.tools, []);
+  assert.deepEqual(retry.messages.slice(1), initial.messages.slice(1));
+  assert.match(retry.messages[0].content, /Give a concise solution/);
+  assert.equal(emitted.map((event) => event.text).join(''), solution);
+});
+
+test('visual thinking keeps streamed partial text and does not retry it or a second truncation', async () => {
+  const finished = (message) => JSON.stringify({ message, done: true, done_reason: 'length' });
+  const partial = inferenceFixture(finished({ content: 'A visible partial solution.' }));
+  const emitted = [];
+  await assert.rejects(partial.generate({ thinking: true, emit: (event) => emitted.push(event) }), {
+    code: 'CAPRI_VISUAL_TRUNCATED',
+  });
+  assert.equal(partial.requests.length, 1);
+  assert.match(emitted.map((event) => event.text).join(''), /visible partial solution/);
+  const exhausted = inferenceFixture(finished({ thinking: 'Never render this' }));
+  await assert.rejects(
+    exhausted.generate({ thinking: true, emit: () => assert.fail('Unexpected output') }),
+    {
+      code: 'CAPRI_VISUAL_TRUNCATED',
+    },
+  );
+  assert.equal(exhausted.requests.length, 2);
+});
+
 test('visual provider errors retain only fixed safe codes and never raw details', async () => {
   for (const [providerCode, expected] of [
     ['rate_limit_exceeded', 'rate_limit_exceeded'],
@@ -172,6 +255,10 @@ test('snapshot input is bounded PNG before native decoding', () => {
   assert.deepEqual(snapshotBytes(png), png);
   assert.throws(() => snapshotBytes(new Uint8Array(100)));
   const huge = Buffer.from(png);
+  const hd = Buffer.from(png);
+  hd.writeUInt32BE(1920, 16);
+  hd.writeUInt32BE(1080, 20);
+  assert.deepEqual(snapshotBytes(hd), hd);
   huge.writeUInt32BE(50000, 16);
   assert.throws(() => snapshotBytes(huge));
 });

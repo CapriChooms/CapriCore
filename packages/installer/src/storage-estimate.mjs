@@ -7,7 +7,7 @@ import classifier from '../../../config/request-router-upstream.json' with { typ
 import candidates from '../../../config/multilingual-candidates.json' with { type: 'json' };
 import speech from '../../../config/multilingual-runtime.json' with { type: 'json' };
 import qwenVoice from '../../../config/qwen-tts-upstream.json' with { type: 'json' };
-import { needsOllamaRocm } from '../../runtime/src/hardware/llm-gpu.mjs';
+import russianVoice from '../../../config/qwen-ru-voice.json' with { type: 'json' };
 
 const MiB = 2 ** 20;
 const { artifacts, storage } = manifest;
@@ -21,7 +21,7 @@ export function estimateSpeechStorage(
   { recognition = 'off', speechLanguage = 'off', router = false, voiceMode },
   { rocmVoice = false } = {},
 ) {
-  const qwen = voiceMode === 'qwen';
+  const qwen = voiceMode === 'qwen' || voiceMode === 'qwen-ru';
   const voice = speechLanguage !== 'off' && !qwen;
   let downloadBytes = 0;
   let extraBytes = storage.reserveMiB * MiB;
@@ -46,7 +46,10 @@ export function estimateSpeechStorage(
   }
   if (qwen) {
     addPackages(storage.qwenVoice);
-    downloadBytes += modelBytes(qwenVoice);
+    downloadBytes +=
+      voiceMode === 'qwen-ru'
+        ? modelBytes(russianVoice) + modelBytes(russianVoice.accent)
+        : modelBytes(qwenVoice);
   } else if (voice) {
     addPackages(rocmVoice ? storage.rocmVoice : storage.cudaVoice);
     downloadBytes +=
@@ -79,12 +82,10 @@ export function estimateInstallStorage(selection, options = {}) {
   let downloadBytes =
     artifacts.node.bytes +
     artifacts.electron.bytes +
-    artifacts.ollama.bytes +
+    artifacts.llama.bytes +
     storage.npmDownloadMiB * MiB +
     storage.embeddingBytes;
-  const rocm = needsOllamaRocm({ ...selection, gpus: options.hardware?.gpus });
-  if (rocm) downloadBytes += artifacts.ollamaRocm.bytes;
-  if (downloadModels) {
+  if (downloadModels && !selection.installedModel) {
     const profile = manifest.profiles.find(({ id }) => id === selection.profile);
     downloadBytes += modelSizes.models[profile.model];
   }
@@ -92,7 +93,7 @@ export function estimateInstallStorage(selection, options = {}) {
     downloadBytes: downloadBytes + speechBudget.downloadBytes,
     requiredBytes:
       downloadBytes +
-      (rocm ? artifacts.ollamaRocm.expandedBytes : 0) +
+      artifacts.llama.expandedBytes +
       (storage.coreExpandedMiB + storage.nodeExpandedMiB) * MiB +
       speechBudget.requiredBytes,
   };

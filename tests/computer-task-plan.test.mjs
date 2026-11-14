@@ -16,6 +16,78 @@ const current = (visible) => ({
   evidenceExists: (observation, evidence) => observation.visible.includes(evidence),
 });
 
+test('host-confirmed actions credit only the matching active milestone and keep final review independent', () => {
+  const opened = { ...browser, verifyOn: { action: 'launch', target: 'Chrome' } };
+  const task = new ComputerTaskPlan();
+  const proof = current(['Chrome']);
+  assert.equal(task.startOutline({ milestones: [opened], outcome: video }), null);
+  task.context().remainingCheckpoints[0].verifyOn.target = 'Other app';
+  const credit = (action, target, evidence) =>
+    task.confirmObservedAction(
+      action,
+      (planned) => planned === target,
+      evidence,
+      proof.observation,
+      proof.evidenceExists,
+    );
+  assert.equal(credit('launch', 'Other app', 'Chrome'), false);
+  assert.equal(credit('launch', 'Chrome', 'Missing evidence'), false);
+  assert.equal(credit('launch', 'Chrome', 'Chrome'), true);
+  assert.equal(task.view().steps[0].state, 'completed');
+  assert.equal(task.view().steps[1].state, 'active');
+  assert.equal(task.confirmOutcome(proof.observation, 'Chrome', proof.evidenceExists), false);
+});
+test('an exact final checkpoint echoed at the end of the outline is recorded once', () => {
+  const { id, ...outcome } = video;
+  const task = new ComputerTaskPlan();
+  assert.equal(task.startOutline({ milestones: [browser, video], outcome }), null);
+  assert.deepEqual(task.context().remainingCheckpoints, [
+    browser,
+    { id: 'owner-outcome', ...outcome },
+  ]);
+  assert.equal(task.readyForReview(), false);
+  assert.match(
+    new ComputerTaskPlan().startOutline({ milestones: [video, browser], outcome }),
+    /duplicate/,
+  );
+});
+test('UI plan contains labels and verified state while diagnostics exclude private labels', () => {
+  const task = new ComputerTaskPlan();
+  task.update({ plan: [browser, search] });
+  assert.equal(task.view().steps[0].state, 'active');
+  task.update(
+    { verifiedCheckpoints: [{ id: 'browser', evidence: 'Chrome' }] },
+    current(['Chrome']),
+  );
+  assert.deepEqual(
+    task.view().steps.map((row) => row.state),
+    ['completed', 'active'],
+  );
+  assert.ok(!JSON.stringify(task.diagnostics()).includes(browser.label));
+});
+
+test('a new native result may finish the task even when the model used it for an intermediate checkpoint', () => {
+  const task = new ComputerTaskPlan();
+  const proof = 'Saved draft';
+  const { observation, evidenceExists } = current([proof]);
+  assert.equal(
+    task.startOutline({
+      milestones: [entry('confirm', 'Confirm the save')],
+      outcome: { label: 'Save the draft', successCriterion: 'The app reports a saved draft' },
+    }),
+    null,
+  );
+  assert.equal(
+    task.update({ verifiedCheckpoints: [{ id: 'confirm', evidence: proof }] }, current([proof])),
+    null,
+  );
+  assert.equal(task.confirmOutcome(observation, proof, evidenceExists), false);
+  assert.equal(
+    task.confirmOutcome(observation, proof, evidenceExists, { newlyObserved: true }),
+    true,
+  );
+});
+
 test('blocked work replaces obsolete pending checkpoints and keeps observed milestones', () => {
   const task = new ComputerTaskPlan();
   assert.equal(task.update({ plan: [browser, search, video] }), null);

@@ -1,6 +1,6 @@
 # Installation
 
-Download [CapriSetup-1.0.1.exe](https://github.com/CapriChooms/CapriCore/releases/download/v1.0.1/CapriSetup-1.0.1.exe) from the public **CapriChooms/CapriCore** release. No GitHub account, invitation or token is required. The unsigned Windows installer provisions its own runtimes; the manual prerequisites below apply to command-line installation. You can also double-click **Install Capri.cmd** from a complete extracted source package. See [the wizard guide](installation-wizard.md).
+Download the Windows setup executable from the [latest public CapriCore release](https://github.com/CapriChooms/CapriCore/releases/latest). No GitHub account, invitation or token is required. The unsigned Windows installer provisions its own runtimes. The manual prerequisites below apply to command-line installation. You can also double-click **Install Capri.cmd** from a complete extracted source package. See [the wizard guide](installation-wizard.md).
 
 Choose a bundled local LLM, local Hugging Face GGUF selection, or **Use an API without installing local LLMs (BETA)**. API mode skips local conversation-model downloads and startup loading; its local memory helper and CPU request classifier remain installed. Optional recognition and voice have separate downloads and memory requirements. See [system requirements](../README.md#system-requirements).
 
@@ -8,7 +8,7 @@ To upgrade from private early access, run the public installer and select the ex
 
 For a ready-to-install download, use the versioned CapriSetup executable under
 GitHub Releases. An extracted source archive must include the reviewed runtime
-catalog at assets/capri/sprites/v1/runtime-sprite-set.json and all 68 referenced PNG
+catalog at assets/capri/sprites/v1/runtime-sprite-set.json and all referenced PNG
 frames, regardless of the voice/model choices. If setup reports incomplete source
 artwork, obtain a complete archive or the release setup before retrying. The
 standard Git archive is regression-tested to retain this artwork while excluding
@@ -18,7 +18,8 @@ private data, logs, model caches and other root distribution exclusions.
 
 The first desktop target is Windows x64. ARM64 and Linux/macOS desktop integrations
 are not qualified. Install Node.js 24.22.1 or a newer compatible 24.x release,
-including npm, and Ollama 0.40.10 or newer. Reopen PowerShell after installation,
+including npm, and extract the [llama.cpp b12317 Windows x64 Vulkan runtime](https://github.com/ggml-org/llama.cpp/releases/tag/b12317).
+Reopen PowerShell after installation,
 then open the writable project folder containing `package.json`.
 
 Check `node --version` and `npm --version`, then follow the commands in the
@@ -29,9 +30,19 @@ starting Capri. Missing `node`/`npm` commands require Node.js with npm, while
 the project folder. Capri Setup can repair its own installation and dependencies
 by selecting the same folder, without a global Node installation.
 
-Executable discovery uses standard Node/PATH and installed Ollama; existing bundled runtimes are optional fallbacks. CAPRI_NODE_PATH and CAPRI_OLLAMA_PATH can select existing absolute executable paths. Public defaults are in config/core.json, private per-installation overrides in config/core.local.json. Setup recommends a profile without silently replacing an existing selection. Noninteractive setup accepts --profile=balanced --yes; deliberate replacement also needs --replace.
+Executable discovery checks the bundled llama.cpp directory and PATH.
+`CAPRI_NODE_PATH` and `CAPRI_LLAMA_PATH` can point to absolute executable paths.
+Keep the Windows runtime DLLs next to `llama-server.exe`. Public defaults are in
+`config/core.json` and private overrides in `config/core.local.json`.
+Noninteractive profile setup accepts `--profile=balanced --yes`. Deliberate
+replacement also needs `--replace`.
 
-The project manages its own Ollama, default port 11435 and model store data/models; OpenClaw defaults to 18789. An occupied unmanaged port is an error: choose a free local port or stop that service yourself. Process creation time must match the saved PID before Capri stops a service. The application does not stop unrelated system Ollama processes.
+The managed llama.cpp service uses loopback port 11435 by default. The existing
+`ollamaPort` override still applies. Existing Qwen and BGE-M3 weights in
+`data/models` can be reused directly, as can installed Hugging Face GGUF packages.
+Ministral needs the llama.cpp-compatible weights and projector fetched by model
+preparation. OpenClaw defaults to port 18789. Capri checks process ownership before
+stopping a service and leaves unrelated services alone.
 
 The first Gateway start after a clean installation can take several minutes while
 its runtime modules are loaded. Capri waits up to ten minutes for its own live
@@ -89,12 +100,9 @@ Run Capri Setup again and select the same installation folder. Close the old
 setup window first. Conversation, memory, downloaded model layers and package
 caches are retained.
 
-Setup checks npm's actual dependency graph, not just `node.exe`, and checks the
-required Windows Ollama backend files, not just `ollama.exe`. An incomplete runtime
-is repaired from a checksum-verified archive; unchanged files are not rewritten.
-If required files remain unavailable after extraction, setup reports the repair
-failure instead of marking that runtime ready. An incomplete Ollama runtime at
-app startup also reports a specific repair instruction.
+Setup checks npm's dependency graph and the required llama.cpp executables and
+DLLs. Repairs use the checksum-verified archive and keep the previous runtime
+if the staged copy cannot be promoted.
 
 Interrupted ASR/router/voice Python environments are retained under
 `.runtime/venv-recovery/` before recreating the owned environment. Healthy Python
@@ -120,8 +128,6 @@ download does not require deleting Capri, its models or personal data. Export th
 setup diagnostic ZIP if retry still fails, since a reset alone cannot identify
 whether the server, provider or an intermediate filter interrupted it.
 
-Model pulls retry transient connection failures with a bounded limit. Installer
-pulls can recreate an exited owned Ollama service, but never kill a living service
-or a foreign process. **Save report (ZIP)** now includes bounded, redacted Ollama
-log tails as well as installer/npm/UI logs. Persistent network, file-permission or
-quarantine failures still need attention; retries do not override these protections.
+Model pulls retry transient connection failures and retain partial downloads for
+retry. **Save report (ZIP)** includes bounded, redacted local runtime logs
+alongside installer, npm and UI logs.

@@ -42,14 +42,12 @@ test('music capture status distinguishes remembered visual preferences from actu
   assert.equal(musicListeningLabel({ phase: 'off', supported: false }), 'Unavailable');
 });
 
-test('music listening is a unique voice/conversation section directly after voice calls', () => {
-  const group = SETTINGS_GROUPS.find(({ id }) => id === 'conversation');
+test('music listening has its own skill page before the more specialised voice calls skill', () => {
+  const group = SETTINGS_GROUPS.find(({ id }) => id === 'skills');
+  const music = group.sections.findIndex(([id]) => id === 'music');
   const calls = group.sections.findIndex(([id]) => id === 'calls');
-  assert.deepEqual(group.sections[calls + 1], [
-    'music',
-    'Music listening',
-    'music-listening-panel',
-  ]);
+  assert.ok(music < calls);
+  assert.deepEqual(group.sections[music], ['music', 'Music listening', 'music-listening-panel']);
   assert.equal(SETTINGS_SECTIONS.filter(([id]) => id === 'music').length, 1);
   assert.equal(PANEL_SECTIONS['music-listening-panel'], 'music');
 });

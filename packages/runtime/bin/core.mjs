@@ -5,7 +5,7 @@ import {
   settings,
   runtime,
   initialize,
-  startOllama,
+  startLlama,
   startGateway,
   stopManaged,
   managedProcess,
@@ -27,26 +27,26 @@ try {
   if (command === 'init') {
     initialize(rt);
     console.log('Capri configuration and private workspace initialized.');
-  } else if (command === 'ollama') {
-    console.log(await startOllama(rt));
+  } else if (['llama', 'ollama'].includes(command)) {
+    console.log(await startLlama(rt));
   } else if (command === 'start') {
-    const ollama = await startCore(rt);
-    console.log(`Capri is ready. OpenClaw ${settings.openclawVersion}; Ollama ${ollama.version}.`);
+    const local = await startCore(rt);
+    console.log(
+      `Capri is ready. OpenClaw ${settings.openclawVersion}; llama.cpp ${local.version}.`,
+    );
     console.log(`Control UI: ${rt.gatewayUrl}/`);
     console.log(`Chat API: ${rt.gatewayUrl}/v1/chat/completions`);
     console.log('Run capri.cmd to open the desktop companion.');
     console.log('API token is stored privately in data/openclaw/gateway-token.');
   } else if (command === 'stop') {
     await stopCore(rt);
-    console.log('Capri and its Ollama instance stopped.');
+    console.log('Capri and its local inference service stopped.');
   } else if (command === 'restart') {
     await stopManaged(rt.logPrefix);
     await startGateway(rt);
     console.log('Capri restarted with its saved state.');
   } else if (command === 'status') {
-    const ollama = await request(`${rt.ollamaUrl}/api/version`, { timeout: 3000 }).catch(
-      () => null,
-    );
+    const local = await request(`${rt.ollamaUrl}/api/version`, { timeout: 3000 }).catch(() => null);
     const gateway =
       managedProcess(rt.logPrefix) && existsSync(rt.tokenPath)
         ? await request(`${rt.gatewayUrl}/v1/models`, {
@@ -54,7 +54,7 @@ try {
             timeout: 3000,
           }).catch(() => null)
         : null;
-    const loaded = ollama ? await request(`${rt.ollamaUrl}/api/ps`) : null;
+    const loaded = local ? await request(`${rt.ollamaUrl}/api/ps`) : null;
     let companionVoice = null;
     try {
       companionVoice = await request(`${companionVoiceUrl()}/health`, {
@@ -68,7 +68,7 @@ try {
       JSON.stringify(
         {
           desktop: managedProcess('desktop') ? 'running' : 'stopped',
-          ollama: ollama?.version ?? 'stopped',
+          llama: local?.version ?? 'stopped',
           openclaw: gateway ? 'ready' : 'stopped',
           naturalVoice: companionVoice ?? 'stopped',
           ui: 'Capri desktop companion (capri.cmd)',
@@ -78,7 +78,9 @@ try {
           loadedModels:
             loaded?.models?.map((model) => ({
               name: model.name,
-              vramGiB: +(model.size_vram / 2 ** 30).toFixed(2),
+              vramGiB: Number.isFinite(model.size_vram)
+                ? +(model.size_vram / 2 ** 30).toFixed(2)
+                : null,
             })) ?? [],
         },
         null,

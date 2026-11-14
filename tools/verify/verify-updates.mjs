@@ -47,12 +47,15 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.waitForFunction(() => document.body.dataset.phase === 'ready');
   await application.evaluate(
-    async ({ BrowserWindow }, { digest, token, fixture }) => {
+    async ({ BrowserWindow, shell }, { digest, token, fixture }) => {
       const window = BrowserWindow.getAllWindows().find(
         (item) => item.webContents.getURL() === 'capri://desktop/index.html',
       );
       window.webContents.setBackgroundThrottling(false);
       window.showInactive();
+      shell.openExternal = async (url) => {
+        globalThis.fixtureReleasePage = url;
+      };
       const bytes = Buffer.from(fixture, 'base64');
       const original = globalThis.fetch;
       globalThis.fetch = async (url, options) => {
@@ -83,9 +86,17 @@ try {
           return new Response(
             JSON.stringify([
               {
+                tag_name: 'v1.0.4',
+                prerelease: false,
+                draft: false,
+                body: 'Stable release notes',
+                assets: [],
+              },
+              {
                 tag_name: 'v99.0.0',
                 prerelease: true,
                 draft: false,
+                body: 'Preview release notes',
                 assets: [
                   {
                     id: 123,
@@ -114,6 +125,16 @@ try {
   assert(settings, 'Settings window was not opened.');
   settings.on('pageerror', (error) => errors.push(error.message));
   await settings.locator('#updates-panel').waitFor({ state: 'visible' });
+  await settings.locator('#updates-versions').click();
+  await settings.waitForFunction(() => !document.getElementById('updates-versions').disabled);
+  assert.equal(await settings.locator('#settings-notice').textContent(), '');
+  assert.deepEqual(await settings.locator('#updates-version option').allTextContents(), ['v1.0.4']);
+  assert.equal(await settings.locator('#updates-changelog').textContent(), 'Stable release notes');
+  await settings.locator('#updates-release-page').click();
+  assert.equal(
+    await application.evaluate(() => globalThis.fixtureReleasePage),
+    'https://github.com/CapriChooms/CapriCore/releases/tag/v1.0.4',
+  );
   await settings.locator('#updates-check').click();
   await settings.waitForFunction(
     async () => (await window.capri.updateStatus()).phase === 'current',
@@ -139,8 +160,13 @@ try {
   assert.equal((await settings.evaluate(() => window.capri.githubStatus())).connected, true);
   await settings.locator('#updates-experimental').check();
   assert.equal((await settings.evaluate(() => window.capri.updateStatus())).experimental, false);
-  await settings.locator('#updates-check').click();
+  await settings.locator('#updates-versions').click();
+  await settings.locator('#updates-version').selectOption('CapriChooms/CapriCore@v99.0.0');
+  assert.equal(await settings.locator('#updates-changelog').textContent(), 'Preview release notes');
+  await settings.locator('#updates-select').click();
   await settings.locator('#updates-download').waitFor({ state: 'visible' });
+  assert.equal((await settings.evaluate(() => window.capri.updateStatus())).release.tag, 'v99.0.0');
+  assert.equal(await settings.locator('#settings-notice').textContent(), '');
   await saveSettings(settings);
   await settings.waitForFunction(async () => (await window.capri.updateStatus()).experimental);
   await settings.locator('#updates-download').click();
@@ -176,6 +202,8 @@ try {
       passed: true,
       checks: [
         'public update checks without a GitHub token',
+        'release history and changelog without a GitHub token',
+        'selecting an update and opening its GitHub release page from Settings',
         'optional Windows-encrypted GitHub credential remains supported',
         'stable and experimental channel selection',
         'verified download over real IPC',

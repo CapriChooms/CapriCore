@@ -1,8 +1,8 @@
 {
   "name": "capri",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "private": true,
-  "description": "Local Windows backend for Capri, powered by OpenClaw and Ollama",
+  "description": "Local Windows backend for Capri, powered by OpenClaw and llama.cpp",
   "type": "module",
   "allowScripts": {
     "openclaw": true,
@@ -80,6 +80,7 @@
     "setup": "node packages/runtime/bin/capri.mjs setup",
     "models:pull": "node packages/runtime/bin/capri.mjs models",
     "check": "node tools/checks/source.mjs",
+    "dev:graphify": "node tools/dev/graphify.mjs",
     "test:assets": "node --test tests/desktop-avatar.test.mjs tests/desktop-animation.test.mjs",
     "release:source": "node tools/release/source-export.mjs",
     "release:check": "node tools/release/source-export.mjs --check",
@@ -90,13 +91,16 @@
     "verify:installer": "node tools/verify/verify-installer.mjs"
   },
   "devDependencies": {
-    "electron": "45.0.0",
+    "electron": "45.3.1",
     "playwright-core": "1.63.0",
     "prettier": "3.6.2"
   },
   "license": "GPL-3.0-only",
   "workspaces": [
     "packages/runtime",
-    "apps/desktop"
+    "apps/desktop",
+    "packages/skill-sdk",
+    "packages/core",
+    "packages/skills"
   ]
 }

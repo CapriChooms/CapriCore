@@ -1,6 +1,6 @@
 # Optional external language models (BETA)
 
-Open **Settings → External AI provider → Add an API connection**. Select a
+Open **Settings → API connections → Add an API connection**. Select a
 preset or enter a Chat Completions base URL under **Custom**. Save the profile,
 test the connection, then choose **Use connection** to restart Capri with it.
 
@@ -56,6 +56,10 @@ CPU embedding index. Downloaded language models stay on disk; they are not loade
 for API chat by default. Open **Settings → Language model → Use local model**, or
 use the **Local/API** selector in the main header, to switch back. Keep enough RAM/VRAM
 for any local voice you enable.
+
+Voice can be offloaded independently through **Settings → Voice API**. It is
+local by default; see [external TTS](external-tts.md) for its separate opt-in,
+credential and speech-only data boundary.
 
 The provider receives conversation context, personality, relevant memories and
 tool results. A computer-control task may therefore share inspected application

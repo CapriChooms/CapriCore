@@ -12,6 +12,8 @@ const STATES = new Set([
   'observing',
   'acting',
   'planning',
+  'spotify-planning',
+  'spotify',
   'recovering',
   'directory-inheritance',
   'contents',
@@ -52,6 +54,13 @@ const STATES = new Set([
   'pending',
   'waiting',
   'checking',
+  'dependencies',
+  'python',
+  'cuda-prepare',
+  'cuda-connect',
+  'cuda-download',
+  'cuda-retry',
+  'verify',
   'preparing',
   'downloading',
   'installing',
@@ -108,6 +117,7 @@ const STATES = new Set([
   'chatterbox-turbo',
   'chatterbox-multilingual',
   'qwen3-tts',
+  'qwen3-tts-ru-lora',
   'native',
   'wgc',
   'dxgi',
@@ -128,6 +138,8 @@ const ERRORS = new Set([
   'TimeoutError',
   'AbortError',
 ]);
+const screenStartupFailure =
+  /^Capri screen startup failed: \{"stage":"(selection|capture|first-frame)","name":"(NotAllowedError|NotReadableError|AbortError|InvalidStateError|NotFoundError|TypeError|Error)"\}$/;
 // Host-defined control vocabulary only. Never admit arbitrary target labels,
 // destinations, message text or model-provided prose under these field names.
 const CONTROL_VALUES = {
@@ -175,6 +187,7 @@ const CONTROL_VALUES = {
     'COMPUTER_INPUT_BUSY',
     'COMPUTER_OBSERVATION_CHANGED',
     'COMPUTER_TARGET_COVERED',
+    'COMPUTER_TARGET_STALE',
     'completed',
     'cancelled',
     'incomplete',
@@ -185,6 +198,7 @@ const CONTROL_VALUES = {
     'invalid_arguments',
     'not_applied',
     'target_covered',
+    'target_stale',
     'window_changed',
     'planning_failed',
     'action_failed',
@@ -233,6 +247,9 @@ export function diagnosticState(value, key = '', depth = 0) {
   if (value === null || typeof value === 'boolean') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string') {
+    const screenFailure = key === 'message' && screenStartupFailure.exec(value);
+    if (screenFailure)
+      return { event: 'screen-startup-failed', stage: screenFailure[1], name: screenFailure[2] };
     if (STATES.has(value) || ERRORS.has(value)) return value;
     if (isDiagnosticControlValue(key, value)) return value;
     if (

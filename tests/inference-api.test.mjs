@@ -13,7 +13,12 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { InferenceApi, apiSettings, readApiSettings } from '../apps/desktop/inference-api.mjs';
+import {
+  InferenceApi,
+  apiSettings,
+  openRouterFreeReplyTimeoutMs,
+  readApiSettings,
+} from '../apps/desktop/inference-api.mjs';
 import { createGatewayConfiguration } from '../packages/runtime/src/context.mjs';
 import { settings } from '../packages/runtime/src/config/settings.mjs';
 import { buildOpenAICompletionsParams } from '@openclaw/ai/transports';
@@ -42,6 +47,90 @@ async function fixture(t, fetchImpl, provider = config) {
   t.after(() => api.close());
   return { root, api, id };
 }
+
+test('Groq applies documented reasoning controls to probes, chat and explicit thinking', async (t) => {
+  for (const [model, normal, field, value] of [
+    ['openai/gpt-oss-20b', 'low', 'include_reasoning', false],
+    ['openai/gpt-oss-120b', 'low', 'include_reasoning', false],
+    ['qwen/qwen3.8-27b', 'none', 'reasoning_format', 'hidden'],
+  ]) {
+    const requests = [];
+    const { api, id } = await fixture(
+      t,
+      async (_url, { body }) => {
+        requests.push(JSON.parse(body));
+        return Response.json({ choices: [{ message: { content: 'OK' }, finish_reason: 'stop' }] });
+      },
+      { ...config, baseUrl: 'https://api.groq.com/openai/v1', model, tools: false },
+    );
+    await api.testProfile(id);
+    for (const effort of [undefined, 'high']) {
+      const reply = await api.localFetch(api.url + '/v1/chat/completions', {
+        method: 'POST',
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'Hi' }],
+          stream: true,
+          reasoning_effort: effort,
+        }),
+      });
+      assert.match(await reply.text(), /"content":"OK"/u);
+    }
+    assert.deepEqual(
+      requests.map((request) => request.reasoning_effort),
+      [normal, normal, 'high'],
+    );
+    for (const request of requests) {
+      assert.equal(request[field], value);
+      assert.equal(
+        request[field === 'include_reasoning' ? 'reasoning_format' : 'include_reasoning'],
+        undefined,
+      );
+    }
+  }
+});
+
+test('HTTP 413 retries an oversized text-only history once and preserves current instructions and input', async (t) => {
+  const requests = [];
+  const { api } = await fixture(
+    t,
+    async (_url, { body }) => {
+      requests.push(JSON.parse(body));
+      if (requests.length !== 2) return Response.json({ error: 'private-canary' }, { status: 413 });
+      return Response.json({ choices: [{ message: { content: 'OK' }, finish_reason: 'stop' }] });
+    },
+    { ...config, tools: false },
+  );
+  const send = (messages) =>
+    api.localFetch(api.url + '/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ messages, stream: true }),
+    });
+  const system = { role: 'system', content: 'Retain this instruction' };
+  const latest = { role: 'user', content: 'Keep my request intact' };
+  const history = [system, { role: 'user', content: 'An earlier turn' }, latest];
+  const reply = await send(history);
+  assert.equal(reply.status, 200);
+  assert.match(await reply.text(), /"content":"OK"/u);
+  assert.deepEqual(
+    requests.map(({ messages }) => messages),
+    [history, [system, latest]],
+  );
+  assert.equal(api.diagnostics().lastFailure, null);
+  const failed = await send(history);
+  assert.equal(failed.status, 413);
+  assert.match(await failed.text(), /request is too large/u);
+  assert.equal(requests.length, 4);
+  const attachment = await send([
+    ...history,
+    {
+      role: 'user',
+      content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AA==' } }],
+    },
+  ]);
+  assert.equal(attachment.status, 413);
+  assert.doesNotMatch(await attachment.text(), /private-canary/u);
+  assert.equal(requests.length, 5);
+});
 
 test('a provider ignoring streaming is normalized once, preserving choices and tool calls without private traces', async (t) => {
   const completion = {
@@ -1512,19 +1601,25 @@ test('tool-free vision uses the selected API, rejects unexpected actions, and AP
     assert.throws(() => apiSettings({ ...config, baseUrl }));
 });
 
-test('OpenRouter screen analysis uses its output budget for the visible answer and preserves truncation', async (t) => {
+test('OpenRouter Nemotron reserves the output budget for visible replies unless thinking is selected', async (t) => {
   const requests = [];
-  const { api } = await fixture(
+  const provider = {
+    ...config,
+    baseUrl: 'https://openrouter.ai/api/v1',
+    model: 'nvidia/nemotron-3.5-super-vl:free',
+  };
+  const { api, id } = await fixture(
     t,
     async (url, options) => {
       requests.push(JSON.parse(options.body));
+      if (requests.at(-1).stream)
+        return new Response(
+          ': OPENROUTER PROCESSING\n\ndata: {"choices":[{"delta":{"content":"OK"}}]}\n\ndata: [DONE]\n\n',
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
       return Response.json({ choices: [{ message: { content: '' }, finish_reason: 'length' }] });
     },
-    {
-      ...config,
-      baseUrl: 'https://openrouter.ai/api/v1',
-      model: 'nvidia/nemotron-3.5-super-vl:free',
-    },
+    provider,
   );
   const call = async (pathname, body) =>
     api.localFetch(api.url + pathname, { method: 'POST', body: JSON.stringify(body) });
@@ -1536,7 +1631,7 @@ test('OpenRouter screen analysis uses its output budget for the visible answer a
   assert.equal(requests[0].max_tokens, 192);
   assert.deepEqual(requests[0].reasoning, { enabled: false });
   await call('/v1/chat/completions', { messages: [{ role: 'user', content: 'Hello' }] });
-  assert.equal(requests[1].reasoning, undefined);
+  assert.deepEqual(requests[1].reasoning, { enabled: false });
   await call('/api/chat', {
     messages: [{ role: 'user', content: 'Plan a desktop step' }],
     options: { num_predict: 64 },
@@ -1544,6 +1639,20 @@ test('OpenRouter screen analysis uses its output budget for the visible answer a
   });
   assert.deepEqual(requests[2].reasoning, { enabled: false });
   assert.deepEqual(requests[2].response_format, { type: 'json_object' });
+  await call('/v1/chat/completions', {
+    messages: [{ role: 'user', content: 'Solve this' }],
+    reasoning_effort: 'medium',
+  });
+  assert.deepEqual(requests[3].reasoning, { effort: 'medium', exclude: true });
+
+  const timeout = AbortSignal.timeout;
+  const timeoutMock = t.mock.method(AbortSignal, 'timeout', (ms) => timeout(ms));
+  await api.testProfile(id);
+  assert.equal(timeoutMock.mock.calls[0].arguments[0], 60000);
+  assert.deepEqual(requests[4].reasoning, { enabled: false });
+  assert.equal(openRouterFreeReplyTimeoutMs(provider), 60000);
+  assert.equal(openRouterFreeReplyTimeoutMs({ ...provider, model: 'vendor/paid' }), undefined);
+  assert.equal(openRouterFreeReplyTimeoutMs({ ...config, model: provider.model }), undefined);
 });
 
 test('a text-only API accepts chat and refuses images before they leave Capri', async (t) => {

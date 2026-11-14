@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { clipboardFiles } from './clipboard-files.mjs';
+import { screenFrameCanvas, screenPng } from './screen-mosaic.mjs';
 const images = new Set(['png', 'jpg', 'jpeg', 'webp']);
 const videos = { mp4: 'video/mp4', webm: 'video/webm' };
 const text = new Set(['txt', 'md', 'csv', 'tsv', 'json', 'log', 'docx', 'odt', 'pdf']);
@@ -183,9 +184,13 @@ async function renderImage(file, extension) {
   if (extension === 'gif' && typeof ImageDecoder === 'function') return renderGif(file);
   const image = await createImageBitmap(file);
   try {
-    const result = sheet(1);
-    result.draw(image, image.width, image.height, 0, '');
-    return result.canvas;
+    safeDimensions(image.width, image.height);
+    const canvas = screenFrameCanvas(image, image.width, image.height, true);
+    const context = canvas.getContext('2d');
+    context.globalCompositeOperation = 'destination-over';
+    context.fillStyle = '#111827';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    return canvas;
   } finally {
     image.close();
   }
@@ -243,6 +248,7 @@ export class AttachmentComposer {
     this.list = document.getElementById('attachment-list');
     const composer = document.querySelector('.composer');
     document.getElementById('message').addEventListener('paste', (event) => {
+      if (!this.canAttach()) return;
       const files = clipboardFiles(event.clipboardData);
       if (!files.length) return;
       event.preventDefault();
@@ -291,9 +297,7 @@ export class AttachmentComposer {
         try {
           const canvas = media ? await renderImage(file, extension) : null;
           const pdf = extension === 'pdf' ? await readPdf(file) : null;
-          const payload = canvas
-            ? await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
-            : (pdf?.blob ?? file);
+          const payload = canvas ? await screenPng(canvas) : (pdf?.blob ?? file);
           if (!payload || payload.size > (media ? 3 : 8) * 1024 * 1024) throw new Error();
           if (revision !== this.revision) return;
           const name = file.name.replace(/[\x00-\x1f\x7f]/g, '').slice(-160);

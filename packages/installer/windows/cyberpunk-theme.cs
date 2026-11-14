@@ -156,6 +156,8 @@ namespace Capri.Setup.Cyberpunk {
     }
 
     public class ComboBox : System.Windows.Forms.ComboBox {
+        private const int MouseWheelMessage = 0x020A;
+        [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
         public ComboBox() {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             SetStyle(ControlStyles.UserPaint, DropDownStyle == ComboBoxStyle.DropDownList);
@@ -173,6 +175,18 @@ namespace Capri.Setup.Cyberpunk {
         protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
         protected override void OnPaint(PaintEventArgs e) { if (DropDownStyle == ComboBoxStyle.DropDownList) PaintSelection(e.Graphics); base.OnPaint(e); }
         protected override void WndProc(ref Message message) {
+            if (message.Msg == MouseWheelMessage && DropDownStyle == ComboBoxStyle.DropDownList) {
+                // Native WinForms combos change selection on a wheel message even
+                // while closed. Scroll the page if the message reaches the picker.
+                for (Control ancestor = Parent; ancestor != null; ancestor = ancestor.Parent) {
+                    Panel panel = ancestor as Panel;
+                    if (panel == null || !panel.AutoScroll || !panel.IsHandleCreated) continue;
+                    SendMessage(panel.Handle, message.Msg, message.WParam, message.LParam);
+                    break;
+                }
+                message.Result = IntPtr.Zero;
+                return;
+            }
             // Render the same live selection for native accessibility/print
             // captures. Native dropdown and keyboard messages remain untouched.
             if (message.Msg == 0x0318 && message.WParam != IntPtr.Zero && DropDownStyle == ComboBoxStyle.DropDownList) {
@@ -210,7 +224,24 @@ namespace Capri.Setup.Cyberpunk {
     }
 
     public class ProgressBar : System.Windows.Forms.ProgressBar {
+        private Bitmap marker;
+
         public ProgressBar() { SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true); BackColor = Ink.Surface; ForeColor = Ink.Cyan; }
+        public void SetMarker(string file, Rectangle source) {
+            using (Bitmap image = new Bitmap(file)) {
+                Bitmap cropped = image.Clone(source, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                if (marker != null) marker.Dispose();
+                marker = cropped;
+            }
+            Invalidate();
+        }
+        protected override void Dispose(bool disposing) {
+            if (disposing && marker != null) {
+                marker.Dispose();
+                marker = null;
+            }
+            base.Dispose(disposing);
+        }
         protected override void WndProc(ref Message message) {
             int id = message.Msg;
             base.WndProc(ref message);
@@ -219,13 +250,19 @@ namespace Capri.Setup.Cyberpunk {
         protected override void OnPaint(PaintEventArgs e) {
             Graphics g = e.Graphics; float s = Ink.Scale(g);
             g.Clear(Parent == null ? Ink.Canvas : Parent.BackColor);
-            RectangleF bounds = new RectangleF(s / 2, s / 2, Math.Max(1, Width - s), Math.Max(1, Height - s));
+            Rectangle trackBounds = ClientRectangle;
+            if (marker != null) {
+                int inset = Math.Max(0, Height - (int)Math.Round(18 * s));
+                trackBounds.Y += inset;
+                trackBounds.Height -= inset;
+            }
+            RectangleF bounds = new RectangleF(s / 2, trackBounds.Top + s / 2, Math.Max(1, Width - s), Math.Max(1, trackBounds.Height - s));
             using (GraphicsPath outline = Ink.Cut(bounds, 5 * s))
             using (Brush track = new SolidBrush(Ink.Surface))
             using (Pen border = new Pen(Ink.Line, s)) {
                 g.FillPath(track, outline); g.DrawPath(border, outline);
             }
-            Rectangle inner = ClientRectangle; inner.Inflate(-(int)(3 * s), -(int)(3 * s));
+            Rectangle inner = trackBounds; inner.Inflate(-(int)(3 * s), -(int)(3 * s));
             if (inner.Width <= 0 || inner.Height <= 0) return;
             if (Style == ProgressBarStyle.Marquee) {
                 // Repaint from the original native marquee's WM_TIMER. No added
@@ -248,6 +285,16 @@ namespace Capri.Setup.Cyberpunk {
                     Rectangle fill = new Rectangle(RightToLeft == RightToLeft.Yes ? inner.Right - width : inner.Left, inner.Top, width, inner.Height);
                     using (LinearGradientBrush brush = new LinearGradientBrush(inner, Color.FromArgb(35, 128, 145), Ink.Cyan, LinearGradientMode.Horizontal)) g.FillRectangle(brush, fill);
                 }
+                if (marker != null && trackBounds.Top > 0) {
+                    float markerWidth = Math.Min(224 * s, Math.Min(inner.Width,
+                        (trackBounds.Top + 2 * s) * marker.Width / marker.Height));
+                    float markerHeight = markerWidth * marker.Height / marker.Width;
+                    float edge = RightToLeft == RightToLeft.Yes ? inner.Right - width : inner.Left + width;
+                    float left = Math.Max(inner.Left, Math.Min(inner.Right - markerWidth, edge - markerWidth / 2));
+                    RectangleF position = new RectangleF(left, trackBounds.Top - markerHeight + 2 * s, markerWidth, markerHeight);
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    g.DrawImage(marker, position, new RectangleF(0, 0, marker.Width, marker.Height), GraphicsUnit.Pixel);
+                }
             }
         }
     }
@@ -256,6 +303,19 @@ namespace Capri.Setup.Cyberpunk {
         public string PreviewRole { get; set; }
         public bool PreviewWelcome { get; set; }
         public Panel() { DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw, true); BackColor = Ink.Canvas; }
+        public void CloseDropDowns() {
+            foreach (Control child in Controls) {
+                ComboBox combo = child as ComboBox;
+                if (combo != null && combo.DroppedDown) combo.DroppedDown = false;
+            }
+        }
+        protected override void WndProc(ref Message message) {
+            // The dropdown has its own native window. Close it before moving
+            // the scrolling page so it cannot be left at the old coordinates.
+            if (AutoScroll && (message.Msg == 0x020A || message.Msg == 0x0115 || message.Msg == 0x0114))
+                CloseDropDowns();
+            base.WndProc(ref message);
+        }
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);
             Graphics g = e.Graphics; float s = Ink.Scale(g);
@@ -318,6 +378,27 @@ namespace Capri.Setup.Cyberpunk {
                 return;
             }
             base.OnPaint(e);
+        }
+    }
+    public sealed class BlockingWarning : Label {
+        public BlockingWarning() {
+            AccessibleRole = AccessibleRole.Alert;
+            UseMnemonic = false;
+        }
+        protected override void OnPaintBackground(PaintEventArgs e) {
+            base.OnPaintBackground(e);
+            float s = Ink.Scale(e.Graphics);
+            var bounds = new RectangleF(s, s, Width - 2 * s, Height - 2 * s);
+            if (bounds.Width <= 0 || bounds.Height <= 0) return;
+            using (GraphicsPath frame = Ink.Cut(bounds, 8 * s))
+            using (Brush fill = new SolidBrush(Color.FromArgb(58, 23, 36)))
+            using (Pen border = new Pen(Ink.Red, s)) {
+                e.Graphics.FillPath(fill, frame);
+                e.Graphics.DrawPath(border, frame);
+            }
+            float x = RightToLeft == RightToLeft.Yes ? Width - 4 * s : s;
+            using (Brush accent = new SolidBrush(Ink.Red))
+                e.Graphics.FillRectangle(accent, x, 9 * s, 3 * s, Math.Max(0, Height - 18 * s));
         }
     }
     public class TextBox : System.Windows.Forms.TextBox {

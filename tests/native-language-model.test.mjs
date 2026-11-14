@@ -1,16 +1,8 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync } from 'node:fs';
-import path from 'node:path';
 import { test } from 'node:test';
 import { nativeModelDefinition } from '../packages/runtime/src/providers/native-model.mjs';
-import {
-  reasoningBudget,
-  environment,
-  runtime,
-  initialize,
-  root,
-  settings,
-} from '../packages/runtime/src/index.mjs';
+import { llamaChatBody } from '../packages/runtime/src/providers/llama-bridge.mjs';
+import { reasoningBudget, settings } from '../packages/runtime/src/index.mjs';
 
 const digest = (n) => 'sha256:' + String(n).repeat(64);
 const layer = (type, n) => ({
@@ -75,16 +67,18 @@ test('native model preparation rejects invalid blob paths and ambiguous model sh
   );
 });
 
-test('the owned worker receives a best-effort backend reasoning hint without changing context', () => {
+test('llama.cpp receives a bounded per-request reasoning budget', () => {
   for (const value of [0, 48, 256, 4096]) assert.equal(reasoningBudget(value), value);
   for (const value of [-1, 4097, 48.5, '48', null, Infinity])
     assert.throws(() => reasoningBudget(value), /Invalid/);
-  const parent = path.join(root, '.runtime/test-data/native-environment');
-  mkdirSync(parent, { recursive: true });
-  const folder = mkdtempSync(path.join(parent, 'fixture-'));
-  const env = environment(
-    initialize(runtime({ stateDir: folder, workspace: path.join(folder, 'workspace') })),
-  );
-  assert.equal(env.LLAMA_ARG_THINK_BUDGET, '4096');
-  assert.equal(env.OLLAMA_CONTEXT_LENGTH, String(settings.contextTokens));
+  const config = { ...settings, reasoningBudget: 64 };
+  const options = { config, model: { name: 'fixture' } };
+  const messages = [{ role: 'user', content: 'Hello' }];
+  const thinking = llamaChatBody({ messages, reasoning_effort: 'high' }, options);
+  const ordinary = llamaChatBody({ messages, reasoning_effort: 'off' }, options);
+  assert.equal(thinking.reasoning_budget, 256);
+  assert.equal(thinking.chat_template_kwargs.enable_thinking, true);
+  assert.equal(ordinary.reasoning_budget, 0);
+  assert.equal(ordinary.chat_template_kwargs.enable_thinking, false);
+  assert.deepEqual(ordinary.messages, thinking.messages);
 });

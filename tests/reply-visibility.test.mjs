@@ -35,7 +35,15 @@ test('text completion and generated audio never hide a reply before the last sen
   controller.generated('one');
   advance(60000);
   assert.equal(controller.hidden, false);
+  controller.expectSpeech('one');
   controller.playback('one', false);
+  advance(0);
+  assert.equal(controller.hidden, true);
+});
+test('a completed reply with no playable audio gets the reading delay', () => {
+  const { controller, advance, reply } = fixture();
+  reply();
+  controller.generated('one');
   advance(7999);
   assert.equal(controller.hidden, false);
   advance(1);

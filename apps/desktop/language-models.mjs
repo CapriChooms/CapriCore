@@ -6,7 +6,11 @@ import detector from '../../config/asr-vad-upstream.json' with { type: 'json' };
 import candidates from '../../config/multilingual-candidates.json' with { type: 'json' };
 import multilingual from '../../config/multilingual-runtime.json' with { type: 'json' };
 import { LANGUAGE_PACKS } from './renderer/language-settings.mjs';
-import { selectedVoiceModel, voicePython, voiceDataPath } from './voice-catalog-service.mjs';
+import {
+  selectedVoiceModel,
+  voicePython,
+  qwenVoiceFilesInstalled,
+} from './voice-catalog-service.mjs';
 import {
   readVoiceSettings,
   readTrainingSettings,
@@ -29,16 +33,7 @@ export function speechModelsInstalled(root, language) {
       !existsSync(voicePython(root, model))
     )
       return false;
-    if (model.backend === 'qwen3-tts') {
-      const spec = JSON.parse(
-        readFileSync(path.join(root, 'config/qwen-tts-upstream.json'), 'utf8'),
-      );
-      return spec.files.every((item) => {
-        const file = voiceDataPath(root, spec.directory + '/' + item.file);
-        const info = statSync(file);
-        return info.isFile() && info.size === item.bytes;
-      });
-    }
+    if (model.backend === 'qwen3-tts') return qwenVoiceFilesInstalled(root, root, model);
     if (model.backend === 'chatterbox-turbo') {
       const profile = JSON.parse(readFileSync(path.join(folder, 'voice-profile.json'), 'utf8'));
       const reference = profile.references?.neutral?.file;

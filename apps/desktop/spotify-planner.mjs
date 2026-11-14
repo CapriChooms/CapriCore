@@ -9,6 +9,12 @@ const shape = (action, properties = {}, required = []) => ({
   required: ['action', ...required],
   properties: { action: { const: action }, ...properties },
 });
+const planFailure = (code, httpStatus, cause) =>
+  Object.assign(new Error('Spotify request could not be planned.'), {
+    code,
+    ...(Number.isInteger(httpStatus) ? { httpStatus } : {}),
+    ...(cause ? { cause } : {}),
+  });
 export const SPOTIFY_PLAN_SCHEMA = {
   anyOf: [
     ...['none', 'resume', 'pause', 'next', 'previous'].map((action) => shape(action)),
@@ -32,10 +38,14 @@ export function spotifyPlanner({ url, model, params = {}, modelCapabilities, fet
   if (base.protocol !== 'http:' || base.hostname !== '127.0.0.1' || base.username || base.password)
     throw new Error('Spotify planning requires the local inference boundary.');
   return async (text, { signal } = {}) => {
+    const requestSignal = AbortSignal.any([
+      ...(signal ? [signal] : []),
+      AbortSignal.timeout(45000),
+    ]);
     const response = await fetchImpl(new URL('/api/chat', base), {
       method: 'POST',
       redirect: 'error',
-      signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(45000)]),
+      signal: requestSignal,
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         model,
@@ -53,19 +63,30 @@ export function spotifyPlanner({ url, model, params = {}, modelCapabilities, fet
           { role: 'user', content: text },
         ],
       }),
+    }).catch((error) => {
+      requestSignal.throwIfAborted();
+      throw planFailure('CAPRI_SPOTIFY_PLAN_HTTP_ERROR', undefined, error);
     });
-    if (!response.ok) throw new Error('Spotify request could not be planned.');
-    const raw = await response.text();
-    if (raw.length > 8192) throw new Error('Spotify plan exceeds limit.');
-    const packet = JSON.parse(raw);
-    if (
-      packet.done !== true ||
-      packet.done_reason === 'length' ||
-      packet.message?.tool_calls?.length
-    )
-      throw new Error('Incomplete Spotify plan.');
-    const plan = JSON.parse(packet.message?.content);
-    if (!matchesPlannerSchema(plan, SPOTIFY_PLAN_SCHEMA)) throw new Error('Invalid Spotify plan.');
-    return plan.action === 'none' ? null : validateCommand(plan);
+    if (!response.ok) {
+      void response.body?.cancel().catch(() => {});
+      throw planFailure('CAPRI_SPOTIFY_PLAN_HTTP_ERROR', response.status);
+    }
+    try {
+      const raw = await response.text();
+      if (raw.length > 8192) throw new Error();
+      const packet = JSON.parse(raw);
+      if (
+        packet.done !== true ||
+        packet.done_reason === 'length' ||
+        packet.message?.tool_calls?.length
+      )
+        throw new Error();
+      const plan = JSON.parse(packet.message?.content);
+      if (!matchesPlannerSchema(plan, SPOTIFY_PLAN_SCHEMA)) throw new Error();
+      return plan.action === 'none' ? null : validateCommand(plan);
+    } catch {
+      requestSignal.throwIfAborted();
+      throw planFailure('CAPRI_SPOTIFY_PLAN_INVALID');
+    }
   };
 }

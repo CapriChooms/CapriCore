@@ -187,6 +187,7 @@ export function sanitizeAvatarComposerState(value) {
     draftRevision: revision(draftRevision) ? draftRevision : 0,
     canSend: field(value, 'canSend') === true,
     canAttach: field(value, 'canAttach') === true,
+    showAttach: field(value, 'showAttach') !== false,
     busy: field(value, 'busy') === true,
     attachments: [],
     microphone: {
@@ -196,11 +197,13 @@ export function sanitizeAvatarComposerState(value) {
       label: text(field(mic, 'label'), 160),
     },
     thinking: {
+      ...(field(thinking, 'visible') === false ? { visible: false } : {}),
       enabled: field(thinking, 'enabled') === true,
       label: text(field(thinking, 'label'), 160),
       hint: text(field(thinking, 'hint'), 200),
     },
     internet: {
+      ...(field(internet, 'visible') === false ? { visible: false } : {}),
       enabled: field(internet, 'enabled') === true,
       label: text(field(internet, 'label'), 160),
       hint: text(field(internet, 'hint'), 400),

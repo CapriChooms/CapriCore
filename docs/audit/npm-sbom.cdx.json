@@ -5726,12 +5726,12 @@
       ]
     },
     {
-      "bom-ref": "electron@45.0.0",
+      "bom-ref": "electron@45.3.1",
       "type": "library",
       "name": "electron",
-      "version": "45.0.0",
+      "version": "45.3.1",
       "scope": "optional",
-      "purl": "pkg:npm/electron@45.0.0",
+      "purl": "pkg:npm/electron@45.3.1",
       "properties": [
         {
           "name": "cdx:npm:package:development",
@@ -5741,13 +5741,13 @@
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/electron/-/electron-45.0.0.tgz"
+          "url": "https://registry.npmjs.org/electron/-/electron-45.3.1.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "ca3cf8ba130170ee8be57ec25a044ca1b7f610c24f9dbf63e33b9ffa7bbf4d4ffa1384aa7f1edf9ff6b67800a8e2a9e08e697fd099eca1987162ba092f12dddb"
+          "content": "d6861abb6078457176ec37f67f3beb143268cbc00e4959604ba824968eb090b67f41625e9890891e4638faeb9a72f48552d47c2229a22ee90b345a183f47e68c"
         }
       ],
       "licenses": [
@@ -15413,7 +15413,7 @@
         "mathjs@15.2.0",
         "openclaw@2026.10.6",
         "pdfjs-dist@6.5.438",
-        "electron@45.0.0",
+        "electron@45.3.1",
         "playwright-core@1.63.0",
         "prettier@3.6.2"
       ]
@@ -16372,7 +16372,7 @@
       "dependsOn": []
     },
     {
-      "ref": "electron@45.0.0",
+      "ref": "electron@45.3.1",
       "dependsOn": [
         "@electron-internal/extract-zip@1.0.6",
         "@electron/get@5.1.0",

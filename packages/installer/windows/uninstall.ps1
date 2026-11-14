@@ -6,6 +6,7 @@ $ownsMutex=$false
 $messages=$null
 $rightToLeft=$false
 $progressWindow=$null
+$installedVersion=''
 try {
     if(-not ($Quiet -or $MeasureOnly -or $PlanOnly)){
         . (Join-Path $PSScriptRoot 'localization.ps1')
@@ -28,18 +29,14 @@ try {
     Set-Location -LiteralPath $env:SystemRoot
     [Environment]::CurrentDirectory=$env:SystemRoot
     Assert-CapriNoLinks $root
-    $identity=Read-CapriJson (Join-Path $root '.capri-install.json')
+    $identityPath=Join-Path $root '.capri-install.json'
+    Assert-CapriNoLinks $identityPath
+    $identity=Read-CapriJson $identityPath
     if($identity.productId -ne 'capri.desktop' -or $identity.root -ne $root -or $identity.installId -notmatch '^[a-f0-9-]{36}$' -or $root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\') -or $root -eq $env:USERPROFILE){throw 'Invalid managed installation.'}
+    $installedVersion=if($identity.PSObject.Properties['version']){[string]$identity.version}else{''}
     $uninstallIcon=Join-Path $PSScriptRoot 'app.ico'
     if(-not (Test-Path -LiteralPath $uninstallIcon -PathType Leaf)){$uninstallIcon=Join-Path $root 'assets/default/app.ico'}
     Assert-CapriNoLinks $uninstallIcon
-    if($messages){
-        $language=Get-CapriInstalledLanguage $root $translations
-        foreach($key in $translations.en.PSObject.Properties.Name){
-            $messages[$key]=Get-CapriInstallerText $translations $language $key
-        }
-        $rightToLeft=$language -in @('ar','fa','he','ur')
-    }
     if(-not ($MeasureOnly -or $PlanOnly)){
         $mutex=New-Object Threading.Mutex($false,('Local\Capri.Uninstall.'+$identity.installId))
         try{$ownsMutex=$mutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ownsMutex=$true}
@@ -55,10 +52,13 @@ try {
     }
     if($DeleteData){$DeleteModels=$true;$DeleteSettings=$true}
     $activeLock=Join-Path $root '.runtime/installer/install.lock.json'
+    Assert-CapriNoLinks $activeLock
     if(Test-Path -LiteralPath $activeLock){$lock=Read-CapriJson $activeLock;
         if(Get-Process -Id $lock.pid -ErrorAction SilentlyContinue){throw 'Finish or cancel the installation before uninstalling.'}}
     $configPath=Join-Path $root 'config/installer.json'
+    Assert-CapriNoLinks $configPath
     if(-not(Test-Path -LiteralPath $configPath)){$configPath=Join-Path $PSScriptRoot 'installer-config.json'}
+    Assert-CapriNoLinks $configPath
     $nodeManifest=Read-CapriJson $configPath
     $node=Join-Path $root ('.runtime/'+$nodeManifest.artifacts.node.directory+'/node.exe')
     # Descendant links are leaf entries, including npm workspaces and model caches.
@@ -67,6 +67,15 @@ try {
         $linkType=$Item.PSObject.Properties['LinkType']
         return ($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -and
             $linkType -and $linkType.Value -in @('Junction','SymbolicLink')
+    }
+    function Get-CapriRemovalItem([string]$Path){
+        Assert-CapriNoLinks (Split-Path -Parent $Path)
+        try{$item=Get-Item -LiteralPath $Path -Force}
+        catch [Management.Automation.ItemNotFoundException]{return}
+        if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -and -not(Test-CapriLeafLink $item)){
+            throw 'Uninstall will not traverse unsupported filesystem links. Linked content was not removed.'
+        }
+        return $item
     }
     function Remove-CapriLeafLink($Item,[string]$Boundary){
         $full=[IO.Path]::GetFullPath($Item.FullName)
@@ -84,8 +93,8 @@ try {
     function Assert-CapriTree([string]$Path,[string]$Boundary=$root) {
         $full=[IO.Path]::GetFullPath($Path)
         if(-not $full.StartsWith($Boundary+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Removal escaped the managed installation.'}
-        if(-not(Test-Path -LiteralPath $full)){return}
-        Assert-CapriNoLinks $full
+        $item=Get-CapriRemovalItem $full
+        if(-not $item -or (Test-CapriLeafLink $item) -or -not $item.PSIsContainer){return}
         foreach($child in Get-ChildItem -LiteralPath $full -Force) {
             if(($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){if(Test-CapriLeafLink $child){continue};
                 throw 'Uninstall will not traverse filesystem links. Linked content was not removed.'}
@@ -93,7 +102,9 @@ try {
         }
     }
     $sourceFile=Join-Path $root '.runtime/installer/source-files.json'
+    Assert-CapriNoLinks $sourceFile
     if(-not(Test-Path -LiteralPath $sourceFile)){$sourceFile=Join-Path $PSScriptRoot 'source-files.json'}
+    Assert-CapriNoLinks $sourceFile
     $sourceManifest=Read-CapriJson $sourceFile
     $sourceTargets=@()
     foreach($entry in $sourceManifest.files) {
@@ -119,7 +130,6 @@ try {
     Assert-CapriNoLinks $speechRoot
     $speechPersonal=@('training-jobs','voice-training-status.json','voice-selections.json','companion-voice-token')
     foreach($item in Get-ChildItem -LiteralPath $speechRoot -Force -ErrorAction SilentlyContinue){
-        Assert-CapriNoLinks $item.FullName
         if($item.Name -in $speechPersonal){
             if(-not $item.PSIsContainer){$settingsFiles+=,$item.FullName}
         }elseif($item.PSIsContainer){$modelTrees+=,('data/speech/'+$item.Name)}
@@ -130,10 +140,9 @@ try {
     $datasetRoot=Join-Path $root 'data/voices/capri/en'
     Assert-CapriNoLinks $datasetRoot
     foreach($item in Get-ChildItem -LiteralPath $datasetRoot -Force -ErrorAction SilentlyContinue){
-        Assert-CapriNoLinks $item.FullName
         if($item.Name -eq 'exports' -and $item.PSIsContainer){
+            Assert-CapriNoLinks $item.FullName
             foreach($export in Get-ChildItem -LiteralPath $item.FullName -Force){
-                Assert-CapriNoLinks $export.FullName
                 if($export.Name -eq 'capri-en-v1' -and $export.PSIsContainer){continue}
                 if($export.PSIsContainer){$settingsTrees+=,('data/voices/capri/en/exports/'+$export.Name)}
                 else{$settingsFiles+=,$export.FullName}
@@ -142,23 +151,23 @@ try {
         else{$settingsFiles+=,$item.FullName}
     }
     foreach($item in Get-ChildItem -LiteralPath (Join-Path $root 'config') -Filter '*.local.json' -File -Force -ErrorAction SilentlyContinue){
-        Assert-CapriNoLinks $item.FullName
         $settingsFiles+=,$item.FullName
     }
     $voiceToken=Join-Path $root 'data/speech/companion-voice-token'
-    Assert-CapriNoLinks $voiceToken
-    $settingsFiles+=,$voiceToken
+    if($voiceToken -notin $settingsFiles){$settingsFiles+=,$voiceToken}
     $registration=$null
     $registrationPath=Join-Path $root '.runtime/installer/registration.json'
+    Assert-CapriNoLinks $registrationPath
     if(-not(Test-Path -LiteralPath $registrationPath)){$registrationPath=Join-Path $PSScriptRoot 'registration.json'}
+    Assert-CapriNoLinks $registrationPath
     if(Test-Path -LiteralPath $registrationPath){$registration=Read-CapriJson $registrationPath}
     # Load before owned source files are removed; recovery keeps its own copy.
     if($registration -and @($registration.shortcuts).Count -gt 0 -and -not ('Capri.Setup.Shortcuts' -as [type])){Add-Type -Path (Join-Path $PSScriptRoot 'shell-link.cs')}
     $links=@()
     if($registration){
         foreach($link in $registration.shortcuts){
+            Assert-CapriNoLinks $link
             if((Test-Path -LiteralPath $link -PathType Leaf) -and $link.EndsWith('.lnk') -and [Capri.Setup.Shortcuts]::Read($link).TargetPath -eq $applicationLauncher){
-                Assert-CapriNoLinks $link
                 $links+=,$link
             }
         }
@@ -228,7 +237,10 @@ try {
         $groups[1]=[string[]](@($modelTrees | ForEach-Object {Join-Path $root $_}) + $modelFiles)
         $groups[2]=[string[]](@($settingsTrees | ForEach-Object {Join-Path $root $_}) + $settingsFiles)
         $groups[3]=[string[]](@((Join-Path $root 'data'),(Join-Path $root '.capri-install.json'),$uninstallLauncher) + $recoveryTargets + $sharedTargets)
-        foreach($path in $groups | ForEach-Object {$_}){Assert-CapriNoLinks $path}
+        foreach($group in $groups){foreach($path in $group){
+            if($path.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)){$null=Get-CapriRemovalItem $path}
+            else{Assert-CapriNoLinks $path}
+        }}
         if($MeasureOnly){@{bytes=[Capri.Setup.UninstallWindow]::Measure($groups)}|ConvertTo-Json -Compress;return}
         $defaults=([int]$RemoveApplication)+2*([int][bool]$DeleteModels)+4*([int][bool]$DeleteSettings)
         if($progressWindow){$progressWindow.Hide()}
@@ -256,11 +268,18 @@ try {
     if($DeleteModels){$localTargets+=$modelFiles}
     if(-not $RemoveApplication){$sourceTargets=@()}
     foreach($name in $trees){Assert-CapriTree (Join-Path $root $name)}
+    foreach($file in $localTargets){$null=Get-CapriRemovalItem $file}
     function Remove-CapriTree([string]$Path,[string]$Boundary=$root) {
         $full=[IO.Path]::GetFullPath($Path)
         if(-not $full.StartsWith($Boundary+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Removal escaped the managed installation.'}
-        if(-not(Test-Path -LiteralPath $full)){return}
-        Assert-CapriNoLinks $full
+        $item=Get-CapriRemovalItem $full
+        if(-not $item){return}
+        if(Test-CapriLeafLink $item){Remove-CapriLeafLink $item $Boundary;return}
+        if(-not $item.PSIsContainer){
+            Remove-Item -LiteralPath $full -Force
+            if($progressWindow){$progressWindow.Advance()}
+            return
+        }
         foreach($child in Get-ChildItem -LiteralPath $full -Force) {
             if(($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){if(Test-CapriLeafLink $child){Remove-CapriLeafLink $child $Boundary;
                     continue};
@@ -286,6 +305,8 @@ try {
         if(Test-Path -LiteralPath $path -PathType Container){Assert-CapriTree $path (Split-Path -Parent $path)}
     }
     $core=Join-Path $root 'packages/runtime/bin/core.mjs'
+    Assert-CapriNoLinks $node
+    Assert-CapriNoLinks $core
     if((Test-Path -LiteralPath $node) -and (Test-Path -LiteralPath $core)){
         if($progressWindow){$progressWindow.Report('progressStopping')}
         & $node $core stop
@@ -309,10 +330,7 @@ try {
         while($parent -and $parent -ne $root){$null=$emptyParents.Add($parent);
             $parent=Split-Path -Parent $parent}
     }
-    foreach($file in $localTargets){Assert-CapriNoLinks $file;if(Test-Path -LiteralPath $file){
-        Remove-Item -LiteralPath $file -Force
-        if($progressWindow){$progressWindow.Advance()}
-    }}
+    foreach($file in $localTargets){Remove-CapriTree $file}
     foreach($name in $trees){Remove-CapriTree (Join-Path $root $name)}
     if($progressWindow){$progressWindow.Report('progressCleaning')}
     if($complete){
@@ -400,16 +418,33 @@ try {
     elseif($messages){[Capri.Setup.UninstallWindow]::Complete($messages['complete'],$rightToLeft)}
     
 } catch {
+    $failureMessage=$_.Exception.Message
+    $failureCode=switch -Regex ($failureMessage) {
+        'filesystem links' {'UNINSTALL_LINKED_PATH';break}
+        'already open|Finish or cancel' {'UNINSTALL_BUSY';break}
+        'Could not stop Capri' {'UNINSTALL_STOP_FAILED';break}
+        'Invalid managed installation|Invalid installed file' {'UNINSTALL_INVALID_INSTALLATION';break}
+        default {'UNINSTALL_FAILED'}
+    }
     if(-not ($Quiet -or $MeasureOnly -or $PlanOnly)){
         Add-Type -AssemblyName System.Windows.Forms
         $title=if($messages){$messages['title']}else{'Uninstall Capri'}
         $heading=if($messages){$messages['failed']}else{'Could not finish uninstalling Capri.'}
         $details=if($messages){$messages['technicalDetails']}else{'Technical details'}
         $direction=if($rightToLeft){[Windows.Forms.MessageBoxOptions]::RightAlign -bor [Windows.Forms.MessageBoxOptions]::RtlReading}else{0}
-        if($progressWindow){$progressWindow.Fail($_.Exception.Message)}
-        else{[Windows.Forms.MessageBox]::Show($heading+"`r`n`r`n"+$details+":`r`n"+$_.Exception.Message,$title,'OK','Error','Button1',$direction)|Out-Null}
+        $visibleDetails=if($messages -and $failureCode -eq 'UNINSTALL_LINKED_PATH'){$messages['linkedPathHelp']+"`r`n"+$failureCode}else{$failureMessage}
+        if(-not $progressWindow -and $messages){
+            try {
+                if(-not ('Capri.Setup.UninstallWindow' -as [type])){
+                    Add-Type -Path (Join-Path $PSScriptRoot 'uninstall-window.cs') -ReferencedAssemblies System.Windows.Forms,System.Drawing
+                }
+                $progressWindow=[Capri.Setup.UninstallProgress]::new($messages,$rightToLeft,'')
+            } catch {}
+        }
+        if($progressWindow){$progressWindow.Fail($visibleDetails,$failureCode,$installedVersion)}
+        else{[Windows.Forms.MessageBox]::Show($heading+"`r`n`r`n"+$details+":`r`n"+$visibleDetails,$title,'OK','Error','Button1',$direction)|Out-Null}
     }
-    [Console]::Error.WriteLine($_.Exception.Message);
+    [Console]::Error.WriteLine($failureMessage);
     exit 1
 } finally {
     if($progressWindow){$progressWindow.Dispose()}

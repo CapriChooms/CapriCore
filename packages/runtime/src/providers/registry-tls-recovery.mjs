@@ -2,7 +2,7 @@
 import { paths } from '../host/paths.mjs';
 import { managedProcess } from '../host/processes.mjs';
 import { request } from '../http.mjs';
-import { startOllama, stopManaged } from './services.mjs';
+import { startLlama, stopManaged } from './services.mjs';
 import {
   classicalRegistryTls,
   saveClassicalRegistryTls,
@@ -20,7 +20,7 @@ export async function recoverRegistryTls(
     inventory = () => request(`${rt.ollamaUrl}/api/ps`, { timeout: 3000, signal }),
     probe = () => probeClassicalRegistryTls({ signal }),
     stop = () => stopManaged('ollama'),
-    start = () => startOllama(rt, { signal }),
+    start = () => startLlama(rt, { signal }),
   } = {},
 ) {
   signal?.throwIfAborted();

@@ -4,18 +4,38 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
 import path from 'node:path';
 import { inflateRawSync, crc32 } from 'node:zlib';
+import { runInNewContext } from 'node:vm';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { createDiagnosticReport, validateReport } from '../apps/desktop/diagnostics/report.mjs';
 import { redactor } from '../apps/desktop/diagnostics/redact.mjs';
+import { diagnosticState } from '../apps/desktop/diagnostics/state.mjs';
 import { diagnosticZip } from '../apps/desktop/diagnostics/archive.mjs';
 import { VoiceService } from '../apps/desktop/voice-service.mjs';
 import { registerCompanionIpc } from '../apps/desktop/main/companion-ipc.mjs';
+import { createIpcHandler } from '../apps/desktop/main/ipc.mjs';
+import { SETTINGS_CHANNELS } from '../apps/desktop/main/settings-channels.mjs';
 import { readFileSync } from 'node:fs';
 import { ACTIVE_AVATAR_CATALOG } from '../apps/desktop/avatar-catalog.mjs';
 import { probeResourceUsage } from '../apps/desktop/diagnostics/resources.mjs';
-import { privateLogRecord, writeModelSelectionLog } from '../packages/runtime/src/privacy-log.mjs';
+import {
+  privateLog,
+  privateLogRecord,
+  writeModelSelectionLog,
+} from '../packages/runtime/src/privacy-log.mjs';
 
 const parent = path.join(root, '.runtime/diagnostic-unit');
+test('screen startup diagnostics preserve only the known stage and error class', () => {
+  const message = 'Capri screen startup failed: {"stage":"capture","name":"AbortError"}';
+  assert.deepEqual(diagnosticState({ message }).message, {
+    event: 'screen-startup-failed',
+    stage: 'capture',
+    name: 'AbortError',
+  });
+  assert.equal(
+    diagnosticState({ message: message + ' private window name' }).message,
+    '[PRIVATE TEXT OMITTED]',
+  );
+});
 mkdirSync(parent, { recursive: true });
 const fixture = () => mkdtempSync(path.join(parent, 'case-'));
 const put = (base, name, data) => {
@@ -44,6 +64,28 @@ const unpack = (buffer) => {
   assert.equal(buffer.readUInt16LE(buffer.length - 12), files.size);
   return files;
 };
+
+test('bounded diagnostic logs preserve the latest reply failure after more than 500 events', () => {
+  const lines = Array.from({ length: 610 }, (_, i) =>
+    JSON.stringify({
+      schemaVersion: 1,
+      event: 'response-timing',
+      source: 'desktop',
+      traceId: '11111111-1111-4111-8111-111111111111',
+      stage: i === 609 ? 'failed' : 'received',
+      elapsedMs: i,
+      time: new Date(1794333000000 + i).toISOString(),
+      prompt: 'PRIVATE-LOG-CANARY',
+    }),
+  );
+  const output = privateLog(lines.join('\n'));
+  const records = output.split('\n').map((line) => JSON.parse(line));
+  assert.equal(records.length, 500);
+  assert.equal(records[0].elapsedMs, 110);
+  assert.equal(records.at(-1).stage, 'failed');
+  assert.equal(records.at(-1).elapsedMs, 609);
+  assert.equal(output.includes('PRIVATE-LOG-CANARY'), false);
+});
 
 test('diagnostic ZIP keeps the active model ID and reply flag without keys, prompts or private paths', async () => {
   const base = fixture();
@@ -89,6 +131,20 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
     root: base,
     snapshot: {
       inference: { provider: 'external-api', model, contextTokens: 32768 },
+      voice: {
+        ready: true,
+        language: 'en',
+        lastFailure: {
+          phase: 'synthesis',
+          code: 'CAPRI_VOICE_LANGUAGE_MISMATCH',
+          message: privateText,
+        },
+      },
+      voiceCatalog: {
+        phase: 'error',
+        modelId: 'qwen3-tts-0.6b-base',
+        lastFailure: { stage: 'dependencies', code: 'CAPRI_VOICE_PYTHON_VERSION', exitCode: 1 },
+      },
       response: {
         lastFailure: {
           phase: 'model',
@@ -106,6 +162,15 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
           httpStatus: 502,
           streaming: true,
           elapsedMs: 20305,
+        },
+      },
+      spotifyPlanning: {
+        lastFailure: {
+          phase: 'spotify-planning',
+          code: 'CAPRI_SPOTIFY_PLAN_HTTP_ERROR',
+          httpStatus: 400,
+          receivedText: false,
+          message: privateText,
         },
       },
       musicListening: {
@@ -132,8 +197,18 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
   const files = unpack(report.bytes);
   const session = JSON.parse(files.get('session.json'));
   assert.equal(session.inference.model, model);
+  assert.equal(session.voice.lastFailure.code, 'CAPRI_VOICE_LANGUAGE_MISMATCH');
+  assert.ok(!JSON.stringify(session.voice).includes(privateText));
+  assert.match(files.get('REPORT.md'), /skipped text in an unsupported script before synthesis/);
+  assert.equal(session.voiceCatalog.lastFailure.stage, 'dependencies');
+  assert.equal(session.voiceCatalog.lastFailure.code, 'CAPRI_VOICE_PYTHON_VERSION');
+  assert.equal(session.voiceCatalog.lastFailure.exitCode, 1);
   assert.equal(session.response.lastFailure.receivedText, false);
   assert.equal(session.response.lastFailure.code, 'CAPRI_GATEWAY_REPORTED_ERROR');
+  assert.equal(session.spotifyPlanning.lastFailure.phase, 'spotify-planning');
+  assert.equal(session.spotifyPlanning.lastFailure.code, 'CAPRI_SPOTIFY_PLAN_HTTP_ERROR');
+  assert.equal(session.spotifyPlanning.lastFailure.httpStatus, 400);
+  assert(!JSON.stringify(session.spotifyPlanning).includes(privateText));
   assert.equal(session.musicListening.phase, 'listening');
   assert.equal(session.musicListening.tempo, 124);
   assert.equal(session.musicListening.tempoConfidence, 0.8);
@@ -522,4 +597,71 @@ test('report IPC cancels before collection, serializes exports and atomically sa
   assert.equal(collected, 1);
   assert.equal(shown, saved);
   assert.equal(unpack(readFileSync(saved)).get('REPORT.md'), 'Synthetic diagnostic report');
+});
+
+test('the Settings preload can submit a diagnostic ZIP and receive the server receipt', async (t) => {
+  const base = fixture();
+  const settingsFrame = { url: 'capri://desktop/settings.html' };
+  const companionFrame = { url: 'capri://desktop/index.html' };
+  const windowFor = (frame) => ({ isDestroyed: () => false, webContents: { mainFrame: frame } });
+  const settings = windowFor(settingsFrame);
+  const companion = windowFor(companionFrame);
+  const handlers = new Map();
+  const handle = createIpcHandler(
+    { handle: (name, callback) => handlers.set(name, callback) },
+    {
+      getWindow: () => companion,
+      url: companionFrame.url,
+      getSettingsWindow: () => settings,
+      settingsUrl: settingsFrame.url,
+      settingsChannels: SETTINGS_CHANNELS,
+    },
+  );
+  const reportId = '0123456789abcdef0123456789abcdef';
+  const bytes = await diagnosticZip([{ name: 'REPORT.md', bytes: 'Synthetic report' }]);
+  registerCompanionIpc(handle, {
+    root: base,
+    state: base,
+    createReport: async ({ input }) => {
+      assert.equal(input.description, 'Synthetic report');
+      assert.equal(input.includeLogs, false);
+      return { bytes };
+    },
+  });
+  const upload = t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, 'https://capri-core.com/api/reports/v1');
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers['content-type'], 'application/zip');
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'error');
+    assert.equal(unpack(options.body).get('REPORT.md'), 'Synthetic report');
+    return new Response(null, { status: 202, headers: { 'x-capri-report-id': reportId } });
+  });
+  const payload = { description: 'Synthetic report', includeLogs: false };
+  const send = handlers.get('capri:bug-report-send');
+  await assert.rejects(
+    send({ sender: companion.webContents, senderFrame: companionFrame }, payload),
+    /Open Report a bug in Settings/,
+  );
+  assert.throws(
+    () => send({ sender: settings.webContents, senderFrame: { ...settingsFrame } }, payload),
+    /Untrusted IPC sender/,
+  );
+  let preloadApi;
+  runInNewContext(readFileSync(new URL('../apps/desktop/preload.cjs', import.meta.url), 'utf8'), {
+    require: () => ({
+      contextBridge: { exposeInMainWorld: (_name, api) => (preloadApi = api) },
+      ipcRenderer: {
+        invoke: async (channel, input) =>
+          handlers.get(channel)(
+            { sender: settings.webContents, senderFrame: settingsFrame },
+            input,
+          ),
+      },
+    }),
+  });
+  await assert.rejects(preloadApi.sendBugReport({ title: 'Test' }), /Describe the problem/);
+  assert.equal(upload.mock.callCount(), 0);
+  assert.deepEqual(await preloadApi.sendBugReport(payload), { sent: true, reportId });
+  assert.equal(upload.mock.callCount(), 1);
 });

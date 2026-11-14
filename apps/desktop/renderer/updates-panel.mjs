@@ -27,6 +27,8 @@ export class UpdatesPanel {
       <div class="preferences-content">
         <p class="update-version"><span>Installed version</span><strong id="updates-current" data-untranslated></strong></p>
         <label class="update-channel"><input id="updates-experimental" type="checkbox">Include experimental updates</label>
+        <p class="settings-help">Experimental builds in the private repository are available to Lava.top subscribers with GitHub access.</p>
+        <div class="settings-actions"><button type="button" id="updates-lava">View Lava.top subscription</button></div>
         <p class="settings-help">Experimental versions may contain unfinished features and bugs. Stable updates are selected by default.</p>
         <div class="update-status-card" role="status" aria-live="polite"><p id="updates-status"></p><strong id="updates-release" data-untranslated></strong><progress id="updates-progress" max="100" hidden></progress><p id="updates-transfer" data-untranslated></p><p id="updates-error"></p></div>
         <div class="settings-actions"><button type="button" id="updates-check">Check for updates</button><button type="button" id="updates-download" hidden>Download update</button><button type="button" id="updates-cancel" hidden>Cancel download</button></div>
@@ -34,16 +36,27 @@ export class UpdatesPanel {
         <p class="settings-help" id="updates-preserve">Your history, memory, models and personal settings are kept. Capri restarts only when you choose to install.</p>
         <p class="settings-help" id="updates-source" hidden>This is a development checkout. The downloaded installer creates or updates a separate managed installation.</p>
         <p class="settings-help" id="updates-full" hidden>The full installer will open; select your current installation folder to keep your data.</p>
+        <section class="settings-card">
+          <h3>Release history</h3>
+          <button id="updates-versions" type="button">Load versions</button>
+          <label for="updates-version">Version</label><select id="updates-version" disabled></select>
+          <pre id="updates-changelog" data-untranslated hidden></pre>
+          <p id="updates-history-status" role="status"></p>
+          <div class="settings-actions">
+            <button id="updates-select" type="button" hidden>Choose this update</button>
+            <button id="updates-release-page" type="button" hidden>Open on GitHub</button>
+          </div>
+        </section>
         <section class="github-access-card">
           <h3 data-untranslated>GitHub</h3><p class="settings-help">Public updates do not require a GitHub account or token.</p><p id="updates-access-status" class="settings-help" role="status"></p>
-          <details id="updates-access-details"><summary>GitHub access token</summary>
-            <p class="settings-help">Public updates do not require a GitHub account or token.</p>
-            <div class="settings-actions" hidden><button type="button" id="updates-classic-token-page"><span>GitHub access token</span><code data-untranslated> (classic · repo)</code></button></div>
+          <details id="updates-access-details"><summary><span>Connect GitHub for private updates</span> <code data-untranslated>CapriChooms/Capri</code></summary>
             <label for="updates-token">GitHub access token</label><input id="updates-token" type="password" maxlength="255" autocomplete="new-password" spellcheck="false" dir="ltr" data-untranslated placeholder="ghp_… / github_pat_…">
             <div class="settings-actions"><button type="button" id="updates-connect">Save and check access</button><button type="button" id="updates-forget">Remove saved access</button></div>
             <details class="settings-help"><summary>Create read-only token</summary>
-              <ol><li>Open GitHub and create a fine-grained token.</li><li>Select CapriChooms as resource owner, only the CapriCore repository, and Contents: Read-only.</li><li>Copy the token below. If GitHub shows Pending, the organization owner must approve it first.</li></ol>
+              <ol><li>Open GitHub and create a fine-grained token.</li><li>Select CapriChooms as resource owner, only the Capri repository, and Contents: Read-only.</li><li>Copy the token below. If GitHub shows Pending, the organization owner must approve it first.</li></ol>
               <button type="button" id="updates-token-page">Create read-only token</button>
+              <p>Accept the organization invitation or ask Overyx for membership with Read access. GitHub fine-grained tokens do not support outside collaborators on organization repositories. Existing GitHub CLI or classic tokens also work; classic token scopes are broader, so organization membership with a read-only token is preferred.</p>
+              <div class="settings-actions"><button type="button" id="updates-classic-token-page"><span>GitHub access token</span><code data-untranslated> (classic · repo)</code></button></div>
             </details>
             <p class="settings-help">The token is encrypted for your Windows account and stays on this PC. Capri uses it only to read releases and download files. Never send your token in a bug report.</p>
           </details>
@@ -52,6 +65,56 @@ export class UpdatesPanel {
       </div>`;
     document.getElementById('companion').append(this.panel);
     this.get = (id) => this.panel.querySelector('#updates-' + id);
+    this.get('lava').onclick = () =>
+      api.communityLink('lava').catch((error) => onError(error.message));
+    let history = [];
+    const selectedVersion = () => history.find(({ id }) => id === this.get('version').value);
+    const showVersion = () => {
+      const selected = selectedVersion();
+      this.get('changelog').hidden = !selected;
+      this.get('changelog').textContent = selected?.notes || this.ui.text('No release notes.');
+      this.get('select').hidden = !selected?.update;
+      this.get('release-page').hidden = !selected;
+    };
+    this.get('version').onchange = showVersion;
+    this.get('versions').onclick = async () => {
+      const load = this.get('versions');
+      load.disabled = true;
+      try {
+        const result = await api.updateVersions(this.channel().experimental);
+        history = result.releases;
+        this.get('version').replaceChildren(
+          ...history.map(({ id, tag, experimental }) => {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = experimental ? tag + ' · ' + this.ui.text('Experimental') : tag;
+            return option;
+          }),
+        );
+        this.get('version').disabled = !history.length;
+        this.get('history-status').textContent = this.ui.text(
+          result.previewUnavailable
+            ? 'Private preview versions are unavailable. Connect GitHub to see them.'
+            : history.length
+              ? ''
+              : 'No releases found.',
+        );
+        showVersion();
+      } catch (error) {
+        onError(error.message);
+      } finally {
+        load.disabled = false;
+      }
+    };
+    this.get('select').onclick = async () => {
+      try {
+        this.show(await api.chooseUpdateVersion(selectedVersion()?.id));
+      } catch (error) {
+        onError(error.message);
+      }
+    };
+    this.get('release-page').onclick = () =>
+      api.openUpdateVersion(selectedVersion()?.id).catch((error) => onError(error.message));
     this.get('close').onclick = () => this.open(false);
     this.get('token-page').onclick = () =>
       api.openGitHubTokenPage().catch((error) => onError(error.message));
@@ -141,7 +204,9 @@ export class UpdatesPanel {
     this.get('status').textContent = this.ui.text(
       ((currentChannel || busy) && messages[value.phase]) || messages.idle,
     );
-    this.get('release').textContent = currentChannel ? (value.release?.tag ?? '') : '';
+    this.get('release').textContent = currentChannel
+      ? [value.release?.tag, value.release?.repository].filter(Boolean).join(' · ')
+      : '';
     this.get('error').textContent = currentChannel && value.error ? this.ui.text(value.error) : '';
     if (value.needsAccess) this.get('access-details').open = true;
     this.get('check').disabled = busy;

@@ -88,7 +88,7 @@ export function plannerJsonHint(schema) {
   return (
     'Return exactly one JSON object matching one of these allowed action shapes: ' +
     JSON.stringify(shapes) +
-    '. Use the action arguments described above. Copy targetId and toTargetId exactly from currentObservation.targets, including their bracketed suffix. Evidence must copy current observed text. Include the required checkpoint plan and only known checkpoint IDs when verifying. No extra fields, tool calls or prose outside the JSON object.'
+    '. Use the action arguments described above. Copy targetId and toTargetId exactly from currentObservation.targets, including their bracketed suffix. Evidence must copy current observed text. Checkpoint IDs are JSON strings, for example "1". Include the required checkpoint plan and only known checkpoint IDs when verifying. No extra fields, tool calls or prose outside the JSON object.'
   );
 }
 

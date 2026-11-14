@@ -65,9 +65,11 @@ export function validateCoreSettings(value) {
     result.keepAlive > 86400
   )
     throw new Error('Invalid model residency settings');
-  for (const key of ['nodeVersion', 'ollamaVersion', 'openclawVersion'])
+  for (const key of ['nodeVersion', 'openclawVersion'])
     if (typeof result[key] !== 'string' || !/^\d+\.\d+\.\d+$/.test(result[key]))
       throw new Error('Invalid ' + key);
+  if (result.llamaVersion !== undefined && !/^b[1-9]\d{2,6}$/.test(result.llamaVersion))
+    throw new Error('Invalid llama.cpp version');
   if (
     result.cpuThreads !== undefined &&
     (!Number.isInteger(result.cpuThreads) || result.cpuThreads < 1 || result.cpuThreads > 16)

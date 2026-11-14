@@ -164,7 +164,7 @@ export class SignalFX {
     const snapshot = this.model.snapshot();
     const detached = document.body.dataset.avatarDetach !== 'attached';
     const arriving = document.body.dataset.avatarArriving === 'true';
-    const intro = document.body.dataset.startupIntro;
+    const intro = this.model.sleeping ? null : document.body.dataset.startupIntro;
     const introActive = intro === 'playing' || intro === 'pending';
     const key = `${snapshot.state}:${snapshot.expanded}:${snapshot.pinned}:${snapshot.burstAt}:${detached}:${arriving}:${intro}:${this.text(SIGNAL_STATES[snapshot.state].label)}`;
     const changed = key !== this.lastKey;

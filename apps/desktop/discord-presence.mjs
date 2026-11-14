@@ -51,9 +51,9 @@ export class DiscordPresence {
     this.phase = phase;
     this.onChange(this.snapshot());
   }
-  configure(value) {
+  configure(value, { active = true } = {}) {
     this.preferences.set(discordSettings(value));
-    this.start();
+    if (active) this.start();
     return this.snapshot();
   }
   activity() {

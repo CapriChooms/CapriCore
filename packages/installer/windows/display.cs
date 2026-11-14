@@ -24,6 +24,11 @@ namespace Capri.Setup {
         [DllImport("user32.dll")]private static extern uint GetWindowThreadProcessId(IntPtr window,out uint pid);
         [DllImport("user32.dll")]private static extern bool ShowWindowAsync(IntPtr window,int mode);
         [DllImport("user32.dll")]private static extern bool SetForegroundWindow(IntPtr window);
+        [StructLayout(LayoutKind.Sequential)]private struct FlashInfo {public uint Size;public IntPtr Window;public uint Flags,Count,Timeout;}
+        [DllImport("user32.dll")]private static extern bool FlashWindowEx(ref FlashInfo info);
+        public static void CompletionAttention(IntPtr window,bool active) {
+            try{FlashInfo info=new FlashInfo();info.Size=(uint)Marshal.SizeOf(typeof(FlashInfo));info.Window=window;info.Flags=active?2u:0u;info.Count=3;FlashWindowEx(ref info);}catch{}
+        }
         public static bool Focus(int pid,string stamp,long handle) {
             uint actual;IntPtr window=new IntPtr(handle);GetWindowThreadProcessId(window,out actual);
             if(actual!=(uint)pid||!SessionIO.Alive(pid,stamp))return false;

@@ -3,11 +3,16 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { REPOSITORY } from './releases.mjs';
+import { EXPERIMENTAL_REPOSITORY, REPOSITORY } from './releases.mjs';
 const execute = promisify(execFile);
-const apiRoot = `https://api.github.com/repos/${REPOSITORY}/releases`;
 const cdns = new Set(['release-assets.githubusercontent.com', 'objects.githubusercontent.com']);
-export function approvedUrl(value) {
+function releasePath(repository) {
+  if (repository !== REPOSITORY && repository !== EXPERIMENTAL_REPOSITORY)
+    throw new Error('Unapproved update repository');
+  return `/repos/${repository}/releases`;
+}
+export function approvedUrl(value, repository = REPOSITORY) {
+  const releases = releasePath(repository);
   const url = new URL(value);
   if (
     url.protocol !== 'https:' ||
@@ -17,8 +22,9 @@ export function approvedUrl(value) {
     !(
       cdns.has(url.hostname) ||
       (url.origin === 'https://api.github.com' &&
-        (url.pathname === `/repos/${REPOSITORY}/releases` ||
-          new RegExp(`^/repos/${REPOSITORY}/releases/assets/[1-9][0-9]*$`).test(url.pathname)))
+        (url.pathname === releases ||
+          (url.pathname.startsWith(`${releases}/assets/`) &&
+            /^[1-9][0-9]*$/.test(url.pathname.slice(releases.length + '/assets/'.length)))))
     )
   )
     throw new Error('Unapproved update URL');
@@ -50,9 +56,18 @@ export async function githubCredential(root, env = process.env) {
   }
   return null;
 }
-export function githubFetch({ token, fetchImpl = fetch, allowAnonymousFallback = false } = {}) {
+export function githubFetch({
+  token,
+  fetchImpl = fetch,
+  repository = REPOSITORY,
+  allowAnonymousFallback = false,
+} = {}) {
   return async (value, options = {}) => {
-    const url = approvedUrl(value);
+    const url = approvedUrl(value, repository);
+    if (repository === EXPERIMENTAL_REPOSITORY && !token)
+      throw Object.assign(new Error('Connect GitHub for private experimental updates.'), {
+        code: 'GITHUB_ACCESS_REQUIRED',
+      });
     const headers = { ...options.headers };
     for (const name of Object.keys(headers))
       if (/^(?:authorization|proxy-authorization|cookie)$/i.test(name)) delete headers[name];
@@ -78,6 +93,7 @@ export function githubFetch({ token, fetchImpl = fetch, allowAnonymousFallback =
     // Explicit credential verification keeps the default strict behavior.
     if (
       allowAnonymousFallback &&
+      repository === REPOSITORY &&
       token &&
       api &&
       [401, 403, 404].includes(response.status) &&
@@ -95,9 +111,13 @@ export async function listReleases({
   token,
   fetchImpl = fetch,
   signal,
+  repository = REPOSITORY,
   allowAnonymousFallback = false,
 } = {}) {
-  const request = githubFetch({ token, fetchImpl, allowAnonymousFallback });
+  const apiRoot = `https://api.github.com${releasePath(repository)}`;
+  const request = githubFetch({ token, fetchImpl, repository, allowAnonymousFallback });
+  const privatePreview = repository === EXPERIMENTAL_REPOSITORY;
+  const strict = privatePreview || Boolean(token && !allowAnonymousFallback);
   const releases = [];
   for (let page = 1; page <= 5; page++) {
     const response = await request(`${apiRoot}?per_page=100&page=${page}`, {
@@ -115,20 +135,20 @@ export async function listReleases({
             'GitHub rejected this token. It may be expired, revoked or copied incorrectly. Public Capri updates do not require a token.',
           ),
           {
-            code:
-              token && !allowAnonymousFallback ? 'GITHUB_ACCESS_REQUIRED' : 'GITHUB_REQUEST_DENIED',
+            code: strict ? 'GITHUB_ACCESS_REQUIRED' : 'GITHUB_REQUEST_DENIED',
             accessReason: 'token_rejected',
             ...failure,
           },
         );
       if (response.status === 404)
         throw Object.assign(
-          new Error(`GitHub could not find the public ${REPOSITORY} releases. Try again later.`),
+          new Error(
+            privatePreview
+              ? 'GitHub access is unavailable for this private repository. Connect GitHub in Updates and check your Capri invitation and token approval.'
+              : `GitHub could not find the public ${repository} releases. Try again later.`,
+          ),
           {
-            code:
-              token && !allowAnonymousFallback
-                ? 'GITHUB_ACCESS_REQUIRED'
-                : 'GITHUB_RELEASES_UNAVAILABLE',
+            code: strict ? 'GITHUB_ACCESS_REQUIRED' : 'GITHUB_RELEASES_UNAVAILABLE',
             accessReason: 'repository_not_visible',
             ...failure,
           },
@@ -140,11 +160,12 @@ export async function listReleases({
       )
         throw Object.assign(
           new Error(
-            'GitHub denied this update request. Public Capri updates do not require a token. Try again later.',
+            privatePreview
+              ? 'GitHub access is unavailable for this private repository. Connect GitHub in Updates and check your Capri invitation and token approval.'
+              : 'GitHub denied this update request. Public Capri updates do not require a token. Try again later.',
           ),
           {
-            code:
-              token && !allowAnonymousFallback ? 'GITHUB_ACCESS_REQUIRED' : 'GITHUB_REQUEST_DENIED',
+            code: strict ? 'GITHUB_ACCESS_REQUIRED' : 'GITHUB_REQUEST_DENIED',
             ...failure,
           },
         );
@@ -170,4 +191,5 @@ export async function listReleases({
   }
   return releases;
 }
-export const assetUrl = (id) => `${apiRoot}/assets/${id}`;
+export const assetUrl = (id, repository = REPOSITORY) =>
+  `https://api.github.com${releasePath(repository)}/assets/${id}`;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { windowsX64Emulation } from '../packages/runtime/src/hardware/responsiveness.mjs';
 import {
   conversationBudget,
   readConversationBudget,
@@ -13,6 +14,27 @@ const session = {
   totalTokensFresh: true,
   contextBudgetStatus: { model: base.model, sessionId: 'existing', estimatedPromptTokens: 30460 },
 };
+
+test('the Windows x64 build detects emulation and allows ARM prefill within the total turn budget', () => {
+  const host = {
+    platform: 'win32',
+    arch: 'x64',
+    hardwareArch: 'AMD64',
+    cpu: 'Snapdragon(R) X - Qualcomm(R) Oryon(TM) CPU',
+  };
+  assert.equal(windowsX64Emulation(host), true);
+  assert.equal(windowsX64Emulation({ ...host, cpu: 'AMD Ryzen 5' }), false);
+  assert.equal(windowsX64Emulation({ ...host, arch: 'arm64' }), false);
+  assert.equal(windowsX64Emulation({ ...host, cpu: '', hardwareArch: 'ARM64' }), true);
+  assert.equal(
+    conversationBudget({ ...base, emulatedX64: true, timeoutMs: 300000 }).firstTextTimeoutMs,
+    180000,
+  );
+  assert.equal(
+    conversationBudget({ ...base, emulatedX64: true, timeoutMs: 90000 }).firstTextTimeoutMs,
+    90000,
+  );
+});
 
 test('observed CPU fallback gets a CPU prefill allowance even in automatic acceleration mode', () => {
   assert.equal(

@@ -56,6 +56,8 @@ Hardware estimates are planning budgets, not measured performance guarantees. In
 
 `npm run release:installer` builds a self-contained, unsigned Windows setup executable under ignored release/installer-\*/. Its embedded source ZIP and launcher have SHA-256 values in BUILD_MANIFEST.json. The launcher accepts `--extract-only <empty-folder>` for source/integrity inspection without launching setup. The older source ZIP is not overwritten.
 
+For a signed setup build, make the publisher's code-signing certificate and private key available to the build account in `Cert:\CurrentUser\My`. Set `CAPRI_SIGNTOOL` to the full Windows SDK `signtool.exe` path, `CAPRI_SIGNING_THUMBPRINT` to the certificate thumbprint and `CAPRI_SIGNING_TIMESTAMP_URL` to the provider's RFC 3161 timestamp URL. Run `npm run release:installer -- --sign`. Setup verifies the Authenticode signature and timestamp before producing the final executable and records its signed SHA-256 in the manifest. [Microsoft SignTool documentation](https://learn.microsoft.com/windows/win32/seccrypto/signtool)
+
 The executable and native wizard use the same reviewed `assets/default/app.ico`
 as Capri. The build preserves its multiple icon sizes for Explorer and the taskbar.
 

@@ -6,6 +6,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
+import { settingsView } from './settings-view.mjs';
 
 // Real settings renderer + confirmation broker + Spotify transaction; only native
 // compilation and desktop relaunch are fixtures. No models or Spotify are started.
@@ -38,14 +39,7 @@ try {
   await page.waitForFunction(() => document.body.dataset.phase === 'ready', null, {
     timeout: 60000,
   });
-  await page.evaluate(() => window.capri.openSettings('applications'));
-  let settings;
-  for (let i = 0; i < 100 && !settings; i++) {
-    settings = app.windows().find((view) => view.url().endsWith('/settings.html'));
-    if (!settings) await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  assert(settings, 'Settings window must open');
-  await settings.locator('#applications-panel:not([hidden])').waitFor();
+  const settings = await settingsView(app, 'spotify');
   await settings.evaluate(() => window.capri.closeSettings());
   await page.evaluate(() => {
     void window.capri.quit();
@@ -53,8 +47,7 @@ try {
   await page.locator('#confirmation-dialog[open]').waitFor({ timeout: 2500 });
   assert.equal(await settings.locator('#confirmation-dialog[open]').count(), 0);
   await page.locator('#confirmation-dialog [data-choice="cancel"]').click();
-  await page.evaluate(() => window.capri.openSettings('applications'));
-  await settings.locator('#applications-panel:not([hidden])').waitFor();
+  await settingsView(app, 'spotify');
   report.checks.push('Hidden settings receives no duplicate confirmation from the companion');
   await app.evaluate(
     async ({ ipcMain, BrowserWindow }, { root, folder }) => {

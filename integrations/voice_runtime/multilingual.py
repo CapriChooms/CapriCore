@@ -17,6 +17,7 @@ from .inference import check_cancelled, SpeechGenerationLimit
 from .model import CapriVoice, DecoderMemoryBudget
 from .text import validate_speech_language
 from .catalog import selected_voice
+from .qwen_provision import RUSSIAN_QWEN_ID
 from .reference_memory import prepare_reference
 
 
@@ -158,20 +159,22 @@ class VoicePool:
         if language == 'zh' and self.language != 'zh' and selected['backend'] != 'qwen3-tts':
             # Selected-language installations may omit Chinese-only data.
             verified_model('chinese')
+        qwen = selected['backend'] == 'qwen3-tts'
         kind = ('turbo' if selected['backend'] == 'chatterbox-turbo' else
-                'qwen3-tts' if selected['backend'] == 'qwen3-tts' else 'multilingual-v3')
+                'qwen3-tts-ru-lora' if selected.get('id') == RUSSIAN_QWEN_ID else
+                'qwen3-tts' if qwen else 'multilingual-v3')
         if kind != self.kind:
             # Verify optional weights before releasing a working English backend.
             if kind == 'multilingual-v3':
                 verified_model('tts')
-            if kind == 'qwen3-tts':
+            if qwen:
                 from .qwen import QwenVoice
             self.voice = None
             self.kind = None
             gc.collect()
             torch.cuda.empty_cache()
             self.voice = (CapriVoice(self.config) if kind == 'turbo' else
-                          QwenVoice(self.config) if kind == 'qwen3-tts' else MultilingualVoice(self.config))
+                          QwenVoice(self.config, model_id=selected.get('id')) if qwen else MultilingualVoice(self.config))
             self.kind = kind
         self.language = language
         check_cancelled(cancelled)
@@ -188,10 +191,15 @@ class VoicePool:
         voice = self.voice
         graph = getattr(voice, 'graph', None)
         reference_memory = getattr(voice, 'reference_memory', {})
+        compute = self.config.get('computeDevice', 'cuda:0')
+        precision = 'float16-t3/float32-decoder' if self.kind == 'multilingual-v3' and compute != 'cpu' else 'float32'
+        if self.kind in {'qwen3-tts', 'qwen3-tts-ru-lora'} and voice is not None:
+            compute = voice.decoder_device
+            precision = voice.precision
         return dict(activeEngine=self.kind, language=self.language, decoderDevice=getattr(voice, 'decoder_device', None),
-                    computeDevice=self.config.get('computeDevice', 'cuda:0'),
+                    computeDevice=compute,
                     decoderReason=getattr(voice, 'decoder_reason', None),
-                    precision='float16-t3/float32-decoder' if self.kind == 'multilingual-v3' and self.config.get('computeDevice') != 'cpu' else 'float32',
+                    precision=precision,
                     mergedProjections=getattr(voice, 'merged_projections', 0), cudaGraph=graph is not None,
                     cpuThreads=torch.get_num_threads(),
                     graphBatchSteps=getattr(graph, 'batch_steps', None),

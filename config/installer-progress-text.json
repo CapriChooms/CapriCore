@@ -25,7 +25,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -56,7 +56,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -87,7 +87,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -118,7 +118,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -149,7 +149,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -180,7 +180,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -211,7 +211,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -242,7 +242,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -273,7 +273,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -304,7 +304,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -335,7 +335,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -366,7 +366,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -397,7 +397,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -428,7 +428,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -459,7 +459,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -490,7 +490,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -521,7 +521,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -552,7 +552,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -583,7 +583,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -614,7 +614,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -645,7 +645,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -676,7 +676,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -707,7 +707,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -738,7 +738,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -769,7 +769,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -800,7 +800,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -831,7 +831,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -862,7 +862,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -893,7 +893,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -924,7 +924,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -955,7 +955,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -986,7 +986,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1017,7 +1017,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1048,7 +1048,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1079,7 +1079,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1110,7 +1110,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1141,7 +1141,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1172,7 +1172,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1203,7 +1203,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1234,7 +1234,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1265,7 +1265,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1296,7 +1296,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1327,7 +1327,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1358,7 +1358,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1389,7 +1389,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1420,7 +1420,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1451,7 +1451,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1482,7 +1482,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1513,7 +1513,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }
@@ -1544,7 +1544,7 @@
     "progressComponent": {
       "node": "Node.js",
       "electron": "Electron",
-      "ollama": "Ollama",
+      "ollama": "llama.cpp",
       "uv": "uv",
       "git": "Git"
     }

@@ -15,6 +15,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { processStartedAt } from '../packages/runtime/src/host/processes.mjs';
+import { randomUUID } from 'node:crypto';
 
 const parent = path.join(root, '.runtime/desktop-launcher-tests');
 mkdirSync(parent, { recursive: true });
@@ -105,5 +106,31 @@ test(
     await assert.rejects(startDesktop(), /desktop download is incomplete/);
     assert.deepEqual(f.snapshot(), before);
     assert.equal(existsSync(path.join(f.folder, 'data/workspace/PERSONALITY.md')), false);
+  },
+);
+
+test(
+  'a committed update receipt cannot trap the desktop launcher while interrupted installation remains blocked',
+  { skip: process.platform !== 'win32' || process.arch !== 'x64' },
+  async () => {
+    const f = fixture();
+    const id = randomUUID();
+    const saved = path.join(f.folder, '.runtime/updates/backups', id);
+    mkdirSync(saved, { recursive: true });
+    writeFileSync(
+      path.join(f.folder, '.runtime/updates/active.json'),
+      JSON.stringify({ schemaVersion: 1, id }),
+    );
+    const journal = path.join(saved, 'journal.json');
+    writeFileSync(journal, JSON.stringify({ schemaVersion: 1, id, phase: 'installing' }));
+    const { startDesktop } = await f.launcher();
+    const before = f.snapshot();
+    await assert.rejects(startDesktop(), /update is in progress or was interrupted/);
+    for (const phase of ['complete', 'rolled-back']) {
+      writeFileSync(journal, JSON.stringify({ schemaVersion: 1, id, phase }));
+      await assert.rejects(startDesktop(), /desktop download is incomplete/);
+    }
+    assert.deepEqual(f.snapshot(), before);
+    assert.equal(existsSync(path.join(f.folder, '.runtime/updates/active.json')), true);
   },
 );

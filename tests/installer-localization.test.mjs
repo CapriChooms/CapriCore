@@ -75,7 +75,7 @@ test('all Capri languages have a complete offline installer catalog, ordered pag
     assert.ok(catalog[id].vramLabel.includes('VRAM'));
     assert.ok(catalog[id].memoryHelp.includes('RAM') && catalog[id].memoryHelp.includes('VRAM'));
     assert.ok(catalog[id].programFilesPermission.includes('Program Files\\Capri'));
-    assert.ok(catalog[id].info.target.includes('Program Files\\Capri'));
+    assert.ok(catalog[id].info.target.includes('%LOCALAPPDATA%\\Programs\\Capri'));
     assert.ok(catalog[id].info.voiceMode.includes('Qwen3-TTS'));
     assert.doesNotMatch(JSON.stringify(catalog[id]), /ZXQ[RP]\d+QXZ|[⟦⟬]\d+[⟧⟭]/u);
     if (id !== 'en')

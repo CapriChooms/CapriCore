@@ -1,0 +1,21 @@
+{
+  "name": "capri-project-bridge",
+  "displayName": "Capri Project Bridge",
+  "description": "Private, local project documents and diagnostics for Capri coding mode. No terminal commands or network model calls.",
+  "version": "0.1.0",
+  "publisher": "capricore",
+  "license": "GPL-3.0-only",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./extension.cjs",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": false
+  }
+}

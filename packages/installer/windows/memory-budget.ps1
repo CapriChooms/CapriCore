@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Uses the same versioned planning ranges as the runtime; no model is loaded.
+function Format-CapriMemoryRange($Range) {
+    return (@($Range|ForEach-Object{([Math]::Max(0.0,[double]$_)).ToString('0.0')}) -join ' - ')+' GiB'
+}
 function Get-CapriRequiredRam($Profile,$Hardware,$Estimates) {
     $model=$Estimates.models.PSObject.Properties[$Profile.id].Value
     $threshold=if($Profile.recommendedVramGiB -gt 0){$Profile.recommendedVramGiB}else{[Math]::Ceiling($model.vram[1])}
@@ -10,6 +13,8 @@ function Get-CapriMemoryBudget($Selection,$Hardware,$Estimates) {
     $modelProperty=$Estimates.models.PSObject.Properties[$Selection.profile]
     if(-not $modelProperty){throw 'Unknown model memory estimate'}
     $model=$modelProperty.Value;$gpu=$Hardware.vramGiB -gt 0
+    $freeVram=if($gpu -and $null -ne $Hardware.availableVramGiB){$Hardware.availableVramGiB}else{$null}
+    $gpuBudget=if($null -ne $freeVram){$freeVram}else{$Hardware.vramGiB}
     $ram=@([double]$Estimates.base.ram[0],[double]$Estimates.base.ram[1])
     $vram=if($gpu){@([double]$Estimates.base.vram[0],[double]$Estimates.base.vram[1])}else{@(0.0,0.0)}
     $parts=New-Object Collections.Generic.List[object]
@@ -20,11 +25,23 @@ function Get-CapriMemoryBudget($Selection,$Hardware,$Estimates) {
     if($Selection.recognition){$parts.Add($(if($english){$Estimates.recognitionEnglish}else{$Estimates.recognitionMultilingual}))}
     if($Selection.router){$parts.Add($Estimates.router)}
     if($Selection.voiceMode -eq 'qwen'){$parts.Add($Estimates.voiceQwenCpu)}
-    elseif($Selection.voiceMode -and $Selection.voiceMode -ne 'off'){$parts.Add($(if($english){$Estimates.voiceEnglish}else{$Estimates.voiceMultilingual}))}
+    if($Selection.voiceMode -eq 'qwen-ru'){$parts.Add($Estimates.voiceQwenRussianCpu)}
     foreach($part in $parts){for($i=0;$i -lt 2;$i++){$ram[$i]+=$part.ram[$i];$vram[$i]+=$part.vram[$i]}}
-    $freeVram=if($gpu -and $null -ne $Hardware.availableVramGiB){$Hardware.availableVramGiB}else{$null}
-    $offload=$Selection.downloadModels -and $gpu -and $vram[1] -gt $(if($null -ne $freeVram){$freeVram}else{$Hardware.vramGiB})
-    if($offload){$ram[1]+=$model.cpuRam[1]}
+    if($Selection.voiceMode -and $Selection.voiceMode -notin @('off','qwen','qwen-ru')){
+        $voice=if($english){$Estimates.voiceEnglish}else{$Estimates.voiceMultilingual}
+        for($i=0;$i -lt 2;$i++){
+            if(-not $gpu){$ram[$i]+=$voice.cpuRam[$i]}
+            else{
+                $decoder=if(($gpuBudget-$vram[$i]-$voice.cpuDecoder.vram[$i]) -lt $Estimates.voiceDecoderPromotionGiB){$voice.cpuDecoder}else{$voice}
+                $ram[$i]+=$decoder.ram[$i];$vram[$i]+=$decoder.vram[$i]
+            }
+        }
+    }
+    $offload=$Selection.downloadModels -and $gpu -and $vram[1] -gt $gpuBudget
+    if($offload){for($i=0;$i -lt 2;$i++){
+        $fraction=[Math]::Min(1.0,[Math]::Max(0.0,([double]$vram[$i]-[double]$gpuBudget))/[double]$model.vram[$i])
+        $ram[$i]+=$fraction*[Math]::Max(0.0,([double]$model.cpuRam[$i]-[double]$model.hostRam[$i]))
+    }}
     function Row($Range,$Total,$Available) {
         $known=$null -ne $Available -and -not([double]::IsNaN($Available) -or [double]::IsInfinity($Available)) -and $Available -ge 0
         $limit=if($known){$Available}else{$Total}

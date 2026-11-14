@@ -115,10 +115,10 @@ test('shipped profile is English and has no signature-emoji instruction', () => 
   }
   assert.match(
     readFileSync(path.join(root, 'config/workspace/PERSONALITY.md'), 'utf8'),
-    /mischief, restless curiosity/,
+    /Speak in the first person/,
   );
-  assert.match(
+  assert.doesNotMatch(
     readFileSync(path.join(root, 'config/workspace/PERSONALITY.md'), 'utf8'),
-    /conversation language selected by the interface/,
+    /language selected by the interface/,
   );
 });

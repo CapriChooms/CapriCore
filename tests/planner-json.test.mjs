@@ -32,6 +32,60 @@ const step = () => ({
 const planner = (fetchImpl) =>
   computerPlanner({ url: 'http://127.0.0.1:1234', model: 'fixture', fetchImpl });
 
+test('the initial outline has a separate required final deliverable and sends no desktop data', async () => {
+  const requests = [];
+  const goal = 'Find a signed installer and report where it can be downloaded.';
+  const outcome = {
+    label: 'Find verified download',
+    successCriterion: 'The source offers the file.',
+  };
+  const plan = planner(async (_url, { body }) => {
+    requests.push(JSON.parse(body));
+    return packet(
+      requests.length === 1 ? { milestones: step().plan } : { milestones: [], outcome },
+    );
+  });
+  const input = {
+    originalOwnerGoal: goal,
+    language: 'en',
+    currentObservation: { private: 'not part of the initial plan request' },
+  };
+  await assert.rejects(plan.outline(input), /Invalid computer plan/);
+  assert.deepEqual(await plan.outline(input), { milestones: [], outcome });
+  assert.deepEqual(JSON.parse(requests[1].messages[1].content), {
+    originalOwnerGoal: goal,
+    language: 'en',
+  });
+  assert.deepEqual(requests[1].tools, []);
+});
+
+test('deep thinking uses the selected effort only for the initial task outline', async () => {
+  const requests = [];
+  const input = state();
+  const plan = planner(async (_url, { body }) => {
+    requests.push(JSON.parse(body));
+    return requests.length <= 2
+      ? packet({
+          milestones: [],
+          outcome: { label: 'Open the app', successCriterion: 'The app is focused.' },
+        })
+      : packet(step());
+  });
+  await plan.outline(input, { planningEffort: 'high' });
+  await plan.outline(input);
+  await plan(input, { planningEffort: 'high' });
+  assert.deepEqual(
+    requests.map(({ think, reasoning_effort }) => [think, reasoning_effort]),
+    [
+      [true, 'high'],
+      [false, undefined],
+      [false, undefined],
+    ],
+  );
+  assert.ok(requests[0].options.num_predict > requests[1].options.num_predict);
+  assert.deepEqual(requests[0].tools, []);
+});
+
 test('only the native PEG format failure retries once, caches JSON mode and preserves the exact request', async () => {
   const calls = [];
   const plan = planner(async (_url, options) => {
@@ -78,6 +132,48 @@ test('unrelated HTTP failures, OOM, provider errors and oversized errors never t
   }
 });
 
+test('JSON planner accepts numeric checkpoint IDs and exact bracketed live targets', async () => {
+  const outline = {
+    milestones: [{ ...step().plan[0], id: 1 }],
+    outcome: { label: 'Finish QA', successCriterion: 'QA button is visible.' },
+  };
+  const values = [
+    outline,
+    {
+      action: 'click',
+      targetId: '[live-1]',
+      summary: 'Select the QA button.',
+      plan: outline.milestones,
+    },
+    {
+      action: 'finish',
+      summary: 'QA is complete.',
+      evidence: 'QA button',
+      verifiedCheckpoints: [{ id: 1, evidence: 'QA button' }],
+    },
+    { action: 'click', targetId: '[stale-1]', summary: 'Select the QA button.' },
+    { action: 'click', targetId: 'Wrong label [live-1]', summary: 'Select the QA button.' },
+    {
+      action: 'finish',
+      summary: 'QA is complete.',
+      evidence: 'QA button',
+      verifiedCheckpoints: [{ id: 2, evidence: 'QA button' }],
+    },
+  ];
+  let calls = 0;
+  const plan = planner(async () => (++calls === 1 ? rejected() : packet(values.shift())));
+  assert.equal((await plan.outline(state())).milestones[0].id, '1');
+  const click = await plan(state());
+  assert.equal(click.targetId, 'live-1');
+  assert.equal(click.plan[0].id, '1');
+  const later = state();
+  later.taskPlan.revision = 1;
+  later.taskPlan.remainingCheckpoints = [{ id: '1', label: 'Open', successCriterion: 'QA button' }];
+  assert.equal((await plan(later)).verifiedCheckpoints[0].id, '1');
+  for (let attempt = 0; attempt < 3; attempt++)
+    await assert.rejects(plan(later), { code: 'COMPUTER_PLAN_SCHEMA' });
+});
+
 test('a failing JSON fallback is not retried again', async () => {
   let calls = 0;
   const plan = planner(async () => {
@@ -118,6 +214,32 @@ test('cached JSON completion reviews retain boolean and current-evidence constra
   invalid = true;
   await assert.rejects(plan(state(), { review: true }), /Invalid computer plan/);
   assert.equal(calls, 4);
+});
+
+test('completion reviews use JSON output without loosening the host evidence check or action format', async () => {
+  const formats = [];
+  const input = state();
+  input.currentObservation.targets[0].untrustedValue = 'https://atlas.example/manual';
+  const proof = 'QA button: https://atlas.example/manual';
+  const plan = planner(async (_url, options) => {
+    formats.push(JSON.parse(options.body).format);
+    if (formats.length === 1)
+      return packet({ complete: true, evidence: 'An unrelated window', summary: 'Done.' });
+    if (formats.length === 2)
+      return packet({ complete: false, missing: 'Find the current result.' });
+    if (formats.length === 3) return packet({ complete: true, evidence: proof, summary: 'Done.' });
+    return packet(step());
+  });
+  await assert.rejects(plan(state(), { review: true }), /Invalid computer plan/);
+  assert.deepEqual(await plan(state(), { review: true }), {
+    action: 'continue',
+    evidence: undefined,
+    summary: 'Find the current result.',
+  });
+  assert.equal((await plan(input, { review: true })).evidence, proof);
+  assert.equal((await plan(state())).action, 'launch');
+  assert.deepEqual(formats.slice(0, 3), ['json', 'json', 'json']);
+  assert(Array.isArray(formats[3].anyOf));
 });
 
 test('JSON fallback retains complete branch, target, argument and first-plan constraints', async () => {

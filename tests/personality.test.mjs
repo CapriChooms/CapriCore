@@ -34,6 +34,27 @@ test('factory conversation guidance contains no copyable stock answer', () => {
   assert.match(defaultPersonality(), /in your own words/);
 });
 
+test('the prompt drops the old factory language cue without changing the stored profile', () => {
+  const workspace = folder();
+  const file = path.join(workspace, 'PERSONALITY.md');
+  const shippedIntro = defaultPersonality()
+    .split(/\r?\n/)
+    .find((line) => line.startsWith('You are Capri,'));
+  assert.ok(shippedIntro.includes('Speak in the first person.'));
+  const legacyIntro = shippedIntro.replace(
+    'Speak in the first person.',
+    'Speak in the first person and in the conversation language selected by the interface.',
+  );
+  const original = ['\uFEFF# Edited profile', '', legacyIntro, '', 'Custom wording.'].join('\r\n');
+  writeFileSync(file, original);
+  const prompt = personaPrompt({ workspace });
+  assert.ok(prompt.includes(shippedIntro + '\r\n\r\nCustom wording.'));
+  assert.ok(!prompt.includes(legacyIntro));
+  assert.equal(readFileSync(file, 'utf8'), original);
+  const quoted = '> ' + legacyIntro;
+  assert.ok(personaPrompt({ workspace }, { personality: quoted }).includes(quoted));
+});
+
 test('upgrade replaces only the exact factory example and preserves custom text, memory and history', () => {
   for (const ending of ['\n', '\r\n']) {
     const parent = folder(),

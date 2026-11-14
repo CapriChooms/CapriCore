@@ -4,10 +4,11 @@ import { existsSync, lstatSync, readdirSync, readFileSync, statfsSync } from 'no
 import path from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { MODEL_CHOICES, selectModelChoice } from '../../runtime/src/hardware/model-catalog.mjs';
+import { MODEL_CHOICES } from '../../runtime/src/hardware/model-catalog.mjs';
 import { compareVersions } from '../../updater/src/releases.mjs';
 import { estimateInstallStorage } from './storage-estimate.mjs';
 import voiceCatalog from '../../../config/tts-catalog.json' with { type: 'json' };
+import { installerModelProfile } from './model-selection.mjs';
 import {
   validateLanguages,
   LANGUAGE_DEFAULTS,
@@ -105,35 +106,51 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
     throw new Error('Invalid language model catalog');
   const modelSource = inferenceMode === 'api' ? 'catalog' : requestedSource;
   const modelSetupRequired = modelSource === 'huggingface';
-  const profile = selectModelChoice(
+  const profile = installerModelProfile(
     inferenceMode === 'api' || modelSetupRequired ? 'minimal' : input.profile,
     hardware,
+    target,
   );
   for (const key of ['recognition', 'downloadModels', 'desktopShortcut', 'startMenuShortcut'])
     if (typeof input[key] !== 'boolean') throw new Error('Invalid installer option: ' + key);
   if (input.router !== undefined && typeof input.router !== 'boolean')
     throw new Error('Invalid installer option: router');
+  let customConversation = '';
+  if (input.conversationLanguage === 'custom') {
+    const languageFile = path.join(target, 'data/desktop/languages.json');
+    noLinks(languageFile);
+    const saved = existsSync(languageFile) ? readJson(languageFile) : null;
+    if (saved?.schemaVersion !== 1 || saved.settings?.conversation !== 'custom')
+      throw new Error('A custom conversation language must already be configured in Capri.');
+    customConversation = saved.settings.customConversation;
+  }
   const languages = validateLanguages({
     ...LANGUAGE_DEFAULTS,
     interface: input.interfaceLanguage,
     conversation: input.conversationLanguage,
+    customConversation,
     recognition: input.recognition ? 'follow' : 'off',
     speech: 'off',
   });
   const voicePack = input.voicePack ?? '';
   const voiceMode = input.voiceMode ?? (voicePack ? 'custom' : 'off');
-  if (!['off', 'bundled', 'custom', 'qwen'].includes(voiceMode))
+  if (!['off', 'bundled', 'custom', 'qwen', 'qwen-ru'].includes(voiceMode))
     throw new Error('Invalid installer voice option');
-  const qwen = voiceMode === 'qwen';
+  const qwen = voiceMode === 'qwen' || voiceMode === 'qwen-ru';
   if (
     qwen &&
     !voiceCatalog.models
-      .find(({ id }) => id === 'qwen3-tts-0.6b-base')
+      .find(
+        ({ id }) =>
+          id === (voiceMode === 'qwen-ru' ? 'qwen3-tts-1.7b-capri-ru' : 'qwen3-tts-0.6b-base'),
+      )
       .languages.includes(languages.conversation)
   )
     throw new Error('Qwen3-TTS does not support the selected conversation language');
   if (!voicePack && ['bundled', 'custom'].includes(voiceMode))
     throw new Error('Choose a voice pack for the selected voice option');
+  if (voicePack && voiceMode === 'qwen-ru')
+    throw new Error('Capri Russian LoRA uses its included voice adapter.');
   if (voicePack && voiceMode === 'off') throw new Error('Turn on voice to install a voice pack');
   if (
     voicePack &&
@@ -158,6 +175,7 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
       'This voice needs an NVIDIA GPU or a supported AMD ROCm GPU on Windows 11 (experimental).',
     );
   const downloadModels = inferenceMode === 'local' && !modelSetupRequired && input.downloadModels;
+  const installedModel = profile.source === 'huggingface' ? profile.model : null;
   const { requiredBytes } = estimateInstallStorage(
     {
       ...input,
@@ -167,6 +185,7 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
       inferenceMode,
       modelSource,
       downloadModels,
+      installedModel,
     },
     {
       hardware,
@@ -181,6 +200,7 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
     schemaVersion: 1,
     target,
     profile: profile.id,
+    ...(installedModel ? { installedModel } : {}),
     inferenceMode,
     modelSource,
     modelSetupRequired,

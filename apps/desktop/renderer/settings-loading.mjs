@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // No catalog, model or settings-data imports: paint a usable shell first.
+import { setupSettingsDivider } from './settings-divider.mjs';
+
 const layout = document.getElementById('settings-layout');
+setupSettingsDivider(layout);
 document.getElementById('settings-window-close').onclick = () => {
   void window.capri.closeSettings().catch(console.error);
 };

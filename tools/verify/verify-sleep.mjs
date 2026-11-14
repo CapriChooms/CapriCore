@@ -88,7 +88,7 @@ try {
   await page.locator('#message').press('Enter');
   await page.waitForFunction(() => document.body.dataset.phase === 'asleep');
   await page.waitForFunction(
-    () => document.getElementById('sprite').dataset.frame === 'idle-blink_closed',
+    () => document.getElementById('sprite').dataset.frame === 'pose-sleep',
   );
   assert.equal(requests, 0, 'sleep must never call the language model');
   assert.equal(await page.locator('#sleep-indicator').isVisible(), true);
@@ -140,7 +140,7 @@ try {
         'single menu',
         'persistent OBS toggle',
         'sleep without inference',
-        'closed eyes and Zzz',
+        'reclining pose and drifting Zs',
         'automatic wake and reply',
         'voice disabled warning without bug reporting',
         'error report shortcut',

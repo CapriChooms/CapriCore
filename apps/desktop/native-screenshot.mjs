@@ -2,9 +2,14 @@ import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { screenshotDimensions } from './screenshot-files.mjs';
 
-export function captureActiveDisplay(root, { signal, ownedWindow, withGeometry = false } = {}) {
+export function captureActiveDisplay(
+  root,
+  { signal, ownedWindow, displayWindow, withGeometry = false } = {},
+) {
   if (ownedWindow !== undefined && !/^\d{1,20}$/.test(ownedWindow))
     throw new Error('Invalid owned verification window');
+  if (displayWindow !== undefined && (ownedWindow || !/^[1-9]\d{0,18}$/.test(displayWindow)))
+    throw new Error('Invalid display window');
   return new Promise((resolve, reject) => {
     const args = [
       '-NoLogo',
@@ -16,6 +21,7 @@ export function captureActiveDisplay(root, { signal, ownedWindow, withGeometry =
       path.join(root, 'integrations/perception/native/capture-display.ps1'),
     ];
     if (ownedWindow) args.push('-OwnedWindow', ownedWindow);
+    if (displayWindow) args.push('-DisplayWindow', displayWindow);
     if (withGeometry) args.push('-WithGeometry');
     execFile(
       'powershell.exe',

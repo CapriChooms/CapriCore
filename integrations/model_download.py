@@ -1,6 +1,7 @@
 """Explicit model provisioning: bounded, resumable downloads with visible progress."""
 
 import hashlib
+import json
 import os
 import http.client
 import re
@@ -19,6 +20,15 @@ class ModelDownloadError(OSError):
 
 class _DownloadPaused(Exception):
     pass
+
+
+def emit_installer_transfer(file, received, total, stage_fraction=None, *, emit=print):
+    if not os.environ.get('CAPRI_INSTALL_FILE_PROGRESS'):
+        return
+    event = {'capriFileTransfer': file, 'received': received, 'total': total}
+    if stage_fraction is not None:
+        event['stageFraction'] = stage_fraction
+    emit(json.dumps(event), flush=True)
 
 
 def _retry_delay(error, attempt):
@@ -87,6 +97,7 @@ def download_verified(
     attempts=6,
     fallback_urls=(),
     emit=print,
+    progress=None,
     opener=urllib.request.urlopen,
     sleep=time.sleep,
 ):
@@ -112,6 +123,12 @@ def download_verified(
 
     def log(message):
         emit(message, flush=True)
+
+    def report(stage, received):
+        if progress is not None:
+            progress(stage, received)
+        elif stage == 'download':
+            emit_installer_transfer(target.name, received, expected)
 
     if _verified(target, expected, checksum):
         log("Verified " + target.name)
@@ -142,6 +159,7 @@ def download_verified(
             + (f", resuming at {offset / 1e6:.1f} MB" if offset else "")
         )
         source_index = (attempt - 1) % len(sources)
+        report('connect', offset)
         if source_index:
             log(f"Using alternate official source {source_index + 1}/{len(sources)} for {target.name}")
         failure = None
@@ -184,6 +202,7 @@ def download_verified(
                 size = offset
                 previous_size, previous_time = size, time.monotonic()
                 log(f"{target.name}: {size * 100 // expected}% | {size / 1e6:.1f}/{expected / 1e6:.1f} MB")
+                report('download', size)
                 with partial.open("ab" if offset else "wb") as dest:
                     stage = 'transfer'
                     while chunk := source.read(256 * 1024):
@@ -203,6 +222,7 @@ def download_verified(
                                 f"{size / 1e6:.1f}/{expected / 1e6:.1f} MB | "
                                 f"{rate / 1e6:.2f} MB/s | ~{remaining:.0f} s"
                             )
+                            report('download', size)
                             previous_size, previous_time = size, now
                 if size != expected:
                     raise http.client.IncompleteRead(b"", expected - size)
@@ -235,6 +255,7 @@ def download_verified(
                 "Already verified models are preserved."
             ) from None
         delay = _retry_delay(failure, attempt)
+        report('retry', saved)
         log(f"Download interrupted: {target.name} ({reason}; {detail}). Retrying {attempt + 1}/{attempts} "
             f"in {delay:g} s; {saved / 1e6:.1f} MB retained.")
         sleep(delay)

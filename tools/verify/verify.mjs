@@ -8,7 +8,7 @@ import {
   settings,
   runtime,
   initialize,
-  startOllama,
+  startLlama,
   startGateway,
   stopManaged,
   request,
@@ -99,7 +99,7 @@ async function ask(text, options = {}) {
 
 try {
   initialize(rt);
-  await startOllama(rt);
+  await startLlama(rt);
   await startGateway(rt);
   const unauthenticated = await fetch(`${rt.gatewayUrl}/v1/models`);
   assert.equal(unauthenticated.status, 401);

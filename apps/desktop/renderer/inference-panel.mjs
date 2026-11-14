@@ -6,8 +6,11 @@ import {
   isLocalApiEndpoint,
 } from './inference-endpoint.mjs';
 import { normalizeApiKey, apiKeyProblem, MAX_API_KEY_LENGTH } from './api-key.mjs';
+import { DesktopAiPanel } from './desktop-ai-panel.mjs';
 
 const PROVIDER_URLS = new Map([
+  ['openai', 'https://api.openai.com/v1'],
+  ['claude', 'https://api.anthropic.com/v1'],
   ['openrouter', 'https://openrouter.ai/api/v1'],
   ['huggingface', 'https://router.huggingface.co/v1'],
   ['proxyapi', 'https://api.proxyapi.ru/v1'],
@@ -16,6 +19,8 @@ const PROVIDER_URLS = new Map([
   ['lemonade', 'http://127.0.0.1:13305/api/v1'],
 ]);
 function providerDisplayName(hostname) {
+  if (hostname === 'api.openai.com') return 'OpenAI';
+  if (hostname === 'api.anthropic.com') return 'Claude';
   if (hostname === new URL(PROVIDER_URLS.get('openrouter')).hostname) return 'OpenRouter';
   if (hostname === new URL(PROVIDER_URLS.get('huggingface')).hostname) return 'Hugging Face';
   if (hostname === new URL(PROVIDER_URLS.get('proxyapi')).hostname) return 'ProxyAPI';
@@ -27,7 +32,7 @@ export function renderInferenceLabel(value, ui) {
   if (!value) return;
   const label = document.getElementById('inference-label');
   const external = value.remote || value.setupRequired;
-  const mode = external ? 'API' : ui.text('Local');
+  const mode = external ? (value.authMode === 'chatgpt' ? 'ChatGPT' : 'API') : ui.text('Local');
   const detail = value.remote
     ? providerDisplayName(value.providerHost)
     : value.setupRequired
@@ -60,7 +65,7 @@ export class InferencePanel {
     this.skipLocalModelOnApi = true;
     this.startupRevision = 0;
     this.panel.innerHTML = `<h2>API connections</h2><div class="preferences-content">
-      <p class="settings-help" data-inline-help>Optional alternative to the local language model. Your messages, personality, relevant memory and tool results are sent to your chosen provider. Screen images are sent only when you enable vision and use screen features. Provider charges and privacy terms apply. Speech recognition and voice remain local.</p>
+      <p class="settings-help" data-inline-help>Optional alternative to the local language model. Your messages, personality, relevant memory and tool results are sent to your chosen provider. Screen images are sent only when you enable vision and use screen features. Provider charges and privacy terms apply. Speech recognition remains local. Voice stays local unless you enable Voice API separately.</p>
       <div class="settings-card">
       <label><input id="api-skip-local-model" type="checkbox" checked> Skip local language model when using an API</label>
       <p class="settings-help">Recommended for API users. Frees the local language model at startup and skips its warmup. Local mode, voice and speech recognition keep their own settings.</p>
@@ -88,6 +93,8 @@ export class InferencePanel {
       </details>
       <label for="api-name">Connection name (optional)</label><input id="api-name" type="text" maxlength="64" autocomplete="off" data-untranslated disabled>
       <label for="api-provider">API provider</label><select id="api-provider" disabled>
+        <option value="openai" data-untranslated>OpenAI</option>
+        <option value="claude" data-untranslated>Claude API</option>
         <option value="openrouter" data-untranslated>OpenRouter</option>
         <option value="huggingface" data-untranslated>Hugging Face</option>
         <option value="proxyapi" data-untranslated>ProxyAPI</option>
@@ -109,6 +116,26 @@ export class InferencePanel {
       </div></div></div>`;
     document.getElementById('companion').append(this.panel);
     this.get = (id) => this.panel.querySelector('#api-' + id);
+    this.ai = new DesktopAiPanel({
+      api,
+      ui,
+      host: this.panel.querySelector('.preferences-content'),
+      onError,
+      onConnections: (value) => this.show(value),
+      onUseConnection: (id) => this.use(id),
+      onConfigure: (provider, baseUrl) => {
+        this.resetForm();
+        this.setFormOpen(true);
+        this.get('provider').value = provider;
+        this.get('provider').dispatchEvent(new Event('change'));
+        if (baseUrl) {
+          this.get('url').value = baseUrl;
+          this.syncProvider();
+        }
+        this.get('form').scrollIntoView({ block: 'start', behavior: 'smooth' });
+        this.get('model').focus();
+      },
+    });
     this.get('skip-local-model').onchange = () => this.saveStartup();
     this.get('add').onclick = () => {
       if (!this.get('form').hidden && !this.editingProfile) {
@@ -182,6 +209,13 @@ export class InferencePanel {
           key,
           settings: {
             enabled: true,
+            ...(this.editingProfile?.authMode === 'chatgpt'
+              ? {
+                  authMode: 'chatgpt',
+                  accountId: this.editingProfile.accountId,
+                  visionMode: 'manual',
+                }
+              : {}),
             baseUrl: this.get('url').value.trim(),
             model: this.get('model').value.trim(),
             vision: this.get('vision').checked,
@@ -205,6 +239,7 @@ export class InferencePanel {
     this.resetForm();
   }
   async open() {
+    void this.ai.open();
     const startupRevision = this.startupRevision;
     try {
       this.show(await this.api.inferenceApiStatus(), {
@@ -344,6 +379,7 @@ export class InferencePanel {
         remove,
         active,
         canConnect: profile.canConnect,
+        authMode: profile.authMode,
       });
       this.renderHealth(profile.id);
     }
@@ -359,7 +395,9 @@ export class InferencePanel {
       !row.canConnect || state === 'testing' || Boolean(this.bulkTesting) || Boolean(this.saving);
     row.status.textContent = this.ui.text(
       !row.canConnect
-        ? 'No API key is saved.'
+        ? row.authMode === 'chatgpt'
+          ? 'Sign in to ChatGPT and allow plan usage first.'
+          : 'No API key is saved.'
         : state === 'available'
           ? 'Connection works'
           : state === 'unavailable'
@@ -475,6 +513,8 @@ export class InferencePanel {
     );
   }
   keyProblem(key) {
+    if (this.editingProfile?.authMode === 'chatgpt')
+      return key ? 'Use ChatGPT sign-in instead of an API key for this connection.' : null;
     if (!key && this.keepsKey()) return null;
     if (!key && this.editingProfile?.hasKey && !this.keepsKey())
       return 'Enter a new API key when changing the provider address.';
@@ -496,16 +536,21 @@ export class InferencePanel {
     }
     this.localEndpoint = local;
     this.get('key-help').textContent = this.ui.text(
-      this.editingProfile?.hasKey
-        ? this.keepsKey()
-          ? 'The key is encrypted for your Windows account. Leave the field empty to keep the saved key. It is never shown again or included in diagnostic reports.'
-          : 'Enter a new API key when changing the provider address.'
-        : local
-          ? 'Leave the key blank unless your local server requires one. HTTP is limited to this PC.'
-          : 'Each connection has its own encrypted key. Keys are never shown again or included in diagnostic reports.',
+      this.editingProfile?.authMode === 'chatgpt'
+        ? 'Using your authorized ChatGPT plan. No API key is needed. Manage the account in AI apps and ChatGPT plan.'
+        : this.editingProfile?.hasKey
+          ? this.keepsKey()
+            ? 'The key is encrypted for your Windows account. Leave the field empty to keep the saved key. It is never shown again or included in diagnostic reports.'
+            : 'Enter a new API key when changing the provider address.'
+          : local
+            ? 'Leave the key blank unless your local server requires one. HTTP is limited to this PC.'
+            : 'Each connection has its own encrypted key. Keys are never shown again or included in diagnostic reports.',
     );
     this.refreshExamples(preset);
-    this.get('key').setAttribute('aria-required', String(!local && !this.keepsKey()));
+    this.get('key').setAttribute(
+      'aria-required',
+      String(!local && !this.keepsKey() && this.editingProfile?.authMode !== 'chatgpt'),
+    );
     this.syncEnabled();
   }
   refreshExamples(preset) {
@@ -532,23 +577,28 @@ export class InferencePanel {
             ? 'provider/model-name'
             : 'model-id',
     );
-    this.get('key').placeholder = this.keepsKey()
-      ? this.ui.text('Encrypted')
-      : example(
-          preset === 'gemini'
-            ? 'AIza…'
-            : preset === 'huggingface'
-              ? 'hf_…'
-              : preset === 'openrouter'
-                ? 'sk-or-v1-…'
-                : 'API_KEY_FROM_PROVIDER',
-        );
+    this.get('key').placeholder =
+      this.editingProfile?.authMode === 'chatgpt'
+        ? this.ui.text('Using ChatGPT plan')
+        : this.keepsKey()
+          ? this.ui.text('Encrypted')
+          : example(
+              preset === 'gemini'
+                ? 'AIza…'
+                : preset === 'huggingface'
+                  ? 'hf_…'
+                  : preset === 'openrouter'
+                    ? 'sk-or-v1-…'
+                    : 'API_KEY_FROM_PROVIDER',
+            );
     this.get('context').placeholder = '32768';
   }
   syncEnabled() {
     const enabled = !this.get('form').hidden && !this.saving;
     for (const id of ['name', 'provider', 'url', 'model', 'key', 'context'])
       this.get(id).disabled = !enabled;
+    if (this.editingProfile?.authMode === 'chatgpt')
+      for (const id of ['provider', 'url', 'key']) this.get(id).disabled = true;
     const model = this.get('model').value.trim();
     const endpoint = inferenceEndpoint(this.get('url').value.trim(), model);
     const textOnly = isLemonadePhiEndpoint(endpoint, model);

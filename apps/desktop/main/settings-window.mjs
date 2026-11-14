@@ -323,7 +323,8 @@ export class SettingsWindow {
     if (this.quitting()) return;
     this.requested = true;
     this.section = section;
-    this.focusTarget = section === 'models' && focus === 'context' ? 'context' : null;
+    this.focusTarget =
+      section === 'models' && ['context', 'devices', 'model'].includes(focus) ? focus : null;
     this.navigationRevision++;
     if (!this.window) {
       this.ready = false;

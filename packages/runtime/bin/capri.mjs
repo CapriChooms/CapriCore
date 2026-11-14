@@ -8,7 +8,7 @@ import { stdin, stdout } from 'node:process';
 import {
   root,
   nodePath,
-  ollamaPath,
+  llamaPath,
   openclawPath,
   settings,
   managedProcess,
@@ -32,7 +32,7 @@ try {
           recommendation,
           software: {
             node: Boolean(nodePath),
-            ollama: Boolean(ollamaPath),
+            llama: Boolean(llamaPath),
             openclaw: existsSync(openclawPath),
           },
           current: { model: settings.model, contextTokens: settings.contextTokens },
@@ -43,7 +43,12 @@ try {
       ),
     );
   } else if (command === 'setup') {
-    if (managedProcess('desktop') || managedProcess('capri') || managedProcess('ollama'))
+    if (
+      managedProcess('desktop') ||
+      managedProcess('capri') ||
+      managedProcess('llama') ||
+      managedProcess('ollama')
+    )
       throw new Error(
         'Stop Capri with npm stop before changing model profiles. Existing settings were preserved.',
       );
@@ -93,9 +98,18 @@ try {
     process.argv.splice(2, 1);
     await import('./models.mjs');
   } else if (
-    ['start', 'stop', 'status', 'init', 'chat', 'image', 'cli', 'restart', 'ollama'].includes(
-      command,
-    )
+    [
+      'start',
+      'stop',
+      'status',
+      'init',
+      'chat',
+      'image',
+      'cli',
+      'restart',
+      'llama',
+      'ollama',
+    ].includes(command)
   )
     await import('./core.mjs');
   else if (command === 'setup-spotify') {

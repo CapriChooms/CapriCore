@@ -256,6 +256,56 @@ export class UserTools {
   enable(id, enabled) {
     return this.mutate(() => this.enableNow(id, enabled));
   }
+  async toolDirectory(id) {
+    if (!idValid(id) || !this.tools.some((row) => row.id === id))
+      throw new Error('Refresh tools and choose an installed tool.');
+    const directory = path.join(this.folder, id);
+    const info = await lstat(directory);
+    if (!info.isDirectory() || info.isSymbolicLink() || (await realpath(directory)) !== directory)
+      throw new Error('Tools must be in a regular local folder.');
+    return directory;
+  }
+  edit(id, { name, description } = {}) {
+    return this.mutate(async () => {
+      const file = path.join(await this.toolDirectory(id), 'manifest.json');
+      const current = JSON.parse((await regularBytes(file, 16384)).toString('utf8'));
+      const next = { ...current, name, description };
+      toolManifest(next);
+      this.cancel(id);
+      const approvals = this.approvals();
+      if (approvals[id]) approvals[id].enabled = false;
+      writeJsonAtomic(this.approvalFile, approvals);
+      writeJsonAtomic(file, next);
+      return this.refresh();
+    });
+  }
+  remove(id, trash) {
+    return this.mutate(async () => {
+      const directory = await this.toolDirectory(id);
+      this.cancel(id);
+      const approvals = this.approvals();
+      if (approvals[id]) approvals[id].enabled = false;
+      writeJsonAtomic(this.approvalFile, approvals);
+      if (existsSync(this.secretFile)) {
+        const settings = await this.settings();
+        if (Object.hasOwn(settings, id)) {
+          delete settings[id];
+          const encrypted = await this.storage.encrypt(JSON.stringify(settings));
+          writeJsonAtomic(this.secretFile, {
+            encrypted: Buffer.from(encrypted).toString('base64'),
+          });
+        }
+      }
+      try {
+        await trash(directory);
+        delete approvals[id];
+        writeJsonAtomic(this.approvalFile, approvals);
+      } finally {
+        await this.refresh();
+      }
+      return this.list();
+    });
+  }
   async enableNow(id, enabled) {
     if (!idValid(id) || typeof enabled !== 'boolean') throw new Error('Invalid tool choice.');
     const row = this.tools.find((row) => row.id === id);

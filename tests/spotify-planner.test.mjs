@@ -76,3 +76,31 @@ test('generic music resumes a queue, none remains conversation, invalid or unfin
     /local inference boundary/,
   );
 });
+
+test('Spotify planning keeps safe error codes and HTTP status without echoing provider text; aborts stay cancelled', async () => {
+  const secret = 'PRIVATE-PROVIDER-BODY-AND-REQUEST';
+  const planner = spotifyPlanner({
+    url: 'http://127.0.0.1:11434',
+    fetchImpl: async () => new Response(secret, { status: 400 }),
+  });
+  await assert.rejects(planner('play something cool'), (error) => {
+    assert.equal(error.code, 'CAPRI_SPOTIFY_PLAN_HTTP_ERROR');
+    assert.equal(error.httpStatus, 400);
+    assert(!error.message.includes(secret));
+    return true;
+  });
+  const invalid = spotifyPlanner({
+    url: 'http://127.0.0.1:11434',
+    fetchImpl: async () => packet({ action: 'volume', value: 200 }),
+  });
+  await assert.rejects(invalid('A fixture request'), { code: 'CAPRI_SPOTIFY_PLAN_INVALID' });
+  const controller = new AbortController();
+  controller.abort(new DOMException('Owner stopped', 'AbortError'));
+  const aborted = spotifyPlanner({
+    url: 'http://127.0.0.1:11434',
+    fetchImpl: async (_url, options) => options.signal.throwIfAborted(),
+  });
+  await assert.rejects(aborted('A fixture request', { signal: controller.signal }), {
+    name: 'AbortError',
+  });
+});

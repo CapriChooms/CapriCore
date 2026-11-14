@@ -61,7 +61,11 @@ export class CompanionRpc {
     signal?.throwIfAborted();
     await this.connect();
     signal?.throwIfAborted();
-    const request = this.client.request(method, params, { timeoutMs: 5000 });
+    // Reset is a lifecycle mutation. It can drain work and archive the previous
+    // transcript before replying, unlike a metadata read.
+    const request = this.client.request(method, params, {
+      timeoutMs: method === 'sessions.reset' ? 30000 : 5000,
+    });
     if (!signal) return request;
     return new Promise((resolve, reject) => {
       const abort = () => reject(signal.reason ?? new Error('Metadata request cancelled'));

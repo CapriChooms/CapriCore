@@ -35,3 +35,35 @@ def require_cuda(torch):
     if not report['kernelReady']:
         raise RuntimeError(report.get('error', 'CUDA voice preflight failed'))
     return report
+
+
+def qwen_gpu_ready(torch, device):
+    try:
+        if not torch.cuda.is_available():
+            return False
+        if not getattr(torch.version, 'hip', None) and torch.cuda.get_device_capability(device)[0] < 8:
+            return False
+        matrix = torch.eye(4, device=device, dtype=torch.bfloat16)
+        return float((matrix @ matrix).sum().item()) == 4.0
+    except (RuntimeError, ValueError, AssertionError, OSError):
+        return False
+
+
+def qwen_compute(torch, requested, automatic, minimum_gib):
+    if requested == 'cpu':
+        return 'cpu', 'configured voice device'
+    candidates = (
+        (f'cuda:{index}' for index in range(torch.cuda.device_count()))
+        if automatic else (requested,)
+    )
+    for device in candidates:
+        try:
+            if (torch.cuda.mem_get_info(device)[0] >= minimum_gib * 1024 ** 3
+                    and qwen_gpu_ready(torch, device)):
+                backend = 'AMD ROCm' if getattr(torch.version, 'hip', None) else 'NVIDIA CUDA'
+                return device, backend
+        except (RuntimeError, ValueError, AssertionError, OSError):
+            continue
+    if automatic:
+        return 'cpu', f'GPU unavailable or less than {minimum_gib} GiB of free VRAM'
+    raise RuntimeError(f'The selected voice GPU is unavailable or has less than {minimum_gib} GiB of free VRAM')

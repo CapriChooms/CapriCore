@@ -55,3 +55,19 @@ test('orphan native close tokens are removed without guessing whether ordinary p
     'Use <channel> for the example and keep 1 < 2. This task asks for a date.';
   assert.equal(visible([...prose]), prose);
 });
+
+test('reply routing markers stay out of text at every streaming boundary', () => {
+  for (const marker of [
+    '[[reply_to_current]]',
+    '[[reply_to:123]]',
+    '[[/reply_to:current]]',
+    '[[/reply_to_current]]',
+  ]) {
+    const raw = 'First. ' + marker + 'Then.';
+    for (let at = 0; at <= raw.length; at++)
+      assert.equal(visible([raw.slice(0, at), raw.slice(at)]), 'First. Then.');
+    assert.equal(visible([...raw]), 'First. Then.');
+  }
+  assert.equal(visible(['A', '[[/reply_to:', 'current']), 'A');
+  assert.equal(visible(['[[example]] [reference]']), '[[example]] [reference]');
+});

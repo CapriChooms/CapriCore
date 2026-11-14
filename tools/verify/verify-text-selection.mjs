@@ -152,10 +152,11 @@ try {
     await dragText(page, page.locator('.message[data-role="assistant"] .message-text').last()),
     'Conversation answer supports text selection',
   );
-  assert.equal(
-    await dragText(page, page.locator('.message[data-role="user"] .message-text').last()),
-    '',
-    'Other dialogue UI stays non-selectable',
+  assert.ok(
+    (
+      await dragText(page, page.locator('.message[data-role="user"] .message-text').last())
+    ).includes('Language'),
+    'Conversation requests support text selection too',
   );
   report.historyAnswerSelection = true;
   const settings = await settingsView(application, 'general');

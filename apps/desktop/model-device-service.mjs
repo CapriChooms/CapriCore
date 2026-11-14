@@ -5,12 +5,12 @@ import {
 } from '../../packages/runtime/src/model-device-settings.mjs';
 import {
   probeLanguageDevices,
+  migrateLanguageDevice,
   probeVoiceDevices,
   resolveModelDevice,
 } from '../../packages/runtime/src/hardware/model-devices.mjs';
 import { probeHardware } from '../../packages/runtime/src/hardware/probe.mjs';
-import { selectedVoiceModel, voicePython } from './voice-catalog-service.mjs';
-import { voiceRuntimeEnvironment } from '../../integrations/voice_runtime/environment.mjs';
+import { selectedVoiceModel, voiceRuntimes } from './voice-catalog-service.mjs';
 import { createHash } from 'node:crypto';
 
 const basic = () => [
@@ -32,8 +32,9 @@ export class ModelDeviceService {
     hardware = probeHardware,
     languageProbe = probeLanguageDevices,
     voiceProbe = probeVoiceDevices,
+    npuSetup,
   }) {
-    Object.assign(this, { root, ollama, config, hardware, languageProbe, voiceProbe });
+    Object.assign(this, { root, ollama, config, hardware, languageProbe, voiceProbe, npuSetup });
   }
   current() {
     return readModelDevices(this.root, {
@@ -54,23 +55,27 @@ export class ModelDeviceService {
   async inspect(language) {
     // Device discovery is independent of voice readiness. Missing/incompatible
     // voice selections must not prevent choosing a language-model device.
-    let model, python;
+    let model,
+      runtimes = [];
     try {
       model = selectedVoiceModel(this.root, language);
-      python = voicePython(this.root, model);
+      runtimes = voiceRuntimes(this.root, model).filter(({ backend }) => backend !== 'cpu');
     } catch {
       /* CPU/Automatic remain selectable; unsupported voice GPUs stay marked. */
     }
+    const qwen = model?.backend === 'qwen3-tts';
+    const voiceProbes = runtimes.map(({ python, env }) =>
+      Promise.resolve().then(() => this.voiceProbe(this.root, python, { env, qwen })),
+    );
     const inventories = await Promise.allSettled([
       Promise.resolve().then(() => this.languageProbe(this.ollama)),
-      model
-        ? Promise.resolve().then(() =>
-            this.voiceProbe(this.root, python, { env: voiceRuntimeEnvironment(this.root) }),
-          )
-        : Promise.resolve([]),
+      Promise.allSettled(voiceProbes).then((values) =>
+        values.flatMap((value) => (value.status === 'fulfilled' ? value.value : [])),
+      ),
       Promise.resolve().then(() => this.hardware()),
+      Promise.resolve().then(() => this.npuSetup?.options() ?? []),
     ]);
-    const [llm, voice, hardware] = inventories.map((result, index) =>
+    const [llm, voice, hardware, npu] = inventories.map((result, index) =>
       result.status === 'fulfilled' ? result.value : index === 2 ? { gpus: [] } : [],
     );
     const complete = (devices, role) => [
@@ -95,7 +100,13 @@ export class ModelDeviceService {
     return (this.value = {
       current: this.current(),
       voiceModel: model?.id ?? null,
-      options: { language: complete(llm, 'language'), voice: complete(voice, 'voice') },
+      options: {
+        language: [
+          ...complete(migrateLanguageDevice(this.current().language, llm), 'language'),
+          ...npu,
+        ],
+        voice: complete(voice, 'voice'),
+      },
     });
   }
   async validate(value, language = 'en') {
@@ -103,8 +114,12 @@ export class ModelDeviceService {
       throw Error('Invalid model device selection.');
     // Recheck at the moment of saving: hot-unplugged/stale choices cannot be committed.
     const catalog = await this.refresh(language);
-    for (const role of ['language', 'voice'])
-      resolveModelDevice(value[role], catalog.options[role]);
+    for (const role of ['language', 'voice']) {
+      const options = catalog.options[role];
+      const npu = options.find(({ id, npuSetup }) => id === value[role] && npuSetup);
+      if (npu && !npu.available) throw new Error(npu.reason);
+      resolveModelDevice(value[role], options);
+    }
     return { language: value.language, voice: value.voice };
   }
   save(value) {

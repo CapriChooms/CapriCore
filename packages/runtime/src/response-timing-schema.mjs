@@ -9,6 +9,7 @@ const stages = new Set([
   'routing_ready',
   'intent_start',
   'intent_ready',
+  'computer_outcome',
   'context_start',
   'context_ready',
   'gateway_dispatch',
@@ -32,6 +33,32 @@ const stages = new Set([
   'completed',
   'failed',
   'cancelled',
+]);
+const computerReasons = new Set([
+  'completed',
+  'cancelled',
+  'incomplete',
+  'plan_blocked',
+  'planning_failed',
+  'initial_plan_invalid',
+  'target_stale',
+  'target_covered',
+  'foreground_changed',
+  'window_changed',
+  'action_failed',
+  'stalled',
+  'limit',
+  'out_of_scope',
+  'invalid_arguments',
+  'network',
+  'loading',
+  'not_applied',
+  'needs_user',
+  'challenge',
+  'sign_in',
+  'profile',
+  'exact_control_clicked',
+  'checkpoint_pending',
 ]);
 const counters = new Set([
   'contextShift',
@@ -110,5 +137,11 @@ export function responseTimingRecord(value) {
   for (const key of counters)
     if (Number.isFinite(value[key]) && value[key] >= 0 && value[key] <= 1e12)
       result[key] = Math.round(value[key] * 1000) / 1000;
+  if (value.stage === 'computer_outcome') {
+    if (computerReasons.has(value.reason)) result.reason = value.reason;
+    for (const key of ['steps', 'completedCheckpoints', 'remainingCheckpoints'])
+      if (Number.isInteger(value[key]) && value[key] >= 0 && value[key] <= 100)
+        result[key] = value[key];
+  }
   return result;
 }

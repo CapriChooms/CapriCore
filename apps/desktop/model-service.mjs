@@ -8,16 +8,23 @@ import {
   selectModelChoice,
 } from '../../packages/runtime/src/hardware/model-catalog.mjs';
 import { recommendModelsForLanguage } from '../../packages/runtime/src/hardware/model-recommendations.mjs';
-import { profileOverrides } from '../../packages/runtime/src/hardware/model-profile.mjs';
+import {
+  modelProfileContext,
+  profileOverrides,
+} from '../../packages/runtime/src/hardware/model-profile.mjs';
 import { probeHardware } from '../../packages/runtime/src/hardware/probe.mjs';
 import { profileRamRequirement } from '../../packages/runtime/src/hardware/memory-budget.mjs';
 import { pullModel } from '../../packages/runtime/src/providers/pull-model.mjs';
 import { ensureNativeLanguageModel } from '../../packages/runtime/src/providers/native-model.mjs';
-import { startOllama } from '../../packages/runtime/src/providers/services.mjs';
+import { verifyImportedChat } from '../../packages/runtime/src/providers/model-residency.mjs';
+import { startLlama } from '../../packages/runtime/src/providers/services.mjs';
 import { request } from '../../packages/runtime/src/http.mjs';
 import estimates from '../../config/qwen-download-sizes.json' with { type: 'json' };
 import { contextChoicesFor } from '../../packages/runtime/src/config/context-policy.mjs';
-import { validateImportedProfile } from '../../packages/runtime/src/hardware/imported-model.mjs';
+import {
+  HF_DRAFT_CHAT_ERROR,
+  validateImportedProfile,
+} from '../../packages/runtime/src/hardware/imported-model.mjs';
 import languages from '../shared/languages.json' with { type: 'json' };
 export class ModelService {
   constructor({
@@ -26,9 +33,10 @@ export class ModelService {
     emit = () => {},
     hardware = probeHardware,
     inventory = () => request(`${rt.ollamaUrl}/api/tags`),
-    ensure = () => startOllama(rt),
+    ensure = () => startLlama(rt),
     pull = pullModel,
     native = ensureNativeLanguageModel,
+    probeImported = verifyImportedChat,
     customProfiles = () => [],
     describe = (model, signal) =>
       request(`${rt.ollamaUrl}/api/show`, {
@@ -47,6 +55,7 @@ export class ModelService {
       ensure,
       pull,
       native,
+      probeImported,
       describe,
       customProfiles,
     });
@@ -67,7 +76,11 @@ export class ModelService {
     this.applying = false;
   }
   snapshot() {
-    return structuredClone(this.value);
+    return {
+      ...structuredClone(this.value),
+      nativeActive: Boolean(this.rt.nativeNpu),
+      nativeModel: this.rt.nativeNpu?.model ?? null,
+    };
   }
   publish(patch) {
     Object.assign(this.value, patch);
@@ -180,20 +193,18 @@ export class ModelService {
       }
       signal.throwIfAborted();
       this.publish({ phase: 'preparing', progress: null });
-      await this.native(
-        this.rt,
-        {
-          ...this.config,
-          ...profileOverrides(profile),
-          contextTokens: Math.min(this.config.contextTokens, profile.contextLimit ?? 262144),
-        },
-        { signal },
-      );
+      const candidate = {
+        ...this.config,
+        ...profileOverrides(profile),
+        contextTokens: modelProfileContext(this.config, profile),
+      };
+      await this.native(this.rt, candidate, { signal });
       if (profile.capabilities) {
         const actual = await this.describe(profile.model, signal);
         if (imported) {
           const info = actual.model_info ?? {};
           const architecture = info['general.architecture'];
+          if (architecture === 'dflash') throw new Error(HF_DRAFT_CHAT_ERROR);
           const limit = info[`${architecture}.context_length`];
           if (
             !actual.capabilities?.includes('completion') ||
@@ -210,6 +221,7 @@ export class ModelService {
             'The installed model does not provide the required tools or vision capabilities.',
           );
       }
+      if (imported) await this.probeImported({ ...candidate, url: this.rt.ollamaUrl }, { signal });
       signal.throwIfAborted();
       const finished = await this.catalog();
       signal.throwIfAborted();

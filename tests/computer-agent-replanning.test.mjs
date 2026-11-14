@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ComputerAgent } from '../apps/desktop/computer-agent.mjs';
-import { computerActionSchema } from '../apps/desktop/computer-planner.mjs';
+import { computerActionSchema, computerPlanner } from '../apps/desktop/computer-planner.mjs';
 
 const checkpoint = (id, label, successCriterion) => ({ id, label, successCriterion });
 const site = checkpoint('site', 'Open the requested site', 'The requested page is visible');
@@ -23,7 +23,7 @@ const address = (value) => ({
 
 // No native application or input is involved. Every target ID belongs to the
 // latest stub observation, just as the real control boundary requires.
-function fixture({ view, plan, input = async () => ({ ok: true }), application }) {
+function fixture({ view, plan, outline, onPlan, input = async () => ({ ok: true }), application }) {
   const calls = [],
     applicationCalls = [],
     contexts = [];
@@ -66,10 +66,14 @@ function fixture({ view, plan, input = async () => ({ ok: true }), application }
   const agent = new ComputerAgent({
     control,
     maxDecisions: 8,
-    plan: async (context, options) => {
-      contexts.push({ context, review: options.review === true });
-      return plan(context, options, control);
-    },
+    onPlan,
+    plan: Object.assign(
+      async (context, options) => {
+        contexts.push({ context, review: options.review === true });
+        return plan(context, options, control);
+      },
+      { outline },
+    ),
     applications: {
       operation: (_id, _args, run) => run(),
       execute: async (_id, args, _approval, signal) => {
@@ -83,14 +87,116 @@ function fixture({ view, plan, input = async () => ({ ok: true }), application }
   return { agent, control, calls, applicationCalls, contexts };
 }
 
-test('a launch with multiple verified windows activates one before continuing remaining work', async () => {
+test('an up-front research plan survives replays and cannot finish at the initial search results', async () => {
+  const goal = 'Find the archived trail map and tell me where I can download it.';
+  const search = checkpoint('search', 'Find likely map sources', 'Trail map search results appear');
+  const outcome = {
+    label: 'Confirm the map download',
+    successCriterion: 'The publisher page identifies the archived map and offers a download',
+  };
+  const listing = 'Archived trail map — official PDF';
+  const clicks = [];
+  let addressFocused = false,
+    publisherOpen = false,
+    decisions = 0,
+    reviews = 0,
+    firstVisiblePlan;
+  const f = fixture({
+    outline: async (state) => {
+      assert.equal(state.originalOwnerGoal, goal);
+      assert.deepEqual(
+        f.calls,
+        [{ action: 'observe', vision: true }],
+        'Plan the whole goal using the first observation before input',
+      );
+      assert.equal(state.untrustedVisualScene, 'Browser window with the Windows taskbar below.');
+      return { milestones: [search], outcome };
+    },
+    onPlan: (plan) => {
+      if (plan.steps.length && !firstVisiblePlan) firstVisiblePlan = plan.steps;
+    },
+    view: () => ({
+      screenAvailable: true,
+      scene: 'Browser window with the Windows taskbar below.',
+      window: {
+        windowId: '1',
+        untrustedTitle: publisherOpen ? 'Trail publisher' : 'Search results',
+      },
+      targets: publisherOpen
+        ? [button('download', listing)]
+        : [
+            { ...address('https://www.google.com/search?q=trail+map'), focused: addressFocused },
+            button('source', 'Trail publisher archive', { role: 'ControlType.Hyperlink' }),
+          ],
+    }),
+    input: async (args, view) => {
+      assert.equal(args.action, 'click');
+      assert.equal(firstVisiblePlan.length, 2);
+      assert.equal(firstVisiblePlan.at(-1).label, outcome.label);
+      const target = view.targets.find((entry) => entry.targetId === args.targetId);
+      clicks.push(target.untrustedLabel);
+      if (target.browserAddress) addressFocused = true;
+      else publisherOpen = true;
+      return { ok: true };
+    },
+    plan: async ({ correction, currentObservation, originalOwnerGoal, taskPlan }, { review }) => {
+      assert.equal(originalOwnerGoal, goal);
+      assert.equal(taskPlan.remainingCheckpoints.at(-1)?.id, 'owner-outcome');
+      if (review) {
+        reviews++;
+        if (publisherOpen) return { action: 'finish', evidence: listing, summary: listing };
+        if (reviews === 1) return { action: 'continue', summary: 'Open the publisher source.' };
+        // Even if the model's review also approves the premature finish, the
+        // host must reject the same proof that was used for the search milestone.
+        return { action: 'finish', evidence: 'Search results', summary: 'A search was performed.' };
+      }
+      const click = (index) => ({
+        action: 'click',
+        targetId: currentObservation.targets[index].targetId,
+      });
+      switch (decisions++) {
+        case 0:
+          return {
+            ...click(0),
+            verifiedCheckpoints: [{ id: 'search', evidence: 'Search results' }],
+          };
+        case 1:
+          return click(0);
+        case 2:
+          assert.match(correction, /not repeated/);
+          return {
+            action: 'finish',
+            plan: [],
+            evidence: 'Search results',
+            summary: 'Search done.',
+          };
+        case 3:
+          assert.match(correction, /distinct, current evidence/);
+          return click(1);
+        default:
+          return { action: 'finish', evidence: listing, summary: listing };
+      }
+    },
+  });
+  const result = await f.agent.run(goal);
+  assert.equal(
+    result.ok,
+    true,
+    JSON.stringify({ result, decisions, reviews, clicks, trace: f.agent.diagnostics() }),
+  );
+  assert.equal(result.summary, listing);
+  assert.deepEqual(clicks, ['Address and search bar', 'Trail publisher archive']);
+  assert.equal(f.agent.diagnostics().plan.completed, 2);
+});
+
+test('a launch with multiple verified windows uses the already observed matching window', async () => {
   let stage = 0;
   const opening = checkpoint('paint', 'Open Paint', 'Paint is in the foreground');
   const menu = checkpoint('file', 'Open the requested File menu', 'Recent files are visible');
   const f = fixture({
     view: () => ({
       window: {
-        windowId: stage ? '101' : '1',
+        windowId: '101',
         untrustedTitle: stage ? 'Untitled - Paint' : 'Desktop',
       },
       targets:
@@ -154,6 +260,332 @@ test('a launch with multiple verified windows activates one before continuing re
   );
   assert.equal(f.calls.filter((call) => call.action === 'click').length, 1);
   assert.equal(f.control.session, null);
+});
+
+test('a scoped chain rejects invented web steps, restores the bound window and switches only to an explicitly requested app', async () => {
+  const apps = [
+    { id: 'app-a', name: 'Notepad' },
+    { id: 'app-b', name: 'Calculator' },
+  ];
+  let foreground = '1',
+    drafted = false,
+    suggestions = 0;
+  const f = fixture({
+    view: () => ({
+      window: {
+        windowId: foreground,
+        untrustedTitle: { 1: 'Desktop', 11: 'Notepad', 22: 'Calculator', 99: 'Other window' }[
+          foreground
+        ],
+      },
+      targets: foreground === '11' ? [button('draft', 'Document', { editable: true })] : [],
+    }),
+    application: async (args) => {
+      if (args.appId === 'app-a') {
+        foreground = args.windowId ? '11' : '99'; // The owner changed focus immediately after the initial receipt.
+        return { ok: true, focused: true, windowId: '11' };
+      }
+      assert.equal(args.appId, 'app-b');
+      assert(drafted);
+      foreground = '22';
+      return { ok: true, focused: true, windowId: '22' };
+    },
+    input: async (args, view) => {
+      assert.equal(args.action, 'enter_text');
+      assert.equal(view.window.windowId, '11');
+      assert.equal(args.observationId, view.observationId);
+      assert.equal(args.text, 'open Chrome');
+      drafted = true;
+      return { ok: true };
+    },
+    plan: async ({ currentObservation }, { review }) => {
+      if (review || currentObservation.window.windowId === '22')
+        return {
+          action: 'finish',
+          evidence: 'Calculator',
+          summary: 'Typed the draft and opened Calculator.',
+        };
+      assert.equal(currentObservation.window.windowId, '11');
+      if (++suggestions === 1)
+        return { action: 'browser_search', query: 'Chrome', text: 'Notepad' };
+      if (suggestions === 2) return { action: 'launch', query: 'Chrome' };
+      if (drafted) return { action: 'launch', query: 'Calculator' };
+      return {
+        action: 'enter_text',
+        targetId: currentObservation.targets[0].targetId,
+        text: 'open Chrome',
+      };
+    },
+  });
+  f.agent.applications.findApplications = async (query) =>
+    apps.filter(({ name }) => name === query);
+  const result = await f.agent.run('Open Notepad and type "open Chrome", then open Calculator.');
+  assert.equal(result.ok, true, JSON.stringify(f.agent.diagnostics()));
+  assert.deepEqual(f.applicationCalls, [
+    { action: 'launch', appId: 'app-a' },
+    { action: 'launch', appId: 'app-a', windowId: '11' },
+    { action: 'launch', appId: 'app-b' },
+  ]);
+  assert.equal(f.calls.filter(({ action }) => action === 'enter_text').length, 1);
+});
+
+test('a requested taskbar switch rebinds to the verified foreground before the next click', async () => {
+  let foreground = '1',
+    clicked = false;
+  const app = { id: 'paint', name: 'Paint' };
+  const f = fixture({
+    view: () => ({
+      window: {
+        windowId: foreground,
+        untrustedTitle: { 1: 'Desktop', 11: 'Paint', 22: 'Notepad' }[foreground],
+      },
+      targets:
+        foreground === '11'
+          ? [button('notepad', 'Notepad', { surface: 'taskbar' })]
+          : foreground === '22'
+            ? [button('help', clicked ? 'Help opened' : 'Help')]
+            : [],
+    }),
+    application: async () => {
+      foreground = '11';
+      return { ok: true, focused: true, windowId: '11', processId: '101', startedAtTicks: '1000' };
+    },
+    input: async (args, view) => {
+      assert.equal(args.action, 'click');
+      if (foreground === '11') {
+        assert.equal(view.targets[0].surface, 'taskbar');
+        foreground = '22';
+      } else {
+        assert.equal(view.targets[0].untrustedLabel, 'Help');
+        clicked = true;
+      }
+      return { ok: true };
+    },
+    plan: async ({ currentObservation }, { review }) => {
+      if (foreground === '22')
+        assert.equal(currentObservation.scene, 'Notepad on the newly active monitor.');
+      if (review || clicked)
+        return { action: 'finish', evidence: 'Help opened', summary: 'Opened Help in Notepad.' };
+      return { action: 'click', targetId: currentObservation.targets[0].targetId };
+    },
+  });
+  f.agent.applications.findApplications = async () => [app];
+  const execute = f.control.execute.bind(f.control);
+  f.control.execute = async (args, signal) => {
+    const result = await execute(args, signal);
+    if (args.action === 'observe') {
+      f.control.session.target = {
+        processId: foreground === '11' ? '101' : '202',
+        startedAtTicks: foreground === '11' ? '1000' : '2000',
+        executable: foreground === '11' ? 'C:\\Windows\\Paint.exe' : 'C:\\Windows\\Notepad.exe',
+      };
+      if (foreground === '22') {
+        const matched = args.vision && args.visualWindow?.windowId === '22';
+        result.screenAvailable = matched;
+        result.visionStatus = matched ? 'ready' : 'window_mismatch';
+        if (matched) result.scene = 'Notepad on the newly active monitor.';
+      }
+    }
+    return result;
+  };
+  const result = await f.agent.run(
+    'Open Paint then switch to Notepad from the taskbar and click Help.',
+  );
+  assert.equal(result.ok, true, JSON.stringify(f.agent.diagnostics()));
+  assert.equal(f.calls.filter(({ action }) => action === 'click').length, 2);
+  assert.equal(f.applicationCalls.length, 1);
+  assert(f.calls.some(({ vision, visualWindow }) => vision && visualWindow?.windowId === '22'));
+});
+
+test('an explicit quoted click uses a unique observed control and reports only the input receipt', async () => {
+  const f = fixture({
+    view: () => ({
+      window: { windowId: '11', untrustedTitle: 'Game launcher' },
+      targets: [
+        button('heading', 'Играть', { role: 'ControlType.Text', clickKind: 'text' }),
+        button('play', 'Играть', { role: 'ControlType.Text', clickKind: 'candidate' }),
+        button('settings', 'Настройки'),
+      ],
+    }),
+    outline: async () => assert.fail('An exact click needs no model plan'),
+    plan: async () => assert.fail('An exact click needs no model input'),
+    input: async (args, view) => {
+      assert.equal(args.targetId, view.targets[1].targetId);
+      return { ok: true };
+    },
+  });
+  const result = await f.agent.run('Press “Играть”');
+  assert.deepEqual(
+    f.calls.map(({ action }) => action),
+    ['observe', 'click', 'observe'],
+  );
+  assert.equal(result.summary, 'Clicked “Играть”.');
+});
+
+test('a visual button takes precedence over an equally named native button from the first observation', async () => {
+  const f = fixture({
+    view: () => ({
+      window: { windowId: '11', untrustedTitle: 'Launcher' },
+      screenAvailable: true,
+      targets: [
+        button('native', 'Play'),
+        button('front-dialog', 'Play', { source: 'vision', actionRole: 'button' }),
+      ],
+    }),
+    plan: async () => assert.fail('A uniquely confirmed exact click needs no planner call'),
+    input: async (args, view) => {
+      assert.equal(f.calls[0].vision, true);
+      assert.equal(args.targetId, view.targets[1].targetId);
+      return { ok: true };
+    },
+  });
+  assert.equal((await f.agent.run('Click “Play”')).ok, true);
+});
+
+test('an ambiguous visual click does not fall through to a native control with the same name', async () => {
+  const f = fixture({
+    view: () => ({
+      window: { windowId: '11', untrustedTitle: 'Launcher' },
+      screenAvailable: true,
+      targets: [
+        button('native', 'Play'),
+        button('left', 'Play', { source: 'vision', actionRole: 'button' }),
+        button('right', 'Play', { source: 'vision', actionRole: 'button' }),
+      ],
+    }),
+    plan: async () => assert.fail('Ambiguous exact clicks require the owner'),
+    input: async () => assert.fail('No click should be sent'),
+  });
+  assert.equal((await f.agent.run('Click “Play”')).status, 'needs_user');
+});
+
+test('a verified website checkpoint advances to the next visible action with a focused omnibox', async () => {
+  const url = 'https://catalog.example/';
+  const opened = { ...site, verifyOn: { action: 'open_url', target: url } };
+  let stage = 0;
+  const f = fixture({
+    outline: async () => ({
+      milestones: [opened],
+      outcome: { label: 'Read the latest entry', successCriterion: 'The archive entry is visible' },
+    }),
+    view: () => ({
+      window: {
+        windowId: '10',
+        untrustedTitle: stage === 2 ? 'Archive entry' : stage ? 'Catalog' : 'New Tab',
+      },
+      targets:
+        stage === 1
+          ? [
+              { ...address('catalog.example/'), focused: true },
+              {
+                ...address(url),
+                key: 'document',
+                untrustedLabel: 'Catalog',
+                browserDocumentAddress: true,
+              },
+              button('latest', 'Latest entry'),
+            ]
+          : [],
+    }),
+    application: async (args) => {
+      assert.equal(args.url, url);
+      stage = 1;
+      return { ok: true, navigationRequested: true, windowId: '10' };
+    },
+    input: async ({ targetId }) => {
+      assert.match(targetId, /:latest$/u);
+      stage = 2;
+      return { ok: true };
+    },
+    plan: async ({ taskPlan, currentObservation }) => {
+      if (!stage) return { action: 'open_url', query: 'Chrome', url };
+      assert.deepEqual(taskPlan.completedCheckpoints, [opened]);
+      if (stage === 1)
+        return {
+          action: 'click',
+          targetId: currentObservation.targets[2].targetId,
+          verifiedCheckpoints: [{ id: 'unknown-old-id', evidence: 'Old proof' }],
+        };
+      return { action: 'finish', evidence: 'Archive entry', summary: 'Opened the archive entry.' };
+    },
+  });
+  assert.equal(
+    (await f.agent.run('Visit the catalog website and open the latest entry.')).ok,
+    true,
+  );
+  assert.equal(f.applicationCalls.length, 1);
+  assert.equal(f.calls.filter(({ action }) => action === 'click').length, 1);
+  assert(f.agent.trace.some(({ outcome }) => outcome === 'checkpoint_verified'));
+});
+
+test('the planner retains a valid next action when a provider adds obsolete checkpoint proof', async () => {
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async () =>
+      Response.json({
+        done: true,
+        message: {
+          content: JSON.stringify({
+            action: 'click',
+            targetId: 'Latest entry [current]',
+            summary: 'Open the entry.',
+            verifiedCheckpoints: [{ id: 'old', evidence: 'Old proof' }],
+          }),
+        },
+      }),
+  });
+  const step = await plan({
+    originalOwnerGoal: 'Open the latest entry',
+    currentObservation: { targets: [{ targetId: 'current', untrustedLabel: 'Latest entry' }] },
+    taskPlan: { revision: 1, completedCheckpoints: [site], remainingCheckpoints: [] },
+  });
+  assert.equal(step.targetId, 'current');
+});
+
+test('an explicitly closed bound window is checked by Windows and never restored', async () => {
+  let foreground = '1';
+  let identity;
+  const f = fixture({
+    view: () => ({
+      window: { windowId: foreground, untrustedTitle: 'Paint' },
+      targets: [button('close', 'Close')],
+    }),
+    application: async () => {
+      foreground = '31';
+      identity = { processId: '410', startedAtTicks: '1000' };
+      return { ok: true, focused: true, windowId: '31', processId: 410, startedAtTicks: '1000' };
+    },
+    input: async (args) => {
+      if (args.action === 'bound_window_exists') {
+        assert.equal(args.windowId, '31');
+        assert.equal(foreground, '1');
+        return { ok: true, exists: false };
+      }
+      assert.equal(args.action, 'click');
+      foreground = '1';
+      return { ok: true };
+    },
+    plan: async ({ currentObservation }, { review }) => {
+      if (review || currentObservation.application?.summary)
+        return {
+          action: 'finish',
+          evidence: 'The verified application window is closed.',
+          summary: 'Closed Paint.',
+        };
+      return { action: 'click', targetId: currentObservation.targets[0].targetId };
+    },
+  });
+  const execute = f.control.execute.bind(f.control);
+  f.control.execute = async (args, signal) => {
+    const result = await execute(args, signal);
+    if (args.action === 'observe') f.control.session.target = identity;
+    return result;
+  };
+  f.agent.applications.findApplications = async () => [{ id: 'paint', name: 'Paint' }];
+  const result = await f.agent.run('Open Paint and close it.');
+  assert.equal(result.ok, true, JSON.stringify(f.agent.diagnostics()));
+  assert.equal(f.applicationCalls.length, 1);
 });
 
 test('ambiguous draft typing requests owner selection before any input reaches a window', async () => {
@@ -599,7 +1031,7 @@ test('the first decision requires a bounded checkpoint chain while subsequent de
       'An unchanged plan must not be regenerated every step',
     );
     assert(branch.properties.plan);
-    assert(branch.properties.verifiedCheckpoints);
+    assert.equal(branch.properties.verifiedCheckpoints, undefined);
   }
   const legacy = computerActionSchema(view, evidence);
   assert(legacy.anyOf.every((branch) => !branch.required.includes('plan')));
@@ -615,10 +1047,7 @@ test('the first decision requires a bounded checkpoint chain while subsequent de
     evidence,
   );
   for (const branch of pending.anyOf)
-    assert.deepEqual(branch.properties.verifiedCheckpoints.items.properties.id.enum, [
-      'browser',
-      'site',
-    ]);
+    assert.deepEqual(branch.properties.verifiedCheckpoints.items.properties.id.enum, ['site']);
   const finish = pending.anyOf.find((branch) => branch.properties.action.const === 'finish');
   assert(finish.required.includes('verifiedCheckpoints'));
   assert.equal(finish.properties.verifiedCheckpoints.minItems, 1);

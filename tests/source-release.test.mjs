@@ -94,7 +94,7 @@ test('source export includes its own tooling and every Node command, excluding i
   assert.ok(files.includes('assets/default/screenshot-capture.mp3'));
   assert.ok(files.includes(ACTIVE_AVATAR_CATALOG));
   assert.ok(files.includes(ACTIVE_AVATAR_POSES));
-  assert.equal(files.filter((file) => file.startsWith('assets/capri/sprites/poses-v2/')).length, 8);
+  assert.equal(files.filter((file) => file.startsWith('assets/capri/sprites/poses-v2/')).length, 9);
   assert.deepEqual(
     files.filter((file) => file.startsWith('docs/audit/')),
     ['docs/audit/npm-sbom.cdx.json'],
@@ -187,7 +187,7 @@ test('standard Git source archives include the validated avatar and keep private
   assert.ok(entries.includes('docs/audit/npm-sbom.cdx.json'));
   run('tar', ['-xf', archive, '-C', extracted]);
   const restored = requireCapriAvatar(extracted);
-  assert.equal(restored.frames.length, 77);
+  assert.equal(restored.frames.length, 38);
   for (const file of required)
     assert.deepEqual(
       readFileSync(path.join(extracted, file)),

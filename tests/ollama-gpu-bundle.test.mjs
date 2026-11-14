@@ -86,29 +86,22 @@ test('LLM ROCm delivery uses its own Windows matrix and keeps Vulkan-only cards 
   );
 });
 
-test('AMD disk estimates include the exact reviewed add-on archive plus its expanded bytes only when needed', () => {
+test('AMD and NVIDIA share the managed Vulkan runtime storage estimate', () => {
   const selection = {
     profile: 'balanced',
     inferenceMode: 'local',
     conversationLanguage: 'en',
     downloadModels: false,
   };
-  const baseline = estimateInstallStorage(selection);
-  const amd = estimateInstallStorage(selection, {
-    hardware: { gpus: [{ name: 'AMD Radeon RX 7900 XT' }] },
-  });
-  assert.equal(amd.downloadBytes - baseline.downloadBytes, 256578673);
-  assert.equal(amd.requiredBytes - baseline.requiredBytes, 256578673 + 1025349792);
-  for (const [inferenceMode, name] of [
-    ['api', 'AMD Radeon RX 7900 XT'],
-    ['local', 'AMD Radeon RX 6400'],
-  ]) {
-    assert.deepEqual(
-      estimateInstallStorage({ ...selection, inferenceMode }, { hardware: { gpus: [{ name }] } }),
-      estimateInstallStorage({ ...selection, inferenceMode }),
-    );
+  for (const inferenceMode of ['local', 'api']) {
+    const request = { ...selection, inferenceMode };
+    for (const name of ['AMD Radeon RX 7900 XT', 'AMD Radeon RX 6400', 'NVIDIA GeForce RTX 4070'])
+      assert.deepEqual(
+        estimateInstallStorage(request, { hardware: { gpus: [{ name }] } }),
+        estimateInstallStorage(request),
+      );
   }
-  assert.equal(manifest.artifacts.ollamaRocm.version, manifest.artifacts.ollama.version);
+  assert.ok(estimateInstallStorage(selection).downloadBytes >= manifest.artifacts.llama.bytes);
 });
 
 test(

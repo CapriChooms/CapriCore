@@ -229,9 +229,13 @@ internal static class CapriDesktopTeleport {
     }
 
     private static void CloseAnchor() {
+        EndAnchor("closed");
+    }
+
+    private static void EndAnchor(string state) {
         int id = anchorId;
         StopFollowing();
-        if (id != 0) SendAnchor(id, "closed");
+        if (id != 0) SendAnchor(id, state);
     }
 
     private static void ObserveAnchor(IntPtr hook, uint kind, IntPtr window, int objectId, int childId, uint thread, uint time) {
@@ -241,6 +245,8 @@ internal static class CapriDesktopTeleport {
         if (kind >= 0x8000 && (objectId != 0 || childId != 0)) return;
         if (kind != 0x8001 && kind != 0x8002 && kind != 0x8003 &&
             kind != 0x800A && kind != 0x800B && kind != 0x0016 && kind != 0x0017) return;
+        // A quick restore must not replace a minimize/hide with its final visible rect.
+        if (kind == 0x0016 || kind == 0x8003) { EndAnchor("hidden"); return; }
         if (kind == 0x8001) anchorDestroyed = true;
         if (anchorUpdatePending) return;
         anchorUpdatePending = true;
@@ -346,14 +352,12 @@ internal static class CapriDesktopTeleport {
             if (anchorUnavailableAt < 0) anchorUnavailableAt = now;
             long unavailable = now - anchorUnavailableAt;
             if (unavailable >= AnchorUnavailableTimeoutMs) { CloseAnchor(); return; }
-            if (lastAnchor == null || unavailable >= AnchorHoldMs) PublishAnchor("hidden");
+            if (lastAnchor == null || unavailable >= AnchorHoldMs) PublishAnchor("unavailable");
             return;
         }
         anchorUnavailableAt = -1;
-        string state = visible && !iconic
-            ? String.Format(CultureInfo.InvariantCulture, "visible {0} {1} {2} {3}", rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top)
-            : "hidden";
-        PublishAnchor(state);
+        if (!visible || iconic) { EndAnchor("hidden"); return; }
+        PublishAnchor(String.Format(CultureInfo.InvariantCulture, "visible {0} {1} {2} {3}", rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top));
     }
 
     private static void PublishAnchor(string state) {

@@ -54,14 +54,15 @@ $base=1586229413.0;$addon=256578673.0
 Update-CapriDownloadProgress ([PSCustomObject]@{step='ollama';received=$base;total=$base;stageFraction=($base/($base+$addon))})
 $baseProgress=$script:installProgress.fractionalValue
 $baseTransfer=$script:installProgress.transfer
-Update-CapriDownloadProgress ([PSCustomObject]@{step='ollama';received=($addon/2);total=$addon;stageFraction=(($base+$addon/2)/($base+$addon))})
+Update-CapriDownloadProgress ([PSCustomObject]@{step='ollama';file='addon.zip';received=($addon/2);total=$addon;stageFraction=(($base+$addon/2)/($base+$addon))})
 $halfProgress=$script:installProgress.fractionalValue
+$halfTransfer=$script:installProgress.transfer
 Update-CapriDownloadProgress ([PSCustomObject]@{step='ollama';received=$addon;total=$addon;stageFraction=1})
 $readyProgress=$script:installProgress.fractionalValue
 Update-CapriDownloadProgress ([PSCustomObject]@{step='ollama';received=$addon;total=$addon;stageFraction=2})
 $invalidIgnored=$script:installProgress.fractionalValue -eq $readyProgress
 Set-CapriProgressFraction $script:installProgress 'ollama' 1
-[PSCustomObject]@{baseBelowHalf=($baseProgress -lt $halfProgress);halfBelowReady=($halfProgress -lt $readyProgress);readyBelowCompleted=($readyProgress -lt $script:installProgress.fractionalValue);invalidIgnored=$invalidIgnored;transferBytesCorrect=($baseTransfer -like '*1586*') }|ConvertTo-Json -Compress
+[PSCustomObject]@{baseBelowHalf=($baseProgress -lt $halfProgress);halfBelowReady=($halfProgress -lt $readyProgress);readyBelowCompleted=($readyProgress -lt $script:installProgress.fractionalValue);invalidIgnored=$invalidIgnored;transferBytesCorrect=($baseTransfer -like '*1586*');perFileProgress=($halfTransfer -like 'addon.zip*50%*128*/*256*MB') }|ConvertTo-Json -Compress
 `,
     );
     const result = ps(script, [root]);
@@ -72,6 +73,7 @@ Set-CapriProgressFraction $script:installProgress 'ollama' 1
       readyBelowCompleted: true,
       invalidIgnored: true,
       transferBytesCorrect: true,
+      perFileProgress: true,
     });
   },
 );
@@ -110,6 +112,7 @@ test(
       },
       { ...base, inferenceMode: 'api', recognition: true },
       { ...base, inferenceMode: 'api', voiceMode: 'qwen', conversationLanguage: 'ru' },
+      { ...base, inferenceMode: 'api', voiceMode: 'qwen-ru', conversationLanguage: 'ru' },
       {
         ...base,
         inferenceMode: 'api',
@@ -146,6 +149,61 @@ ConvertTo-Json -InputObject $estimates -Compress
       JSON.parse(result.stdout),
       selections.map((selection) => estimateInstallStorage(selection, selection)),
     );
+  },
+);
+
+test(
+  'update download estimate counts only missing files and keeps the disk reserve',
+  { skip: !windows },
+  () => {
+    const fixture = folder();
+    const target = path.join(fixture, 'Capri');
+    const script = path.join(fixture, 'update-storage.ps1');
+    writeFileSync(
+      script,
+      `param($Source,$Target)
+. (Join-Path $Source 'packages/installer/windows/common.ps1')
+. (Join-Path $Source 'packages/installer/windows/storage-estimate.ps1')
+$manifest=Read-CapriJson (Join-Path $Source 'config/installer.json')
+$catalog=Read-CapriStorageCatalog $Source
+function Write-FixtureFile($Relative,[long]$Bytes){
+    $file=Join-Path $Target $Relative
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $file))|Out-Null
+    $stream=[IO.File]::Create($file)
+    try{$stream.SetLength($Bytes)}finally{$stream.Dispose()}
+}
+$selection=@{target=$Target;inferenceMode='api';profile='minimal';downloadModels=$true;conversationLanguage='en';recognition=$true;voicePack=$true}
+$catalog.englishVoice=@(@{file='existing';bytes=200},@{file='partial';bytes=100},@{file='damaged';bytes=80})
+$catalog.registry.'bge-m3:latest'.layers=@(@{mediaType='application/vnd.ollama.image.model';digest=('sha256:'+('a'*64));size=1000})
+$manifest.storage.embeddingBytes=1000
+$manifest.storage.englishVoiceBytes=380
+Write-FixtureFile ($catalog.voiceTrainingDirectory+'/existing') 200
+Write-FixtureFile ($catalog.voiceTrainingDirectory+'/partial.partial') 30
+Write-FixtureFile ($catalog.voiceTrainingDirectory+'/damaged') 5
+Write-FixtureFile ('data/models/blobs/sha256-'+('a'*64)) 1000
+$electron=$manifest.artifacts.electron
+$electron.bytes=500
+Write-FixtureFile ('.runtime/installer/downloads/'+$electron.sha256+'.zip') 500
+$clean=Get-CapriStorageEstimate $selection $manifest $catalog
+Write-CapriJson (Join-Path $Target '.capri-install.json') @{schemaVersion=1;productId='capri.desktop';root=$Target;version='1.0.4';installId='00000000-0000-0000-0000-000000000001'}
+$updated=Get-CapriStorageEstimate $selection $manifest $catalog
+Write-FixtureFile ($catalog.voiceTrainingDirectory+'/partial') 100
+Write-FixtureFile ($catalog.voiceTrainingDirectory+'/damaged') 80
+$complete=Get-CapriStorageEstimate $selection $manifest $catalog
+$selection.inferenceMode='local'
+$changed=Get-CapriStorageEstimate $selection $manifest $catalog
+@{reusedBytes=$clean.downloadBytes-$updated.downloadBytes;missingVoiceBytes=$updated.downloadBytes-$complete.downloadBytes;
+    reserveUnchanged=$clean.requiredBytes -eq $updated.requiredBytes;otherModelBytes=$changed.downloadBytes-$complete.downloadBytes} | ConvertTo-Json -Compress
+`,
+    );
+    const result = ps(script, [root, target]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      reusedBytes: 1730,
+      missingVoiceBytes: 150,
+      reserveUnchanged: true,
+      otherModelBytes: 1019201167,
+    });
   },
 );
 
@@ -415,13 +473,19 @@ test(
   },
 );
 test(
-  'a linked uninstall tree prevents deletion of earlier source targets',
+  'a link in a manifest file parent prevents deletion of earlier source targets',
   { skip: !windows },
   () => {
     const target = uninstallFixture(),
       outside = folder();
     writeFileSync(path.join(outside, 'keep.txt'), 'outside canary');
-    symlinkSync(outside, path.join(target, 'node_modules'), 'junction');
+    symlinkSync(outside, path.join(target, 'linked-source'), 'junction');
+    writeJsonAtomic(path.join(target, '.runtime/installer/source-files.json'), {
+      files: [
+        { path: 'apps/example.mjs', sha256: hash('original code') },
+        { path: 'linked-source/keep.txt', sha256: hash('outside canary') },
+      ],
+    });
     const result = ps('packages/installer/windows/uninstall.ps1', [
       '-InstallRoot',
       target,
@@ -431,6 +495,42 @@ test(
     assert.equal(existsSync(path.join(target, 'apps/example.mjs')), true);
     assert.equal(existsSync(path.join(target, '.capri-install.json')), true);
     assert.equal(readFileSync(path.join(outside, 'keep.txt'), 'utf8'), 'outside canary');
+  },
+);
+
+test(
+  'a linked model root is excluded from disk usage and unlinked only when selected',
+  { skip: !windows },
+  () => {
+    const target = uninstallFixture();
+    const outside = folder();
+    const cache = path.join(target, 'data/models');
+    const weights = path.join(outside, 'shared.bin');
+    writeFileSync(weights, Buffer.alloc(1024 ** 2, 7));
+    symlinkSync(outside, cache, 'junction');
+    mkdirSync(path.join(target, 'data/speech'), { recursive: true });
+    symlinkSync(
+      path.join(outside, 'missing-cache'),
+      path.join(target, 'data/speech', 'hf-model'),
+      'junction',
+    );
+    const argumentsForUninstall = ['-InstallRoot', target, '-Quiet'];
+    const uninstaller = 'packages/installer/windows/uninstall.ps1';
+    const measured = ps(uninstaller, [...argumentsForUninstall, '-MeasureOnly']);
+    assert.equal(measured.status, 0, measured.stderr);
+    assert.equal(JSON.parse(measured.stdout).bytes[2], 0);
+    const script = path.join(outside, 'remove-models.ps1');
+    writeFileSync(
+      script,
+      `param($Uninstaller,$Root)\n& $Uninstaller -InstallRoot $Root -Quiet -RemoveApplication:$false -DeleteModels\nif(-not $?){exit 1}\n`,
+    );
+    const removed = ps(script, [path.join(root, uninstaller), target]);
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.throws(() => lstatSync(cache), { code: 'ENOENT' });
+    assert.throws(() => lstatSync(path.join(target, 'data/speech/hf-model')), { code: 'ENOENT' });
+    assert.equal(readFileSync(path.join(target, 'apps/example.mjs'), 'utf8'), 'original code');
+    assert.equal(readFileSync(path.join(target, 'data/history.txt'), 'utf8'), 'private canary');
+    assert.deepEqual(readFileSync(weights), Buffer.alloc(1024 ** 2, 7));
   },
 );
 
@@ -707,12 +807,21 @@ test(
       script,
       `. ${literal(path.join(root, 'packages/installer/windows/common.ps1'))}
 $script:count=0
+$spec=(Read-CapriJson ${literal(path.join(root, 'config/installer.json'))}).artifacts.node
+$sources=@(Get-CapriNodeBootstrapSources $spec)
 $result=Invoke-CapriDownloadRetry -DelayMilliseconds 0 -Operation {
+    param($Attempt)
     $script:count++
-    if($script:count -eq 1){throw (New-Object IO.EndOfStreamException('fixture EOF'))}
+    $source=$sources[($Attempt-1)%$sources.Count]
+    if($Attempt -eq 1 -and ([Uri]$source).Host -eq 'nodejs.org'){throw (New-Object IO.EndOfStreamException('fixture EOF'))}
+    if(([Uri]$source).Host -ne 'cdn.npmmirror.com'){throw 'Expected the approved Node mirror.'}
     'verified'
 }
 if($result -ne 'verified' -or $script:count -ne 2){throw 'Transient download did not retry correctly'}
+$spec.mirrors=@('https://cdn.npmmirror.com/not-the-pinned-archive.zip')
+$wrongMirrorAccepted=$false
+try {$null=Get-CapriNodeBootstrapSources $spec;$wrongMirrorAccepted=$true}catch{}
+if($wrongMirrorAccepted){throw 'A mismatched mirror must be rejected.'}
 $script:count=0
 try {Invoke-CapriDownloadRetry -DelayMilliseconds 0 -Operation {$script:count++;throw 'checksum mismatch'}}catch{}
 if($script:count -ne 1){throw 'A validation failure must not be retried'}
@@ -774,6 +883,9 @@ test(
       script,
       '\uFEFF' +
         `. ${literal(path.join(root, 'packages/installer/windows/common.ps1'))}
+. ${literal(path.join(root, 'packages/installer/windows/install-discovery.ps1'))}
+if((Get-CapriDefaultTarget) -ne (Join-Path $env:LOCALAPPDATA 'Programs/Capri')){throw 'New installations must default to a per-user folder.'}
+if((Get-Content -LiteralPath ${literal(path.join(root, 'packages/installer/windows/launcher.manifest'))} -Raw) -notmatch 'requestedExecutionLevel level="asInvoker"'){throw 'Setup must run with the current user token.'}
 $parent=${literal(parent)}
 $source=${literal(root)}
 [IO.File]::WriteAllText((Join-Path $parent 'unrelated.txt'),'preserve')

@@ -24,6 +24,31 @@ const selection = {
   conversationLanguage: 'en',
 };
 
+test(
+  'native memory labels retain tenths instead of rounding estimates and remaining space to whole GiB',
+  { skip: process.platform !== 'win32' },
+  () => {
+    const result = spawnSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        '[Threading.Thread]::CurrentThread.CurrentCulture=[Globalization.CultureInfo]::InvariantCulture; . ./packages/installer/windows/memory-budget.ps1; @( (Format-CapriMemoryRange @(6.7,14.8)), (Format-CapriMemoryRange @(16.6,24.7)), (Format-CapriMemoryRange @(-0.2,1.1)) ) | ConvertTo-Json -Compress',
+      ],
+      { encoding: 'utf8', windowsHide: true, timeout: 10000 },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), [
+      '6.7 - 14.8 GiB',
+      '16.6 - 24.7 GiB',
+      '0.0 - 1.1 GiB',
+    ]);
+  },
+);
+
 test('dedicated GPU selection preserves stable ties, unknown memory and sparse inventories', () => {
   const first = Object.freeze({ memoryKind: 'dedicated', vramMiB: 8192 });
   const second = Object.freeze({ memoryKind: 'dedicated', vramMiB: 8192 });
@@ -104,7 +129,7 @@ test('each selection changes the appropriate memory pool; unknown capacity stays
     },
     hardware,
   );
-  assert.equal(all.offload, true);
+  assert.equal(all.offload, false);
   assert.equal(all.ram.exceedsAvailable, true);
   assert(all.ram.remaining[0] < 0);
   const unknown = estimateMemoryBudget(selection, {
@@ -130,6 +155,57 @@ test('each selection changes the appropriate memory pool; unknown capacity stays
   );
   assert.equal(unknownFree.vram.available, null);
   assert.equal(unknownFree.vram.exceedsAvailable, true);
+});
+
+test('a small VRAM shortage adds proportional spill instead of a full second CPU copy', () => {
+  const quality = { ...selection, profile: 'quality' };
+  const host = (freeGiB) => ({
+    ...hardware,
+    gpus: [{ ...hardware.gpus[0], freeVramMiB: freeGiB * 1024 }],
+  });
+  const full = estimateMemoryBudget(quality, host(12));
+  const small = estimateMemoryBudget(quality, host(7.75));
+  assert.equal(small.offload, true);
+  assert.equal(small.vram.exceedsAvailable, true);
+  assert(small.ram.estimate[1] > full.ram.estimate[1]);
+  assert(small.ram.estimate[1] - full.ram.estimate[1] < 0.5);
+  const emptyGpu = estimateMemoryBudget(quality, host(0));
+  const cpu = estimateMemoryBudget(quality, { ...hardware, gpus: [] });
+  assert.deepEqual(
+    emptyGpu.ram.estimate,
+    cpu.ram.estimate,
+    'full spill replaces the host allowance',
+  );
+});
+
+test('optimized 32K voice planning follows CPU decoder fallback rather than falsely rejecting the screenshot configuration', () => {
+  const s = {
+    ...selection,
+    profile: 'quality',
+    recognition: true,
+    router: true,
+    voiceMode: 'bundled',
+    conversationLanguage: 'ru',
+  };
+  const h = {
+    ramBytes: 64 * 2 ** 30,
+    availableRamBytes: 31.4 * 2 ** 30,
+    gpus: [{ memoryKind: 'dedicated', vramMiB: 12288, freeVramMiB: 10.5 * 1024 }],
+  };
+  const budget = estimateMemoryBudget(s, h);
+  assert.deepEqual(budget.ram.estimate, [6.7, 14.8]);
+  assert.deepEqual(budget.vram.estimate, [7.6, 9.8]);
+  assert.equal(budget.offload, false);
+  assert.equal(budget.ram.exceedsAvailable, false);
+  assert.equal(budget.vram.exceedsAvailable, false);
+  const cpu = estimateMemoryBudget(s, { ...h, gpus: [] });
+  assert.deepEqual(cpu.vram.estimate, [0, 0], 'CPU voice cannot be counted as GPU allocation');
+  assert(cpu.ram.estimate[1] > budget.ram.estimate[1]);
+  assert.deepEqual(
+    estimateMemoryBudget({ ...s, localLoadPercent: 10 }, h),
+    budget,
+    'a utilization ceiling never reduces weight or KV-cache residency',
+  );
 });
 test(
   'native pre-Node wizard and runtime produce identical budgets for GPU, CPU, unknown and over-budget selections',
@@ -159,6 +235,18 @@ test(
       {
         s: { ...selection, profile: 'quality' },
         h: { ...hardware, gpus: [{ memoryKind: 'dedicated', vramMiB: 6144 }] },
+      },
+      {
+        s: { ...selection, profile: 'quality' },
+        h: { ...hardware, gpus: [{ ...hardware.gpus[0], freeVramMiB: 7.75 * 1024 }] },
+      },
+      { s: { ...selection, voiceMode: 'bundled' }, h: { ...hardware, gpus: [] } },
+      { s: { ...selection, voiceMode: 'qwen' }, h: hardware },
+      { s: { ...selection, voiceMode: 'qwen-ru', conversationLanguage: 'ru' }, h: hardware },
+      { s: { ...selection, profile: 'quality', voiceMode: 'bundled' }, h: hardware },
+      {
+        s: { ...selection, profile: 'quality', voiceMode: 'bundled', conversationLanguage: 'ru' },
+        h: hardware,
       },
     ];
     const native = cases.map(({ s, h }) => ({

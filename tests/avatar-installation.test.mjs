@@ -45,12 +45,12 @@ function fixture(withCapri = false) {
   return folder;
 }
 
-test('installed Capri retains the artwork pack and serves only active portrait PNGs', async () => {
+test('installed Capri serves the active portrait and reviewed pose PNGs', async () => {
   const { catalog, diagnostics, warning } = loadInstalledAvatar(root);
   assert.equal(warning, null);
   assert.equal(diagnostics.mode, 'capri');
-  assert.equal(diagnostics.frames, 77);
-  assert.equal(catalog.desktopPoseFrames.length, 9);
+  assert.equal(diagnostics.frames, 38);
+  assert.equal(catalog.desktopPoseFrames.length, 10);
   assert.equal(catalog.animated, true);
   const spriteFile = catalog.sprites.find((sprite) => sprite.id === catalog.defaultId).file;
   const resources = createDesktopResources({
@@ -69,6 +69,13 @@ test('installed Capri retains the artwork pack and serves only active portrait P
     assert.equal(response.status, 200, frame.id);
     assert.deepEqual(Buffer.from(await response.arrayBuffer()), readFileSync(frame.file));
   }
+  assert.equal(
+    resourceResponse(
+      { url: 'capri://desktop/sprites/arms_crossed-neutral.png', method: 'GET' },
+      resources,
+    ).status,
+    404,
+  );
   const response = resourceResponse(
     { url: 'capri://desktop/sprite.png', method: 'GET' },
     resources,

@@ -33,7 +33,10 @@ export class ComputerRequests {
         : 'The owner did not grant access. Stop this task; do not repeat the request or switch to another tool.',
     };
   }
-  async execute(goal, { signal, previousTask, ownerRequestedCall } = {}) {
+  async execute(
+    goal,
+    { signal, previousTask, ownerRequestedCall, planningEffort, applicationHint } = {},
+  ) {
     if (typeof goal !== 'string' || !goal.trim() || goal.length > 8000 || goal.includes('\0'))
       throw new Error('Describe the computer task in at most 8000 characters.');
     signal?.throwIfAborted();
@@ -46,6 +49,8 @@ export class ComputerRequests {
     return this.run(goal, {
       signal,
       previousTask,
+      ...(planningEffort && { planningEffort }),
+      ...(applicationHint && { applicationHint }),
       ...(ownerRequestedCall && { ownerRequestedCall }),
     });
   }

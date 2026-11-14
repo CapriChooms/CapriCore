@@ -2,11 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { runCommand } from '../packages/installer/src/commands.mjs';
+import { privateLog } from '../packages/runtime/src/privacy-log.mjs';
+import { diagnosticState } from '../apps/desktop/diagnostics/state.mjs';
 import catalog from '../config/tts-catalog.json' with { type: 'json' };
 import {
+  RUSSIAN_QWEN_ID,
   VoiceCatalogService,
   voiceDataPath,
   voiceBackendChanged,
+  voiceRuntime,
+  voiceRuntimes,
+  voiceRuntimeKind,
 } from '../apps/desktop/voice-catalog-service.mjs';
 import { VoiceTrainingService } from '../apps/desktop/voice-training-service.mjs';
 import { speechModelsInstalled } from '../apps/desktop/language-models.mjs';
@@ -165,6 +173,224 @@ test('voice installation checks free space and cancellation releases the shared 
     () => insufficient.install({ modelId: 'qwen3-tts-0.6b-base', language: 'en' }),
     /space/i,
   );
+});
+
+test('Russian LoRA requires its reference and accent files and keeps an independent voice selection', async (t) => {
+  const { root, write } = fixture(t);
+  const group = (name) => ({
+    directory: 'data/speech/' + name,
+    files: [{ file: 'fixture', bytes: 3 }],
+  });
+  const spec = { ...group('russian'), accent: group('accent'), pack: group('reference') };
+  const stages = [];
+  write('config/qwen-ru-voice.json', spec);
+  write('config/qwen-tts-upstream.json', group('qwen'));
+  write('data/speech/qwen/fixture', 'abc');
+  const library = new VoiceCatalogService({
+    root,
+    free: () => 20 * 1024 ** 3,
+    ownerStamp: () => '123',
+    prepare: async () => {},
+    emit: ({ stage, progress }) => stages.push([stage, progress]),
+    run: async (_executable, args, { output }) => {
+      const encoded = args[args.indexOf('-ArgumentsBase64') + 1];
+      const switches = JSON.parse(Buffer.from(encoded, 'base64'));
+      if (switches.includes('-Cuda')) {
+        assert.deepEqual(switches, ['-Russian', '-Cuda']);
+        output('{"stage":"cuda-download","received":8,"total":4}');
+        output('{"stage":"cuda-download","received":2,"total":4}');
+        output('{"stage":"dependencies"}');
+        output('{"stage":"verify"}');
+        write('.runtime/qwen-tts-cuda-venv/Scripts/python.exe', 'fixture');
+        write('.runtime/qwen-tts-cuda-venv/cuda-ready.json', {
+          schemaVersion: 1,
+          backend: 'cu128',
+        });
+        return;
+      }
+      assert.deepEqual(switches, ['-Russian']);
+      write('.runtime/qwen-tts-venv/Scripts/python.exe', 'fixture');
+      write('data/speech/russian/fixture', 'abc');
+      write('data/speech/accent/fixture', 'abc');
+    },
+  });
+  const model = () => library.snapshot().models.find((item) => item.id === RUSSIAN_QWEN_ID);
+  assert.deepEqual(model().languages, ['ru']);
+  assert.deepEqual(model().devices, ['cpu']);
+  assert.equal(voiceRuntimeKind(model()), 'qwen3-tts-ru-lora');
+  assert.throws(
+    () => library.install({ modelId: RUSSIAN_QWEN_ID, language: 'ru' }),
+    /Russian LoRA/,
+  );
+  write('data/speech/reference/fixture', 'abc');
+  library.install({ modelId: RUSSIAN_QWEN_ID, language: 'ru' });
+  await library.task;
+  assert.equal(library.snapshot().phase, 'ready');
+  assert.equal(model().installed, true);
+  await library.select({ modelId: 'qwen3-tts-0.6b-base', language: 'en' });
+  await library.select({ modelId: RUSSIAN_QWEN_ID, language: 'ru' });
+  assert.equal(new VoiceCatalogService({ root }).snapshot().selections.ru, RUSSIAN_QWEN_ID);
+  assert.equal(voiceBackendChanged(root, 'ru', 'en'), true);
+  assert.equal(speechModelsInstalled(root, 'ru'), true);
+  stages.length = 0;
+  library.install({ modelId: RUSSIAN_QWEN_ID, language: 'ru', cuda: true });
+  await library.task;
+  assert.equal(library.snapshot().russianQwenCudaReady, true);
+  assert.deepEqual(stages, [
+    ['python', null],
+    ['cuda-download', { received: 2, total: 4 }],
+    ['dependencies', null],
+    ['verify', null],
+    [null, 100],
+  ]);
+  write('data/speech/accent/fixture', 'incomplete');
+  assert.equal(model().installed, false);
+  assert.equal(speechModelsInstalled(root, 'ru'), false);
+  assert.equal(speechModelsInstalled(root, 'en'), true);
+});
+
+test('Qwen ROCm installs as a shared runtime without replacing CPU or CUDA', async (t) => {
+  const { root, write } = fixture(t);
+  const model = catalog.models.find(({ id }) => id === 'qwen3-tts-0.6b-base');
+  const windows = { platform: 'win32', osRelease: '10.0.26100' };
+  let gpu = 'AMD Radeon RX 7700 XT';
+  let installs = 0;
+  write('config/qwen-tts-upstream.json', {
+    directory: 'data/speech/qwen',
+    files: [{ file: 'fixture', bytes: 3 }],
+  });
+  write('data/speech/qwen/fixture', 'abc');
+  write('.runtime/qwen-tts-venv/Scripts/python.exe', 'CPU');
+  write('.runtime/qwen-tts-cuda-venv/Scripts/python.exe', 'CUDA');
+  write('.runtime/qwen-tts-cuda-venv/cuda-ready.json', { schemaVersion: 1, backend: 'cu128' });
+  const options = {
+    root,
+    hardware: async () => ({ ...windows, gpus: [{ name: gpu }] }),
+    free: () => 20 * 1024 ** 3,
+    ownerStamp: () => '123',
+    prepare: async () => {},
+    run: async (_executable, args, { output }) => {
+      installs++;
+      const encoded = args[args.indexOf('-ArgumentsBase64') + 1];
+      assert.deepEqual(JSON.parse(Buffer.from(encoded, 'base64')), ['-Rocm']);
+      output('{"stage":"rocm-download","received":1,"total":2}');
+      write('.runtime/qwen-tts-rocm-venv/Scripts/python.exe', 'ROCm');
+      write('.runtime/qwen-tts-rocm-venv/rocm-ready.json', {
+        schemaVersion: 1,
+        backend: 'rocm7.2.1',
+      });
+    },
+  };
+  const selection = { modelId: model.id, language: 'en', rocm: true };
+  const unsupported = new VoiceCatalogService(options);
+  unsupported.install(selection);
+  await unsupported.task;
+  assert.match(unsupported.snapshot().error, /supported Radeon/);
+  assert.equal(installs, 0);
+  gpu = 'AMD Radeon RX 9060 XT';
+  const library = new VoiceCatalogService(options);
+  assert.equal((await library.refresh()).qwenRocmSupported, true);
+  library.install(selection);
+  await library.task;
+  assert.equal(installs, 1);
+  assert.equal(library.snapshot().qwenRocmReady, true);
+  assert.deepEqual(
+    voiceRuntimes(root, model).map(({ backend }) => backend),
+    ['rocm', 'cpu'],
+  );
+  assert.equal(voiceRuntime(root, model).backend, 'rocm');
+  assert.equal(voiceRuntime(root, model, 'cpu').backend, 'cpu');
+  const russian = catalog.models.find(({ id }) => id === RUSSIAN_QWEN_ID);
+  assert.equal(voiceRuntime(root, russian).backend, 'cuda');
+  assert.equal(
+    voiceRuntime(root, russian, 'rocm:1:0000000000000000').env.ROCM_SDK_TARGET_FAMILY,
+    'custom',
+  );
+});
+
+test(
+  'Qwen installation retains native EXE recognition in the real PowerShell Python bootstrap',
+  { skip: process.platform !== 'win32' },
+  async (t) => {
+    const { root, write } = fixture(t);
+    const python = path.join(
+      root,
+      '.runtime/python/cpython-3.11.17-windows-x86_64-none/python.exe',
+    );
+    mkdirSync(path.dirname(python), { recursive: true });
+    write('.runtime/uv/uv.exe', 'unused runtime fixture');
+    const cs = path.join(root, 'Python.cs');
+    writeFileSync(
+      cs,
+      'class PythonFixture {static void Main(){System.Console.WriteLine("Python 3.11.17");}}',
+    );
+    const compile = spawnSync(
+      path.join(process.env.SystemRoot, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),
+      ['/nologo', '/target:exe', `/out:${python}`, cs],
+      { encoding: 'utf8', windowsHide: true },
+    );
+    assert.equal(compile.status, 0, compile.stdout + compile.stderr);
+    const helper = path.resolve('tools/setup/python-runtime.ps1').replaceAll("'", "''");
+    write('config/qwen-tts-upstream.json', {
+      directory: 'data/speech/qwen',
+      files: [{ file: 'model.safetensors', bytes: 3 }],
+    });
+    let verified = false;
+    const library = new VoiceCatalogService({
+      root,
+      free: () => 20 * 1024 ** 3,
+      ownerStamp: () => '123',
+      prepare: async () => {},
+      run: async (_exe, _args, options) => {
+        assert.equal(options.env.PATHEXT, '.COM;.EXE;.BAT;.CMD');
+        const script = `. '${helper}'; $r=Get-CapriPythonRuntime -ProjectRoot '${root.replaceAll("'", "''")}'; if($r.Version -ne '3.11.17'){exit 41}`;
+        await runCommand(
+          'powershell.exe',
+          ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+          options,
+        );
+        verified = true;
+        write('.runtime/qwen-tts-venv/Scripts/python.exe', 'fixture');
+        write('data/speech/qwen/model.safetensors', 'abc');
+      },
+    });
+    library.install({ modelId: 'qwen3-tts-0.6b-base', language: 'ru' });
+    await library.task;
+    assert.equal(verified, true);
+    assert.equal(library.snapshot().phase, 'ready');
+  },
+);
+
+test('Qwen failure diagnostics retain the stage and fixed reason without raw output or secrets', async (t) => {
+  const { root } = fixture(t);
+  const canary = 'PRIVATE-ERROR-TEXT-credential-983174';
+  const library = new VoiceCatalogService({
+    root,
+    free: () => 20 * 1024 ** 3,
+    ownerStamp: () => '123',
+    prepare: async () => {},
+    run: async () => {
+      const error = new Error('Component failed: ' + canary);
+      error.outputTail = 'The local Python runtime does not match pinned Python 3.11.17. ' + canary;
+      error.exitCode = 1;
+      throw error;
+    },
+  });
+  library.install({ modelId: 'qwen3-tts-0.6b-base', language: 'ru' });
+  await library.task;
+  const status = library.snapshot();
+  assert.equal(status.phase, 'error');
+  assert.equal(status.errorCode, 'CAPRI_VOICE_PYTHON_VERSION');
+  assert.equal(status.error, 'Voice installation failed. Retry or save a diagnostic report.');
+  assert.equal(library.busy(), false);
+  assert.equal(existsSync(path.join(root, '.runtime/installer/install.lock.json')), false);
+  const state = diagnosticState(library.diagnostics());
+  assert.equal(state.lastFailure.code, status.errorCode);
+  assert.equal(state.lastFailure.stage, 'python');
+  assert.equal(state.lastFailure.exitCode, 1);
+  const log = readFileSync(path.join(root, 'logs/voice-catalog.jsonl'), 'utf8');
+  assert.equal(JSON.parse(privateLog(log)).code, status.errorCode);
+  assert.equal((log + JSON.stringify(status) + JSON.stringify(state)).includes(canary), false);
 });
 
 test('dataset import changes only the validated dataset after success and exposes no source path', async (t) => {

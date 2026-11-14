@@ -1,5 +1,5 @@
-/** Own-app Electron verification: silent fake inputs, real CPU ASR, isolated state. */
-import { saveSettings } from './settings-view.mjs';
+/** Own-app Electron verification: synthetic microphone input, real CPU ASR, isolated state. */
+import { saveSettings, settingsView } from './settings-view.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
@@ -11,7 +11,7 @@ import { root, runtime, initialize, environment } from '../../packages/runtime/s
 const parent = path.join(root, '.runtime/audio-input-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'electron-')),
-  fakeAudio = path.join(folder, 'silence.wav');
+  fakeAudio = path.join(folder, 'input-tone.wav');
 const wav = Buffer.alloc(44 + 16000 * 2 * 2);
 wav.write('RIFF', 0);
 wav.writeUInt32LE(wav.length - 8, 4);
@@ -25,6 +25,8 @@ wav.writeUInt16LE(2, 32);
 wav.writeUInt16LE(16, 34);
 wav.write('data', 36);
 wav.writeUInt32LE(wav.length - 44, 40);
+for (let i = 0; i < (wav.length - 44) / 2; i++)
+  wav.writeInt16LE(Math.round(5000 * Math.sin((2 * Math.PI * 440 * i) / 16000)), 44 + i * 2);
 writeFileSync(fakeAudio, wav);
 const server = createServer((req, res) => {
   if (req.url === '/v1/models') {
@@ -133,23 +135,12 @@ try {
   assert.equal(await denied(), 'NotAllowedError');
   record('listing input names does not open a stream or enable capture');
 
-  await application.evaluate(({ Menu }) => {
-    const original = Menu.buildFromTemplate.bind(Menu);
-    Menu.buildFromTemplate = (template) => {
-      const menu = original(template);
-      globalThis.__inputMenu = menu;
-      return menu;
-    };
-  });
-  await page.evaluate(() => window.capri.menu());
-  await application.evaluate(() => {
-    const submenu = globalThis.__inputMenu.getMenuItemById('microphone-input').submenu;
-    if (submenu.items.length < 2) throw new Error('Native microphone menu is empty');
-    if (submenu.items[0].type !== 'radio' || !submenu.items[0].checked)
-      throw new Error('Default input is not selected');
-    submenu.items[1].click();
-    globalThis.__inputMenu.closePopup();
-  });
+  const speechSettings = await settingsView(application, 'microphone');
+  const inputSelect = speechSettings.locator('#settings-audio-device');
+  await inputSelect.locator('option').nth(1).waitFor({ state: 'attached' });
+  assert.equal(await inputSelect.inputValue(), '');
+  await inputSelect.selectOption(selectedId);
+  await saveSettings(speechSettings);
   await page.waitForFunction(
     (id) => window.capri.bootstrap().then((value) => value.microphone.deviceId === id),
     selectedId,
@@ -159,18 +150,99 @@ try {
     JSON.parse(readFileSync(path.join(folder, 'desktop/microphone.json'), 'utf8')).deviceId,
     selectedId,
   );
-  record('native microphone menu selects and saves a named device while capture stays off');
-
-  await page.evaluate(() => window.capri.menu());
-  const [speechSettings] = await Promise.all([
-    application.waitForEvent('window'),
-    application.evaluate(() => {
-      globalThis.__inputMenu.getMenuItemById('speech-settings').click();
-      globalThis.__inputMenu.closePopup();
-    }),
-  ]);
-  await speechSettings.waitForURL('capri://desktop/settings.html');
-  await speechSettings.locator('#speech-panel').waitFor({ state: 'visible' });
+  record('Voice input selects and saves a named device while capture stays off');
+  const preview = speechSettings.getByRole('switch', { name: 'Listen to microphone' });
+  const gain = speechSettings.getByRole('slider', { name: 'Microphone gain' });
+  const meter = speechSettings.getByRole('meter', { name: 'Microphone level' });
+  await preview.waitFor();
+  assert.equal(await preview.isChecked(), false);
+  assert.equal(await page.evaluate(() => window.capri.setMicrophoneMonitor(true)), false);
+  await speechSettings.evaluate(() => {
+    const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    const connect = AudioNode.prototype.connect;
+    window.__previewInputs = [];
+    window.__previewPlayback = [];
+    AudioNode.prototype.connect = function (target, ...args) {
+      if (target === this.context.destination && this instanceof GainNode)
+        window.__previewPlayback.push({ context: this.context, gain: this.gain.value });
+      return connect.call(this, target, ...args);
+    };
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      const stream = await original(constraints);
+      window.__previewInputs.push({ stream, constraints });
+      return stream;
+    };
+  });
+  const settingsCaptureDenied = () =>
+    speechSettings.evaluate(async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+        return false;
+      } catch (error) {
+        return error.name === 'NotAllowedError';
+      }
+    });
+  assert.equal(await settingsCaptureDenied(), true);
+  await speechSettings.waitForFunction(
+    (id) => document.getElementById('settings-audio-device').value === id,
+    selectedId,
+  );
+  const previewTrack = (index, state) =>
+    speechSettings.waitForFunction(
+      ({ index, state }) =>
+        window.__previewInputs[index]?.stream.getAudioTracks()[0].readyState === state,
+      { index, state },
+    );
+  await preview.check();
+  await previewTrack(0, 'live');
+  assert.equal(await gain.inputValue(), '100');
+  assert.equal(await gain.getAttribute('min'), '0');
+  assert.equal(await gain.getAttribute('max'), '200');
+  const previewBounds = await preview.boundingBox();
+  const meterBounds = await meter.boundingBox();
+  assert.ok(meterBounds.x > previewBounds.x + previewBounds.width);
+  await speechSettings.waitForFunction(() => document.querySelector('meter').value > 0.05);
+  await gain.fill('0');
+  await speechSettings.waitForFunction(() => document.querySelector('meter').value < 0.01);
+  await gain.fill('200');
+  await speechSettings.waitForFunction(() => document.querySelector('meter').value > 0.2);
+  await speechSettings.waitForFunction(() =>
+    window.__previewPlayback.some(
+      ({ context, gain }) => context.state === 'running' && gain > 0 && gain < 1,
+    ),
+  );
+  assert.deepEqual(
+    await speechSettings.evaluate(() => window.__previewInputs[0].constraints.audio.deviceId),
+    { exact: selectedId },
+  );
+  assert.equal(await settingsCaptureDenied(), true);
+  assert.equal((await snapshot()).microphone.enabled, false);
+  await preview.uncheck();
+  assert.equal(await meter.evaluate((node) => node.value), 0);
+  await previewTrack(0, 'ended');
+  await speechSettings.waitForFunction(
+    () => window.__previewPlayback[0]?.context.state === 'closed',
+  );
+  await saveSettings(speechSettings);
+  assert.equal((await snapshot()).speech.microphoneGain, 200);
+  await preview.check();
+  await previewTrack(1, 'live');
+  await speechSettings.locator('[data-section="general"]').click();
+  await previewTrack(1, 'ended');
+  await settingsView(application, 'microphone');
+  assert.equal(await preview.isChecked(), false);
+  await preview.check();
+  await previewTrack(2, 'live');
+  await speechSettings.locator('#settings-window-close').click();
+  await previewTrack(2, 'ended');
+  assert.equal(await preview.isChecked(), false);
+  assert.equal(await settingsCaptureDenied(), true);
+  await page.evaluate(() => window.capri.openSettings('microphone'));
+  await preview.waitFor();
+  record(
+    'Microphone preview opens the chosen input on demand and releases it on stop, navigation or close',
+  );
   await speechSettings.locator('#speech-pause').evaluate((input) => {
     input.value = '2.7';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -186,8 +258,12 @@ try {
       .trailingSilenceSeconds,
     2.7,
   );
+  await speechSettings.evaluate(() =>
+    window.capri.setSkill({ id: 'capri.microphone', enabled: true }),
+  );
+  await speechSettings.locator('#skill-show-button').check();
   await speechSettings.locator('#settings-window-close').click();
-  record('native menu opens a working pause slider and saves it without opening the microphone');
+  record('Voice input saves the pause slider without opening the microphone');
 
   await page.locator('#microphone-toggle').click({ force: true });
   await page.waitForFunction(() => document.body.dataset.microphone === 'listening', null, {
@@ -211,6 +287,7 @@ try {
   await page.evaluate(() => window.capri.setSpeechSettings({ trailingSilenceSeconds: 3.2 }));
   assert.equal((await snapshot()).microphone.sessionId, first.sessionId);
   assert.equal((await snapshot()).microphone.trailingSilenceSeconds, 3.2);
+  assert.equal((await snapshot()).microphone.microphoneGain, 200);
   record('pause changes reach the warm ASR worker without restarting capture');
 
   await page.evaluate(() => window.capri.setMicrophoneDevice(''));

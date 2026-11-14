@@ -50,6 +50,22 @@ export function parseLlamaDevices(text, backend) {
 }
 export async function probeLanguageDevices(ollama, { runImpl = run } = {}) {
   if (!ollama || !existsSync(ollama)) return [];
+  if (/^llama-server(?:\.exe)?$/i.test(path.basename(ollama))) {
+    try {
+      const env = unrestrictedDeviceEnvironment(process.env);
+      for (const key of Object.keys(env)) if (/^(?:LLAMA_|GGML_|VK_)/i.test(key)) delete env[key];
+      const result = await runImpl(ollama, ['--list-devices'], {
+        env,
+        windowsHide: true,
+        timeout: 7000,
+        maxBuffer: 65536,
+        encoding: 'utf8',
+      });
+      return parseLlamaDevices(result.stdout + '\n' + result.stderr, 'vulkan');
+    } catch {
+      return [];
+    }
+  }
   const folder = path.join(path.dirname(ollama), 'lib/ollama'),
     executable = path.join(folder, 'llama-server.exe');
   if (!existsSync(executable)) return [];
@@ -83,6 +99,15 @@ export async function probeLanguageDevices(ollama, { runImpl = run } = {}) {
   }
   return [...found.values()];
 }
+export function migrateLanguageDevice(id, devices) {
+  const [, backend, ordinal] = /^(cuda|rocm):(\d{1,2}):[a-f0-9]{16}$/.exec(id) ?? [];
+  if (!backend) return devices;
+  const matches = devices.filter(
+    (item) =>
+      item.backend === 'vulkan' && modelDevice(backend, Number(ordinal), item.name)?.id === id,
+  );
+  return matches.length === 1 ? [...devices, { ...matches[0], id }] : devices;
+}
 export function parseVoiceDevices(text) {
   const packet = JSON.parse(text);
   if (
@@ -109,12 +134,16 @@ export function parseVoiceDevices(text) {
     return value ? [value] : [];
   });
 }
-export async function probeVoiceDevices(root, python, { env = {}, runImpl = run } = {}) {
+export async function probeVoiceDevices(
+  root,
+  python,
+  { env = {}, qwen = false, runImpl = run } = {},
+) {
   if (!python || !existsSync(python)) return [];
   try {
     const result = await runImpl(
       python,
-      [path.join(root, 'integrations/voice_runtime/device_inventory.py')],
+      ['-m', 'integrations.voice_runtime.device_inventory', ...(qwen ? ['--qwen'] : [])],
       {
         cwd: root,
         env: {
@@ -145,6 +174,8 @@ export function resolveModelDevice(id, devices) {
 }
 export async function languageDeviceLaunch(root, ollama, { probe = probeLanguageDevices } = {}) {
   const id = readModelDevices(root).language;
+  // Native NPU dialogue has its own worker. Ollama remains CPU-only for embeddings.
+  if (id.startsWith('npu-')) return { key: id, env: deviceEnvironment({ id: 'cpu' }) };
   const selected = resolveModelDevice(id, id === 'auto' || id === 'cpu' ? [] : await probe(ollama));
   return { key: id, env: deviceEnvironment(selected) };
 }
@@ -152,12 +183,12 @@ export async function voiceDeviceLaunch(
   root,
   python,
   runtimeEnv,
-  { probe = probeVoiceDevices } = {},
+  { probe = probeVoiceDevices, qwen = false } = {},
 ) {
   const id = readModelDevices(root).voice;
   const selected = resolveModelDevice(
     id,
-    id === 'auto' || id === 'cpu' ? [] : await probe(root, python, { env: runtimeEnv }),
+    id === 'auto' || id === 'cpu' ? [] : await probe(root, python, { env: runtimeEnv, qwen }),
   );
   return {
     key: id,

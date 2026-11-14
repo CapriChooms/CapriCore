@@ -31,15 +31,19 @@ production confirmation flow can be checked with
 `node tools/verify/verify-computer-chat.mjs` without starting models or operating
 on personal applications.
 
-The host keeps the original goal throughout the task. It reads Windows accessible
-controls first, acts on current targets, and observes again after every input.
-Visual interpretation is requested only when needed. A separate completion review
+The host keeps the original goal throughout the task. With an image-capable model,
+it interprets the whole active monitor before choosing the first UI action and
+refreshes that view as the task proceeds. Windows accessibility supplies field and
+control identities, verifies input targets and provides a fallback for text-only
+models. A separate completion review
 checks the original goal against actual results; completion evidence must match
 the observed window/field/label. Repeated unchanged actions, invalid targets and
 uncertain native mutations stop rather than silently replaying inputs. Only the
 task and final reply enter conversation history; intermediate field values and
-images remain transient. Planning uses the selected local model or the owner's
-explicitly configured provider through the existing credential boundary.
+images remain transient. Planning and visual interpretation use the selected local
+model or the owner's explicitly configured provider. An external model with image
+support enabled receives those task screenshots. Structured Discord operations
+use their own Windows controls and do not send screenshots of the chat.
 
 The executor is bounded to 100 decisions, 80 input actions and ten minutes per
 owner request. Early completed milestones remain available after the detailed
@@ -90,9 +94,11 @@ hold Ctrl, Shift or Alt during the drag. Clicks support left/right/middle button
 and double-clicks; context menus belonging to the observed application remain
 usable without accepting a covering window from another application. Text entry
 supports replacement and appending. Trusted
-Explorer taskbar targets can be clicked to switch applications; keyboard input
-still requires a fresh observation of the newly active application. The capture
-and control indicator cover full monitor bounds, including the taskbar.
+Explorer taskbar buttons can switch to an application named in the task. Capri
+rechecks the new foreground application's identity before using its controls.
+Visual observation covers the entire monitor containing the active window,
+including the taskbar and visible parts of other windows. After a switch Capri
+captures the monitor containing the newly active window.
 
 **Settings → Computer control → Control effects** provides Capri and Blackwall
 procedural styles, an intensity slider, a separate cursor/trail switch and pointer

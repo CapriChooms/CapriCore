@@ -70,6 +70,21 @@ export function registeredAvatarRect(
   };
 }
 
+/** Frame the whole sleeping silhouette, with room for the drifting Zs. */
+export function sleepingAvatarRect(viewport, { x, y, width, height }, zoom) {
+  const scale = Math.min(
+    (viewport.baseSize * zoom) / 1254,
+    (viewport.width * 0.94) / width,
+    (viewport.height * 0.84) / height,
+  );
+  return {
+    x: viewport.x + viewport.width / 2 - (x + width / 2) * scale,
+    y: viewport.y + viewport.height * 0.53 - (y + height / 2) * scale,
+    width: 1254 * scale,
+    height: 1254 * scale,
+  };
+}
+
 export function moveAvatar(layout, viewport, dx, dy) {
   const { x, y } = panBounds(viewport, layout.zoom);
   return {

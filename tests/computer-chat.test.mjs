@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import path from 'node:path';
 import { FullComputerAccess } from '../apps/desktop/full-computer-access.mjs';
@@ -9,6 +10,8 @@ import { ComputerRequests } from '../apps/desktop/computer-requests.mjs';
 import { Confirmations } from '../apps/desktop/main/confirmations.mjs';
 import { ChatService } from '../apps/desktop/chat-service.mjs';
 import { CompanionActions } from '../apps/desktop/companion-actions.mjs';
+import { CapriCore } from '../packages/core/src/index.mjs';
+import { registerActionToolSkills } from '../packages/skills/src/action-tools.mjs';
 import { SETTINGS_SCHEMA } from '../integrations/companion-tools/index.mjs';
 import {
   computerModeRequest,
@@ -17,6 +20,7 @@ import {
   ownerAppLaunch,
 } from '../apps/desktop/computer-mode-request.mjs';
 import { computerIntentClassifier } from '../apps/desktop/computer-planner.mjs';
+import { ownerRequestsWeb } from '../apps/desktop/computer-task-scope.mjs';
 import { toolDomain } from '../apps/desktop/task-route.mjs';
 
 test('explicit computer commands preserve full goals; questions, negations and quotations do not enable access', () => {
@@ -76,6 +80,7 @@ function fixture(overrides = {}) {
     dialogs = [],
     goals = [],
     taskContexts = [],
+    taskEfforts = [],
     ownerCallGoals = [];
   let now = 0,
     modelCalls = 0,
@@ -96,10 +101,11 @@ function fixture(overrides = {}) {
   });
   const requests = new ComputerRequests({
     access,
-    run: async (goal, { signal, previousTask, ownerRequestedCall }) => {
+    run: async (goal, { signal, previousTask, ownerRequestedCall, planningEffort }) => {
       signal.throwIfAborted();
       goals.push(goal);
       taskContexts.push(previousTask);
+      taskEfforts.push(planningEffort);
       if (ownerRequestedCall) ownerCallGoals.push(goal);
       return { ok: true, status: 'completed', steps: 3, summary: 'Verified the requested result.' };
     },
@@ -136,6 +142,7 @@ function fixture(overrides = {}) {
     records,
     goals,
     taskContexts,
+    taskEfforts,
     ownerCallGoals,
     get modelCalls() {
       return modelCalls;
@@ -143,7 +150,8 @@ function fixture(overrides = {}) {
     get discoveries() {
       return discoveries;
     },
-    send: (text) => chat.send({ id: randomUUID(), text }, (event) => events.push(event)),
+    send: (text, options) =>
+      chat.send({ id: randomUUID(), text, ...options }, (event) => events.push(event)),
     accept: () => {
       now += 3000;
       return confirmations.respond({ id: dialogs.at(-1).id, choice: 'confirm' });
@@ -236,6 +244,7 @@ test('an ordinary music turn rejects generated desktop escalation before any nat
           spotify.enabled && spotify.prepared ? 'spotify' : 'conversation',
         );
         const host = {
+          skills: new CapriCore(),
           authorizeAction: (tool, args) => f.chat.assertToolAllowed(tool, args),
           runComputerTask: () => nativeCalls++,
           computer: { execute: () => nativeCalls++ },
@@ -248,6 +257,7 @@ test('an ordinary music turn rejects generated desktop escalation before any nat
             },
           },
         };
+        registerActionToolSkills(host.skills, { spotify: host.spotify });
         const execute = (tool, args) =>
           CompanionActions.prototype.executeAction.call(host, tool, randomUUID(), args);
         for (const action of ['begin_control', 'observe', 'run_task', 'click', 'launch'])
@@ -269,6 +279,7 @@ test('an ordinary music turn rejects generated desktop escalation before any nat
           const result = await execute('spotify_control', args);
           f.chat.recordToolResult('spotify_control', args, result);
         }
+        await host.skills.close();
         const reply =
           spotify.enabled && spotify.prepared
             ? 'Resumed.'
@@ -376,6 +387,70 @@ test('the reported ASR variants and Steam chains preserve the original task', ()
   }
   assert.equal(computerModeRequest('Useful computer access is hard to set up'), null);
   assert.equal(ownerAppLaunch('Then open it.'), null);
+});
+
+test('localized Steam commands resolve to the Windows client and keep the library destination', () => {
+  for (const [text, library] of [
+    ['Ouvre Steam.', false],
+    ['Ouvrez l’application Steam.', false],
+    ['Запусти Стим.', false],
+    ['Ouvre la bibliothèque Steam.', true],
+    ['Открой библиотеку Steam.', true],
+    ['Open Steam Library.', true],
+  ]) {
+    assert.deepEqual(ownerAppLaunch(text), {
+      name: 'Steam',
+      single: !library,
+      ...(library && {
+        section: text.match(/library|bibliothèque|библиотеку/iu)[0],
+        sectionOnly: true,
+        literalName: text.slice(text.indexOf(' ') + 1, -1),
+      }),
+    });
+    assert.deepEqual(computerModeRequest(text, { fullComputerAccess: true }), {
+      enabled: true,
+      run: true,
+    });
+    assert.equal(computerModeRequest(text), null);
+  }
+  assert.equal(ownerAppLaunch('Recherche Steam sur Google.'), null);
+  assert.equal(ownerAppLaunch('Open Steam and search the web for Steam Deck.').single, false);
+});
+
+test('web scope recognizes a quoted search query without trusting quoted draft text', () => {
+  assert.equal(ownerRequestsWeb('Use full computer access, Google "a book title".'), true);
+  const nativeGoal = 'Open Notepad and type "Google a book title, visit https://example.com".';
+  assert.equal(ownerRequestsWeb(nativeGoal, ownerAppLaunch(nativeGoal)), false);
+});
+
+test('the owner’s thinking toggle reaches computer tasks without enabling a separate chat turn', async () => {
+  const f = fixture({
+    interfaceState: () => ({ fullComputerAccess: true, reasoningEffort: 'high' }),
+  });
+  const enable = f.send('Enable full computer access.');
+  assert.equal(f.accept(), true);
+  await enable;
+  const goal = 'Open Steam, then go to my library.';
+  await f.send(goal, { thinking: true });
+  await f.send(goal, { thinking: false });
+  assert.deepEqual(f.goals, [goal, goal]);
+  assert.deepEqual(f.taskEfforts, ['high', undefined]);
+});
+
+test('a classified computer task can run beyond the ordinary conversation deadline', async () => {
+  const f = fixture({
+    timeoutMs: 100,
+    interfaceState: () => ({ fullComputerAccess: true }),
+    computerIntent: async () => ({ intent: 'task', application: 'Notepad' }),
+    computerTask: async (_goal, { signal }) => {
+      await delay(150);
+      signal.throwIfAborted();
+      return { ok: true, status: 'completed', steps: 2, summary: 'Draft verified.' };
+    },
+  });
+  await f.send('In Notepad, put the word Ready on the first line.');
+  assert.equal(f.events.at(-1)?.type, 'turn.completed');
+  assert.equal(f.events.at(-1)?.assistant?.text, 'Draft verified.');
 });
 
 test('spoken Cyberpunk launch requests use the authorized computer route without warming a model', async () => {

@@ -30,6 +30,7 @@ await new Promise(resolve=>setTimeout(resolve,180));
 const png=await overlay.windows[0].webContents.capturePage();
 const size=png.getSize(),bitmap=png.toBitmap();
 if(bitmap[((Math.floor(size.height/2)*size.width+Math.floor(size.width/2))*4)+3]!==0)throw Error('Effects obscured the center of the display.');
+if(bitmap[(((size.height-2)*size.width+Math.floor(size.width/2))*4)+3]===0)throw Error('The bottom border was not drawn.');
 const file=${JSON.stringify(folder)}+'/'+theme+'.png';writeFileSync(file,png.toPNG());effects.push({theme,file,centerTransparent:true});}
 writeFileSync(${JSON.stringify(reportFile)},JSON.stringify({passed:true,windows,displays,effects}));
 }catch(error){writeFileSync(${JSON.stringify(reportFile)},JSON.stringify({passed:false,error:error.message}));process.exitCode=1;}
@@ -65,8 +66,9 @@ const report = JSON.parse(readFileSync(reportFile, 'utf8'));
 assert(report.passed, report.error ?? stderr);
 assert.equal(report.windows.length, report.displays.length);
 report.windows.forEach((w, i) => {
-  assert.deepEqual(w.bounds, report.displays[i].bounds);
+  assert.deepEqual(w.bounds, report.displays[i].workArea);
   assert(w.visible);
+  assert.equal(w.fullscreen, false);
   assert.equal(w.focusable, false);
 });
 console.log(JSON.stringify({ ...report, folder }));

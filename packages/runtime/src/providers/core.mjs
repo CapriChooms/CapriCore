@@ -1,6 +1,6 @@
 import { settings } from '../config/settings.mjs';
 import { runtime, headers } from '../context.mjs';
-import { startOllama, startGateway, stopManaged } from './services.mjs';
+import { startLlama, startGateway, stopManaged } from './services.mjs';
 import { request } from '../http.mjs';
 import { managedProcess } from '../host/processes.mjs';
 import { runCli } from '../client.mjs';
@@ -26,14 +26,14 @@ export async function startCore(
 ) {
   signal?.throwIfAborted();
   onStage('core', 'running');
-  const ollama = await startOllama(rt, { signal, voiceExpected, voiceReady });
+  const local = await startLlama(rt, { signal, voiceExpected, voiceReady });
   signal?.throwIfAborted();
   if (
     rt.remote?.enabled &&
     rt.remote.skipLocalModelOnApi !== false &&
     settings.model !== settings.embeddingModel
   ) {
-    // An owned Ollama server can survive a desktop restart with keep_alive=-1.
+    // An owned inference worker can survive a desktop restart with keep_alive=-1.
     // Release only the configured chat model; memory and other local services
     // keep their own residency policy.
     const { models = [] } = await request(`${rt.ollamaUrl}/api/ps`, { timeout: 3000, signal });
@@ -51,15 +51,21 @@ export async function startCore(
         throw new Error('The idle local language model could not be unloaded.');
     }
   }
-  if (!rt.remote?.enabled) await ensureNativeLanguageModel(rt, settings, { signal });
+  if (!rt.remote?.enabled && !rt.nativeNpu)
+    await ensureNativeLanguageModel(rt, settings, { signal });
   const inventory = await ensureEmbeddingModel(rt, {
     model: settings.embeddingModel,
     inventory: await request(`${rt.ollamaUrl}/api/tags`, { signal }),
     signal,
   });
-  for (const name of [...(rt.remote?.enabled ? [] : [settings.model]), settings.embeddingModel]) {
+  for (const name of [
+    ...(rt.remote?.enabled || rt.nativeNpu ? [] : [settings.model]),
+    settings.embeddingModel,
+  ]) {
     if (!inventory.models.some((model) => model.name === name))
-      throw new Error(`Model ${name} is missing. Run scripts/pull-models.mjs.`);
+      throw Object.assign(new Error(`Model ${name} is missing. Run scripts/pull-models.mjs.`), {
+        ...(name !== settings.embeddingModel && { code: 'CAPRI_LOCAL_LANGUAGE_MODEL_MISSING' }),
+      });
   }
   signal?.throwIfAborted();
   await startGateway(rt, { signal });
@@ -67,19 +73,21 @@ export async function startCore(
   onStage('core', 'ready');
   if (preload) {
     onStage('models', 'running');
-    await prewarmModels(rt, { signal, inventory });
-    let agentReady = true;
-    await (rt.remote?.enabled ? Promise.resolve() : prewarmAgentRuntime(rt, { signal })).catch(
-      (error) => {
-        signal?.throwIfAborted();
-        agentReady = false;
-        console.warn('Agent warmup unavailable:', error.message);
-      },
-    );
-    signal?.throwIfAborted();
-    onStage('models', agentReady ? 'ready' : 'failed');
+    try {
+      await prewarmModels(rt, { signal, inventory });
+      if (rt.nativeNpu) await rt.nativeNpu.ready({ signal });
+      else if (!rt.remote?.enabled) await prewarmAgentRuntime(rt, { signal });
+      signal?.throwIfAborted();
+      onStage('models', 'ready');
+    } catch {
+      signal?.throwIfAborted();
+      // The service and model inventory were already verified. The first real
+      // request may load the model lazily even if optional priming failed.
+      console.warn('CAPRI_MODEL_WARMUP_FAILED: models will load on demand.');
+      onStage('models', 'failed');
+    }
   }
-  return ollama;
+  return local;
 }
 
 export async function prewarmAgentRuntime(rt = runtime(), { signal } = {}) {
@@ -152,7 +160,7 @@ export async function prewarmModels(rt = runtime(), { signal, inventory } = {}) 
   // Direct provider priming creates no OpenClaw messages or user memories.
   // Avoid replacing a useful conversation KV cache with "Hello" on reconnect.
   signal?.throwIfAborted();
-  let warmLanguage = !rt.remote?.enabled;
+  let warmLanguage = !rt.remote?.enabled && !rt.nativeNpu;
   if (rt.remote?.enabled && rt.remote.skipLocalModelOnApi === false) {
     // API mode never imports or downloads a missing local language model.
     inventory ??= await request(`${rt.ollamaUrl}/api/tags`, { signal });
@@ -178,7 +186,7 @@ export async function prewarmModels(rt = runtime(), { signal, inventory } = {}) 
           timeout: 180000,
           signal,
           headers: { 'content-type': 'application/json' },
-          // Match OpenClaw's runner options: toggling context shift reloads Ollama.
+          // Use the same runner policy as OpenClaw.
           body: JSON.stringify({
             model: settings.model,
             messages: [{ role: 'user', content: 'Hello.' }],
@@ -214,6 +222,7 @@ export async function prewarmModels(rt = runtime(), { signal, inventory } = {}) 
 }
 
 export async function stopCore(rt = runtime(), { companion = true } = {}) {
+  rt.nativeNpu?.stop();
   const stop = async (name) => {
     const started = performance.now();
     try {
@@ -224,9 +233,10 @@ export async function stopCore(rt = runtime(), { companion = true } = {}) {
   };
   if (companion) await stop('desktop');
   // Voice and Gateway have independent lifelines. Drain both concurrently;
-  // leave Ollama available until Gateway has released its SQLite/session state.
+  // leave the local inference service available until Gateway has released its SQLite/session state.
   const results = await Promise.allSettled([stop('companion-voice'), stop(rt.logPrefix)]);
   const failed = results.find((result) => result.status === 'rejected');
   if (failed) throw failed.reason;
+  await stop('llama');
   await stop('ollama');
 }

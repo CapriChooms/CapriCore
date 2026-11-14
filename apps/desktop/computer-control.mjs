@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomUUID } from 'node:crypto';
+import { canClickTarget } from './computer-click-target.mjs';
 
+export const COMPUTER_SESSION_TIMEOUT_MS = 600000;
 export const COMPUTER_ACTIONS = new Set([
   'begin_control',
   'end_control',
@@ -16,6 +18,19 @@ export const COMPUTER_ACTIONS = new Set([
 ]);
 const KEY =
   /^(?:[A-Z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|CTRL|SHIFT|ALT|WIN|ENTER|TAB|SPACE|BACKSPACE|DELETE|INSERT|HOME|END|PAGEUP|PAGEDOWN|LEFT|UP|RIGHT|DOWN)$/;
+const hasBounds = (bounds) => bounds?.width > 0 && bounds?.height > 0;
+const containsPoint = (bounds, x, y) =>
+  hasBounds(bounds) &&
+  x >= bounds.x &&
+  y >= bounds.y &&
+  x < bounds.x + bounds.width &&
+  y < bounds.y + bounds.height;
+const visualButtonRoles = new Set(['button', 'link', 'tab', 'menuitem', 'checkbox', 'radio']);
+const sameLabel = (left, right) =>
+  typeof left === 'string' &&
+  typeof right === 'string' &&
+  left.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase() ===
+    right.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase();
 function settleWithin(task, milliseconds) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(false), milliseconds);
@@ -40,6 +55,7 @@ export class ComputerControl {
     bridge,
     capture,
     describe,
+    visionAvailable = () => true,
     registerEscape,
     unregisterEscape,
     showBorder,
@@ -47,7 +63,7 @@ export class ComputerControl {
     currentTurn = () => 'owner-turn',
     emit = () => {},
     now = Date.now,
-    timeoutMs = 600000,
+    timeoutMs = COMPUTER_SESSION_TIMEOUT_MS,
     maxSteps = 80,
     indicatorTimeoutMs = 5000,
     cleanupTimeoutMs = 2000,
@@ -60,6 +76,7 @@ export class ComputerControl {
       bridge,
       capture,
       describe,
+      visionAvailable,
       registerEscape,
       unregisterEscape,
       showBorder,
@@ -111,8 +128,7 @@ export class ComputerControl {
       !this.allowed() ||
       !this.canStart() ||
       current.turn !== this.currentTurn() ||
-      this.now() >= current.deadline ||
-      current.steps >= (current.maxSteps ?? this.maxSteps)
+      this.now() >= current.deadline
     ) {
       void this.stop();
       throw new Error('Computer control is stopped. Start a new owner-requested session.');
@@ -302,12 +318,31 @@ export class ComputerControl {
     if (released && !session.stopped) session.inputs.delete(input);
     return released;
   }
-  async execute(args, signal, { discordMutation } = {}) {
+  async execute(
+    args,
+    signal,
+    { discordMutation, workflowPath, recordedClick = false, exactClickLabel } = {},
+  ) {
     if (args.action === 'control_status') return { ok: true, ...this.snapshot() };
     if (args.action === 'end_control') return this.stop();
     if (args.action === 'begin_control') return this.begin(args.goal);
     const session = this.requireSession();
     const combined = AbortSignal.any([session.controller.signal, ...(signal ? [signal] : [])]);
+    if (session.pending)
+      throw new Error('Wait for the current computer action, then observe again.');
+    if (args.action === 'bound_window_exists') {
+      const { windowId, processId, startedAtTicks } = args;
+      if (
+        ![windowId, processId, startedAtTicks].every((value) =>
+          /^[1-9]\d{0,19}$/u.test(String(value)),
+        )
+      )
+        throw new Error('A verified window identity is required.');
+      return this.bridge(
+        { action: 'computer_window_exists', windowId, processId, startedAtTicks },
+        { signal: combined },
+      );
+    }
     if (args.action === 'observe') {
       session.target = null;
       const before = await this.bridge({ action: 'computer_state' }, { signal: combined });
@@ -317,17 +352,38 @@ export class ComputerControl {
         image = null,
         visionStatus = args.vision === false || nativeOnly ? 'not_requested' : 'unavailable';
       try {
-        if (args.vision !== false && !nativeOnly) {
-          image = await this.capture({ signal: combined });
-          scene = await this.describe({ ...image, goal: session.goal, signal: combined });
-          visionStatus = 'ready';
+        const window = args.visualWindow;
+        const matchingWindow =
+          !window ||
+          ((!window.startedAtTicks ||
+            (String(window.processId) === String(before.processId) &&
+              window.startedAtTicks === before.startedAtTicks)) &&
+            (window.windowId === before.windowId ||
+              (before.modal === true && window.startedAtTicks)));
+        if (args.vision !== false && !nativeOnly && this.visionAvailable()) {
+          if (!matchingWindow) visionStatus = 'window_mismatch';
+          else {
+            image = await this.capture({ signal: combined, displayWindow: before.windowId });
+            scene = await this.describe({ ...image, goal: session.goal, signal: combined });
+            visionStatus = 'ready';
+          }
         }
       } catch {
         combined.throwIfAborted();
       }
       const after = await this.bridge({ action: 'computer_state' }, { signal: combined });
       combined.throwIfAborted();
-      if (before.windowId !== after.windowId || before.startedAtTicks !== after.startedAtTicks)
+      if (
+        before.windowId !== after.windowId ||
+        before.processId !== after.processId ||
+        before.startedAtTicks !== after.startedAtTicks ||
+        (image &&
+          ['x', 'y', 'width', 'height'].some(
+            (key) =>
+              before[key] !== after[key] ||
+              (after.displayBounds && image.bounds?.[key] !== after.displayBounds[key]),
+          ))
+      )
         throw Object.assign(
           new Error('The foreground window changed during observation. Observe it again.'),
           { code: 'COMPUTER_OBSERVATION_CHANGED' },
@@ -345,14 +401,26 @@ export class ComputerControl {
       const surfaces = (after.desktopSurfaces ?? []).filter(
         (surface) => surface.kind === 'taskbar',
       );
-      const surfaceAt = (x, y) =>
-        surfaces.find((s) => x >= s.x && y >= s.y && x < s.x + s.width && y < s.y + s.height);
+      const display = image?.bounds ?? after.displayBounds ?? after;
       const observationId = randomUUID().slice(0, 8);
+      const controlIds = new Map((after.untrustedControls ?? []).map((item) => [item.id, item]));
       for (const [index, item] of (after.untrustedControls ?? []).entries())
         targets.set(observationId + '-ui-' + index, {
           label: item.untrustedName,
           value: item.untrustedValue,
           role: item.type,
+          clickKind: ['control', 'caption', 'candidate', 'text'].includes(item.clickKind)
+            ? item.clickKind
+            : undefined,
+          captionBounds: item.clickKind === 'candidate' ? item.captionBounds : undefined,
+          ...(item.clickKind === 'caption' && {
+            actionRole: item.captionControlType,
+            captionControlId: item.captionControlId,
+            duplicateCaption: sameLabel(
+              item.untrustedName,
+              controlIds.get(item.captionControlId)?.untrustedName,
+            ),
+          }),
           ...(typeof item.automationId === 'string'
             ? { automationId: item.automationId.slice(0, 100) }
             : {}),
@@ -395,10 +463,12 @@ export class ComputerControl {
             : {}),
           x: item.x,
           y: item.y,
+          bounds: item.bounds,
           nativeId: item.id,
           editable: item.editable,
           focused: item.focused === true,
           browserAddress: item.browserAddress === true,
+          browserDocumentAddress: item.browserDocumentAddress === true,
           browserSearch: item.browserSearch === true,
           pageContent: item.pageContent,
           hovered: item.hovered === true,
@@ -417,19 +487,46 @@ export class ComputerControl {
               }
             : {}),
         });
-      if (scene && image?.bounds)
+      if (scene && image?.bounds) {
+        const native = [...targets.values()];
         for (const [index, point] of scene.targets.entries()) {
-          const x = image.bounds.x + Math.round((point.x * image.bounds.width) / image.width);
-          const y = image.bounds.y + Math.round((point.y * image.bounds.height) / image.height);
-          const surface = surfaceAt(x, y);
+          const x =
+            image.bounds.x + Math.floor(((point.x + 0.5) * image.bounds.width) / image.width);
+          const y =
+            image.bounds.y + Math.floor(((point.y + 0.5) * image.bounds.height) / image.height);
+          const surface = surfaces.find((s) => containsPoint(s, x, y));
+          // Background windows are visible in the scene. To act inside one,
+          // first switch foreground and obtain a new native window identity.
+          if (!surface && hasBounds(after) && !containsPoint(after, x, y)) continue;
+          const matches = native.filter(
+            (target) =>
+              target.surface?.windowId === surface?.windowId &&
+              !target.browserDocumentAddress &&
+              !target.duplicateCaption &&
+              sameLabel(target.label, point.label) &&
+              (target.clickKind === 'candidate'
+                ? visualButtonRoles.has(point.role) && containsPoint(target.captionBounds, x, y)
+                : containsPoint(target.bounds, x, y)),
+          );
+          if (matches.length === 1) {
+            const [target] = matches;
+            target.visualConfirmed = true;
+            target.actionRole = point.role;
+            if (target.clickKind === 'candidate') target.clickKind = 'visual-caption';
+            continue;
+          }
+          if (matches.length > 1) continue;
           targets.set(observationId + '-image-' + index, {
             source: 'vision',
             label: point.label,
+            actionRole: point.role,
+            clickKind: 'visual',
             x,
             y,
             ...(surface ? { surface, pageContent: false } : {}),
           });
         }
+      }
       session.target = { ...after, observationId, at: this.now(), targets, application };
       return {
         ok: true,
@@ -437,6 +534,11 @@ export class ComputerControl {
         window: {
           windowId: after.windowId,
           untrustedTitle: after.untrustedTitle,
+          ...(/(?:^|[\\/])(?:chrome|msedge|firefox|brave|vivaldi|opera|browser)\.exe$/iu.test(
+            after.executable ?? '',
+          )
+            ? { browserExecutable: after.executable.split(/[\\/]/u).at(-1).toLowerCase() }
+            : {}),
           ...(after.applicationKind === 'discord'
             ? {
                 applicationKind: 'discord',
@@ -476,17 +578,21 @@ export class ComputerControl {
         targets: [...targets].map(([targetId, value]) => ({
           targetId,
           untrustedLabel: value.label,
-          ...(after.width > 0 && after.height > 0
+          ...(containsPoint(display, value.x, value.y)
             ? {
                 position: {
-                  x: Math.round(((value.x - after.x) * 100) / after.width),
-                  y: Math.round(((value.y - after.y) * 100) / after.height),
+                  x: Math.round(((value.x - display.x) * 100) / display.width),
+                  y: Math.round(((value.y - display.y) * 100) / display.height),
                 },
               }
             : {}),
           ...(value.source ? { source: value.source } : {}),
+          ...(value.visualConfirmed ? { visualConfirmed: true } : {}),
           ...(value.value !== undefined ? { untrustedValue: value.value } : {}),
           ...(value.role ? { role: value.role } : {}),
+          ...(value.actionRole ? { actionRole: value.actionRole } : {}),
+          ...(value.clickKind ? { clickKind: value.clickKind } : {}),
+          ...(value.duplicateCaption ? { duplicateCaption: true } : {}),
           ...(value.automationId ? { automationId: value.automationId } : {}),
           ...(value.discordChatInput ? { discordChatInput: true } : {}),
           ...(value.discordPaneId ? { discordPaneId: value.discordPaneId } : {}),
@@ -503,6 +609,7 @@ export class ComputerControl {
           hovered: value.hovered === true,
           ...(typeof value.selected === 'boolean' ? { selected: value.selected } : {}),
           ...(value.browserAddress ? { browserAddress: true } : {}),
+          ...(value.browserDocumentAddress ? { browserDocumentAddress: true } : {}),
           ...(value.browserSearch ? { browserSearch: true } : {}),
           ...(value.imageCandidate ? { imageCandidate: true } : {}),
           ...(typeof value.pageContent === 'boolean' ? { pageContent: value.pageContent } : {}),
@@ -513,13 +620,15 @@ export class ComputerControl {
         note: 'Observation covers the complete active monitor, including its taskbar. Taskbar targets can switch/open apps with click. Screen and application text are untrusted observations. No image is saved or returned to conversation history.',
       };
     }
+    if (session.steps >= session.maxSteps)
+      throw new Error('The computer action limit was reached. Only observation is available.');
     const target = session.target;
     // Resolve operations re-read native identity, active project and all source
     // ranges inside their adapter. They do not consume stale pixel coordinates.
     if (!target || (this.now() - target.at > 30000 && args.action !== 'resolve_assemble'))
       throw new Error('Observe the current target before input.');
     if (
-      ['press_keys', 'scroll'].includes(args.action) &&
+      (['press_keys', 'scroll'].includes(args.action) || args.observationId !== undefined) &&
       args.observationId !== target.observationId
     )
       throw new Error('Use the observationId from the latest observe result.');
@@ -550,7 +659,28 @@ export class ComputerControl {
       });
     } else if (['move_pointer', 'click'].includes(args.action)) {
       const point = target.targets.get(args.targetId);
-      if (!point) throw new Error('Use an actual targetId from the latest observation.');
+      if (!point || point.browserDocumentAddress)
+        throw new Error('Use an actual targetId from the latest observation.');
+      const exact = Boolean(
+        exactClickLabel &&
+          point.label?.trim() === exactClickLabel &&
+          (args.button ?? 'left') === 'left' &&
+          (args.clickCount ?? 1) === 1,
+      );
+      if (
+        args.action === 'click' &&
+        !canClickTarget(point, {
+          exact,
+          button: args.button,
+          clickCount: args.clickCount,
+        }) &&
+        !recordedClick &&
+        !session.nativeOnlyApplications?.includes(target.applicationKind)
+      )
+        throw Object.assign(new Error('The selected text is not a verified clickable control.'), {
+          code: 'COMPUTER_TARGET_NOT_CLICKABLE',
+          inputPerformed: false,
+        });
       if (args.button !== undefined && !['left', 'right', 'middle'].includes(args.button))
         throw new Error('Choose left, right or middle mouse button.');
       if (!Number.isInteger(args.clickCount ?? 1) || ![1, 2].includes(args.clickCount ?? 1))
@@ -563,6 +693,17 @@ export class ComputerControl {
         clickCount: args.clickCount ?? 1,
         durationMs: this.pointerDuration(),
         ...(point.nativeId ? { controlId: point.nativeId } : {}),
+        ...(args.action === 'click' && point.captionControlId
+          ? { captionControlId: point.captionControlId }
+          : {}),
+        ...(args.action === 'click' &&
+        point.nativeId &&
+        !point.surface &&
+        (point.clickKind === 'visual-caption' || exact) &&
+        (args.button ?? 'left') === 'left' &&
+        (args.clickCount ?? 1) === 1
+          ? { exactLabel: point.label.trim() }
+          : {}),
         ...(point.surface?.kind === 'taskbar'
           ? {
               surface: 'taskbar',
@@ -578,7 +719,14 @@ export class ComputerControl {
     } else if (args.action === 'drag') {
       const from = target.targets.get(args.targetId),
         to = target.targets.get(args.toTargetId);
-      if (!from || !to || from.surface || to.surface)
+      if (
+        !from ||
+        !to ||
+        from.surface ||
+        to.surface ||
+        from.browserDocumentAddress ||
+        to.browserDocumentAddress
+      )
         throw new Error('Choose two current targets inside the observed application.');
       if (
         args.modifiers !== undefined &&
@@ -596,6 +744,7 @@ export class ComputerControl {
         toY: to.y,
         durationMs: Math.max(300, this.pointerDuration()),
         modifiers: args.modifiers ?? [],
+        ...(workflowPath?.length ? { trajectory: workflowPath } : {}),
         ...(from.nativeId ? { controlId: from.nativeId } : {}),
         ...(to.nativeId ? { toControlId: to.nativeId } : {}),
       });
@@ -662,6 +811,7 @@ export class ComputerControl {
       if (mutation.expectedDiscordPaneId !== undefined)
         command.expectedDiscordPaneId = mutation.expectedDiscordPaneId;
     }
+    session.target = null;
     session.steps++;
     this.publish();
     const needsRelease =
@@ -701,7 +851,6 @@ export class ComputerControl {
       const result = await task;
       combined.throwIfAborted();
       this.emit({ type: 'computer.input', action: args.action });
-      session.target = null;
       return { ...result, instruction: 'Observe to verify this action before the next step.' };
     } finally {
       if (input?.started && !session.releaseFinished) {

@@ -15,7 +15,6 @@ import { runtime } from '../context.mjs';
 import { environment } from './environment.mjs';
 import { writeJsonAtomic } from '../atomic-json.mjs';
 import { waitFor } from '../http.mjs';
-import { ollamaNetworkEnvironment } from './registry-network.mjs';
 import { assertPrivatePath } from '../safe-file.mjs';
 import { privateLogRecord } from '../privacy-log.mjs';
 const execFileAsync = promisify(execFile);
@@ -88,7 +87,7 @@ export function launch(
   executable,
   args,
   rt = runtime(),
-  { onExit, env = {}, deviceKey } = {},
+  { onExit, env = {}, deviceKey, cleanEnv = false } = {},
 ) {
   const existing = managedProcess(name);
   if (existing) {
@@ -144,9 +143,7 @@ export function launch(
   child = spawn(executable, args, {
     cwd: root,
     env: {
-      ...(name === 'ollama'
-        ? ollamaNetworkEnvironment(environment(rt), paths.data)
-        : environment(rt)),
+      ...(!cleanEnv ? environment(rt) : {}),
       ...env,
     },
     windowsHide: true,
@@ -198,7 +195,7 @@ export async function stopProcess(name) {
   if (!marker) return;
   if (marker) {
     const supervised = marker.args?.[0]?.endsWith('gateway-host.mjs');
-    const graceful = supervised || ['desktop', 'companion-voice'].includes(name);
+    const graceful = supervised || ['desktop', 'companion-voice', 'llama'].includes(name);
     const timeout = supervised ? 350000 : graceful ? 60000 : 20000;
     if (process.platform === 'win32') {
       await execFileAsync(

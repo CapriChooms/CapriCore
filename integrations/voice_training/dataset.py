@@ -9,10 +9,6 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-import numpy as np
-import soundfile as sf
-import soxr
-
 ROOT = Path(__file__).resolve().parents[2]
 FIELDS = ["id", "file", "text", "emotion", "scene", "split", "approved"]
 SPLITS = {"train", "validation", "test", "reference"}
@@ -138,6 +134,9 @@ def scan(config):
 
 
 def audio_metrics(file, sample_rate):
+    import numpy as np
+    import soundfile as sf
+
     audio, rate = sf.read(file, dtype="float32", always_2d=True)
     if not np.isfinite(audio).all() or audio.shape[0] == 0:
         raise ValueError("Empty or non-finite audio")
@@ -175,11 +174,11 @@ def audio_metrics(file, sample_rate):
         if float(np.mean(part**2)) > energy * 0.7:
             warnings.append(f"Speech near {label}: check that no syllable was cut")
     # No denoising, VAD trimming, compression, gain or pitch processing.
-    prepared = (
-        soxr.resample(mono, rate, sample_rate, quality="HQ")
-        if rate != sample_rate
-        else mono
-    )
+    if rate != sample_rate:
+        import soxr
+
+        mono = soxr.resample(mono, rate, sample_rate, quality="HQ")
+    prepared = mono
     metrics["pcmSha256"] = hashlib.sha256(prepared.astype("<f4").tobytes()).hexdigest()
     return prepared, metrics, warnings
 
@@ -244,6 +243,9 @@ def assign_splits(rows, seed):
 
 
 def prepare(config):
+    import numpy as np
+    import soundfile as sf
+
     folder = init_dataset(config)
     with (folder / "metadata.csv").open(encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)

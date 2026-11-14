@@ -2,7 +2,9 @@
   "schemaVersion": 1,
   "productId": "capri.desktop",
   "platform": "win32-x64",
-  "minimumWindowsBuild": 19045,
+  "minimumWindowsBuild": 17763,
+  "recommendedWindowsBuild": 19045,
+  "legacyWindowsStatus": "experimental",
   "storage": {
     "npmDownloadMiB": 192,
     "coreExpandedMiB": 3584,
@@ -19,34 +21,28 @@
   },
   "artifacts": {
     "electron": {
-      "version": "45.0.0",
-      "url": "https://github.com/electron/electron/releases/download/v45.0.0/electron-v45.0.0-win32-x64.zip",
-      "mirrors": ["https://npmmirror.com/mirrors/electron/45.0.0/electron-v45.0.0-win32-x64.zip"],
-      "sha256": "ae53887a23bb640369c93dbd38c408a2af5c0deb86f2fa76c6c244cb444b7f47",
-      "bytes": 158223852,
+      "version": "45.3.1",
+      "url": "https://github.com/electron/electron/releases/download/v45.3.1/electron-v45.3.1-win32-x64.zip",
+      "mirrors": ["https://npmmirror.com/mirrors/electron/45.3.1/electron-v45.3.1-win32-x64.zip"],
+      "sha256": "d92d1aa4700e3a7e7f174731f5086ebd9c21f9773e642b260160fe0a6ebe12d2",
+      "bytes": 158352921,
       "directory": "electron"
     },
     "node": {
       "version": "24.22.1",
       "url": "https://nodejs.org/dist/v24.22.1/node-v24.22.1-win-x64.zip",
+      "mirrors": ["https://cdn.npmmirror.com/binaries/node/v24.22.1/node-v24.22.1-win-x64.zip"],
       "sha256": "d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5",
       "bytes": 37748064,
       "directory": "node-v24.22.1-win-x64"
     },
-    "ollama": {
-      "version": "0.40.10",
-      "url": "https://github.com/ollama/ollama/releases/download/v0.40.10/ollama-windows-amd64.zip",
-      "sha256": "d52aea2d323bdd324bf66a4b1226844aa5fb665cc5974fbcceceda1ce3d934eb",
-      "bytes": 1586229413,
-      "directory": "ollama"
-    },
-    "ollamaRocm": {
-      "version": "0.40.10",
-      "url": "https://github.com/ollama/ollama/releases/download/v0.40.10/ollama-windows-amd64-rocm.zip",
-      "sha256": "38db20f829404a6d86c17428263e0bb20e802f6054db7ad81fa535d38fc081b0",
-      "bytes": 256578673,
-      "expandedBytes": 1025349792,
-      "directory": "ollama"
+    "llama": {
+      "version": "b12317",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12317/llama-b12317-bin-win-vulkan-x64.zip",
+      "sha256": "968a487604622f4194d0451d77a92b6a7cff1c29338e88841dd38472c81013ca",
+      "bytes": 38051900,
+      "expandedBytes": 106633501,
+      "directory": "llama-b12317-vulkan"
     },
     "git": {
       "version": "2.56.0.4",

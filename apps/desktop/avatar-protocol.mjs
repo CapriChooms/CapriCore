@@ -4,14 +4,21 @@ const MAX_CONTROL = 128;
 const LISTEN_SUFFIX = ';listen';
 const COMPLETE_LISTEN_SUFFIX = /^;listen\]?\s*$/i;
 
-export function avatarInstructions(sprites, { followUp = false } = {}) {
+export function avatarInstructions(sprites, { followUp = false, compact = false } = {}) {
   if (!sprites.length)
     return 'This interface currently has no controllable avatar. Write only your reply, without control markers.';
+  const listening =
+    'LISTENING CONTROL: For a genuine question that invites a response, use [avatar:ID;listen]. Keep ;listen inside the opening marker. It only continues an already-enabled microphone.';
+  if (compact)
+    return [
+      `AVATAR CONTROL: Start with one hidden marker [avatar:ID] on its own line, followed by your reply. Pick the ID that fits: ${sprites.map((sprite) => sprite.id).join(', ')}. Use no closing tag.`,
+      ...(followUp ? [listening] : []),
+    ].join('\n');
   const options = sprites.map((sprite) => `${sprite.id}: ${sprite.description}`).join('\n');
   return `AVATAR CONTROL:
-Choose your facial expression or reaction from context. Begin your final user-facing answer with exactly one hidden marker [avatar:ID], then a newline and your English reply. When a tool is needed, call it first without an avatar marker or spoken preamble; choose the avatar only for your answer after the tool result. Use one listed ID:
+Choose your facial expression or reaction from context. Begin your final user-facing answer with exactly one hidden marker [avatar:ID], then a newline and your reply. When a tool is needed, call it first without an avatar marker or spoken preamble; choose the avatar only for your answer after the tool result. Use one listed ID:
 ${options}
-${followUp ? 'LISTENING CONTROL: For a genuine follow-up question or explicit invitation to answer, use [avatar:ID;listen] as the opening control line instead of [avatar:ID]. The ;listen flag belongs ONLY inside that opening bracketed marker. Never put it in the spoken reply or at the end of the answer. For rhetorical questions, routine task confirmations and goodbyes use [avatar:ID]. This grants only a short continuation of an already-enabled microphone.' : ''}
+${followUp ? listening : ''}
 Example first line (no punctuation after the marker):
 [avatar:${sprites[0].id}]
 Then write the reply on the next line. Keep one choice per reply. The marker is a single opening control line, not an XML tag: never add a closing marker or repeat it in the reply. Vary your expression naturally and be empathetic to distress. Choose a flirty expression or a wink only when the conversation invites it. Laugh when something is genuinely funny. Facial reactions finish automatically; blinking and speech motion are handled locally. Never explain or quote the marker. These graphics do not grant computer-control tools.`;

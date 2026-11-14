@@ -13,6 +13,10 @@ import {
 } from '../packages/runtime/src/hardware/model-profile.mjs';
 import { contextChoicesFor } from '../packages/runtime/src/config/context-policy.mjs';
 import { validateImportedProfile } from '../packages/runtime/src/hardware/imported-model.mjs';
+import {
+  IMPORTED_CHAT_ERROR,
+  verifyImportedChat,
+} from '../packages/runtime/src/providers/model-residency.mjs';
 import { ModelService } from '../apps/desktop/model-service.mjs';
 
 const config = JSON.parse(readFileSync(path.join(root, 'config/core.json'), 'utf8'));
@@ -52,6 +56,7 @@ function modelService(overrides = {}) {
     inventory: async () => ({ models: [{ name: profile.model, size: profile.sizeBytes }] }),
     ensure: async () => {},
     native: async () => {},
+    probeImported: async () => {},
     describe: async () => description(),
     pull: () => assert.fail('Imported models must not be pulled by Ollama registry name'),
     ...overrides,
@@ -121,6 +126,44 @@ test('text-only imported profiles still require real completion, template and su
     assert.equal((await service.prepare(profile.id)).phase, 'error');
     assert.equal(service.prepared, null);
   }
+});
+
+test('an imported model must generate visible text with the chosen runner settings before activation', async () => {
+  const candidate = { ...profile, contextLimit: 24576, capabilities: ['thinking'] };
+  let received;
+  let result = null;
+  const service = modelService({
+    config: { ...config, acceleration: 'cpu' },
+    customProfiles: () => [candidate],
+    describe: async () => description(['completion', 'thinking'], candidate.contextLimit),
+    probeImported: (model, { signal }) =>
+      verifyImportedChat(model, {
+        signal,
+        requestImpl: async (url, { body }) => {
+          assert.equal(url, 'http://127.0.0.1:11435/api/chat');
+          received = JSON.parse(body);
+          if (!result) throw new Error('HTTP 500 from Ollama');
+          return result;
+        },
+      }),
+  });
+  const failed = await service.prepare(profile.id);
+  assert.equal(failed.phase, 'error');
+  assert.equal(failed.error, IMPORTED_CHAT_ERROR);
+  assert.equal(failed.current, config.model);
+  await assert.rejects(
+    service.apply(() => assert.fail('A failed probe cannot commit')),
+    /Prepare/,
+  );
+  assert.equal(received.model, candidate.alias);
+  assert.equal(received.options.num_ctx, 16384);
+  assert.equal(received.options.num_gpu, 0);
+  assert.equal(received.keep_alive, 0);
+  assert.equal(received.think, false);
+  result = { done: true, message: { content: ' ', thinking: 'Hidden output' } };
+  assert.equal((await service.prepare(profile.id)).phase, 'error');
+  result = { done: true, message: { content: 'OK.' } };
+  assert.equal((await service.prepare(profile.id)).phase, 'ready');
 });
 
 test('HF model profile persists through restart with limited context, preserved memory and rollback', () => {

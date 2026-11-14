@@ -16,7 +16,7 @@ if($null -ne $capriOwnedParsed){$capriOwnedArguments=@($capriOwnedParsed)}
 foreach($capriOwnedArgument in $capriOwnedArguments){if($capriOwnedArgument -isnot [string]){throw 'Invalid speech installer argument.'}}
 $capriOwnedAllowed=@{
     archive=@('Archive','Destination','MaximumBytes'); voice=@('DependenciesOnly');
-    multilingual=@('Language'); qwen=@(); 'recognition-en'=@(); 'recognition-multi'=@(); 'recognition-fast-multi'=@()
+    multilingual=@('Language'); qwen=@('Russian','Cuda','Rocm'); 'recognition-en'=@(); 'recognition-multi'=@(); 'recognition-fast-multi'=@()
 }
 $capriOwnedParameters=@{}
 for($capriOwnedIndex=0;$capriOwnedIndex -lt $capriOwnedArguments.Count;$capriOwnedIndex++){
@@ -24,7 +24,7 @@ for($capriOwnedIndex=0;$capriOwnedIndex -lt $capriOwnedArguments.Count;$capriOwn
     if(-not $capriOwnedName.StartsWith('-')){throw 'Invalid speech installer parameter.'}
     $capriOwnedName=$capriOwnedName.Substring(1)
     if($capriOwnedName -notin $capriOwnedAllowed[$Component] -or $capriOwnedParameters.ContainsKey($capriOwnedName)){throw 'Unsupported speech installer parameter.'}
-    if($capriOwnedName -eq 'DependenciesOnly'){$capriOwnedParameters[$capriOwnedName]=$true}
+    if($capriOwnedName -in @('DependenciesOnly','Russian','Cuda','Rocm')){$capriOwnedParameters[$capriOwnedName]=$true}
     else {
         $capriOwnedIndex++
         if($capriOwnedIndex -ge $capriOwnedArguments.Count){throw 'Missing speech installer parameter value.'}

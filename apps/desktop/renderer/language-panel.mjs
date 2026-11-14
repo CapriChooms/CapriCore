@@ -78,7 +78,11 @@ export class LanguagePanel {
     if (this.installation?.phase === 'installing') return false;
     if (this.api.speechAvailability) this.speechAvailability = await this.api.speechAvailability();
     const speech = resolveLanguages(draft).speech;
-    if (speech !== 'off' && this.speechAvailability?.[speech] === false) {
+    if (
+      this.installScope !== 'microphone' &&
+      speech !== 'off' &&
+      this.speechAvailability?.[speech] === false
+    ) {
       const choice = await this.confirm.ask({
         title: 'Selected voice is not installed',
         detail:
@@ -170,34 +174,42 @@ export class LanguagePanel {
       !this.speechAvailability[resolved.speech];
     const installButton = document.getElementById('language-install-speech');
     const busy = this.installation?.phase === 'installing';
-    installButton.hidden = (!missingVoice && !unavailable) || busy;
-    installButton.textContent = this.ui.text('Install and enable');
+    const offerVoice = this.installScope !== 'microphone' && missingVoice;
+    const offerRecognition = this.installScope !== 'voice' && unavailable;
+    installButton.hidden = (!offerVoice && !offerRecognition) || busy;
+    installButton.textContent = this.ui.text(this.installScope ? 'Install' : 'Install and enable');
     document.getElementById('language-status').textContent = this.ui.text(
-      missingVoice
-        ? 'Voice is not installed. Use Install and enable below; Capri handles all files and applies your selected language automatically.'
-        : unavailable
-          ? 'Recognition is not installed. Use Install and enable below.'
-          : resolved.speech === 'off'
-            ? 'This language uses text replies. No matching spoken voice is available or voice is disabled.'
-            : resolved.speech === 'en'
-              ? 'English uses the trained Capri voice.'
-              : 'Multilingual voice uses Capri’s reference recording. Accent and similarity vary by language.',
+      this.externalVoice && resolved.speech !== 'off'
+        ? 'External voice API is selected. Language support and voice identity depend on your provider.'
+        : missingVoice
+          ? this.installScope === 'voice'
+            ? 'Voice is not installed. Use Install below.'
+            : 'Voice is not installed. Use Install and enable below; Capri handles all files and applies your selected language automatically.'
+          : unavailable
+            ? 'Recognition is not installed. Use Install and enable below.'
+            : resolved.speech === 'off'
+              ? 'This language uses text replies. No matching spoken voice is available or voice is disabled.'
+              : resolved.speech === 'en'
+                ? 'English uses the trained Capri voice.'
+                : 'Multilingual voice uses Capri’s reference recording. Accent and similarity vary by language.',
     );
     document.getElementById('language-recognition-status').textContent = this.ui.text(
       resolved.recognition === 'off'
         ? 'Microphone is unavailable for this selection.'
         : unavailable
-          ? 'Recognition is not installed. Use Install and enable below.'
+          ? this.installScope === 'microphone'
+            ? 'Recognition is not installed. Use Install below.'
+            : 'Recognition is not installed. Use Install and enable below.'
           : resolved.recognition === 'auto-europe'
             ? 'Fast automatic recognition of 25 European languages. Language is detected per utterance; switching languages inside one phrase may lose words. Other languages need Auto-detect / Whisper. No draft transcription is used.'
             : pack?.recognizer.startsWith('parakeet')
               ? 'Parakeet runs locally on CPU. Changing language stops the microphone.'
               : 'Whisper runs locally on CPU. Auto-detection and some languages take longer. Changing language stops the microphone.',
     );
-    document.getElementById('language-install-help').hidden = !missingVoice && !unavailable;
-    document.getElementById('language-install-details').hidden = !missingVoice && !unavailable;
+    document.getElementById('language-install-help').hidden = !offerVoice && !offerRecognition;
+    document.getElementById('language-install-details').hidden = !offerVoice && !offerRecognition;
     document.getElementById('language-install-help').textContent = this.ui.text(
-      missingVoice
+      offerVoice
         ? 'Setup installs the voice for your Conversation language automatically. English uses the included Capri voice; other supported languages use one multilingual model (BETA). No separate voice ZIP is needed. NVIDIA CUDA or a supported AMD ROCm GPU on Windows 11 is required. AMD support is experimental.'
         : 'Downloads only the missing recognition components. Existing downloads are reused.',
     );
@@ -207,11 +219,12 @@ export class LanguagePanel {
     const draft = validateLanguages(value);
     const resolved = resolveLanguages(draft);
     this.pendingLanguages = draft;
+    this.pendingInstallScope = this.installScope;
     try {
       this.installStatus(
         await this.api.installSpeech({
-          speech: resolved.speech,
-          recognition: resolved.recognition,
+          speech: this.installScope === 'microphone' ? 'off' : resolved.speech,
+          recognition: this.installScope === 'voice' ? 'off' : resolved.recognition,
         }),
       );
     } catch (error) {
@@ -225,12 +238,14 @@ export class LanguagePanel {
     else this.renderInstallation();
     if (value.phase === 'ready' && this.pendingLanguages) {
       const draft = this.pendingLanguages;
+      const scope = this.pendingInstallScope;
       this.pendingLanguages = null;
       void this.api
         .setLanguages(draft)
         .then(async (saved) => {
           this.show(saved);
-          if (resolveLanguages(draft).speech !== 'off') await this.api.setVoiceEnabled(true);
+          if (!scope && resolveLanguages(draft).speech !== 'off')
+            await this.api.setVoiceEnabled(true);
         })
         .catch((error) => this.onError(error.message));
     }

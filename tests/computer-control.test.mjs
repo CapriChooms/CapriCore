@@ -52,6 +52,176 @@ function fixture() {
   return { state, control };
 }
 
+test('a native input failure consumes the observation and an in-flight action excludes overlapping input', async () => {
+  const { state, control } = fixture();
+  const bridge = state.bridge;
+  const dispatched = Promise.withResolvers();
+  const response = Promise.withResolvers();
+  state.bridge = async (command) => {
+    if (command.action === 'computer_click') {
+      dispatched.resolve();
+      return response.promise;
+    }
+    return bridge(command);
+  };
+  try {
+    await control.begin('Click the fixture');
+    const view = await control.execute({ action: 'observe', vision: false });
+    const click = {
+      action: 'click',
+      observationId: view.observationId,
+      targetId: view.targets[0].targetId,
+    };
+    const action = control.execute(click);
+    const rejection = assert.rejects(action, /native receipt unavailable/);
+    await dispatched.promise;
+    await assert.rejects(control.execute(click), /current computer action/);
+    await assert.rejects(control.execute({ action: 'observe' }), /current computer action/);
+    response.reject(Error('native receipt unavailable'));
+    await rejection;
+    await assert.rejects(control.execute(click), /Observe the current target/);
+    const next = await control.execute({ action: 'observe', vision: false });
+    await assert.rejects(
+      control.execute({ ...click, targetId: next.targets[0].targetId }),
+      /latest observe result/,
+    );
+  } finally {
+    await control.stop();
+  }
+});
+
+test('bound vision captures the whole display and rejects a reused handle', async () => {
+  const { state, control } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    return command.action === 'computer_state'
+      ? { ...result, x: -400, y: 50, width: 800, height: 600 }
+      : result;
+  };
+  const captures = [];
+  const capture = control.capture;
+  control.capture = async (options) => {
+    captures.push(options.displayWindow);
+    assert.equal(options.windowBounds, undefined);
+    return { ...(await capture(options)), bounds: { x: -600, y: 0, width: 2000, height: 1000 } };
+  };
+  control.describe = async () => ({
+    summary: 'An app and the Windows taskbar.',
+    targets: [
+      { label: 'Behind the active window', x: 70, y: 50 },
+      { label: 'Inside the active window', x: 30, y: 40 },
+      { label: 'Taskbar button', x: 20, y: 97 },
+    ],
+  });
+  const stateWithGeometry = state.bridge;
+  state.bridge = async (command) => {
+    const result = await stateWithGeometry(command);
+    if (command.action === 'computer_state')
+      result.desktopSurfaces = [
+        {
+          kind: 'taskbar',
+          windowId: '10',
+          processId: '11',
+          startedAtTicks: '12',
+          x: -600,
+          y: 950,
+          width: 2000,
+          height: 50,
+        },
+      ];
+    return result;
+  };
+  try {
+    await control.begin('Observe the bound fixture');
+    const visualWindow = { windowId: '123', processId: 456, startedAtTicks: '789' };
+    const bound = await control.execute({ action: 'observe', vision: true, visualWindow });
+    assert.equal(bound.screenAvailable, true);
+    const stale = await control.execute({
+      action: 'observe',
+      vision: true,
+      visualWindow: { ...visualWindow, startedAtTicks: '888' },
+    });
+    assert.equal(stale.screenAvailable, false);
+    assert.equal(
+      bound.targets.some((target) => target.untrustedLabel === 'Behind the active window'),
+      false,
+    );
+    const taskbar = bound.targets.find((target) => target.untrustedLabel === 'Taskbar button');
+    assert.equal(taskbar.surface, 'taskbar');
+    assert.deepEqual(taskbar.position, { x: 21, y: 98 });
+    assert.equal(
+      bound.targets.some((target) => target.untrustedLabel === 'Inside the active window'),
+      true,
+    );
+    assert.deepEqual(captures, ['123']);
+  } finally {
+    await control.stop();
+  }
+});
+
+test('the last allowed action can be verified without permitting another input', async () => {
+  const { state, control } = fixture();
+  try {
+    await control.begin('Click the fixture once', { maxSteps: 1 });
+    const before = await control.execute({ action: 'observe', vision: false });
+    await control.execute({ action: 'click', targetId: before.targets[0].targetId });
+    const after = await control.execute({ action: 'observe', vision: false });
+    assert.notEqual(after.observationId, before.observationId);
+    await assert.rejects(
+      control.execute({ action: 'click', targetId: after.targets[0].targetId }),
+      /computer action limit/,
+    );
+    assert.equal(state.calls.filter(({ action }) => action === 'computer_click').length, 1);
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a browser document URL is visible as navigation evidence and cannot receive input', async () => {
+  const { control, state } = fixture();
+  const execute = state.bridge;
+  state.bridge = async (command) => {
+    const result = await execute(command);
+    if (command.action === 'computer_state')
+      result.untrustedControls.push({
+        id: 'doc',
+        type: 'ControlType.Document',
+        untrustedName: 'Article',
+        untrustedValue: 'https://example.com/article',
+        browserAddress: true,
+        browserDocumentAddress: true,
+        x: 25,
+        y: 50,
+        editable: false,
+      });
+    return result;
+  };
+  try {
+    await control.begin('Verify an article');
+    const view = await control.execute({ action: 'observe', vision: false });
+    const document = view.targets.find((target) => target.browserDocumentAddress);
+    assert.equal(document?.untrustedValue, 'https://example.com/article');
+    await assert.rejects(
+      control.execute({ action: 'click', targetId: document.targetId }),
+      /actual targetId/,
+    );
+    await assert.rejects(
+      control.execute({
+        action: 'drag',
+        targetId: document.targetId,
+        toTargetId: view.targets[0].targetId,
+      }),
+      /two current targets/,
+    );
+    assert.ok(
+      !state.calls.some((command) => ['computer_click', 'computer_drag'].includes(command.action)),
+    );
+  } finally {
+    await control.stop();
+  }
+});
+
 test('workflow ownership survives startup supervision without a chat, while revocation and lost Escape still stop it', async () => {
   for (const reason of ['permission', 'turn', 'escape']) {
     const { control, state } = fixture();
@@ -496,7 +666,7 @@ test('computer sessions require full access, visible emergency stop and a fresh 
       windowId: '123',
       processId: '456',
       startedAtTicks: '789',
-      x: 1140,
+      x: 1141,
       y: 250,
       button: 'left',
       clickCount: 1,
@@ -592,7 +762,7 @@ test('computer vision is tool-free and rejects generated actions or out-of-frame
     message: {
       content: JSON.stringify({
         summary: 'Owned fixture.',
-        targets: [{ label: 'OK', x: 5, y: 5 }],
+        targets: [{ label: 'OK', x: 5, y: 5, role: 'button' }],
       }),
     },
   };
@@ -613,9 +783,139 @@ test('computer vision is tool-free and rejects generated actions or out-of-frame
   delete packet.message.tool_calls;
   packet.message.content = JSON.stringify({
     summary: 'Fixture.',
-    targets: [{ label: 'outside', x: 10, y: 1 }],
+    targets: [{ label: 'outside', x: 10, y: 1, role: 'button' }],
   });
   await assert.rejects(infer(args), /Invalid screen targets/);
+  packet.message.content = JSON.stringify({
+    summary: 'Fixture.',
+    targets: [{ label: 'A heading', x: 5, y: 1, role: 'heading' }],
+  });
+  await assert.rejects(infer(args), /Invalid screen targets/);
+});
+
+test('a text-only provider falls back to Windows controls without capturing the display', async () => {
+  const { control } = fixture();
+  control.visionAvailable = () => false;
+  control.capture = async () => assert.fail('The text-only model must not receive an image');
+  await control.begin('Test native observation');
+  try {
+    const view = await control.execute({ action: 'observe', vision: true });
+    assert.equal(view.visionStatus, 'unavailable');
+    assert.equal(view.targets[0].untrustedLabel, 'Draft');
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a visually confirmed button keeps its native identity for the final hit test', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action === 'computer_state')
+      result.untrustedControls.push({
+        id: 'native-button',
+        untrustedName: 'Button',
+        type: 'ControlType.Button',
+        clickKind: 'control',
+        x: 1140,
+        y: 251,
+        bounds: { x: 1120, y: 234, width: 44, height: 32 },
+      });
+    return result;
+  };
+  await control.begin('Click the visible button');
+  try {
+    const view = await control.execute({ action: 'observe', vision: true });
+    const buttons = view.targets.filter((target) => target.untrustedLabel === 'Button');
+    assert.equal(buttons.length, 1);
+    assert.equal(buttons[0].visualConfirmed, true);
+    await control.execute({ action: 'click', targetId: buttons[0].targetId });
+    assert.equal(
+      state.calls.find(({ action }) => action === 'computer_click').controlId,
+      'native-button',
+    );
+  } finally {
+    await control.stop();
+  }
+});
+
+test('visual button evidence can promote the matching native caption but does not make other text clickable', async () => {
+  const { state, control } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action === 'computer_state')
+      result.untrustedControls = [
+        {
+          id: 'heading',
+          untrustedName: 'Export',
+          type: 'ControlType.Text',
+          clickKind: 'text',
+          x: 1060,
+          y: 210,
+        },
+        {
+          id: 'caption',
+          untrustedName: 'Export',
+          type: 'ControlType.Text',
+          clickKind: 'candidate',
+          x: 1141,
+          y: 250,
+          captionBounds: { x: 1120, y: 234, width: 44, height: 32 },
+        },
+        {
+          id: 'other-caption',
+          untrustedName: 'Print',
+          type: 'ControlType.Text',
+          clickKind: 'candidate',
+          x: 1150,
+          y: 280,
+          captionBounds: { x: 1125, y: 266, width: 60, height: 30 },
+        },
+      ];
+    return result;
+  };
+  control.describe = async () => ({
+    summary: 'Export controls.',
+    targets: [
+      { label: 'EXPORT', role: 'button', x: 70, y: 50 },
+      { label: 'Print', role: 'button', x: 20, y: 50 },
+    ],
+  });
+  await control.begin('Open the export screen and export the selected document');
+  try {
+    let view = await control.execute({ action: 'observe', vision: false });
+    const click = (target) => control.execute({ action: 'click', targetId: target.targetId });
+    await assert.rejects(click(view.targets[0]), {
+      code: 'COMPUTER_TARGET_NOT_CLICKABLE',
+      inputPerformed: false,
+    });
+    await assert.rejects(click(view.targets[1]), {
+      code: 'COMPUTER_TARGET_NOT_CLICKABLE',
+      inputPerformed: false,
+    });
+    assert.equal(
+      state.calls.some(({ action }) => action === 'computer_click'),
+      false,
+    );
+    view = await control.execute({ action: 'observe', vision: true });
+    const [heading, caption, printCaption] = view.targets;
+    assert.equal(heading.clickKind, 'text');
+    assert.equal(printCaption.clickKind, 'candidate');
+    assert.equal(caption.clickKind, 'visual-caption');
+    assert.equal(caption.actionRole, 'button');
+    assert.equal(
+      view.targets.filter((target) => target.untrustedLabel.toLowerCase() === 'export').length,
+      2,
+    );
+    await click(caption);
+    const receipt = state.calls.find(({ action }) => action === 'computer_click');
+    assert.equal(receipt.controlId, 'caption');
+    assert.equal(receipt.exactLabel, 'Export');
+  } finally {
+    await control.stop();
+  }
 });
 
 test('key input carries the observed native focus identity so a changed field cannot receive Enter', async () => {

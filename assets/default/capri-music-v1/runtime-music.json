@@ -13,25 +13,25 @@
       "description": "Listening with headphones while sitting on a window edge.",
       "anchor": {
         "name": "seat",
-        "x": 628,
-        "y": 771
+        "x": 650,
+        "y": 762
       },
       "visibleBounds": {
-        "x": 194,
-        "y": 76,
-        "width": 889,
+        "x": 188,
+        "y": 75,
+        "width": 877,
         "height": 1090
       },
       "face": {
-        "x": 639,
-        "y": 375
+        "x": 643,
+        "y": 379
       },
-      "mouth": [655, 403, -0.46, 36],
+      "mouth": [650, 416, -0.38, 38],
       "emitters": [
-        [533, 402],
-        [764, 365]
+        [538, 409],
+        [746, 374]
       ],
-      "sha256": "dedf301392e1784e08ef565200530d296c79dd84269bc68eceef3f2e923e4b97"
+      "sha256": "1682ee4d508da642891bff44bc18d61135facc342b3ea345e01de908fc55b955"
     },
     {
       "id": "music-floor",
@@ -41,25 +41,25 @@
       "description": "Listening with headphones while sitting cross-legged.",
       "anchor": {
         "name": "ground",
-        "x": 641,
-        "y": 1164
+        "x": 627,
+        "y": 1166
       },
       "visibleBounds": {
-        "x": 199,
-        "y": 296,
-        "width": 883,
+        "x": 207,
+        "y": 295,
+        "width": 840,
         "height": 871
       },
       "face": {
-        "x": 645,
-        "y": 615
+        "x": 625,
+        "y": 604
       },
-      "mouth": [661, 642, -0.47, 39],
+      "mouth": [635, 642, -0.35, 38],
       "emitters": [
-        [522, 642],
-        [775, 591]
+        [536, 626],
+        [729, 596]
       ],
-      "sha256": "c2ade3c79770565ca4be45371d6dbab213da2359f2844c50a3628f4e0e254181"
+      "sha256": "cb97e0f6f4c9ebeac3ec53ee9adc6138031249c6a37c0c0415b8c8e1567458e7"
     }
   ],
   "notes": [

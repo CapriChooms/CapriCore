@@ -87,6 +87,8 @@ export function initializePersonality(
     previousDefaults = [
       'f8f91991d946041b09b2a7eb0c7bf7aaf6beadb983fda88e09033416173c01ab',
       '8a6b02747e845dc989bb7f4757d55e24ded11814823bf763bd4f51760f4dfa8d',
+      '5078b2d39296c052ba32a0ac127ab87da724d26b6888fb1d160a719ecda2412a',
+      '96a6efd4e7368adf48032a5f8364f90180924d07b2bc1cbcceefce642f9f291f',
     ],
   } = {},
 ) {
@@ -113,7 +115,7 @@ export function initializePersonality(
   }
   const legacy = LEGACY_FILES.filter((name) => existsSync(path.join(workspace, name)));
   const stockHash = createHash('sha256').update(text.replace(/\r\n/g, '\n')).digest('hex');
-  // v0.3.5's unedited default; custom Personality text is never overwritten.
+  // Refresh recognized factory profiles while preserving owner edits.
   const refreshStock =
     previousDefaults.includes(stockHash) &&
     text.replace(/\r\n/g, '\n') !== defaultPersonality().replace(/\r\n/g, '\n');

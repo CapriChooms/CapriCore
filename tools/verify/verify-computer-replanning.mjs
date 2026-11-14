@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
+import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
 import { ComputerAgent } from '../../apps/desktop/computer-agent.mjs';
 import { ComputerControl } from '../../apps/desktop/computer-control.mjs';
+import { computerPlanner } from '../../apps/desktop/computer-planner.mjs';
 import { callApplicationBridge } from '../../integrations/desktop-actions/service.mjs';
 
 assert.equal(process.platform, 'win32', 'This native verifier requires Windows.');
@@ -43,8 +45,10 @@ const report = {
   preflightRejections: [],
   mainObserved: false,
   modalObserved: false,
+  completeOutlineBeforeInput: false,
   pendingPlanRevised: false,
   completedMilestoneRetained: false,
+  model: process.env.CAPRI_VERIFY_MODEL ?? null,
 };
 let control;
 const state = async (options) => {
@@ -66,7 +70,6 @@ const draft = {
   successCriterion: 'Verification text contains Capri replanned',
 };
 const save = {
-  id: 'save',
   label: 'Save the fixture draft',
   successCriterion: 'Draft saved is visible',
 };
@@ -75,7 +78,20 @@ const dismiss = {
   label: 'Dismiss the ordinary blocking fixture dialog',
   successCriterion: 'Fixture dialog dismissed is visible',
 };
+const confirmationText = 'Подтверждаю café';
+const confirmSave = {
+  id: 'confirm',
+  label: 'Enter the exact multilingual save confirmation',
+  successCriterion: 'Save confirmation text contains the requested text',
+};
 let forced = false;
+const modelPlanner = report.model
+  ? computerPlanner({
+      url: process.env.CAPRI_VERIFY_OLLAMA_URL,
+      model: report.model,
+      params: { num_ctx: 8192 },
+    })
+  : null;
 try {
   await delay(500);
   await callApplicationBridge(root, { action: 'catalog_launch', executable });
@@ -105,6 +121,11 @@ try {
   });
   const agent = new ComputerAgent({
     control,
+    onPlan: ({ steps }) => {
+      if (steps.length >= 2 && !report.actions.length && !report.completeOutlineBeforeInput) {
+        report.completeOutlineBeforeInput = true;
+      }
+    },
     maxDecisions: 12,
     applications: {
       operation: (_id, _args, run) => run(),
@@ -135,8 +156,34 @@ try {
         return {
           action: 'click',
           targetId: dialog.targetId,
-          plan: [dismiss, save],
+          plan: [dismiss],
           summary: 'Dismiss the ordinary fixture dialog, then continue saving.',
+        };
+      }
+      if (view.window.untrustedTitle === 'Capri fixture save confirmation') {
+        assert.equal(view.window.modal, true);
+        assert(taskPlan.completedCheckpoints.some(({ id }) => id === 'draft'));
+        const field = view.targets.find(
+          (target) => target.untrustedLabel === 'Save confirmation text',
+        );
+        const button = view.targets.find((target) => target.untrustedLabel === 'Confirm save');
+        assert(
+          field?.editable && button,
+          'The real confirmation must expose its own field and action.',
+        );
+        if (field.untrustedValue !== confirmationText)
+          return {
+            action: 'enter_text',
+            targetId: field.targetId,
+            text: confirmationText,
+            plan: [confirmSave],
+            summary: 'Enter the requested confirmation.',
+          };
+        return {
+          action: 'click',
+          targetId: button.targetId,
+          verifiedCheckpoints: [{ id: 'confirm', evidence: confirmationText }],
+          summary: 'Confirm the save in its own dialog.',
         };
       }
       const field = view.targets.find(
@@ -149,7 +196,6 @@ try {
           action: 'enter_text',
           targetId: field.targetId,
           text: 'Capri replanned',
-          plan: [draft, save],
           summary: 'Enter the requested fixture draft.',
         };
       const button = view.targets.find((target) =>
@@ -160,7 +206,6 @@ try {
         return {
           action: 'finish',
           evidence: 'Draft saved',
-          verifiedCheckpoints: [{ id: 'save', evidence: 'Draft saved' }],
           summary: 'The fixture draft is saved.',
         };
       if (!forced) {
@@ -184,30 +229,96 @@ try {
       };
     },
   });
+  agent.plan.outline = async () => ({ milestones: [draft], outcome: save });
+  if (modelPlanner) {
+    agent.plan = async (context, options) => {
+      const view = context.currentObservation;
+      const plan = await modelPlanner(context, options);
+      const label = view.targets.find(({ targetId }) => targetId === plan.targetId)?.untrustedLabel;
+      report.modelDecisions ??= [];
+      report.modelDecisions.push({
+        action: plan.action,
+        ...(label && {
+          target:
+            label.startsWith('Verification') ||
+            label.startsWith('Save') ||
+            label.startsWith('Confirm') ||
+            label.startsWith('Dismiss')
+              ? label
+              : 'other',
+        }),
+        ...(plan.action === 'enter_text' && {
+          exactDraft: plan.text === 'Capri replanned',
+          exactConfirmation: plan.text === confirmationText,
+        }),
+        ...(plan.action === 'finish' && {
+          review: options.review === true,
+          finalReceipt: plan.evidence === 'Draft saved',
+        }),
+      });
+      if (view.window?.untrustedTitle === 'Capri fixture blocking dialog')
+        report.modalObserved = true;
+      if (view.window?.untrustedTitle === 'Capri isolated replanning verification')
+        report.mainObserved = true;
+      if (!forced && plan.action === 'click' && label === 'Save fixture draft') {
+        forced = true;
+        writeFileSync(trigger, 'owned fixture dialog');
+        await waitForModal();
+      }
+      return plan;
+    };
+    agent.plan.outline = modelPlanner.outline;
+  }
   report.result = await agent.run(
-    'In the already open Capri isolated replanning verification window, enter exactly Capri replanned in Verification text, then click Save fixture draft. Do not launch another app.',
+    'In the already open Capri isolated replanning verification window, set “Verification text” to exactly “Capri replanned”. Click “Save fixture draft”. If a separate blocking reminder appears, dismiss it and return to Save. In the save confirmation window, set “Save confirmation text” to exactly “Подтверждаю café” and click “Confirm save”. Verify “Draft saved”. Do not launch another app.',
   );
   report.plan = agent.diagnostics().plan;
   assert.equal(report.result.ok, true, JSON.stringify(report.result));
-  assert.equal(report.result.steps, 3);
-  assert.deepEqual(report.actions, ['computer_type', 'computer_click', 'computer_click']);
+  assert.equal(report.result.steps, 5);
+  assert.deepEqual(report.actions, [
+    'computer_type',
+    'computer_click',
+    'computer_click',
+    'computer_type',
+    'computer_click',
+  ]);
   assert.deepEqual(report.preflightRejections, ['COMPUTER_FOREGROUND_CHANGED']);
-  assert(
-    report.mainObserved &&
-      report.modalObserved &&
-      report.pendingPlanRevised &&
-      report.completedMilestoneRetained,
-  );
-  assert.deepEqual(report.plan, { revision: 2, completed: 3, remaining: 0, recoveryAttempts: 0 });
+  assert(report.mainObserved && report.modalObserved && report.completeOutlineBeforeInput);
+  if (!modelPlanner)
+    assert(
+      report.mainObserved &&
+        report.modalObserved &&
+        report.completeOutlineBeforeInput &&
+        report.pendingPlanRevised &&
+        report.completedMilestoneRetained,
+    );
+  if (!modelPlanner)
+    assert.deepEqual(report.plan, { revision: 3, completed: 4, remaining: 0, recoveryAttempts: 0 });
   const events = readFileSync(log, 'utf8').trim().split(/\r?\n/u);
   assert.deepEqual(events, [
     'ready',
     'draft-complete',
     'dialog-opened',
     'dialog-dismissed',
+    'confirmation-opened',
+    'confirmation-entered',
     'saved',
   ]);
   assert.equal(control.session, null);
+  const { windowId, processId, startedAtTicks } = await state();
+  const checkWindow = () =>
+    callApplicationBridge(root, {
+      action: 'computer_window_exists',
+      windowId,
+      processId,
+      startedAtTicks,
+    });
+  assert.equal((await checkWindow()).exists, true);
+  const closed = once(child, 'exit');
+  child.kill();
+  await closed;
+  assert.equal((await checkWindow()).exists, false);
+  report.windowClosureVerified = true;
   report.passed = true;
 } catch (error) {
   report.error = { message: error.message, ...(error.code ? { code: error.code } : {}) };

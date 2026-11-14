@@ -464,6 +464,34 @@ test('context shortcut reaches newly loaded and reused settings without leaking 
   host.destroy();
 });
 
+test('model and device shortcuts keep their focus target when Settings opens and is reused', async () => {
+  for (const focus of ['model', 'devices']) {
+    const { host } = fixture();
+    const opening = host.open('models', focus);
+    const view = host.window,
+      events = [];
+    view.webContents.send = (_channel, event) => events.push(event);
+    host.loaded();
+    host.rendered();
+    view.emit('ready-to-show');
+    view.resolve();
+    await opening;
+    assert(
+      events.some(
+        (event) =>
+          event.type === 'settings.navigate' && event.section === 'models' && event.focus === focus,
+      ),
+    );
+    host.hide();
+    await host.open('models', focus);
+    assert.equal(
+      events.filter((event) => event.type !== 'settings.visibility').at(-1).focus,
+      focus,
+    );
+    host.destroy();
+  }
+});
+
 test('native visibility explicitly suspends and resumes renderer effects without a DOM visibility event', async () => {
   const { host, owner } = fixture();
   const opening = host.open('credits');

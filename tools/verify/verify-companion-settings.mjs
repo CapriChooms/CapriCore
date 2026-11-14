@@ -385,7 +385,7 @@ try {
   });
   assert.ok(heartOffset <= 1, 'The support heart must remain centered in its orbit');
   await page.screenshot({ path: path.join(folder, 'support.png') });
-  page = await settingsView(application, 'dialogue');
+  page = await settingsView(application, 'personality');
   await page.locator('#personality-text').fill('A warm fictional cyberpunk companion.');
   await saveSettings(page);
   await page.waitForFunction(
@@ -458,6 +458,8 @@ try {
   await page.selectOption('#language-interface', 'ru');
   // This fixture intentionally has no installed voice pack. Explicit text mode
   // keeps the navigation check separate from the tested missing-pack dialog.
+  await settingsView(application, 'voice');
+  await page.locator('#voice-source-local').click();
   await page.selectOption('#language-speech', 'off');
   await page.locator('[data-section="support"]').click();
   await saveSettings(page);

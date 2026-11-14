@@ -104,6 +104,10 @@ async function launch() {
   });
 }
 const snapshot = () => page.evaluate(() => window.capri.bootstrap());
+async function openSection(id) {
+  page = await settingsView(application, id);
+  if (id === 'voice') await page.locator('#voice-source-local').click();
+}
 try {
   await launch();
   assert.equal(await page.locator('#language-conversation option').count(), 101);
@@ -115,9 +119,10 @@ try {
     /English.*Capri English/,
   );
   checks.push('JSON language catalog loads in the actual sandboxed renderer');
-  await page.locator('#language-panel').evaluate((el) => (el.hidden = false));
   await page.selectOption('#language-conversation', 'ru');
+  await openSection('microphone');
   await page.selectOption('#language-recognition', 'follow');
+  await openSection('voice');
   await page.selectOption('#language-speech', 'follow');
   assert.match(
     await page.locator('#language-speech option[value="follow"]').textContent(),
@@ -140,7 +145,9 @@ try {
   checks.push(
     'Automatic shows the matching voice without disabled language choices and restores older explicit preferences',
   );
+  await openSection('languages');
   await page.selectOption('#language-conversation', 'ja');
+  await openSection('microphone');
   await page.selectOption('#language-recognition', 'auto');
   await saveSettings(page);
   await page.waitForFunction(() =>
@@ -148,6 +155,7 @@ try {
   );
   assert.equal((await snapshot()).voice.language, 'ja');
   checks.push('Japanese voice and automatic Whisper recognition can be selected independently');
+  await openSection('languages');
   await page.selectOption('#language-conversation', 'custom');
   await page.locator('#language-custom').fill('Tamil');
   await saveSettings(page);
@@ -159,7 +167,10 @@ try {
   assert.equal(s.voice.ready, false);
   assert.equal(s.languages.customConversation, 'Tamil');
   checks.push('Unsupported spoken language has an explicit text-only state');
-  await page.evaluate(() => window.capri.setVoiceEnabled(true));
+  await page.evaluate(async () => {
+    await window.capri.setSkill({ id: 'capri.voice-output', enabled: true });
+    await window.capri.setVoiceEnabled(true);
+  });
   await companion.evaluate(() =>
     window.capri.send({ id: crypto.randomUUID(), text: 'A synthetic text-only UI check.' }),
   );
@@ -214,9 +225,7 @@ try {
       interface: 'ru',
     }),
   );
-  await page.locator('#language-panel').evaluate((element) => {
-    element.hidden = false;
-  });
+  await openSection('voice');
   assert.equal(await page.locator('#language-speech option').count(), 2);
   assert.ok(
     (await page.locator('#language-speech option[value="follow"]').textContent()).endsWith(
@@ -225,19 +234,17 @@ try {
   );
   assert.equal(
     await page.locator('#language-status').textContent(),
-    uiText(
-      'Voice is not installed. Use Install and enable below; Capri handles all files and applies your selected language automatically.',
-      'ru',
-    ),
+    uiText('Voice is not installed. Use Install below.', 'ru'),
   );
   assert.equal(await page.locator('#language-install-speech').isVisible(), true);
   assert.equal(
     await page.locator('#language-install-speech').textContent(),
-    uiText('Install and enable', 'ru'),
+    uiText('Install', 'ru'),
   );
   checks.push(
-    'Missing English voice offers automatic component installation in the language panel, with Russian instructions and no folder picker',
+    'Spoken replies offers one-click installation of a missing English voice, with Russian instructions and no folder picker',
   );
+  await openSection('languages');
   await page.locator('#language-conversation').selectOption('pt');
   await saveSettings(page, { wait: false });
   await page.locator('#confirmation-dialog').waitFor({ state: 'visible' });
@@ -259,6 +266,7 @@ try {
   checks.push(
     'A missing Portuguese voice offers an explicit choice and saves Portuguese text without starting an unavailable TTS model',
   );
+  await openSection('voice');
   await page.evaluate(async () => {
     const { LanguagePanel } = await import('./language-panel.mjs');
     const { LANGUAGE_DEFAULTS } = await import('./language-settings.mjs');
@@ -345,7 +353,7 @@ try {
     'Cancelled or failed installation keeps the selected language, restores retry and exposes a diagnostic report button',
   );
   await page
-    .locator('#language-panel')
+    .locator('#voice-local-settings')
     .screenshot({ path: path.join(folder, 'voice-installation.png') });
   assert.deepEqual(errors, []);
   report.passed = true;

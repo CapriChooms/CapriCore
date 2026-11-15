@@ -1,12 +1,15 @@
 """Startup phase records never contain native exception text, paths or audio."""
 import builtins
+import ctypes
 import io
+from pathlib import Path
 import sys
+import tempfile
 from types import ModuleType, SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
-from integrations.asr_runtime import worker
+from integrations.asr_runtime import native_runtime, worker
 
 
 STAGES = ['ASR_START_DEPENDENCIES', 'ASR_START_CONFIG',
@@ -42,6 +45,7 @@ class WorkerStartupTests(unittest.TestCase):
             return original_import(name, *args, **kwargs)
 
         with patch.dict(sys.modules, {model.__name__: model, recognition.__name__: recognition}), \
+                patch.object(worker, 'load_sherpa_runtime'), \
                 patch.object(worker, 'emit', side_effect=events.append), \
                 patch.object(worker.sys, 'stdin', SimpleNamespace(buffer=io.BytesIO())), \
                 patch('builtins.__import__', side_effect=import_module):
@@ -67,6 +71,36 @@ class WorkerStartupTests(unittest.TestCase):
         self.assertEqual(events[-1], {'type': 'ready', 'protocol': 1, 'language': 'en',
             'sampleRate': 16000, 'provider': 'cpu', 'engine': 'fixture', 'mode': 'utterance',
             'draft': False})
+
+
+class WindowsRuntimeTests(unittest.TestCase):
+    def test_loads_the_bundled_library_and_rejects_an_already_loaded_conflict(self):
+        with tempfile.TemporaryDirectory() as folder:
+            package = Path(folder) / 'sherpa_onnx'
+            library = package / 'lib' / 'onnxruntime.dll'
+            library.parent.mkdir(parents=True)
+            library.touch()
+            other = Path(folder) / 'onnxruntime.dll'
+            other.touch()
+            kernel = SimpleNamespace(GetModuleHandleW=Mock(return_value=None),
+                                     GetModuleFileNameW=Mock())
+            native = object()
+            with patch.object(sys, 'platform', 'win32'), \
+                    patch.object(native_runtime, 'find_spec', return_value=SimpleNamespace(origin=package / '__init__.py')), \
+                    patch.object(ctypes, 'WinDLL', side_effect=[kernel, native, kernel], create=True) as load:
+                self.assertIs(native_runtime.load_sherpa_runtime(), native)
+                load.assert_called_with(str(library.resolve()), winmode=0x900)
+
+                kernel.GetModuleHandleW.return_value = 1
+
+                def copy_filename(_handle, buffer, _maximum):
+                    buffer.value = str(other)
+                    return len(buffer.value)
+
+                kernel.GetModuleFileNameW.side_effect = copy_filename
+                with self.assertRaisesRegex(ImportError, 'Another ONNX Runtime'):
+                    native_runtime.load_sherpa_runtime()
+                self.assertEqual(load.call_count, 3)
 
 
 if __name__ == '__main__':

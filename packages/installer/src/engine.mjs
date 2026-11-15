@@ -641,7 +641,9 @@ export async function install(
           'tools/setup/' +
             (plan.languages.conversation === 'en'
               ? 'setup-streaming-asr.ps1'
-              : 'setup-multilingual-asr.ps1'),
+              : plan.languages.conversation === 'pt-BR'
+                ? 'setup-fast-multilingual-asr.ps1'
+                : 'setup-multilingual-asr.ps1'),
         ),
       );
     if (plan.router)

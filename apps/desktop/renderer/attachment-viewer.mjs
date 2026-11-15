@@ -52,7 +52,9 @@ function failed() {
 
 function show(value) {
   const current = ++revision;
-  document.documentElement.lang = /^[a-z]{2}$/.test(value?.labels?.language ?? '')
+  document.documentElement.lang = /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/iu.test(
+    value?.labels?.language ?? '',
+  )
     ? value.labels.language
     : 'en';
   document.documentElement.dir = value?.labels?.direction === 'rtl' ? 'rtl' : 'ltr';

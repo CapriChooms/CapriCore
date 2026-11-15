@@ -39,6 +39,9 @@
     "llama": {
       "version": "b12317",
       "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12317/llama-b12317-bin-win-vulkan-x64.zip",
+      "mirrors": [
+        "https://gh-proxy.org/https://github.com/ggml-org/llama.cpp/releases/download/b12317/llama-b12317-bin-win-vulkan-x64.zip"
+      ],
       "sha256": "968a487604622f4194d0451d77a92b6a7cff1c29338e88841dd38472c81013ca",
       "bytes": 38051900,
       "expandedBytes": 106633501,

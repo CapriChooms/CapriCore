@@ -42,6 +42,29 @@ const partial = (base, source, index) =>
   (index === 0 ? '.part' : '.source-' + digest(new URL(source).href).slice(0, 24) + '.part');
 const modes = [false, true];
 
+test('the configured llama.cpp archive switches to its mirror after a connection reset', async () => {
+  const config = JSON.parse(readFileSync(path.join(root, 'config/installer.json'), 'utf8'));
+  const { url, mirrors } = config.artifacts.llama;
+  assert.ok(mirrors?.length, 'the installer must provide a fallback for llama.cpp');
+  const base = folder();
+  const sources = [];
+  const file = await fetchArtifact(spec({ url, mirrors }), base, {
+    pauseFile: path.join(base, 'pause'),
+    onSource: (source) => sources.push(source),
+    fetchImpl: async (source) => {
+      if (source.href === url)
+        throw new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } });
+      assert.equal(source.href, mirrors[0]);
+      return response();
+    },
+  });
+  assert.deepEqual(readFileSync(file), data);
+  assert.deepEqual(sources, [
+    { index: 0, host: new URL(url).hostname },
+    { index: 1, host: new URL(mirrors[0]).hostname },
+  ]);
+});
+
 for (const resumable of modes) {
   const options = (base, more = {}) => ({
     ...(resumable ? { pauseFile: path.join(base, 'pause') } : {}),

@@ -136,6 +136,42 @@ test('model preparation distinguishes missing weights, an unavailable GPU, and a
   await assert.rejects(prepare, verifyCode('CAPRI_LLAMA_GPU_LOAD_FAILED'));
 });
 
+test('stalled Vulkan startup allows Automatic to reach CPU and preserves an explicit GPU choice', async (t) => {
+  const model = { name: 'local:latest', files: [{ file: 'fixture' }] };
+  const attempts = [];
+  const workers = new LlamaWorkers({
+    root: tmpdir(),
+    config: { contextTokens: 32768, keepAlive: 0 },
+    automaticGpuStartupTimeoutMs: 30,
+    startupTimeoutMs: 1000,
+    start: async (_role, args) => {
+      const device = args[args.indexOf('--device') + 1];
+      const cpu = args.includes('none');
+      attempts.push(cpu ? 'cpu' : args.includes('--device') ? device : 'auto');
+      if (!cpu) return { alive: () => true, stop: async () => attempts.push('stop') };
+      const server = createServer((_req, res) => res.end());
+      server.listen(Number(args[args.indexOf('--port') + 1]), '127.0.0.1');
+      await once(server, 'listening');
+      return {
+        alive: () => server.listening,
+        stop: () =>
+          new Promise((resolve) => {
+            server.close(resolve);
+            server.closeAllConnections();
+          }),
+      };
+    },
+  });
+  t.after(() => workers.close());
+  const use = () =>
+    workers.use(model, 'chat', {}, AbortSignal.timeout(5000), (worker) => worker.allowGpu);
+  assert.equal(await use(), false);
+  assert.deepEqual(attempts, ['auto', 'stop', 'cpu']);
+  workers.device = 'Vulkan1';
+  await assert.rejects(use, { code: 'CAPRI_LLAMA_GPU_LOAD_FAILED' });
+  assert.deepEqual(attempts, ['auto', 'stop', 'cpu', 'Vulkan1', 'stop']);
+});
+
 test('llama.cpp receives local image data and stable tool IDs without network image URLs', () => {
   const config = { reasoningBudget: 64 };
   const model = { name: 'local' };

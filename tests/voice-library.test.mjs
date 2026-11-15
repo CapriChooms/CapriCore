@@ -9,6 +9,7 @@ import { diagnosticState } from '../apps/desktop/diagnostics/state.mjs';
 import catalog from '../config/tts-catalog.json' with { type: 'json' };
 import {
   RUSSIAN_QWEN_ID,
+  selectedVoiceModel,
   VoiceCatalogService,
   voiceDataPath,
   voiceBackendChanged,
@@ -97,6 +98,27 @@ test('voice library persists independent supported languages and stops speech be
     /does not support/,
   );
   assert.throws(() => voiceDataPath(root, '../outside'), /Invalid/);
+});
+
+test('Brazilian Portuguese uses its own Chatterbox weights and keeps the shared Portuguese voice separate', (t) => {
+  const { root, write } = fixture(t);
+  const brazilian = selectedVoiceModel(root, 'pt-BR');
+  const portuguese = selectedVoiceModel(root, 'pt');
+  assert.equal(brazilian.id, 'chatterbox-multilingual-pt-br');
+  assert.equal(portuguese.id, 'chatterbox-multilingual-v3');
+  assert.equal(voiceBackendChanged(root, 'pt', 'pt-BR'), true);
+  assert.equal(speechModelsInstalled(root, 'pt'), true);
+  assert.equal(speechModelsInstalled(root, 'pt-BR'), false);
+
+  const config = path.join(root, 'config/multilingual-runtime.json');
+  const specs = JSON.parse(readFileSync(config, 'utf8'));
+  specs[brazilian.component] = {
+    directory: 'data/speech/multilingual-pt-br',
+    files: [{ file: 'weights.safetensors', bytes: 3 }],
+  };
+  write('config/multilingual-runtime.json', specs);
+  write('data/speech/multilingual-pt-br/weights.safetensors', 'xyz');
+  assert.equal(speechModelsInstalled(root, 'pt-BR'), true);
 });
 
 test('Qwen installs in its own runtime and selected CPU voices do not require the CUDA environment', async (t) => {

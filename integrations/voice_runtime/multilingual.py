@@ -48,10 +48,10 @@ def offline_converter(folder):
 
 
 class MultilingualVoice(DecoderMemoryBudget):
-    def __init__(self, config):
+    def __init__(self, config, component='tts'):
         torch.set_num_threads(config['cpuThreads'])
         local_environment()
-        folder = verified_model('tts')
+        folder = verified_model(component)
         from chatterbox.models.tokenizers import tokenizer
         converter = offline_converter(folder)
         original = tokenizer.ChineseCangjieConverter
@@ -160,13 +160,14 @@ class VoicePool:
             # Selected-language installations may omit Chinese-only data.
             verified_model('chinese')
         qwen = selected['backend'] == 'qwen3-tts'
+        component = selected.get('component', 'tts')
         kind = ('turbo' if selected['backend'] == 'chatterbox-turbo' else
                 'qwen3-tts-ru-lora' if selected.get('id') == RUSSIAN_QWEN_ID else
-                'qwen3-tts' if qwen else 'multilingual-v3')
+                'qwen3-tts' if qwen else selected.get('component', 'multilingual-v3'))
         if kind != self.kind:
             # Verify optional weights before releasing a working English backend.
-            if kind == 'multilingual-v3':
-                verified_model('tts')
+            if selected['backend'] == 'chatterbox-multilingual-v3':
+                verified_model(component)
             if qwen:
                 from .qwen import QwenVoice
             self.voice = None
@@ -174,7 +175,7 @@ class VoicePool:
             gc.collect()
             torch.cuda.empty_cache()
             self.voice = (CapriVoice(self.config) if kind == 'turbo' else
-                          QwenVoice(self.config, model_id=selected.get('id')) if qwen else MultilingualVoice(self.config))
+                          QwenVoice(self.config, model_id=selected.get('id')) if qwen else MultilingualVoice(self.config, component))
             self.kind = kind
         self.language = language
         check_cancelled(cancelled)
@@ -182,8 +183,9 @@ class VoicePool:
     def generate(self, text, cancelled=None, language='en'):
         validate_speech_language(text, language)
         self.prepare(language, cancelled)
+        model_language = LANGUAGES[language].get('modelLanguage', language)
         result = (self.voice.generate(text, cancelled) if self.kind == 'turbo'
-                  else self.voice.generate(text, cancelled, language))
+                  else self.voice.generate(text, cancelled, model_language))
         self.last_metrics = self.voice.last_metrics
         return result
 
@@ -192,7 +194,8 @@ class VoicePool:
         graph = getattr(voice, 'graph', None)
         reference_memory = getattr(voice, 'reference_memory', {})
         compute = self.config.get('computeDevice', 'cuda:0')
-        precision = 'float16-t3/float32-decoder' if self.kind == 'multilingual-v3' and compute != 'cpu' else 'float32'
+        precision = ('float16-t3/float32-decoder'
+                     if self.kind in {'multilingual-v3', 'tts-pt-br'} and compute != 'cpu' else 'float32')
         if self.kind in {'qwen3-tts', 'qwen3-tts-ru-lora'} and voice is not None:
             compute = voice.decoder_device
             precision = voice.precision

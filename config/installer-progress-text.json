@@ -216,6 +216,37 @@
       "git": "Git"
     }
   },
+  "pt-BR": {
+    "updatingTo": "Atualizando para {0}",
+    "progressOverall": "Progresso geral {0}%",
+    "progressEta": "Restam aproximadamente {0}",
+    "progressEstimating": "Estimando tempo restante…",
+    "progressTransferred": "Baixado {0}",
+    "progressStageComplete": "Concluído · {0}",
+    "progressStillWorking": "Em andamento há {0} · {1}",
+    "stages": {
+      "finalize": "Salvando as configurações da primeira execução e finalizando a instalação"
+    },
+    "progressActivity": {
+      "checkTarget": "Verificando este PC e a pasta de instalação selecionada",
+      "checkRuntime": "Procurando uma cópia verificada de {0}",
+      "fetchRuntime": "Procurando cópia em cache de {0} ou conectando ao servidor de download",
+      "connectRuntime": "Conectando ao servidor de download para {0}",
+      "downloadRuntime": "Recebendo arquivos para {0}",
+      "extractRuntime": "Extraindo arquivos verificados para {0}",
+      "verifyRuntime": "Verificando a integridade de {0} antes do uso",
+      "checkSource": "Verificando o pacote de instalação e as somas de verificação dos arquivos",
+      "copySource": "Comparando arquivos existentes e instalando arquivos do aplicativo verificados",
+      "installDependencies": "Instalando as versões fixadas das dependências e reutilizando o cache local"
+    },
+    "progressComponent": {
+      "node": "Node.js",
+      "electron": "Electron",
+      "ollama": "llama.cpp",
+      "uv": "uv",
+      "git": "Git"
+    }
+  },
   "nl": {
     "updatingTo": "Update naar {0}",
     "progressOverall": "Algemene voortgang {0}%",

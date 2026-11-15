@@ -492,6 +492,20 @@ try {
     await page.waitForFunction(() => document.querySelector('#sprite').dataset.avatar === 'happy');
     assert.ok(!(await page.locator('#messages').textContent()).includes('[avatar:'));
     record('Incremental reply, shared session and HTML treated as literal text');
+    const skills = (await page.evaluate(() => window.capri.bootstrap())).skills;
+    assert.equal(skills['capri.reasoning'].enabled, false);
+    assert.equal(skills['capri.web-search'].enabled, false);
+    const callsBeforeStaleMode = seen.length;
+    const staleModeResult = await page.evaluate((value) => window.capri.send(value), {
+      id: randomUUID(),
+      text: 'Test stale composer modes',
+      thinking: true,
+      internet: true,
+    });
+    assert.equal(staleModeResult.ok, true);
+    assert.equal(seen.length, callsBeforeStaleMode + 1);
+    assert.notEqual(seen.at(-1).thinking, 'on');
+    record('Stale thinking and search toggles cannot block a normal message');
     // SignalFX deliberately pauses animations while a window is hidden. The
     // earlier native close/hide check must not pause the subsequent portrait check.
     await application.evaluate(({ BrowserWindow }) =>
@@ -608,6 +622,13 @@ try {
     await send(page, 'server-error');
     await page.waitForSelector('#reconnect:not([hidden])');
     assert.ok(!(await page.locator('#notice').textContent()).includes('private diagnostic data'));
+    assert.deepEqual(
+      await page.evaluate((value) => window.capri.send(value), {
+        id: randomUUID(),
+        text: 'A message while the local core is offline',
+      }),
+      { ok: false, message: 'The local core is not ready yet.' },
+    );
     fixtureAvailable = true;
     await page.locator('#reconnect').click();
     await page.waitForFunction(() => document.body.dataset.phase === 'ready');

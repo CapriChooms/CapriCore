@@ -384,9 +384,10 @@ export async function createDiagnosticReport({
           if (
             item.isFile() &&
             /\.(?:log|jsonl|txt)$/.test(item.name) &&
-            !/history|transcript|memory|prompt|screenshot|recording|token|secret|verification|dataset|audition|chat|dialog/i.test(
-              item.name,
-            ) &&
+            (/^llama-chat\.(stdout|stderr)\.log$/.test(item.name) ||
+              !/history|transcript|memory|prompt|screenshot|recording|token|secret|verification|dataset|audition|chat|dialog/i.test(
+                item.name,
+              )) &&
             eligible(item.name)
           ) {
             const info = await stat(path.join(base, item.name));

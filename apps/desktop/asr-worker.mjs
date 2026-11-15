@@ -99,7 +99,15 @@ export class ASRWorker extends EventEmitter {
     env.CAPRI_ASR_LANGUAGE = this.language;
     const child = (this.child = this.spawnImpl(
       python,
-      ['-u', '-m', 'integrations.asr_runtime.worker'],
+      [
+        '-I',
+        '-S',
+        '-X',
+        'utf8',
+        '-B',
+        '-u',
+        path.join(this.root, 'integrations/asr_runtime/bootstrap.py'),
+      ],
       { cwd: this.root, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] },
     ));
     let readyResolve,

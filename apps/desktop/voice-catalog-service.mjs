@@ -16,6 +16,7 @@ import {
 } from '../../packages/runtime/src/voice-settings.mjs';
 import { writeJsonAtomic } from './storage.mjs';
 import builtinCatalog from '../../config/tts-catalog.json' with { type: 'json' };
+import languages from '../shared/languages.json' with { type: 'json' };
 import { privateLogRecord } from '../../packages/runtime/src/privacy-log.mjs';
 import { writePrivateBytesAtomic } from '../../packages/runtime/src/safe-file.mjs';
 import { probeHardware } from '../../packages/runtime/src/hardware/probe.mjs';
@@ -24,6 +25,13 @@ import { voiceRuntimeEnvironment } from '../../integrations/voice_runtime/enviro
 
 export const RUSSIAN_QWEN_ID = 'qwen3-tts-1.7b-capri-ru';
 const qwenGpuVersions = { cuda: 'cu128', rocm: 'rocm7.2.1' };
+const voiceDefaults = {
+  en: 'chatterbox-turbo',
+  multilingual: 'chatterbox-multilingual-v3',
+  ...Object.fromEntries(
+    languages.filter((item) => item.voiceModel).map((item) => [item.id, item.voiceModel]),
+  ),
+};
 
 function qwenGpuRuntime(root, backend) {
   try {
@@ -48,7 +56,7 @@ export function voiceRuntimeKind(model) {
   if (model.id === RUSSIAN_QWEN_ID) return 'qwen3-tts-ru-lora';
   if (model.backend === 'chatterbox-turbo') return 'turbo';
   if (model.backend === 'qwen3-tts') return 'qwen3-tts';
-  return 'multilingual-v3';
+  return model.component ?? 'multilingual-v3';
 }
 
 function voiceFilesInstalled(root, spec) {
@@ -131,7 +139,8 @@ export function selectedVoiceModel(root, language, configRoot = root) {
   const models = existsSync(file) ? readJson(file).models : builtinCatalog.models;
   const selected =
     readVoiceSelections(root, models)[language] ??
-    (language === 'en' ? 'chatterbox-turbo' : 'chatterbox-multilingual-v3');
+    voiceDefaults[language] ??
+    voiceDefaults.multilingual;
   const model = models.find((item) => item.id === selected && item.languages.includes(language));
   if (!model) throw new Error('Selected voice model does not support this language.');
   return model;
@@ -176,10 +185,7 @@ export function voiceBackendChanged(root, previousLanguage, nextLanguage, config
   if (previousLanguage === 'off' || nextLanguage === 'off') return false;
   const previous = selectedVoiceModel(root, previousLanguage, configRoot);
   const next = selectedVoiceModel(root, nextLanguage, configRoot);
-  return (
-    previous.backend !== next.backend ||
-    (previous.id === RUSSIAN_QWEN_ID) !== (next.id === RUSSIAN_QWEN_ID)
-  );
+  return voiceRuntimeKind(previous) !== voiceRuntimeKind(next);
 }
 
 export class VoiceCatalogService {
@@ -240,7 +246,9 @@ export class VoiceCatalogService {
         return qwenVoiceFilesInstalled(this.root, this.configRoot, model);
       return voiceFilesInstalled(
         this.root,
-        readJson(path.join(this.configRoot, 'config/multilingual-runtime.json')).tts,
+        readJson(path.join(this.configRoot, 'config/multilingual-runtime.json'))[
+          model.component ?? 'tts'
+        ],
       );
     } catch {
       return false;
@@ -257,7 +265,7 @@ export class VoiceCatalogService {
       qwenRocmReady: Boolean(qwenGpuRuntime(this.root, 'rocm')),
       qwenRocmSupported: this.qwenRocmSupported === true,
       models: this.models.map((model) => ({ ...model, installed: this.installed(model) })),
-      defaults: { en: 'chatterbox-turbo', multilingual: 'chatterbox-multilingual-v3' },
+      defaults: voiceDefaults,
     };
   }
   async refresh() {

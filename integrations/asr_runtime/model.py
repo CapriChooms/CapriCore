@@ -96,7 +96,8 @@ class ParakeetRecognizer:
                 paths[item['file'].split('.')[0]]=str(path)
         else:
             paths=verified_files(config,'asr-model-upstream.json')
-        self.phrases = contextual_phrases(ROOT, config['language'])
+        language = config['language']
+        self.phrases = contextual_phrases(ROOT, LANGUAGES.get(language, {}).get('modelLanguage', language))
         self.biased = config['decodingMethod'] == 'modified_beam_search'
         self.engine = sherpa_onnx.OfflineRecognizer.from_transducer(
             **paths, num_threads=config['cpuThreads'],
@@ -122,7 +123,8 @@ class WhisperRecognizer:
     """Full utterances in RAM; fast English Parakeet is used only for the wake gate."""
     def __init__(self, config):
         from .shared_encoder import SharedEncoderWhisper
-        self.language = None if config['language'] == 'auto' else config['language']
+        language = config['language']
+        self.language = None if language == 'auto' else LANGUAGES.get(language, {}).get('modelLanguage', language)
         self.engine = SharedEncoderWhisper(str(verified_model('whisper')), device='cpu', compute_type='int8',
                                    cpu_threads=config['cpuThreads'], num_workers=1, local_files_only=True)
         english = dict(config, language='en', engine='parakeet-tdt-0.6b-v2')

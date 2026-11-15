@@ -23,7 +23,7 @@ import { factualActionReply, ActionReplyFilter } from './action-replies.mjs';
 import { CoreFailureStream, ToolProgressGuard, toolLoopError } from './tool-loop.mjs';
 import { desktopTurnContext, whenPromptSkill } from './turn-context.mjs';
 import { reasoningEffort } from '../../packages/skills/src/settings-catalog.mjs';
-import { conversationOnly } from './conversation-route.mjs';
+import { conversationOnly, factualQuestion } from './conversation-route.mjs';
 import { randomUUID } from 'node:crypto';
 import { AvatarStreamParser, avatarInstructions } from './avatar-protocol.mjs';
 import { PlainTextStream } from '../../packages/runtime/src/text.mjs';
@@ -1173,9 +1173,29 @@ export class ChatService {
       // the computer executor. Otherwise small models see every action tool
       // during casual conversation and can start unsolicited tool loops.
       // Keep explicit domains and built-in feature requests on their own route.
+      const factualWithoutActions =
+        interfaceState.activeSkills &&
+        !input.mode &&
+        factualQuestion(input.text) &&
+        !interfaceState.fullComputerAccess &&
+        !interfaceState.applicationAccess &&
+        !(interfaceState.spotify?.enabled && interfaceState.spotify?.prepared) &&
+        ![
+          'capri.applications',
+          'capri.calculator',
+          'capri.computer',
+          'capri.timers',
+          'capri.screen',
+          'capri.files',
+          'capri.workflows',
+          'capri.user-tools',
+          'capri.voice-calls',
+        ].some((id) => interfaceState.activeSkills.has(id));
       const routedDomain = tools
         ? (toolDomain(input.text, interfaceState, routing) ??
-          (classifiedConversation || classifiedMemory ? 'conversation' : null))
+          (classifiedConversation || classifiedMemory || factualWithoutActions
+            ? 'conversation'
+            : null))
         : null;
       const webConversation =
         input.internet === true &&
@@ -1185,7 +1205,9 @@ export class ChatService {
         !webConversation &&
         (domain === 'conversation' || !tools) &&
         !classifiedMemory &&
-        (classifiedConversation || conversationOnly(input.text));
+        (classifiedConversation ||
+          conversationOnly(input.text) ||
+          (factualWithoutActions && !interfaceState.activeSkills.has('capri.owner-memory')));
       if (['spotify', 'calculator'].includes(domain)) this.active.verifiedDomain = domain;
       phase = 'model';
       const directDialogue = this.npuDialogue ?? directSmallTalk;

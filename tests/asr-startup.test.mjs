@@ -29,12 +29,14 @@ function fixture(t) {
   for (const channel of ['stdin', 'stdout', 'stderr']) child[channel] = new PassThrough();
   child.kill = () => {};
   const children = [child];
-  const environments = [];
+  const environments = [],
+    argumentsBySpawn = [];
   let spawns = 0;
   const worker = new ASRWorker({
     root,
-    spawnImpl: (_python, _args, { env }) => {
+    spawnImpl: (_python, args, { env }) => {
       environments.push(env);
+      argumentsBySpawn.push(args);
       if (spawns) {
         const replacement = new EventEmitter();
         for (const channel of ['stdin', 'stdout', 'stderr'])
@@ -46,7 +48,7 @@ function fixture(t) {
     },
   });
   t.after(() => worker.close());
-  return { root, file, worker, child, children, environments };
+  return { root, file, worker, child, children, environments, argumentsBySpawn };
 }
 
 test('Russian speech recognition does not report truncated Parakeet files as installed', (t) => {
@@ -151,7 +153,7 @@ const resetMessage = {
 };
 
 test('a model-load native crash recovers once for all startup callers without a failure event', async (t) => {
-  const { worker, child, children, environments } = fixture(t),
+  const { root, worker, child, children, environments, argumentsBySpawn } = fixture(t),
     failures = [],
     recoveries = [];
   worker.on('failure', (error) => failures.push(error));
@@ -170,6 +172,16 @@ test('a model-load native crash recovers once for all startup callers without a 
   assert.equal(environments[1].OMP_NUM_THREADS, '1');
   assert.equal(environments[1].PYTHONNOUSERSITE, '1');
   assert.equal(environments[1].HF_HUB_OFFLINE, '1');
+  for (const args of argumentsBySpawn)
+    assert.deepEqual(args, [
+      '-I',
+      '-S',
+      '-X',
+      'utf8',
+      '-B',
+      '-u',
+      path.join(root, 'integrations/asr_runtime/bootstrap.py'),
+    ]);
   child.emit('close', 0xc0000005 | 0);
   child.stdout.write('{"type":"startup-error","code":"ASR_START_MODEL"}\n');
   replacement.stdout.write(JSON.stringify(readyMessage) + '\n');

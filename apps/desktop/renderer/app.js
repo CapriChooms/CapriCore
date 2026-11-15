@@ -2745,7 +2745,13 @@ async function send() {
         attachmentComposer.message = result.message;
         attachmentComposer.render();
       }
-    } else await api.send({ id, text, thinking, internet });
+    } else {
+      const result = await api.send({ id, text, thinking, internet });
+      if (result?.ok === false) {
+        if (!elements.message.value) elements.message.value = text;
+        notice(result.message);
+      }
+    }
   } catch (error) {
     if (!activeTurnId) {
       elements.message.value = text;

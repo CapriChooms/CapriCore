@@ -125,6 +125,24 @@
     "updateDetails": "Os detalhes são salvos no .runtime/updates.",
     "updateFailed": "A atualização não pôde ser concluída. Tente novamente."
   },
+  "pt-BR": {
+    "fatalReportQuestion": "Salvar um ZIP de diagnóstico na pasta Downloads? Nenhum arquivo será enviado.",
+    "launcherFailed": "O Capri não conseguiu iniciar.",
+    "launcherUpdateActive": "Uma atualização está em andamento ou foi interrompida. Aguarde a conclusão. Se a janela de atualização estiver fechada, execute novamente o instalador da Capri para reparar a instalação. Seus dados serão mantidos.",
+    "shortcutDescription": "Assistente de desktop Capri",
+    "updateTitle": "Atualização do Capri",
+    "updatePreparing": "Preparando a atualização…",
+    "updateHint": "Mantenha esta janela aberta e o PC ligado. Seu histórico, memória e modelos serão mantidos.",
+    "updateClose": "Fechar",
+    "updateWaiting": "Aguardando o fechamento do Capri…",
+    "updateInstalling": "Instalando a atualização…",
+    "updateDependencies": "Atualizando dependências necessárias…",
+    "updateRegistering": "Atualizando atalhos…",
+    "updateRecovering": "Restaurando a versão anterior…",
+    "updateComplete": "Atualização instalada. Iniciando o Capri…",
+    "updateDetails": "Os detalhes ficam em .runtime/updates.",
+    "updateFailed": "A atualização não pôde ser concluída. Tente novamente."
+  },
   "nl": {
     "fatalReportQuestion": "Een diagnostisch ZIP-bestand opslaan in Downloads? Er worden geen bestanden geüpload.",
     "launcherFailed": "Capri kon niet starten.",

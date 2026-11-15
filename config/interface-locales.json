@@ -44,6 +44,12 @@
       "direction": "ltr"
     },
     {
+      "id": "pt-BR",
+      "name": "Brazilian Portuguese",
+      "nativeName": "Português (Brasil)",
+      "direction": "ltr"
+    },
+    {
       "id": "nl",
       "name": "Dutch",
       "nativeName": "Nederlands",

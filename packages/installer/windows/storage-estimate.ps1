@@ -73,10 +73,12 @@ function Read-CapriStorageCatalog([string]$Source) {
         registry=Read-CapriJson (Join-Path $config 'llama-models.json')
         recognition=@($asr.files.PSObject.Properties.Value)
         vad=@($vad.files.PSObject.Properties.Value)
-        multilingualRecognition=@($candidates.asr,$speech.whisper)
+        parakeetV3=$candidates.asr
+        whisper=$speech.whisper
         router=@($router.files.PSObject.Properties.Value)
         englishVoice=$voiceFiles
         multilingualVoice=$speech.tts
+        brazilianVoice=$speech.'tts-pt-br'
         qwenVoice=$qwenVoice
         russianVoice=$russianVoice
         chinese=$speech.chinese
@@ -223,7 +225,8 @@ function Get-CapriStorageEstimate($Selection,$Manifest,$Catalog,[bool]$RocmVoice
         $required+=(Get-CapriMissingFileBytes '' '' $Catalog.recognition)+(Get-CapriMissingFileBytes '' '' $Catalog.vad)
         $download+=(Get-CapriMissingFileBytes $target $asrDirectory $Catalog.recognition)+(Get-CapriMissingFileBytes $target $vadDirectory $Catalog.vad)
         if(-not $english){
-            foreach($model in $Catalog.multilingualRecognition){
+            $models=if($Selection.conversationLanguage -eq 'pt-BR'){@($Catalog.parakeetV3)}else{@($Catalog.parakeetV3,$Catalog.whisper)}
+            foreach($model in $models){
                 $required+=Get-CapriMissingFileBytes '' '' $model.files
                 $download+=Get-CapriMissingFileBytes $target $model.directory $model.files
             }
@@ -243,9 +246,10 @@ function Get-CapriStorageEstimate($Selection,$Manifest,$Catalog,[bool]$RocmVoice
             $required+=$storage.englishVoiceBytes
             $download+=Get-CapriMissingFileBytes $target $Catalog.voiceTrainingDirectory $Catalog.englishVoice
         }else{
-            $model=$Catalog.multilingualVoice
+            $model=if($Selection.conversationLanguage -eq 'pt-BR'){$Catalog.brazilianVoice}else{$Catalog.multilingualVoice}
             $required+=Get-CapriMissingFileBytes '' '' $model.files
-            $download+=Get-CapriMissingFileBytes $target $model.directory $model.files 'data/speech/candidates/chatterbox-multilingual-v2'
+            $cached=if($Selection.conversationLanguage -eq 'pt-BR'){''}else{'data/speech/candidates/chatterbox-multilingual-v2'}
+            $download+=Get-CapriMissingFileBytes $target $model.directory $model.files $cached
         }
         $gpu=if($Hardware -is [Collections.IDictionary]){$Hardware['gpu']}else{''}
         $series=if($RocmVoice){'3.12'}else{'3.11'}

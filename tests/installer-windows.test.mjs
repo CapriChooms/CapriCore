@@ -111,6 +111,13 @@ test(
         voicePack: true,
       },
       { ...base, inferenceMode: 'api', recognition: true },
+      {
+        ...base,
+        inferenceMode: 'api',
+        recognition: true,
+        voicePack: true,
+        conversationLanguage: 'pt-BR',
+      },
       { ...base, inferenceMode: 'api', voiceMode: 'qwen', conversationLanguage: 'ru' },
       { ...base, inferenceMode: 'api', voiceMode: 'qwen-ru', conversationLanguage: 'ru' },
       {

@@ -1,6 +1,8 @@
 ﻿# SPDX-License-Identifier: GPL-3.0-only
 # Catalog helpers shared by the Windows installer, updater and uninstaller.
 function Get-CapriInstallerCulture([string]$Culture,$Languages) {
+    $exact=$Languages | Where-Object {$_.id -eq $Culture} | Select-Object -First 1
+    if($exact){return $exact.id}
     $base=($Culture -split '-')[0].ToLowerInvariant()
     $aliases=@{fil='tl';nb='no';nn='no';iw='he'}
     if($aliases.ContainsKey($base)){$base=$aliases[$base]}

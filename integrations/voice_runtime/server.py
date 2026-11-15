@@ -34,7 +34,7 @@ def load_and_warm(config, language, cancelled=None):
         require_cuda(torch)
     voice = VoicePool(config)
     greetings = {'ru': 'Привет.', 'zh': '你好。', 'ja': 'こんにちは。', 'ko': '안녕하세요.',
-                 'de': 'Hallo.', 'fr': 'Bonjour.', 'pt': 'Olá.', 'es': 'Hola.', 'it': 'Ciao.'}
+                 'de': 'Hallo.', 'fr': 'Bonjour.', 'pt': 'Olá.', 'pt-BR': 'Oi.', 'es': 'Hola.', 'it': 'Ciao.'}
     if cancelled is None:
         voice.generate(greetings.get(language, 'Hello.'), language=language)
     else:

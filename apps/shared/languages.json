@@ -560,6 +560,16 @@
     "interface": true
   },
   {
+    "id": "pt-BR",
+    "name": "Brazilian Portuguese",
+    "label": "Português (Brasil)",
+    "recognizer": "parakeet-v3",
+    "speech": true,
+    "voiceModel": "chatterbox-multilingual-pt-br",
+    "modelLanguage": "pt",
+    "interface": true
+  },
+  {
     "id": "pa",
     "name": "Punjabi",
     "label": "Punjabi",

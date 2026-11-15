@@ -6,8 +6,6 @@ import { SKILL_TEXT_RU } from '../../../packages/skills/src/settings-catalog.mjs
 export const INTERFACE_LOCALES = Object.freeze(Object.values(bundle.locales).map(Object.freeze));
 const metadata = (id) =>
   Object.hasOwn(bundle.locales, id) ? bundle.locales[id] : bundle.locales.en;
-const readLocaleFile =
-  typeof document === 'undefined' ? (await import('node:fs')).readFileSync : null;
 const recentLocales = new Map();
 const pendingLocales = new Map();
 const source = english.messages;
@@ -19,22 +17,28 @@ function rememberLocale(id, messages) {
   return messages;
 }
 
-function localeMessages(id) {
+function localeMessages(id, load) {
   if (id === 'en') return source;
   if (recentLocales.has(id)) return rememberLocale(id, recentLocales.get(id));
-  if (!readLocaleFile) return source;
-  const file = new URL(`../locales/${id}.json`, import.meta.url);
-  return rememberLocale(id, JSON.parse(readLocaleFile(file, 'utf8')).messages);
+  return load ? rememberLocale(id, load(id)) : source;
 }
 
-export const interfaceLocale = (id) => {
-  const locale = metadata(id);
-  return { ...locale, messages: localeMessages(locale.id) };
-};
+export function createInterfaceTranslator(load) {
+  return {
+    interfaceLocale(id) {
+      const locale = metadata(id);
+      return { ...locale, messages: localeMessages(locale.id, load) };
+    },
+    uiText(text, language = 'en', values) {
+      return translate(text, language, values, localeMessages(metadata(language).id, load));
+    },
+  };
+}
+export const { interfaceLocale, uiText } = createInterfaceTranslator();
 
 export async function prepareInterfaceLocale(id) {
   const locale = metadata(id).id;
-  if (readLocaleFile || locale === 'en') return;
+  if (locale === 'en') return;
   if (recentLocales.has(locale)) {
     localeMessages(locale);
     return;
@@ -83,10 +87,6 @@ function interpolate(text, values) {
     Object.hasOwn(values, key) ? String(values[key]) : token,
   );
 }
-export function uiText(text, language = 'en', values) {
-  return translate(text, language, values, localeMessages(metadata(language).id));
-}
-
 function translate(text, language, values, messages) {
   if (typeof text !== 'string') return text;
   const normalized = text.replace(/\s+/g, ' ').trim();

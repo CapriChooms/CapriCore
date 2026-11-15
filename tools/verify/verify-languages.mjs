@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
-import { uiText } from '../../apps/desktop/renderer/interface-translations.mjs';
+import { uiText } from '../../apps/desktop/interface-translations.mjs';
 const parent = path.join(root, '.runtime/language-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'ui-')),

@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
-import { displayLanguage, uiText } from '../../apps/desktop/renderer/interface-translations.mjs';
+import { displayLanguage, uiText } from '../../apps/desktop/interface-translations.mjs';
 const parent = path.join(root, '.runtime/model-layout-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'fixture-'));

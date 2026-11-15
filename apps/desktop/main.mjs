@@ -287,8 +287,8 @@ import {
   resolveLanguages,
   languageBehaviorChanged,
   languageName,
-  uiText,
 } from './renderer/language-settings.mjs';
+import { uiText } from './interface-translations.mjs';
 import { FilePermissions, protectedLocations } from '../../integrations/filesystem/permissions.mjs';
 import {
   APPLICATION_DEFAULTS,

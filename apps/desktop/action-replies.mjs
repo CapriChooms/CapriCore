@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { uiText } from './renderer/interface-translations.mjs';
+import { uiText } from './interface-translations.mjs';
 const mutations = {
   filesystem_control: [
     'write_text',

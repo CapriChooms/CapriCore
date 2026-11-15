@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { uiText } from './renderer/interface-translations.mjs';
+import { uiText } from './interface-translations.mjs';
 import { callTaskNeedsOwner, callTaskRequest } from './call-computer-task.mjs';
 
 /** Shared host entry point for chat and tools. A cancelled grant never runs a task. */

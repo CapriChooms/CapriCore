@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { TimeConversation as TimerConversation } from '../../packages/skills/src/timers/conversation.mjs';
-import { uiText } from './renderer/interface-translations.mjs';
+import { uiText } from './interface-translations.mjs';
 
 export class TimeConversation extends TimerConversation {
   constructor({ language, ...options }) {

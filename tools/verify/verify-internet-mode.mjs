@@ -9,7 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
-import { uiText } from '../../apps/desktop/renderer/interface-translations.mjs';
+import { uiText } from '../../apps/desktop/interface-translations.mjs';
 
 const parent = path.join(root, '.runtime/internet-mode-verification');
 mkdirSync(parent, { recursive: true });

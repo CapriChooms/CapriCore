@@ -6,7 +6,7 @@ import {
   interfaceLocale,
   uiText,
   displayLanguage,
-} from '../apps/desktop/renderer/interface-translations.mjs';
+} from '../apps/desktop/interface-translations.mjs';
 import {
   LANGUAGE_DEFAULTS,
   validateLanguages,

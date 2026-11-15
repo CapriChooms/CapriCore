@@ -12,7 +12,7 @@ import {
   INTERFACE_LOCALES,
   uiText,
   displayLanguage,
-} from '../../apps/desktop/renderer/interface-translations.mjs';
+} from '../../apps/desktop/interface-translations.mjs';
 import { WORKFLOW_ACTION_LABELS } from '../../apps/desktop/renderer/workflows-panel.mjs';
 const parent = path.join(root, '.runtime/interface-locales-verification');
 mkdirSync(parent, { recursive: true });

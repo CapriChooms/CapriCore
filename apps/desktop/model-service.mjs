@@ -94,8 +94,8 @@ export class ModelService {
     this.device ??= await this.hardware();
     const recommendation = recommendProfile(this.device);
     this.languageRecommendations ??= Object.fromEntries(
-      languages.flatMap(({ id }) => {
-        const profiles = recommendModelsForLanguage(id, this.device);
+      languages.flatMap(({ id, modelLanguage }) => {
+        const profiles = recommendModelsForLanguage(id, this.device, modelLanguage);
         return profiles.length ? [[id, profiles]] : [];
       }),
     );

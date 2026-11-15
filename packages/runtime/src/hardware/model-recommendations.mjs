@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import benchmark from './model-language-benchmark.json' with { type: 'json' };
-import languages from '../../../../apps/shared/languages.json' with { type: 'json' };
 import { MODEL_CHOICES } from './model-catalog.mjs';
 import { dedicatedGpu, profileRamRequirement } from './memory-budget.mjs';
 import { meetsProfileRam } from './profiles.mjs';
 
 /** Keep measured language recommendations within the same hardware envelope as Setup. */
-export function recommendModelsForLanguage(language, hardware) {
-  const measuredLanguage = Object.hasOwn(benchmark.scores, language)
-    ? language
-    : languages.find(({ id }) => id === language)?.modelLanguage;
+export function recommendModelsForLanguage(language, hardware, fallbackLanguage = language) {
+  const measuredLanguage = Object.hasOwn(benchmark.scores, language) ? language : fallbackLanguage;
   if (
     !Object.hasOwn(benchmark.recommendations, measuredLanguage) ||
     !Number.isFinite(hardware?.ramBytes)

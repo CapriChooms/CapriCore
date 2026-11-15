@@ -62,18 +62,18 @@ test('language recommendations respect RAM and the largest dedicated card and ex
     if (modelLanguage) assert.ok(Object.hasOwn(benchmark.scores, modelLanguage));
     const measured = Object.hasOwn(benchmark.scores, id) ? id : modelLanguage;
     const ranked = benchmark.recommendations[measured] ?? [];
-    assert.deepEqual(recommendModelsForLanguage(id, capable), ranked.slice(0, 2));
+    assert.deepEqual(recommendModelsForLanguage(id, capable, modelLanguage), ranked.slice(0, 2));
     assert.deepEqual(
-      recommendModelsForLanguage(id, cpu),
+      recommendModelsForLanguage(id, cpu, modelLanguage),
       ranked.filter((profile) => ['minimal', 'balanced'].includes(profile)).slice(0, 2),
     );
     assert.deepEqual(
-      recommendModelsForLanguage(id, small),
+      recommendModelsForLanguage(id, small, modelLanguage),
       ranked.filter((profile) => profile === 'minimal'),
     );
   }
   assert.deepEqual(
-    recommendModelsForLanguage('pt-BR', capable),
+    recommendModelsForLanguage('pt-BR', capable, 'pt'),
     recommendModelsForLanguage('pt', capable),
   );
   assert.deepEqual(recommendModelsForLanguage('custom', capable), []);

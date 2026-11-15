@@ -25,7 +25,8 @@ def valid(path, item):
 
 
 def provision(component):
-    spec = json.loads((ROOT / 'config/multilingual-runtime.json').read_text(encoding='utf-8'))[component]
+    catalog = json.loads((ROOT / 'config/multilingual-runtime.json').read_text(encoding='utf-8'))
+    spec = catalog[component]
     folder = (ROOT / spec['directory']).resolve()
     if not folder.is_relative_to(ROOT / 'data/speech'):
         raise ValueError('Model directory must stay inside data/speech')
@@ -44,7 +45,9 @@ def provision(component):
             continue
         if shutil.disk_usage(folder).free < item['bytes'] + 1024**3:
             raise RuntimeError('Not enough disk space for speech models')
-        url = f"https://huggingface.co/{spec['model']}/resolve/{spec['revision']}/{item['file']}"
+        upstream = catalog[item.get('source', component)]
+        remote_file = item.get('remoteFile', item['file'])
+        url = f"https://huggingface.co/{upstream['model']}/resolve/{upstream['revision']}/{remote_file}"
         download_verified(url, target, item)
     (folder / 'ATTRIBUTION.txt').write_text(
         f"{spec['model']}\n{spec['source']}\nRevision: {spec['revision']}\nLicense: {spec['license']}\n",
@@ -83,7 +86,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     for part in ('tts', 'whisper'):
         if args.component in (part, 'all'):
-            provision(part)
+            provision('tts-pt-br' if part == 'tts' and args.language == 'pt-BR' else part)
     if args.component == 'chinese' or (args.component in ('tts', 'all') and args.language in ('all', 'zh')):
         provision_chinese()
 

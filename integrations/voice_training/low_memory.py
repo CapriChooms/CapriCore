@@ -48,6 +48,18 @@ def _empty_decoder(native, state, *, meanflow):
     with torch.device('meta'):
         decoder = native.S3Gen(meanflow=meanflow)
     _restore_decoder_caches(decoder)
+    filter_key, window_key = 'tokenizer._mel_filters', 'tokenizer.window'
+    if not meanflow and filter_key not in state and window_key not in state:
+        # Some multilingual checkpoints omit the tokenizer's deterministic
+        # input buffers. Rebuild them using the pinned tokenizer defaults.
+        import librosa
+        from chatterbox.models.s3tokenizer.s3tokenizer import S3_SR
+
+        tokenizer = decoder.tokenizer
+        mel_count = tokenizer._mel_filters.shape[0]
+        state[filter_key] = torch.from_numpy(
+            librosa.filters.mel(sr=S3_SR, n_fft=tokenizer.n_fft, n_mels=mel_count))
+        state[window_key] = torch.hann_window(tokenizer.n_fft, device='cpu')
     return _materialize(decoder, state)
 
 

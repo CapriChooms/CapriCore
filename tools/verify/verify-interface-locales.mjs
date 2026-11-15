@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { saveSettings, settingsView } from './settings-view.mjs';
 import { SETTINGS_SECTIONS } from '../../apps/desktop/renderer/settings-registry.mjs';
+import { SKILL_BY_SECTION } from '../../packages/skills/src/settings-catalog.mjs';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -280,7 +281,25 @@ try {
       .locator('#language-panel .preferences-content')
       .evaluate((el) => ({ scrollWidth: el.scrollWidth, width: el.clientWidth }));
     assert.ok(fit.scrollWidth <= fit.width + 2, locale.id + ' has horizontal overflow');
-    if (['de', 'ar', 'he', 'ja', 'hi', 'en'].includes(locale.id)) {
+    if (locale.id === 'pt-BR') {
+      assert.equal(await controls.locator('html').getAttribute('lang'), 'pt-BR');
+      assert.match(await controls.locator('#settings-navigation').textContent(), /Habilidades/);
+      assert.match(
+        await controls.locator('#settings-navigation [data-section="microphone"]').textContent(),
+        /Entrada de voz/,
+      );
+      const label = displayLanguage('pt-BR', locale.id);
+      for (const [field, expected] of [
+        ['language-conversation', label],
+        ['language-recognition', label + ' / Parakeet'],
+        ['voice-model-language', label],
+      ])
+        assert.equal(
+          await controls.locator('#' + field + ' option[value="pt-BR"]').textContent(),
+          expected,
+        );
+    }
+    if (['de', 'ar', 'he', 'ja', 'hi', 'en', 'pt-BR'].includes(locale.id)) {
       await controls
         .locator('#language-panel .preferences-content')
         .evaluate((el) => (el.scrollTop = 0));
@@ -289,6 +308,12 @@ try {
       report.screenshots.push(file);
       for (const section of ['knowledge', 'workflows', 'user-tools']) {
         await settingsView(application, section);
+        if (locale.id === 'pt-BR') {
+          const skill = SKILL_BY_SECTION[section];
+          const description = await controls.locator('#skill-settings-description').textContent();
+          assert.equal(description, uiText(skill.description, locale.id));
+          assert.notEqual(description, skill.description);
+        }
         const panelId = section === 'knowledge' ? 'knowledge' : section;
         const content = controls.locator('#' + panelId + '-panel .preferences-content');
         await content.evaluate((element) => {

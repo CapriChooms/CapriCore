@@ -50,6 +50,7 @@ function unpackCommand(args) {
     multilingual: 'setup-multilingual-voice.ps1',
     'recognition-en': 'setup-streaming-asr.ps1',
     'recognition-multi': 'setup-multilingual-asr.ps1',
+    'recognition-fast-multi': 'setup-fast-multilingual-asr.ps1',
   };
   assert.equal(path.basename(args[args.indexOf('-File') + 1]), 'owned-speech.ps1');
   return [
@@ -282,38 +283,46 @@ test('component repair releases its lock on invalid configuration and never inst
   await assert.rejects(installSpeechComponents({ speech: 'ru', recognition: 'off' }, options));
   assert.equal(existsSync(path.join(folder, '.runtime/installer/install.lock.json')), false);
 });
-test('recognition-only installation does not require a GPU, voice pack or voice dependencies', async () => {
-  const folder = fixture(),
-    commands = [];
-  let ready = false;
-  await installSpeechComponents(
-    { speech: 'off', recognition: 'en' },
-    {
-      root: folder,
-      node: process.execPath,
-      free: () => 3 * 2 ** 30,
-      ownerStamp: () => '1',
-      hardware: () => {
-        throw new Error('GPU probe must not run');
-      },
-      recognitionReady: () => ready,
-      download: async () => 'verified-fixture.zip',
-      execute: async (file, args) => {
-        args = unpackCommand(args);
-        commands.push(args);
-        if (args.some((v) => v.endsWith('archive.ps1'))) {
-          mkdirSync(path.join(folder, '.runtime/uv'), { recursive: true });
-          writeFileSync(path.join(folder, '.runtime/uv/uv.exe'), 'fixture');
-        }
-        if (args.some((v) => v.endsWith('setup-streaming-asr.ps1'))) ready = true;
-      },
-    },
-  );
-  assert.equal(ready, true);
-  assert.equal(
-    commands.some((args) => args.some((v) => /voice-training|multilingual-voice/.test(v))),
-    false,
-  );
+test('recognition-only installation downloads the necessary recognizer without voice dependencies', async (t) => {
+  for (const [language, setup] of [
+    ['en', 'setup-streaming-asr.ps1'],
+    ['pt-BR', 'setup-fast-multilingual-asr.ps1'],
+  ])
+    await t.test(language, async () => {
+      const folder = fixture(),
+        commands = [];
+      let ready = false;
+      await installSpeechComponents(
+        { speech: 'off', recognition: language },
+        {
+          root: folder,
+          node: process.execPath,
+          free: () => 4 * 2 ** 30,
+          ownerStamp: () => '1',
+          hardware: () => {
+            throw new Error('GPU probe must not run');
+          },
+          recognitionReady: () => ready,
+          download: async () => 'verified-fixture.zip',
+          execute: async (file, args) => {
+            args = unpackCommand(args);
+            commands.push(args);
+            if (args.some((v) => v.endsWith('archive.ps1'))) {
+              mkdirSync(path.join(folder, '.runtime/uv'), { recursive: true });
+              writeFileSync(path.join(folder, '.runtime/uv/uv.exe'), 'fixture');
+            }
+            if (args.some((v) => v.endsWith(setup))) ready = true;
+          },
+        },
+      );
+      assert.equal(ready, true);
+      assert.equal(
+        commands.some((args) =>
+          args.some((v) => /voice-training|multilingual-voice|setup-multilingual-asr/.test(v)),
+        ),
+        false,
+      );
+    });
 });
 test('speech preflight reports required and available space before downloading', async () => {
   await assert.rejects(

@@ -50,8 +50,24 @@ const bounded = (value, fallback, min, max) =>
   Number.isInteger(value) && value >= min && value <= max ? value : fallback;
 
 export class LlamaWorkers {
-  constructor({ root, start, config, device, overheadMiB = 768 }) {
-    Object.assign(this, { root, start, config, device, overheadMiB });
+  constructor({
+    root,
+    start,
+    config,
+    device,
+    overheadMiB = 768,
+    startupTimeoutMs = 160000,
+    automaticGpuStartupTimeoutMs = 75000,
+  }) {
+    Object.assign(this, {
+      root,
+      start,
+      config,
+      device,
+      overheadMiB,
+      startupTimeoutMs,
+      automaticGpuStartupTimeoutMs,
+    });
     this.slots = {
       chat: { queue: Promise.resolve() },
       embedding: { queue: Promise.resolve() },
@@ -130,16 +146,20 @@ export class LlamaWorkers {
     try {
       signal.throwIfAborted();
       child = await this.start(role, args, { LLAMA_API_KEY: token });
-      const timeout = AbortSignal.any([signal, AbortSignal.timeout(160000)]);
-      while (child.alive()) {
-        timeout.throwIfAborted();
+      // In Automatic mode leave time for a CPU attempt in the caller's normal
+      // preparation window if a Vulkan driver stalls instead of exiting.
+      const deadline = AbortSignal.timeout(
+        allowGpu && !this.device ? this.automaticGpuStartupTimeoutMs : this.startupTimeoutMs,
+      );
+      const timeout = AbortSignal.any([signal, deadline]);
+      while (child.alive() && !timeout.aborted) {
         const response = await fetch(url + '/health', {
           redirect: 'error',
           signal: AbortSignal.any([timeout, AbortSignal.timeout(1500)]),
           headers: { authorization: `Bearer ${token}` },
         }).catch(() => null);
         await response?.body?.cancel();
-        if (response?.ok)
+        if (response?.ok && !timeout.aborted)
           return {
             ...options,
             url,
@@ -149,8 +169,12 @@ export class LlamaWorkers {
             allowGpu,
             dispose: modelFiles.dispose,
           };
-        await wait(200, undefined, { signal: timeout });
+        if (!timeout.aborted)
+          await wait(200, undefined, { signal: timeout }).catch((error) => {
+            if (!timeout.aborted) throw error;
+          });
       }
+      signal.throwIfAborted();
       throw Object.assign(new Error('llama.cpp could not load the local GGUF model.'), {
         code: allowGpu ? 'CAPRI_LLAMA_GPU_LOAD_FAILED' : 'CAPRI_LLAMA_CPU_LOAD_FAILED',
       });

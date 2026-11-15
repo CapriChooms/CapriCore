@@ -234,7 +234,7 @@ export async function installSpeechComponents(
           'tools/setup/' +
             (selection.recognition === 'en'
               ? 'setup-streaming-asr.ps1'
-              : selection.recognition === 'auto-europe'
+              : ['auto-europe', 'pt-BR'].includes(selection.recognition)
                 ? 'setup-fast-multilingual-asr.ps1'
                 : 'setup-multilingual-asr.ps1'),
         ),

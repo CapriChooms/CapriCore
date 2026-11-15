@@ -37,7 +37,7 @@ export function estimateSpeechStorage(
     addPackages(storage.recognition);
     downloadBytes += modelBytes(asr) + modelBytes(vad);
     if (recognition !== 'en') downloadBytes += modelBytes(candidates.asr);
-    if (recognition !== 'en' && recognition !== 'auto-europe')
+    if (!['en', 'auto-europe', 'pt-BR'].includes(recognition))
       downloadBytes += modelBytes(speech.whisper);
   }
   if (router) {
@@ -52,9 +52,10 @@ export function estimateSpeechStorage(
         : modelBytes(qwenVoice);
   } else if (voice) {
     addPackages(rocmVoice ? storage.rocmVoice : storage.cudaVoice);
+    const multilingual = speechLanguage === 'pt-BR' ? speech['tts-pt-br'] : speech.tts;
     downloadBytes +=
       artifacts.git.bytes +
-      (speechLanguage === 'en' ? storage.englishVoiceBytes : modelBytes(speech.tts));
+      (speechLanguage === 'en' ? storage.englishVoiceBytes : modelBytes(multilingual));
     if (rocmVoice) addPackages(storage.python); // The AMD runtime additionally needs Python 3.12.
     if (speechLanguage === 'zh') {
       downloadBytes += speech.chinese.archiveBytes;

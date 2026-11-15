@@ -36,7 +36,10 @@ test('every advertised UI locale contains the full source catalog and curated co
       locale.id,
     );
     const messages = interfaceLocale(locale.id).messages;
-    assert.deepEqual(Object.keys(messages), Object.keys(source));
+    assert.deepEqual(
+      Object.keys(messages).filter((key) => Object.hasOwn(source, key)),
+      Object.keys(source),
+    );
     for (const key of Object.keys(source)) {
       assert.ok(messages[key].trim(), locale.id + ': ' + key);
       assert.deepEqual(slots(messages[key]), slots(key), locale.id + ': ' + key);
@@ -80,7 +83,7 @@ test('per-language catalogs ship separately and contain no foreign-language frag
     const messages = JSON.parse(
       readFileSync(new URL(`../apps/desktop/locales/${id}.json`, import.meta.url), 'utf8'),
     ).messages;
-    for (const key of Object.keys(source)) {
+    for (const key of Object.keys(messages)) {
       assert.equal(
         validateLocaleTranslation(key, messages[key], id),
         messages[key],
@@ -88,6 +91,7 @@ test('per-language catalogs ship separately and contain no foreign-language frag
       );
       if (
         id !== 'en' &&
+        Object.hasOwn(source, key) &&
         key.length > 22 &&
         !key.startsWith('{') &&
         !(id === 'fr' && key === 'Microphone ({language})')

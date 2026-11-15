@@ -19,3 +19,14 @@ export function conversationOnly(text, routing) {
     )
   );
 }
+
+/** A single factual question is safe to answer without action tools. Keep
+ * indirect requests and messages with several clauses on the normal route. */
+export function factualQuestion(text) {
+  const value = text.trim();
+  return (
+    /^(?:what (?:is|are|was|does)|who (?:is|are|was|wrote|invented)|where (?:is|are)|when (?:is|was|did)|why (?:is|are|does)|how (?:does|do i)|что (?:такое|значит|означает)|кто (?:такой|такая|написал)|где (?:находится|расположен)|почему|как (?:работает|устроен)|¿?(?:qu[eé] (?:es|significa)|d[oó]nde (?:est[aá]|queda)|c[oó]mo funciona|por qu[eé])|o que (?:é|significa)|onde fica|como funciona|por que)\s+[^?？.!;\r\n]+[?？]$/iu.test(
+      value,
+    ) && !/\s(?:and|then|e depois|y luego|а затем|и затем|после этого)\s/iu.test(value)
+  );
+}

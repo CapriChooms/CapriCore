@@ -74,20 +74,22 @@ export function speechModelsInstalled(root, language) {
     const specs = JSON.parse(
       readFileSync(path.join(root, 'config/multilingual-runtime.json'), 'utf8'),
     );
-    return [specs.tts, ...(language === 'zh' ? [specs.chinese] : [])].every((spec) => {
-      const directory = path.resolve(root, spec.directory);
-      return (
-        directory.startsWith(path.join(path.resolve(root), 'data/speech') + path.sep) &&
-        spec.files.every((item) => {
-          const file = path.resolve(directory, item.file);
-          return (
-            path.dirname(file) === directory &&
-            statSync(file).isFile() &&
-            statSync(file).size === item.bytes
-          );
-        })
-      );
-    });
+    return [specs[model.component ?? 'tts'], ...(language === 'zh' ? [specs.chinese] : [])].every(
+      (spec) => {
+        const directory = path.resolve(root, spec.directory);
+        return (
+          directory.startsWith(path.join(path.resolve(root), 'data/speech') + path.sep) &&
+          spec.files.every((item) => {
+            const file = path.resolve(directory, item.file);
+            return (
+              path.dirname(file) === directory &&
+              statSync(file).isFile() &&
+              statSync(file).size === item.bytes
+            );
+          })
+        );
+      },
+    );
   } catch {
     return false;
   }

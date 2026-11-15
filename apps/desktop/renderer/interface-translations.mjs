@@ -92,8 +92,13 @@ function translate(text, language, values, messages) {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (language === 'ru' && Object.hasOwn(SKILL_TEXT_RU, normalized))
     return SKILL_TEXT_RU[normalized];
-  if (!Object.hasOwn(source, text) && Object.hasOwn(source, normalized)) text = normalized;
-  if (Object.hasOwn(source, text))
+  if (
+    !Object.hasOwn(messages, text) &&
+    !Object.hasOwn(source, text) &&
+    (Object.hasOwn(messages, normalized) || Object.hasOwn(source, normalized))
+  )
+    text = normalized;
+  if (Object.hasOwn(messages, text) || Object.hasOwn(source, text))
     return values ? interpolate(messages[text] ?? text, values) : (messages[text] ?? text);
   for (const template of templates) {
     const match = text.match(template.pattern);

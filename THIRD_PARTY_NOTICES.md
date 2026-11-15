@@ -20,6 +20,10 @@ GPL-3.0-only applies to project-owned code. LICENSE contains the full license te
 | PyTorch and Python packages            | Locked optional environments and individual licenses                                                                                            |
 | Exo 2                                  | SIL Open Font License, assets/fonts/exo2/OFL.txt                                                                                                |
 
+The optional [Chatterbox Multilingual Brazilian Portuguese weights](https://huggingface.co/ResembleAI/Chatterbox-Multilingual-pt-br)
+are downloaded from Resemble AI under the MIT license. The revision and file
+checksums are pinned in `config/multilingual-runtime.json`.
+
 The default procedural avatar is project-owned. The reviewed Capri character sprites and the supplied application icon are included under the separate [character asset notice](docs/character-assets.md). Original generation references, recordings and trained voice weights are excluded from source export. The code license grants no rights to those materials. Verify provenance, permission and model terms before distributing an optional pack. A machine-generated [npm dependency inventory](docs/audit/npm-sbom.cdx.json) records the pinned JavaScript dependency graph. An inventory is not a complete transitive-license compatibility review; that remains a release qualification task. Optional Python/vendor environments are outside that npm inventory.
 
 Community buttons use the [Discord symbol](https://discord.com/branding) and the [GitHub Octicons mark](https://github.com/primer/octicons/blob/main/icons/mark-github-16.svg). Their marks belong to their respective owners. The Octicons license is bundled in `assets/default/brand/github-license.txt`.

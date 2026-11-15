@@ -28,6 +28,7 @@ const hosts = new Set([
   'objects.githubusercontent.com',
   'npmmirror.com',
   'cdn.npmmirror.com',
+  'gh-proxy.org',
 ]);
 export function artifactUrl(value) {
   const url = new URL(value);

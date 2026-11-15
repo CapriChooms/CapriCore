@@ -35,6 +35,44 @@
     ],
     "variant": "v3"
   },
+  "tts-pt-br": {
+    "model": "ResembleAI/Chatterbox-Multilingual-pt-br",
+    "revision": "b3952f18bc2eaa72b9bd7c17d2c4653bcad4770d",
+    "source": "https://huggingface.co/ResembleAI/Chatterbox-Multilingual-pt-br",
+    "license": "MIT",
+    "directory": "data/speech/chatterbox-multilingual-pt-br",
+    "files": [
+      {
+        "file": "t3_mtl23ls_v3.safetensors",
+        "remoteFile": "t3_pt_br.safetensors",
+        "bytes": 2143990296,
+        "sha256": "074aaf65255eb9cb960288f7cc72e09d3b5008f6e0b14868c0d4e5b0bd7cbb6c"
+      },
+      {
+        "file": "s3gen.pt",
+        "remoteFile": "s3gen_v3.pt",
+        "bytes": 1056903694,
+        "sha256": "f7abce4b196dae2d08d9296cbebc6521b046079577643b42a19a03499d08721e"
+      },
+      {
+        "file": "grapheme_mtl_merged_expanded_v1.json",
+        "bytes": 69989,
+        "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+      },
+      {
+        "file": "ve.pt",
+        "source": "tts",
+        "bytes": 5698626,
+        "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+      },
+      {
+        "file": "Cangjie5_TC.json",
+        "source": "tts",
+        "bytes": 1920163,
+        "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+      }
+    ]
+  },
   "whisper": {
     "model": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
     "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",

@@ -70,6 +70,15 @@ test('computer outcome logs retain bounded counts and known reasons without scre
   assert.equal(invalid.steps, undefined);
 });
 
+test('submission failure diagnostics preserve only a known technical reason', () => {
+  const event = record({ stage: 'failed', reason: 'backend_unavailable' });
+  assert.deepEqual(privateLogRecord(JSON.stringify({ ...event, message: 'private' })), {
+    schemaVersion: 1,
+    ...event,
+  });
+  assert.equal(responseTimingRecord({ ...event, reason: 'private' }).reason, undefined);
+});
+
 test('timing logs rotate within a fixed bound without retaining ignored content', async () => {
   const parent = path.resolve('.runtime/response-timing-unit');
   mkdirSync(parent, { recursive: true });

@@ -101,9 +101,9 @@ test('language settings preserve English and resolve multilingual capability lim
   assert.equal(resolveLanguages(value).speech, 'en');
   assert.equal(uiText('Mute Capri', 'ru'), 'Выключить голос Capri');
   assert.deepEqual(validateLanguages(LANGUAGE_DEFAULTS), LANGUAGE_DEFAULTS);
-  assert.equal(LANGUAGE_PACKS.length, 100);
-  assert.equal(LANGUAGE_PACKS.filter((p) => p.speechReady).length, 23);
-  for (const id of ['ru', 'ja', 'zh', 'ar', 'de'])
+  assert.equal(LANGUAGE_PACKS.length, 101);
+  assert.equal(LANGUAGE_PACKS.filter((p) => p.speechReady).length, 24);
+  for (const id of ['ru', 'ja', 'zh', 'ar', 'de', 'pt-BR'])
     assert.equal(
       resolveLanguages(validateLanguages({ ...LANGUAGE_DEFAULTS, conversation: id })).speech,
       id,
@@ -117,6 +117,15 @@ test('language settings preserve English and resolve multilingual capability lim
     'auto',
   );
   assert.equal(validateLanguages({ ...LANGUAGE_DEFAULTS, autoDetect: true }).recognition, 'auto');
+  const brazilian = validateLanguages({
+    ...LANGUAGE_DEFAULTS,
+    interface: 'pt-BR',
+    conversation: 'pt-BR',
+  });
+  assert.equal(brazilian.interface, 'pt-BR');
+  assert.equal(resolveLanguages(brazilian).recognition, 'pt-BR');
+  assert.equal(uiText('Microphone input', brazilian.interface), 'Entrada do microfone');
+  assert.match(conversationInstruction(brazilian), /Brazilian Portuguese/);
   assert.throws(() => validateLanguages({ ...LANGUAGE_DEFAULTS, interface: 'unknown' }));
   assert.throws(() => validateLanguages({ ...LANGUAGE_DEFAULTS, speech: 'uk' }), /No voice/);
   assert.throws(() => validateLanguages({ ...LANGUAGE_DEFAULTS, speech: 'ru' }), /matching/);

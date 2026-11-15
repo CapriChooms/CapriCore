@@ -162,7 +162,8 @@ export class VoiceModelPanel {
         ? previousChoice
         : null) ??
       this.value.selections[language] ??
-      (language === 'en' ? this.value.defaults.en : this.value.defaults.multilingual);
+      this.value.defaults[language] ??
+      this.value.defaults.multilingual;
     this.details();
   }
   details() {

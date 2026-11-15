@@ -62,6 +62,28 @@ test('casual dialogue and personal-memory questions keep their narrow scopes wit
   assert(!memory.body.messages[0].content.includes('filesystem_control trash'));
 });
 
+test('unclassified questions cannot reach action tools when no action skill is available', async () => {
+  for (const [skills, expected] of [
+    [['capri.avatar-interaction', 'capri.attachment-viewer'], 'dialogue'],
+    [['capri.owner-memory'], 'conversation'],
+    [['capri.timers'], undefined],
+  ]) {
+    const result = await capture('What is the capital of Slovakia?', {
+      interfaceState: () => ({ activeSkills: new Set(skills) }),
+      requestRouter: { classify: async () => ({ mode: 'normal', reason: 'unavailable' }) },
+    });
+    assert.equal(result.headers['x-capri-tools-once'], expected);
+    assert.equal(
+      result.body.messages[0].content.includes('TOOL EXECUTION BEFORE FINAL ANSWER'),
+      !expected,
+    );
+  }
+  const settings = await capture('Could you turn off the glitch animation?', {
+    interfaceState: () => ({ activeSkills: new Set() }),
+  });
+  assert.equal(settings.headers['x-capri-tools-once'], undefined);
+});
+
 test('cached context can budget a turn immediately while a shared metadata read is still pending', async () => {
   let finish,
     calls = 0;

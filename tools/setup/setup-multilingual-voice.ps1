@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-only
-param([ValidatePattern('^(all|[a-z]{2,3})$')][string]$Language='all')
+param([ValidatePattern('^(all|pt-BR|[a-z]{2,3})$')][string]$Language='all')
 $ErrorActionPreference='Stop'
 $capriMultilingualRoot=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 Set-Location -LiteralPath $capriMultilingualRoot

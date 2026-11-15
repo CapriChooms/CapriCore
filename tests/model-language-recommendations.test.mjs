@@ -20,8 +20,11 @@ test('scoring accepts native counters and grammar without confusing partial numb
   assert.ok(scoreLanguageAnswer('মায়ার কাছে ৪টি আপেল আছে।', bn[1]));
 });
 
-test('each built-in conversation language has real results for all selectable local models', () => {
-  const ids = languages.map(({ id }) => id).sort();
+test('each measured conversation language has real results for all selectable local models', () => {
+  const ids = languages
+    .filter(({ id, modelLanguage }) => !modelLanguage || Object.hasOwn(corpus.languages, id))
+    .map(({ id }) => id)
+    .sort();
   assert.deepEqual(Object.keys(corpus.languages).sort(), ids);
   assert.deepEqual(Object.keys(benchmark.scores).sort(), ids);
   assert.equal(
@@ -55,18 +58,24 @@ test('language recommendations respect RAM and the largest dedicated card and ex
   const capable = { ramBytes: 64 * 2 ** 30, gpus: [{ memoryKind: 'dedicated', vramMiB: 24576 }] };
   const cpu = { ramBytes: capable.ramBytes, gpus: [{ memoryKind: 'shared', vramMiB: 24576 }] };
   const small = { ramBytes: 8 * 2 ** 30, gpus: [] };
-  for (const { id } of languages) {
-    const ranked = benchmark.recommendations[id] ?? [];
-    assert.deepEqual(recommendModelsForLanguage(id, capable), ranked.slice(0, 2));
+  for (const { id, modelLanguage } of languages) {
+    if (modelLanguage) assert.ok(Object.hasOwn(benchmark.scores, modelLanguage));
+    const measured = Object.hasOwn(benchmark.scores, id) ? id : modelLanguage;
+    const ranked = benchmark.recommendations[measured] ?? [];
+    assert.deepEqual(recommendModelsForLanguage(id, capable, modelLanguage), ranked.slice(0, 2));
     assert.deepEqual(
-      recommendModelsForLanguage(id, cpu),
+      recommendModelsForLanguage(id, cpu, modelLanguage),
       ranked.filter((profile) => ['minimal', 'balanced'].includes(profile)).slice(0, 2),
     );
     assert.deepEqual(
-      recommendModelsForLanguage(id, small),
+      recommendModelsForLanguage(id, small, modelLanguage),
       ranked.filter((profile) => profile === 'minimal'),
     );
   }
+  assert.deepEqual(
+    recommendModelsForLanguage('pt-BR', capable, 'pt'),
+    recommendModelsForLanguage('pt', capable),
+  );
   assert.deepEqual(recommendModelsForLanguage('custom', capable), []);
   assert.deepEqual(recommendModelsForLanguage('en', { ramBytes: 1 }), []);
 });

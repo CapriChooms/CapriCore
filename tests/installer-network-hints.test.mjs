@@ -83,7 +83,7 @@ test(
       true,
       'Localized Windows transport exceptions keep their network classification',
     );
-    assert.equal(report.localized.length, 50);
+    assert.equal(report.localized.length, 51);
     assert.ok(report.localized.every(({ hint, details, tools }) => hint && details && tools));
     assert.equal(report.voiceUnchanged, true);
     assert.equal(report.diskHint, false);

@@ -60,6 +60,18 @@ const computerReasons = new Set([
   'exact_control_clicked',
   'checkpoint_pending',
 ]);
+const submissionReasons = new Set([
+  'maintenance',
+  'sign_in',
+  'voice_training',
+  'model_setup',
+  'speech_installation',
+  'shutting_down',
+  'backend_unavailable',
+  'busy',
+  'skill_disabled',
+  'internal',
+]);
 const counters = new Set([
   'contextShift',
   'truncate',
@@ -137,6 +149,8 @@ export function responseTimingRecord(value) {
   for (const key of counters)
     if (Number.isFinite(value[key]) && value[key] >= 0 && value[key] <= 1e12)
       result[key] = Math.round(value[key] * 1000) / 1000;
+  if (value.stage === 'failed' && value.source === 'desktop' && submissionReasons.has(value.reason))
+    result.reason = value.reason;
   if (value.stage === 'computer_outcome') {
     if (computerReasons.has(value.reason)) result.reason = value.reason;
     for (const key of ['steps', 'completedCheckpoints', 'remainingCheckpoints'])

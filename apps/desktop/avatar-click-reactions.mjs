@@ -76,6 +76,7 @@ const spokenCues = {
   no: ['Så søtt.', 'Ta det rolig.', 'Hm?', 'Ja?', 'Hendene vekk.'],
   pl: ['Jak miło.', 'Spokojnie.', 'Hm?', 'Tak?', 'Ręce przy sobie.'],
   pt: ['Que fofo.', 'Com calma.', 'Hm?', 'Sim?', 'Tira a mão.'],
+  'pt-BR': ['Que fofo.', 'Calma aí.', 'Hm?', 'Oi?', 'Tira a mão.'],
   ru: ['Мило.', 'Полегче.', 'М?', 'Да?', 'Руки прочь.'],
   es: ['Qué lindo.', 'Con calma.', '¿Hm?', '¿Sí?', 'No me toques.'],
   sw: ['Inapendeza.', 'Polepole.', 'Hmm?', 'Naam?', 'Usiniguse.'],

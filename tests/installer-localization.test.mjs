@@ -54,7 +54,7 @@ test('installer progress, native update and uninstall messages cover all languag
 });
 test('all Capri languages have a complete offline installer catalog, ordered pages and protected technical values', () => {
   assert.deepEqual(validateInstallerCatalog(catalog, locales), languages);
-  assert.equal(languages.length, 50);
+  assert.equal(languages.length, 51);
   assert.ok(installerStrings(catalog.en).length >= 132);
   const languageNeutral = new Set([
     'budgetUse',
@@ -104,7 +104,9 @@ test('all Capri languages have a complete offline installer catalog, ordered pag
 test('installer culture aliases match Windows regional variants and fall back to English', () => {
   for (const [culture, expected] of [
     ['de-DE', 'de'],
-    ['pt-BR', 'pt'],
+    ['pt-BR', 'pt-BR'],
+    ['PT-br', 'pt-BR'],
+    ['pt-PT', 'pt'],
     ['zh-TW', 'zh'],
     ['fil-PH', 'tl'],
     ['nb-NO', 'no'],
@@ -133,7 +135,7 @@ internal static class Harness {static int Main(string[] args){Console.OutputEnco
 foreach(string id in new string[]{${languages.map((id) => '"' + id + '"').join(',')}}){
 if(!CapriSetupLocale.Select(id))throw new Exception(id);
 Console.WriteLine(new JavaScriptSerializer().Serialize(new {id=id,title=CapriSetupLocale.Text("title"),error=CapriSetupLocale.Text(args[0])}));}
-if(CapriSetupLocale.Resolve("fil-PH")!="tl"||CapriSetupLocale.Resolve("nb-NO")!="no"||CapriSetupLocale.Resolve("zz-ZZ")!="en"||CapriSetupLocale.Select("not-a-locale"))return 2;
+if(CapriSetupLocale.Resolve("fil-PH")!="tl"||CapriSetupLocale.Resolve("nb-NO")!="no"||CapriSetupLocale.Resolve("PT-br")!="pt-BR"||CapriSetupLocale.Resolve("pt-PT")!="pt"||CapriSetupLocale.Resolve("zz-ZZ")!="en"||CapriSetupLocale.Select("not-a-locale"))return 2;
 CapriSetupLocale.SelectInstalled(args[1]);
 if(CapriSetupLocale.Language!="ar"||!CapriSetupLocale.RightToLeft)return 3;
 return 0;}}`,

@@ -6,7 +6,7 @@
       "name": "Capri · Qwen3-TTS 0.6B (BETA)",
       "repository": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
       "backend": "qwen3-tts",
-      "languages": ["en", "zh", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"],
+      "languages": ["en", "zh", "ja", "ko", "de", "fr", "ru", "pt", "pt-BR", "es", "it"],
       "voiceIdentity": "capri-reference",
       "training": null,
       "devices": ["cpu", "cuda", "rocm"],
@@ -39,6 +39,18 @@
       "training": "capri-turbo-lora",
       "devices": ["cpu", "cuda", "rocm"],
       "installLanguage": "en"
+    },
+    {
+      "id": "chatterbox-multilingual-pt-br",
+      "name": "Capri · Chatterbox Multilingual V3 · Português (Brasil)",
+      "repository": "ResembleAI/Chatterbox-Multilingual-pt-br",
+      "backend": "chatterbox-multilingual-v3",
+      "component": "tts-pt-br",
+      "languages": ["pt-BR"],
+      "voiceIdentity": "capri-reference",
+      "training": null,
+      "devices": ["cpu", "cuda", "rocm"],
+      "installLanguage": "pt-BR"
     },
     {
       "id": "chatterbox-multilingual-v3",

@@ -40,9 +40,11 @@ for (const meta of config.locales) {
     missing.push(meta.id);
     continue;
   }
-  for (const key of Object.keys(source)) {
+  for (const [key, value] of Object.entries(data.messages)) {
+    if (typeof value !== 'string' || !value.trim() || placeholders(value) !== placeholders(key))
+      throw new Error(meta.id + ': ' + key + ': Invalid localized message');
     try {
-      validateLocaleTranslation(key, data.messages[key], meta.id);
+      validateLocaleTranslation(key, value, meta.id);
     } catch (error) {
       throw new Error(meta.id + ': ' + key + ': ' + error.message);
     }

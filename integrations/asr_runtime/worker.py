@@ -5,6 +5,7 @@ import sys
 import threading
 
 from .protocol import rejection_code
+from .native_runtime import load_sherpa_runtime
 
 output_lock = threading.Lock()
 
@@ -20,6 +21,7 @@ def run():
         # Flush the last known phase before importing or invoking native code:
         # a native access violation cannot be caught by Python's exception handler.
         emit(dict(type='startup-stage', code=stage))
+        _native_runtime = load_sherpa_runtime()
         import numpy as np
         from .model import Recognizer, SpeechDetector, settings, validate_pause
         from .recognition import RecognitionSession, RecognitionQueue

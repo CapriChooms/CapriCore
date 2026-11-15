@@ -93,6 +93,11 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
   const secret = 'bare-credential-canary-123456789';
   const privateText = 'PRIVATE_CONVERSATION_CANARY_8492';
   put(base, 'data/openclaw/gateway-token', secret);
+  put(
+    base,
+    'logs/llama-chat.stderr.log',
+    JSON.stringify({ event: 'exited', exitCode: 1, text: privateText }) + '\n' + privateText,
+  );
   const traceId = 'fc28b5a7-2972-4af5-aad7-ea07d39f624c';
   put(
     base,
@@ -195,6 +200,8 @@ test('diagnostic ZIP keeps the active model ID and reply flag without keys, prom
     installerDirectory: null,
   });
   const files = unpack(report.bytes);
+  const runnerLog = [...files].find(([name]) => name.endsWith('llama-chat.stderr.log'))?.[1];
+  assert.match(runnerLog, /"event":"exited","exitCode":1/);
   const session = JSON.parse(files.get('session.json'));
   assert.equal(session.inference.model, model);
   assert.equal(session.voice.lastFailure.code, 'CAPRI_VOICE_LANGUAGE_MISMATCH');

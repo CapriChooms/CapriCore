@@ -24,6 +24,8 @@ internal static class CapriSetupLocale {
         } catch { return new Dictionary<string,object>(); }
     }
     internal static string Resolve(string culture) {
+        foreach(string locale in Catalog.Keys)
+            if(String.Equals(locale,culture,StringComparison.OrdinalIgnoreCase))return locale;
         string id=(culture??"").ToLowerInvariant().Split('-')[0];
         if(id=="fil")id="tl";
         if(id=="nb"||id=="nn")id="no";

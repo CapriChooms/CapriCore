@@ -48,7 +48,10 @@ export function validateInstallerCatalog(catalog, locales) {
 }
 /** Windows culture names vary (for example fil-PH/nb-NO); unsupported ones fall back to English. */
 export function installerCulture(culture, supported) {
-  const base = String(culture).toLowerCase().split('-')[0];
+  const requested = String(culture).toLowerCase();
+  const exact = supported.find((id) => id.toLowerCase() === requested);
+  if (exact) return exact;
+  const base = requested.split('-')[0];
   const id = { fil: 'tl', nb: 'no', nn: 'no', iw: 'he' }[base] ?? base;
   return supported.includes(id) ? id : 'en';
 }

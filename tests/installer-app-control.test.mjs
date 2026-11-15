@@ -48,7 +48,7 @@ test(
     assert.deepEqual(value.typed, [true, true, false, false, false]);
     assert.equal(value.network, false);
     assert.equal(value.ordinary, false);
-    assert.equal(value.localized.length, 50);
+    assert.equal(value.localized.length, 51);
     assert(value.localized.every((row) => row.installed && !row.failed && row.code && row.details));
   },
 );

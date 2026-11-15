@@ -1396,6 +1396,12 @@ async function initializeDesktop() {
     return true;
   }
   const turnOrigins = new Map();
+  class SubmissionError extends Error {
+    constructor(reason, message) {
+      super(message);
+      this.reason = reason;
+    }
+  }
   function thinkingInput(value) {
     const input = validateInput({
       ...value,
@@ -1407,22 +1413,44 @@ async function initializeDesktop() {
     });
     if (input.mode)
       skillSettings.require(input.mode === 'coding' ? 'capri.coding' : 'capri.computer');
-    if (input.thinking) skillSettings.require('capri.reasoning');
-    if (input.internet) skillSettings.require('capri.web-search');
+    // A composer can still have the old toggle state when a skill is switched off in Settings.
+    if (input.thinking && !skillEnabled('capri.reasoning')) input.thinking = false;
+    if (input.internet && !skillEnabled('capri.web-search')) input.internet = false;
     return input;
   }
   async function submitMessage(value, origin = 'text') {
     localInferenceTasks++;
     try {
-      return await withResponseTiming(value?.id, () => submitMessageTurn(value, origin));
+      return await withResponseTiming(value?.id, async () => {
+        try {
+          return await submitMessageTurn(value, origin);
+        } catch (error) {
+          markResponseTiming('failed', {
+            reason:
+              error instanceof SubmissionError
+                ? error.reason
+                : error?.code === 'skill_disabled'
+                  ? 'skill_disabled'
+                  : 'internal',
+          });
+          throw error;
+        }
+      });
     } finally {
       localInferenceTasks--;
     }
   }
   async function submitMessageTurn(value, origin = 'text') {
-    if (maintenance) throw new Error('Wait for the current reply or operation to finish.');
+    if (maintenance)
+      throw new SubmissionError(
+        'maintenance',
+        'Wait for the current reply or operation to finish.',
+      );
     if (chatgpt.signingIn)
-      throw new Error('Finish ChatGPT sign-in or cancel it before sending a message.');
+      throw new SubmissionError(
+        'sign_in',
+        'Finish ChatGPT sign-in or cancel it before sending a message.',
+      );
     avatarClickReactions?.cancel();
     const input = thinkingInput(value);
     const movement = skillEnabled('capri.avatar-interaction')
@@ -1430,11 +1458,20 @@ async function initializeDesktop() {
       : null;
     if (movement) return submitAvatarCommand(input, movement);
     if (voiceTraining.busy())
-      throw new Error('Wait for voice training to finish, or cancel it in Languages.');
+      throw new SubmissionError(
+        'voice_training',
+        'Wait for voice training to finish, or cancel it in Languages.',
+      );
     if (settings.modelSetupRequired && !rt.remote.enabled && !rt.nativeNpu)
-      throw new Error('Choose and prepare a language model in Settings → Language model first.');
+      throw new SubmissionError(
+        'model_setup',
+        'Choose and prepare a language model in Settings → Language model first.',
+      );
     if (speechInstaller.busy())
-      throw new Error('Wait for speech installation to finish, or cancel it in Languages.');
+      throw new SubmissionError(
+        'speech_installation',
+        'Wait for speech installation to finish, or cancel it in Languages.',
+      );
     initiative.activity();
     screenObservation?.activity();
     pendingFollowUp = null;
@@ -1444,7 +1481,7 @@ async function initializeDesktop() {
       sessionId: origin === 'microphone' ? microphone.capture?.id : null,
     });
     if (turnOrigins.size > 128) turnOrigins.delete(turnOrigins.keys().next().value);
-    if (shuttingDown) throw new Error('Capri is shutting down');
+    if (shuttingDown) throw new SubmissionError('shutting_down', 'Capri is shutting down');
     const approval = await companionActions.approvals.text(input.text);
     if (approval) {
       const createdAt = new Date().toISOString();
@@ -1513,7 +1550,8 @@ async function initializeDesktop() {
       return { ok: true };
     }
     if (isSleepCommand(input.text)) {
-      if (currentChatTask || chat.active) throw new Error('A reply is already in progress.');
+      if (currentChatTask || chat.active)
+        throw new SubmissionError('busy', 'A reply is already in progress.');
       const task = sleepService.sleep();
       currentChatTask = task;
       try {
@@ -1551,10 +1589,11 @@ async function initializeDesktop() {
       }
     }
     if (sleepService.phase !== 'awake') await sleepService.wake();
+    if (shuttingDown) throw new SubmissionError('shutting_down', 'Capri is shutting down');
     if (isClipCommand(input.text)) {
       if (clipJobs.has(input.id)) return clipJobs.get(input.id);
-      if (shuttingDown || currentChatTask || chat.active)
-        throw new Error('A reply is already in progress.');
+      if (currentChatTask || chat.active)
+        throw new SubmissionError('busy', 'A reply is already in progress.');
       const task = submitClip(input);
       clipJobs.set(input.id, task);
       if (clipJobs.size > 128) clipJobs.delete(clipJobs.keys().next().value);
@@ -1568,9 +1607,10 @@ async function initializeDesktop() {
         }
       }
     }
-    if (shuttingDown || backendState.phase !== 'ready')
-      throw new Error('The local core is not ready yet.');
-    if (currentChatTask || chat.active) throw new Error('A reply is already in progress.');
+    if (backendState.phase !== 'ready')
+      throw new SubmissionError('backend_unavailable', 'The local core is not ready yet.');
+    if (currentChatTask || chat.active)
+      throw new SubmissionError('busy', 'A reply is already in progress.');
     voicePreviewRequest = null;
     const task = chat.send(input, emitChat);
     currentChatTask = task;
@@ -6954,7 +6994,14 @@ async function initializeDesktop() {
         lastScreenshot,
       };
     });
-    handle('capri:send', (value) => submitMessage(value));
+    handle('capri:send', async (value) => {
+      try {
+        return await submitMessage(value);
+      } catch (error) {
+        if (!(error instanceof SubmissionError)) throw error;
+        return { ok: false, message: error.message };
+      }
+    });
     handle('capri:response-painted', (value) => {
       if (!value || Object.keys(value).some((key) => !['id', 'elapsedMs'].includes(key)))
         return false;

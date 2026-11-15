@@ -5,8 +5,9 @@ import {
   LANGUAGE_PACKS,
   resolveLanguages,
   validateLanguages,
-  uiText,
 } from '../apps/desktop/renderer/language-settings.mjs';
+import { uiText } from '../apps/desktop/interface-translations.mjs';
+import russian from '../apps/desktop/locales/ru.json' with { type: 'json' };
 import { conversationInstruction, VOICE_PREVIEWS } from '../apps/desktop/language-context.mjs';
 import { SentenceBuffer, VoiceService } from '../apps/desktop/voice-service.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -69,7 +70,11 @@ test('installed language applies normally and leaving settings waits for a missi
   assert.equal(await LanguagePanel.prototype.beforeClose.call(closing), false);
 });
 
-test('changing only the interface language saves with a missing voice', async () => {
+test('changing only the interface language saves with a missing voice', async (t) => {
+  const load = t.mock.method(globalThis, 'fetch', async (url) => {
+    assert.equal(url, '/locales/ru.json');
+    return Response.json(russian);
+  });
   const value = { ...LANGUAGE_DEFAULTS, speech: 'en' };
   const draft = { ...value, interface: 'ru' };
   let saved;
@@ -85,6 +90,7 @@ test('changing only the interface language saves with a missing voice', async ()
   };
   assert.equal(await LanguagePanel.prototype.apply.call(panel), true);
   assert.deepEqual(saved, draft);
+  assert.equal(load.mock.callCount(), 1);
 });
 
 test('language settings preserve English and resolve multilingual capability limits explicitly', () => {

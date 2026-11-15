@@ -389,7 +389,7 @@ async function verifySpokenReaction(page, count, cue, text) {
     sequence: 0,
     text,
     sampleRate,
-    pcm: pcm.toString('base64'),
+    pcm: new Uint8Array(pcm),
   });
   assert.deepEqual(reactionAudio.at(-1), { text, language: 'en', requestId: `${turnId}:0` });
 }

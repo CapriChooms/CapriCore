@@ -6,6 +6,7 @@ import {
   resolveLanguages,
   validateLanguages,
 } from './language-settings.mjs';
+import { prepareInterfaceLocale } from './interface-translations.mjs';
 
 export class LanguagePanel {
   constructor({ api, ui, onChange, onOpen, onError, confirm }) {
@@ -71,6 +72,7 @@ export class LanguagePanel {
   }
   async apply() {
     const draft = validateLanguages(this.draft());
+    await prepareInterfaceLocale(draft.interface);
     if (draft.interface !== this.value.interface && !languageBehaviorChanged(this.value, draft)) {
       this.show(await this.api.setLanguages(draft));
       return true;
@@ -243,6 +245,7 @@ export class LanguagePanel {
       void this.api
         .setLanguages(draft)
         .then(async (saved) => {
+          await prepareInterfaceLocale(saved.interface);
           this.show(saved);
           if (!scope && resolveLanguages(draft).speech !== 'off')
             await this.api.setVoiceEnabled(true);

@@ -41,7 +41,7 @@ const voice = new VoiceService({
   emit: (event) => {
     if (event.type === 'voice.audio') {
       report.frames++;
-      report.samples += Buffer.from(event.pcm, 'base64').length / 4;
+      report.samples += event.pcm.byteLength / 4;
       report.sampleRate = event.sampleRate;
     }
     if (event.type === 'voice.generated') finish?.();

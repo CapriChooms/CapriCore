@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import path from 'node:path';
+import localeIndex from '../../shared/interface-locales.json' with { type: 'json' };
 import { loadStartupIntro } from '../startup-intro-assets.mjs';
 const rendererFiles = [
   'index.html',
@@ -187,6 +188,11 @@ export function createDesktopResources({
   for (const name of ['languages.json', 'interface-locales.json'])
     resources.set('/shared/' + name, {
       file: path.join(root, 'apps/shared', name),
+      type: 'application/json; charset=utf-8',
+    });
+  for (const id of Object.keys(localeIndex.locales))
+    resources.set('/locales/' + id + '.json', {
+      file: path.join(directory, 'locales', id + '.json'),
       type: 'application/json; charset=utf-8',
     });
   resources.set('/hall-of-fame.json', {

@@ -147,6 +147,8 @@ try {
   await activeRequest;
   const expectedMessages = ['Languages', 'Open', 'A synthetic active-reply check.', 'Open'];
   report.interfaceOnlyDuringReply = true;
+  await page.locator('#history-toggle').evaluate((button) => button.click());
+  await page.locator('.message-copy').first().waitFor({ state: 'attached' });
 
   assert.equal(
     await controls.locator('#language-interface option').count(),

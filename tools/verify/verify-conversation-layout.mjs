@@ -201,6 +201,7 @@ async function scenario({ name, width, height, fromCore = false, screenshot, clo
   if (fromCore) await presence('core');
   await page.locator('#history-toggle').click({ force: true });
   await page.locator('#history-panel').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#messages .message').count(), 20);
   await page.waitForFunction(() => document.body.dataset.presence === 'portrait');
   await paint();
   assert.equal(await page.locator('#history-toggle').getAttribute('aria-expanded'), 'true');
@@ -227,6 +228,7 @@ async function scenario({ name, width, height, fromCore = false, screenshot, clo
   if (close === 'escape') await page.keyboard.press('Escape');
   else await page.locator('#history-close').click();
   await page.locator('#history-panel').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#messages .message').count(), 0);
   assert.equal(await page.locator('#history-toggle').getAttribute('aria-expanded'), 'false');
   await paint();
   const after = await layout();
@@ -265,7 +267,7 @@ try {
     owner.showInactive();
   });
   await paint();
-  assert.equal(await page.locator('#messages .message').count(), 20);
+  assert.equal(await page.locator('#messages .message').count(), 0);
   await scenario({
     name: 'portrait',
     width: 480,

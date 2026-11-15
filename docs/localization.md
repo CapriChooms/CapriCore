@@ -15,7 +15,7 @@ Coverage includes the common controls, native menus, settings, tooltips, screen-
 - `apps/desktop/locales/<locale>.json`: editable translations, one complete file per locale.
 - `config/interface-locales.json`: supported locale IDs, native names and text direction. Interface locales are separate from speech capabilities.
 - `config/interface-glossary.json`: curated core terminology, including the distinction between conversation language, recognition and spoken voice.
-- `apps/shared/interface-locales.json`: generated runtime bundle. It ships with the project so end users need no translator, network connection or localization build step.
+- `apps/shared/interface-locales.json`: generated index with locale metadata and localized language names. The desktop loads individual message catalogs from `apps/desktop/locales` on demand, entirely offline.
 
 English, Russian, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Ukrainian, Czech, Slovak, Bulgarian, Croatian, Serbian, Slovenian, Romanian, Hungarian, Greek, Danish, Norwegian, Swedish, Finnish, Estonian, Latvian, Lithuanian, Icelandic, Catalan, Arabic, Hebrew, Persian, Urdu, Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Punjabi, Chinese, Japanese, Korean, Vietnamese, Thai, Indonesian, Malay, Filipino, Turkish, Swahili and Afrikaans are included.
 
@@ -55,4 +55,4 @@ Generation resumes from saved messages. Contextual review checkpoints each batch
 
 ## Verification
 
-`node --test tests/interface-locales.test.mjs tests/workflow-localization.test.mjs tests/language-settings.test.mjs` checks locale coverage, agreement between editable catalogs and the runtime bundle, core terminology, substitution slots, writing systems, RTL metadata and separation from dialogue settings. `node tools/verify/verify-interface-locales.mjs` uses an isolated real Electron window and synthetic messages to check every advertised language, persistence, labels/tooltips, native menus, workflow captions, layout bounds and preservation of chat/draft/file data. Verification images contain only the test window; no physical microphone, webcam or user screen is captured.
+`node --test tests/interface-locales.test.mjs tests/workflow-localization.test.mjs tests/language-settings.test.mjs` checks locale coverage, catalog packaging, core terminology, substitution slots, writing systems, RTL metadata and separation from dialogue settings. `node tools/verify/verify-interface-locales.mjs` uses an isolated real Electron window and synthetic messages to check every advertised language, persistence, labels/tooltips, native menus, workflow captions, layout bounds and preservation of chat/draft/file data. Verification images contain only the test window; no physical microphone, webcam or user screen is captured.

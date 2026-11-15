@@ -382,8 +382,12 @@ test('a useful report survives missing voice components and includes bounded red
       steps: 'Install, enable voice, send a message',
     },
     snapshot: {
-      voice: { enabled: true, ready: false },
-      response: { lastFailure: { phase: 'model', elapsedMs: 30000, errorName: 'TimeoutError' } },
+      voice: { enabled: true, ready: false, lastFailure: { phase: 'synthesize' } },
+      backend: { phase: 'offline', code: 'CAPRI_SERVICE_STARTUP_TIMEOUT' },
+      startup: { stages: [{ id: 'core', state: 'running' }] },
+      response: {
+        lastFailure: { phase: 'model-loading', elapsedMs: 30000, errorName: 'TimeoutError' },
+      },
       recognition: {
         performance: {
           lastFailure: {
@@ -413,9 +417,14 @@ test('a useful report survives missing voice components and includes bounded red
     assert.ok(!all.includes(value), value);
   assert.match(files.get('REPORT.md'), /Не работает голос/);
   assert.match(files.get('REPORT.md'), /CUDA unavailable/);
+  assert.match(files.get('REPORT.md'), /Local voice also supports CPU inference/);
   assert.match(files.get('REPORT.md'), /missing Python module/);
-  assert.match(files.get('REPORT.md'), /last reply failed during model after 30000 ms/);
-  assert.deepEqual(JSON.parse(files.get('session.json')).recognition.performance.lastFailure, {
+  assert.match(files.get('REPORT.md'), /last reply failed during model-loading after 30000 ms/);
+  const session = JSON.parse(files.get('session.json'));
+  assert.equal(session.backend.phase, 'offline');
+  assert.deepEqual(session.startup.stages, [{ id: 'core', state: 'running' }]);
+  assert.equal(session.voice.lastFailure.phase, 'synthesize');
+  assert.deepEqual(session.recognition.performance.lastFailure, {
     code: 'ASR_START_NATIVE_CRASH',
     startupStage: 'ASR_START_MODEL',
   });

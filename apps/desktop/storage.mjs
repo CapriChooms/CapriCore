@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { writeJsonAtomic } from '../../packages/runtime/src/atomic-json.mjs';
+import { writeJsonAtomic, writeTextAtomic } from '../../packages/runtime/src/atomic-json.mjs';
 import { historyAttachments } from './attachment-history.mjs';
 import { webSources } from './web-sources.mjs';
 import { PRIVATE_STORAGE_OVERHEAD, isLegacySealed } from './legacy-private-storage.mjs';
@@ -25,9 +25,34 @@ function canonicalMessage(message) {
   return result;
 }
 const attachmentIds = (messages) =>
-  messages
-    .flatMap((message) => historyAttachments(message.attachments).map((value) => value.id))
-    .join(',');
+  messages.flatMap((message) => (message.attachments ?? []).map(({ id }) => id)).join(',');
+
+function boundedHistory(messages) {
+  const head = '{"schemaVersion":1,"messages":[';
+  const tail = ']}\n';
+  const separator = ',';
+  const rows = [];
+  let bytes = head.length + tail.length;
+  for (const message of messages) {
+    const text = JSON.stringify(message);
+    const size = Buffer.byteLength(text);
+    bytes += size + (rows.length ? separator.length : 0);
+    rows.push({ text, size });
+  }
+  let first = 0;
+  while (bytes > MAX_FILE_BYTES && rows.length - first > 2)
+    bytes -= rows[first++].size + separator.length;
+  return {
+    first,
+    text:
+      head +
+      rows
+        .slice(first)
+        .map(({ text }) => text)
+        .join(separator) +
+      tail,
+  };
+}
 
 function validMessage(message) {
   return (
@@ -107,17 +132,13 @@ export class TranscriptStore {
     this.messages = this.messages.slice(-MAX_MESSAGES);
     // Bound total history as well as each message; this is a display journal,
     // never an additional prompt/history replay into OpenClaw.
-    while (
-      Buffer.byteLength(JSON.stringify({ schemaVersion: 1, messages: this.messages }, null, 2)) >
-        MAX_FILE_BYTES &&
-      this.messages.length > 2
-    )
-      this.messages.shift();
+    const { first, text } = boundedHistory(this.messages);
+    if (first) this.messages.splice(0, first);
     // Keep the current conversation usable in memory without overwriting the
     // unreadable journal or permitting derivative pruning through its warning.
     if (this.restoreFailed) return;
     try {
-      this.persist({ schemaVersion: 1, messages: this.messages });
+      writeTextAtomic(this.file, text);
       this.warning = null;
       if (previousAttachments !== attachmentIds(this.messages)) this.onAttachmentsChanged?.();
     } catch {

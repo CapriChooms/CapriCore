@@ -12,6 +12,7 @@ import { DiscordPanel } from './discord-panel.mjs';
 import { MusicListeningPanel } from './music-listening-panel.mjs';
 // SPDX-License-Identifier: GPL-3.0-only
 import { InterfaceLanguage, validateLanguages } from './language-settings.mjs';
+import { prepareInterfaceLocale } from './interface-translations.mjs';
 import { LanguagePanel } from './language-panel.mjs';
 import { CompanionPanel } from './companion-panel.mjs';
 import { ModelsPanel } from './models-panel.mjs';
@@ -1165,7 +1166,11 @@ for (const [section, controller, apply, fields, preview] of [
     controller.panel.id,
     fields,
     apply,
-    () => controller.show(deferred.get(controller.panel.id) ?? controller.value),
+    async () => {
+      const value = deferred.get(controller.panel.id) ?? controller.value;
+      if (controller === language) await prepareInterfaceLocale(value.interface);
+      controller.show(value);
+    },
     preview,
   );
 addDraft(
@@ -1909,6 +1914,8 @@ function show(snapshot) {
   renderNavigation();
   document.title = ui.text('Capri Settings');
 }
+let savedLanguageRevision = 0;
+let languagePreviewRevision = 0;
 function event(value) {
   if (value.type === 'skills.settings') {
     skillState = value.settings;
@@ -2082,19 +2089,22 @@ function event(value) {
   }
   if (value.type === 'companion.settings') feedback.configure(value.settings.buttonFeedback);
   if (value.type === 'languages') {
-    if (JSON.stringify(language.draft()) === language.savedDraft) {
-      language.show(value.settings);
-      captureDrafts('language-panel');
-      revisions.languages = value.settingsVersions?.languages ?? revisions.languages;
-    } else {
-      deferred.set('language-panel', value.settings);
-      if (!writes.size && !resettingSettings)
-        notice('Settings changed elsewhere. Apply or discard your draft.');
-    }
-    applyLanguage(
-      dirty.has('language-panel') ? language.draft().interface : value.settings.interface,
-    );
-    renderNavigation();
+    const revision = ++savedLanguageRevision;
+    void prepareInterfaceLocale(value.settings.interface)
+      .then(() => {
+        if (revision !== savedLanguageRevision) return;
+        if (JSON.stringify(language.draft()) === language.savedDraft) {
+          language.show(value.settings);
+          captureDrafts('language-panel');
+          revisions.languages = value.settingsVersions?.languages ?? revisions.languages;
+        } else {
+          deferred.set('language-panel', value.settings);
+          if (!writes.size && !resettingSettings)
+            notice('Settings changed elsewhere. Apply or discard your draft.');
+        }
+        return previewInterfaceLanguage(language.draft().interface);
+      })
+      .catch((error) => notice(error.message));
   }
   if (value.type === 'avatar.layout') {
     latest.avatarLayout = value.layout;
@@ -2145,14 +2155,22 @@ function event(value) {
     }
   }
 }
+async function previewInterfaceLanguage(locale) {
+  const revision = ++languagePreviewRevision;
+  await prepareInterfaceLocale(locale);
+  if (revision !== languagePreviewRevision || language.draft().interface !== locale) return;
+  applyLanguage(locale);
+  renderNavigation();
+}
 for (const name of ['input', 'change', 'click'])
   document.addEventListener(name, (event) => {
     if (!event.target.closest('.preferences-panel') || applyingDraft || resettingSettings) return;
     closeRequested = false;
     syncDraftActions();
     if (event.target.id === 'language-interface') {
-      applyLanguage(language.draft().interface);
-      renderNavigation();
+      void previewInterfaceLanguage(language.draft().interface).catch((error) =>
+        notice(error.message),
+      );
     }
     if (event.target.id === 'language-conversation')
       models.setConversationLanguage(language.draft().conversation);
@@ -2190,7 +2208,9 @@ window.addEventListener('keydown', (e) => {
 });
 raw.onEvent(event);
 try {
-  show(await raw.bootstrap());
+  const snapshot = await raw.bootstrap();
+  await prepareInterfaceLocale(snapshot.languages.interface);
+  show(snapshot);
   await companion.loadPersonality().catch((error) => notice(error.message));
   for (const draft of drafts)
     if (!['microphone-device', 'discord-panel', 'computer-access-panel'].includes(draft.panel))

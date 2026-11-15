@@ -5,6 +5,7 @@ import { VoicePlayer } from './voice-player.mjs';
 import { ReplyVisibility } from './reply-visibility.mjs';
 import { VoiceEffectsPanel } from './voice-effects-panel.mjs';
 import { InterfaceLanguage, languageName } from './language-settings.mjs';
+import { prepareInterfaceLocale } from './interface-translations.mjs';
 import { LanguagePanel } from './language-panel.mjs';
 import { CompanionPanel } from './companion-panel.mjs';
 import { UpdatesPanel } from './updates-panel.mjs';
@@ -243,6 +244,9 @@ const elements = Object.fromEntries(
   ].map((id) => [id, document.getElementById(id)]),
 );
 const messages = new Map();
+const messageViews = new Map();
+let latestMessageId = null;
+let activeAssistantId = null;
 const modelsPanel = new ModelsPanel({
   api,
   ui,
@@ -565,7 +569,7 @@ function publishCallAudio() {
   return callAudioUpdate;
 }
 function lastCallReply() {
-  const last = [...messages.values()].at(-1)?.message;
+  const last = messages.get(latestMessageId);
   return last?.role === 'assistant' && last.status === 'complete' ? last.text : '';
 }
 async function speakInCall(text, model = false) {
@@ -1375,9 +1379,14 @@ async function setHistory(open) {
   subtitleController.activity();
   if (open) {
     followOutput = true;
+    for (const message of messages.values()) renderHistoryMessage(message);
     scrollToLatest();
     elements['history-close'].focus();
-  } else elements['history-toggle'].focus();
+  } else {
+    messageViews.clear();
+    elements.messages.replaceChildren();
+    elements['history-toggle'].focus();
+  }
   scheduleRegions();
 }
 
@@ -1762,24 +1771,7 @@ function refreshInterface() {
   if (initiativePanel.currentStatus) initiativePanel.status(initiativePanel.currentStatus);
   screenPanel?.refreshLocale();
   memoryHUD.refreshLocale();
-  for (const view of messages.values()) {
-    historyAttachments.render(view.attachments, view.message.attachments);
-    internetMode.renderSources(
-      view.sources,
-      view.message.role === 'assistant' ? view.message.webSources : [],
-      { turnId: view.message.turnId },
-    );
-    view.node.querySelector('.message-label').textContent =
-      view.message.role === 'user' ? ui.text('You') : 'Capri';
-    labelCopyButton(view.copy);
-    view.status.textContent = ui.text(
-      view.message.status === 'interrupted'
-        ? 'Stopped'
-        : view.message.status === 'error'
-          ? 'Response incomplete'
-          : '',
-    );
-  }
+  for (const id of messageViews.keys()) renderHistoryMessage(messages.get(id), true);
   controls();
   updateAvatarDetachButton();
   scheduleRegions();
@@ -2016,25 +2008,37 @@ function labelCopyButton(button) {
 }
 
 function putMessage(message) {
-  let view = messages.get(message.id);
+  if (!messages.has(message.id)) latestMessageId = message.id;
+  messages.set(message.id, message);
+  if (message.role === 'assistant' && message.turnId === activeTurnId)
+    activeAssistantId = message.id;
+  if (!elements['history-panel'].hidden) {
+    renderHistoryMessage(message);
+    scrollToLatest();
+  }
+  elements['history-empty'].hidden = messages.size > 0;
+  updateHistoryClear();
+}
+
+function renderHistoryMessage(message, refreshLocale = false) {
+  let view = messageViews.get(message.id);
   if (!view) {
     const node = document.createElement('article');
     node.className = 'message';
     node.dataset.role = message.role;
     const label = document.createElement('div');
     label.className = 'message-label';
-    label.textContent = message.role === 'user' ? ui.text('You') : 'Capri';
     const heading = document.createElement('div');
     heading.className = 'message-heading';
     const copy = document.createElement('button');
     copy.type = 'button';
     copy.className = 'message-copy';
     copy.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 5h8v9H5zM3 11H2V2h8v1"/><path d="m3 8 3 3 7-7"/></svg>`;
-    labelCopyButton(copy);
     let resetCopy;
+    const { id } = message;
     copy.onclick = async () => {
       try {
-        if (!(await api.copyMessage(message.id))) throw new Error();
+        if (!(await api.copyMessage(id))) throw new Error();
         copy.dataset.copied = '';
         labelCopyButton(copy);
         elements.announcement.textContent = ui.text('Message copied');
@@ -2061,10 +2065,14 @@ function putMessage(message) {
     sources.hidden = true;
     node.append(heading, attachments, text, sources, status);
     elements.messages.append(node);
-    view = { node, text, attachments, sources, status, copy, message: { ...message } };
-    messages.set(message.id, view);
+    view = { node, label, text, attachments, sources, status, copy };
+    messageViews.set(message.id, view);
+    refreshLocale = true;
   }
-  view.message = { ...message };
+  if (refreshLocale) {
+    view.label.textContent = message.role === 'user' ? ui.text('You') : 'Capri';
+    labelCopyButton(view.copy);
+  }
   if (view.text.textContent !== message.text) view.text.textContent = message.text;
   view.copy.disabled = !message.text.trim() || message.status === 'streaming';
   historyAttachments.render(view.attachments, message.attachments);
@@ -2079,11 +2087,9 @@ function putMessage(message) {
         ? 'Response incomplete'
         : '',
   );
-  elements['history-empty'].hidden = messages.size > 0;
-  updateHistoryClear();
-  scrollToLatest();
 }
 
+let interfaceLanguageRevision = 0;
 function onEvent(event) {
   if (event.type === 'skills.settings') {
     skillState = event.settings;
@@ -2348,6 +2354,8 @@ function onEvent(event) {
     if (elements['history-panel'].contains(document.getSelection()?.anchorNode))
       document.getSelection().removeAllRanges();
     messages.clear();
+    messageViews.clear();
+    latestMessageId = activeAssistantId = null;
     elements.messages.replaceChildren();
     elements['history-empty'].hidden = false;
     updateHistoryClear();
@@ -2474,10 +2482,18 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'languages') {
-    languagePanel.show(event.settings);
-    skillButtons.render();
-    modelsPanel.setConversationLanguage(event.settings.conversation);
-    updateNotification.refresh();
+    const revision = ++interfaceLanguageRevision;
+    void prepareInterfaceLocale(event.settings.interface)
+      .then(() => {
+        if (revision !== interfaceLanguageRevision) return;
+        languagePanel.show(event.settings);
+        skillButtons.render();
+        modelsPanel.setConversationLanguage(event.settings.conversation);
+        updateNotification.refresh();
+      })
+      .catch((error) => {
+        if (revision === interfaceLanguageRevision) notice(error.message);
+      });
     return;
   }
   if (event.type === 'speech-install.status') {
@@ -2612,6 +2628,7 @@ function onEvent(event) {
     if (event.user?.text != null) setPacketInput(event.user.text);
     else setPacketInput('', event.source === 'avatar-click' ? '' : 'A thought of her own.');
     activeTurnId = event.turnId;
+    activeAssistantId = null;
     followOutput = true;
     notice();
     if (event.user) putMessage(event.user);
@@ -2627,10 +2644,8 @@ function onEvent(event) {
       event.phase === 'ready' &&
       Array.isArray(event.sources)
     ) {
-      const view = [...messages.values()].find(
-        (item) => item.message.turnId === event.turnId && item.message.role === 'assistant',
-      );
-      if (view) putMessage({ ...view.message, webSources: event.sources });
+      const message = messages.get(activeAssistantId);
+      if (message) putMessage({ ...message, webSources: event.sources });
     }
     return;
   }
@@ -2645,12 +2660,10 @@ function onEvent(event) {
   }
   if (event.type === 'turn.delta') {
     presence.text(event.turnId);
-    const view = [...messages.values()].find(
-      (item) => item.message.turnId === event.turnId && item.message.role === 'assistant',
-    );
-    if (view) {
-      const firstVisibleText = !view.message.text;
-      const message = { ...view.message, text: view.message.text + event.text };
+    const current = messages.get(activeAssistantId);
+    if (current) {
+      const firstVisibleText = !current.text;
+      const message = { ...current, text: current.text + event.text };
       putMessage(message);
       showSubtitles(message);
       if (firstVisibleText && document.visibilityState === 'visible') {
@@ -2676,6 +2689,7 @@ function onEvent(event) {
     putMessage(event.assistant);
     showSubtitles(event.assistant);
     activeTurnId = null;
+    activeAssistantId = null;
     responsePaintStarts.delete(event.turnId);
     notice(event.warning || (event.type === 'turn.failed' ? event.message : ''));
     elements.announcement.textContent = ui.text(
@@ -3180,6 +3194,7 @@ window.addEventListener(
 
 try {
   const snapshot = await api.bootstrap();
+  await prepareInterfaceLocale(snapshot.languages.interface);
   skillState = snapshot.skills ?? {};
   skillButtons.render(snapshot.skills);
   showApplicationAccess(snapshot.applicationAccess ?? { enabled: true });

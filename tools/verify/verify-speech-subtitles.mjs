@@ -140,7 +140,7 @@ try {
     sequence,
     text,
     sampleRate: 24000,
-    pcm: Buffer.alloc(Math.round(24000 * seconds) * 4).toString('base64'),
+    pcm: new Uint8Array(Math.round(24000 * seconds) * 4),
   });
   await emit(packet(0, first, 1.3));
   await page.waitForFunction(() => document.body.dataset.speaking === 'true');

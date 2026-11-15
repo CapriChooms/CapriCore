@@ -22,6 +22,7 @@ export async function startCore(
     signal,
     voiceExpected = false,
     voiceReady = false,
+    warmMemory = true,
   } = {},
 ) {
   signal?.throwIfAborted();
@@ -74,7 +75,7 @@ export async function startCore(
   if (preload) {
     onStage('models', 'running');
     try {
-      await prewarmModels(rt, { signal, inventory });
+      await prewarmModels(rt, { signal, inventory, warmMemory });
       if (rt.nativeNpu) await rt.nativeNpu.ready({ signal });
       else if (!rt.remote?.enabled) await prewarmAgentRuntime(rt, { signal });
       signal?.throwIfAborted();
@@ -156,7 +157,26 @@ export async function prewarmAgentRuntime(rt = runtime(), { signal } = {}) {
   );
 }
 
-export async function prewarmModels(rt = runtime(), { signal, inventory } = {}) {
+export async function prewarmEmbedding(rt = runtime(), { signal, models } = {}) {
+  signal?.throwIfAborted();
+  models ??= (await request(`${rt.ollamaUrl}/api/ps`, { signal })).models ?? [];
+  if (models.some((model) => model.name === settings.embeddingModel && model.size_vram === 0))
+    return;
+  await request(`${rt.ollamaUrl}/api/embed`, {
+    method: 'POST',
+    timeout: 180000,
+    signal,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: settings.embeddingModel,
+      input: 'Memory index warmup.',
+      keep_alive: settings.keepAlive ?? -1,
+      options: { num_gpu: 0 },
+    }),
+  });
+}
+
+export async function prewarmModels(rt = runtime(), { signal, inventory, warmMemory = true } = {}) {
   // Direct provider priming creates no OpenClaw messages or user memories.
   // Avoid replacing a useful conversation KV cache with "Hello" on reconnect.
   signal?.throwIfAborted();
@@ -174,9 +194,6 @@ export async function prewarmModels(rt = runtime(), { signal, inventory } = {}) 
       model.name === settings.model &&
       model.context_length === settings.contextTokens &&
       (settings.acceleration !== 'cpu' || model.size_vram === 0),
-  );
-  const embeddingsReady = models.some(
-    (model) => model.name === settings.embeddingModel && model.size_vram === 0,
   );
   await Promise.all([
     languageReady || !warmLanguage
@@ -204,20 +221,7 @@ export async function prewarmModels(rt = runtime(), { signal, inventory } = {}) 
             },
           }),
         }),
-    embeddingsReady
-      ? undefined
-      : request(`${rt.ollamaUrl}/api/embed`, {
-          method: 'POST',
-          timeout: 180000,
-          signal,
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            model: settings.embeddingModel,
-            input: 'Memory index warmup.',
-            keep_alive: settings.keepAlive ?? -1,
-            options: { num_gpu: 0 },
-          }),
-        }),
+    warmMemory ? prewarmEmbedding(rt, { signal, models }) : undefined,
   ]);
 }
 

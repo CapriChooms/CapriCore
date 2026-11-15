@@ -143,6 +143,9 @@ const screenStartupFailure =
 // Host-defined control vocabulary only. Never admit arbitrary target labels,
 // destinations, message text or model-provided prose under these field names.
 const CONTROL_VALUES = {
+  id: new Set(['core', 'models', 'recognition', 'voice']),
+  phase: new Set(['offline', 'model-loading', 'prepare', 'synthesize']),
+  state: new Set(['running']),
   action: new Set([
     'observe',
     'launch',

@@ -34,25 +34,75 @@ def _restore_decoder_caches(decoder):
         decoder.trim_fade = fade
 
 
+def _materialize(module, state):
+    module.load_state_dict(state, strict=True, assign=True)
+    if any(value.is_meta for value in list(module.parameters()) + list(module.buffers())):
+        raise ValueError('Unmaterialized model state')
+    for child in module.modules():
+        if any(torch.is_tensor(value) and value.is_meta for value in vars(child).values()):
+            raise ValueError('Unknown model tensor cache')
+    return module.eval()
+
+
+def _empty_decoder(native, state, *, meanflow):
+    with torch.device('meta'):
+        decoder = native.S3Gen(meanflow=meanflow)
+    _restore_decoder_caches(decoder)
+    return _materialize(decoder, state)
+
+
 def load_decoder_cpu(native, folder):
     """Avoid initializing/copying a second 1 GB decoder. Unknown layouts stay native."""
     state = native.load_file(Path(folder)/'s3gen_meanflow.safetensors')
-    decoder = None
     try:
-        with torch.device('meta'):
-            decoder = native.S3Gen(meanflow=True)
-        _restore_decoder_caches(decoder)
-        decoder.load_state_dict(state, strict=True, assign=True)
-        if any(value.is_meta for value in list(decoder.parameters())+list(decoder.buffers())):
-            raise ValueError('Unmaterialized acoustic state')
-        for module in decoder.modules():
-            if any(torch.is_tensor(value) and value.is_meta for value in vars(module).values()):
-                raise ValueError('Unknown acoustic tensor cache')
+        return _empty_decoder(native, state, meanflow=True)
     except (RuntimeError, ValueError, TypeError, NotImplementedError, AttributeError):
         decoder = native.S3Gen(meanflow=True)
         decoder.load_state_dict(state, strict=True)
-    decoder.eval()
-    return decoder
+    return decoder.eval()
+
+
+def _empty_multilingual_t3(native, folder, *, cpu_inference):
+    from safetensors import safe_open
+    from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
+
+    with torch.device('meta'):
+        t3 = native.T3(native.T3Config.multilingual())
+    rotary = t3.tfmr.rotary_emb
+    if type(rotary) is not LlamaRotaryEmbedding:
+        raise ValueError('Unknown multilingual rotary embedding')
+    t3.tfmr.rotary_emb = LlamaRotaryEmbedding(rotary.config, device=torch.device('cpu'))
+    with safe_open(folder / 't3_mtl23ls_v3.safetensors', framework='pt', device='cpu') as file:
+        state = {}
+        for key in file.keys():
+            tensor = file.get_tensor(key)
+            # CPU inference uses native aligned storage for repeated GEMMs.
+            # GPU inference can move the mapped weights directly once.
+            state[key] = tensor.clone() if cpu_inference else tensor
+    return _materialize(t3, state)
+
+
+def load_multilingual_cpu(folder, *, cpu_inference):
+    """Use the verified V3 weights directly, reserving private storage for inference."""
+    from chatterbox import mtl_tts as native
+
+    folder = Path(folder)
+    try:
+        t3 = _empty_multilingual_t3(native, folder, cpu_inference=cpu_inference)
+        decoder = _empty_decoder(native, torch.load(folder / 's3gen.pt', map_location='cpu',
+                                                   weights_only=True, mmap=not cpu_inference),
+                                 meanflow=False)
+    except (RuntimeError, ValueError, TypeError, NotImplementedError, AttributeError):
+        # Leave the optimized loader frame before constructing native models.
+        t3 = None
+    if t3 is None:
+        return native.ChatterboxMultilingualTTS.from_local(folder, device='cpu', t3_model='v3')
+
+    voice_encoder = native.VoiceEncoder()
+    voice_encoder.load_state_dict(torch.load(folder / 've.pt', map_location='cpu', weights_only=True))
+    tokenizer = native.MTLTokenizer(str(folder / 'grapheme_mtl_merged_expanded_v1.json'))
+    # Capri always supplies and verifies its own reference before inference.
+    return native.ChatterboxMultilingualTTS(t3, decoder, voice_encoder.eval(), tokenizer, 'cpu')
 
 
 def load_turbo_cpu(folder, *, native=None):

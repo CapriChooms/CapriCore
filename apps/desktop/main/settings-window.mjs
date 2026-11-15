@@ -57,6 +57,7 @@ export class SettingsWindow {
     onBusy,
     onError,
     onRendererLost = () => {},
+    idleCloseMs = 60000,
   }) {
     Object.assign(this, {
       BrowserWindow,
@@ -69,6 +70,7 @@ export class SettingsWindow {
       onBusy,
       onError,
       onRendererLost,
+      idleCloseMs,
     });
     this.requested = false;
     this.ready = false;
@@ -321,6 +323,7 @@ export class SettingsWindow {
   }
   async open(section = null, focus = null) {
     if (this.quitting()) return;
+    clearTimeout(this.idleCloseTimer);
     this.requested = true;
     this.section = section;
     this.focusTarget =
@@ -331,9 +334,23 @@ export class SettingsWindow {
       this.painted = false;
       this.contentReady = false;
       this.loadingReady = false;
-      this.docked = true;
+      const placement = this.idlePlacement;
+      this.idlePlacement = null;
+      this.docked = placement?.docked ?? true;
+      let bounds = placement?.bounds;
+      if (bounds) {
+        const { workArea } = this.screen.getDisplayMatching(bounds);
+        const width = Math.min(bounds.width, workArea.width);
+        const height = Math.min(bounds.height, workArea.height);
+        bounds = {
+          width,
+          height,
+          x: Math.max(workArea.x, Math.min(bounds.x, workArea.x + workArea.width - width)),
+          y: Math.max(workArea.y, Math.min(bounds.y, workArea.y + workArea.height - height)),
+        };
+      }
       this.view = new this.BrowserWindow({
-        ...settingsBounds(this.owner.getBounds(), this.getOwnerDisplay().workArea),
+        ...(bounds ?? settingsBounds(this.owner.getBounds(), this.getOwnerDisplay().workArea)),
         // A native owned window can be restored by Windows along with Capri,
         // independently of our requested/ready state. Keep the reusable renderer
         // (and unsaved drafts), but manage this top-level surface explicitly.
@@ -497,13 +514,26 @@ export class SettingsWindow {
         this.pendingEvents.delete(this.pendingEvents.keys().next().value);
     }
   }
-  hide() {
+  hide({ releaseWhenIdle = false } = {}) {
     this.presentationRevision++;
     this.surfacePending = null;
     this.requested = false;
     this.window?.hide();
     this.window?.webContents.setBackgroundThrottling(true);
     this.onBusy(false);
+    const view = this.window;
+    if (releaseWhenIdle && view) {
+      clearTimeout(this.idleCloseTimer);
+      this.idleCloseTimer = setTimeout(() => {
+        if (this.requested || this.window !== view || view.isVisible()) return;
+        this.idlePlacement = {
+          docked: this.docked,
+          ...(!this.docked && { bounds: view.getBounds() }),
+        };
+        this.destroy();
+      }, this.idleCloseMs);
+      this.idleCloseTimer.unref?.();
+    }
   }
   destroy() {
     const view = this.window;
@@ -511,6 +541,7 @@ export class SettingsWindow {
     view?.destroy();
   }
   clear() {
+    clearTimeout(this.idleCloseTimer);
     this.presentationRevision++;
     this.hideHelp(false, true);
     this.helpWindow?.destroy();

@@ -37,6 +37,9 @@ except ImportError:
 
 MAX_LINE_BYTES = 128 * 1024
 SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
+MIN_AUDIO_RMS = 0.0003
+CLASSIFIER_TARGET_RMS = 0.04
+CLASSIFIER_MAX_GAIN = 24.0
 
 
 class MusicClassifier:
@@ -114,13 +117,17 @@ class MusicClassifier:
         if self.since_inference < self.config["hopSamples"]:
             return None
         self.since_inference = 0
-        rms = float(np.sqrt(np.mean(self.samples.astype(np.float64) ** 2)))
+        current_audio = self.samples[-self.config["hopSamples"] :]
+        rms = float(np.sqrt(np.mean(current_audio.astype(np.float64) ** 2)))
         started = time.perf_counter()
-        if rms < 0.0003:
+        if rms < MIN_AUDIO_RMS:
             scores = np.zeros(521, dtype=np.float32)
         else:
+            # The desktop mix may be quiet even when the track is clearly
+            # audible. Compensate for playback volume in the classifier only.
+            gain = min(CLASSIFIER_MAX_GAIN, max(1.0, CLASSIFIER_TARGET_RMS / rms))
             scores = probabilities(
-                self.session.run(None, {"audio": log_mel_patch(self.samples)})[0][0]
+                self.session.run(None, {"audio": log_mel_patch(current_audio * gain)})[0][0]
             )
         self.scores.append(scores)
         mean = np.mean(self.scores, axis=0)
@@ -135,10 +142,11 @@ class MusicClassifier:
             "rms": round(rms, 6),
             **self.tempo.estimate(
                 music=bool(
-                    mean[self.config["classes"]["music"]] >= 0.6 and rms >= 0.0003
+                    mean[self.config["classes"]["music"]] >= 0.6
+                    and rms >= MIN_AUDIO_RMS
                 ),
                 retain_history=bool(
-                    rms >= 0.0003 and mean[self.config["classes"]["speech"]] < 0.2
+                    rms >= MIN_AUDIO_RMS and mean[self.config["classes"]["speech"]] < 0.2
                 ),
             ),
             "inferenceMs": round((time.perf_counter() - started) * 1000.0, 3),

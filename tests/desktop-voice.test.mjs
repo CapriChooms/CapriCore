@@ -201,6 +201,39 @@ const pcm = () =>
     headers: { 'content-type': 'application/octet-stream', 'x-sample-rate': '24000' },
   });
 
+test('split voice packets retain their exact PCM bytes with or without a content length', async () => {
+  for (const length of [12, undefined, 16]) {
+    const expected = new Uint8Array(new Float32Array([0.125, -0.25, 0.5]).buffer);
+    const { voice, events } = service(
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(expected.subarray(0, 5));
+              controller.enqueue(expected.subarray(5));
+              controller.close();
+            },
+          }),
+          {
+            headers: {
+              'content-type': 'application/octet-stream',
+              'x-sample-rate': '24000',
+              ...(length !== undefined && { 'content-length': String(length) }),
+            },
+          },
+        ),
+    );
+    try {
+      turn(voice, 'binary', 'Audio fixture.');
+      await until(() => events.some(({ type }) => ['voice.audio', 'voice.error'].includes(type)));
+      const audio = events.find(({ type }) => type === 'voice.audio');
+      assert.deepEqual(audio?.pcm, length === 16 ? undefined : expected);
+    } finally {
+      voice.close();
+    }
+  }
+});
+
 test('missing multilingual weights retain a specific repair message and diagnostic failure', async () => {
   const events = [];
   const voice = new VoiceService({
@@ -264,6 +297,23 @@ test('a generation limit affects one reply, and a subsequent turn speaks without
   turn(voice, 'next', 'Hello again.');
   await until(() => events.some((e) => e.type === 'voice.audio' && e.turnId === 'next'));
   assert.equal(voice.ready, true);
+  voice.cancel();
+});
+
+test('a local synthesis timeout keeps the installed voice ready for the next reply', async () => {
+  let fail = true;
+  const { voice, events } = service(() => {
+    if (fail) throw new DOMException('Timed out', 'TimeoutError');
+    return pcm();
+  });
+  turn(voice, 'timed-out', 'A complete sentence.');
+  await until(() => events.some((e) => e.type === 'voice.error'));
+  assert.match(events.find((e) => e.type === 'voice.error').message, /Voice is still ready/);
+  assert.equal(voice.diagnostics().lastFailure.name, 'TimeoutError');
+  assert.equal(voice.ready, true);
+  fail = false;
+  turn(voice, 'after-timeout', 'Hello again.');
+  await until(() => events.some((e) => e.type === 'voice.audio' && e.turnId === 'after-timeout'));
   voice.cancel();
 });
 
@@ -509,7 +559,7 @@ test('PCM playback preserves order, stops immediately, and ignores old packets',
     sequence,
     text: 'Hello.',
     sampleRate: 24000,
-    pcm: Buffer.from(new Float32Array([0.2, -0.1]).buffer).toString('base64'),
+    pcm: new Uint8Array(new Float32Array([0.2, -0.1]).buffer),
   });
   player.begin('one');
   player.accept(packet('one', 0));
@@ -780,7 +830,7 @@ test('an approved call mirrors Capri to both outputs and keeps only the selected
       sequence: 0,
       text: 'Test audio',
       sampleRate: 24000,
-      pcm: Buffer.from(new Float32Array([0.2, -0.1]).buffer).toString('base64'),
+      pcm: new Uint8Array(new Float32Array([0.2, -0.1]).buffer),
     });
     await delay(0);
   };
@@ -960,7 +1010,7 @@ test('a ready VAC receives 24 kHz speech even when the local speaker cannot unlo
     sequence: 0,
     text: 'Test.',
     sampleRate: 24000,
-    pcm: Buffer.from(new Float32Array(24000).buffer).toString('base64'),
+    pcm: new Uint8Array(new Float32Array(24000).buffer),
   });
   await delay(0);
   assert.deepEqual(played, [1]);

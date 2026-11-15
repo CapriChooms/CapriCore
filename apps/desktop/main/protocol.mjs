@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFileSync } from 'node:fs';
 export const DESKTOP_CSP =
-  "default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'";
+  "default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'";
 export function resourceResponse(request, resources, { attachments } = {}) {
   const url = new URL(request.url);
   const trusted =

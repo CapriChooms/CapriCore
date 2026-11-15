@@ -84,7 +84,7 @@ function tone(seconds) {
     const edge = Math.min(1, t * 80, (seconds - t) * 100);
     samples.writeFloatLE(Math.sin(t * 2 * Math.PI * 170) * envelope * edge, index * 4);
   }
-  return samples.toString('base64');
+  return new Uint8Array(samples);
 }
 const audio = tone(1.75);
 const landmarks = [

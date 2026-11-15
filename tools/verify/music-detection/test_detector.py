@@ -151,6 +151,32 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(len(self.classifier.scores), 0)
         self.assertEqual(len(self.classifier.tempo.onsets), 0)
 
+    def test_quiet_playback_is_boosted_for_inference_but_not_for_activity(self):
+        inputs = []
+        logits = np.zeros((1, 521), dtype=np.float32)
+
+        def run(_outputs, values):
+            inputs.append(values["audio"])
+            return [logits]
+
+        original = self.classifier.session
+        self.classifier.session = SimpleNamespace(run=run)
+        try:
+            t = np.arange(16000) / 16000
+            samples = (np.sin(2 * np.pi * 440 * t) * 0.004).astype("<f4")
+            self.classifier.process(packet(0, samples[:8000]))
+            result = self.classifier.process(packet(1, samples[8000:]))
+            rms = float(np.sqrt(np.mean(samples**2)))
+            self.assertAlmostEqual(result["rms"], rms, places=6)
+            np.testing.assert_allclose(inputs[0], log_mel_patch(samples * (0.04 / rms)), atol=2e-5)
+
+            self.classifier.process(packet(2))
+            result = self.classifier.process(packet(3))
+            self.assertEqual(result["rms"], 0)
+            self.assertEqual(len(inputs), 1, "A silent window must not invoke the model")
+        finally:
+            self.classifier.session = original
+
     def test_tempo_is_gated_and_cannot_bridge_session_or_sequence_gaps(self):
         logits = np.full((1, 521), -100, dtype=np.float32)
         logits[0, 132] = 100

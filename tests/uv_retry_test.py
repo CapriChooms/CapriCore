@@ -232,6 +232,53 @@ class UvRetryTests(unittest.TestCase):
         self.assertEqual(sleeps, [2])
         self.assertIn('Retrying 2/3', notices[0])
 
+    def test_windows_voice_git_uses_system_trust_on_first_attempt_and_retry(self):
+        parent = {
+            'GIT_SSL_CAINFO': 'C:/Program Files/Git/mingw64/ssl/certs/ca-bundle.crt',
+            'GIT_SSL_NO_VERIFY': '1',
+            'GIT_CONFIG_GLOBAL': 'external.gitconfig',
+            'GIT_CONFIG_PARAMETERS': "'http.sslBackend=openssl'",
+            'GIT_CONFIG_COUNT': '1',
+            'GIT_CONFIG_KEY_0': 'http.sslVerify',
+            'GIT_CONFIG_VALUE_0': 'false',
+            'HTTPS_PROXY': 'http://proxy.example:8080',
+            'UV_CACHE_DIR': 'existing cache',
+        }
+        original = dict(parent)
+        calls = []
+
+        def run(args, env):
+            calls.append((args, env))
+            return (1, REPORTED) if len(calls) == 1 else (0, '')
+
+        command = ['uv.exe', 'pip', 'sync', 'config/requirements-voice-training.lock']
+        self.assertEqual(retry.run_uv(
+            command, environ=parent, run=run, sleep=lambda _: None,
+            notify=lambda _: None, use_windows_git_trust=True,
+        ), 0)
+        self.assertEqual(parent, original)
+        for attempt, (args, env) in enumerate(calls):
+            self.assertEqual(args, command)
+            self.assertEqual(env['GIT_CONFIG_GLOBAL'], os.devnull)
+            self.assertEqual(env['GIT_CONFIG_NOSYSTEM'], '1')
+            for key in ('GIT_SSL_CAINFO', 'GIT_SSL_NO_VERIFY', 'GIT_CONFIG_PARAMETERS'):
+                self.assertNotIn(key, env)
+            settings = {
+                env[f'GIT_CONFIG_KEY_{index}']: env[f'GIT_CONFIG_VALUE_{index}']
+                for index in range(int(env['GIT_CONFIG_COUNT']))
+            }
+            self.assertEqual(settings.pop('http.version', None), 'HTTP/1.1' if attempt else None)
+            self.assertEqual(settings, {
+                'http.sslBackend': 'schannel',
+                'http.schannelUseSSLCAInfo': 'false',
+                'http.sslVerify': 'true',
+            })
+            self.assertEqual(env['HTTPS_PROXY'], parent['HTTPS_PROXY'])
+            self.assertEqual(env['UV_CACHE_DIR'], parent['UV_CACHE_DIR'])
+        self.assertIsNone(retry.transient_failure(
+            128, 'Git operation failed: error adding trust anchors from file: ca-bundle.crt',
+        ))
+
     def test_retry_limit_cancellation_and_nonnetwork_failures(self):
         calls, sleeps, notices = [], [], []
         def fail(args, env):
@@ -324,7 +371,7 @@ cause: operation timed out'''
         if not git:
             self.skipTest('Git is required for its native configuration check')
         result = subprocess.run([git, 'config', '--get', 'http.version'],
-                                env=retry.git_http_fallback(os.environ), capture_output=True,
+                                env=retry.git_config(os.environ, {'http.version': 'HTTP/1.1'}), capture_output=True,
                                 text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), 'HTTP/1.1')

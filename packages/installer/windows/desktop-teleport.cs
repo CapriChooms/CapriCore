@@ -69,6 +69,7 @@ internal static class CapriDesktopTeleport {
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr window);
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool IsZoomed(IntPtr window);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect rect);
     [DllImport("user32.dll")] private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr window, int attr, out Rect rect, int size);
@@ -295,6 +296,8 @@ internal static class CapriDesktopTeleport {
         if (identity == AnchorIdentity.Verified) {
             visible = IsWindowVisible(anchorWindow);
             iconic = IsIconic(anchorWindow);
+            // The outer dock of a maximized window can place the sprite outside the screen.
+            if (visible && !iconic && IsZoomed(anchorWindow)) { EndAnchor("hidden"); return; }
         }
         if (identity == AnchorIdentity.Verified && visible && !iconic) {
             IntPtr previous = SetThreadDpiAwarenessContext(new IntPtr(-4));

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { SettingsWindow } from '../apps/desktop/main/settings-window.mjs';
 
-function fixture() {
+function fixture(idleCloseMs) {
   class View extends EventEmitter {
     constructor(options = {}) {
       super();
@@ -91,6 +91,7 @@ function fixture() {
     quitting: () => quitting,
     onBusy() {},
     onError: (error) => errors.push(error),
+    idleCloseMs,
   });
   return {
     host,
@@ -102,6 +103,26 @@ function fixture() {
     },
   };
 }
+
+test('only an explicit clean close releases Settings, and reopening cancels eviction', async () => {
+  const { host } = fixture(10);
+  const delay = () => new Promise((resolve) => setTimeout(resolve, 30));
+  const opening = host.open('languages');
+  const first = host.window;
+  first.resolve();
+  await opening;
+  host.hide();
+  await delay();
+  assert.equal(host.window, first);
+  host.hide({ releaseWhenIdle: true });
+  await host.open('languages');
+  await delay();
+  assert.equal(host.window, first);
+  host.hide({ releaseWhenIdle: true });
+  await delay();
+  assert.equal(host.window, null);
+  assert.equal(first.isDestroyed(), true);
+});
 
 test('settings inherits the owner pin preference at construction and follows demotion, restore and rollback', async () => {
   const { host, owner } = fixture();

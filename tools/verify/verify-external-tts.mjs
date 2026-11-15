@@ -8,7 +8,7 @@ import path from 'node:path';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { settingsView } from './settings-view.mjs';
-import { uiText } from '../../apps/desktop/renderer/interface-translations.mjs';
+import { uiText } from '../../apps/desktop/interface-translations.mjs';
 import { voiceApiErrorMessage } from '../../apps/desktop/renderer/external-tts-panel.mjs';
 
 const parent = path.join(root, '.runtime/desktop-verification');

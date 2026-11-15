@@ -495,7 +495,7 @@ export async function createDiagnosticReport({
     findings.push('Missing voice component: ' + item.file);
   if (python.cuda?.available === false)
     findings.push(
-      'The installed voice Python reports CUDA unavailable. This trained backend requires compatible NVIDIA/CUDA.',
+      'The installed voice Python reports CUDA unavailable. Local voice also supports CPU inference.',
     );
   if (python.chatterbox?.turboModulePresent === false)
     findings.push('The installed Chatterbox Turbo Python module is missing.');

@@ -4,7 +4,7 @@ import {
   WorkflowsPanel,
   WORKFLOW_ACTION_LABELS,
 } from '../apps/desktop/renderer/workflows-panel.mjs';
-import { INTERFACE_LOCALES, uiText } from '../apps/desktop/renderer/interface-translations.mjs';
+import { INTERFACE_LOCALES, uiText } from '../apps/desktop/interface-translations.mjs';
 
 class Element {
   constructor(tag = 'div') {

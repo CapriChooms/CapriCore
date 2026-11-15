@@ -420,20 +420,17 @@ export class VoicePlayer {
     try {
       if (
         event.sampleRate !== 24000 ||
-        typeof event.pcm !== 'string' ||
-        event.pcm.length > 6000000 ||
+        !(event.pcm instanceof Uint8Array) ||
+        event.pcm.byteLength > 24000 * 4 * 45 ||
         this.queue.length >= 100
       )
         throw new Error('Invalid audio');
-      const raw = Uint8Array.from(atob(event.pcm), (character) => character.charCodeAt(0));
-      if (!raw.length || raw.length % 4) throw new Error('Invalid PCM length');
-      const view = new DataView(raw.buffer);
-      const samples = new Float32Array(raw.length / 4);
-      for (let index = 0; index < samples.length; index++) {
-        const value = view.getFloat32(index * 4, true);
-        if (!Number.isFinite(value)) throw new Error('Invalid PCM sample');
-        samples[index] = value;
-      }
+      const raw = event.pcm;
+      if (!raw.byteLength || raw.byteLength % 4 || raw.byteOffset % 4)
+        throw new Error('Invalid PCM length');
+      const samples = new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4);
+      for (const sample of samples)
+        if (!Number.isFinite(sample)) throw new Error('Invalid PCM sample');
       this.queue.push({ text: event.text, samples, sequence: event.sequence });
       this.play();
     } catch (error) {

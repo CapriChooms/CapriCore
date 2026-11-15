@@ -60,7 +60,7 @@ const syntheticAudio = (service, turnId, text) => {
         pcm.writeFloatLE(0.18 * Math.sin(2 * Math.PI * 1230 * index / 24000), 4 * index);
     service.emit({
       type: 'voice.audio', turnId, text, sequence: 0, sampleRate: 24000,
-      pcm: pcm.toString('base64'),
+      pcm: new Uint8Array(pcm),
     });
     service.emit({ type: 'voice.generated', turnId });
   }, 15);

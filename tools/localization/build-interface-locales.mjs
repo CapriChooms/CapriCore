@@ -1,4 +1,4 @@
-/** Validate editable locale files and build the one offline runtime bundle. */
+/** Validate offline locale catalogs and build the small shared index. */
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { root } from '../../packages/runtime/src/index.mjs';
@@ -52,7 +52,6 @@ for (const meta of config.locales) {
     ...meta,
     nativeName,
     review: data.review,
-    messages: Object.fromEntries(Object.keys(source).map((key) => [key, data.messages[key]])),
   };
   // Chromium omits some ICU language-name tables even when Node supports them.
   // Ship the build runtime's complete names so the UI never falls back to the

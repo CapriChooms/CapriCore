@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { visualReplyFailure } from '../apps/desktop/visual-response.mjs';
-import { uiText } from '../apps/desktop/renderer/interface-translations.mjs';
+import { uiText } from '../apps/desktop/interface-translations.mjs';
 
 test('visual errors explain truncation and timeout without blaming the attached file', () => {
   const limited = visualReplyFailure({ code: 'CAPRI_VISUAL_TRUNCATED' });

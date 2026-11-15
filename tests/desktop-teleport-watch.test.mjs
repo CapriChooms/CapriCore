@@ -115,6 +115,12 @@ class WatchFixture {
       ShowWindow(window.Handle, 4); Pump(40); Call("PollAnchor");
       Assert(Take() == "", "Restore reattached the ended perch."); checks++;
 
+      Bind(window);
+      ShowWindow(window.Handle, 3); Pump(40); Call("PollAnchor");
+      Assert(Take() == "anchor 41 hidden" && (int)Get("anchorId") == 0, "Maximizing must release the floating-window perch.");
+      window.WindowState = FormWindowState.Normal; Pump(40); Call("PollAnchor");
+      Assert(Take() == "", "Restoring a maximized window reattached the ended perch."); checks++;
+
       Bind(window); Set("anchorLifetime", window);
       Call("FollowWindow", 51, window.Handle, (uint)Process.GetCurrentProcess().Id, Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks);
       Take();
@@ -190,7 +196,7 @@ class WatchFixture {
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), {
       passed: true,
-      checks: 9,
+      checks: 10,
       ownedWindowsOnly: true,
       autoElevation: false,
       inputInjected: false,

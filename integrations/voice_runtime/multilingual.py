@@ -13,6 +13,7 @@ import torch
 from integrations.multilingual import LANGUAGES, ROOT, verified_model
 from integrations.voice_training.backend import local_environment
 from integrations.voice_training.dataset import digest, inside
+from integrations.voice_training.low_memory import load_multilingual_cpu
 from .inference import check_cancelled, SpeechGenerationLimit
 from .model import CapriVoice, DecoderMemoryBudget
 from .text import validate_speech_language
@@ -52,12 +53,12 @@ class MultilingualVoice(DecoderMemoryBudget):
         local_environment()
         folder = verified_model('tts')
         from chatterbox.models.tokenizers import tokenizer
-        from chatterbox.mtl_tts import ChatterboxMultilingualTTS
         converter = offline_converter(folder)
         original = tokenizer.ChineseCangjieConverter
         tokenizer.ChineseCangjieConverter = converter
+        compute = config.get('computeDevice', 'cuda:0')
         try:
-            self.engine = ChatterboxMultilingualTTS.from_local(folder, device='cpu', t3_model='v3')
+            self.engine = load_multilingual_cpu(folder, cpu_inference=compute == 'cpu')
         finally:
             tokenizer.ChineseCangjieConverter = original
         profile_folder = config['profilePath']
@@ -69,7 +70,6 @@ class MultilingualVoice(DecoderMemoryBudget):
         self.reference_memory = prepare_reference(self.engine, str(reference_file), exaggeration=.5)
         # Half precision applies only to the multilingual Llama backbone. The
         # trained English Turbo and both acoustic decoders retain FP32.
-        compute = config.get('computeDevice', 'cuda:0')
         precision = torch.float32 if compute == 'cpu' else torch.float16
         self.engine.t3.to(device=compute, dtype=precision).eval()
         self.engine.device = compute

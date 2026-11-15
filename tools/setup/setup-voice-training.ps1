@@ -55,7 +55,7 @@ if($capriVoiceRuntime.profile -eq 'amd'){
     $capriVoiceSync=@('pip','install','--exact','--python',$capriVenvPython,'--requirements',$capriVoiceRuntime.requirements,'--overrides',$capriVoiceRuntime.overrides,'--default-index','https://pypi.org/simple','--index-strategy','first-index')
 }
 if($PlanOnly){$capriVoiceSync+='--dry-run'}
-$capriTransportArgs=@('--uv',$capriUv)
+$capriTransportArgs=@('--uv',$capriUv,'--windows-git-trust')
 if($capriVoiceRuntime.profile -ne 'amd' -and -not $capriPrepared){$capriTransportArgs+=@('--pytorch-profile',$capriVoiceRuntime.profile)}
 & $capriPython tools/setup/uv-retry.py @capriTransportArgs -- @capriVoiceSync
 if ($LASTEXITCODE -ne 0) { throw 'Voice dependencies could not be installed' }

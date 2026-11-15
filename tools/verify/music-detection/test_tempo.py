@@ -50,6 +50,28 @@ def feed(tracker, audio, size=8000):
 
 
 class TempoTests(unittest.TestCase):
+    def test_quiet_kick_stays_detectable_under_irregular_transients(self):
+        bpm, seconds = 110, 12
+        audio = np.zeros(seconds * RATE, dtype=np.float32)
+        time = np.arange(2400) / RATE
+        kick = 0.08 * np.sin(2 * np.pi * 63 * time) * np.exp(-25 * time)
+        transient = 0.22 * np.exp(-35 * time) * sum(
+            np.sin(2 * np.pi * frequency * time) for frequency in (660, 960, 1320)
+        )
+        rng = np.random.default_rng(0)
+        for events, signal in [
+            (np.arange(0.173, seconds - 0.15, 60 / bpm), kick),
+            (np.cumsum(rng.uniform(0.13, 0.63, 45)), transient),
+        ]:
+            for event in events:
+                start = int(event * RATE)
+                if start + len(signal) < audio.size:
+                    audio[start : start + len(signal)] += signal
+
+        result = feed(TempoTracker(), audio)
+        self.assertAlmostEqual(result["tempo"], bpm, delta=1)
+        self.assertGreaterEqual(result["tempoConfidence"], 0.6)
+
     def test_soft_slow_notes_survive_louder_irregular_accents(self):
         bpm, seconds = 52, 14
         rng = np.random.default_rng(0)

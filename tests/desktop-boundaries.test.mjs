@@ -75,7 +75,7 @@ test('desktop resources admit only exact local allowlisted GET requests', async 
   assert(!settingsPolicy.includes('https:'));
 });
 
-test('allowlisted renderer modules serve every literal local module import', () => {
+test('allowlisted renderer modules and locale catalogs serve only shipped resources', () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const resources = createDesktopResources({
     root,
@@ -84,6 +84,17 @@ test('allowlisted renderer modules serve every literal local module import', () 
     spriteFile: '',
     startupIntro: null,
   });
+  for (const name of ['en', 'ru', 'ar'])
+    assert.equal(
+      resourceResponse({ url: `capri://desktop/locales/${name}.json`, method: 'GET' }, resources)
+        .status,
+      200,
+    );
+  for (const name of ['unknown.json', '%2e%2e/locales/ru.json?source=external'])
+    assert.equal(
+      resourceResponse({ url: `capri://desktop/locales/${name}`, method: 'GET' }, resources).status,
+      404,
+    );
   for (const [pathname, resource] of resources) {
     if (!resource.type?.startsWith('text/javascript')) continue;
     const source = readFileSync(resource.file, 'utf8');

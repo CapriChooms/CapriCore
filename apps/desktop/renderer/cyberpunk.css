@@ -11,6 +11,10 @@
   --ui-wash: color-mix(in srgb, var(--cyan) 20%, var(--theme-panel));
   --muted: var(--ui-muted);
 }
+:root[data-interface-theme='cyberpunk-2077'] {
+  --menu-selection: #76efe9;
+  --menu-selection-surface: color-mix(in srgb, var(--menu-selection) 15%, var(--theme-background));
+}
 #memory-hud {
   display: flex;
   gap: 10px;
@@ -2671,6 +2675,13 @@ body[data-presence='core'] #quick-actions {
   border-color: #cfe96f;
   color: #ecf5a0;
   background: #252d1e;
+}
+:root[data-interface-theme='cyberpunk-2077']
+  :is(#handle .window-actions, #quick-actions)
+  :is(button[aria-pressed='true'], #history-toggle[aria-expanded='true']) {
+  border-color: var(--menu-selection);
+  color: var(--menu-selection);
+  background: var(--menu-selection-surface);
 }
 #handle .window-actions button.support-button {
   border-color: #fc6ca383;

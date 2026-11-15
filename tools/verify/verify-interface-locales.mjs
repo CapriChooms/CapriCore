@@ -12,7 +12,7 @@ import {
   INTERFACE_LOCALES,
   uiText,
   displayLanguage,
-} from '../../apps/desktop/renderer/interface-translations.mjs';
+} from '../../apps/desktop/interface-translations.mjs';
 import { WORKFLOW_ACTION_LABELS } from '../../apps/desktop/renderer/workflows-panel.mjs';
 const parent = path.join(root, '.runtime/interface-locales-verification');
 mkdirSync(parent, { recursive: true });
@@ -147,6 +147,8 @@ try {
   await activeRequest;
   const expectedMessages = ['Languages', 'Open', 'A synthetic active-reply check.', 'Open'];
   report.interfaceOnlyDuringReply = true;
+  await page.locator('#history-toggle').evaluate((button) => button.click());
+  await page.locator('.message-copy').first().waitFor({ state: 'attached' });
 
   assert.equal(
     await controls.locator('#language-interface option').count(),

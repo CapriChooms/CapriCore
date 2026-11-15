@@ -16,6 +16,7 @@ function fixture() {
   view.isDestroyed = () => view.destroyed === true;
   view.isVisible = () => view.visible;
   view.isMinimized = () => view.minimized === true;
+  view.isMaximized = () => view.maximized === true;
   view.getBounds = () => ({ ...view.bounds });
   view.webContents = { getURL: () => url };
   view.getNativeWindowHandle = () => {
@@ -50,6 +51,12 @@ test('Settings perching follows DIP bounds and visibility without the desktop me
   const previous = changes.length;
   view.emit('focus');
   assert.equal(changes.length, previous + 1, 'Focusing Settings restores the avatar above it');
+  assert.deepEqual(changes.at(-1), { state: 'visible', dipBounds: view.bounds });
+  view.maximized = true;
+  view.emit('maximize');
+  assert.deepEqual(changes.at(-1), { state: 'hidden' });
+  view.maximized = false;
+  view.emit('unmaximize');
   assert.deepEqual(changes.at(-1), { state: 'visible', dipBounds: view.bounds });
   view.destroyed = true;
   view.emit('closed');

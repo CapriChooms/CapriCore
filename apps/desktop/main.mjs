@@ -222,7 +222,11 @@ import {
   stopManaged,
   managedProcess,
 } from '../../packages/runtime/src/index.mjs';
-import { startCore, stopCore } from '../../packages/runtime/src/providers/core.mjs';
+import {
+  prewarmEmbedding,
+  startCore,
+  stopCore,
+} from '../../packages/runtime/src/providers/core.mjs';
 import { ChatService, validateInput } from './chat-service.mjs';
 import { TranscriptStore, writeJsonAtomic } from './storage.mjs';
 import { readLegacyPrivateStorage } from './legacy-private-storage.mjs';
@@ -283,8 +287,8 @@ import {
   resolveLanguages,
   languageBehaviorChanged,
   languageName,
-  uiText,
 } from './renderer/language-settings.mjs';
+import { uiText } from './interface-translations.mjs';
 import { FilePermissions, protectedLocations } from '../../integrations/filesystem/permissions.mjs';
 import {
   APPLICATION_DEFAULTS,
@@ -701,6 +705,7 @@ async function initializeDesktop() {
   let reminders,
     sessionLocked = false;
   let pendingMemoryDecision, latestMemoryCandidate;
+  let memoryWarmup;
   const reminderListeners = new Set();
   let shuttingDown = false;
   let maintenance = false;
@@ -2633,6 +2638,25 @@ async function initializeDesktop() {
       case 'capri.voice-output':
         if (!enabled || (voiceAvailable && voiceVolume.value.volume > 0)) changeVoice(enabled);
         break;
+      case 'capri.owner-memory':
+        memoryWarmup?.abort();
+        memoryWarmup = null;
+        if (enabled && !verification && (backendState.phase === 'ready' || backendPromise)) {
+          const controller = new AbortController();
+          memoryWarmup = controller;
+          void Promise.resolve(backendPromise)
+            .then(() => {
+              if (!controller.signal.aborted && backendState.phase === 'ready')
+                return prewarmEmbedding(rt, { signal: controller.signal });
+            })
+            .catch(() => {
+              if (!controller.signal.aborted) console.warn('Capri memory warmup failed.');
+            })
+            .finally(() => {
+              if (memoryWarmup === controller) memoryWarmup = null;
+            });
+        }
+        break;
       case 'capri.music':
         if (!enabled) stopMusicListening();
         break;
@@ -3009,6 +3033,7 @@ async function initializeDesktop() {
       resetCallAudio();
       setBackend('sleeping', 'Freeing model memory…');
       backendController?.abort();
+      memoryWarmup?.abort();
       voiceStartController?.abort();
       voicePreviewRequest = null;
       pendingFollowUp = null;
@@ -3138,6 +3163,7 @@ async function initializeDesktop() {
               signal: controller.signal,
               voiceExpected: voice.enabled && voice.language !== 'off',
               voiceReady: voice.ready,
+              warmMemory: skillEnabled('capri.owner-memory'),
               preload,
               onStage: (key, status) =>
                 status === 'running' ? startup.begin(key) : startup.end(key, status === 'failed'),
@@ -4089,6 +4115,7 @@ async function initializeDesktop() {
   }
   async function shutdownForRestart(message) {
     pendingMemoryDecision?.abort();
+    memoryWarmup?.abort();
     await computerControl.stop();
     shuttingDown = true;
     await localModelLoad.stop();
@@ -4169,6 +4196,7 @@ async function initializeDesktop() {
     sleepService.close();
     reminders?.close();
     backendController?.abort(new Error('Startup cancelled for shutdown'));
+    memoryWarmup?.abort();
     voiceStartController?.abort();
     cancelVisual();
     capturePolicy.clear();
@@ -5230,8 +5258,8 @@ async function initializeDesktop() {
       await settingsHost.open(section, focus);
       return true;
     });
-    handle('capri:settings-close', () => {
-      settingsHost.hide();
+    handle('capri:settings-close', (_value, { role }) => {
+      settingsHost.hide({ releaseWhenIdle: role === 'settings' });
       return true;
     });
     handle('capri:settings-preview', (value, { role }) => {
@@ -6867,7 +6895,7 @@ async function initializeDesktop() {
         spotify: spotify.snapshot(),
         models: models.snapshot(),
         updates: updates.snapshot(),
-        messages: store.snapshot(),
+        ...(role === 'companion' && { messages: store.snapshot() }),
         companion: companionPreferences.snapshot(),
         startup: startup.snapshot(),
         backend: backendState,

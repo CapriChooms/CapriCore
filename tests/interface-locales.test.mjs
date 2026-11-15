@@ -6,7 +6,7 @@ import {
   interfaceLocale,
   uiText,
   displayLanguage,
-} from '../apps/desktop/renderer/interface-translations.mjs';
+} from '../apps/desktop/interface-translations.mjs';
 import {
   LANGUAGE_DEFAULTS,
   validateLanguages,
@@ -71,17 +71,19 @@ test('UI language changes do not imply dialogue, recognition, voice or capture c
   );
 });
 
-test('editable locale catalogs match the shipped bundle and contain no foreign-language fragments', () => {
+test('per-language catalogs ship separately and contain no foreign-language fragments', () => {
+  const index = JSON.parse(
+    readFileSync(new URL('../apps/shared/interface-locales.json', import.meta.url), 'utf8'),
+  );
   for (const { id } of INTERFACE_LOCALES) {
-    const editable = JSON.parse(
+    assert.equal(Object.hasOwn(index.locales[id], 'messages'), false);
+    const messages = JSON.parse(
       readFileSync(new URL(`../apps/desktop/locales/${id}.json`, import.meta.url), 'utf8'),
     ).messages;
-    const bundled = interfaceLocale(id).messages;
     for (const key of Object.keys(source)) {
-      assert.equal(editable[key], bundled[key], `${id}: rebuild bundle after editing ${key}`);
       assert.equal(
-        validateLocaleTranslation(key, editable[key], id),
-        editable[key],
+        validateLocaleTranslation(key, messages[key], id),
+        messages[key],
         `${id}: ${key}`,
       );
       if (
@@ -90,12 +92,12 @@ test('editable locale catalogs match the shipped bundle and contain no foreign-l
         !key.startsWith('{') &&
         !(id === 'fr' && key === 'Microphone ({language})')
       )
-        assert.notEqual(editable[key], source[key], `${id}: untranslated help or status: ${key}`);
+        assert.notEqual(messages[key], source[key], `${id}: untranslated help or status: ${key}`);
     }
     // These meanings were confused with RAM savings, geographical knowledge,
     // noun phrases and a speaking state in the first generated translations.
     for (const key of ['Save memory', 'VOICE PENDING', 'Use local knowledge', 'Test tool'])
-      assert.equal(bundled[key], glossary.overrides[id][key], `${id}: editorial ${key}`);
+      assert.equal(messages[key], glossary.overrides[id][key], `${id}: editorial ${key}`);
   }
 });
 

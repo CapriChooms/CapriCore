@@ -21,6 +21,7 @@ _PERMANENT = re.compile(
     r'hash mismatch|hashes? (?:do|does) not match|checksum mismatch|'
     r'certificate verify failed|certificate verification failed|certificate_verify_failed|'
     r'ssl certificate problem|invalid peer certificate|self[- ]signed certificate|'
+    r'error adding trust anchors from file|'
     r'permission denied|access (?:is )?denied|operation not permitted|no space left|'
     r'authentication failed|could not read username|terminal prompts disabled|'
     r'repository [^\r\n]*not found|couldn.t find remote ref|not our ref|'
@@ -72,16 +73,39 @@ def transient_failure(returncode, output):
     return None
 
 
-def git_http_fallback(environ):
-    """Append process-scoped Git configuration; never modify .gitconfig/TLS."""
+def git_config(environ, settings):
+    """Append process-scoped Git configuration without writing any config files."""
     env = dict(environ)
     count = int(env.get('GIT_CONFIG_COUNT', '0'))
     if count < 0 or count > 1024:
         raise ValueError('Invalid inherited GIT_CONFIG_COUNT')
-    env['GIT_CONFIG_KEY_' + str(count)] = 'http.version'
-    env['GIT_CONFIG_VALUE_' + str(count)] = 'HTTP/1.1'
-    env['GIT_CONFIG_COUNT'] = str(count + 1)
+    for index, (name, value) in enumerate(settings.items(), start=count):
+        env[f'GIT_CONFIG_KEY_{index}'] = name
+        env[f'GIT_CONFIG_VALUE_{index}'] = value
+    env['GIT_CONFIG_COUNT'] = str(count + len(settings))
     return env
+
+
+def windows_git_trust(environ):
+    """Use the Windows trust store for Capri's pinned public Git dependencies."""
+    excluded = {
+        'GIT_CONFIG_COUNT', 'GIT_CONFIG_PARAMETERS', 'GIT_SSL_CAINFO',
+        'GIT_SSL_CAPATH', 'GIT_SSL_NO_VERIFY',
+    }
+    env = {
+        name: value for name, value in environ.items()
+        if name.upper() not in excluded
+        and not name.upper().startswith(('GIT_CONFIG_KEY_', 'GIT_CONFIG_VALUE_'))
+    }
+    # A previous Git for Windows install can still point to its old PEM bundle.
+    # Isolate this subprocess from those configs and preserve environment proxies.
+    env['GIT_CONFIG_NOSYSTEM'] = '1'
+    env['GIT_CONFIG_GLOBAL'] = os.devnull
+    return git_config(env, {
+        'http.sslBackend': 'schannel',
+        'http.schannelUseSSLCAInfo': 'false',
+        'http.sslVerify': 'true',
+    })
 
 
 def _write_output(chunk):
@@ -183,9 +207,11 @@ def pytorch_fallback(command, profile, output):
 
 def run_uv(command, *, environ=None, run=stream_process, sleep=time.sleep,
            notify=lambda message: print(message, flush=True), before_attempt=wait_for_resume,
-           pytorch_profile=None):
+           pytorch_profile=None, use_windows_git_trust=False):
     """Retry locked dependencies, optionally switching only the PyTorch delivery host."""
     base_env = dict(os.environ if environ is None else environ)
+    if use_windows_git_trust:
+        base_env = windows_git_trust(base_env)
     base_env['GIT_TERMINAL_PROMPT'] = '0'
     # These are connect/idle-read deadlines, not a limit on a multi-GB transfer.
     # Respect user settings (including uv's older timeout aliases). Scope every
@@ -202,7 +228,7 @@ def run_uv(command, *, environ=None, run=stream_process, sleep=time.sleep,
     active_command = list(command)
     for attempt in range(1, 4):
         before_attempt(base_env)
-        env = git_http_fallback(base_env) if git_fallback else dict(base_env)
+        env = git_config(base_env, {'http.version': 'HTTP/1.1'}) if git_fallback else dict(base_env)
         if torch_fallback:
             env['UV_NO_VERIFY_HASHES'] = 'false'
         if adaptive_downloads and not git_fallback and attempt > 1:
@@ -239,6 +265,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--uv', required=True)
     parser.add_argument('--pytorch-profile', choices=['legacy', 'blackwell'])
+    parser.add_argument('--windows-git-trust', action='store_true')
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     arguments = args.arguments[1:] if args.arguments[:1] == ['--'] else args.arguments
@@ -248,7 +275,8 @@ def main():
         print('Voice dependencies: at most 3 attempts; stalled network reads time out after '
               '120 seconds. Each attempt is limited to 15 active minutes; user pauses do not count.',
               flush=True)
-        return run_uv([args.uv, *arguments], pytorch_profile=args.pytorch_profile)
+        return run_uv([args.uv, *arguments], pytorch_profile=args.pytorch_profile,
+                      use_windows_git_trust=args.windows_git_trust and os.name == 'nt')
     except KeyboardInterrupt:
         return 130
 

@@ -16,6 +16,7 @@ const VOICE_LANGUAGE_MISMATCH = 'CAPRI_VOICE_LANGUAGE_MISMATCH';
 const VOICE_LANGUAGE_WARNING =
   'The English voice cannot read this response language. Text replies remain available.';
 const VOICE_START_WARNING = 'Capri’s voice could not start. Text replies are still available.';
+const maxPcmBytes = 24000 * 4 * 45;
 const voiceFailureCodes = new Set([
   VOICE_LANGUAGE_MISMATCH,
   'CAPRI_VOICE_SPEECH_LIMIT',
@@ -45,6 +46,38 @@ async function voiceHttpFailure(response) {
     /* Keep the HTTP status; never log arbitrary server response text. */
   }
   return error;
+}
+
+async function readVoicePcm(response) {
+  const encoding = response.headers.get('content-encoding');
+  const declared =
+    encoding && encoding.toLowerCase() !== 'identity'
+      ? 0
+      : Number(response.headers.get('content-length'));
+  if (declared > maxPcmBytes) {
+    await response.body?.cancel();
+    throw new Error('Voice audio exceeds limit');
+  }
+  const length = Number.isSafeInteger(declared) && declared > 0 ? declared : 0;
+  const pcm = length ? new Uint8Array(length) : null;
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body) {
+    const next = size + chunk.length;
+    if (next > maxPcmBytes || (pcm && next > length)) throw new Error('Voice audio exceeds limit');
+    if (pcm) pcm.set(chunk, size);
+    else chunks.push(chunk);
+    size = next;
+  }
+  if (!size || size % 4 || (pcm && size !== length)) throw new Error('Invalid PCM audio');
+  if (pcm) return pcm;
+  const unpacked = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    unpacked.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return unpacked;
 }
 
 /** Turn-scoped sentence queue. Text replies never wait for synthesis. */
@@ -346,35 +379,30 @@ export class VoiceService {
           let response;
           if (turn.external) {
             response = await this.external.synthesize({ text, signal: turn.controller.signal });
-          } else
+          } else {
+            const signal = AbortSignal.any([turn.controller.signal, AbortSignal.timeout(90000)]);
             do {
               response = await this.fetchImpl(`${this.url}/synthesize`, {
                 method: 'POST',
                 headers: { ...this.headers(), 'content-type': 'application/json' },
                 body: JSON.stringify({ text, language: turn.language, requestId: turn.requestId }),
                 redirect: 'error',
-                signal: AbortSignal.any([turn.controller.signal, AbortSignal.timeout(90000)]),
+                signal,
               });
               if (response.status !== 409) break;
               await response.body?.cancel();
-              await delay(50, undefined, { signal: turn.controller.signal });
-            } while (Date.now() - started < 90000);
+              // Use one deadline for the sentence, including time spent waiting for the worker.
+              await delay(50, undefined, { signal });
+              signal.throwIfAborted();
+            } while (response.status === 409);
+          }
           if (!response.ok) throw await voiceHttpFailure(response);
           if (
             response.headers.get('content-type') !== 'application/octet-stream' ||
             response.headers.get('x-sample-rate') !== '24000'
           )
             throw new Error('Unexpected voice audio format');
-          const limit = 24000 * 4 * 45;
-          const chunks = [];
-          let size = 0;
-          for await (const chunk of response.body) {
-            size += chunk.length;
-            if (size > limit) throw new Error('Voice audio exceeds limit');
-            chunks.push(chunk);
-          }
-          const pcm = Buffer.concat(chunks);
-          if (!pcm.length || pcm.length % 4) throw new Error('Invalid PCM audio');
+          const pcm = await readVoicePcm(response);
           if (this.turn !== turn || turn.controller.signal.aborted) continue;
           turn.requestId = null;
           if (turn.sequence === 0 && turn.timing)
@@ -402,17 +430,19 @@ export class VoiceService {
             sequence: turn.sequence++,
             text,
             sampleRate: 24000,
-            pcm: pcm.toString('base64'),
+            pcm,
           });
         } catch (error) {
           if (this.turn === turn && !turn.controller.signal.aborted) {
-            this.recordFailure(error, 'synthesize');
+            const failure =
+              !turn.external && error.cause?.name === 'TimeoutError' ? error.cause : error;
+            this.recordFailure(failure, 'synthesize');
             this.cancel();
             this.emit({
               type: 'voice.error',
               message: turn.external
                 ? error.message
-                : error.code === 'CAPRI_VOICE_SPEECH_LIMIT'
+                : failure.name === 'TimeoutError' || error.code === 'CAPRI_VOICE_SPEECH_LIMIT'
                   ? 'This sentence could not be spoken. Voice is still ready.'
                   : 'Capri’s voice is unavailable. Text replies are still available.',
             });

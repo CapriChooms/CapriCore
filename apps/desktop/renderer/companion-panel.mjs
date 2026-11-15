@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { applyInterfaceTheme, validateInterfaceTheme } from './interface-theme.mjs';
+import {
+  applyInterfaceTheme,
+  BACKGROUND_BRIGHTNESS_RANGE,
+  matchingPanelSaturation,
+  THEME_DEFAULTS,
+  validateInterfaceTheme,
+} from './interface-theme.mjs';
 import { SavedMemoryPanel } from './saved-memory-panel.mjs';
 const themeAxes = [
   { prefix: 'theme', label: 'Accent color', hue: 'hue', saturation: 'saturation', min: 35 },
@@ -8,6 +14,13 @@ const themeAxes = [
     label: 'Background color',
     hue: 'backgroundHue',
     saturation: 'backgroundSaturation',
+    min: 0,
+  },
+  {
+    prefix: 'theme-panel',
+    label: 'Panel color',
+    hue: 'panelHue',
+    saturation: 'panelSaturation',
     min: 0,
   },
 ];
@@ -101,28 +114,36 @@ export class CompanionPanel {
           <h3>Qwen model</h3><div class="settings-actions"><button type="button" id="companion-models">Choose Qwen model</button></div>
           <h3>Updates</h3><div class="settings-actions"><button type="button" id="companion-updates">Check for updates</button></div>
           <h3>Interface theme</h3>
-          <label class="theme-palette-label" for="theme-preset">Color palette <span class="theme-palette-swatches" aria-hidden="true"><i></i><i></i></span></label>
-          <select id="theme-preset"><option value="capri" data-untranslated>Capri</option><option value="blackwall" data-untranslated>Blackwall</option><option value="amethyst">Amethyst</option><option value="overdrive">Overdrive</option><option value="custom">Custom</option></select>
+          <label class="theme-palette-label" for="theme-preset">Color palette <span class="theme-palette-swatches" aria-hidden="true"><i></i><i></i><i></i></span></label>
+          <select id="theme-preset"><option value="capri" data-untranslated>Capri</option><option value="cyberpunk-2077" data-untranslated>Cyberpunk 2077</option><option value="blackwall" data-untranslated>Blackwall</option><option value="amethyst">Amethyst</option><option value="overdrive">Overdrive</option><option value="custom">Custom</option></select>
           <div id="theme-custom" class="theme-custom" hidden>
             ${themeAxes
-              .map(
-                ({ prefix, label, min }) => `
+              .map(({ prefix, label, min, hue, saturation }) => {
+                const panel = prefix === 'theme-panel';
+                const brightness = prefix === 'theme-background';
+                return `
               <fieldset class="theme-color" data-theme-axis="${prefix}">
                 <legend>${label}</legend>
+                ${panel ? '<label class="theme-link-panel"><input id="theme-panel-linked" type="checkbox" checked> Match background</label>' : ''}
                 <div class="theme-color-controls">
                   <div id="${prefix}-wheel" class="theme-wheel" aria-hidden="true"><i></i></div>
                   <div class="theme-sliders">
                     <label for="${prefix}-hue">Hue <output id="${prefix}-hue-output"></output></label>
-                    <input id="${prefix}-hue" type="range" min="0" max="359" value="174">
+                    <input id="${prefix}-hue" type="range" min="0" max="359" value="${THEME_DEFAULTS[hue] ?? THEME_DEFAULTS.backgroundHue}">
                     <label for="${prefix}-saturation">Saturation <output id="${prefix}-saturation-output"></output></label>
-                    <input id="${prefix}-saturation" type="range" min="${min}" max="100" value="${min ? 84 : 40}">
+                    <input id="${prefix}-saturation" type="range" min="${min}" max="100" value="${THEME_DEFAULTS[saturation] ?? matchingPanelSaturation(THEME_DEFAULTS.backgroundSaturation)}">
+                    ${
+                      brightness
+                        ? `<label for="theme-background-brightness">Brightness <output id="theme-background-brightness-output"></output></label>
+                    <input id="theme-background-brightness" type="range" min="${BACKGROUND_BRIGHTNESS_RANGE.min}" max="${BACKGROUND_BRIGHTNESS_RANGE.max}" value="${THEME_DEFAULTS.backgroundBrightness}">`
+                        : ''
+                    }
                   </div>
                 </div>
-              </fieldset>`,
-              )
+              </fieldset>`;
+              })
               .join('')}
           </div>
-          <p class="settings-help">Choose a palette or set the accent and background colors separately.</p>
           <h3>Button press feedback</h3><label><input type="checkbox" id="companion-button-feedback">Briefly highlight a pressed button</label>
           <p class="settings-help">Shows that a click was received, not that an operation succeeded. This does not change visual glitches, sounds or response speed.</p>
           <div class="settings-actions"><button type="button" id="feedback-preview" data-feedback-setting="companion-button-feedback">Try button feedback</button></div>
@@ -243,15 +264,30 @@ export class CompanionPanel {
     const previewTheme = () => {
       const theme = this.themeDraft();
       this.get('theme-custom').hidden = theme.preset !== 'custom';
-      for (const { prefix, hue, saturation } of themeAxes) {
-        this.get(`${prefix}-wheel`).style.setProperty('--selected-hue', `${theme[hue]}deg`);
-        this.get(`${prefix}-hue-output`).textContent = `${theme[hue]}°`;
-        this.get(`${prefix}-saturation-output`).textContent = `${theme[saturation]}%`;
+      const linked = this.get('theme-panel-linked').checked;
+      for (const { prefix } of themeAxes) {
+        const hue = this.get(`${prefix}-hue`);
+        const saturation = this.get(`${prefix}-saturation`);
+        const wheel = this.get(`${prefix}-wheel`);
+        if (prefix === 'theme-panel') {
+          hue.disabled = saturation.disabled = linked;
+          wheel.toggleAttribute('data-linked', linked);
+          if (linked) {
+            hue.value = theme.backgroundHue;
+            saturation.value = matchingPanelSaturation(theme.backgroundSaturation);
+          }
+        }
+        wheel.style.setProperty('--selected-hue', `${hue.value}deg`);
+        this.get(`${prefix}-hue-output`).textContent = `${hue.value}°`;
+        this.get(`${prefix}-saturation-output`).textContent = `${saturation.value}%`;
       }
+      this.get('theme-background-brightness-output').textContent = `${theme.backgroundBrightness}%`;
       applyInterfaceTheme(theme);
     };
     this.previewTheme = previewTheme;
     this.get('theme-preset').addEventListener('input', previewTheme);
+    this.get('theme-panel-linked').addEventListener('input', previewTheme);
+    this.get('theme-background-brightness').addEventListener('input', previewTheme);
     for (const { prefix } of themeAxes) {
       const input = this.get(`${prefix}-hue`);
       input.addEventListener('input', previewTheme);
@@ -266,7 +302,7 @@ export class CompanionPanel {
         input.dispatchEvent(new Event('input', { bubbles: true }));
       };
       wheel.addEventListener('pointerdown', (event) => {
-        if (event.button !== 0) return;
+        if (event.button !== 0 || input.disabled) return;
         wheel.setPointerCapture(event.pointerId);
         turnWheel(event);
       });
@@ -597,19 +633,31 @@ export class CompanionPanel {
     this.avatarEffectControls();
     const theme = validateInterfaceTheme(value.interfaceTheme);
     this.get('theme-preset').value = theme.preset;
+    this.get('theme-background-brightness').value = theme.backgroundBrightness;
+    this.get('theme-panel-linked').checked =
+      theme.panelHue === null && theme.panelSaturation === null;
+    const axisValues = {
+      ...theme,
+      panelHue: theme.panelHue ?? theme.backgroundHue,
+      panelSaturation: theme.panelSaturation ?? matchingPanelSaturation(theme.backgroundSaturation),
+    };
     for (const { prefix, hue, saturation } of themeAxes) {
-      this.get(`${prefix}-hue`).value = theme[hue];
-      this.get(`${prefix}-saturation`).value = theme[saturation];
+      this.get(`${prefix}-hue`).value = axisValues[hue];
+      this.get(`${prefix}-saturation`).value = axisValues[saturation];
     }
     this.previewTheme();
     this.savedSettings = this.settingsDraft();
   }
   themeDraft() {
-    const theme = { preset: this.get('theme-preset').value };
+    const theme = {
+      preset: this.get('theme-preset').value,
+      backgroundBrightness: this.get('theme-background-brightness').valueAsNumber,
+    };
     for (const { prefix, hue, saturation } of themeAxes) {
       theme[hue] = this.get(`${prefix}-hue`).valueAsNumber;
       theme[saturation] = this.get(`${prefix}-saturation`).valueAsNumber;
     }
+    if (this.get('theme-panel-linked').checked) theme.panelHue = theme.panelSaturation = null;
     return validateInterfaceTheme(theme);
   }
   settingsDraft() {
@@ -649,6 +697,8 @@ export class CompanionPanel {
         'avatar-snap-radius',
         'avatar-tap-gap',
         'theme-preset',
+        'theme-background-brightness',
+        'theme-panel-linked',
         ...themeAxes.flatMap(({ prefix }) => [`${prefix}-hue`, `${prefix}-saturation`]),
       ].map((id) => {
         const el = this.get(id);

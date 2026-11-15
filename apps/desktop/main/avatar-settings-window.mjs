@@ -20,12 +20,23 @@ export function watchAvatarSettingsWindow(view, record, { processId, url, onChan
     onChange(
       view.isDestroyed()
         ? { state: 'closed' }
-        : view.isVisible() && !view.isMinimized()
+        : view.isVisible() && !view.isMinimized() && !view.isMaximized()
           ? { state: 'visible', dipBounds: view.getBounds() }
           : { state: 'hidden' },
     );
   };
-  const events = ['move', 'resize', 'show', 'focus', 'hide', 'minimize', 'restore', 'closed'];
+  const events = [
+    'move',
+    'resize',
+    'show',
+    'focus',
+    'hide',
+    'minimize',
+    'maximize',
+    'unmaximize',
+    'restore',
+    'closed',
+  ];
   for (const event of events) view.on(event, update);
   update();
   return () => {

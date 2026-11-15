@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { root, nodePath, openclawPath } from '../src/index.mjs';
+import { root } from '../src/host/paths.mjs';
 
 // Closing the supported stdin host lifeline asks OpenClaw to drain and release
 // SQLite ownership cleanly. SIGTERM alone force-kills Node on Windows.
@@ -11,11 +11,11 @@ if (!name || !/^[a-z0-9-]+$/i.test(name)) throw new Error('Invalid Gateway host 
 const stopFile = path.join(root, 'data/run', `${name}.stop`);
 if (existsSync(stopFile)) unlinkSync(stopFile);
 const child = spawn(
-  nodePath,
+  process.execPath,
   [
     '--import',
     pathToFileURL(path.join(root, 'packages/runtime/bin/response-timing-preload.mjs')).href,
-    openclawPath,
+    path.join(root, 'node_modules/openclaw/openclaw.mjs'),
     'gateway',
     'run',
     '--port',
@@ -25,7 +25,13 @@ const child = spawn(
   ],
   {
     cwd: root,
-    env: { ...process.env, OPENCLAW_GATEWAY_HOST_LIFELINE: 'stdin', OPENCLAW_NO_RESPAWN: '1' },
+    env: {
+      ...process.env,
+      // Node retains serialized module code in the long-lived gateway and its workers.
+      NODE_DISABLE_COMPILE_CACHE: '1',
+      OPENCLAW_GATEWAY_HOST_LIFELINE: 'stdin',
+      OPENCLAW_NO_RESPAWN: '1',
+    },
     windowsHide: true,
     stdio: ['pipe', 'inherit', 'inherit'],
   },

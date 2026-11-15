@@ -33,6 +33,7 @@ let application;
 const narrow = process.argv.includes('--narrow');
 const supportOnly = process.argv.includes('--support');
 const sidebarOnly = process.argv.includes('--sidebar');
+const themeOnly = process.argv.includes('--theme');
 verifyLayout: try {
   application = await _electron.launch({
     executablePath: createRequire(import.meta.url)('electron'),
@@ -44,7 +45,7 @@ verifyLayout: try {
   await owner.waitForFunction(() => document.body.dataset.phase === 'ready');
   let settings = await settingsView(
     application,
-    sidebarOnly ? 'languages' : supportOnly ? 'support' : 'general',
+    sidebarOnly ? 'languages' : supportOnly ? 'support' : themeOnly ? 'appearance' : 'general',
   );
   if (sidebarOnly) {
     const divider = settings.locator('#settings-divider');
@@ -144,7 +145,7 @@ verifyLayout: try {
     );
     break verifyLayout;
   }
-  if (!supportOnly) {
+  if (!supportOnly && !themeOnly) {
     assert.equal(
       await settings.locator('[data-settings-group="capri"] [data-section="languages"]').count(),
       1,
@@ -192,7 +193,7 @@ verifyLayout: try {
     });
   } else {
     for (const [index, [section, , panel]] of SETTINGS_SECTIONS.entries()) {
-      if (supportOnly && !['support', 'updates'].includes(section)) continue;
+      if (themeOnly || (supportOnly && !['support', 'updates'].includes(section))) continue;
       const tab = settings.locator(`[data-section="${section}"]`);
       await tab.click();
       try {
@@ -316,6 +317,44 @@ verifyLayout: try {
       break verifyLayout;
     }
     await settings.locator('[data-section="appearance"]').click();
+    await settings.locator('#theme-preset').selectOption('cyberpunk-2077');
+    await owner.waitForFunction(
+      () => document.documentElement.dataset.interfaceTheme === 'cyberpunk-2077',
+    );
+    const gameMenuColors = await settings.evaluate(() => {
+      const style = (selector) => getComputedStyle(document.querySelector(selector));
+      return {
+        selection: style('[data-section="appearance"]').color,
+        dropdown: style('#theme-preset').color,
+        dropdownBorder: style('#theme-preset').borderTopColor,
+        feedback: style('#feedback-preview').color,
+        feedbackBorder: style('#feedback-preview').borderTopColor,
+        frame: style('#companion-settings .panel-outline').stroke,
+        themeCard: style('[data-companion-group="Interface theme"]').borderTopColor,
+      };
+    });
+    assert.equal(gameMenuColors.selection, 'rgb(118, 239, 233)');
+    for (const [part, color] of Object.entries(gameMenuColors))
+      assert.equal(color, gameMenuColors.selection, `${part} uses the menu selection color`);
+    const controlFills = await settings.evaluate(() => {
+      const fill = (selector) => getComputedStyle(document.querySelector(selector)).backgroundColor;
+      return {
+        dropdown: fill('#theme-preset'),
+        secondDropdown: fill('#memory-style'),
+        feedback: fill('#feedback-preview'),
+        search: fill('#settings-search'),
+        backdrop: fill('#settings-header'),
+      };
+    });
+    assert.notEqual(controlFills.dropdown, controlFills.backdrop);
+    for (const part of ['secondDropdown', 'feedback', 'search'])
+      assert.equal(
+        controlFills[part],
+        controlFills.dropdown,
+        `${part} uses the same dark cyan fill`,
+      );
+    await settings.locator('#companion-panel-title').scrollIntoViewIfNeeded();
+    await settings.screenshot({ path: path.join(folder, 'theme-cyberpunk-2077.png') });
     await settings.locator('#theme-preset').selectOption('amethyst');
     const groupIcons = await settings
       .locator('[data-settings-group] > p > svg')
@@ -374,6 +413,25 @@ verifyLayout: try {
         };
       });
     await waitPalette(344, 351);
+    const linkPanel = settings.locator('#theme-panel-linked');
+    const panelHue = settings.locator('#theme-panel-hue');
+    const brightness = settings.locator('#theme-background-brightness');
+    assert.equal(await linkPanel.isChecked(), true);
+    assert.equal(await panelHue.isDisabled(), true);
+    await linkPanel.uncheck();
+    await panelHue.fill('238');
+    await brightness.fill('14');
+    await owner.waitForFunction(() => {
+      const styles = document.documentElement.style;
+      return (
+        styles.getPropertyValue('--theme-panel').startsWith('hsl(238 ') &&
+        styles.getPropertyValue('--theme-background').endsWith(' 14%)')
+      );
+    });
+    assert.equal(
+      await settings.locator('#theme-background-brightness-output').textContent(),
+      '14%',
+    );
     const red = await palette();
     await settings.locator('#theme-hue').fill('138');
     await waitPalette(138, 351);
@@ -392,9 +450,16 @@ verifyLayout: try {
     await settings.locator('#theme-background-hue').fill('221');
     await waitPalette(138, 221);
     const blue = await palette();
+    assert.match(
+      await settings.evaluate(() =>
+        document.documentElement.style.getPropertyValue('--theme-panel'),
+      ),
+      /^hsl\(238 /,
+    );
     assert.equal(blue.composerFrame, green.composerFrame, 'Background does not change the accent');
-    for (const key of ['portraitFill', 'graphFill', 'contextFill'])
-      assert.notEqual(blue[key], green[key], `${key} follows the background`);
+    assert.notEqual(blue.portraitFill, green.portraitFill, 'Portrait follows the background');
+    for (const key of ['contextFill', 'graphFill'])
+      assert.equal(blue[key], green[key], `${key} uses the independent panel color`);
     await settings.locator('[data-companion-group="Interface theme"]').scrollIntoViewIfNeeded();
     const themeCard = await settings
       .locator('[data-companion-group="Interface theme"]')
@@ -432,6 +497,27 @@ verifyLayout: try {
       animations: 'disabled',
     });
     await settings.locator('#settings-discard').click();
+    if (themeOnly) {
+      await owner.waitForFunction(
+        () => document.documentElement.dataset.interfaceTheme === 'capri',
+      );
+      settings = await settingsView(application, 'appearance');
+      await settings.locator('#theme-preset').selectOption('custom');
+      await settings.locator('#theme-panel-linked').uncheck();
+      await settings.locator('#theme-panel-hue').fill('212');
+      await settings.locator('#theme-background-brightness').fill('16');
+      await settings.locator('#settings-window-close').click();
+      await settings.locator('#settings-apply').click();
+      await settings.locator('#settings-draft-actions').waitFor({ state: 'hidden' });
+      await settings.locator('#settings-window-close').click();
+      settings = await settingsView(application, 'appearance');
+      assert.equal(await settings.locator('#theme-preset').inputValue(), 'custom');
+      assert.equal(await settings.locator('#theme-panel-linked').isChecked(), false);
+      assert.equal(await settings.locator('#theme-panel-hue').inputValue(), '212');
+      assert.equal(await settings.locator('#theme-background-brightness').inputValue(), '16');
+      console.log('PASS theme preview, layout, discard and save. Screenshots: ' + folder);
+      break verifyLayout;
+    }
     await owner.evaluate(() => window.capri.timeAction({ action: 'stopwatch' }));
     await owner.locator('#quick-actions #stopwatch-hud').waitFor();
     assert.equal(await owner.locator('#handle #context-hud').count(), 1);

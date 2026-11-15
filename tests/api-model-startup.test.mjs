@@ -313,6 +313,19 @@ test('direct warmup queries installation only for API opt-out and never primes a
   }
 });
 
+test('desktop startup skips the embedding worker when conversation memory is disabled', async () => {
+  await fixture(
+    { remote: {}, installed: ['fixture-memory:latest'] },
+    async ({ core, rt, names }) => {
+      await core.startCore(rt, { warmMemory: false });
+      assert.ok(names().includes('startGateway'));
+      assert.ok(!names().includes('/api/embed'));
+      await core.prewarmEmbedding(rt);
+      assert.equal(names().filter((name) => name === '/api/embed').length, 1);
+    },
+  );
+});
+
 test('preload false prevents API opt-out chat and embedding warmup', async () => {
   await fixture(
     {

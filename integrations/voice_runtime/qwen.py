@@ -39,6 +39,25 @@ def reference_audio(profile_folder):
     return audio, rate
 
 
+def release_reference_encoders(model, prompt):
+    """Cached reference data is sufficient for the pinned 12 Hz synthesis path."""
+    from qwen_tts import VoiceClonePromptItem
+    from qwen_tts.core.models.modeling_qwen3_tts import Qwen3TTSForConditionalGeneration
+    from qwen_tts.core.tokenizer_12hz.modeling_qwen3_tts_tokenizer_v2 import Qwen3TTSTokenizerV2Model
+
+    if type(model) is not Qwen3TTSForConditionalGeneration or model.tts_model_type != 'base':
+        return
+    codec = getattr(model.speech_tokenizer, 'model', None)
+    if type(codec) is not Qwen3TTSTokenizerV2Model or not prompt or not all(
+        type(item) is VoiceClonePromptItem and torch.is_tensor(item.ref_spk_embedding)
+        and (item.x_vector_only_mode or torch.is_tensor(item.ref_code)) for item in prompt
+    ):
+        return
+    # Only the worker's immutable voice prompt is used until a new voice loads.
+    model.speaker_encoder = None
+    codec.encoder = None
+
+
 class QwenVoice:
     def __init__(self, config, model_id=None, root=ROOT):
         local_environment()
@@ -69,6 +88,7 @@ class QwenVoice:
             else:
                 self.prompt = self.engine.create_voice_clone_prompt(ref_audio=reference,
                                                                    x_vector_only_mode=True)
+        release_reference_encoders(self.engine.model, self.prompt)
         self.config, self.cancelled, self.last_metrics = config, None, {}
         self.recent_speech = None
         self.decoder_device = compute

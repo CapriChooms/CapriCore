@@ -11,12 +11,16 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export function writeJsonAtomic(file, value) {
+  writeTextAtomic(file, JSON.stringify(value, null, 2) + '\n');
+}
+
+export function writeTextAtomic(file, text) {
   mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
   let descriptor;
   try {
     descriptor = openSync(temporary, 'wx', 0o600);
-    writeFileSync(descriptor, JSON.stringify(value, null, 2) + '\n');
+    writeFileSync(descriptor, text, 'utf8');
     fsyncSync(descriptor);
     closeSync(descriptor);
     descriptor = undefined;

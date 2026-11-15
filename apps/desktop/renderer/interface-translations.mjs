@@ -1,11 +1,60 @@
 import bundle from '../../shared/interface-locales.json' with { type: 'json' };
 import languages from '../../shared/languages.json' with { type: 'json' };
+import english from '../locales/en.json' with { type: 'json' };
 import { SKILL_TEXT_RU } from '../../../packages/skills/src/settings-catalog.mjs';
 
-export const INTERFACE_LOCALES = Object.freeze(
-  Object.values(bundle.locales).map(({ messages, ...meta }) => Object.freeze(meta)),
-);
-export const interfaceLocale = (id) => bundle.locales[id] ?? bundle.locales.en;
+export const INTERFACE_LOCALES = Object.freeze(Object.values(bundle.locales).map(Object.freeze));
+const metadata = (id) =>
+  Object.hasOwn(bundle.locales, id) ? bundle.locales[id] : bundle.locales.en;
+const recentLocales = new Map();
+const pendingLocales = new Map();
+const source = english.messages;
+
+function rememberLocale(id, messages) {
+  recentLocales.delete(id);
+  recentLocales.set(id, messages);
+  if (recentLocales.size > 4) recentLocales.delete(recentLocales.keys().next().value);
+  return messages;
+}
+
+function localeMessages(id, load) {
+  if (id === 'en') return source;
+  if (recentLocales.has(id)) return rememberLocale(id, recentLocales.get(id));
+  return load ? rememberLocale(id, load(id)) : source;
+}
+
+export function createInterfaceTranslator(load) {
+  return {
+    interfaceLocale(id) {
+      const locale = metadata(id);
+      return { ...locale, messages: localeMessages(locale.id, load) };
+    },
+    uiText(text, language = 'en', values) {
+      return translate(text, language, values, localeMessages(metadata(language).id, load));
+    },
+  };
+}
+export const { interfaceLocale, uiText } = createInterfaceTranslator();
+
+export async function prepareInterfaceLocale(id) {
+  const locale = metadata(id).id;
+  if (locale === 'en') return;
+  if (recentLocales.has(locale)) {
+    localeMessages(locale);
+    return;
+  }
+  if (!pendingLocales.has(locale)) {
+    const loading = fetch(`/locales/${locale}.json`)
+      .then((response) => {
+        if (!response.ok) throw Error('The interface translation could not be loaded.');
+        return response.json();
+      })
+      .then(({ messages }) => rememberLocale(locale, messages))
+      .finally(() => pendingLocales.delete(locale));
+    pendingLocales.set(locale, loading);
+  }
+  await pendingLocales.get(locale);
+}
 const displayNames = new Map();
 export function displayLanguage(id, locale = 'en') {
   if (!languages.some((item) => item.id === id)) return id;
@@ -20,7 +69,7 @@ export function displayLanguage(id, locale = 'en') {
   }
 }
 const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const templates = Object.keys(bundle.locales.en.messages)
+const templates = Object.keys(source)
   .filter((key) => /\{\w+\}/.test(key))
   .map((key) => {
     const names = [];
@@ -38,18 +87,13 @@ function interpolate(text, values) {
     Object.hasOwn(values, key) ? String(values[key]) : token,
   );
 }
-export function uiText(text, language = 'en', values) {
+function translate(text, language, values, messages) {
   if (typeof text !== 'string') return text;
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (language === 'ru' && Object.hasOwn(SKILL_TEXT_RU, normalized))
     return SKILL_TEXT_RU[normalized];
-  if (
-    !Object.hasOwn(bundle.locales.en.messages, text) &&
-    Object.hasOwn(bundle.locales.en.messages, normalized)
-  )
-    text = normalized;
-  const messages = interfaceLocale(language).messages;
-  if (Object.hasOwn(bundle.locales.en.messages, text))
+  if (!Object.hasOwn(source, text) && Object.hasOwn(source, normalized)) text = normalized;
+  if (Object.hasOwn(source, text))
     return values ? interpolate(messages[text] ?? text, values) : (messages[text] ?? text);
   for (const template of templates) {
     const match = text.match(template.pattern);
@@ -70,35 +114,38 @@ export function uiText(text, language = 'en', values) {
   return values ? interpolate(text, values) : text;
 }
 
-const reverse = new Map();
-function canonical(text, language) {
-  if (!reverse.has(language)) {
+const reverse = new WeakMap();
+function canonical(text, messages) {
+  if (!reverse.has(messages)) {
     const index = new Map();
-    for (const [source, translated] of Object.entries(interfaceLocale(language).messages))
+    for (const [source, translated] of Object.entries(messages))
       if (!index.has(translated)) index.set(translated, source);
-    reverse.set(language, index);
+    reverse.set(messages, index);
   }
-  return reverse.get(language).get(text) ?? text;
+  return reverse.get(messages).get(text) ?? text;
 }
 const excluded = 'svg:not([data-ui-text]),output,script,textarea,[data-untranslated]';
 /** Only owned UI roots are traversed. Dialogue, filenames and input values stay data. */
 export class InterfaceLanguage {
+  #messages = source;
+
   constructor() {
     this.language = 'en';
     this.originals = new WeakMap();
     this.attributes = new WeakMap();
   }
   text(text, values) {
-    return uiText(text, this.language, values);
+    return translate(text, this.language, values, this.#messages);
   }
   languageName(id) {
     return displayLanguage(id, this.language);
   }
   apply(language) {
-    const previous = this.language;
-    this.language = interfaceLocale(language).id;
+    const previous = this.#messages;
+    this.language = metadata(language).id;
+    this.#messages = localeMessages(this.language);
     document.documentElement.lang = this.language;
-    document.documentElement.dir = interfaceLocale(language).direction;
+    document.documentElement.dir = metadata(language).direction;
     if (document.body.classList.contains('settings-window'))
       document.title = this.text('Capri Settings');
     const roots = [

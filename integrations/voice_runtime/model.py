@@ -170,6 +170,9 @@ class CapriVoice(DecoderMemoryBudget):
         self.engine = load_engine(read_config())
         load_adapter(self.engine.t3, folder, read_config())
         self.engine.t3.eval()
+        # Turbo's native sampler and CUDA Graph project only speech tokens. This
+        # text projection belongs to training and costs 196 MiB in FP32.
+        self.engine.t3.text_head = None
         self.adapter_merge_device = 'cpu'
         if (compute != 'cpu' and config.get('mergeAdapter', True)
                 and self.free_gpu_bytes() >= sum(p.numel()*p.element_size() for p in self.engine.t3.parameters()) + 1024**3):

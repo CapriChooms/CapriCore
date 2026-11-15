@@ -1112,6 +1112,7 @@ body.settings-window {
   display: none;
 }
 [data-companion-group='Interface theme'] {
+  container-type: inline-size;
   padding: 12px;
   margin-block: 2px 14px;
   border: 1px solid color-mix(in srgb, var(--cyan) 50%, var(--theme-border));
@@ -1142,17 +1143,35 @@ body.settings-window {
   border: 1px solid var(--theme-border);
   background: var(--cyan);
 }
-.theme-palette-swatches i:last-child {
+.theme-palette-swatches i:nth-child(2) {
   background: var(--theme-background);
 }
-[data-companion-group='Interface theme'] > .settings-help {
-  margin-block-end: 0;
+.theme-palette-swatches i:last-child {
+  background: var(--theme-panel);
 }
 .theme-custom:not([hidden]) {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: 12px;
-  margin-block: 10px;
+  gap: 8px;
+  margin-block-start: 10px;
+}
+@container (min-width: 365px) {
+  .theme-custom:not([hidden]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  [data-theme-axis='theme-panel'] {
+    grid-column: 1 / -1;
+  }
+  [data-theme-axis='theme-panel'] .theme-color-controls {
+    max-inline-size: 360px;
+  }
+}
+@container (min-width: 555px) {
+  .theme-custom:not([hidden]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  [data-theme-axis='theme-panel'] {
+    grid-column: auto;
+  }
 }
 .theme-color {
   min-width: 0;
@@ -1171,6 +1190,10 @@ body.settings-window {
   grid-template-columns: minmax(54px, 82px) minmax(0, 1fr);
   align-items: center;
   gap: 10px;
+}
+.settings-window .theme-color .theme-link-panel {
+  margin-block: 0 6px;
+  font-size: 11px;
 }
 .theme-sliders {
   display: grid;
@@ -1203,6 +1226,12 @@ body.settings-window {
 }
 #theme-background-wheel {
   --wheel-swatch: var(--theme-background);
+}
+#theme-panel-wheel {
+  --wheel-swatch: var(--theme-panel);
+}
+.theme-wheel[data-linked] {
+  cursor: default;
 }
 .theme-wheel::before {
   content: '';
@@ -1339,6 +1368,14 @@ body.settings-window {
   button[aria-current='page'] {
   border-inline-start-color: var(--ui-accent);
 }
+:root[data-interface-theme='cyberpunk-2077']
+  .settings-window
+  #settings-navigation
+  button[aria-current='page'] {
+  border-inline-start-color: var(--menu-selection);
+  background: var(--menu-selection-surface);
+  color: var(--menu-selection);
+}
 :root[data-interface-theme]:not([data-interface-theme='capri'])
   .settings-window
   :is(input[type='checkbox'], input[type='range']) {
@@ -1347,7 +1384,7 @@ body.settings-window {
 :root[data-interface-theme]:not([data-interface-theme='capri'])
   .settings-window
   .preferences-panel:not(:has(.support-content:not([hidden]))) {
-  --frame-color: var(--cyan);
+  --frame-color: var(--settings-frame-ink, var(--cyan));
 }
 :root[data-interface-theme]:not([data-interface-theme='capri'])
   .settings-window
@@ -1360,6 +1397,65 @@ body.settings-window {
   border-color: var(--theme-border);
   background-color: var(--theme-panel);
   color: var(--theme-text);
+}
+:root[data-interface-theme='cyberpunk-2077'] .settings-window {
+  --settings-frame-ink: var(--menu-selection);
+  --settings-control-fill: color-mix(in srgb, var(--menu-selection) 19%, var(--theme-background));
+  --settings-control-hover: color-mix(in srgb, var(--menu-selection) 29%, var(--theme-background));
+}
+:root[data-interface-theme='cyberpunk-2077']
+  .settings-window
+  .preferences-panel:not(:has(.support-content:not([hidden])))
+  > .panel-frame
+  .panel-accent {
+  stroke: color-mix(in srgb, var(--frame-color) 78%, var(--theme-text));
+}
+:root[data-interface-theme='cyberpunk-2077']
+  .settings-window
+  [data-companion-group='Interface theme'] {
+  border-color: var(--menu-selection);
+}
+:root[data-interface-theme='cyberpunk-2077']
+  .settings-window
+  :is(
+    #settings-search,
+    main#companion
+      .preferences-panel
+      :is(
+        select,
+        textarea,
+        input:is(
+          [type='text'],
+          [type='search'],
+          [type='password'],
+          [type='url'],
+          [type='number'],
+          [type='time'],
+          [type='datetime-local'],
+          :not([type])
+        ),
+        button:not(
+          .danger-action,
+          .brand-boosty,
+          .brand-lava,
+          .settings-info-button,
+          .general-toggle
+        )
+      ):enabled
+  ) {
+  border-color: var(--menu-selection);
+  background: var(--settings-control-fill);
+  color: var(--menu-selection);
+  &:is(:hover, :focus-visible) {
+    background: var(--settings-control-hover);
+  }
+}
+:root[data-interface-theme='cyberpunk-2077']
+  .settings-window
+  .preferences-panel
+  select:enabled:focus-visible {
+  outline: 1px solid var(--menu-selection);
+  outline-offset: 2px;
 }
 :root[data-interface-theme]:not([data-interface-theme='capri'])
   .settings-window

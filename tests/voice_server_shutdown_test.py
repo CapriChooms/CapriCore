@@ -64,7 +64,8 @@ class VoiceShutdownTests(unittest.TestCase):
             def health(self):
                 return {}
 
-        torch = module(cuda=SimpleNamespace(empty_cache=lambda: None, memory_allocated=lambda: 0, memory_reserved=lambda: 0))
+        torch = module(version=SimpleNamespace(cuda=None, hip=None),
+                       cuda=SimpleNamespace(empty_cache=lambda: None, memory_allocated=lambda: 0, memory_reserved=lambda: 0))
         fake_modules = {
             'torch': torch,
             'integrations.voice_training.dataset': module(ROOT=self.root, write_json=lambda *_: None),

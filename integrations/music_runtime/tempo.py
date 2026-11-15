@@ -28,6 +28,7 @@ class TempoTracker:
     def reset(self):
         self.samples = np.empty(0, dtype=np.float32)
         self.onsets = deque(maxlen=self.HISTORY_FRAMES)
+        self.bass_onsets = deque(maxlen=self.HISTORY_FRAMES)
         self.soft_onsets = deque(maxlen=self.HISTORY_FRAMES)
         self.times = deque(maxlen=self.HISTORY_FRAMES)
         self.previous = None
@@ -69,6 +70,7 @@ class TempoTracker:
             + 0.35 * difference[:, 8:64].mean(axis=1)
             + 0.20 * difference[:, 64:].mean(axis=1)
         )
+        self.bass_onsets.extend(difference[:, :5].mean(axis=1))
         # Compress amplitude in a separate envelope so piano note changes and
         # quiet attacks are visible without sacrificing accents in the main path.
         soft_difference = np.log1p(difference / (0.125 + previous))
@@ -189,30 +191,35 @@ class TempoTracker:
         # waits for evidence; a clear faster beat can lock earlier.
         if len(self.onsets) < 300:
             return dict(UNKNOWN)
-        result = self._percussive_tempo()
+        # A steady kick may survive vocals or other strong transients that
+        # obscure the beat in the full-band envelope.
+        pulse = self._percussive_pulse(self.onsets) or self._percussive_pulse(
+            self.bass_onsets, bass_only=True
+        )
+        result = self._lock_pulse(*pulse) if pulse else dict(UNKNOWN)
         if result["tempo"]:
             self.soft_candidate = None
             self.soft_candidate_count = 0
             return result
         return self._soft_tempo() if len(self.onsets) >= 500 else result
 
-    def _percussive_tempo(self):
+    def _percussive_pulse(self, onsets, *, bass_only=False):
         # Eight seconds responds to track changes; the soft path uses up to
         # twelve seconds to estimate longer periods from sparse note entrances.
-        raw = np.asarray(self.onsets, dtype=np.float64)[-800:]
+        raw = np.asarray(onsets, dtype=np.float64)[-800:]
         times = np.asarray(self.times, dtype=np.float64)[-800:]
         envelope = self._envelope(raw)
         envelope = np.convolve(envelope, [0.25, 0.5, 0.25], "same")
         peak = float(np.max(envelope))
         if peak < 0.005:
-            return dict(UNKNOWN)
+            return None
         peaks = np.flatnonzero(
             (envelope[1:-1] >= envelope[:-2])
             & (envelope[1:-1] > envelope[2:])
             & (envelope[1:-1] >= peak * 0.18)
         ) + 1
         if peaks.size < 5:
-            return dict(UNKNOWN)
+            return None
         centred = envelope - float(np.mean(envelope))
         correlations = np.array(
             [self._correlation(centred, lag) for lag in range(25, 151)]
@@ -252,7 +259,7 @@ class TempoTracker:
             )
             candidates.append((score, lag, float(direct)))
         if not candidates:
-            return dict(UNKNOWN)
+            return None
         candidates.sort(reverse=True)
         score, lag, direct = candidates[0]
         # A period with the same evidence but twice the length is not an extra
@@ -280,10 +287,15 @@ class TempoTracker:
         weights = envelope[peaks]
         _, coherence = self._phase(times[peaks], weights, period)
         confidence = float(np.clip(0.65 * direct + 0.35 * coherence, 0.0, 1.0))
-        if coherence < 0.35 or confidence < 0.53:
-            return dict(UNKNOWN)
+        if coherence < (0.50 if bass_only else 0.35) or confidence < (
+            0.60 if bass_only else 0.53
+        ):
+            return None
         if self.sample_count / self.SAMPLE_RATE - times[peaks[-1]] > period * 2.2:
-            return dict(UNKNOWN)
+            return None
+        return bpm, confidence, times[peaks], weights
+
+    def _lock_pulse(self, bpm, confidence, times, weights):
         if self.candidate is not None and abs(bpm / self.candidate - 1) < 0.035:
             self.candidate_count += 1
         else:
@@ -297,7 +309,7 @@ class TempoTracker:
         # Recompute phase after any small tempo smoothing, avoiding a phase jump
         # caused solely by expressing the old period with the smoothed BPM.
         period = 60.0 / bpm
-        beat_offset, _ = self._phase(times[peaks], weights, period)
+        beat_offset, _ = self._phase(times, weights, period)
         phase = (self.sample_count / self.SAMPLE_RATE / period - beat_offset) % 1.0
         return {
             "tempo": round(bpm, 3),

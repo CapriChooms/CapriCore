@@ -32,7 +32,7 @@ import { dialogueStyleInstruction } from './dialogue-style.mjs';
 import { observationText } from './screen-observation.mjs';
 import { CAPRI_CHARACTER_SELF, CAPRI_SCREEN_SELF } from './screen-identity.mjs';
 import { cyberpunkLoreContext } from './cyberpunk-lore.mjs';
-import { uiText } from './renderer/interface-translations.mjs';
+import { uiText } from './interface-translations.mjs';
 import { lemonadeDialogue } from './lemonade-dialogue.mjs';
 import { ownerNoteRequest, recallOwnerNote, saveOwnerNote } from './owner-notes.mjs';
 import {

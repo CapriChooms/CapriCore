@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { uiText } from '../renderer/language-settings.mjs';
+import { uiText } from '../interface-translations.mjs';
 import { validateApplications } from '../../../integrations/desktop-actions/settings.mjs';
 
 /** Capability changes stay explicit and are persisted before UI notification. */

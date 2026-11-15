@@ -33,12 +33,15 @@ The NumPy frontend reproduces the pinned export's TorchAudio transform: a
 400-sample periodic Hann window, 512-point FFT, 160-sample hop, 64 HTK mel bands
 from 125 to 7500 Hz, and log magnitude with a 0.001 offset. The ONNX export emits
 logits; these are converted to probabilities. A classification uses the latest
-second of audio, with a three-result moving average. PCM storage is capped at
+second of audio, with a three-result moving average. Quiet, non-silent inputs
+receive bounded gain for classification. The activity gate and animation energy
+use the captured level. PCM storage is capped at
 three seconds and is discarded on stop, reset, session changes, or packet gaps.
 Inference uses one CPU thread. The host enters the music state after three
 successive scores of at least 0.60; it leaves after three scores below 0.28 or
 insufficient audio energy. This hysteresis avoids reacting to isolated syllables
-or flickering between animation states.
+or flickering between animation states. Tempo estimation can use consistent bass
+attacks when louder sounds obscure the beat in the full-band signal.
 
 On the local regression run, feature extraction and inference took a median
 1.85 ms and a 95th percentile of 2.37 ms per one-second update. Those are observed

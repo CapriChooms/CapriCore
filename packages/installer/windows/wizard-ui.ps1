@@ -414,6 +414,13 @@ function Update-CapriModelRecommendations {
     $recommended=@(
         if($script:fields.local.Checked){
             $language=if($script:fields.conversationLanguage.Enabled){Selected-Capri 'conversationLanguage'}else{$options.conversationLanguage}
+            $regional=$catalog | Where-Object {$_.id -ceq $language} | Select-Object -First 1
+            if($regional -and $regional.PSObject.Properties['modelLanguage'] -and $modelBenchmark){
+                $scores=$modelBenchmark.PSObject.Properties['scores']
+                if(-not $scores -or -not $scores.Value.PSObject.Properties[$language]){
+                    $language=$regional.modelLanguage
+                }
+            }
             Get-CapriRecommendedLanguageProfiles $language $modelBenchmark $manifest.profiles $hardware $memoryEstimates
         }
     )
@@ -1384,6 +1391,7 @@ public static class CapriSetupScrollVerification {
                 schemaVersion=1
                 recommendations=[pscustomobject]@{
                     en=@('gemma4-e2b','quality','minimal')
+                    pt=@('quality','minimal')
                     ru=@('ministral-3-3b','desktop','balanced','minimal')
                 }
             }
@@ -1397,6 +1405,10 @@ public static class CapriSetupScrollVerification {
             if($script:fields.modelRecommendations.Text -cne ($caption+'gemma4:e2b, qwen3.5:9b') -or
                $badges.Count -ne 2 -or -not ($badges|Where-Object{([string]$_).Contains('gemma4:e2b (BETA)')})){
                 throw 'The installer did not display the two highest-ranked compatible model recommendations.'
+            }
+            Select-CapriFixtureConversation 'pt-BR'
+            if($script:fields.modelRecommendations.Text -cne ($caption+'qwen3.5:9b, qwen3.5:0.8b')){
+                throw 'The installer did not reuse measured Portuguese recommendations for Brazilian Portuguese.'
             }
             Select-CapriFixtureConversation 'ru'
             if($script:fields.modelRecommendations.Text -cne ($caption+'ministral-3:3b, qwen3.5:4b') -or

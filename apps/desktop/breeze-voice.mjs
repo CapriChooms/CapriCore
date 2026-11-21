@@ -10,7 +10,11 @@ import {
   assertPrivatePath,
   writePrivateBytesAtomic,
 } from '../../packages/runtime/src/safe-file.mjs';
-import { readModelDevices } from '../../packages/runtime/src/model-device-settings.mjs';
+import {
+  readModelDevices,
+  voiceDevicePreference,
+} from '../../packages/runtime/src/model-device-settings.mjs';
+import { breezeDeviceMatches, breezeEnvironment } from './breeze-devices.mjs';
 import { voiceApiPcm } from './external-tts.mjs';
 
 export const BREEZE_MODEL = 'breeze-tts-2-q4-k';
@@ -170,7 +174,8 @@ export class BreezeVoice {
     if (typeof text !== 'string' || !text.trim() || text.length > 1200 || text.includes('\0'))
       throw new Error('Breeze TTS 2 needs a short line of text.');
     const { engine, profile } = this.assets();
-    const device = readModelDevices(this.root).voice;
+    const device = voiceDevicePreference(readModelDevices(this.root).voice, 'breeze-tts');
+    const ordinal = device.startsWith('vulkan:') ? Number(device.split(':')[1]) : undefined;
     const parent = path.join(this.root, '.runtime/breeze-voice-tmp');
     assertPrivatePath(parent);
     await mkdir(parent, { recursive: true, mode: 0o700 });
@@ -196,18 +201,21 @@ export class BreezeVoice {
         '--text',
         text,
       ];
-      const env = { TEMP: folder, TMP: folder };
-      for (const key of ['SystemRoot', 'WINDIR', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA'])
-        if (process.env[key]) env[key] = process.env[key];
-      await this.run(engine.executable, options, {
+      const result = await this.run(engine.executable, options, {
         cwd: engine.cwd,
-        env,
+        env: breezeEnvironment(folder, ordinal),
         signal,
         windowsHide: true,
         timeout: 90000,
         maxBuffer: 256 * 1024,
       });
       signal?.throwIfAborted();
+      if (
+        ordinal !== undefined &&
+        (!/^backend: Vulkan0, sample rate:/m.test(result.stdout) ||
+          !breezeDeviceMatches(device, result.stderr))
+      )
+        throw new Error();
       const wave = readBounded(wav, maxWaveBytes);
       if (wave.toString('ascii', 0, 4) !== 'RIFF') throw new Error();
       return new Response(voiceApiPcm(wave), {

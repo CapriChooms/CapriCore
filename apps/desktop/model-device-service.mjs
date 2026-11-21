@@ -2,6 +2,7 @@
 import {
   readModelDevices,
   saveModelDevices,
+  voiceDevicePreference,
 } from '../../packages/runtime/src/model-device-settings.mjs';
 import {
   probeLanguageDevices,
@@ -11,6 +12,8 @@ import {
 } from '../../packages/runtime/src/hardware/model-devices.mjs';
 import { probeHardware } from '../../packages/runtime/src/hardware/probe.mjs';
 import { selectedVoiceModel, voiceRuntimes } from './voice-catalog-service.mjs';
+import { installedBreezeTts } from '../../packages/installer/src/breeze-tts-install.mjs';
+import { probeBreezeDevices } from './breeze-devices.mjs';
 import { createHash } from 'node:crypto';
 
 const basic = () => [
@@ -32,9 +35,19 @@ export class ModelDeviceService {
     hardware = probeHardware,
     languageProbe = probeLanguageDevices,
     voiceProbe = probeVoiceDevices,
+    breezeProbe = (root) => probeBreezeDevices(installedBreezeTts(root)),
     npuSetup,
   }) {
-    Object.assign(this, { root, ollama, config, hardware, languageProbe, voiceProbe, npuSetup });
+    Object.assign(this, {
+      root,
+      ollama,
+      config,
+      hardware,
+      languageProbe,
+      voiceProbe,
+      breezeProbe,
+      npuSetup,
+    });
   }
   current() {
     return readModelDevices(this.root, {
@@ -64,9 +77,12 @@ export class ModelDeviceService {
       /* CPU/Automatic remain selectable; unsupported voice GPUs stay marked. */
     }
     const qwen = model?.backend === 'qwen3-tts';
-    const voiceProbes = runtimes.map(({ python, env }) =>
-      Promise.resolve().then(() => this.voiceProbe(this.root, python, { env, qwen })),
-    );
+    const breeze = model?.backend === 'breeze-tts';
+    const voiceProbes = breeze
+      ? [Promise.resolve().then(() => this.breezeProbe(this.root))]
+      : runtimes.map(({ python, env }) =>
+          Promise.resolve().then(() => this.voiceProbe(this.root, python, { env, qwen })),
+        );
     const inventories = await Promise.allSettled([
       Promise.resolve().then(() => this.languageProbe(this.ollama)),
       Promise.allSettled(voiceProbes).then((values) =>
@@ -97,14 +113,12 @@ export class ModelDeviceService {
               : 'This GPU is not available in the installed language model runtime.',
         })),
     ];
+    const current = this.current();
     return (this.value = {
-      current: this.current(),
+      current: { ...current, voice: voiceDevicePreference(current.voice, model?.backend) },
       voiceModel: model?.id ?? null,
       options: {
-        language: [
-          ...complete(migrateLanguageDevice(this.current().language, llm), 'language'),
-          ...npu,
-        ],
+        language: [...complete(migrateLanguageDevice(current.language, llm), 'language'), ...npu],
         voice: complete(voice, 'voice'),
       },
     });

@@ -512,9 +512,23 @@ try {
     previousSwatches = actual;
   }
   await palette.selectOption(originalTheme);
+  await page.waitForFunction(
+    (name) => document.documentElement.dataset.interfaceTheme === name,
+    originalTheme,
+  );
   assert.equal(await page.locator('#companion-button-feedback').count(), 0);
-  await saveSettings(page);
-  await page.waitForTimeout(450);
+  await page.evaluate(() => document.getElementById('settings-window-close').click());
+  const settingsVisible = () =>
+    application.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().some(
+        (window) => window.webContents.getURL().endsWith('/settings.html') && window.isVisible(),
+      ),
+    );
+  for (let attempt = 0; attempt < 100 && (await settingsVisible()); attempt++)
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(await settingsVisible(), false, 'Restoring the original theme leaves no draft');
+  page = await settingsView(application, 'appearance');
+  assert.equal(await page.locator('#theme-preset').inputValue(), originalTheme);
   assert.equal(
     Object.hasOwn(
       (await page.evaluate(() => window.capri.bootstrap())).companion,
@@ -546,7 +560,7 @@ try {
         'external URL allowlist',
         'language panel width',
         'unsaved changes stay/discard/apply',
-        'button feedback preference',
+        'button feedback has no configurable preference',
         'the palette previews the active frame, background and card colors',
         'Google Gemini preset and copied quoted/long auth keys through isolated encrypted IPC',
         'oversized and multiline key paste rejected before browser mutation or IPC',

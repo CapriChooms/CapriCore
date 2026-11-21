@@ -8,6 +8,7 @@ import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
 import { uiText } from '../../apps/desktop/interface-translations.mjs';
+import conversationLanguages from '../../apps/shared/languages.json' with { type: 'json' };
 const parent = path.join(root, '.runtime/language-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'ui-')),
@@ -110,7 +111,12 @@ async function openSection(id) {
 }
 try {
   await launch();
-  assert.equal(await page.locator('#language-conversation option').count(), 101);
+  assert.deepEqual(
+    await page
+      .locator('#language-conversation option')
+      .evaluateAll((options) => options.map(({ value }) => value)),
+    [...conversationLanguages.map(({ id }) => id), 'custom'],
+  );
   assert.equal((await snapshot()).microphone.enabled, false);
   assert.equal(await page.locator('#language-speech option').count(), 2);
   assert.equal(await page.locator('#language-speech option:disabled').count(), 0);

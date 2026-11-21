@@ -37,6 +37,28 @@ test('screen startup diagnostics preserve only the known stage and error class',
     '[PRIVATE TEXT OMITTED]',
   );
 });
+test('Settings diagnostics distinguish an unexpected hide from a renderer crash', () => {
+  assert.deepEqual(
+    redactor().value(
+      diagnosticState({
+        hidden: { message: 'Settings native window hidden unexpectedly' },
+        crashed: { message: 'Settings renderer stopped: crashed (exit code -1073741819)' },
+        private: { message: 'Settings renderer stopped: arbitrary private text (exit code 1)' },
+      }),
+    ),
+    {
+      hidden: { message: { event: 'settings-window-hidden' } },
+      crashed: {
+        message: {
+          event: 'settings-renderer-stopped',
+          rendererReason: 'crashed',
+          exitCode: -1073741819,
+        },
+      },
+      private: { message: { schemaVersion: 1, event: 'activity' } },
+    },
+  );
+});
 mkdirSync(parent, { recursive: true });
 const fixture = () => mkdtempSync(path.join(parent, 'case-'));
 const put = (base, name, data) => {

@@ -901,7 +901,7 @@ body[data-crt='webgl'] #sprite-region > .avatar-wave {
   inset: 0;
   z-index: 3;
   width: 100%;
-  height: 100%;
+  height: var(--reply-canvas-height, 100%);
   pointer-events: none;
 }
 body[data-presence='core'] #subtitle-stage,
@@ -1293,7 +1293,7 @@ footer {
   position: absolute;
   inset: 0;
   width: 100%;
-  height: 100%;
+  height: var(--reply-canvas-height, 100%);
   pointer-events: none;
   z-index: 2;
 }
@@ -1312,7 +1312,7 @@ body[data-crt='webgl'] #sprite {
   position: absolute;
   inset: 0;
   width: 100%;
-  height: 100%;
+  height: var(--reply-canvas-height, 100%);
   z-index: 12;
   pointer-events: none;
 }

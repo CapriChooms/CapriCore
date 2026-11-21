@@ -52,14 +52,19 @@ export class ToolProgressGuard {
 }
 
 const failurePrefixes = ['OpenClaw stopped this run', 'OpenClaw stopped this turn'];
-const toolPrefixes = [
+const toolNames = [
   'spotify_control',
   'application_control',
   'desktop_control',
   'filesystem_control',
   'settings_control',
   'time_control',
-].flatMap((name) => [name + '{', name + '(']);
+];
+const toolPrefixes = [
+  '<tool_call>',
+  '<tool_call ',
+  ...toolNames.flatMap((name) => [name + '{', name + '(', '<function=' + name + '>']),
+];
 /** Hold only a possible diagnostic prefix at a line start, never an entire normal reply. */
 export class CoreFailureStream {
   constructor() {
@@ -85,7 +90,7 @@ export class CoreFailureStream {
         }
         continue;
       }
-      const toolCandidate = candidate.replace(/^(?:\*\*)?\[?/u, '');
+      const toolCandidate = candidate.replace(/^(?:\*\*|\x60{1,3})?\[?/u, '');
       if (toolPrefixes.includes(toolCandidate)) {
         this.failed = true;
         this.buffer = '';
@@ -101,7 +106,7 @@ export class CoreFailureStream {
       }
       if (
         failurePrefixes.some((prefix) => prefix.toLowerCase().startsWith(candidate)) ||
-        ['[', '**', '**['].some((prefix) => prefix.startsWith(candidate)) ||
+        ['[', '**', '**[', '\x60\x60\x60'].some((prefix) => prefix.startsWith(candidate)) ||
         toolPrefixes.some((prefix) => prefix.startsWith(toolCandidate))
       )
         continue;

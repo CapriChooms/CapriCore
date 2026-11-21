@@ -105,6 +105,15 @@ try {
   );
   const page = await settingsView(app, 'api');
   page.on('pageerror', (error) => report.errors.push(error.message));
+  assert.deepEqual(
+    await page
+      .locator(
+        '#inference-panel :is(#api-add, #api-test-all, #api-mode, #desktop-ai-details, #chatgpt-plan-card)',
+      )
+      .evaluateAll((elements) => elements.map(({ id }) => id)),
+    ['api-add', 'api-test-all', 'api-mode', 'desktop-ai-details', 'chatgpt-plan-card'],
+  );
+  report.checks.push('add, saved connections, active model, local discovery, ChatGPT');
   const card = (name) =>
     page.locator('.api-connection').filter({ has: page.getByText(name, { exact: true }) });
   await card('Second preview').getByRole('button', { name: 'Edit', exact: true }).click();

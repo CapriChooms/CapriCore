@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomUUID, createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
-import { exactClickLabel, ownerAppLaunch, mentionsDiscord } from './computer-mode-request.mjs';
+import {
+  computerTaskCommand,
+  exactClickLabel,
+  ownerAppLaunch,
+  mentionsDiscord,
+  windowsMediaPlayerTask,
+} from './computer-mode-request.mjs';
+import { browserExecutableCandidate } from './browser-identity.mjs';
+import { uiText } from './interface-translations.mjs';
 import { canClickTarget, hasVisualEvidence } from './computer-click-target.mjs';
 import { chooseApplicationWindow } from './application-window-choice.mjs';
 import { ComputerTaskPlan } from './computer-task-plan.mjs';
@@ -27,10 +35,13 @@ import {
 } from './call-computer-task.mjs';
 import {
   explicitSteamGame,
-  isSteamPlayControl,
+  steamActionAllowed,
+  steamGameCommand,
   steamGameGoal,
   steamMilestones,
 } from './steam-task-state.mjs';
+import { resolveSteamLibraryGame } from './steam-library.mjs';
+import { steamTaskReply } from './steam-game-task.mjs';
 import {
   confirmCyberpunkLaunch,
   cyberpunkLauncherTarget,
@@ -47,6 +58,8 @@ import {
   browserNavigationState,
   browserPageState,
   requiresPageSearch,
+  storeSearchFieldRequested,
+  observedSteamStoreProduct,
   requiresFullscreen as fullscreenRequested,
   browserNavigationObstacle,
   browserSearchUrl,
@@ -55,6 +68,7 @@ import {
   exactYoutubeVideoTarget,
   youtubeWatchRequirement,
   youtubeWatchVerified,
+  youtubeHomeDestination,
 } from './browser-search-state.mjs';
 
 const signature = (view) =>
@@ -63,10 +77,18 @@ const signature = (view) =>
       JSON.stringify({
         window: view.window,
         scene: view.scene,
+        steamLibrary: view.steamLibrary,
         targets: view.targets?.map(({ targetId, ...value }) => value),
       }),
     )
     .digest('hex');
+
+const BROWSER_LOAD_TIMEOUT_MS = 20000;
+const startupFailures = new Map([
+  ['COMPUTER_INDICATOR_BOUNDS_FAILED', 'indicator_bounds_failed'],
+  ['COMPUTER_ESCAPE_UNAVAILABLE', 'escape_unavailable'],
+  ['COMPUTER_INDICATOR_TIMEOUT', 'indicator_timeout'],
+]);
 // Focus, hover and transient target IDs can change without opening a new page,
 // submitting a form or making any other progress toward the owner's goal.
 const pointerView = (view) => ({
@@ -148,6 +170,7 @@ const evidenceExists = (view, evidence) =>
   [
     view.window?.untrustedTitle,
     view.scene,
+    view.steamLibrary?.gameTitle,
     view.application?.summary,
     view.application?.timeline?.name,
     ...(view.targets ?? []).flatMap((t) => [
@@ -366,6 +389,8 @@ export class ComputerAgent {
     applications,
     plan,
     launchSteamGame,
+    steamGameTask,
+    resolveSteamGame = resolveSteamLibraryGame,
     callFocusWindow = () => null,
     emit = () => {},
     onPlan = () => {},
@@ -378,6 +403,8 @@ export class ComputerAgent {
       applications,
       plan,
       launchSteamGame,
+      steamGameTask,
+      resolveSteamGame,
       callFocusWindow,
       emit,
       onPlan,
@@ -402,6 +429,20 @@ export class ComputerAgent {
         : {}),
     };
   }
+  async navigationBrowser(view, signal) {
+    const preferred = {
+      'chrome.exe': 'Google Chrome',
+      'msedge.exe': 'Microsoft Edge',
+      'opera.exe': 'Opera',
+    }[view.window?.browserExecutable];
+    const names = new Set([preferred, 'Google Chrome', 'Microsoft Edge', 'Opera', 'Opera GX']);
+    for (const name of names) {
+      if (!name) continue;
+      const apps = await this.applications.findApplications?.(name, signal, { exact: true });
+      if (apps?.length === 1 && browserExecutableCandidate(apps[0])) return name;
+    }
+    return null;
+  }
   async applicationStep(step, goal, view, signal, { requireUnique = false } = {}) {
     // A model-generated title is not a window selection by the owner. In particular,
     // "Google Chrome" is an app name, not the title of its currently open tab.
@@ -416,7 +457,7 @@ export class ComputerAgent {
     const youtubeQuery = searching ? quotedYouTubeSearch(goal) : null;
     const youtubeSearch =
       youtubeQuery && youtubeQuery.toLowerCase() === step.text?.trim().toLowerCase();
-    if (searching && siteSearch(goal) && !youtubeSearch)
+    if (searching && (siteSearch(goal) || storeSearchFieldRequested(goal)) && !youtubeSearch)
       return {
         ok: false,
         instruction:
@@ -621,6 +662,12 @@ export class ComputerAgent {
     return fresh.window?.windowId === view.window?.windowId &&
       displayRequirementMet(goal, fresh) &&
       youtubeWatchVerified(fresh, youtubeWatchRequirement(goal)) &&
+      (!view.steamLibrary ||
+        !steamMilestones(
+          this.control.session?.steamGame ?? steamGameGoal(computerTaskCommand(goal)),
+          fresh,
+          [],
+        )?.remaining) &&
       evidenceExists(fresh, evidence)
       ? fresh
       : null;
@@ -731,7 +778,7 @@ export class ComputerAgent {
     const terminal = (result, reason = blockedReason ?? 'incomplete') =>
       this.terminalOutcome(result, reason);
     try {
-      await this.control.begin(goal);
+      await this.control.begin(goal, { signal });
       session = this.control.session;
       // Even an unrelated task can start with a private Discord chat in front.
       session.nativeOnlyApplications = ['discord'];
@@ -849,13 +896,15 @@ export class ComputerAgent {
           summary,
         };
       }
-      if (this.launchSteamGame && cyberpunkSteamLaunch(goal)) {
+      const runCyberpunkSteam = async (playAlreadyRequested = false) => {
         this.activeAction = 'steam_launch';
-        this.progress('acting', steps);
+        this.progress(playAlreadyRequested ? 'verifying' : 'acting', steps);
         let launcherFocusAttempts = 0;
+        let launcherDecisions = 0;
         const status = await this.launchSteamGame({
           signal: combined,
           assertAllowed: () => this.control.requireSession(),
+          playAlreadyRequested,
           confirm: ({ isRunning, findLauncher }) =>
             confirmCyberpunkLaunch({
               signal: combined,
@@ -894,12 +943,37 @@ export class ComputerAgent {
                   if (!view || !isCyberpunkLauncherWindow(identity)) return null;
                   const { windowId, processId, startedAtTicks } = identity;
                   const fresh = await observe({ windowId, processId, startedAtTicks });
-                  return fresh && cyberpunkLauncherTarget(fresh, this.control.session?.target);
+                  const target =
+                    fresh && cyberpunkLauncherTarget(fresh, this.control.session?.target);
+                  if (!target || !playAlreadyRequested) return target;
+                  if (!hasVisualEvidence(target) || launcherDecisions >= 2) return null;
+                  launcherDecisions++;
+                  this.progress('planning', steps);
+                  const selected = await this.plan(
+                    {
+                      originalOwnerGoal: goal,
+                      language: this.language(),
+                      currentObservation: { ...fresh, targets: [target] },
+                      steamTaskTargets: [target.targetId],
+                      steamMustAdvance: true,
+                      correction:
+                        'Steam Play was already clicked for Cyberpunk 2077. Use only the verified Play button of the foreground Cyberpunk launcher, wait if it is still loading, or ask the owner if blocked.',
+                    },
+                    { signal: combined },
+                  );
+                  combined.throwIfAborted();
+                  return selected.action === 'click' &&
+                    selected.targetId === target.targetId &&
+                    (selected.button ?? 'left') === 'left' &&
+                    (selected.clickCount ?? 1) === 1
+                    ? { ...target, observationId: fresh.observationId }
+                    : null;
                 };
                 const view = await observe();
                 if (view && isCyberpunkLauncherWindow(this.control.session?.target))
                   return playInObservedLauncher(view);
-                if (launcherFocusAttempts >= 2 || !this.control.bridge) return null;
+                if (playAlreadyRequested || launcherFocusAttempts >= 2 || !this.control.bridge)
+                  return null;
                 const launcher = await findLauncher();
                 if (!launcher) return null;
                 if (view?.window?.windowId === launcher.windowId) return null;
@@ -951,7 +1025,11 @@ export class ComputerAgent {
               },
               click: async (target) => {
                 this.progress('acting', steps);
-                const args = { action: 'click', targetId: target.targetId };
+                const args = {
+                  action: 'click',
+                  targetId: target.targetId,
+                  ...(target.observationId && { observationId: target.observationId }),
+                };
                 const receipt = await this.applications.operation(
                   randomUUID(),
                   args,
@@ -998,6 +1076,82 @@ export class ComputerAgent {
           },
           status,
         );
+      };
+      const command = computerTaskCommand(goal);
+      const steamRequest = steamGameCommand(command);
+      if (
+        this.launchSteamGame &&
+        (cyberpunkSteamLaunch(goal) ||
+          (this.steamGameTask &&
+            steamRequest?.name === 'Cyberpunk 2077' &&
+            !steamRequest.installIfMissing))
+      )
+        return await runCyberpunkSteam();
+      if (steamRequest && this.steamGameTask) {
+        this.activeAction = 'steam_game';
+        const result = await this.steamGameTask(steamRequest, {
+          signal: combined,
+          assertAllowed: () => this.control.requireSession(),
+          phase: (phase) => this.progress(phase, steps),
+          onAction: () => steps++,
+          onGame: (name) => {
+            session.steamGame = { name, play: false };
+          },
+          observe: async (vision) => {
+            try {
+              const view = await this.control.execute({ action: 'observe', vision }, combined);
+              return { view, executable: session.target?.executable };
+            } catch (error) {
+              combined.throwIfAborted();
+              if (
+                [
+                  'COMPUTER_OBSERVATION_CHANGED',
+                  'COMPUTER_FOREGROUND_CHANGED',
+                  'COMPUTER_APPLICATION_UNAVAILABLE',
+                ].includes(error.code)
+              )
+                return null;
+              throw error;
+            }
+          },
+          click: async (target) => {
+            this.progress('acting', steps);
+            const args = { action: 'click', targetId: target.targetId };
+            try {
+              const receipt = await this.applications.operation(
+                randomUUID(),
+                args,
+                () =>
+                  this.control.execute(args, combined, { exactClickLabel: target.untrustedLabel }),
+                combined,
+              );
+              if (receipt?.ok) steps++;
+              return receipt?.ok === true;
+            } catch (error) {
+              combined.throwIfAborted();
+              if (error.inputPerformed === false) return false;
+              throw error;
+            }
+          },
+        });
+        combined.throwIfAborted();
+        completed = [
+          'steam_started',
+          'steam_already_running',
+          'steam_download_started',
+          'steam_installed',
+        ].includes(result.status);
+        this.trace.push({ action: 'steam_game', outcome: result.status });
+        return terminal(
+          {
+            ok: completed,
+            status: completed ? 'completed' : 'needs_user',
+            verified: completed,
+            steps,
+            summary: steamTaskReply(result, this.language()),
+          },
+          result.status,
+        );
       }
       let correction = '',
         failures = 0,
@@ -1009,11 +1163,13 @@ export class ComputerAgent {
       let changedLabels = { windowId: null, values: [] };
       const discordLaunchOnly = discordAllowed ? discordLaunchBeforeBrowser(goal) : null;
       const parsedOpening = ownerAppLaunch(goal);
-      const steamOnly = !parsedOpening?.section && explicitSteamGame(goal);
+      const mediaPlayer = windowsMediaPlayerTask(goal);
+      const steamOnly = !parsedOpening?.section && explicitSteamGame(command);
       let opening = steamOnly
         ? { name: 'Steam', single: false }
         : (discordLaunchOnly ??
           parsedOpening ??
+          (mediaPlayer ? { name: 'Media Player', single: false } : null) ??
           (ownerNamesApplication(goal, applicationHint)
             ? { name: applicationHint, single: false }
             : null));
@@ -1029,12 +1185,18 @@ export class ComputerAgent {
           { exact: true },
         );
         if (literalApplications.length)
-          opening = { name: opening.literalName, single: opening.sectionOnly === true };
+          opening = {
+            name: opening.literalName,
+            single: opening.single || opening.sectionOnly === true,
+          };
       }
       const discordProofRequired =
         discordAllowed && !discordLaunchOnly && !(opening?.single && mentionsDiscord(opening.name));
-      const steamGoal = opening?.section ? null : steamGameGoal(goal);
-      const directDestination = explicitBrowserDestination(goal);
+      let steamGoal = opening?.section ? null : steamGameGoal(command);
+      const youtubeHome = youtubeHomeDestination(command);
+      const directDestination = youtubeHome
+        ? { url: youtubeHome }
+        : explicitBrowserDestination(goal);
       const scope = new ComputerTaskScope(goal, opening, {
         web: Boolean(directDestination) || ownerRequestsWeb(goal, opening),
       });
@@ -1113,8 +1275,38 @@ export class ComputerAgent {
             apps.length ? 'application_ambiguous' : 'application_not_found',
           );
       }
+      const startInSteam = Boolean(steamGoal && namedLaunch && /^steam$/iu.test(namedLaunch.query));
+      const unavailableObservation = {
+        observationUnavailable: true,
+        window: {},
+        targets: [],
+        scene: null,
+        screenAvailable: false,
+      };
+      if (startInSteam) {
+        const installedGame = await this.resolveSteamGame(
+          namedLaunch.application.executable,
+          steamGoal.name,
+          combined,
+        );
+        if (installedGame) steamGoal = { ...steamGoal, name: installedGame.name };
+        // The explicit, verified app launch does not need an image of, or focus
+        // on, the unrelated window behind Capri. Plan the actual UI steps only
+        // after observing the Steam window bound by the launch receipt.
+        this.taskPlan.startOutline({
+          milestones: [],
+          outcome: {
+            label:
+              this.language() === 'ru' ? 'Проверить результат в Steam' : 'Verify the Steam result',
+            successCriterion:
+              'Current evidence confirms the requested Steam game and all remaining owner steps.',
+          },
+        });
+      }
+      session.steamGame = steamGoal;
       let needsOutline = Boolean(
         this.plan.outline &&
+          !startInSteam &&
           !requestedClick &&
           !browserDestinationStep &&
           !(namedLaunch && (opening.single || opening.sectionOnly)),
@@ -1138,50 +1330,65 @@ export class ComputerAgent {
               scope.markWindowClosed();
             }
           }
-          view = scope.closedWindow
-            ? {
-                window: {},
-                targets: [],
-                application: { summary: 'The verified application window is closed.' },
-                [verifiedClosedWindow]: closedWindow,
-              }
-            : await this.control.execute(
-                {
-                  action: 'observe',
-                  vision: true,
-                  ...(bound && {
-                    visualWindow: {
-                      windowId: bound.windowId,
-                      processId: bound.processId,
-                      startedAtTicks: bound.startedAtTicks,
+          view =
+            startInSteam && namedLaunch
+              ? unavailableObservation
+              : scope.closedWindow
+                ? {
+                    window: {},
+                    targets: [],
+                    application: { summary: 'The verified application window is closed.' },
+                    [verifiedClosedWindow]: closedWindow,
+                  }
+                : await this.control.execute(
+                    {
+                      action: 'observe',
+                      vision: !youtubeHome,
+                      ...(bound && {
+                        visualWindow: {
+                          windowId: bound.windowId,
+                          processId: bound.processId,
+                          startedAtTicks: bound.startedAtTicks,
+                        },
+                      }),
                     },
-                  }),
-                },
-                combined,
-              );
+                    combined,
+                  );
           observationRetries = 0;
         } catch (error) {
           combined.throwIfAborted();
+          const openedWebsite =
+            youtubeHome && history.findLast((item) => item.ok && item.navigationRequested);
+          if (
+            openedWebsite &&
+            performance.now() - openedWebsite.submittedAt < BROWSER_LOAD_TIMEOUT_MS &&
+            [
+              'COMPUTER_APPLICATION_UNAVAILABLE',
+              'COMPUTER_FOREGROUND_CHANGED',
+              'COMPUTER_OBSERVATION_CHANGED',
+            ].includes(error.code)
+          ) {
+            this.progress('verifying', steps);
+            await delay(700, undefined, { signal: combined });
+            decision--;
+            continue;
+          }
           const canStartWithoutObservation =
             error.code === 'COMPUTER_APPLICATION_UNAVAILABLE' ||
-            (error.code === 'COMPUTER_FOREGROUND_CHANGED' &&
+            (['COMPUTER_FOREGROUND_CHANGED', 'COMPUTER_OBSERVATION_CHANGED'].includes(error.code) &&
               (namedLaunch || browserDestinationStep));
           if (canStartWithoutObservation && !steps && !history.length) {
             // An app launch does not need an unrelated window to be open first.
             // This is NOT an input target: only a launch/direct URL or owner help
             // is allowed below, never typing into an unobserved existing window.
-            view = {
-              observationUnavailable: true,
-              window: {},
-              targets: [],
-              scene: null,
-              screenAvailable: false,
-            };
+            view = unavailableObservation;
           } else {
             if (
-              !['COMPUTER_OBSERVATION_CHANGED', 'COMPUTER_APPLICATION_UNAVAILABLE'].includes(
-                error.code,
-              ) ||
+              ![
+                'COMPUTER_OBSERVATION_CHANGED',
+                'COMPUTER_APPLICATION_UNAVAILABLE',
+                'COMPUTER_FOREGROUND_CHANGED',
+              ].includes(error.code) ||
               ++observationRetries > 2
             )
               throw error;
@@ -1277,31 +1484,57 @@ export class ComputerAgent {
         if (needsOutline) {
           this.progress('planning', steps);
           let issue;
+          let outlineError;
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
               const outline = await this.plan.outline(
                 {
                   originalOwnerGoal: goal,
                   language: this.language(),
-                  correction: issue,
+                  correction:
+                    [
+                      steamGoal &&
+                        `For the Steam portion of the request, open the Library, locate "${steamGoal.name}", and verify its title in the main game pane. ${steamGoal.play ? 'Then use the Play button in that pane and verify that exact game is running.' : ''}`,
+                      issue,
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined,
                   ...(namedLaunch && { localApplication: namedLaunch.query }),
                   ...(view.screenAvailable && { untrustedVisualScene: view.scene }),
                 },
                 { signal: combined, planningEffort: attempt === 0 ? planningEffort : undefined },
               );
               issue = this.taskPlan.startOutline(outline);
-            } catch {
+            } catch (error) {
               combined.throwIfAborted();
+              outlineError = error;
               issue =
                 'Return a valid ordered plan and the concrete final result of the whole request.';
+              if ([401, 403, 429].includes(error.httpStatus) || error.name === 'TimeoutError')
+                break;
             }
             if (!issue) break;
           }
-          if (issue)
-            return terminal(
-              { ok: false, status: 'incomplete', steps, summary: this.message('planning') },
-              'initial_plan_invalid',
-            );
+          if (issue) {
+            // An outline is bookkeeping. Keep the actual owner goal and require independent
+            // verification of the entire result while building steps from fresh observations.
+            this.taskPlan.startOutline({
+              milestones: [],
+              outcome: {
+                label:
+                  this.language() === 'ru'
+                    ? 'Проверить результат задачи'
+                    : 'Verify the requested result',
+                successCriterion:
+                  'Current evidence confirms every requirement of the original owner goal.',
+              },
+            });
+            this.trace.push({
+              action: 'outline',
+              outcome: 'incremental_fallback',
+              code: outlineError?.code ?? 'COMPUTER_PLAN_SCHEMA',
+            });
+          }
           needsOutline = false;
           this.progress('planning', steps);
         }
@@ -1389,16 +1622,16 @@ export class ComputerAgent {
               );
               completed = true;
               this.progress('verifying', steps);
-              return {
-                ok: true,
-                status: 'completed',
-                steps,
-                verified: true,
-                summary:
-                  this.language() === 'ru'
-                    ? 'Открыла указанную страницу.'
-                    : 'Opened the requested page.',
-              };
+              return terminal(
+                {
+                  ok: true,
+                  status: 'completed',
+                  steps,
+                  verified: true,
+                  summary: uiText('Opened the web page.', this.language()),
+                },
+                'completed',
+              );
             }
             if (
               youtubeSeeded &&
@@ -1421,7 +1654,7 @@ export class ComputerAgent {
             navigationStatus === 'loading' &&
             !browserNavigationObstacle(view) &&
             !pendingSearch.navigationRecovery &&
-            performance.now() - pendingSearch.submittedAt < 20000
+            performance.now() - pendingSearch.submittedAt < BROWSER_LOAD_TIMEOUT_MS
           ) {
             this.progress('verifying', steps);
             await delay(700, undefined, { signal: combined });
@@ -1481,6 +1714,21 @@ export class ComputerAgent {
           this.onPlan({ ...this.taskPlan.view(), phase: 'verifying', active: true });
         }
         const steam = steamMilestones(steamGoal, view, history);
+        const steamProduct = storeSearchFieldRequested(goal)
+          ? observedSteamStoreProduct(view)
+          : null;
+        const storeProductOpen =
+          steamProduct &&
+          history.some(
+            (entry) =>
+              entry.ok &&
+              entry.action === 'enter_text' &&
+              entry.windowId === view.window?.windowId &&
+              sameActionTarget(entry.text, steamProduct),
+          );
+        const storeProgress = storeProductOpen
+          ? 'The active Steam Store URL is an app product page, and its native window title matches the exact query already entered. The requested search and result opening are complete. Verify with the current window title and finish if the owner requested no further work. Do not open the same result or repeat this search.'
+          : null;
         const context = {
           originalOwnerGoal: goal,
           webAllowed: scope.web,
@@ -1491,8 +1739,19 @@ export class ComputerAgent {
           currentObservation: view,
           ...progressForPlanner(history),
           taskPlan: this.taskPlan.context(),
+          ...(steam?.remaining && {
+            allowSteamLaunch: !steam.steamWindow && !steam.playPressed,
+            steamMustAdvance: Boolean(steam.playTarget || steam.gameTarget || steam.libraryTarget),
+            steamTaskTargets: [
+              steam.libraryTarget,
+              steam.gameTarget,
+              steam.searchTarget,
+              steam.playTarget,
+            ].filter(Boolean),
+          }),
           correction: [
             steam?.remaining,
+            storeProgress,
             navigationCorrection,
             correction,
             section
@@ -1530,6 +1789,20 @@ export class ComputerAgent {
         if (exactDestination) {
           browserDestinationStep = null;
           browserDestinationSent = true;
+          if (youtubeHome) {
+            exactDestination.query = await this.navigationBrowser(view, combined);
+            combined.throwIfAborted();
+            if (!exactDestination.query)
+              return terminal(
+                { ok: false, status: 'needs_user', steps, summary: this.message('browserMissing') },
+                'application_not_found',
+              );
+          }
+        } else if (youtubeHome) {
+          return terminal(
+            { ok: false, status: 'incomplete', steps, summary: this.message('pageUnverified') },
+            'navigation_unverified',
+          );
         }
         const seed = !exactLaunch && !view.observationUnavailable ? youtubeSeed : null;
         if (seed) {
@@ -1568,20 +1841,31 @@ export class ComputerAgent {
             (exactVideo
               ? { action: 'click', targetId: exactVideo, summary: 'Open the requested video' }
               : null) ??
-            ((steam?.gameTarget ?? steam?.playTarget ?? steam?.libraryTarget)
-              ? {
-                  action: 'click',
-                  targetId: steam.gameTarget ?? steam.playTarget ?? steam.libraryTarget,
-                  summary: '',
-                }
-              : await this.plan(context, { signal: combined }));
+            (await this.plan(context, { signal: combined }));
         } catch (error) {
           combined.throwIfAborted();
-          if (++failures >= 2) throw error;
+          if (
+            ++failures >= 2 ||
+            [401, 403, 429].includes(error.httpStatus) ||
+            error.name === 'TimeoutError'
+          )
+            throw error;
           correction = 'The last plan was incomplete or invalid. Return one valid JSON step.';
           continue;
         }
         combined.throwIfAborted();
+        if (!steamActionAllowed(steam, step, view)) {
+          correction =
+            steam.remaining ??
+            'The requested Steam result is already verified. Do not press Play again.';
+          this.trace.push({ action: step.action, outcome: 'steam_action_rejected' });
+          if (++failures >= 3)
+            return terminal(
+              { ok: false, status: 'incomplete', steps, summary: this.message('steamGame') },
+              'steam_game_unverified',
+            );
+          continue;
+        }
         const scopeProblem =
           scope.problem(step, view, this.control.session?.target) ||
           (section && step.action === 'finish'
@@ -1865,13 +2149,11 @@ export class ComputerAgent {
         }
         const selected = view.targets.find((t) => t.targetId === step.targetId);
         if (
-          steamGoal &&
-          step.action === 'click' &&
-          isSteamPlayControl(selected) &&
-          (!steamGoal.play || !steam.gamePage || steam.playPressed)
+          storeProductOpen &&
+          ((step.action === 'enter_text' && sameActionTarget(step.text, steamProduct)) ||
+            (step.action === 'click' && sameActionTarget(selected?.untrustedLabel, steamProduct)))
         ) {
-          correction =
-            'That Play control is unverified, was already used, or was not requested. Do not click it.';
+          correction = storeProgress;
           if (++failures >= 3)
             return { ok: false, status: 'incomplete', steps, summary: this.message('unverified') };
           continue;
@@ -1880,6 +2162,7 @@ export class ComputerAgent {
           requiresPageSearch(goal) &&
           ((step.action === 'enter_text' &&
             (!selected?.browserSearch || selected.browserAddress)) ||
+            (['click', 'move_pointer'].includes(step.action) && selected?.browserAddress) ||
             (step.action === 'browser_input' && !/^https?:\/\//i.test(step.text)))
         ) {
           correction =
@@ -1900,7 +2183,7 @@ export class ComputerAgent {
             !(focused.browserAddress && /^https?:\/\//i.test(focused.untrustedValue ?? ''))
           ) {
             correction =
-              'This field is NOT a page search field. Enter would not submit the requested search. Open Google home, use its actual browserSearch=true page field, and verify real results before clicking Images.';
+              'The focused control is not the requested page search field. Use the named page’s visible browserSearch=true field and verify its results after submitting.';
             if (++failures >= 3)
               return {
                 ok: false,
@@ -1942,7 +2225,7 @@ export class ComputerAgent {
           lastPointer?.key === pointer &&
           previous?.ok &&
           previous.action === step.action;
-        if (steam?.remaining && (step.action === 'finish' || repeatsPointer)) {
+        if (steam?.remaining && repeatsPointer) {
           correction = steam.remaining;
           if (++failures >= 3) {
             this.lastFailure = {
@@ -2276,7 +2559,9 @@ export class ComputerAgent {
               'COMPUTER_TARGET_COVERED',
               'COMPUTER_TARGET_STALE',
               'COMPUTER_TARGET_NOT_CLICKABLE',
+              'COMPUTER_INPUT_BUSY',
               'COMPUTER_FOREGROUND_CHANGED',
+              'COMPUTER_OBSERVATION_CHANGED',
             ].includes(error.code) &&
             ++failures < 3
           ) {
@@ -2291,22 +2576,28 @@ export class ComputerAgent {
               if (requestedClick) clickNeedsVision = true;
             }
             correction =
-              error.code === 'COMPUTER_FOREGROUND_CHANGED'
-                ? 'The foreground or keyboard focus changed before input. Observe the current window, then restore the intended app using its taskbar button or launch. Verify the original target before choosing the missing action. Do not type in a different app.'
-                : error.code === 'COMPUTER_FULLSCREEN_TOOLBAR'
-                  ? 'The browser address bar is hidden in fullscreen. No text was sent. Press F11 once to restore the toolbar and observe before navigating. Leave fullscreen only for the requested navigation, then restore it if the owner requires it.'
-                  : error.code === 'COMPUTER_TARGET_NOT_CLICKABLE'
-                    ? 'The selected label is not actionable. Use the latest visual observation to select the actual button.'
-                    : error.code === 'COMPUTER_TARGET_COVERED'
-                      ? 'The click was blocked. Use a fresh observation to identify what covers the target. Reveal the original control, or choose a visible alternative that serves the same goal. Do not bypass the block by clicking its old coordinates.'
-                      : error.code === 'COMPUTER_TARGET_STALE'
-                        ? 'The observed control changed or disappeared before input. Use a fresh observation and select the matching current control by its label and role.'
-                        : 'The intended field became stale or redirected focus. No text was sent. Observe current controls and choose the actual editable field; if necessary inspect the screenshot. Use open_url for Google home if a new-tab search proxy redirects to the address bar.';
+              error.code === 'COMPUTER_INPUT_BUSY'
+                ? 'Windows blocked the last input because the pointer or modifiers were in use. No click or text was sent. Inspect a fresh observation, then continue the same missing step only if the control is still verified.'
+                : error.code === 'COMPUTER_FOREGROUND_CHANGED'
+                  ? 'The foreground or keyboard focus changed before input. Observe the current window, then restore the intended app using its taskbar button or launch. Verify the original target before choosing the missing action. Do not type in a different app.'
+                  : error.code === 'COMPUTER_FULLSCREEN_TOOLBAR'
+                    ? 'The browser address bar is hidden in fullscreen. No text was sent. Press F11 once to restore the toolbar and observe before navigating. Leave fullscreen only for the requested navigation, then restore it if the owner requires it.'
+                    : error.code === 'COMPUTER_TARGET_NOT_CLICKABLE'
+                      ? 'The selected label is not actionable. Use the latest visual observation to select the actual button.'
+                      : error.code === 'COMPUTER_TARGET_COVERED'
+                        ? 'The click was blocked. Use a fresh observation to identify what covers the target. Reveal the original control, or choose a visible alternative that serves the same goal. Do not bypass the block by clicking its old coordinates.'
+                        : ['COMPUTER_TARGET_STALE', 'COMPUTER_OBSERVATION_CHANGED'].includes(
+                              error.code,
+                            )
+                          ? 'The observed control changed or disappeared before input. Use a fresh observation and select the matching current control by its label and role.'
+                          : 'The intended field became stale or redirected focus. No text was sent. Observe current controls and choose the actual editable field; if necessary inspect the screenshot. Use open_url for Google home if a new-tab search proxy redirects to the address bar.';
             this.trace.push({
               action: step.action,
               outcome: 'preflight_rejected',
               code: error.code,
             });
+            if (error.code === 'COMPUTER_INPUT_BUSY')
+              await delay(500, undefined, { signal: combined });
             continue;
           }
           throw error;
@@ -2389,6 +2680,16 @@ export class ComputerAgent {
             'application_unverified',
           );
         if (succeeded) steps++;
+        if (
+          succeeded &&
+          step.action === 'click' &&
+          steam?.playTarget &&
+          selected?.targetId === steam.playTarget &&
+          steamOnly &&
+          steamGoal?.name === 'Cyberpunk 2077' &&
+          this.launchSteamGame
+        )
+          return await runCyberpunkSteam(true);
         if (succeeded && requestedClick && step.action === 'click') {
           await this.control.execute({ action: 'observe', vision: false }, combined).catch(() => {
             combined.throwIfAborted();
@@ -2477,6 +2778,9 @@ export class ComputerAgent {
         // Transient per-task trace only, never written to diagnostic logs or memory.
         history.push({
           action: step.action,
+          ...(step.action === 'click' &&
+            selected?.targetId === steam?.playTarget &&
+            (succeeded || result?.inputPerformed !== false) && { steamPlay: true }),
           ...(step.action === 'resolve_assemble'
             ? {
                 timelineName: step.timelineName,
@@ -2530,6 +2834,21 @@ export class ComputerAgent {
         'limit',
       );
     } catch (error) {
+      const reasonAtStartup = !session && !signal?.aborted && startupFailures.get(error?.code);
+      if (reasonAtStartup) {
+        this.lastFailure = {
+          phase: 'starting',
+          reason: reasonAtStartup,
+          code: error.code,
+          ...(error.geometry && { geometry: error.geometry }),
+          steps,
+          at: Date.now(),
+        };
+        return terminal(
+          { ok: false, status: 'incomplete', steps, summary: this.message(reasonAtStartup) },
+          reasonAtStartup,
+        );
+      }
       if (
         signal?.aborted ||
         this.control.session?.controller.signal.aborted ||
@@ -2538,21 +2857,25 @@ export class ComputerAgent {
         throw error;
       // Dispatch may have reached the application before failing. Never replay it.
       const reason =
-        error.code === 'COMPUTER_TARGET_STALE'
-          ? 'target_stale'
-          : error.code === 'COMPUTER_TARGET_COVERED' ||
-              /covers the pointer target/i.test(error.message)
-            ? 'target_covered'
-            : /foreground|focus|target.*changed|window.*changed/i.test(error.message)
-              ? 'window_changed'
-              : /plan|planning|JSON/i.test(error.message)
-                ? 'planning_failed'
-                : 'action_failed';
+        error.code === 'COMPUTER_INPUT_BUSY'
+          ? 'input_busy'
+          : ['COMPUTER_TARGET_STALE', 'COMPUTER_OBSERVATION_CHANGED'].includes(error.code)
+            ? 'target_stale'
+            : error.code === 'COMPUTER_TARGET_COVERED' ||
+                /covers the pointer target/i.test(error.message)
+              ? 'target_covered'
+              : /foreground|focus|target.*changed|window.*changed/i.test(error.message)
+                ? 'window_changed'
+                : this.state.phase === 'planning' || /plan|planning|JSON/i.test(error.message)
+                  ? 'planning_failed'
+                  : 'action_failed';
       this.lastFailure = {
         phase: this.state.phase,
         reason,
         action: this.activeAction ?? null,
         ...(/^COMPUTER_[A-Z_]+$/.test(error.code ?? '') ? { code: error.code } : {}),
+        ...(error.name === 'TimeoutError' && { code: 'COMPUTER_PLAN_TIMEOUT' }),
+        ...(Number.isInteger(error.httpStatus) && { httpStatus: error.httpStatus }),
         steps,
         at: Date.now(),
       };
@@ -2561,17 +2884,22 @@ export class ComputerAgent {
         status: 'incomplete',
         steps,
         summary: this.message(
-          error.code === 'COMPUTER_TARGET_COVERED'
-            ? 'covered'
-            : error.code === 'COMPUTER_TARGET_STALE'
-              ? 'stale'
-              : error.code === 'COMPUTER_APPLICATION_UNAVAILABLE'
-                ? 'window'
-                : error.code === 'COMPUTER_BROWSER_WINDOW_UNVERIFIED'
-                  ? 'navigation'
-                  : reason === 'window_changed'
-                    ? 'foreground'
-                    : 'unverified',
+          reason === 'input_busy'
+            ? 'inputBusy'
+            : error.code === 'COMPUTER_TARGET_COVERED'
+              ? 'covered'
+              : reason === 'target_stale'
+                ? 'stale'
+                : error.code === 'COMPUTER_APPLICATION_UNAVAILABLE'
+                  ? 'window'
+                  : error.code === 'COMPUTER_BROWSER_WINDOW_UNVERIFIED'
+                    ? 'navigation'
+                    : reason === 'window_changed'
+                      ? 'foreground'
+                      : reason === 'planning_failed'
+                        ? 'planning'
+                        : 'unverified',
+          error.httpStatus,
         ),
       };
     } finally {
@@ -2603,8 +2931,20 @@ export class ComputerAgent {
       this.taskPlan = null;
     }
   }
-  message(key) {
+  message(key, httpStatus) {
     const ru = this.language() === 'ru';
+    if (key === 'indicator_bounds_failed')
+      return ru
+        ? 'Управление компьютером не запустилось. Рамка управления не совпала с границами монитора.'
+        : 'Computer control could not start because its indicator frame did not match the display bounds.';
+    if (key === 'escape_unavailable')
+      return ru
+        ? 'Управление компьютером не запустилось. Не удалось настроить аварийную остановку по Esc.'
+        : 'Computer control could not start because its Escape emergency stop was unavailable.';
+    if (key === 'indicator_timeout')
+      return ru
+        ? 'Управление компьютером не запустилось. Рамка управления не появилась вовремя.'
+        : 'Computer control could not start because its indicator did not appear in time.';
     if (key === 'challenge')
       return ru
         ? 'Запрос отправлен, но Google просит подтвердить, что ты не робот. Пройди проверку в Chrome, затем попроси меня продолжить.'
@@ -2621,6 +2961,13 @@ export class ComputerAgent {
       return ru
         ? 'Запрос отправлен, но загрузку результатов подтвердить не удалось. Проверь страницу в браузере.'
         : 'The search was submitted, but I could not verify that the results loaded. Please check the browser page.';
+    if (key === 'pageUnverified')
+      return uiText(
+        'I could not verify that YouTube opened. Check the page in the browser.',
+        this.language(),
+      );
+    if (key === 'browserMissing')
+      return uiText('No supported browser was found to open YouTube.', this.language());
     if (key === 'window')
       return ru
         ? 'Не смогла однозначно выбрать окно. Выведи нужное окно на передний план и повтори запрос.'
@@ -2633,6 +2980,10 @@ export class ComputerAgent {
       return ru
         ? 'Интерфейс изменился, и я больше не вижу нужный элемент. Проверь текущее окно.'
         : 'The interface changed and I can no longer find the intended control. Check the current window.';
+    if (key === 'inputBusy')
+      return ru
+        ? 'Windows отменила ввод: указатель смещался или была зажата клавиша. Проверь, осталось ли нужное окно открытым.'
+        : 'Windows blocked input because the pointer moved or a key was held. Check that the intended window is still open.';
     if (key === 'foreground')
       return ru
         ? 'Активное окно сменилось, и я остановила ввод. Проверь, какое окно сейчас открыто.'
@@ -2641,10 +2992,18 @@ export class ComputerAgent {
       return ru
         ? 'Не смогла открыть или активировать нужное приложение. Проверь, есть ли оно на панели задач.'
         : 'I could not open or focus the requested app. Check whether it is on the taskbar.';
+    if (key === 'planning' && [401, 403].includes(httpStatus))
+      return ru
+        ? 'Провайдер модели отклонил доступ. Проверь подключение в настройках API или выбери другую модель.'
+        : 'The model provider denied access. Check the API connection in Settings or choose another model.';
+    if (key === 'planning' && httpStatus === 429)
+      return ru
+        ? 'Провайдер модели ограничил число запросов. Подожди немного или выбери другую модель.'
+        : 'The model provider rate-limited the task. Wait a moment or choose another model.';
     if (key === 'planning')
       return ru
-        ? 'Не удалось составить план. Управление не выполнялось. Попробуй разбить задачу на несколько команд.'
-        : 'I could not build a plan, so no computer actions ran. Try splitting the task into smaller requests.';
+        ? 'Выбранная модель не смогла предложить проверяемое действие. Проверь модель в настройках и текущее состояние задачи.'
+        : 'The selected model did not return a usable action. Check the model in Settings and the current state of the task.';
     if (key === 'steamGame')
       return ru
         ? 'Не смогла подтвердить действие с нужной игрой в Steam. Проверь её страницу в библиотеке.'

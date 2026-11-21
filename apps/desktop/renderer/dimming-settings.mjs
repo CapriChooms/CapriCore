@@ -1,7 +1,10 @@
 /** Window-local backdrop settings shared by the main process and renderer. */
 export const DIMMING_DEFAULTS = Object.freeze({ enabled: true, level: 35, softness: 140 });
 
-/** A compact companion must not shade the empty area reserved for its portrait. */
+// Persist softness in tenths of a pixel to retain the existing slider positions.
+export const dimmingFeatherWidth = (softness) => softness / 10;
+
+/** Bounds for the layer and the native compact footprint, not a solid fill. */
 export function shadeBounds(rectangles, viewport, compact = false, floatY = 0) {
   if (!compact) return { x: 0, y: 0, width: viewport.width, height: viewport.height };
   const visible = rectangles.filter(

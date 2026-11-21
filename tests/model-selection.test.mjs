@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, mkdtempSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { runtime, createGatewayConfiguration } from '../packages/runtime/src/context.mjs';
 import { loadCoreSettings } from '../packages/runtime/src/config/settings.mjs';
@@ -57,10 +58,14 @@ const dependencies = {
   native: async () => {},
 };
 
+test('Settings exposes the measured Portuguese shortlist for Brazilian Portuguese', async () => {
+  const { languageRecommendations } = await new ModelService(dependencies).catalog();
+  assert.ok(languageRecommendations.pt?.length);
+  assert.deepEqual(languageRecommendations['pt-BR'], languageRecommendations.pt);
+});
+
 test('context can increase and decrease, survives model switching, preserves history and rolls back failed writes', () => {
-  const parent = path.join(root, '.runtime/model-profile-tests');
-  mkdirSync(parent, { recursive: true });
-  const base = mkdtempSync(path.join(parent, 'context-'));
+  const base = mkdtempSync(path.join(tmpdir(), 'capri-context-test-'));
   const rt = runtime({
     stateDir: path.join(base, 'data/openclaw'),
     workspace: path.join(base, 'data/workspace'),
@@ -73,16 +78,20 @@ test('context can increase and decrease, survives model switching, preserves his
   });
   mkdirSync(rt.workspace, { recursive: true });
   writeFileSync(path.join(rt.workspace, 'MEMORY.md'), 'keep my memory');
-  for (const contextTokens of [65536, 131072, 262144, 32768]) {
+  for (const contextTokens of [65536, 131072, 262144, 16384, 32768]) {
     saveContextWindow({ root: base, rt, contextTokens });
     const saved = loadCoreSettings(path.join(base, 'config'));
     const gateway = JSON.parse(readFileSync(rt.configPath));
     assert.equal(saved.contextTokens, contextTokens);
+    assert.equal(saved.experimentalContext, contextTokens === 16384);
     assert.equal(saved.generation.temperature, 0.91);
     assert.equal(gateway.models.providers.ollama.models[0].params.num_ctx, contextTokens);
     assert.equal(gateway.agents.defaults.compaction.memoryFlush.enabled, true);
     assert.deepEqual(gateway.tools.allow, ['memory_search']);
   }
+  saveContextWindow({ root: base, rt, contextTokens: 16384 });
+  saveModelProfile({ root: base, rt, id: 'balanced', hardware });
+  assert.equal(loadCoreSettings(path.join(base, 'config')).contextTokens, 16384);
   saveContextWindow({ root: base, rt, contextTokens: 65536 });
   saveModelProfile({ root: base, rt, id: 'balanced', hardware });
   assert.equal(loadCoreSettings(path.join(base, 'config')).contextTokens, 65536);
@@ -103,7 +112,7 @@ test('context can increase and decrease, survives model switching, preserves his
   );
   assert.equal(readFileSync(rt.configPath, 'utf8'), before);
   assert.equal(loadCoreSettings(path.join(base, 'config')).contextTokens, 65536);
-  for (const contextTokens of [0, 16384, 65536.5, '65536', NaN, Infinity, 524288])
+  for (const contextTokens of [0, 8192, 65536.5, '65536', NaN, Infinity, 524288])
     assert.throws(() => saveContextWindow({ root: base, rt, contextTokens }), /Unsupported/);
   assert.equal(readFileSync(path.join(rt.workspace, 'MEMORY.md'), 'utf8'), 'keep my memory');
 });
@@ -172,9 +181,7 @@ test('API routing retains the configured local model without falsely marking it 
 });
 
 test('switching from API uses an isolated local runtime and rolls back a failed restart', () => {
-  const parent = path.join(root, '.runtime/model-profile-tests');
-  mkdirSync(parent, { recursive: true });
-  const base = mkdtempSync(path.join(parent, 'api-to-local-'));
+  const base = mkdtempSync(path.join(tmpdir(), 'capri-api-to-local-test-'));
   const remote = Object.freeze({
     enabled: true,
     model: 'fixture-api-model',
@@ -326,9 +333,7 @@ test('the streaming model pull cancels its own HTTP request promptly', async () 
   assert.equal(reads, 1);
 });
 test('profile persistence updates only inference fields and rolls back a failed write', () => {
-  const parent = path.join(root, '.runtime/model-profile-tests');
-  mkdirSync(parent, { recursive: true });
-  const base = mkdtempSync(path.join(parent, 'fixture-'));
+  const base = mkdtempSync(path.join(tmpdir(), 'capri-model-profile-test-'));
   const rt = runtime({
     stateDir: path.join(base, 'data/openclaw'),
     workspace: path.join(base, 'data/workspace'),

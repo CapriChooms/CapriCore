@@ -40,9 +40,14 @@ export function scoreLanguageAnswer(answer, sample) {
 }
 
 export function benchmarkSummary(corpus, results) {
-  const measuredLanguages = languages.filter(
-    ({ id, modelLanguage }) => !modelLanguage || Object.hasOwn(corpus.languages, id),
-  );
+  const measured = languages.filter(({ id, modelLanguage }) => {
+    if (Object.hasOwn(corpus.languages, id)) return true;
+    assert.ok(
+      modelLanguage && Object.hasOwn(corpus.languages, modelLanguage),
+      'Missing language cases: ' + id,
+    );
+    return false;
+  });
   const models = MODEL_CHOICES.map(({ id, model }) => {
     const tested = results.models[id];
     assert.equal(tested?.tag, model, 'Missing benchmark model ' + id);
@@ -51,7 +56,7 @@ export function benchmarkSummary(corpus, results) {
     return { id, tag: model, digest: tested.digest, quantization: tested.quantization };
   });
   const scores = {};
-  for (const { id } of measuredLanguages) {
+  for (const { id } of measured) {
     const cases = corpus.languages[id];
     assert.ok(cases?.length >= 2, 'Missing language cases: ' + id);
     scores[id] = models.map((model) =>
@@ -71,9 +76,7 @@ export function benchmarkSummary(corpus, results) {
   const ranked = MODEL_CHOICES.map((choice, index) => ({
     choice,
     index,
-    coverage: measuredLanguages.filter(
-      ({ id }) => scores[id][index] === corpus.languages[id].length,
-    ).length,
+    coverage: measured.filter(({ id }) => scores[id][index] === corpus.languages[id].length).length,
   })).sort(
     (a, b) =>
       b.coverage - a.coverage ||
@@ -81,7 +84,7 @@ export function benchmarkSummary(corpus, results) {
       results.models[a.choice.id].bytes - results.models[b.choice.id].bytes,
   );
   const recommendations = Object.fromEntries(
-    measuredLanguages
+    measured
       .map(({ id }) => [
         id,
         ranked

@@ -1,6 +1,13 @@
 import { ComputerAppearancePanel } from './computer-appearance-panel.mjs';
 export class ApplicationsPanel {
-  constructor({ api, ui, onOpen, onError, deferDrafts = false }) {
+  constructor({
+    api,
+    ui,
+    onOpen,
+    onError,
+    deferDrafts = false,
+    resumeApplicationAccess = () => api.applicationAccess(true),
+  }) {
     Object.assign(this, { api, ui, onOpen, onError });
     this.panel = document.getElementById('applications-panel');
     const pause = document.createElement('div');
@@ -73,7 +80,11 @@ export class ApplicationsPanel {
     access.className = 'settings-card';
     access.innerHTML = `<h3>Full computer access <small class="beta-badge">BETA</small></h3>
       <p class="settings-help">Optional access to supported actions on local drives and applications without repeated confirmation. Windows permissions still apply. Turn this off to restore your individual grants.</p>
-      <p id="computer-access-status" role="status"></p><button id="computer-access-toggle" type="button">Give full computer access</button>`;
+      <p id="computer-access-status" role="status"></p>
+      <div class="settings-actions">
+        <button id="computer-access-resume" type="button" aria-describedby="computer-access-status" hidden>Enable application access</button>
+        <button id="computer-access-toggle" type="button" aria-describedby="computer-access-status">Give full computer access</button>
+      </div>`;
     const controlPanel = document.createElement('section');
     controlPanel.id = 'computer-access-panel';
     controlPanel.className = 'preferences-panel';
@@ -105,6 +116,20 @@ export class ApplicationsPanel {
     shortcut.textContent = 'Computer control';
     shortcut.onclick = () => api.openSettings('computer').catch((error) => onError(error.message));
     (this.panel.querySelector('.preferences-content') ?? this.panel).prepend(shortcut);
+    const resume = document.getElementById('computer-access-resume');
+    resume.onclick = async () => {
+      const hadFocus = document.activeElement === resume;
+      resume.disabled = true;
+      try {
+        this.showAccess(await resumeApplicationAccess());
+        if (hadFocus && resume.hidden)
+          document.getElementById('computer-access-toggle').focus({ preventScroll: true });
+      } catch (error) {
+        onError(error.message);
+      } finally {
+        resume.disabled = false;
+      }
+    };
     document.getElementById('computer-access-toggle').onclick = async () => {
       const button = document.getElementById('computer-access-toggle');
       button.disabled = true;
@@ -202,7 +227,10 @@ export class ApplicationsPanel {
       this.showComputerAccess({ ...this.computerAccess, paused: !value.enabled });
   }
   showComputerAccess(value) {
+    if (value.paused === undefined)
+      value = { ...value, paused: this.computerAccess?.paused ?? this.access?.enabled === false };
     this.computerAccess = value;
+    document.getElementById('computer-access-resume').hidden = !value.paused;
     const button = document.getElementById('computer-access-toggle');
     button.textContent = this.ui.text(
       value.enabled ? 'Revoke full computer access' : 'Give full computer access',

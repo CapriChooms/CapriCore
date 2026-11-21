@@ -61,12 +61,15 @@ function nativeMessages(messages) {
           image_url: { url: imageUrl(image) },
         })),
       ];
-    }
-    if (Array.isArray(content)) {
-      for (const part of content) {
-        if (part?.type === 'image_url') imageUrl(part.image_url?.url);
-        else if (part?.type !== 'text') throw invalid('Unsupported local input type.');
-      }
+    } else if (Array.isArray(content)) {
+      content = content.map((part) => {
+        if (part?.type === 'text') return part;
+        if (part?.type !== 'image_url') throw invalid('Unsupported local input type.');
+        const url = imageUrl(part.image_url?.url);
+        return url === part.image_url.url
+          ? part
+          : { ...part, image_url: { ...part.image_url, url } };
+      });
     } else if (typeof content !== 'string') throw invalid('Invalid chat content.');
     const message = { role: entry.role, content };
     if (typeof entry.reasoning_content === 'string' || typeof entry.thinking === 'string')
@@ -356,23 +359,30 @@ export function createLlamaBridge({ store, workers, config, version, configurati
           )
         )
           throw invalid('Invalid local embedding request.');
-        return await workers.use(model, 'embedding', input, signal, async (worker, active) => {
-          const upstream = await nativeRequest(
-            worker,
-            '/v1/embeddings',
-            { model: model.name, input: source },
-            active,
-          );
-          const packet = await upstream.json();
-          if (route === '/v1/embeddings') return json(res, packet);
-          const embeddings = packet.data.map((entry) => entry.embedding);
-          return json(
-            res,
-            route === '/api/embeddings'
-              ? { embedding: embeddings[0] }
-              : { model: model.name, embeddings, prompt_eval_count: packet.usage?.prompt_tokens },
-          );
-        });
+        return await workers.use(
+          model,
+          'embedding',
+          input,
+          signal,
+          async (worker, active) => {
+            const upstream = await nativeRequest(
+              worker,
+              '/v1/embeddings',
+              { model: model.name, input: source },
+              active,
+            );
+            const packet = await upstream.json();
+            if (route === '/v1/embeddings') return json(res, packet);
+            const embeddings = packet.data.map((entry) => entry.embedding);
+            return json(
+              res,
+              route === '/api/embeddings'
+                ? { embedding: embeddings[0] }
+                : { model: model.name, embeddings, prompt_eval_count: packet.usage?.prompt_tokens },
+            );
+          },
+          () => !res.headersSent && !res.destroyed,
+        );
       }
       if (
         !['/api/chat', '/api/generate', '/v1/chat/completions'].includes(route) ||
@@ -384,34 +394,41 @@ export function createLlamaBridge({ store, workers, config, version, configurati
         input.messages = [{ role: 'user', content: input.prompt ?? '', images: input.images }];
       const body = llamaChatBody(input, { legacy, config, model });
       if (legacy && body.stream) body.stream_options = { include_usage: true };
-      await workers.use(model, 'chat', input, signal, async (worker, active) => {
-        const upstream = await nativeRequest(worker, '/v1/chat/completions', body, active);
-        if (body.stream) {
-          if (legacy)
-            await legacyStream(upstream, res, model.name, active, route === '/api/generate');
-          else {
-            res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8' });
-            await pipeline(Readable.fromWeb(upstream.body), res, { signal: active });
+      await workers.use(
+        model,
+        'chat',
+        input,
+        signal,
+        async (worker, active) => {
+          const upstream = await nativeRequest(worker, '/v1/chat/completions', body, active);
+          if (body.stream) {
+            if (legacy)
+              await legacyStream(upstream, res, model.name, active, route === '/api/generate');
+            else {
+              res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8' });
+              await pipeline(Readable.fromWeb(upstream.body), res, { signal: active });
+            }
+            return;
           }
-          return;
-        }
-        const packet = await upstream.json();
-        if (!legacy) return json(res, packet);
-        const choice = packet.choices?.[0];
-        if (!choice?.message) throw unavailable('The local model returned no answer.');
-        const message = legacyMessage(choice.message);
-        return json(
-          res,
-          stamp(model.name, {
-            ...(route === '/api/generate'
-              ? { response: message.content, thinking: message.thinking }
-              : { message }),
-            done: true,
-            done_reason: choice.finish_reason,
-            ...metrics(packet),
-          }),
-        );
-      });
+          const packet = await upstream.json();
+          if (!legacy) return json(res, packet);
+          const choice = packet.choices?.[0];
+          if (!choice?.message) throw unavailable('The local model returned no answer.');
+          const message = legacyMessage(choice.message);
+          return json(
+            res,
+            stamp(model.name, {
+              ...(route === '/api/generate'
+                ? { response: message.content, thinking: message.thinking }
+                : { message }),
+              done: true,
+              done_reason: choice.finish_reason,
+              ...metrics(packet),
+            }),
+          );
+        },
+        () => !res.headersSent && !res.destroyed,
+      );
     } catch (error) {
       if (signal.aborted || res.destroyed) return;
       const status = Number.isInteger(error.status) ? error.status : 503;

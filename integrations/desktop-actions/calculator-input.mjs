@@ -15,6 +15,12 @@ const functionButtons = new Map([
   ['ln', 'ln'],
   ['log', 'ln'],
   ['log10', 'log10'],
+  ['sin', 'sin'],
+  ['cos', 'cos'],
+  ['tan', 'tan'],
+  ['sec', 'sec'],
+  ['csc', 'csc'],
+  ['cot', 'cot'],
 ]);
 
 /** Translate the validated math tree into Windows Calculator button presses. */

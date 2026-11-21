@@ -15,6 +15,16 @@ history, memory and settings are preserved. Diagnostic reports include
 `avatar.json` with the selected catalog and missing-file details, without
 including the images themselves.
 
+The wave animation was contributed by a member of the Capri community. Its
+transparent WebP preserves the supplied frames and timings, and plays when Capri
+wakes from sleep or is asked to wave.
+
+The same community artist contributed the pull-up, chip catch, wrist scanner,
+keytar and window interaction animations. The registered WebP sheets and their
+placement bounds are in `assets/default/hanging-cels/`. Capri plays them in the
+matching pose while detached. Performances near a search field use the active
+screen-observation grant and only read the field's location.
+
 Capri is a fan character representation associated with Cyberpunk. The GPL-3.0
 license covers Capri application's original code; it does not grant ownership
 of third-party character designs, supplied artwork, trademarks or source media.

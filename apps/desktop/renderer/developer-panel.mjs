@@ -66,15 +66,16 @@ export class DeveloperPanel {
     this.panel.id = 'developer-panel';
     this.panel.hidden = true;
     this.panel.dataset.panelCut = '12';
-    this.panel.innerHTML = `<h2>For developers</h2>
-      <p class="settings-help" data-inline-help>Technical counters only. Conversations, memory, images and API keys are not shown.</p>
-      <div class="developer-toolbar settings-actions">
-        <button type="button" id="developer-refresh">Refresh</button>
-        <button type="button" id="developer-folder">Open logs folder</button>
-        <label><input type="checkbox" id="developer-live" checked> Live refresh</label>
-      </div>
-      <p id="developer-status" class="settings-help" role="status"></p>
-      <section class="developer-section" aria-labelledby="developer-timing-title">
+    this.panel.innerHTML = `<h2>For developers</h2><div class="preferences-content">
+      <section class="settings-card" id="developer-refresh-card">
+        <div class="developer-toolbar settings-actions">
+          <button type="button" id="developer-refresh">Refresh</button>
+          <label><input type="checkbox" id="developer-live" checked> Live refresh</label>
+        </div>
+        <p class="settings-help" data-inline-help>Technical counters only. Conversations, memory, images and API keys are not shown.</p>
+        <p id="developer-status" class="settings-help" role="status"></p>
+      </section>
+      <section class="settings-card" aria-labelledby="developer-timing-title">
         <h3 id="developer-timing-title">Response timing</h3>
         <label for="developer-turn">Recent requests</label>
         <select id="developer-turn"></select>
@@ -95,13 +96,14 @@ export class DeveloperPanel {
           </details>
         </div>
       </section>
-      <section class="developer-section" aria-labelledby="developer-logs-title">
+      <section class="settings-card" aria-labelledby="developer-logs-title">
         <h3 id="developer-logs-title">Logs</h3>
         <label for="developer-log">Log file</label><select id="developer-log"></select>
         <p id="developer-log-status" class="settings-help" role="status"></p>
         <pre id="developer-log-content" tabindex="0" aria-label="Technical log" data-untranslated></pre>
         <p class="settings-help" data-inline-help>Only the latest log tail is shown. Private text and unknown fields are omitted. Nothing is uploaded.</p>
-      </section>`;
+        <div class="settings-actions"><button type="button" id="developer-folder">Open logs folder</button></div>
+      </section></div>`;
     host.append(this.panel);
     this.get('refresh').onclick = () => void this.refresh();
     this.get('folder').onclick = () => void this.api.openDeveloperLogs().catch(() => this.error());

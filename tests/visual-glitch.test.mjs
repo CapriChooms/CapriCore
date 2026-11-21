@@ -12,7 +12,7 @@ test('existing companion preferences gain bounded visual settings without losing
   assert.equal(value.glitchIntervalSeconds, 35);
   assert.equal(value.glitchStrength, 65);
   assert.equal(value.wakeSound, 'off');
-  assert.equal(value.buttonFeedback, false);
+  assert.equal(Object.hasOwn(value, 'buttonFeedback'), false);
   for (const extra of [
     { glitchEnabled: null },
     { glitchStrength: -1 },

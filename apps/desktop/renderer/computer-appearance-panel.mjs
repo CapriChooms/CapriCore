@@ -5,15 +5,12 @@ export class ComputerAppearancePanel {
     this.card = document.createElement('div');
     this.card.className = 'settings-card';
     this.card.innerHTML = `<h3>Control effects</h3>
-      <p class="settings-help">Procedural effects stay at the screen edges. The center stays clear. Press Esc to stop computer control.</p>
       <label class="dimming-switch"><input id="computer-fx-enabled" type="checkbox"> Enable edge effects</label>
       <label for="computer-fx-theme">Control style</label><select id="computer-fx-theme"><option value="capri">Capri</option><option value="blackwall">Blackwall</option></select>
       <label for="computer-fx-intensity">Effect intensity <output id="computer-fx-intensity-value"></output></label><input id="computer-fx-intensity" type="range" min="0" max="100" step="1">
       <label class="dimming-switch"><input id="computer-fx-cursor" type="checkbox"> Capri cursor and trail</label>
       <label for="computer-fx-motion">Pointer movement duration <output id="computer-fx-motion-value"></output></label><input id="computer-fx-motion" type="range" min="0" max="1000" step="20">
-      <p class="settings-help">Zero makes the pointer move instantly. Higher values make its movement slower and smoother.</p>
-      <div class="settings-actions"><button id="computer-fx-preview" type="button">Preview effects for 3 seconds</button></div>
-      <p class="settings-help">Preview the current effect. Save when closing Settings to keep your changes.</p>`;
+      <div class="settings-actions"><button id="computer-fx-preview" type="button">Preview effects for 3 seconds</button></div>`;
     container.append(this.card);
     for (const id of ['enabled', 'theme', 'intensity', 'cursor', 'motion'])
       this.get(id).onchange = () => {

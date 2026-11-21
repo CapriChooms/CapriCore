@@ -6,6 +6,90 @@ import {
   dedicatedMusicRequest,
   namedSpotifyPlay,
 } from '../apps/desktop/computer-mode-request.mjs';
+import { youtubeMusicRequest } from '../apps/desktop/youtube-music-request.mjs';
+
+test('YouTube Music routes only scoped player requests and respects the selected service', () => {
+  const state = {
+    youtubeMusic: { enabled: true, preferred: true },
+    spotify: { enabled: true, prepared: true },
+  };
+  for (const [text, command] of [
+    ['Open YouTube Music', { action: 'open' }],
+    ['Search YouTube Music for C418', { action: 'search', query: 'C418' }],
+    ['Play "Fire and Rain" on YouTube Music.', { action: 'play', query: 'Fire and Rain' }],
+    ['Open YouTube Music and play Believer', { action: 'play', query: 'Believer' }],
+    ['Капри, включи Believer в YouTube Music.', { action: 'play', query: 'Believer' }],
+    ['Pause YouTube Music', { action: 'pause' }],
+    ['Resume on YT Music', { action: 'resume' }],
+    ['Capri play the music via YouTube music.', { action: 'start' }],
+    ['Play me some music on YouTube Music', { action: 'start' }],
+    ['Can you play something on my YouTube music?', { action: 'start' }],
+    ['play c four one eight drayton', { action: 'play', query: 'C418 Dreiton' }],
+    ['Play C four one eight Drayton on Youtube Music', { action: 'play', query: 'C418 Dreiton' }],
+    ['Play C418 Dreiton', { action: 'play', query: 'C418 Dreiton' }],
+    [
+      'Play Drayton by another artist on YouTube Music',
+      { action: 'play', query: 'Drayton by another artist' },
+    ],
+    ['Start playing music on YouTube Music', { action: 'start' }],
+    ['Включи мне любую музыку через YouTube Music', { action: 'start' }],
+    ['Mets de la musique sur YouTube Music', { action: 'start' }],
+    ['Pon algo de música en YouTube Music', { action: 'start' }],
+    ['Toca alguma música no YouTube Music', { action: 'start' }],
+    ['Spiele etwas Musik auf YouTube Music', { action: 'start' }],
+    ['Play the song "Music" on YouTube Music', { action: 'play', query: 'Music' }],
+    ['Play the next song', { action: 'next' }],
+    ['Previous song on YouTube Music', { action: 'previous' }],
+    ['Set YouTube Music volume to 35%', { action: 'volume', value: 35 }],
+    ['Set the music volume to 100%', { action: 'volume', value: 100 }],
+    ['Increse the volume a bit', { action: 'volume', delta: 10 }],
+    ['Increase the volume a bit', { action: 'volume', delta: 10 }],
+    ['Could you lower the music volume by 15%, please?', { action: 'volume', delta: -15 }],
+    ['Увеличь громкость музыки на 20%', { action: 'volume', delta: 20 }],
+    ['Поставь громкость музыки на 55%', { action: 'volume', value: 55 }],
+    ['What’s playing on YouTube Music right now?', { action: 'status' }],
+    ['Play some good music', { action: 'start' }],
+  ]) {
+    assert.deepEqual(youtubeMusicRequest(text, state)?.command, command, text);
+  }
+  for (const text of [
+    'Play music on YouTube',
+    'Pause Spotify',
+    'Say "pause YouTube Music"',
+    'Play chess',
+    'Do not play music on YouTube Music',
+    'Play Believer and set a timer on YouTube Music',
+    'Use full computer control to open YouTube Music',
+    'Can you explain YouTube Music?',
+    'Set the music volume to 101%',
+    'Increase the music volume by 101%',
+    'Set the microphone volume to 100%',
+    'Increase the volume on Spotify',
+    'Increase the volume on Apple Music',
+    'Say "increase the volume a bit"',
+    'Do not increase the volume a bit',
+    'Increase the volume a bit and set a timer',
+  ]) {
+    assert.ok(!youtubeMusicRequest(text, state)?.command, text);
+  }
+  assert.deepEqual(youtubeMusicRequest('Play Bohemian Rhapsody', state), {
+    command: null,
+    plan: true,
+    playQuery: 'Bohemian Rhapsody',
+  });
+  assert.equal(youtubeMusicRequest('Play chess', state), null);
+  assert.equal(youtubeMusicRequest('Play the video from yesterday', state), null);
+  assert.equal(youtubeMusicRequest('Play C418 Dreiton and set a timer', state), null);
+  state.youtubeMusic.preferred = false;
+  assert.equal(youtubeMusicRequest('Play music', state), null);
+  assert.equal(youtubeMusicRequest('Play Bohemian Rhapsody', state), null);
+  assert.equal(youtubeMusicRequest('play c four one eight drayton', state), null);
+  assert.equal(youtubeMusicRequest('Set the music volume to 100%', state), null);
+  assert.equal(youtubeMusicRequest('Increse the volume a bit', state), null);
+  assert.deepEqual(youtubeMusicRequest('Pause YouTube Music', state).command, { action: 'pause' });
+  state.spotify.prepared = false;
+  assert.deepEqual(youtubeMusicRequest('Pause', state).command, { action: 'pause' });
+});
 
 test('named Spotify playback preserves the owner query, never generated command syntax', () => {
   for (const text of [
@@ -82,6 +166,8 @@ test('only positive playback, volume and current-player queries select the dedic
     'Сделай музыку потише.',
     'Чуть погромче, пожалуйста.',
     'Проверь громкость Spotify.',
+    'Mets de la musique sur Spotify.',
+    'Peux-tu jouer Believer sur Spotify ?',
     'Что сейчас играет?',
     'Какая песня играет в Spotify?',
   ])
@@ -114,6 +200,8 @@ test('music discussion, titles, prohibitions, unrelated meanings and unknown-lan
     'Не включай музыку.',
     '¿Te gusta esta música de Spotify?',
     'Tu aimes cette chanson sur Spotify ?',
+    'Ne joue pas cette chanson sur Spotify.',
+    'Mets de la musique et ouvre le navigateur sur Spotify.',
     'Gefällt dir dieses Lied auf Spotify?',
     'Spotifyのこの曲は好き？',
     'هل تعجبك هذه الأغنية على Spotify؟',

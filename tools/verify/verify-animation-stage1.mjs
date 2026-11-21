@@ -29,7 +29,6 @@ const settings = {
   glitchEnabled: false,
   floatEnabled: false,
   expandOnReply: false,
-  buttonFeedback: false,
   memoryMonitor: false,
   processGraphs: false,
   wakeSound: 'off',

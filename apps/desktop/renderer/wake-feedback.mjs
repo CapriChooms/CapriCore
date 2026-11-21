@@ -1,5 +1,5 @@
 /** Procedural acknowledgement on the already-unlocked capture context. No TTS or files. */
-export function playWakeChime(context, volume = 1) {
+export function playWakeChime(context, volume = 1, onEnd) {
   if (!context || context.state === 'closed') return false;
   let bus;
   try {
@@ -27,7 +27,10 @@ export function playWakeChime(context, volume = 1) {
       oscillator.onended = () => {
         oscillator.disconnect();
         envelope.disconnect();
-        if (!--remaining) bus.disconnect();
+        if (!--remaining) {
+          bus.disconnect();
+          onEnd?.();
+        }
       };
       oscillator.start(at);
       oscillator.stop(at + duration + 0.005);
@@ -37,6 +40,31 @@ export function playWakeChime(context, volume = 1) {
     bus?.disconnect();
     return false;
   }
+}
+
+export function playWakeSample(context, sample, volume, { onStart, onEnd } = {}) {
+  const play = (buffer) => {
+    if (context.state === 'closed') return;
+    if (buffer.duration > 10) throw new Error('Wake audio exceeds 10 seconds');
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    gain.gain.value = volume;
+    source.connect(gain);
+    gain.connect(context.destination);
+    source.onended = () => {
+      source.disconnect();
+      gain.disconnect();
+      onEnd?.();
+    };
+    onStart?.();
+    source.start();
+  };
+  const bytes = Uint8Array.from(sample.bytes);
+  if (!sample.pcm) return context.decodeAudioData(bytes.buffer).then(play);
+  const buffer = context.createBuffer(1, bytes.byteLength / 4, sample.sampleRate);
+  buffer.copyToChannel(new Float32Array(bytes.buffer), 0);
+  play(buffer);
 }
 
 export function screenshotShutterSamples(rate) {
@@ -87,38 +115,17 @@ export class WakeFeedback {
     if (settings.wakeSound === 'off') return true;
     if (settings.wakeSound === 'tone') return playWakeChime(context, settings.wakeVolume);
     // A selected voice/file must never quietly turn into the standard signal.
-    if (!this.sample) return false;
+    if (!this.sample || !context || context.state === 'closed') return false;
     const sample = this.sample;
-    const play = (buffer) => {
-      if (buffer.duration > 10) throw new Error('Wake audio exceeds 10 seconds');
-      const source = context.createBufferSource(),
-        gain = context.createGain();
-      source.buffer = buffer;
-      gain.gain.value = settings.wakeVolume;
-      source.connect(gain);
-      gain.connect(context.destination);
-      source.onended = () => {
-        source.disconnect();
-        gain.disconnect();
-        this.onSound?.({ speaking: false, text: '' });
-      };
-      this.onSound?.({
-        speaking: true,
-        text: settings.wakeSound === 'voice' ? (sample.text ?? settings.wakePhrase) : '',
-      });
-      source.start();
-    };
     try {
-      const bytes = Uint8Array.from(sample.bytes);
-      if (sample.pcm) {
-        const buffer = context.createBuffer(1, bytes.byteLength / 4, sample.sampleRate);
-        buffer.copyToChannel(new Float32Array(bytes.buffer), 0);
-        play(buffer);
-      } else
-        context
-          .decodeAudioData(bytes.buffer)
-          .then(play)
-          .catch(() => false);
+      playWakeSample(context, sample, settings.wakeVolume, {
+        onStart: () =>
+          this.onSound?.({
+            speaking: true,
+            text: settings.wakeSound === 'voice' ? (sample.text ?? settings.wakePhrase) : '',
+          }),
+        onEnd: () => this.onSound?.({ speaking: false, text: '' }),
+      })?.catch(() => {});
       return true;
     } catch {
       return false;

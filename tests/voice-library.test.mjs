@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -413,6 +414,70 @@ test('Qwen failure diagnostics retain the stage and fixed reason without raw out
   const log = readFileSync(path.join(root, 'logs/voice-catalog.jsonl'), 'utf8');
   assert.equal(JSON.parse(privateLog(log)).code, status.errorCode);
   assert.equal((log + JSON.stringify(status) + JSON.stringify(state)).includes(canary), false);
+});
+
+test('choosing recordings drafts text without approving it and commits the reviewed batch once', async (t) => {
+  const { root, write } = fixture(t);
+  const source = path.join(root, 'selected-recordings');
+  mkdirSync(source);
+  const rows = Array.from({ length: 4 }, (_, index) => ({
+    id: `clip-${index}`,
+    file: `raw/clip-${index}.wav`,
+    text: index ? 'Automatic draft.' : '',
+    split: index === 3 ? 'reference' : '',
+    referenceEligible: index === 3,
+  }));
+  const sample = Buffer.from('selected WAV fixture');
+  const samplePath = path.join(source, 'clip-0.wav');
+  writeFileSync(samplePath, sample);
+  rows[0].sha256 = createHash('sha256').update(sample).digest('hex');
+  let imported;
+  const service = new VoiceTrainingService({
+    root,
+    draftRun: async (input) => {
+      assert.equal(input.source, source);
+      return { rows, rawAtRoot: true };
+    },
+    importRun: async (input) => {
+      assert.equal(imported, undefined);
+      imported = input;
+      write('data/voices/capri/en/imports/' + input.importId + '/import-receipt.json', {
+        schemaVersion: 1,
+        importId: input.importId,
+        clips: 4,
+        seconds: 12,
+        reviewed: true,
+      });
+    },
+  });
+  const { draft } = await service.chooseDataset(source);
+  assert.equal(draft.clips[0].file, 'clip-0.wav');
+  assert.equal(draft.clips[3].reference, true);
+  assert.equal(imported, undefined);
+  assert.ok(!JSON.stringify(service.snapshot()).includes('Automatic draft'));
+  await assert.rejects(service.recordingAudio({ id: 'another-draft', index: 0 }), /again/);
+  assert.deepEqual(
+    (await service.recordingAudio({ id: draft.id, index: 0 })).audio,
+    Uint8Array.from(sample),
+  );
+  writeFileSync(samplePath, 'changed recording');
+  await assert.rejects(service.recordingAudio({ id: draft.id, index: 0 }), /changed/);
+  writeFileSync(samplePath, sample);
+  const texts = draft.clips.map((clip) => clip.text);
+  await assert.rejects(
+    service.approveRecordings({ id: draft.id, texts, reference: 3 }),
+    /transcript/,
+  );
+  texts[0] = 'Manually corrected.';
+  await assert.rejects(
+    service.approveRecordings({ id: draft.id, texts, reference: 0 }),
+    /neutral reference/,
+  );
+  await service.approveRecordings({ id: draft.id, texts, reference: 3 });
+  assert.equal(imported.reviewed[0].text, 'Manually corrected.');
+  assert.ok(imported.reviewed.every((row) => row.approved === 'yes'));
+  assert.equal(imported.rawAtRoot, true);
+  await assert.rejects(service.approveRecordings({ id: draft.id, texts, reference: 3 }), /again/);
 });
 
 test('dataset import changes only the validated dataset after success and exposes no source path', async (t) => {

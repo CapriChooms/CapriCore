@@ -321,7 +321,12 @@ export function initialize(rt = runtime()) {
       String(next.agents.defaults.model?.primary).startsWith('capri-api/');
     if (
       !preserveApiSelection &&
-      ensureManagedContext(next, settings.model, settings.contextTokens)
+      ensureManagedContext(
+        next,
+        settings.model,
+        settings.contextTokens,
+        settings.experimentalContext,
+      )
     ) {
       const backups = path.join(paths.data, 'config-backups');
       mkdirSync(backups, { recursive: true });

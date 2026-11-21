@@ -4,7 +4,7 @@ import { setWindowAlwaysOnTop } from './window-topmost.mjs';
 /** Security choices are centralized, including for isolated verification windows. */
 export function createSecureWindow(
   BrowserWindow,
-  { bounds, directory, verification, alwaysOnTop },
+  { bounds, directory, verification, alwaysOnTop, softwareRendering = false },
 ) {
   const window = new BrowserWindow({
     ...bounds,
@@ -31,6 +31,8 @@ export function createSecureWindow(
       allowRunningInsecureContent: false,
       spellcheck: false,
       devTools: verification,
+      // In software mode the portrait uses its CSS renderer instead of CPU WebGL.
+      webgl: !softwareRendering,
       backgroundThrottling: false,
       autoplayPolicy: 'no-user-gesture-required',
     },

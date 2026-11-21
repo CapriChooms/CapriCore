@@ -9,11 +9,27 @@ const parent = path.join(root, '.runtime/installer-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'ui-'));
 const { version } = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+const { tag } = JSON.parse(readFileSync(path.join(root, 'config/release.json'), 'utf8'));
+const experimental = /^v(\d+\.\d+\.\d+)-experimental\.(\d+)$/u.exec(tag);
+const displayVersion = experimental?.[1] === version ? `${version}E${experimental[2]}` : version;
 const catalog = JSON.parse(readFileSync(path.join(root, 'config/installer-text.json'), 'utf8'));
 const locales = JSON.parse(
   readFileSync(path.join(root, 'config/interface-locales.json'), 'utf8'),
 ).locales;
 const available = validateInstallerCatalog(catalog, locales);
+const pages = [
+  'interface',
+  'license',
+  'location',
+  'device',
+  'conversation',
+  'model',
+  'voice',
+  'components',
+  'review',
+  'progress',
+  'finish',
+];
 const options = process.argv.slice(2);
 if (options.some((arg) => !/^--(?:dpi=\d+|locales=[a-z,]+)$/.test(arg)))
   throw new Error('Supported options: --dpi=96 and --locales=en,ru');
@@ -46,20 +62,26 @@ const result = spawnSync(
   {
     encoding: 'utf8',
     windowsHide: true,
-    // Rendering all 400 pages needs more time on shared CI than a small locale
+    // Rendering every locale needs more time on shared CI than a small locale
     // sample. Keep a finite per-language allowance without dropping coverage.
     timeout: Math.max(90000, 30000 + languages.length * 6000),
   },
 );
 if (result.error || result.status !== 0) throw new Error(result.error?.message || result.stderr);
 const images = readdirSync(folder).filter((name) => name.endsWith('.png'));
-if (images.length !== languages.length * 8) throw new Error('Not every installer page rendered');
+if (
+  images.length !== languages.length * pages.length ||
+  languages.some((language) => pages.some((page) => !images.includes(`${language}-${page}.png`)))
+)
+  throw new Error('Not every installer page rendered');
 for (const language of languages) {
   const choice = JSON.parse(readFileSync(path.join(folder, language + '-selection.json'), 'utf8'));
   if (choice.index < 0 || !choice.text.startsWith(language + ' | '))
     throw new Error('Installer language selection is not initialized');
   if (choice.items.length !== available.length)
     throw new Error('Installer language picker is incomplete');
+  if (choice.appIndex < 0 || choice.appItems.length !== available.length)
+    throw new Error('Capri interface language picker is incomplete');
   const models = JSON.parse(readFileSync(path.join(folder, language + '-models.json'), 'utf8'));
   if (
     models.index < 0 ||
@@ -71,7 +93,7 @@ for (const language of languages) {
   )
     throw new Error('Installer model requirements or selection are incomplete');
   const layout = JSON.parse(readFileSync(path.join(folder, language + '-layout.json'), 'utf8'));
-  if (layout.versionLabel !== 'v' + version)
+  if (layout.versionLabel !== 'v' + displayVersion)
     throw new Error('Installer does not display its exact package version: ' + language);
   if (
     layout.rtl !== (locales.find(({ id }) => id === language).direction === 'rtl') ||

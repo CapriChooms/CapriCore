@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import {
   boltOnlyFrames,
-  color,
   draw,
   fps,
   frames,
@@ -9,7 +8,18 @@ import {
   prepareTeleportMotion,
   teleportViewport,
 } from './avatar-teleport-motion.mjs';
+import { TELEPORT_LIGHTNING_DEFAULTS } from './teleport-effects.mjs';
+import {
+  drawSandevistan,
+  prepareSandevistan,
+  SANDEVISTAN_TRAVEL_MS,
+  sandevistanStamps,
+  sandevistanViewport,
+} from './sandevistan-motion.mjs';
 import { AvatarHeadpat } from './avatar-headpat.mjs';
+import { playAvatarObservation } from './avatar-observation.mjs';
+import { AvatarWave } from './avatar-wave.mjs';
+import { AvatarSurfacePerformance } from './avatar-surface-performance.mjs';
 import { showAvatarTapEffect } from './avatar-tap-effect.mjs';
 import { ReplyPages } from './reply-pages.mjs';
 import { detachedReplyLayout } from './detached-reply-layout.mjs';
@@ -102,8 +112,10 @@ const decodedFrames = new Map();
 
 let prepared;
 let flight;
+const teleportTrails = new Set();
 let spritePromise;
 let spriteUrl;
+let spriteTintColor;
 let parkedPoint;
 let parkedAnchor;
 let frameRequest;
@@ -133,6 +145,26 @@ let musicFrame = 0,
   musicDragging = false;
 const musicAnimation = new MusicAnimation();
 let sleeping = false;
+const wave = new AvatarWave(parked, {
+  canPlay: () => !parked.hidden && !flight && document.body.dataset.presentation !== 'dialogue',
+  onChange: ensureMusicAnimation,
+});
+const surface = new AvatarSurfacePerformance(stage, {
+  canPlay: () =>
+    !parked.hidden &&
+    !flight &&
+    !sleeping &&
+    !musicDragging &&
+    !wave.run &&
+    !document.hidden &&
+    !motionPreference.matches &&
+    document.body.dataset.presentation !== 'dialogue',
+  onChange() {
+    animatePose();
+    scheduleBlink();
+    ensureMusicAnimation();
+  },
+});
 let replyTurn = '',
   replyCollapsed = false,
   replyNear = false,
@@ -198,6 +230,8 @@ function animateMusic(now) {
     pose &&
       musicAnimationReady(music) &&
       !sleeping &&
+      !wave.image &&
+      !surface.active &&
       !flight &&
       !parked.hidden &&
       !document.hidden &&
@@ -228,6 +262,8 @@ function animateMusic(now) {
     !pose ||
     !music.enabled ||
     sleeping ||
+    wave.image ||
+    surface.active ||
     flight ||
     parked.hidden ||
     document.hidden ||
@@ -259,6 +295,7 @@ function frameIdFor(url) {
 function setMouth(shape) {
   if (!['closed', 'small', 'round', 'wide'].includes(shape)) return false;
   mouthShape = shape;
+  if (shape !== 'closed') surface.stop();
   redrawMouth();
   return true;
 }
@@ -281,19 +318,21 @@ function loadFrame(url) {
   return loading;
 }
 
-function loadSprite(url) {
-  if (url === spriteUrl && spritePromise) return spritePromise;
+function loadSprite(url, tintColor) {
+  if (url === spriteUrl && tintColor === spriteTintColor && spritePromise) return spritePromise;
   spriteUrl = url;
+  spriteTintColor = tintColor;
   spritePromise = (async () => {
     const image = await loadFrame(url);
 
+    if (!tintColor) return { image };
     const tint = document.createElement('canvas');
     tint.width = image.naturalWidth;
     tint.height = image.naturalHeight;
     const ink = tint.getContext('2d');
     ink.drawImage(image, 0, 0);
     ink.globalCompositeOperation = 'source-in';
-    ink.fillStyle = color;
+    ink.fillStyle = tintColor;
     ink.fillRect(0, 0, tint.width, tint.height);
     return { image, tint };
   })();
@@ -341,11 +380,15 @@ async function prepare(message) {
   if (!setPresentation(message.presentation ?? 'character')) return false;
   const next = { ...message, anchor };
   prepared = next;
-  const loading = loadSprite(message.spriteUrl);
+  const tintColor =
+    message.effects?.teleportStyle === 'sandevistan'
+      ? null
+      : (message.effects?.teleportColor ?? TELEPORT_LIGHTNING_DEFAULTS.teleportColor);
+  const loading = loadSprite(message.spriteUrl, tintColor);
   try {
     const arriving =
       arrival && message.park !== false && arrival.spriteUrl !== message.spriteUrl
-        ? loadSprite(arrival.spriteUrl)
+        ? loadSprite(arrival.spriteUrl, tintColor)
         : loading;
     [next.sprite, next.arrivalSprite] = await Promise.all([loading, arriving]);
     return prepared === next;
@@ -579,7 +622,7 @@ function drawPoseMotion() {
 
 function animatePose() {
   clearTimeout(motionFrame);
-  if (document.body.dataset.presentation === 'dialogue') return;
+  if (surface.active || document.body.dataset.presentation === 'dialogue') return;
   motionFrame = 0;
   drawPoseMotion();
   if (
@@ -595,6 +638,7 @@ function scheduleBlink() {
   if (document.body.dataset.presentation === 'dialogue') return;
   if (
     parked.hidden ||
+    surface.active ||
     !rasterPose?.eyes ||
     motionPreference.matches ||
     Object.hasOwn(MUSIC_POSES, frameIdFor(parkedImage.src))
@@ -610,11 +654,15 @@ function scheduleBlink() {
 }
 
 motionPreference.addEventListener('change', () => {
+  if (motionPreference.matches) surface.stop();
   animatePose();
   scheduleBlink();
   ensureMusicAnimation();
 });
-document.addEventListener('visibilitychange', ensureMusicAnimation);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) surface.stop();
+  ensureMusicAnimation();
+});
 
 function parkedState() {
   return { ...replyState(), reducedMotion: motionPreference.matches };
@@ -626,6 +674,7 @@ async function park({ point, anchor, url, dock } = {}) {
     return false;
   cancelPlacement();
   const image = await loadFrame(url);
+  surface.stop();
   parkedPoint = point;
   placeParked(point, anchor);
   parkedImage.src = image.src;
@@ -667,7 +716,10 @@ async function setFrame(value) {
       (point.x !== parkedPoint.x || point.y !== parkedPoint.y || point.scale !== parkedPoint.scale);
     const placementChanged = point || parkedAnchor.x !== anchor.x || parkedAnchor.y !== anchor.y;
     if (poseChanged || moved) pat.clear();
-    if (parkedImage.src !== image.src) parkedImage.src = image.src;
+    if (parkedImage.src !== image.src) {
+      surface.stop();
+      parkedImage.src = image.src;
+    }
     if (placementChanged) {
       parkedPoint = point ?? parkedPoint;
       placeParked(parkedPoint, anchor);
@@ -937,6 +989,8 @@ function setStatus(value) {
   sleeping = value?.sleeping === true;
   document.body.dataset.sleeping = String(sleeping);
   if (sleeping) {
+    surface.stop();
+    wave.stop();
     pat.clear();
     document.getElementById('avatar-tap')?.remove();
   }
@@ -972,19 +1026,29 @@ function setStatus(value) {
 
 function resizeEffect() {
   const bounds = { width: innerWidth, height: innerHeight };
-  flight.motion = prepareTeleportMotion({
-    ...flight,
-    scale: Math.min(flight.from.scale, flight.to.scale),
-    bounds: flight.crossing ? undefined : bounds,
-  });
-  const region = teleportViewport(
-    flight.motion,
-    flight.from,
-    flight.to,
-    flight.anchor,
-    bounds,
-    flight.arrival?.anchor,
-  );
+  let region;
+  if (flight.effects?.teleportStyle === 'sandevistan') {
+    flight.sandevistan ??= prepareSandevistan({
+      ...flight,
+      arrivalAnchor: flight.arrival?.anchor,
+    });
+    flight.stamps ??= sandevistanStamps(flight.sprite.image, flight.sandevistan);
+    region = sandevistanViewport(flight.sandevistan, bounds);
+  } else {
+    flight.motion = prepareTeleportMotion({
+      ...flight,
+      scale: Math.min(flight.from.scale, flight.to.scale),
+      bounds: flight.crossing ? undefined : bounds,
+    });
+    region = teleportViewport(
+      flight.motion,
+      flight.from,
+      flight.to,
+      flight.anchor,
+      bounds,
+      flight.arrival?.anchor,
+    );
+  }
   flight.region = region;
   const pixelRatio = Math.min(
     devicePixelRatio || 1,
@@ -1015,6 +1079,10 @@ function paint() {
   const run = flight;
   const { from, to, frame, sprite, anchor, arrival, arrivalSprite, motion, region } = run;
   context.clearRect(region.x, region.y, region.width, region.height);
+  if (run.sandevistan) {
+    drawSandevistan(context, run.sandevistan, (frame * 1000) / fps, run.stamps, sprite.image);
+    return;
+  }
   draw(context, {
     frame,
     from,
@@ -1083,7 +1151,43 @@ function finishArrival() {
 }
 
 function whenSettled() {
-  return flight?.settled ?? true;
+  if (flight) return flight.settled.then(whenSettled);
+  if (teleportTrails.size) return Promise.all(teleportTrails).then(() => true);
+  return true;
+}
+
+function lingerSandevistan(run, now) {
+  const motion = run.sandevistan;
+  if (!motion || now - run.started >= motion.endMs) return;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'teleport-trail';
+  canvas.style.cssText = effect.style.cssText;
+  canvas.width = effect.width;
+  canvas.height = effect.height;
+  const ink = canvas.getContext('2d');
+  if (!ink) return;
+  ink.setTransform(context.getTransform());
+  const { x, y, width, height } = run.region;
+  const { promise, resolve } = Promise.withResolvers();
+  teleportTrails.add(promise);
+  parked.before(canvas);
+  function tick(time) {
+    const elapsed = time - run.started;
+    if (
+      elapsed >= motion.endMs ||
+      motionPreference.matches ||
+      document.body.dataset.presentation === 'dialogue'
+    ) {
+      canvas.remove();
+      teleportTrails.delete(promise);
+      resolve();
+      return;
+    }
+    ink.clearRect(x, y, width, height);
+    drawSandevistan(ink, motion, elapsed, run.stamps);
+    requestAnimationFrame(tick);
+  }
+  tick(now);
 }
 
 async function play(startAt) {
@@ -1091,6 +1195,7 @@ async function play(startAt) {
   pat.clear();
   frameRequest = undefined;
   parked.hidden = true;
+  surface.stop();
   replyNear = false;
   animatePose();
   scheduleBlink();
@@ -1108,17 +1213,26 @@ async function play(startAt) {
   }
   const delay = Number.isFinite(startAt) ? Math.min(100, startAt - Date.now()) : 0;
   const started = performance.now() + delay;
-  const stopAt = flight.park === false ? boltOnlyFrames : frames - 1;
+  run.started = started;
   resizeEffect();
+  const stopAt = run.sandevistan
+    ? (SANDEVISTAN_TRAVEL_MS * fps) / 1000
+    : flight.park === false
+      ? boltOnlyFrames
+      : frames - 1;
+  const settle = (now) => {
+    if (!motionPreference.matches) lingerSandevistan(run, now);
+    return complete(run);
+  };
   flight.frame = Math.max(0, ((performance.now() - started) * fps) / 1000);
-  if (flight.frame >= stopAt) return complete(run);
+  if (flight.frame >= stopAt) return settle(performance.now());
   effect.hidden = false;
   paint();
   function step(now) {
     if (flight !== run || run.completed) return;
     const next = ((now - started) * fps) / 1000;
     if (next >= stopAt || motionPreference.matches) {
-      complete(run);
+      settle(now);
       return;
     }
     if (next > run.frame) {
@@ -1133,6 +1247,7 @@ async function play(startAt) {
 
 function pulse({ x, y, count, tone }) {
   if (sleeping || parked.hidden || ![x, y, count].every(Number.isFinite)) return;
+  surface.stop();
   if (Object.hasOwn(MUSIC_POSES, frameIdFor(parkedImage.src))) {
     headpat({ x, y });
     return;
@@ -1143,6 +1258,7 @@ function pulse({ x, y, count, tone }) {
 
 function headpat(point) {
   if (!sleeping && !parked.hidden) {
+    surface.stop();
     pat.play(
       parkedImage,
       point,
@@ -1171,6 +1287,8 @@ function setPresentation(value) {
   const changed = document.body.dataset.presentation !== value;
   document.body.dataset.presentation = value;
   if (changed && value === 'dialogue') {
+    surface.stop();
+    wave.stop();
     cancelAnimationFrame(musicFrame);
     musicFrame = 0;
     clearTimeout(motionFrame);
@@ -1192,6 +1310,7 @@ globalThis.capriAvatarDetach = Object.freeze({
   setTheme: (theme) => applyInterfaceTheme(theme),
   setTether: (value) => {
     musicDragging = Boolean(value);
+    if (musicDragging) surface.stop();
     tether.draw(value);
     ensureMusicAnimation();
   },
@@ -1203,6 +1322,24 @@ globalThis.capriAvatarDetach = Object.freeze({
   whenSettled,
   pulse,
   headpat,
+  playWave() {
+    surface.stop();
+    if (wave.available()) pat.clear();
+    void wave.play();
+  },
+  async playSurface({ action, side } = {}) {
+    const url = parkedImage.src;
+    if (!spriteAddress.test(url)) return false;
+    const image = await loadFrame(url);
+    if (parkedImage.src !== url) return false;
+    pat.clear();
+    return surface.play(action, image, frameIdFor(url), side);
+  },
+  stopSurface: () => surface.stop(),
+  showObservation: (kind) => {
+    if (!sleeping && !parked.hidden && document.body.dataset.presentation !== 'dialogue')
+      playAvatarObservation(stage, kind, frameIdFor(parkedImage.src));
+  },
   setFrame,
   setPlacement,
   cancelPlacement,

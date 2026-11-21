@@ -300,6 +300,60 @@ test('a generation limit affects one reply, and a subsequent turn speaks without
   voice.cancel();
 });
 
+test('an exhausted local speech limit retries a long unpunctuated phrase in bounded pieces', async () => {
+  const phrase = 'A long text about the city and the rain as people walk along the river '
+    .repeat(11)
+    .trim();
+  const sent = [];
+  const { voice, events } = service((options) => {
+    const request = JSON.parse(options.body);
+    if (request.text) sent.push(request);
+    return request.text?.length > 480
+      ? new Response(JSON.stringify({ code: 'CAPRI_VOICE_SPEECH_LIMIT' }), {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        })
+      : pcm();
+  });
+  turn(voice, 'split-limit', phrase);
+  await until(() => events.some(({ type }) => ['voice.generated', 'voice.error'].includes(type)));
+  const audio = events.filter(({ type }) => type === 'voice.audio');
+  assert.equal(sent[0].text, phrase);
+  assert.equal(audio.map(({ text }) => text).join(' '), phrase);
+  assert.ok(audio.every(({ text, sequence }, i) => text.length <= 480 && sequence === i));
+  assert.equal(new Set(sent.map(({ requestId }) => requestId)).size, sent.length);
+  assert.ok(!events.some(({ type }) => ['voice.error', 'voice.cancelled'].includes(type)));
+});
+
+test('a local sentence above the worker input cap is sent as complete shorter phrases', async () => {
+  const phrase = 'Walking past the quiet gardens by the old city '.repeat(35).trim();
+  const { voice, events, requests } = service();
+  turn(voice, 'overlong-phrase', phrase);
+  await until(() => events.some(({ type }) => ['voice.generated', 'voice.error'].includes(type)));
+  assert.equal(requests.map(({ text }) => text).join(' '), phrase);
+  assert.ok(requests.every(({ text }) => text.length <= 480));
+  assert.ok(!events.some(({ type }) => ['voice.error', 'voice.cancelled'].includes(type)));
+});
+
+test('local speech recovery does not repeatedly split a chunk that still hits the limit', async () => {
+  const phrase = 'Walking past the quiet gardens by the old city '.repeat(14).trim();
+  const { voice, events, requests } = service(
+    () =>
+      new Response(JSON.stringify({ code: 'CAPRI_VOICE_SPEECH_LIMIT' }), {
+        status: 503,
+        headers: { 'content-type': 'application/json' },
+      }),
+  );
+  turn(voice, 'repeat-limit', phrase);
+  await until(() => events.some(({ type }) => type === 'voice.error'));
+  const sent = requests.filter(({ text }) => text).map(({ text }) => text);
+  assert.equal(sent.length, 2);
+  assert.equal(sent[0], phrase);
+  assert.ok(sent[1].length < phrase.length);
+  assert.equal(voice.diagnostics().lastFailure.code, 'CAPRI_VOICE_SPEECH_LIMIT');
+  assert.equal(voice.ready, true);
+});
+
 test('a local synthesis timeout keeps the installed voice ready for the next reply', async () => {
   let fail = true;
   const { voice, events } = service(() => {
@@ -617,6 +671,208 @@ test('voice preview effects are scoped to one speaker turn and restore the lates
   assert.equal(configurations.at(-1), 'radio');
 });
 
+test('local voice keeps the newest exact sink and drops an unplugged sink without default playback', async () => {
+  const mediaDevices = new EventTarget();
+  let devices;
+  mediaDevices.enumerateDevices = async () => devices;
+  const switches = [],
+    sources = [],
+    errors = [],
+    contexts = [];
+  const socket = {};
+  const player = new VoicePlayer({
+    mediaDevices,
+    contextFactory: (sinkId) => {
+      const context = Object.assign(new EventTarget(), {
+        state: 'running',
+        currentTime: 0,
+        sinkId,
+        destination: socket,
+        createGain() {
+          return {
+            gain: {},
+            connect(node) {
+              this.destination = node;
+            },
+            disconnect() {
+              this.destination = null;
+            },
+          };
+        },
+        createBuffer: () => ({ copyToChannel() {} }),
+        createBufferSource: () => ({
+          connect() {},
+          disconnect() {},
+          start() {
+            sources.push(this);
+          },
+          stop() {
+            this.stopped = true;
+          },
+        }),
+        setSinkId(deviceId) {
+          const { resolve, promise } = Promise.withResolvers();
+          switches.push({ deviceId, complete: resolve });
+          return promise.then(() => (this.sinkId = deviceId));
+        },
+        async close() {
+          this.state = 'closed';
+        },
+      });
+      contexts.push(context);
+      return context;
+    },
+    onState() {},
+    onError: (error) => errors.push(error),
+  });
+  await player.setSpeakerDevice('headset');
+  assert.deepEqual(contexts, []);
+  player.begin('preview');
+  player.accept({
+    turnId: 'preview',
+    sequence: 0,
+    text: 'fixture',
+    sampleRate: 24000,
+    pcm: new Uint8Array(new Float32Array([0.2, 0.1]).buffer),
+  });
+  await until(() => sources.length === 1);
+  assert.equal(player.context.sinkId, 'headset');
+  assert.equal(player.speakers.voiceGain.destination, socket);
+  const headphones = player.setSpeakerDevice('headphones');
+  await until(() => switches.length === 1);
+  assert.equal(player.speakers.voiceGain.destination, null);
+  const cable = player.setSpeakerDevice('monitor-bus');
+  switches[0].complete();
+  await headphones;
+  await until(() => switches.length === 2);
+  assert.equal(player.speakers.voiceGain.destination, null);
+  assert.equal(switches[1].deviceId, 'monitor-bus');
+  switches[1].complete();
+  await cable;
+  assert.equal(player.speakers.voiceGain.destination, socket);
+  assert.equal(sources[0].stopped, undefined);
+  assert.equal(player.context.sinkId, 'monitor-bus');
+  devices = [{ kind: 'audiooutput', deviceId: 'default' }];
+  mediaDevices.dispatchEvent(new Event('devicechange'));
+  await until(() => errors.length > 0);
+  assert.equal(errors[0].code, 'CAPRI_SPEAKER_OUTPUT');
+  assert.equal(sources[0].stopped, true);
+  assert.equal(player.speakerDevice, 'monitor-bus');
+  assert.equal(player.context, null);
+  assert.equal(contexts.length, 1);
+});
+
+test('a saved unavailable local output cannot play voice through a default fallback', async () => {
+  const errors = [];
+  const player = new VoicePlayer({
+    contextFactory: () => ({
+      state: 'running',
+      sinkId: '',
+      async setSinkId() {
+        throw new Error('Device lost');
+      },
+      async close() {
+        this.state = 'closed';
+      },
+      createBufferSource: () => assert.fail('Unsafe fallback playback'),
+    }),
+    onState() {},
+    onError: (error) => errors.push(error),
+  });
+  await player.setSpeakerDevice('unplugged');
+  player.begin('safe');
+  player.accept({
+    turnId: 'safe',
+    sequence: 0,
+    text: 'fixture',
+    sampleRate: 24000,
+    pcm: new Uint8Array(new Float32Array([0.2, 0.1]).buffer),
+  });
+  await until(() => errors.length > 0);
+  assert.equal(errors[0].message, 'Selected audio output is unavailable.');
+  assert.equal(player.context, null);
+  assert.equal(player.turnId, null);
+});
+
+test('a disconnected speaker returned in the context constructor cannot start a silent turn', async () => {
+  const errors = [];
+  const context = {
+    state: 'running',
+    sinkId: 'stale-HDMI-ID',
+    async close() {
+      this.state = 'closed';
+    },
+    createBuffer() {
+      assert.fail('A stale sink must be rejected before PCM playback');
+    },
+  };
+  const player = new VoicePlayer({
+    contextFactory: () => context,
+    enumerateSpeakerOutputs: async () => [{ kind: 'audiooutput', deviceId: 'current-HDMI-ID' }],
+    onState() {},
+    onError: (error) => errors.push(error),
+  });
+  await player.setSpeakerDevice(context.sinkId);
+  player.begin('stale');
+  player.accept({
+    turnId: 'stale',
+    sequence: 0,
+    text: 'fixture',
+    sampleRate: 24000,
+    pcm: new Uint8Array(new Float32Array([0.2, 0.1]).buffer),
+  });
+  await until(() => errors.length > 0);
+  assert.equal(errors[0].code, 'CAPRI_SPEAKER_OUTPUT');
+  assert.equal(context.state, 'closed');
+  assert.equal(player.speakerDevice, 'stale-HDMI-ID');
+  assert.equal(player.context, null);
+});
+
+test('a native render failure closes a matching selected output instead of leaving it silently active', async () => {
+  const errors = [];
+  const context = Object.assign(new EventTarget(), {
+    state: 'running',
+    sinkId: 'HDMI',
+    async close() {
+      this.state = 'closed';
+    },
+  });
+  const player = new VoicePlayer({
+    contextFactory: () => context,
+    onState() {},
+    onError: (error) => errors.push(error),
+  });
+  await player.setSpeakerDevice(context.sinkId);
+  await player.unlock();
+  player.begin('route-error');
+  context.dispatchEvent(new Event('error'));
+  assert.equal(player.turnId, null);
+  assert.equal(player.context, null);
+  assert.deepEqual(
+    errors.map(({ code }) => code),
+    ['CAPRI_SPEAKER_OUTPUT'],
+  );
+});
+
+test('a matching interrupted speaker must resume before its playback is accepted', async () => {
+  let resumes = 0;
+  const context = {
+    state: 'interrupted',
+    sinkId: 'HDMI',
+    async resume() {
+      resumes++;
+    },
+    async close() {
+      this.state = 'closed';
+    },
+  };
+  const player = new VoicePlayer({ contextFactory: () => context });
+  await player.setSpeakerDevice(context.sinkId);
+  await assert.rejects(player.unlock(), { code: 'CAPRI_SPEAKER_OUTPUT' });
+  assert.equal(resumes, 1);
+  assert.equal(player.context, null);
+});
+
 test('a microphone unplugged while listing call outputs is not misreported as a feedback loop', async () => {
   const track = {
     label: 'Physical microphone',
@@ -691,6 +947,7 @@ function sharedGroupCallFixture(enumerate) {
           mixed++;
           return { connect() {}, disconnect() {} };
         },
+        createGain: () => ({ gain: {}, connect() {}, disconnect() {} }),
         async close() {
           this.state = 'closed';
         },
@@ -763,6 +1020,24 @@ test('an approved call mirrors Capri to both outputs and keeps only the selected
       state: 'running',
       currentTime: 0,
       destination: { sinkId },
+      createGain() {
+        return {
+          gain: {
+            setTargetAtTime(value) {
+              this.value = value;
+            },
+          },
+          get sinkId() {
+            return this.destination?.sinkId;
+          },
+          connect(destination) {
+            this.destination = destination;
+          },
+          disconnect() {
+            this.disconnected = true;
+          },
+        };
+      },
       createDynamicsCompressor() {
         return {
           threshold: {},
@@ -780,7 +1055,7 @@ test('an approved call mirrors Capri to both outputs and keeps only the selected
         assert.equal(stream, microphone);
         const source = {
           connect(destination) {
-            this.sinkId = destination.sinkId;
+            this.destination = destination;
           },
           disconnect() {
             this.disconnected = true;
@@ -822,6 +1097,7 @@ test('an approved call mirrors Capri to both outputs and keeps only the selected
     onState: () => {},
     onError: (error) => errors.push(error.message),
   });
+  await player.setSpeakerDevice('speakers');
   const play = async (id, options, reply = false) => {
     if (reply) player.beginReply(id);
     else player.begin(id, options);
@@ -853,11 +1129,17 @@ test('an approved call mirrors Capri to both outputs and keeps only the selected
   await play('disabled', { call: true });
   assert.equal(routes.length, 0);
   assert.match(errors.pop(), /Call audio output is unavailable/);
+  player.setMicrophoneGain(800);
   assert.equal((await player.enableCallOutput(deviceId, microphone)).mixingMic, true);
   assert.equal(player.callOutputState().shareReplies, true);
-  assert.equal(micRoutes[0].sinkId, deviceId);
+  const micGain = micRoutes[0].destination;
+  assert.equal(micGain.sinkId, deviceId);
+  assert.equal(micGain.gain.value, 8);
   await play('ordinary');
   await play('explicit', { call: true });
+  player.setMicrophoneGain(0);
+  assert.equal(micGain.gain.value, 0);
+  assert.equal(player.callOutput.voiceGain.gain.value, 0.5);
   assert.deepEqual(
     routes.map(({ destination }) => destination.sinkId),
     ['speakers', 'speakers', deviceId],
@@ -869,6 +1151,7 @@ test('an approved call mirrors Capri to both outputs and keeps only the selected
   assert.equal(routes[1].stopped, true);
   assert.equal(routes[2].stopped, true);
   assert.equal(micRoutes[0].disconnected, true);
+  assert.equal(micGain.disconnected, true);
   assert.equal(call.state, 'closed');
   assert.deepEqual(player.callOutputState(), {
     deviceId,

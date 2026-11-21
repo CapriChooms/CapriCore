@@ -16,33 +16,40 @@ from .dataset import (
 )
 
 
-def doctor(config, *, inference_only=False):
+def doctor(config, *, inference_only=False, runtime_only=False):
+    if runtime_only:
+        print('Voice runtime check: loading PyTorch.', flush=True)
     import torch
 
-    from .provision import verify_model
+    from .provision import verify_model, verify_source
 
     report = {
         "python": sys.version.split()[0],
         "engine": config["engine"],
         "language": config["language"],
         "torch": torch.__version__,
-        "cuda": torch.cuda.is_available(),
         "versions": {
             name: importlib.metadata.version(name)
             for name in ["chatterbox-tts", "transformers", "soundfile", "soxr"]
         },
     }
     from integrations.voice_runtime.compatibility import cuda_preflight
+    if runtime_only:
+        verify_source()
+        print('Voice runtime check: verifying GPU compute.', flush=True)
     report['cudaCompute'] = cuda_preflight(torch)
+    report['cuda'] = report['cudaCompute']['available']
     if report["cudaCompute"].get("device"):
         report["gpu"] = report["cudaCompute"]["device"]
-    if report["cudaCompute"]["kernelReady"]:
+    if not runtime_only and report["cudaCompute"]["kernelReady"]:
         try:
             free, total = torch.cuda.mem_get_info()
             report.update(freeVramGiB=round(free / 1024**3, 2),
                           totalVramGiB=round(total / 1024**3, 2))
         except (RuntimeError, OSError, AttributeError):
             report["vramTelemetryAvailable"] = False
+    if runtime_only:
+        return report
     try:
         verify_model(config)
         report["modelReady"] = True
@@ -87,7 +94,9 @@ def main():
         "qualify",
     ]:
         commands.add_parser(name)
-    commands.add_parser("doctor").add_argument("--inference-only", action="store_true")
+    doctor_modes = commands.add_parser("doctor").add_mutually_exclusive_group()
+    doctor_modes.add_argument("--inference-only", action="store_true")
+    doctor_modes.add_argument("--runtime-only", action="store_true")
     preview = commands.add_parser("preview")
     preview.add_argument("--text", required=True)
     preview.add_argument("--emotion", default="neutral")
@@ -118,7 +127,8 @@ def main():
 
         print(f"Pinned model files ready: {len(download_model(config))}")
     elif args.command == "doctor":
-        print(json.dumps(doctor(config, inference_only=args.inference_only), indent=2))
+        report = doctor(config, inference_only=args.inference_only, runtime_only=args.runtime_only)
+        print(json.dumps(report, indent=None if args.runtime_only else 2))
     elif args.command == "cache":
         from .backend import build_cache
 

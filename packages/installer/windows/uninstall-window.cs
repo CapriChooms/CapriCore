@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Microsoft.Win32.SafeHandles;
+using Theme = Capri.Setup.Cyberpunk;
 
 namespace Capri.Setup {
     // PowerShell may be waiting for core shutdown or filesystem operations. This
@@ -26,12 +27,13 @@ namespace Capri.Setup {
         private Form form;
         private Label stage, count;
         private TextBox details;
-        private ProgressBar bar;
-        private Button close, report;
+        private Theme.ProgressBar bar;
+        private Button close, report, pause, cancel;
         private Exception startupError;
         private string stageKey = "progressPreparing", errorDetails, failureCode, version;
         private long processed;
-        private bool complete, failed, failureLayoutShown, allowClose, disposeRequested;
+        private bool complete, failed, cancelled, failureLayoutShown, allowClose, disposeRequested;
+        private bool canControl, pauseRequested, paused, confirmPending, cancelRequested, finishing;
         [DllImport("user32.dll")]
         private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
 
@@ -64,42 +66,51 @@ namespace Capri.Setup {
                     window.Font = new Font("Segoe UI", 10);
                     window.AutoScaleMode = AutoScaleMode.Dpi;
                     window.AutoScaleDimensions = new SizeF(96, 96);
-                    window.ClientSize = new Size(560, 228);
-                    window.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    window.ClientSize = new Size(580, 254);
+                    window.FormBorderStyle = FormBorderStyle.FixedSingle;
                     window.StartPosition = FormStartPosition.CenterScreen;
                     window.MaximizeBox = false;
-                    window.ControlBox = false;
+                    window.MinimizeBox = true;
                     window.RightToLeft = rightToLeft ? RightToLeft.Yes : RightToLeft.No;
                     window.RightToLeftLayout = rightToLeft;
                     if (File.Exists(iconPath)) window.Icon = new Icon(iconPath);
                     var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(22),
-                        ColumnCount = 1, RowCount = 5 };
-                    foreach (int height in new[] { 52, 28, 26 })
+                        ColumnCount = 1, RowCount = 6 };
+                    foreach (int height in new[] { 37, 55, 27, 23 })
                         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
                     layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
                     layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                    var title = new Label { Text = window.Text, Dock = DockStyle.Fill,
+                        ForeColor = Theme.Ink.Cyan, Font = new Font(window.Font.FontFamily, 17, FontStyle.Bold) };
                     stage = new Label { Name = "progress-stage", Dock = DockStyle.Fill,
+                        TextAlign = ContentAlignment.MiddleLeft,
                         Font = new Font(window.Font, FontStyle.Bold) };
-                    count = new Label { Name = "progress-count", Dock = DockStyle.Fill };
-                    bar = new ProgressBar { Name = "progress-bar", Dock = DockStyle.Fill,
-                        Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 25 };
-                    details = new TextBox { Name = "progress-error", Dock = DockStyle.Fill,
+                    count = new Label { Name = "progress-count", Dock = DockStyle.Fill, ForeColor = Theme.Ink.Muted };
+                    bar = new Theme.ProgressBar { Name = "progress-bar", Dock = DockStyle.Fill,
+                        Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 0, AnimateProgress = true };
+                    details = new Theme.TextBox { Name = "progress-error", Dock = DockStyle.Fill,
                         Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Visible = false };
-                    close = new Button { Name = "progress-close", Text = Text("progressClose", "Close"),
-                        AutoSize = true, Enabled = false, Visible = false };
-                    report = new Button { Name = "progress-report", Text = Text("reportBug", "Report a bug"),
-                        AutoSize = true, Visible = false };
+                    close = ActionButton("progress-close", Text("progressClose", "Close"), "primary");
+                    report = ActionButton("progress-report", Text("reportBug", "Report a bug"), null);
+                    pause = ActionButton("progress-pause", Text("progressPause", "Pause"), "primary");
+                    cancel = ActionButton("progress-cancel", Text("cancel", "Cancel"), "danger");
                     var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true,
-                        FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 12, 0, 0) };
+                        FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 8, 0, 0) };
                     buttons.Controls.Add(close);
                     buttons.Controls.Add(report);
-                    layout.Controls.Add(stage, 0, 0);
-                    layout.Controls.Add(count, 0, 1);
-                    layout.Controls.Add(bar, 0, 2);
-                    layout.Controls.Add(details, 0, 3);
-                    layout.Controls.Add(buttons, 0, 4);
+                    buttons.Controls.Add(pause);
+                    buttons.Controls.Add(cancel);
+                    layout.Controls.Add(title, 0, 0);
+                    layout.Controls.Add(stage, 0, 1);
+                    layout.Controls.Add(count, 0, 2);
+                    layout.Controls.Add(bar, 0, 3);
+                    layout.Controls.Add(details, 0, 4);
+                    layout.Controls.Add(buttons, 0, 5);
                     window.Controls.Add(layout);
+                    Theme.Theme.AttachWindow(window);
                     close.Click += (sender, args) => window.Close();
+                    pause.Click += (sender, args) => TogglePause();
+                    cancel.Click += (sender, args) => ConfirmCancel(AskToCancel);
                     report.Click += (sender, args) => {
                         if (!OpenReport(failureCode, stageKey, version, Interlocked.Read(ref processed))) {
                             details.Text = ReportUrl(failureCode, stageKey, version, Interlocked.Read(ref processed));
@@ -107,7 +118,11 @@ namespace Capri.Setup {
                             details.SelectAll();
                         }
                     };
-                    window.FormClosing += (sender, args) => { if (!allowClose) args.Cancel = true; };
+                    window.FormClosing += (sender, args) => {
+                        if (allowClose) return;
+                        args.Cancel = true;
+                        if (args.CloseReason == CloseReason.UserClosing) ConfirmCancel(AskToCancel);
+                    };
                     timer.Tick += (sender, args) => Render();
                     window.Shown += (sender, args) => {
                         if (disposeRequested) { allowClose = true; window.Close(); return; }
@@ -120,16 +135,35 @@ namespace Capri.Setup {
             } catch (Exception error) { startupError = error; }
             finally { ready.Set(); closed.Set(); }
         }
+        private static Theme.Button ActionButton(string name, string text, string role) {
+            return new Theme.Button { Name = name, Text = text, PreviewRole = role,
+                AutoSize = true, MinimumSize = new Size(110, 34), Padding = new Padding(12, 0, 12, 0),
+                Enabled = false, Visible = false };
+        }
         private void Render() {
             string key, error;
-            bool done, failure;
-            lock (stateLock) { key = stageKey; error = errorDetails; done = complete; failure = failed; }
+            bool done, failure, stopped, stopping, requested, onHold, controls;
+            lock (stateLock) {
+                key = stageKey; error = errorDetails; done = complete; failure = failed;
+                stopped = cancelled; stopping = cancelRequested; requested = pauseRequested; onHold = paused;
+                controls = canControl && !finishing;
+            }
+            bool ended = done || failure || stopped;
             stage.Text = done ? Text("complete", "The selected components were removed.")
                 : failure ? Text("failed", "Could not remove the selected components.")
+                : stopped ? Text("progressCancelled", "Removal stopped. You can run the uninstaller again.")
+                : stopping ? Text("cancel", "Cancel") + "…"
+                : onHold ? Text("progressPaused", "Removal paused.")
+                : requested ? Text("progressPause", "Pause") + "…"
                 : Text(key, "Preparing removal…");
-            count.Text = String.Format(Text("progressItems", "{0} items processed"), Interlocked.Read(ref processed).ToString("N0"));
-            count.Visible = Interlocked.Read(ref processed) > 0 || key == "progressRemoving" || done || failure;
-            if (done || failure) {
+            long items = Interlocked.Read(ref processed);
+            count.Text = String.Format(Text("progressItems", "{0} items processed"), items.ToString("N0"));
+            count.Visible = items > 0 || key == "progressRemoving" || ended;
+            pause.Text = requested ? Text("progressResume", "Resume") : Text("progressPause", "Pause");
+            pause.Visible = cancel.Visible = controls && !ended;
+            pause.Enabled = cancel.Enabled = controls && !stopping && !ended;
+            bar.AnimateProgress = !ended && !onHold;
+            if (ended) {
                 bar.Style = ProgressBarStyle.Continuous;
                 bar.Value = done ? 100 : 0;
                 close.Visible = close.Enabled = allowClose = true;
@@ -142,8 +176,10 @@ namespace Capri.Setup {
                     form.ClientSize = new Size(form.ClientSize.Width, height);
                     details.Text = Text("technicalDetails", "Technical details") + ":\r\n" + error;
                     details.Visible = true;
-                    report.Visible = true;
+                    report.Visible = report.Enabled = true;
                 }
+            } else {
+                form.CancelButton = cancel.Enabled ? cancel : null;
             }
         }
         private void Invoke(Action action) {
@@ -155,6 +191,57 @@ namespace Capri.Setup {
         public void Advance() { Interlocked.Increment(ref processed); }
         public void Hide() { Invoke(() => form.Hide()); }
         public void Show() { Invoke(() => form.Show()); }
+        public void EnableControls() { lock (stateLock) canControl = true; }
+        private bool CanInterrupt() { return canControl && !finishing && !cancelRequested && !complete && !failed; }
+        private void TogglePause() {
+            lock (stateLock) {
+                if (!CanInterrupt() || confirmPending) return;
+                pauseRequested = !pauseRequested;
+                if (!pauseRequested) paused = false;
+                Monitor.PulseAll(stateLock);
+            }
+            Render();
+        }
+        private bool AskToCancel() {
+            var direction = rightToLeft ? MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading : 0;
+            return MessageBox.Show(form, Text("progressCancelQuestion", "Stop uninstalling? Files already removed cannot be restored."),
+                form.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2, direction) == DialogResult.Yes;
+        }
+        private void ConfirmCancel(Func<bool> confirm) {
+            lock (stateLock) {
+                if (!CanInterrupt() || confirmPending) return;
+                confirmPending = true;
+            }
+            bool confirmed = false;
+            try { confirmed = confirm(); }
+            finally {
+                lock (stateLock) {
+                    confirmPending = false;
+                    if (confirmed && CanInterrupt()) cancelRequested = true;
+                    Monitor.PulseAll(stateLock);
+                }
+                Render();
+            }
+        }
+        public bool WaitForWork() { return WaitForWork(false); }
+        public bool BeginFinishing() { return WaitForWork(true); }
+        private bool WaitForWork(bool finish) {
+            lock (stateLock) {
+                while (!cancelRequested && (pauseRequested || confirmPending)) {
+                    paused = pauseRequested;
+                    Monitor.Wait(stateLock);
+                }
+                paused = false;
+                if (cancelRequested) return false;
+                if (finish) { finishing = true; stageKey = "progressFinishing"; }
+                return true;
+            }
+        }
+        public void Cancelled() {
+            lock (stateLock) cancelled = true;
+            Invoke(() => { Render(); form.Show(); });
+            closed.Wait();
+        }
         public void Complete() {
             lock (stateLock) complete = true;
             Invoke(() => { Render(); form.Show(); });
@@ -190,6 +277,7 @@ namespace Capri.Setup {
         }
         public void Dispose() {
             disposeRequested = true;
+            lock (stateLock) { cancelRequested = true; Monitor.PulseAll(stateLock); }
             Invoke(() => { allowClose = true; form.Close(); });
             if (Thread.CurrentThread != thread) closed.Wait(5000);
         }
@@ -297,79 +385,166 @@ namespace Capri.Setup {
             if (bytes >= 1000) return (bytes / 1000d).ToString("0.##") + " kB";
             return FormatBytes(bytes, byteFormat);
         }
+        private static Bitmap LoadPortrait(string path) {
+            if (!File.Exists(path)) return null;
+            try {
+                using (var stream = File.OpenRead(path))
+                using (var image = Image.FromStream(stream))
+                    return new Bitmap(image);
+            } catch (IOException) { return null; }
+              catch (UnauthorizedAccessException) { return null; }
+              catch (ArgumentException) { return null; }
+              catch (ExternalException) { return null; }
+              catch (OutOfMemoryException) { return null; } // GDI+ can report this for invalid image data.
+        }
         public static int Show(string root, string[][] groups, int defaults, string iconPath,
-            IDictionary<string, string> messages, bool rightToLeft) {
+            IDictionary<string, string> messages, bool rightToLeft, string portraitPath) {
             try { SetThreadDpiAwarenessContext(new IntPtr(-4)); } catch (EntryPointNotFoundException) {}
             Application.EnableVisualStyles();
+            Func<string, string, string> text = (key, fallback) => {
+                string value;
+                return messages.TryGetValue(key, out value) ? value : fallback;
+            };
+            using (var portrait = LoadPortrait(portraitPath))
             using (var form = new Form())
             using (var tooltip = new ToolTip()) {
+                const int presetHeight = 360, customHeight = 564;
+                defaults &= 7;
+                form.Name = "capri-uninstall-selection";
                 form.Text = messages["title"];
                 form.AutoScaleMode = AutoScaleMode.Dpi;
                 form.AutoScaleDimensions = new SizeF(96, 96);
                 form.Font = new Font("Segoe UI", 10);
-                form.ClientSize = new Size(660, 450);
-                form.MinimumSize = new Size(600, 450);
+                form.ClientSize = new Size(660, defaults == 1 || defaults == 7 ? presetHeight : customHeight);
+                form.MinimumSize = new Size(600, 380);
                 form.StartPosition = FormStartPosition.CenterScreen;
                 form.MaximizeBox = false;
+                form.MinimizeBox = true;
                 form.RightToLeft = rightToLeft ? RightToLeft.Yes : RightToLeft.No;
                 form.RightToLeftLayout = rightToLeft;
                 if (File.Exists(iconPath)) form.Icon = new Icon(iconPath);
                 var table = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(22),
-                    ColumnCount = 2, RowCount = 8 };
+                    ColumnCount = 2, RowCount = 5 };
                 table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 72));
                 table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28));
-                foreach (int height in new[] { 34, 27, 76, 55, 55, 55, 42 })
-                    table.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+                table.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+                table.RowStyles.Add(new RowStyle(SizeType.Absolute, portrait == null ? 27 : 47));
                 table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                table.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+                table.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
                 form.Controls.Add(table);
                 Action<Control,int> add = (control,row) => {
                     table.Controls.Add(control, 0, row);
                     table.SetColumnSpan(control, 2);
                 };
-                add(new Label { Text = form.Text, AutoSize = true, Font = new Font(form.Font.FontFamily, 17, FontStyle.Bold) }, 0);
-                var location = new Label { Text = root, AutoEllipsis = true, Dock = DockStyle.Fill };
+                var title = new Label { Text = form.Text, AutoSize = true,
+                    ForeColor = Theme.Ink.Cyan, Font = new Font(form.Font.FontFamily, 17, FontStyle.Bold) };
+                var location = new Label { Text = root, AutoEllipsis = true, Dock = DockStyle.Fill, ForeColor = Theme.Ink.Muted };
                 tooltip.SetToolTip(location, root);
-                add(location, 1);
-                add(new Label { Dock = DockStyle.Fill, Text = messages["selectionHelp"] }, 2);
+                if (portrait == null) {
+                    add(title, 0);
+                    add(location, 1);
+                } else {
+                    table.Controls.Add(title, 0, 0);
+                    table.Controls.Add(location, 0, 1);
+                    var picture = new PictureBox { Name = "capri-portrait", Image = portrait,
+                        SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill,
+                        Margin = new Padding(8, 0, 0, 10) };
+                    table.Controls.Add(picture, 1, 0);
+                    table.SetRowSpan(picture, 2);
+                }
+                var optionsViewport = new Panel { Dock = DockStyle.Fill, AutoScroll = true,
+                    Margin = new Padding(0, 4, 0, 8) };
+                var options = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true,
+                    AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1 };
+                options.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                optionsViewport.Controls.Add(options);
+                add(optionsViewport, 2);
+                Func<string, string, RadioButton> mode = (name, label) => {
+                    var button = new Theme.RadioButton { Name = "mode-" + name, Text = label, SurveyAnswer = true,
+                        Dock = DockStyle.Fill, MinimumSize = new Size(0, 38) };
+                    options.Controls.Add(button);
+                    return button;
+                };
+                var standard = mode("standard", text("standardRemoval", "Uninstall Capri and keep models and personal data"));
+                var complete = mode("complete", text("completeRemoval", "Uninstall Capri and delete all its files and data"));
+                var custom = mode("custom", text("customRemoval", "Choose what to remove"));
+                (defaults == 1 ? standard : defaults == 7 ? complete : custom).Checked = true;
+                var components = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true,
+                    AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, RowCount = 4,
+                    Margin = new Padding(20, 2, 3, 2) };
+                components.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 72));
+                components.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28));
+                components.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
+                for (int i = 0; i < 3; ++i) components.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+                var help = new Label { Dock = DockStyle.Fill, Text = messages["selectionHelp"] };
+                components.Controls.Add(help, 0, 0);
+                components.SetColumnSpan(help, 2);
+                options.Controls.Add(components);
                 var checks = new CheckBox[3];
                 var sizes = new Label[3];
                 string[] labels = {
                     messages["application"], messages["models"], messages["personalData"]
                 };
                 for (int i = 0; i < 3; ++i) {
-                    checks[i] = new CheckBox { Name = "group-" + i, Text = labels[i],
+                    checks[i] = new Theme.CheckBox { Name = "group-" + i, Text = labels[i],
                         Dock = DockStyle.Fill, Checked = (defaults & (1 << i)) != 0 };
                     sizes[i] = new Label { Text = "…", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight };
-                    table.Controls.Add(checks[i], 0, 3+i);
-                    table.Controls.Add(sizes[i], 1, 3+i);
+                    components.Controls.Add(checks[i], 0, i + 1);
+                    components.Controls.Add(sizes[i], 1, i + 1);
                 }
                 var status = new Label { Name = "disk-usage", Dock = DockStyle.Fill, AutoEllipsis = true,
                     Text = messages["measuring"] };
-                add(status, 6);
+                add(status, 3);
                 var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
                     WrapContents = false };
-                var cancel = new Button { Text = messages["cancel"], AutoSize = true, DialogResult = DialogResult.Cancel };
-                var remove = new Button { Text = messages["remove"], AutoSize = true, Enabled = false };
-                var report = new Button { Text = messages["reportBug"], AutoSize = true, Visible = false };
+                var cancel = new Theme.Button { Name = "selection-cancel", Text = messages["cancel"], AutoSize = true,
+                    Padding = new Padding(12, 0, 12, 0), MinimumSize = new Size(96, 34),
+                    PreviewRole = "danger", DialogResult = DialogResult.Cancel };
+                var remove = new Theme.Button { Name = "selection-remove", Text = messages["remove"], AutoSize = true,
+                    Padding = new Padding(12, 0, 12, 0), MinimumSize = new Size(128, 34),
+                    PreviewRole = "primary", Enabled = false };
+                var report = new Theme.Button { Text = messages["reportBug"], AutoSize = true,
+                    Padding = new Padding(12, 0, 12, 0), MinimumSize = new Size(96, 34), Visible = false };
                 buttons.Controls.Add(cancel);
                 buttons.Controls.Add(remove);
                 buttons.Controls.Add(report);
-                add(buttons, 7);
+                add(buttons, 4);
+                Theme.Theme.AttachWindow(form);
                 form.CancelButton = cancel;
                 form.AcceptButton = remove;
                 long[] measured = null;
                 int result = 0;
                 string byteFormat = messages["bytes"];
-                Func<int> selection = () => (checks[0].Checked ? 1 : 0) | (checks[1].Checked ? 2 : 0) | (checks[2].Checked ? 4 : 0);
+                Func<int> selection = () => standard.Checked ? 1 : complete.Checked ? 7 :
+                    (checks[0].Checked ? 1 : 0) | (checks[1].Checked ? 2 : 0) | (checks[2].Checked ? 4 : 0);
                 Action refresh = () => {
                     int mask = selection();
+                    components.Visible = custom.Checked;
+                    remove.Text = custom.Checked ? messages["remove"] : text("uninstallAction", "Uninstall Capri");
                     if (measured == null) return;
                     remove.Enabled = mask != 0;
                     status.Text = String.Format(messages["selectedSpace"], Size(measured[mask], byteFormat));
                     tooltip.SetToolTip(status, FormatBytes(measured[mask], byteFormat));
                 };
+                Action fitOptions = () => {
+                    var workArea = Screen.FromControl(form).WorkingArea;
+                    int frame = form.Height - form.ClientSize.Height;
+                    int target = (custom.Checked ? customHeight : presetHeight) * form.DeviceDpi / 96;
+                    form.ClientSize = new Size(form.ClientSize.Width, Math.Min(target, workArea.Height - frame));
+                    if (form.Bottom > workArea.Bottom) form.Top = Math.Max(workArea.Top, workArea.Bottom - form.Height);
+                    optionsViewport.AutoScrollPosition = Point.Empty;
+                };
                 foreach (CheckBox check in checks) check.CheckedChanged += (sender, args) => refresh();
+                foreach (RadioButton choice in new[] { standard, complete, custom })
+                    choice.CheckedChanged += (sender, args) => {
+                        if (!((RadioButton)sender).Checked) return;
+                        refresh();
+                        fitOptions();
+                    };
+                refresh();
                 form.Shown += async (sender, args) => {
+                    fitOptions();
                     try {
                         measured = await Task.Run(() => Measure(groups));
                         if (form.IsDisposed) return;
@@ -390,9 +565,14 @@ namespace Capri.Setup {
                         MessageBox.Show(form, UninstallProgress.ReportUrl("UNINSTALL_MEASURE_FAILED", "progressPreparing", "", 0), form.Text);
                 };
                 remove.Click += (sender, args) => {
-                    if (MessageBox.Show(form, messages["confirm"], form.Text, MessageBoxButtons.YesNo,
+                    int mask = selection();
+                    if (mask == 0 || measured == null) return;
+                    string confirmation = mask == 7
+                        ? text("confirmCompleteRemoval", "Permanently delete Capri, downloaded models, and personal data?")
+                        : messages["confirm"];
+                    if (MessageBox.Show(form, confirmation, form.Text, MessageBoxButtons.YesNo,
                         MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2, ReadingDirection(rightToLeft)) != DialogResult.Yes) return;
-                    result = selection();
+                    result = mask;
                     form.DialogResult = DialogResult.OK;
                 };
                 return form.ShowDialog() == DialogResult.OK ? result : 0;

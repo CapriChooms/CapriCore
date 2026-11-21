@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Opt-in real public-homepage verification, with a disposable Chrome profile and
-// deterministic decisions. No model/provider call or owner tab is used.
+// Opt-in public-homepage verification in a disposable Chrome profile.
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -10,7 +9,6 @@ import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { DesktopCatalog } from '../../apps/desktop/desktop-catalog.mjs';
 import { ComputerControl } from '../../apps/desktop/computer-control.mjs';
 import { ComputerAgent } from '../../apps/desktop/computer-agent.mjs';
-import { browserNavigationObstacle } from '../../apps/desktop/browser-search-state.mjs';
 import { callApplicationBridge } from '../../integrations/desktop-actions/service.mjs';
 
 assert.equal(process.platform, 'win32', 'This optional verification requires Windows.');
@@ -258,105 +256,36 @@ try {
     bridge: async (command, options) => {
       if (command.action === 'computer_release')
         return callApplicationBridge(root, command, options);
-      const view = await observeNative();
-      if (command.action === 'computer_state') return view;
-      assert.equal(
-        command.action,
-        'computer_click',
-        'Only an ordinary Reject all button can receive input.',
-      );
-      assert.equal(command.windowId, windowId);
-      assert(!command.surface, 'Owner taskbar controls are not available to this fixture.');
-      const target = view.untrustedControls.find((item) => item.id === command.controlId);
-      assert(
-        /^(?:Reject all|Reject optional cookies|Отклонить все|Tout refuser|Alle ablehnen)$/iu.test(
-          target?.untrustedName ?? '',
-        ),
-      );
-      requireOwnedForeground();
-      report.actions.push('reject_optional_cookies');
-      return callApplicationBridge(root, command, options);
+      assert.equal(command.action, 'computer_state', 'Opening YouTube requires no page input.');
+      return observeNative();
     },
   });
+  const forbidPlanning = () => {
+    report.modelUsed = true;
+    assert.fail('Opening the YouTube home page must not require model planning.');
+  };
+  forbidPlanning.outline = forbidPlanning;
   const agent = new ComputerAgent({
     control,
     applications: catalog,
-    maxDecisions: 24,
-    plan: async (context, { review = false } = {}) => {
-      const view = context.currentObservation;
-      assert.equal(view.window.windowId, windowId);
-      const initialPlan = {
-        id: 'youtube-ready',
-        label: 'Open YouTube',
-        successCriterion: 'The official YouTube homepage is visible without a blocking dialog.',
-      };
-      if (!report.navigationDispatched)
-        return {
-          action: 'open_url',
-          query: 'Google Chrome',
-          url: 'https://www.youtube.com/',
-          summary: 'Open YouTube.',
-          plan: [initialPlan],
-        };
-      const reject = view.targets.find((target) =>
-        /^(?:Reject all|Reject optional cookies|Отклонить все|Tout refuser|Alle ablehnen)$/iu.test(
-          target.untrustedLabel ?? '',
-        ),
-      );
-      if (reject)
-        return {
-          action: 'click',
-          targetId: reject.targetId,
-          summary: 'Reject optional cookies.',
-          plan: [initialPlan],
-        };
-      const address = view.targets.find((target) => target.browserAddress)?.untrustedValue ?? '';
-      let official = false;
-      try {
-        const url = new URL(/^[a-z]+:\/\//iu.test(address) ? address : 'https://' + address);
-        official = /^(?:www\.)?youtube\.com$/iu.test(url.hostname) && url.pathname === '/';
-      } catch {}
-      const visibleHome = view.targets.some(
-        (target) =>
-          target.pageContent &&
-          /^(?:YouTube|Home|Главная|Search|Поиск|YouTube Home)$/iu.test(
-            target.untrustedLabel ?? '',
-          ),
-      );
-      if (
-        official &&
-        /YouTube/iu.test(view.window.untrustedTitle) &&
-        visibleHome &&
-        !browserNavigationObstacle(view)
-      ) {
-        report.homepageVerified = true;
-        const step = {
-          action: 'finish',
-          evidence: view.window.untrustedTitle,
-          summary: 'Opened YouTube.',
-        };
-        if (!review)
-          step.verifiedCheckpoints = context.taskPlan.remainingCheckpoints.map(({ id }) => ({
-            id,
-            evidence: view.window.untrustedTitle,
-          }));
-        return step;
-      }
-      if (report.networkErrorObserved) {
-        report.status = 'network_blocked';
-        return {
-          action: 'ask_user',
-          summary: 'The public YouTube homepage is unavailable on this network.',
-        };
-      }
-      return { action: 'wait', summary: 'Wait for the requested homepage.' };
-    },
+    plan: forbidPlanning,
   });
   report.result = await agent.run('Open YouTube.', { signal });
   report.diagnostics = agent.diagnostics();
+  const observed = await observeNative();
+  const address = report.lastAddress ?? '';
+  const loaded = new URL(/^[a-z]+:\/\//iu.test(address) ? address : 'https://' + address);
+  report.homepageVerified =
+    loaded.protocol === 'https:' &&
+    /^(?:www\.)?youtube\.com$/iu.test(loaded.hostname) &&
+    loaded.pathname === '/' &&
+    /YouTube/iu.test(observed.untrustedTitle) &&
+    !report.networkErrorObserved;
   report.passed =
     report.result.ok === true &&
     report.result.verified === true &&
+    report.modelUsed === false &&
+    report.actions.length === 1 &&
     report.homepageVerified === true;
   if (report.status === 'running') report.status = report.passed ? 'completed' : 'network_blocked';
   assert.equal(report.passed, true, 'The real public homepage was not verified.');

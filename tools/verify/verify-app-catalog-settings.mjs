@@ -42,6 +42,36 @@ const env = {
   CAPRI_DESKTOP_VERIFICATION_SKIP_START: '1',
 };
 delete env.ELECTRON_RUN_AS_NODE;
+
+async function tourTargets(settings) {
+  await settings.emulateMedia({ reducedMotion: 'reduce' });
+  const opener = settings.locator('#settings-guide-open:enabled');
+  await opener.waitFor();
+  await opener.evaluate((button) => button.click());
+  const guide = settings.locator('dialog.settings-guide[open][data-section="applications"]');
+  await guide.waitFor();
+  return guide.evaluate((dialog) => {
+    const targets = [];
+    const next = dialog.querySelector('#settings-guide-next');
+    while (dialog.open) {
+      const step = dialog.dataset.step;
+      const target = document.querySelector('[data-settings-guide-highlight]');
+      targets.push({
+        id: target?.id,
+        catalog: Boolean(target?.closest('#catalog-list')),
+        permission: Boolean(
+          target?.matches('#catalog-list input[type="checkbox"]') &&
+            !dialog.querySelector('.guide-spotlight').hidden,
+        ),
+      });
+      next.click();
+      if (dialog.open && dialog.dataset.step === step)
+        throw new Error('Application guide did not advance');
+    }
+    return targets;
+  });
+}
+
 let application;
 try {
   for (const attempt of [1, 2]) {
@@ -78,6 +108,25 @@ try {
       );
       await cards.locator('input').nth(0).check();
       await settings.waitForFunction(async () => (await window.capri.appCatalog())[0].launch);
+    } else {
+      const populated = await tourTargets(settings);
+      await cards.getByRole('button', { name: 'Remove', exact: true }).click();
+      await cards.waitFor({ state: 'detached' });
+      const empty = await tourTargets(settings);
+      assert.ok(!empty.some(({ catalog }) => catalog), 'The guide targeted an empty app list');
+      assert.ok(
+        empty.some(({ id }) => id === 'catalog-add'),
+        'The guide still explains how to add an app',
+      );
+      assert.equal(populated.length, empty.length + 1);
+      const permissions = populated.filter(({ catalog }) => catalog);
+      assert.deepEqual(
+        permissions.map(({ permission }) => permission),
+        [true],
+      );
+      report.checks.push(
+        'The guide highlights an actual permission and skips it when no apps remain',
+      );
     }
     report.checks.push('Saved grants shown and retained: process ' + attempt);
     await application.close();

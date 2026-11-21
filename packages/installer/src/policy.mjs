@@ -5,6 +5,7 @@ import path from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { MODEL_CHOICES } from '../../runtime/src/hardware/model-catalog.mjs';
+import { deviceSettingsFile, readModelDevices } from '../../runtime/src/model-device-settings.mjs';
 import { compareVersions } from '../../updater/src/releases.mjs';
 import { estimateInstallStorage } from './storage-estimate.mjs';
 import voiceCatalog from '../../../config/tts-catalog.json' with { type: 'json' };
@@ -90,6 +91,19 @@ export function validateTarget(target, sourceRoot, version, { userHome = homedir
   }
   return resolved;
 }
+export function installerLanguageHardware(target, hardware, languageDevice) {
+  let device = languageDevice;
+  if (!device) {
+    if (existsSync(deviceSettingsFile(target))) device = readModelDevices(target).language;
+    else {
+      const legacy = path.join(target, 'config/core.local.json');
+      noLinks(legacy);
+      if (existsSync(legacy)) device = readJson(legacy).acceleration;
+    }
+  }
+  return device === 'cpu' ? { ...hardware, gpus: [] } : hardware;
+}
+
 export function validateRequest(input, { sourceRoot, version, hardware, freeBytes } = {}) {
   if (
     !input ||
@@ -101,6 +115,9 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
   const target = validateTarget(input.target, sourceRoot, version);
   const inferenceMode = input.inferenceMode === undefined ? 'local' : input.inferenceMode;
   if (!['local', 'api'].includes(inferenceMode)) throw new Error('Invalid language model source');
+  if (input.languageDevice !== undefined && !['', 'auto', 'cpu'].includes(input.languageDevice))
+    throw new Error('Invalid language model device');
+  const languageDevice = inferenceMode === 'local' ? input.languageDevice : undefined;
   const requestedSource = input.modelSource === undefined ? 'catalog' : input.modelSource;
   if (!['catalog', 'huggingface'].includes(requestedSource))
     throw new Error('Invalid language model catalog');
@@ -108,7 +125,9 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
   const modelSetupRequired = modelSource === 'huggingface';
   const profile = installerModelProfile(
     inferenceMode === 'api' || modelSetupRequired ? 'minimal' : input.profile,
-    hardware,
+    inferenceMode === 'api'
+      ? hardware
+      : installerLanguageHardware(target, hardware, languageDevice),
     target,
   );
   for (const key of ['recognition', 'downloadModels', 'desktopShortcut', 'startMenuShortcut'])
@@ -202,6 +221,7 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
     profile: profile.id,
     ...(installedModel ? { installedModel } : {}),
     inferenceMode,
+    ...(languageDevice && { languageDevice }),
     modelSource,
     modelSetupRequired,
     languages,

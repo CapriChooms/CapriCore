@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { EXPERIMENTAL_REPOSITORY, REPOSITORY } from './releases.mjs';
+import { listGitLabReleases } from './gitlab.mjs';
 const execute = promisify(execFile);
 const cdns = new Set(['release-assets.githubusercontent.com', 'objects.githubusercontent.com']);
 function releasePath(repository) {
@@ -193,3 +194,24 @@ export async function listReleases({
 }
 export const assetUrl = (id, repository = REPOSITORY) =>
   `https://api.github.com${releasePath(repository)}/assets/${id}`;
+
+export async function listUpdateReleases(options = {}) {
+  if (options.repository && options.repository !== REPOSITORY) return listReleases(options);
+  const { signal, fetchImpl } = options;
+  try {
+    return await listReleases({
+      ...options,
+      signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(7500)]),
+    });
+  } catch (primaryError) {
+    signal?.throwIfAborted();
+    let releases;
+    try {
+      releases = await listGitLabReleases({ signal, fetchImpl });
+    } catch {
+      signal?.throwIfAborted();
+    }
+    if (releases?.length) return releases;
+    throw primaryError;
+  }
+}

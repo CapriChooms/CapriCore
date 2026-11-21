@@ -15,7 +15,7 @@ test('only enabled ordinary Windows pinning uses the explicit normal level', () 
   }
 });
 
-test('home construction applies the native pin preference without showing, focusing or moving it', () => {
+test('home construction applies pinning and graphics preferences without showing or moving it', () => {
   class View {
     constructor(options) {
       this.options = options;
@@ -31,12 +31,16 @@ test('home construction applies the native pin preference without showing, focus
     setMenu() {}
     setIgnoreMouseEvents() {}
   }
-  for (const alwaysOnTop of [true, false]) {
+  for (const { alwaysOnTop, softwareRendering } of [
+    { alwaysOnTop: true, softwareRendering: false },
+    { alwaysOnTop: false, softwareRendering: true },
+  ]) {
     const window = createSecureWindow(View, {
       bounds: { x: 100, y: 200, width: 480, height: 660 },
       directory: '.',
       verification: false,
       alwaysOnTop,
+      softwareRendering,
     });
     assert.equal(window.top, alwaysOnTop);
     assert.equal(window.options.show, false);
@@ -46,5 +50,6 @@ test('home construction applies the native pin preference without showing, focus
     assert.equal(window.options.x, 100);
     assert.equal(window.options.y, 200);
     assert.equal(window.options.webPreferences.sandbox, true);
+    assert.equal(window.options.webPreferences.webgl, !softwareRendering);
   }
 });

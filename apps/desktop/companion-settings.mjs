@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { GLITCH_DEFAULTS, validateGlitchSettings } from './renderer/glitch-settings.mjs';
 import { MOTION_DEFAULTS, validateMotionSettings } from './renderer/motion-settings.mjs';
+import { TELEPORT_EFFECT_DEFAULTS, validTeleportEffect } from './renderer/teleport-effects.mjs';
 import { THEME_DEFAULTS, validateInterfaceTheme } from './renderer/interface-theme.mjs';
-const TELEPORT_LEVELS = ['teleportIntensity', 'teleportJaggedness', 'teleportBranches'];
+import {
+  DEFAULT_RESOURCE_GRAPHS,
+  DEFAULT_RESOURCE_METERS,
+  RESOURCE_REFRESH_INTERVALS,
+  validateResourceMetrics,
+} from './renderer/resource-metrics.mjs';
 export const COMPANION_DEFAULTS = Object.freeze({
   ...GLITCH_DEFAULTS,
   ...MOTION_DEFAULTS,
+  windowLayout: 'vertical',
+  horizontalMonitorPosition: 'between',
   expandOnReply: true,
   replyAutoHide: true,
   replyAutoHideSeconds: 8,
@@ -17,20 +25,21 @@ export const COMPANION_DEFAULTS = Object.freeze({
   wakeVolume: 0.7,
   followUp: true,
   followUpSeconds: 12,
-  buttonFeedback: true,
+  conversationMode: false,
+  wildCloseAiTabs: false,
   wakeOnReminder: true,
   memoryMonitor: true,
   processGraphs: true,
+  graphMetrics: DEFAULT_RESOURCE_GRAPHS,
+  meterMetrics: DEFAULT_RESOURCE_METERS,
   memoryStyle: 'rings',
   memoryIntervalSeconds: 3,
-  teleportIntensity: 75,
-  teleportJaggedness: 78,
-  teleportBranches: 75,
-  teleportReducedFlash: false,
+  ...TELEPORT_EFFECT_DEFAULTS,
   teleportSound: 'spark',
   avatarTapGapSeconds: 10,
   avatarSnapRadius: 36,
   avatarRoaming: false,
+  avatarRoamMonitors: 'current',
   avatarRoamIntervalSeconds: 120,
   avatarDragTether: true,
   avatarDragTetherIntensity: 45,
@@ -43,21 +52,31 @@ export function validateCompanionSettings(value) {
     !value ||
     typeof value !== 'object' ||
     Array.isArray(value) ||
-    Object.keys(value).some((key) => !Object.hasOwn(COMPANION_DEFAULTS, key))
+    Object.keys(value).some(
+      (key) => key !== 'buttonFeedback' && !Object.hasOwn(COMPANION_DEFAULTS, key),
+    )
   )
     throw new Error('Invalid companion settings');
   const next = { ...COMPANION_DEFAULTS, ...value };
+  if (next.teleportStyle === 'afterimage') next.teleportStyle = 'sandevistan';
+  // Older profiles stored this preference. Button feedback is now always on.
+  delete next.buttonFeedback;
   next.interfaceTheme = validateInterfaceTheme(next.interfaceTheme);
+  next.graphMetrics = validateResourceMetrics(next.graphMetrics);
+  next.meterMetrics = validateResourceMetrics(next.meterMetrics);
   validateGlitchSettings(next);
   validateMotionSettings(next);
   if (
+    !['vertical', 'horizontal'].includes(next.windowLayout) ||
+    !['between', 'right'].includes(next.horizontalMonitorPosition) ||
     !['tone', 'file', 'voice', 'off'].includes(next.wakeSound) ||
     !['Listening.', 'Yes, choom.', 'Mhm?'].includes(next.wakePhrase) ||
     !Number.isFinite(next.wakeVolume) ||
     next.wakeVolume < 0 ||
     next.wakeVolume > 1 ||
     typeof next.followUp !== 'boolean' ||
-    typeof next.buttonFeedback !== 'boolean' ||
+    typeof next.conversationMode !== 'boolean' ||
+    typeof next.wildCloseAiTabs !== 'boolean' ||
     typeof next.wakeOnReminder !== 'boolean' ||
     typeof next.expandOnReply !== 'boolean' ||
     typeof next.replyAutoHide !== 'boolean' ||
@@ -69,7 +88,7 @@ export function validateCompanionSettings(value) {
     typeof next.restoreFromTrayOnWake !== 'boolean' ||
     typeof next.memoryMonitor !== 'boolean' ||
     typeof next.processGraphs !== 'boolean' ||
-    typeof next.teleportReducedFlash !== 'boolean' ||
+    !validTeleportEffect(next) ||
     !['off', 'spark', 'thunder', 'pulse'].includes(next.teleportSound) ||
     !Number.isInteger(next.avatarTapGapSeconds) ||
     next.avatarTapGapSeconds < 1 ||
@@ -79,6 +98,7 @@ export function validateCompanionSettings(value) {
     next.avatarSnapRadius > 100 ||
     typeof next.avatarDragTether !== 'boolean' ||
     typeof next.avatarRoaming !== 'boolean' ||
+    !['current', 'any', 'pointer'].includes(next.avatarRoamMonitors) ||
     !Number.isInteger(next.avatarRoamIntervalSeconds) ||
     next.avatarRoamIntervalSeconds < 30 ||
     next.avatarRoamIntervalSeconds > 1800 ||
@@ -91,11 +111,8 @@ export function validateCompanionSettings(value) {
     !Number.isInteger(next.avatarDragTetherDeadZone) ||
     next.avatarDragTetherDeadZone < 0 ||
     next.avatarDragTetherDeadZone > 120 ||
-    TELEPORT_LEVELS.some(
-      (key) => !Number.isInteger(next[key]) || next[key] < 0 || next[key] > 100,
-    ) ||
     !['bars', 'rings'].includes(next.memoryStyle) ||
-    ![3, 5, 10].includes(next.memoryIntervalSeconds) ||
+    !RESOURCE_REFRESH_INTERVALS.includes(next.memoryIntervalSeconds) ||
     !Number.isInteger(next.followUpSeconds) ||
     next.followUpSeconds < 5 ||
     next.followUpSeconds > 30
@@ -104,13 +121,14 @@ export function validateCompanionSettings(value) {
   return next;
 }
 
-export function setMonitorDisplay(settings, mode) {
+export function monitorDisplayChange(settings, mode) {
   if (mode === 'toggle')
     return settings.processGraphs
-      ? { ...settings, processGraphs: false, memoryMonitor: true }
-      : { ...settings, processGraphs: true };
-  if (mode === 'graphs') return { ...settings, processGraphs: true };
+      ? { processGraphs: false, memoryMonitor: true }
+      : { processGraphs: true };
+  if (mode === 'off') return { processGraphs: false, memoryMonitor: false };
+  if (mode === 'graphs') return { processGraphs: true };
   if (mode === 'rings' || mode === 'bars')
-    return { ...settings, processGraphs: false, memoryMonitor: true, memoryStyle: mode };
+    return { processGraphs: false, memoryMonitor: true, memoryStyle: mode };
   throw new Error('Invalid monitor display');
 }

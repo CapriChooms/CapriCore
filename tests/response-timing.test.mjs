@@ -60,13 +60,27 @@ test('computer outcome logs retain bounded counts and known reasons without scre
     steps: 1,
     completedCheckpoints: 1,
     remainingCheckpoints: 2,
+    phase: 'verifying',
+    failureCode: 'COMPUTER_PLAN_HTTP',
+    httpStatus: 429,
+    outlineFallback: true,
     goal: 'private goal',
     scene: 'private screen',
   });
   const { goal, scene, ...expected } = event;
   assert.deepEqual(privateLogRecord(JSON.stringify(event)), { schemaVersion: 1, ...expected });
-  const invalid = responseTimingRecord({ ...event, reason: 'private detail', steps: 101 });
+  const invalid = responseTimingRecord({
+    ...event,
+    reason: 'private detail',
+    phase: 'private phase',
+    failureCode: 'COMPUTER_PRIVATE_SECRET',
+    httpStatus: 612,
+    steps: 101,
+  });
   assert.equal(invalid.reason, undefined);
+  assert.equal(invalid.phase, undefined);
+  assert.equal(invalid.failureCode, undefined);
+  assert.equal(invalid.httpStatus, undefined);
   assert.equal(invalid.steps, undefined);
 });
 
@@ -77,6 +91,21 @@ test('submission failure diagnostics preserve only a known technical reason', ()
     ...event,
   });
   assert.equal(responseTimingRecord({ ...event, reason: 'private' }).reason, undefined);
+});
+
+test('YouTube Music diagnostics report the action and player outcome without the query or track', () => {
+  const start = record({ stage: 'youtube_music_start', action: 'play' });
+  const result = record({ stage: 'youtube_music_result', reason: 'control_unverified' });
+  assert.deepEqual(privateLogRecord(JSON.stringify({ ...start, query: 'private' })), {
+    schemaVersion: 1,
+    ...start,
+  });
+  assert.deepEqual(privateLogRecord(JSON.stringify({ ...result, track: 'private' })), {
+    schemaVersion: 1,
+    ...result,
+  });
+  assert.equal(responseTimingRecord({ ...start, action: 'private' }).action, undefined);
+  assert.equal(responseTimingRecord({ ...result, reason: 'private' }).reason, undefined);
 });
 
 test('timing logs rotate within a fixed bound without retaining ignored content', async () => {

@@ -3,7 +3,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mkdirSync,
-  mkdtempSync,
   writeFileSync,
   readFileSync,
   copyFileSync,
@@ -20,9 +19,8 @@ import {
   requireOllamaBundle,
   OLLAMA_BACKEND_FILES,
 } from '../packages/runtime/src/host/ollama-bundle.mjs';
-const parent = path.join(root, '.runtime/runtime-integrity-unit');
-mkdirSync(parent, { recursive: true });
-const folder = () => mkdtempSync(path.join(parent, 'fixture-'));
+import { temporaryFolders } from './temporary-folders.mjs';
+const folder = temporaryFolders('capri-runtime-integrity-unit-');
 test(
   'a surviving Ollama frontend cannot hide missing runtime dependencies',
   { skip: process.platform !== 'win32' },

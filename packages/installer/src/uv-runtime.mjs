@@ -55,8 +55,10 @@ export async function ensureUv({
     const installed = readJson(receipt);
     ready =
       installed.sha256 === spec.sha256 &&
-      installed.executableSha256 === (await fileHash(executable));
-  } catch {}
+      installed.executableSha256 === (await fileHash(executable, signal));
+  } catch {
+    signal?.throwIfAborted();
+  }
   if (!ready) {
     const cache = owned(root, '.runtime/installer');
     mkdirSync(cache, { recursive: true });
@@ -106,7 +108,7 @@ export async function ensureUv({
     writeJsonAtomic(receipt, {
       sha256: spec.sha256,
       version: spec.version,
-      executableSha256: await fileHash(executable),
+      executableSha256: await fileHash(executable, signal),
     });
   }
   signal?.throwIfAborted();

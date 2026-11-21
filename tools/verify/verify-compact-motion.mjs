@@ -491,7 +491,7 @@ try {
   const expandedDock = await detachedLayout();
   await page.locator('#presence-toggle').click();
   await page.waitForFunction(() => document.body.dataset.presence === 'core');
-  for (const selector of ['#input-dock', '#message', '#attachment-drafts', '#input-dock > footer'])
+  for (const selector of ['#input-dock', '#message', '#attachment-drafts'])
     assert.equal(await page.locator(selector).isHidden(), true, selector);
   const collapsedDock = await detachedLayout();
   await page.screenshot({
@@ -517,7 +517,7 @@ try {
   assert.equal(await page.locator('#message').isVisible(), true);
   assert.equal(await page.locator('#message').inputValue(), 'Preserved detached draft');
   assert.equal(await page.locator('#attachment-drafts').isVisible(), true);
-  assert.equal(await page.locator('#input-dock > footer').isVisible(), true);
+  assert.equal(await page.locator('#input-dock > footer').count(), 0);
   await page.evaluate(() => {
     document.getElementById('attachment-drafts').hidden = true;
     document.getElementById('attachment-list').replaceChildren();
@@ -605,9 +605,9 @@ try {
     'Default expansion, checkbox saved, streamed replies obey both modes, button order',
   );
   await compact();
-  await page.locator('#presence-core').click({ force: true });
+  await page.locator('#presence-toggle').click({ force: true });
   await page.waitForFunction(() => document.body.dataset.presence === 'portrait');
-  report.checks.push('Signal still expands portrait manually');
+  report.checks.push('Toolbar button still expands the portrait manually');
   for (const expand of [false, true]) {
     await update({ expandOnReply: expand });
     await sendEvent({ type: 'power.state', phase: 'sleeping' });
@@ -621,7 +621,7 @@ try {
     await page.waitForTimeout(600);
     assert.equal(await page.getAttribute('body', 'data-presence'), 'core');
     assert(await page.locator('#sleep-indicator').isHidden());
-    await page.locator('#presence-core').click();
+    await page.locator('#presence-toggle').click();
     await page.waitForFunction(() => document.body.dataset.presence === 'portrait');
     assert.equal(await page.getAttribute('body', 'data-phase'), 'asleep');
     assert(await page.locator('#sleep-indicator').isVisible());

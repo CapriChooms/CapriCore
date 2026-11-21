@@ -79,7 +79,8 @@ function fixture(idleCloseMs) {
   }
   const owner = new View(),
     screen = new EventEmitter(),
-    errors = [];
+    errors = [],
+    notices = [];
   screen.getDisplayMatching = () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } });
   let quitting = false;
   const host = new SettingsWindow({
@@ -91,12 +92,14 @@ function fixture(idleCloseMs) {
     quitting: () => quitting,
     onBusy() {},
     onError: (error) => errors.push(error),
+    onRendererLost: () => notices.push('settings.renderer-lost'),
     idleCloseMs,
   });
   return {
     host,
     owner,
     errors,
+    notices,
     quit() {
       quitting = true;
       host.destroy();
@@ -402,6 +405,64 @@ test('settings crash and shutdown release the native window and reject delayed p
   await host.open();
   assert.equal(host.window, null);
   assert.equal(replacement.isDestroyed(), true);
+});
+
+test('open Settings recovers a crashed renderer only once and resumes its saved location', async () => {
+  const { host, owner, errors, notices } = fixture();
+  const opening = host.open('appearance');
+  const first = host.window;
+  host.loaded();
+  host.rendered();
+  first.emit('ready-to-show');
+  first.resolve();
+  await opening;
+  await host.surfacePending;
+  first.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 7 });
+  assert.equal(first.isDestroyed(), true);
+  assert.deepEqual(errors, ['Settings renderer stopped: crashed (exit code 7)']);
+  await new Promise((resolve) => setTimeout(resolve, 170));
+
+  const replacement = host.window;
+  assert.ok(replacement);
+  const events = [];
+  replacement.webContents.send = (_channel, event) => events.push(event.type);
+  host.loaded();
+  host.rendered();
+  replacement.emit('ready-to-show');
+  replacement.resolve();
+  await host.surfacePending;
+  assert.equal(replacement.isVisible(), true);
+  assert.ok(events.includes('settings.resume'));
+  assert.equal(owner.isDestroyed(), false);
+  assert.deepEqual(notices, []);
+
+  replacement.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 7 });
+  assert.equal(host.window, null);
+  assert.deepEqual(notices, ['settings.renderer-lost']);
+  await new Promise((resolve) => setTimeout(resolve, 170));
+  assert.equal(host.window, null);
+});
+
+test('minimizing the companion cancels queued Settings recovery and a hidden crash stays hidden', async () => {
+  const { host, owner, notices } = fixture();
+  const opening = host.open();
+  const first = host.window;
+  first.resolve();
+  await opening;
+  first.webContents.emit('render-process-gone', {}, { reason: 'crashed' });
+  owner.emit('minimize');
+  await new Promise((resolve) => setTimeout(resolve, 170));
+  assert.equal(host.window, null);
+
+  const reopening = host.open();
+  const hidden = host.window;
+  hidden.resolve();
+  await reopening;
+  host.hide();
+  hidden.webContents.emit('render-process-gone', {}, { reason: 'crashed' });
+  assert.equal(host.window, null);
+  assert.deepEqual(notices, []);
+  assert.equal(host.requested, false);
 });
 
 test('generic settings opening resumes the renderer on first load and after hiding', async () => {

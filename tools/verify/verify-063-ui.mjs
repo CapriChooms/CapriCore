@@ -8,7 +8,7 @@ import path from 'node:path';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { COMPANION_DEFAULTS } from '../../apps/desktop/companion-settings.mjs';
-import { settingsView } from './settings-view.mjs';
+import { saveSettings, settingsView } from './settings-view.mjs';
 
 const parent = path.join(root, '.runtime/hotfix-063');
 mkdirSync(parent, { recursive: true });
@@ -18,7 +18,12 @@ writeFileSync(
   path.join(folder, 'desktop/companion.json'),
   JSON.stringify({
     schemaVersion: 1,
-    settings: { ...COMPANION_DEFAULTS, replyAutoHide: false, floatEnabled: false },
+    settings: {
+      ...COMPANION_DEFAULTS,
+      replyAutoHide: false,
+      floatEnabled: false,
+      glitchEnabled: false,
+    },
   }),
 );
 writeFileSync(
@@ -78,69 +83,123 @@ try {
     if (response.status() === 404) report.missingResources.push(response.url());
   });
   await owner.waitForFunction(() => document.body.dataset.initialized === 'true');
-  await application.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()
-      .find((view) => view.webContents.getURL().endsWith('/index.html'))
-      .webContents.send('capri:event', { type: 'startup-intro.skip' }),
-  );
-  await owner.emulateMedia({ reducedMotion: 'reduce' });
+  await application.evaluate(({ BrowserWindow }) => {
+    const companion = BrowserWindow.getAllWindows().find((view) =>
+      view.webContents.getURL().endsWith('/index.html'),
+    );
+    companion.webContents.send('capri:event', { type: 'startup-intro.skip' });
+    companion.center();
+    companion.showInactive();
+  });
+  await owner.emulateMedia({ reducedMotion: 'no-preference' });
   if ((await owner.locator('#presence-toggle').getAttribute('aria-pressed')) !== 'true')
     await owner.locator('#presence-toggle').click();
-  await owner.waitForFunction(() => document.body.dataset.presence === 'portrait');
-  const snapshot = () =>
-    owner.evaluate(() => {
-      const box = (id) => {
-        const { x, y, width, height } = document.getElementById(id).getBoundingClientRect();
-        return { x, y, width, height };
-      };
-      return {
-        frame: box('portrait-panel'),
-        handle: box('handle'),
-        actions: box('quick-actions'),
-        stage: box('subtitle-stage'),
-        reveal: box('subtitle-reveal'),
-        hidden: document.body.dataset.replyHidden,
-        revealInToolbar: document
-          .getElementById('quick-actions')
-          .contains(document.getElementById('subtitle-reveal')),
+  await owner.waitForFunction(() => document.body.hasAttribute('data-vertical-portrait'));
+  await owner.waitForTimeout(300);
+  const captureReply = (open, reverse = false) =>
+    owner.evaluate(
+      async ({ open, reverse }) => {
+        const slot = document.getElementById('reply-slot');
+        const stage = document.getElementById('subtitle-stage');
+        const portrait = document.getElementById('portrait-panel');
+        const reveal = document.getElementById('subtitle-reveal');
+        const collapse = document.getElementById('subtitle-collapse');
+        const sample = () => ({
+          height: innerHeight,
+          portraitTop: screenY + portrait.getBoundingClientRect().top,
+          opacity: slot.hidden ? 0 : Number(getComputedStyle(stage).opacity),
+          stageHeight: stage.getBoundingClientRect().height,
+          hidden: slot.hidden,
+          focused: document.activeElement.id,
+        });
+        const before = sample();
+        let started = performance.now();
+        const frames = [before];
+        (open ? reveal : collapse).click();
+        await new Promise((resolve) => {
+          function tick(now) {
+            const frame = sample();
+            frames.push(frame);
+            if (reverse && before.height - frame.height > 6) {
+              reverse = false;
+              started = now;
+              reveal.click();
+            }
+            if (now - started < 500) requestAnimationFrame(tick);
+            else resolve();
+          }
+          requestAnimationFrame(tick);
+        });
+        return frames;
+      },
+      { open, reverse },
+    );
+
+  const checkAnimation = async (name, { vertical, open }) => {
+    // Chromium can report the new screenY while still painting the previous viewport.
+    await application.evaluate(({ BrowserWindow }) => {
+      const companion = BrowserWindow.getAllWindows().find((view) =>
+        view.webContents.getURL().endsWith('/index.html'),
+      );
+      const bounds = [companion.getBounds()];
+      const timer = setInterval(() => bounds.push(companion.getBounds()), 12);
+      globalThis.finishReplyBoundsSample = () => {
+        clearInterval(timer);
+        return bounds;
       };
     });
-  for (const height of [760, 580, 460]) {
-    await application.evaluate(
-      ({ BrowserWindow }, height) =>
-        BrowserWindow.getAllWindows()
-          .find((view) => view.webContents.getURL().endsWith('/index.html'))
-          .setContentSize(480, height),
-      height,
-    );
-    await owner.waitForTimeout(150);
-    const expanded = await snapshot();
-    await owner.locator('#subtitle-collapse').click();
-    await owner.waitForFunction(() => document.body.dataset.replyHidden === 'true');
-    const collapsed = await snapshot();
-    assert.deepEqual(collapsed.frame, expanded.frame, 'Collapse must preserve frame geometry');
+    const frames = await captureReply(open);
+    const bounds = await application.evaluate(() => globalThis.finishReplyBoundsSample());
+    const [before] = frames;
+    const after = frames.at(-1);
+    report.samples.push({ name, frames, bounds });
+    assert.equal(after.hidden, !open, name);
+    assert.equal(after.focused, open ? 'subtitle-collapse' : 'subtitle-reveal', name);
     assert(
-      collapsed.handle.y > expanded.handle.y + 50,
-      'Toolbar must move down instead of stretching the frame',
+      frames.some(({ opacity }) => opacity > 0.1 && opacity < 0.9),
+      name + ' fades',
     );
-    assert.equal(collapsed.stage.height, 0);
-    assert(collapsed.revealInToolbar);
-    assert(
-      collapsed.actions.y + collapsed.actions.height <= collapsed.frame.y - 9,
-      'Toolbar must not overlap the frame status',
-    );
-    await owner.screenshot({
-      path: path.join(folder, `collapsed-${height}.png`),
-      omitBackground: true,
-    });
-    await owner.locator('#subtitle-reveal').click();
-    await owner.waitForFunction(() => document.body.dataset.replyHidden === 'false');
-    assert.deepEqual((await snapshot()).frame, expanded.frame);
-    report.samples.push({ height, expanded, collapsed });
-  }
+    const heights = new Set(frames.map(({ height }) => height));
+    if (vertical) {
+      assert(heights.size >= 4, name + ' interpolates native heights');
+      assert(Math.abs(after.height - before.height) >= 80, name + ' changes physical size');
+      assert(
+        bounds.every(({ y, height }) => y + height === bounds[0].y + bounds[0].height),
+        name + ' anchors the bottom edge',
+      );
+      assert(
+        frames.every(({ portraitTop }) => Math.abs(portraitTop - before.portraitTop) < 50),
+        name + ' avoids shifting the portrait by the full reply height',
+      );
+    } else assert.equal(heights.size, 1, name + ' retains physical height');
+    return after;
+  };
+  const collapsed = await checkAnimation('vertical collapse', { vertical: true, open: false });
+  assert.equal(collapsed.stageHeight, 0);
+  await owner.screenshot({ path: path.join(folder, 'reply-collapsed.png'), omitBackground: true });
+  await checkAnimation('vertical reveal', { vertical: true, open: true });
+  const reversed = await captureReply(false, true);
+  assert(Math.min(...reversed.map(({ height }) => height)) < reversed[0].height);
+  assert.equal(reversed.at(-1).height, reversed[0].height);
+  assert.equal(reversed.at(-1).hidden, false);
   report.checks.push(
-    'Collapsed answer keeps the original home frame at three viewport heights; both toolbar rows move down; reveal stays in the quick-action row',
+    'Vertical reveal and collapse interpolate native size and reply opacity, preserve the bottom edge and support reversal',
   );
+
+  await owner.emulateMedia({ reducedMotion: 'reduce' });
+  for (const open of [false, true]) {
+    const frames = await captureReply(open);
+    assert.equal(frames.at(-1).hidden, !open);
+    assert.equal(new Set(frames.map(({ height }) => height)).size, 2);
+    assert(
+      frames.every(
+        ({ opacity, height }) =>
+          opacity === (height > Math.min(frames[0].height, frames.at(-1).height) ? 1 : 0),
+      ),
+    );
+  }
+  report.checks.push('Reduced motion keeps the reply and native size in sync in one step');
+
   await owner.locator('#history-toggle').click();
   await owner.waitForFunction(() => !document.getElementById('history-panel').hidden);
   const history = await owner.evaluate(() => {
@@ -160,36 +219,48 @@ try {
   const settings = await settingsView(application, 'credits');
   await settings.locator('.credits-team-card[data-in-view]').first().waitFor();
   await settings.emulateMedia({ reducedMotion: 'no-preference' });
-  await settings.waitForTimeout(200);
+  await settings.waitForFunction(() =>
+    [...document.querySelectorAll('canvas.credits-ray-sheet')].some((canvas) => canvas.width > 1),
+  );
   const rays = await settings.evaluate(() =>
     [...document.querySelectorAll('.credits-team-card')].map((card) => {
       const ink = card.querySelector('.credits-team-name'),
         layer = card.querySelector('.credits-god-rays');
+      const canvases = [...layer.querySelectorAll('canvas.credits-ray-sheet')];
       return {
         name: ink.textContent,
-        layers: card.querySelectorAll('.credits-ray-sheet').length,
+        layers: canvases.length,
         projections: card.querySelectorAll('.credits-glyph-ray').length,
         ariaHidden: layer.getAttribute('aria-hidden'),
-        overflow: getComputedStyle(layer).overflow,
-        contain: getComputedStyle(layer).contain,
-        mask: getComputedStyle(layer).maskImage,
-        sheen: getComputedStyle(card.querySelector('.credits-glyph-sheen'), '::before')
-          .animationName,
+        pointerEvents: getComputedStyle(layer).pointerEvents,
+        painted: canvases.some((canvas) =>
+          canvas
+            .getContext('2d')
+            .getImageData(0, 0, canvas.width, canvas.height)
+            .data.some((channel, index) => index % 4 === 3 && channel > 10),
+        ),
         driftOwnsRays: card.querySelector('.credits-drift').contains(layer),
       };
     }),
   );
   assert.equal(rays.length, 3);
   for (const ray of rays) {
-    assert.equal(ray.layers, 3);
-    assert.equal(ray.projections, 30);
+    assert.equal(ray.layers, 1);
+    assert.equal(ray.projections, 0);
     assert.equal(ray.ariaHidden, 'true');
-    assert.equal(ray.overflow, 'visible');
-    assert.equal(ray.contain, 'none');
-    assert(ray.mask.includes('radial-gradient'));
-    assert.equal(ray.sheen, 'credits-glyph-sheen');
+    assert.equal(ray.pointerEvents, 'none');
     assert(ray.driftOwnsRays);
+    assert(ray.painted);
   }
+  const initialProjection = await settings
+    .locator('canvas.credits-ray-sheet')
+    .first()
+    .evaluate((canvas) => canvas.toDataURL());
+  await settings.waitForFunction(
+    (initial) => document.querySelector('canvas.credits-ray-sheet').toDataURL() !== initial,
+    initialProjection,
+    { polling: 80, timeout: 3000 },
+  );
   assert(
     await settings
       .locator('#companion')
@@ -198,9 +269,26 @@ try {
   await settings.screenshot({ path: path.join(folder, 'credits-rays.png') });
   report.rays = rays;
   report.checks.push(
-    'Three team names emit glyph-derived feathered rays with a letter sheen, shared drift, decorative accessibility and no horizontal page overflow',
+    'Three team names illuminate from animated glyph-based textures with shared drift, decorative accessibility and no horizontal page overflow',
   );
   await settings.locator('#settings-window-close').click();
+
+  const switchLayout = async (layout) => {
+    const page = await settingsView(application, 'window');
+    await page.locator('#companion-window-layout').selectOption(layout);
+    await saveSettings(page);
+    await page.locator('#settings-window-close').click();
+    await owner.waitForFunction(
+      (layout) => document.body.hasAttribute('data-' + layout + '-portrait'),
+      layout,
+    );
+  };
+  await switchLayout('horizontal');
+  await owner.emulateMedia({ reducedMotion: 'no-preference' });
+  await checkAnimation('horizontal collapse', { vertical: false, open: false });
+  await checkAnimation('horizontal reveal', { vertical: false, open: true });
+  report.checks.push('Horizontal reply animates independently at a fixed window size');
+  await switchLayout('vertical');
 
   await owner.evaluate(() => window.capri.windowAction('hide'));
   let chip;

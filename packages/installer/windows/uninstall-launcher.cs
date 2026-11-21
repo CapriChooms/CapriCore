@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Web.Script.Serialization;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
@@ -18,9 +19,31 @@ internal static class CapriUninstallLauncher {
     [STAThread]
     private static int Main(string[] args) {
         bool quiet = args.Length == 1 && args[0] == "--quiet";
+        bool fromDesktop = args.Length == 1 && args[0] == "--desktop";
         try {
-            if (args.Length != 0 && !quiet) throw new ArgumentException("Invalid uninstall arguments.");
-            string root = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            if (args.Length != 0 && !quiet && !fromDesktop) throw new ArgumentException("Invalid uninstall arguments.");
+            string executable = Assembly.GetExecutingAssembly().Location;
+            string root = LauncherRoot(executable);
+            if (root == null) {
+                if (!quiet) ShowError(CapriSetupLocale.Text("repairNeeded", "Run Capri Setup to repair the uninstaller."), "UNINSTALL_REPAIR_REQUIRED");
+                return 1;
+            }
+            using (WindowsIdentity user = WindowsIdentity.GetCurrent()) {
+                string ownerSid = EmbeddedValue("OwnerSid") ?? user.User.Value;
+                bool otherAccount = ownerSid != user.User.Value;
+                if (otherAccount || HasFullToken(user.Token)) {
+                    if (!quiet && !fromDesktop && TryOpenFromDesktop(executable, ownerSid)) return 0;
+                    if (!quiet) ShowError(otherAccount
+                        ? CapriSetupLocale.Text("ownerAccountHelp", "Open the uninstaller from the Windows account that installed Capri.")
+                        : CapriSetupLocale.Text("standardPrivilegesHelp", "Use the Windows Apps list or open uninstall.exe from your normal desktop session."),
+                        otherAccount ? "UNINSTALL_OWNER_ACCOUNT" : "UNINSTALL_USE_DESKTOP");
+                    return 1;
+                }
+            }
+            if (!Directory.Exists(root)) {
+                if (!quiet) ShowError(CapriSetupLocale.Text("missingInstallHelp", "The Capri installation folder is unavailable. Reconnect its drive or run Capri Setup to repair it."), "UNINSTALL_LOCATION_UNAVAILABLE");
+                return 1;
+            }
             if (HasLinkedPath(root)) {
                 if (!quiet) ShowError(CapriSetupLocale.Text("linkedPathHelp"), "UNINSTALL_LINKED_PATH");
                 return 1;
@@ -34,8 +57,8 @@ internal static class CapriUninstallLauncher {
             string powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
             var start = new ProcessStartInfo(powershell,
                 "-NoProfile -STA -ExecutionPolicy Bypass -File \"" + script +
-                "\" -InstallRoot \"" + root + "\" -LauncherPid " + Process.GetCurrentProcess().Id +
-                (quiet ? " -Quiet" : ""));
+                "\" -InstallRoot \"" + root + "\"" +
+                (quiet ? " -Quiet" : " -LauncherPid " + Process.GetCurrentProcess().Id));
             start.WorkingDirectory = Environment.SystemDirectory;
             start.UseShellExecute = false;
             start.CreateNoWindow = true;
@@ -43,6 +66,10 @@ internal static class CapriUninstallLauncher {
                 if (process == null) {
                     if (!quiet) ShowError(CapriSetupLocale.Text("openFailed", "Could not open the uninstall window."), "UNINSTALL_LAUNCH_FAILED");
                     return 1;
+                }
+                if (quiet) {
+                    process.WaitForExit();
+                    return process.ExitCode;
                 }
             }
             return 0;
@@ -53,10 +80,60 @@ internal static class CapriUninstallLauncher {
         }
     }
     private static readonly string[] BundleFiles = new string[] {
-        "uninstall.ps1", "uninstall-window.cs", "common.ps1", "shell-link.cs", "localization.ps1",
+        "uninstall.ps1", "uninstall-window.cs", "cyberpunk-theme.cs", "common.ps1", "shell-link.cs", "localization.ps1",
         "uninstaller-text.json", "installer-config.json", "source-files.json", "registration.json", "app.ico"
     };
     private const int JsonLimit = 2 * 1024 * 1024;
+
+    internal static string LauncherRoot(string executable) {
+        string root = EmbeddedValue("InstallRoot");
+        if (root == null) return Path.GetDirectoryName(executable);
+        if (!Same(executable, Path.Combine(root, "uninstall.exe")) &&
+            !Same(executable, Path.Combine(CapriUninstallInfo.Recovery, "uninstall.exe"))) return null;
+        return root;
+    }
+
+    // Use the current desktop's Explorer to return to the installation owner's
+    // HKCU and LocalAppData, before starting any PowerShell from the per-user bundle.
+    private static bool TryOpenFromDesktop(string executable, string ownerSid) {
+        try {
+            dynamic windows = Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("9BA05972-F6A8-11CF-A442-00A0C90A8F39")));
+            object location = null, locationRoot = null;
+            int handle;
+            dynamic desktop = windows.FindWindowSW(ref location, ref locationRoot, 8, out handle, 1); // SWC_DESKTOP, SWFO_NEEDDISPATCH
+            uint explorerPid, desktopPid;
+            GetWindowThreadProcessId(GetShellWindow(), out explorerPid);
+            GetWindowThreadProcessId(new IntPtr(handle), out desktopPid);
+            if (desktop == null || explorerPid == 0 || explorerPid != desktopPid) return false;
+            using (SafeFileHandle process = OpenProcess(0x1000, false, explorerPid)) { // PROCESS_QUERY_LIMITED_INFORMATION
+                SafeFileHandle token;
+                if (process.IsInvalid || !OpenProcessToken(process, 8, out token)) return false; // TOKEN_QUERY
+                using (token)
+                using (var shellUser = new WindowsIdentity(token.DangerousGetHandle())) {
+                    if (shellUser.User.Value != ownerSid || HasFullToken(shellUser.Token)) return false;
+                }
+            }
+            desktop.Document.Application.ShellExecute(executable, "--desktop", Environment.SystemDirectory, "open", 1);
+            return true;
+        } catch { return false; }
+    }
+
+    private static bool HasFullToken(IntPtr token) {
+        int type, size;
+        if (!GetTokenInformation(token, 18, out type, sizeof(int), out size)) // TokenElevationType
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        return type == 2; // TokenElevationTypeFull. A default token has no split token to undo.
+    }
+
+    [DllImport("user32.dll")] private static extern IntPtr GetShellWindow();
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern SafeFileHandle OpenProcess(uint access, bool inherit, uint process);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool OpenProcessToken(SafeFileHandle process, uint access, out SafeFileHandle token);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool GetTokenInformation(IntPtr token, int informationClass, out int value, int length, out int required);
+
     private static string Full(string value) {
         if (String.IsNullOrEmpty(value) || !Path.IsPathRooted(value) ||
             !Path.GetPathRoot(value).EndsWith("\\", StringComparison.Ordinal)) throw new InvalidDataException();
@@ -75,7 +152,8 @@ internal static class CapriUninstallLauncher {
             string id = Text(identity, "installId");
             Guid parsed;
             if (Text(identity, "productId") != "capri.desktop" || !Same(Text(identity, "root"), root) ||
-                !Guid.TryParseExact(id, "D", out parsed) || id != id.ToLowerInvariant()) return null;
+                !Guid.TryParseExact(id, "D", out parsed) || id != id.ToLowerInvariant() ||
+                (EmbeddedValue("InstallId") ?? id) != id) return null;
             string current = Path.Combine(currentRecoveryParent, id);
             if (RecoveryReady(root, id, current)) return Path.Combine(current, "uninstall.ps1");
             if (!String.IsNullOrEmpty(legacyRecovery) && !Same(current, legacyRecovery) &&
@@ -154,12 +232,15 @@ internal static class CapriUninstallLauncher {
         return hashes;
     }
     private static Dictionary<string, string> EmbeddedHashes() {
-        // Reflection keeps old registration-test stubs containing only Recovery compatible.
-        FieldInfo field = typeof(CapriUninstallInfo).GetField("BundleHashes", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-        if (field == null) return null;
-        string json = field.GetValue(null) as string;
+        string json = EmbeddedValue("BundleHashes");
+        if (json == null) return null;
         if (String.IsNullOrEmpty(json) || json.Length > 64 * 1024) throw new InvalidDataException();
         return new JavaScriptSerializer { MaxJsonLength = 64 * 1024 }.Deserialize<Dictionary<string, string>>(json);
+    }
+    private static string EmbeddedValue(string name) {
+        // Fixture and legacy launchers can still supply only a recovery directory.
+        FieldInfo field = typeof(CapriUninstallInfo).GetField(name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        return field == null ? null : (string)field.GetValue(null);
     }
     private static string Text(Dictionary<string, object> value, string key) {
         object text;

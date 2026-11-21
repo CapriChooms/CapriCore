@@ -60,6 +60,56 @@ test('Russian speech recognition does not report truncated Parakeet files as ins
   assert.equal(recognitionModelsInstalled(root, 'ru', settings), false);
 });
 
+test('slow native dependencies can finish after the Python startup deadline', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { worker, child } = fixture(t);
+  const ready = worker.start();
+  ready.catch(() => {});
+  t.mock.timers.tick(1000);
+  child.stdout.write('{"type":"startup-stage","code":"ASR_START_DEPENDENCIES"}\n');
+  t.mock.timers.tick(75000);
+  assert.equal(worker.child, child);
+  child.stdout.write('{"type":"startup-stage","code":"ASR_START_MODEL"}\n');
+  child.stdout.write(
+    '{"type":"ready","protocol":1,"language":"en","sampleRate":16000,"provider":"cpu","mode":"utterance","draft":false}\n',
+  );
+  assert.equal((await ready).language, 'en');
+});
+
+test('a stalled native dependency import still times out, even with duplicate stage messages', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { worker, child } = fixture(t);
+  const failed = assert.rejects(worker.start(), {
+    code: 'ASR_START_TIMEOUT',
+    startupStage: 'ASR_START_DEPENDENCIES',
+  });
+  child.stdout.write('{"type":"startup-stage","code":"ASR_START_DEPENDENCIES"}\n');
+  t.mock.timers.tick(119000);
+  assert.equal(worker.child, child);
+  child.stdout.write('{"type":"startup-stage","code":"ASR_START_DEPENDENCIES"}\n');
+  t.mock.timers.tick(1000);
+  await failed;
+  assert.equal(worker.child, null);
+});
+
+test('a slow model load gets a bounded startup window after dependencies are ready', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { worker, child } = fixture(t);
+  const ready = worker.start();
+  const failed = assert.rejects(ready, {
+    code: 'ASR_START_TIMEOUT',
+    startupStage: 'ASR_START_MODEL',
+  });
+  t.mock.timers.tick(50000);
+  child.stdout.write('{"type":"startup-stage","code":"ASR_START_MODEL"}\n');
+  t.mock.timers.tick(70000);
+  assert.equal(worker.child, child);
+  child.stdout.write('{"type":"startup-stage","code":"ASR_START_MODEL"}\n');
+  t.mock.timers.tick(50000);
+  await failed;
+  assert.equal(worker.child, null);
+});
+
 test('the worker publishes only allowlisted startup diagnostics', async (t) => {
   const { worker, child } = fixture(t);
   const ready = worker.start();

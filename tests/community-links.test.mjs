@@ -4,7 +4,12 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import configured from '../config/community.json' with { type: 'json' };
-import { COMMUNITY_LINKS, loadCommunityLinks } from '../apps/desktop/community-links.mjs';
+import {
+  BOOSTY_DONATION_URL,
+  COMMUNITY_LINKS,
+  LAVA_DONATION_URL,
+  loadCommunityLinks,
+} from '../apps/desktop/community-links.mjs';
 import { DiscordPresence } from '../apps/desktop/discord-presence.mjs';
 import {
   COMMUNITY_LINKS as legacyLinks,
@@ -33,6 +38,7 @@ test('shipped community destinations and both Discord activity buttons use the s
   assert.deepEqual(configured, COMMUNITY_LINKS);
   assert.equal(COMMUNITY_LINKS.discord, 'https://discord.gg/capricore');
   assert.equal(COMMUNITY_LINKS.boosty, 'https://boosty.to/overyx');
+  assert.equal(COMMUNITY_LINKS['boosty-donate'], 'https://boosty.to/overyx/donate');
   assert.equal(COMMUNITY_LINKS.lava, 'https://app.lava.top/overyx');
   assert.equal(COMMUNITY_LINKS.youtube, 'https://www.youtube.com/@CapriChoom');
   assert.equal(COMMUNITY_LINKS.faq, 'https://capri-core.com/#faq');
@@ -130,4 +136,32 @@ test('malformed files and destinations outside their approved HTTPS origin use s
   const broken = fixture();
   writeFileSync(path.join(broken, 'config/community.json'), '{broken');
   assert.equal(loadCommunityLinks(broken), COMMUNITY_LINKS);
+});
+
+test('donations use the pinned creator in Settings and in the system browser', async () => {
+  const root = fixture({
+    'lava-donate': 'https://app.lava.top/other-creator?donate=open',
+    'boosty-donate': 'https://boosty.to/other-creator/donate',
+  });
+  const links = loadCommunityLinks(root);
+  assert.equal(links['lava-donate'], LAVA_DONATION_URL);
+  assert.equal(links['boosty-donate'], BOOSTY_DONATION_URL);
+  const handlers = new Map();
+  const opened = [];
+  registerCompanionIpc((name, handler) => handlers.set(name, handler), {
+    root,
+    state: root,
+    rt: { workspace: root },
+    preferences: {},
+    openDonation: () => opened.push('checkout'),
+    shell: { openExternal: async (url) => opened.push(url) },
+  });
+  const openDonation = handlers.get('capri:donation-open');
+  assert.equal(openDonation(undefined, { role: 'companion' }), false);
+  openDonation('https://example.invalid', { role: 'settings' });
+  const open = handlers.get('capri:community-link');
+  await open('lava-donate');
+  await open('boosty-donate');
+  await open('boosty');
+  assert.deepEqual(opened, ['checkout', LAVA_DONATION_URL, BOOSTY_DONATION_URL, links.boosty]);
 });

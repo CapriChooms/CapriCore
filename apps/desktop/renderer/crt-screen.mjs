@@ -124,6 +124,7 @@ export class CRTScreen {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       this.source = '';
       this.textureImage = null;
+      this.textureAvatar = null;
       this.ready = true;
       this.setMode('fallback');
     } catch {
@@ -145,22 +146,33 @@ export class CRTScreen {
     gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    if (!visible || !this.sprite.complete || !this.sprite.naturalWidth) return;
+    if (!visible) return;
+    const imageReady = this.sprite.complete;
+    if (imageReady && !this.sprite.naturalWidth) {
+      this.textureAvatar = null;
+      this.setMode('fallback');
+      return;
+    }
+    if (!imageReady && !this.textureAvatar) return;
     try {
       gl.useProgram(this.program);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
-      const image = this.getImage();
-      if (
-        this.source !== this.sprite.src ||
-        this.textureImage !== image ||
-        this.textureRevision !== image.avatarTextureRevision
-      ) {
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-        if (gl.getError() !== gl.NO_ERROR) throw new Error('CRT texture unavailable');
-        this.source = this.sprite.src;
-        this.textureImage = image;
-        this.textureRevision = image.avatarTextureRevision;
+      // Draw the last complete sprite with its own pose geometry while the new source loads.
+      if (imageReady) {
+        const image = this.getImage();
+        if (
+          this.source !== this.sprite.src ||
+          this.textureImage !== image ||
+          this.textureRevision !== image.avatarTextureRevision
+        ) {
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+          if (gl.getError() !== gl.NO_ERROR) throw new Error('CRT texture unavailable');
+          this.source = this.sprite.src;
+          this.textureImage = image;
+          this.textureRevision = image.avatarTextureRevision;
+        }
+        this.textureAvatar = avatar;
       }
       gl.uniform1i(u.image, 0);
       gl.uniform2f(u.resolution, innerWidth, innerHeight);
@@ -169,7 +181,8 @@ export class CRTScreen {
         width = frame.width - 24,
         height = frame.height - 44;
       gl.uniform4f(u.portrait, x, y, width, height);
-      gl.uniform4f(u.avatar, avatar.x - origin.x, avatar.y - origin.y, avatar.width, avatar.height);
+      const rect = this.textureAvatar;
+      gl.uniform4f(u.avatar, rect.x - origin.x, rect.y - origin.y, rect.width, rect.height);
       gl.uniform1f(u.time, reduced ? 0 : now / 1000);
       gl.uniform1f(u.glitch, glitch);
       gl.uniform1f(u.motion, reduced ? 0 : 1);

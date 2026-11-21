@@ -199,9 +199,49 @@ class DesktopActions {
         }
         throw new InputPreflightException("COMPUTER_TARGET_COVERED","The observed control has no verified clickable point. No click was sent.");
     }
-    static bool CursorMatches(PointerPoint point) {
+    static bool CursorMatches(PointerPoint point,int tolerance=0) {
         PointerPoint actual;
-        return GetCursorPos(out actual)&&actual.x==point.x&&actual.y==point.y;
+        return GetCursorPos(out actual)&&Math.Abs(actual.x-point.x)<=tolerance&&Math.Abs(actual.y-point.y)<=tolerance;
+    }
+    static bool CursorHitsTarget(IntPtr window,AutomationElement element,PointerPoint point,bool taskbar,bool allowTextContainer=false) {
+        PointerPoint actual;
+        // Native bounds can round by a physical pixel under mixed scaling.
+        // Only a live accessibility hit can justify that pixel of tolerance.
+        int tolerance=element==null?0:1;
+        return GetCursorPos(out actual)&&Math.Abs(actual.x-point.x)<=tolerance&&Math.Abs(actual.y-point.y)<=tolerance&&
+            PointerTargetMatches(window,element,actual,taskbar,allowTextContainer);
+    }
+    static void VerifyVisualPointer(Dictionary<string,object> q,IntPtr window,PointerPoint point,bool beforeInput) {
+        object value;
+        if(q.TryGetValue("observedWindowBounds",out value)){
+            var box=value as Dictionary<string,object>;
+            InputRect live;
+            if(box==null||!GetWindowRect(window,out live)||live.left!=Convert.ToInt32(box["x"])||
+                live.top!=Convert.ToInt32(box["y"])||live.right-live.left!=Convert.ToInt32(box["width"])||
+                live.bottom-live.top!=Convert.ToInt32(box["height"])){
+                const string message="The window moved or resized since the screenshot. Observe it again before using a visual position.";
+                if(beforeInput)throw new InputPreflightException("COMPUTER_OBSERVATION_CHANGED",message);
+                throw new InvalidOperationException(message);
+            }
+        }
+        if(!q.TryGetValue("visualField",out value)||!(value is bool)||!(bool)value)return;
+        try {
+            var hit=AutomationElement.FromPoint(new System.Windows.Point(point.x,point.y));
+            for(int depth=0;hit!=null&&depth<5;depth++,hit=TreeWalker.ControlViewWalker.GetParent(hit)){
+                var current=hit.Current;
+                if(Editable(hit)&&!BrowserAddressField(hit,AutomationElement.FromHandle(window)))return;
+                if(IsPointerControl(current.ControlType)||current.ControlType==ControlType.Edit||current.ControlType==ControlType.ComboBox||current.IsPassword){
+                    const string message="The visual search field points at a different Windows control. Observe again before clicking.";
+                    if(beforeInput)throw new InputPreflightException("COMPUTER_TARGET_NOT_CLICKABLE",message);
+                    throw new InvalidOperationException(message);
+                }
+                if(current.ControlType==ControlType.Document||current.ControlType==ControlType.Window)break;
+            }
+        } catch(ElementNotAvailableException) {
+            const string message="The control at the visual position changed. Observe again before clicking.";
+            if(beforeInput)throw new InputPreflightException("COMPUTER_TARGET_STALE",message);
+            throw new InvalidOperationException(message);
+        }
     }
     static IEnumerable<AutomationElement> ObservedElements(IntPtr window,IEnumerable<AutomationElement> priority=null){
         var seen=new HashSet<string>();
@@ -224,30 +264,44 @@ class DesktopActions {
             do{InputTarget(q);addressFocus=AutomationElement.FocusedElement;if(addressFocus!=null&&Editable(addressFocus)&&BrowserAddressField(addressFocus,AutomationElement.FromHandle(window)))break;Thread.Sleep(40);}while(timer.ElapsedMilliseconds<600);
             if(addressFocus==null||!Editable(addressFocus)||!BrowserAddressField(addressFocus,AutomationElement.FromHandle(window))){InputRect rect;if(GetWindowRect(window,out rect)&&Fullscreen(window,rect))throw new InputPreflightException("COMPUTER_FULLSCREEN_TOOLBAR","Leave browser fullscreen before using its hidden address bar. No text was sent.");throw new InputPreflightException("COMPUTER_FIELD_FOCUS_CHANGED","The observed browser address field could not be focused. No text was sent.");}
             field=addressFocus;
-        }else{
-        var box=field.Current.BoundingRectangle;
-        int x=(int)(box.Left+box.Width/2),y=(int)(box.Top+box.Height/2);
-        if(box.IsEmpty||box.Width<=0||box.Height<=0||GetAncestor(WindowFromPoint(new PointerPoint{x=x,y=y}),2)!=window)
-            throw new InputPreflightException("COMPUTER_TARGET_COVERED","The text field is covered. No text was sent.");
-        InputTarget(q);
-        MovePointer(q,window,x,y,MotionDuration(q,220));
-        try{InputTarget(q);Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=2}}});}
-        finally{try{Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=4}}});}catch{}}
-        Thread.Sleep(100);
-        var focused=AutomationElement.FocusedElement;
-        if(GetForegroundWindow()!=window)throw new InputPreflightException("COMPUTER_FIELD_FOCUS_CHANGED","The foreground changed. No text was sent.");
-        if(focused==null||!Within(focused,field)){
-            // Older Qt accessibility bridges (including Resolve 18) do not
-            // report the QLineEdit as FocusedElement after a real click. Set
-            // only this observed native edit's value; never guess keyboard focus.
-            var windowClass=new StringBuilder(128);GetClassName(window,windowClass,windowClass.Capacity);
-            if(Regex.IsMatch(windowClass.ToString(),@"^Qt\d")&&field.Current.ControlType==ControlType.Edit){
-                var value=(ValuePattern)field.GetCurrentPattern(ValuePattern.Pattern);InputTarget(q);
-                VerifyObservedDraft(q,window,field);
-                value.SetValue(Text(q,"mode")=="append"?value.Current.Value+text:text);return field;
+        }else if(!FieldHasFocus(field)){
+            var desktop=new System.Windows.Rect(GetSystemMetrics(76),GetSystemMetrics(77),GetSystemMetrics(78),GetSystemMetrics(79));
+            string identity=PointerTargetIdentity(field);
+            if(identity==null)throw new InputPreflightException("COMPUTER_FIELD_STALE","The text field is no longer available. No text was sent.");
+            var point=FindPointerTarget(window,field,false,desktop);
+            int motion=MotionDuration(q,220);
+            for(int attempt=0;attempt<2;attempt++){
+                MovePointer(q,window,point.x,point.y,attempt==0?motion:Math.Min(120,motion));
+                Thread.Sleep(16);
+                InputTarget(q,true);
+                if(!CursorMatches(point,1))throw new InputPreflightException("COMPUTER_INPUT_BUSY","The pointer moved before the field could be focused. No text was sent.");
+                if(PointerTargetIdentity(field)!=identity)throw new InputPreflightException("COMPUTER_FIELD_STALE","The text field changed while aiming. No text was sent.");
+                if(PointerTargetMatches(window,field,point,false))break;
+                if(attempt==1)throw new InputPreflightException("COMPUTER_TARGET_COVERED","The text field moved or became covered. No text was sent.");
+                point=FindPointerTarget(window,field,false,desktop);
             }
-            throw new InputPreflightException("COMPUTER_FIELD_FOCUS_CHANGED","The click focused a different control. Observe the page again; no text was sent.");
-        }
+            VerifyObservedDraft(q,window,field);
+            InputTarget(q,true);
+            if(!CursorHitsTarget(window,field,point,false))
+                throw new InputPreflightException("COMPUTER_FIELD_FOCUS_CHANGED","The text field changed before clicking. No text was sent.");
+            try{Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=2}}});}
+            finally{try{Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=4}}});}catch{}}
+            var focusWait=Stopwatch.StartNew();
+            do {
+                InputTarget(q,true);
+                if(FieldHasFocus(field))break;
+                Thread.Sleep(25);
+            } while(focusWait.ElapsedMilliseconds<400);
+            if(!FieldHasFocus(field)){
+                // Older Qt accessibility bridges sometimes omit the focused QLineEdit.
+                var windowClass=new StringBuilder(128);GetClassName(window,windowClass,windowClass.Capacity);
+                if(Regex.IsMatch(windowClass.ToString(),@"^Qt\d")&&field.Current.ControlType==ControlType.Edit){
+                    var value=(ValuePattern)field.GetCurrentPattern(ValuePattern.Pattern);InputTarget(q);
+                    VerifyObservedDraft(q,window,field);
+                    value.SetValue(Text(q,"mode")=="append"?value.Current.Value+text:text);return field;
+                }
+                throw new InputPreflightException("COMPUTER_FIELD_FOCUS_CHANGED","The click did not focus the intended field. Observe it again; no text was sent.");
+            }
         }
         // SetValue does not reliably fire Chromium/React input handlers. Send
         // real Unicode input only after clicking and verifying this exact field.
@@ -269,6 +323,10 @@ class DesktopActions {
         uint sent=SendInput((uint)input.Count,input.ToArray(),Marshal.SizeOf(typeof(Input)));
         if(sent!=input.Count){if(sent>0&&sent%2==1)try{Inject(input[(int)sent]);}catch{}throw new InvalidOperationException("Windows received incomplete text input. Check the field before retrying.");}
         return field;
+    }
+    static bool FieldHasFocus(AutomationElement field){
+        var focused=AutomationElement.FocusedElement;
+        return focused!=null&&Within(focused,field);
     }
     static IntPtr InputTarget(Dictionary<string,object> q,bool beforeInput=false) {
         long raw;
@@ -703,6 +761,7 @@ class DesktopActions {
                 if(point.x<desktop.Left||point.y<desktop.Top||point.x>=desktop.Right||point.y>=desktop.Bottom)throw new InvalidOperationException("Pointer coordinates are outside the desktop.");
                 InputTarget(q,true);
                 if(!PointerWindowMatches(point,target))throw new InputPreflightException("COMPUTER_TARGET_COVERED","Another window covers the pointer target. No click was sent.");
+                if(pointerElement==null)VerifyVisualPointer(q,target,point,true);
                 int motion=MotionDuration(q,220);
                 MovePointer(q,target,point.x,point.y,motion);
                 if(action=="computer_click") {
@@ -711,7 +770,7 @@ class DesktopActions {
                     // Hover can change layout. Re-read the same live control once before any button goes down.
                     Thread.Sleep(16);
                     InputTarget(q,true);
-                    if(!CursorMatches(point))throw new InputPreflightException("COMPUTER_INPUT_BUSY","The pointer moved before the click. No click was sent.");
+                    if(!CursorMatches(point,pointerElement==null?0:1))throw new InputPreflightException("COMPUTER_INPUT_BUSY","The pointer moved before the click. No click was sent.");
                     if(pointerElement!=null) {
                         if(PointerTargetIdentity(pointerElement,captionControlId)!=pointerIdentity)
                             throw new InputPreflightException("COMPUTER_TARGET_STALE","The observed control changed before the click. No click was sent.");
@@ -727,12 +786,12 @@ class DesktopActions {
                         bool controlChanged=pointerElement!=null&&PointerTargetIdentity(pointerElement,captionControlId)!=pointerIdentity;
                         if(i==0&&controlChanged)
                             throw new InputPreflightException("COMPUTER_TARGET_STALE","The observed control changed before the click. No click was sent.");
-                        bool matches=!controlChanged&&PointerTargetMatches(target,pointerElement,point,taskbar,allowTextContainer);
                         InputTarget(q,i==0);
-                        if(!matches||!CursorMatches(point)||!PointerWindowMatches(point,target)) {
+                        if(controlChanged||!CursorHitsTarget(target,pointerElement,point,taskbar,allowTextContainer)) {
                             if(i>0)throw new InvalidOperationException("The second click was skipped because the pointer target changed after the first click.");
                             throw new InputPreflightException("COMPUTER_TARGET_COVERED","The pointer target could not be verified immediately before the click. No click was sent.");
                         }
+                        if(pointerElement==null)VerifyVisualPointer(q,target,point,i==0);
                         try{Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=down}}});}
                         finally{try{Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=up}}});}catch{}}
                     }
@@ -767,7 +826,8 @@ class DesktopActions {
     static void DiscoverStartApps(string query,Dictionary<string,object> found) {
         string wanted=AppNameKey(query);
         string knownPackage=wanted=="notepad"||wanted=="блокнот"?"Microsoft.WindowsNotepad_8wekyb3d8bbwe!App":
-            wanted=="calculator"||wanted=="calc"||wanted=="калькулятор"?"Microsoft.WindowsCalculator_8wekyb3d8bbwe!App":null;
+            wanted=="calculator"||wanted=="calc"||wanted=="калькулятор"?"Microsoft.WindowsCalculator_8wekyb3d8bbwe!App":
+            wanted=="mediaplayer"?"Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic":null;
         try {
             dynamic folder=StartApps();
             if(folder==null)return;
@@ -817,6 +877,10 @@ class DesktopActions {
         string query=Text(q,"query").Trim();if(query.Length<1||query.Length>80)throw new InvalidOperationException("Choose an application name.");
         var found=new Dictionary<string,object>(StringComparer.OrdinalIgnoreCase);
         string appName=query.Trim().ToLowerInvariant();
+        string appKey=AppNameKey(query);
+        if(new[]{"taskmanager","taskmgr","taskmgrexe","диспетчерзадач","gestionnairedestâches","administradordetareas","gerenciadordetarefas","gestionettività"}.Contains(appKey)&&
+            AddDiscoveredExe(found,query,Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),"Taskmgr.exe")))
+            return D("ok",true,"matches",found.Values.ToArray());
         if(appName=="steam"||appName=="стим"){
             var steam=SteamExecutable();
             if(steam!=null)return D("ok",true,"matches",new[]{D("name",query,"executable",steam)});
@@ -1073,10 +1137,15 @@ class DesktopActions {
         }
     }
     static AutomationElement ById(AutomationElement root,string id){return BoundedControls(root).FirstOrDefault(e=>e.Current.AutomationId==id);}
-    static void Press(AutomationElement root,string id){
+    static InvokePattern CalculatorButton(AutomationElement root,string id){
         var button=ById(root,id);object pattern;
-        if(button==null||!button.Current.IsEnabled||button.Current.ControlType!=ControlType.Button||!button.TryGetCurrentPattern(InvokePattern.Pattern,out pattern))throw new InvalidOperationException("Calculator does not expose the expected accessible button: "+id);
-        ((InvokePattern)pattern).Invoke();Thread.Sleep(45);
+        return button!=null&&button.Current.IsEnabled&&!button.Current.IsOffscreen&&button.Current.ControlType==ControlType.Button&&
+            button.TryGetCurrentPattern(InvokePattern.Pattern,out pattern)?(InvokePattern)pattern:null;
+    }
+    static void Press(AutomationElement root,string id){
+        var button=CalculatorButton(root,id);
+        if(button==null)throw new InvalidOperationException("Calculator does not expose the expected accessible button: "+id);
+        button.Invoke();Thread.Sleep(45);
     }
     static readonly Dictionary<string,string> ScientificButtons=new Dictionary<string,string>{
         {".","decimalSeparatorButton"},{"plus","plusButton"},{"minus","minusButton"},
@@ -1085,7 +1154,11 @@ class DesktopActions {
         {"negate","negateButton"},{"factorial","factorialButton"},{"abs","absButton"},
         {"sqrt","squareRootButton"},{"square","xpower2Button"},{"ln","logBaseEButton"},
         {"log10","logBase10Button"},{"pi","piButton"},{"e","eulerButton"},
+        {"sin","sinButton"},{"cos","cosButton"},{"tan","tanButton"},
+        {"sec","secButton"},{"csc","cscButton"},{"cot","cotButton"},
     };
+    static readonly HashSet<string> TrigButtons=new HashSet<string>{"sinButton","cosButton","tanButton","secButton","cscButton","cotButton"};
+    static readonly string[] CalculatorAngles={"degButton","radButton","gradButton"};
     static string[] ScientificInput(string input){
         var tokens=input.Split(' ');
         if(tokens.Length>96)throw new InvalidOperationException("Calculator input is too long.");
@@ -1117,6 +1190,40 @@ class DesktopActions {
         if(!SpinWait.SpinUntil(()=>ById(root,"ScientificAngleOperators")!=null,1800))
             throw new InvalidOperationException("Scientific mode did not open.");
     }
+    static void SelectCalculatorAngle(AutomationElement root,string angle){
+        // The same position cycles DEG, RAD and GRAD; only the current button is visible.
+        string desired=angle+"Button";
+        for(int attempt=0;attempt<2;attempt++){
+            if(CalculatorButton(root,desired)!=null)return;
+            var current=CalculatorAngles.Where(id=>id!=desired).Select(id=>CalculatorButton(root,id)).FirstOrDefault(button=>button!=null);
+            if(current==null)break;
+            current.Invoke();Thread.Sleep(85);
+        }
+        if(CalculatorButton(root,desired)==null)throw new InvalidOperationException("Calculator could not select the requested angle unit.");
+    }
+    static TogglePattern CalculatorToggle(AutomationElement root,string id){
+        var element=ById(root,id);object pattern;
+        return element!=null&&element.Current.IsEnabled&&!element.Current.IsOffscreen&&
+            element.TryGetCurrentPattern(TogglePattern.Pattern,out pattern)?(TogglePattern)pattern:null;
+    }
+    static void PressCalculatorTrig(AutomationElement root,string id){
+        InvokePattern button=CalculatorButton(root,id);
+        if(button==null){
+            var menu=CalculatorToggle(root,"trigButton");
+            if(menu==null)throw new InvalidOperationException("Calculator does not expose the trigonometry menu.");
+            if(menu.Current.ToggleState==ToggleState.Off)menu.Toggle();
+            if(SpinWait.SpinUntil(()=>CalculatorToggle(root,"trigShiftButton")!=null,600)){
+                // A previously dismissed menu can still be on its inverse or hyperbolic page.
+                foreach(var mode in new[]{"trigShiftButton","hypShiftButton"}){
+                    var variant=CalculatorToggle(root,mode);
+                    if(variant!=null&&variant.Current.ToggleState==ToggleState.On)variant.Toggle();
+                }
+            }
+            if(!SpinWait.SpinUntil(()=>(button=CalculatorButton(root,id))!=null,800))
+                throw new InvalidOperationException("Calculator does not expose the requested trigonometric button.");
+        }
+        button.Invoke();
+    }
     static bool MatchesCalculatorResult(string label,double expected){
         var number=Regex.Match(label,@"[+\-−]?[0-9]+(?:[.,'’\p{Zs}][0-9]+)*(?:[eE][+\-−]?[0-9]+)?\s*$");
         if(!number.Success)return false;
@@ -1126,7 +1233,7 @@ class DesktopActions {
             System.Globalization.CultureInfo.CurrentCulture,out actual))return false;
         return actual==expected||Math.Abs(actual-expected)<=Math.Abs(expected)*2e-14;
     }
-    static object CalculateInWindow(AppWindow process,AutomationElement root,string[] ids,double expected){
+    static object CalculateInWindow(AppWindow process,AutomationElement root,string[] ids,double expected,string angle){
         var handle=process.MainWindowHandle;
         if(IsIconic(handle))ShowWindow(handle,9);
         SetForegroundWindow(handle);
@@ -1134,17 +1241,23 @@ class DesktopActions {
         // At the end of a calculation the same key can expose CE instead of C.
         if(ById(root,"clearButton")==null)Press(root,"clearEntryButton");
         Press(root,"clearButton");
+        if(ids.Any(TrigButtons.Contains))SelectCalculatorAngle(root,angle);
         var operations=ids.Concat(new[]{"equalButton"}).ToArray();
+        var keypad=new HashSet<string>(operations.Where(id=>!TrigButtons.Contains(id)));
         var buttons=new Dictionary<string,InvokePattern>();
         foreach(var button in BoundedControls(root).Where(element=>element.Current.ControlType==ControlType.Button)){
             string id=button.Current.AutomationId;
             object pattern;
-            if(operations.Contains(id)&&!buttons.ContainsKey(id)&&button.Current.IsEnabled&&button.TryGetCurrentPattern(InvokePattern.Pattern,out pattern))
+            if(keypad.Contains(id)&&!buttons.ContainsKey(id)&&button.Current.IsEnabled&&button.TryGetCurrentPattern(InvokePattern.Pattern,out pattern))
                 buttons[id]=(InvokePattern)pattern;
         }
-        if(operations.Any(id=>!buttons.ContainsKey(id)))
+        if(buttons.Count!=keypad.Count)
             throw new InvalidOperationException("Calculator does not expose all the buttons needed for the expression.");
-        foreach(var id in operations){buttons[id].Invoke();Thread.Sleep(85);}
+        foreach(var id in operations){
+            if(TrigButtons.Contains(id))PressCalculatorTrig(root,id);
+            else buttons[id].Invoke();
+            Thread.Sleep(85);
+        }
         var expression=ById(root,"CalculatorExpression");
         var result=ById(root,"CalculatorResults");
         string expressionLabel="",resultLabel="";
@@ -1209,13 +1322,244 @@ class DesktopActions {
             return active??first??D("ok",true,"windowId",null);
         }finally{if(previous!=IntPtr.Zero)DpiContext(previous);}
     }
+    // The companion only receives the geometry needed to pose beside a visible target.
+    // Keep this route separate from computer observation, which may focus an application.
+    static System.Windows.Rect AvatarTargetRect(InputRect rect) {
+        return rect.right > rect.left && rect.bottom > rect.top ?
+            new System.Windows.Rect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top) :
+            System.Windows.Rect.Empty;
+    }
+    static Dictionary<string,object> AvatarTargetGeometry(System.Windows.Rect rect) {
+        int x=(int)Math.Ceiling(rect.Left), y=(int)Math.Ceiling(rect.Top);
+        return D("x",x,"y",y,"width",(int)Math.Floor(rect.Right)-x,"height",(int)Math.Floor(rect.Bottom)-y);
+    }
+    static List<System.Windows.Rect> AvatarTargetClips(Dictionary<string,object> q) {
+        object raw;
+        var items=q.TryGetValue("clips",out raw)?raw as System.Collections.IList:null;
+        if(items==null||items.Count<1||items.Count>8)throw new InvalidOperationException("Invalid screen target bounds.");
+        var clips=new List<System.Windows.Rect>();
+        foreach(var value in items){
+            var item=value as Dictionary<string,object>;
+            if(item==null||item.Count!=4||!(item.ContainsKey("x")&&item.ContainsKey("y")&&item.ContainsKey("width")&&item.ContainsKey("height"))||
+                item.Values.Any(n=>!(n is int)||Math.Abs((long)(int)n)>=16777216))
+                throw new InvalidOperationException("Invalid screen target bounds.");
+            int width=(int)item["width"],height=(int)item["height"];
+            if(width<1||height<1)throw new InvalidOperationException("Invalid screen target bounds.");
+            clips.Add(new System.Windows.Rect((int)item["x"],(int)item["y"],width,height));
+        }
+        return clips;
+    }
+    static bool AvatarTargetIdentity(IntPtr window,uint ignored,string expectedPid,string expectedStart,
+        List<System.Windows.Rect> clips,out System.Windows.Rect bounds,out Dictionary<string,object> identity) {
+        identity=null;bounds=System.Windows.Rect.Empty;
+        if(window==IntPtr.Zero||GetAncestor(window,2)!=window||!IsWindowVisible(window)||IsIconic(window)||
+            (GetWindowStyle(window,-20)&0x08000080)!=0)return false;
+        uint pid;GetWindowThreadProcessId(window,out pid);
+        if(pid==0||pid==ignored||(expectedPid.Length>0&&expectedPid!=pid.ToString()))return false;
+        int cloaked;
+        if(DwmGetWindowAttribute(window,14,out cloaked,4)==0&&cloaked!=0)return false;
+        var className=new StringBuilder(96);GetClassName(window,className,className.Capacity);
+        if(new[]{"Shell_TrayWnd","Shell_SecondaryTrayWnd","Progman","WorkerW"}.Contains(className.ToString()))return false;
+        InputRect native;
+        if(DwmGetWindowAttribute(window,9,out native,Marshal.SizeOf(typeof(InputRect)))!=0&&!GetWindowRect(window,out native))return false;
+        var box=AvatarTargetRect(native);
+        if(box.IsEmpty||box.Width<160||box.Height<100||!clips.Any(clip=>clip.IntersectsWith(box)))return false;
+        try{
+            using(var process=Process.GetProcessById((int)pid)){
+                var start=process.StartTime.ToUniversalTime().Ticks.ToString();
+                if(expectedStart.Length>0&&expectedStart!=start)return false;
+                identity=AvatarTargetGeometry(box);
+                identity["windowId"]=window.ToInt64().ToString();
+                identity["processId"]=pid.ToString();
+                identity["startedAtTicks"]=start;
+                bounds=box;return true;
+            }
+        }catch(ArgumentException){return false;}catch(InvalidOperationException){return false;}
+        catch(System.ComponentModel.Win32Exception){return false;}
+    }
+    static HashSet<IntPtr> AvatarTargetOverlays(Dictionary<string,object> q,uint ignored) {
+        object raw;var accepted=new HashSet<IntPtr>();
+        if(!q.TryGetValue("overlays",out raw))return accepted;
+        var items=raw as System.Collections.IList;
+        if(items==null||items.Count>4)throw new InvalidOperationException("Invalid screen target overlay list.");
+        foreach(var value in items){
+            long id;
+            if(!Int64.TryParse(value as string,out id)||id<=0)throw new InvalidOperationException("Invalid screen target overlay.");
+            var window=new IntPtr(id);uint pid;GetWindowThreadProcessId(window,out pid);
+            if(pid==ignored&&GetAncestor(window,2)==window)accepted.Add(window);
+        }
+        return accepted;
+    }
+    static IntPtr AvatarTargetAt(int x,int y) {
+        return GetAncestor(WindowFromPoint(new PointerPoint{x=x,y=y}),2);
+    }
+    static bool AvatarTargetHit(IntPtr window,int x,int y) { return AvatarTargetAt(x,y)==window; }
+    static Dictionary<string,object> AvatarTopTarget(IntPtr window,System.Windows.Rect bounds,
+        Dictionary<string,object> identity,List<System.Windows.Rect> clips,HashSet<IntPtr> overlays) {
+        int top=(int)bounds.Top;
+        for(int i=0;i<clips.Count;i++){
+            var clip=clips[i];
+            if(top<clip.Top||top>=clip.Bottom)continue;
+            var left=(int)Math.Max(bounds.Left+7,clip.Left);
+            var right=(int)Math.Min(bounds.Right-7,clip.Right-1);
+            if(right-left<20)continue;
+            int innerY=(int)Math.Min(top+5,clip.Bottom-1);
+            foreach(double fraction in new[]{.66,.5,.33,.18,.82}){
+                int x=left+(int)Math.Round((right-left)*fraction);
+                var covering=AvatarTargetAt(x,innerY);
+                if(covering!=window&&(!overlays.Contains(covering)||!new[]{-64,64,-112,112,-160,160}.Any(offset=>
+                    x+offset>=left&&x+offset<=right&&AvatarTargetHit(window,x+offset,innerY))))continue;
+                int first=x,last=x;
+                for(int step=8;step<=40;step+=8){
+                    int next=x-step;
+                    if(next<left)break;
+                    var hit=AvatarTargetAt(next,innerY);
+                    if(hit!=window&&hit!=covering)break;
+                    first=next;
+                }
+                for(int step=8;step<=40;step+=8){
+                    int next=x+step;
+                    if(next>right)break;
+                    var hit=AvatarTargetAt(next,innerY);
+                    if(hit!=window&&hit!=covering)break;
+                    last=next;
+                }
+                var edge=new System.Windows.Rect(first,top,last-first+1,1);
+                return D("kind","window-top","window",identity,"clipIndex",i,
+                    "point",D("x",x,"y",top),"bounds",AvatarTargetGeometry(edge));
+            }
+        }
+        return null;
+    }
+    static bool AvatarVisibleWindow(IntPtr window,System.Windows.Rect bounds,List<System.Windows.Rect> clips) {
+        foreach(var clip in clips) {
+            var part=System.Windows.Rect.Intersect(bounds,clip);
+            if(part.IsEmpty||part.Width<36||part.Height<18)continue;
+            foreach(double x in new[]{.5,.22,.78})
+                foreach(double y in new[]{.3,.7})
+                    if(AvatarTargetHit(window,(int)(part.Left+part.Width*x),(int)(part.Top+part.Height*y)))return true;
+        }
+        return false;
+    }
+    static string AvatarSearchKind(AutomationElement element,AutomationElement tree) {
+        var info=element.Current;
+        if((info.ControlType!=ControlType.Edit&&info.ControlType!=ControlType.ComboBox)||
+            info.IsPassword||info.IsOffscreen||!info.IsEnabled||!info.IsKeyboardFocusable)return null;
+        object pattern;
+        if(element.TryGetCurrentPattern(ValuePattern.Pattern,out pattern)&&((ValuePattern)pattern).Current.IsReadOnly)return null;
+        var id=info.AutomationId??"";
+        var name=info.Name??"";
+        if(BrowserAddressField(element,tree)&&
+            (Regex.IsMatch(id,@"(?:address|omnibox|urlbar)",RegexOptions.IgnoreCase)||
+                Regex.IsMatch(name,@"(?:address|omnibox|адрес|dirección|adresse|endereço)",RegexOptions.IgnoreCase)))
+            return "address";
+        if(WebSearchField(element)||
+            Regex.IsMatch(id,@"^(?:search[_-]?(?:input|field|text|query|edit|box)|searchboxinput)$",RegexOptions.IgnoreCase)||
+            Regex.IsMatch(name,@"^(?:search\s+(?:in|for|this|all|on)\s+\S|find\s+(?:in|on)\s+\S)",RegexOptions.IgnoreCase))
+            return "search";
+        return null;
+    }
+    static void AvatarSearchTargets(IntPtr window,System.Windows.Rect bounds,Dictionary<string,object> identity,
+        List<System.Windows.Rect> clips,HashSet<IntPtr> overlays,List<Dictionary<string,object>> targets) {
+        var tree=AutomationElement.FromHandle(window);
+        if(tree==null)return;
+        int remaining=4;
+        foreach(var item in BoundedControls(tree,420,550)){
+            try{
+                var info=item.Current;
+                var box=info.BoundingRectangle;
+                if((info.ControlType!=ControlType.Edit&&info.ControlType!=ControlType.ComboBox)||
+                    info.IsPassword||info.IsOffscreen||!info.IsEnabled||!info.IsKeyboardFocusable||
+                    box.IsEmpty||Double.IsNaN(box.Width)||Double.IsNaN(box.Height)||
+                    Double.IsInfinity(box.Right)||Double.IsInfinity(box.Bottom)||
+                    box.Width<28||box.Height<12||!bounds.IntersectsWith(box))continue;
+                for(int i=0;i<clips.Count;i++){
+                    var visible=System.Windows.Rect.Intersect(System.Windows.Rect.Intersect(box,bounds),clips[i]);
+                    if(visible.IsEmpty||visible.Width<28||visible.Height<12)continue;
+                    int centerX=(int)Math.Floor(visible.Left+visible.Width*.5),centerY=(int)Math.Floor(visible.Top+visible.Height*.5);
+                    int x=0,y=0;
+                    bool exposed=false;
+                    foreach(double fraction in new[]{.5,.18,.82,.33,.67,.08,.92}){
+                        x=(int)Math.Floor(visible.Left+visible.Width*fraction);y=centerY;
+                        if(AvatarTargetHit(window,x,y)&&HitMatches(item,x,y)){exposed=true;break;}
+                    }
+                    if(!exposed)continue;
+                    var kind=AvatarSearchKind(item,tree);
+                    if(kind==null)break;
+                    var id=RuntimeId(item);
+                    if(id.Length<1||id.Length>230)break;
+                    // Preserve the stable center when our own avatar occludes it; another
+                    // visible point on this very element must still pass both hit tests.
+                    if(overlays.Contains(AvatarTargetAt(centerX,centerY)))x=centerX;
+                    targets.Add(D("kind","search-field","searchKind",kind,"controlId",id,
+                        "window",identity,"clipIndex",i,"bounds",AvatarTargetGeometry(visible),"point",D("x",x,"y",y)));
+                    if(--remaining==0||targets.Count>=20)return;
+                    break;
+                }
+            }catch(ElementNotAvailableException){}catch(InvalidOperationException){}
+        }
+    }
+    static object AvatarScreenTargets(Dictionary<string,object> q) {
+        var clips=AvatarTargetClips(q);
+        string requested=Text(q,"windowId"),expectedPid=Text(q,"processId"),expectedStart=Text(q,"startedAtTicks");
+        long handle=0,start;
+        uint ownerPid,ignored;
+        if(!UInt32.TryParse(Text(q,"ignoreProcessId"),out ignored)||ignored==0||
+            (requested.Length>0&&(!Int64.TryParse(requested,out handle)||handle<=0||
+                !UInt32.TryParse(expectedPid,out ownerPid)||ownerPid==0||!Int64.TryParse(expectedStart,out start)||start<=0))||
+            (requested.Length==0&&(expectedPid.Length>0||expectedStart.Length>0)))
+            throw new InvalidOperationException("Invalid screen target identity.");
+        var targets=new List<Dictionary<string,object>>();
+        var previous=DpiContext(new IntPtr(-4));
+        if(previous==IntPtr.Zero)return D("ok",true,"targets",targets);
+        try {
+            var overlays=AvatarTargetOverlays(q,ignored);
+            var windows=new List<IntPtr>();
+            if(handle>0)windows.Add(new IntPtr(handle));
+            else{
+                var foreground=GetForegroundWindow();
+                if(foreground!=IntPtr.Zero)windows.Add(foreground);
+                EnumWindows((window,unused)=>{
+                    if(window!=foreground)windows.Add(window);
+                    return windows.Count<100;
+                },IntPtr.Zero);
+            }
+            int scans=0;
+            var timer=Stopwatch.StartNew();
+            foreach(var window in windows){
+                if(timer.ElapsedMilliseconds>2000||targets.Count>=20)break;
+                System.Windows.Rect bounds;Dictionary<string,object> identity;
+                if(!AvatarTargetIdentity(window,ignored,expectedPid,expectedStart,clips,out bounds,out identity))continue;
+                var found=new List<Dictionary<string,object>>();
+                var edge=AvatarTopTarget(window,bounds,identity,clips,overlays);
+                if(edge!=null)found.Add(edge);
+                if(scans<4&&(edge!=null||AvatarVisibleWindow(window,bounds,clips))){
+                    scans++;
+                    try{AvatarSearchTargets(window,bounds,identity,clips,overlays,found);}
+                    catch(ElementNotAvailableException){}catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){}
+                }
+                System.Windows.Rect latest;Dictionary<string,object> latestIdentity;
+                if(AvatarTargetIdentity(window,ignored,(string)identity["processId"],(string)identity["startedAtTicks"],
+                    clips,out latest,out latestIdentity)&&latest==bounds)
+                    targets.AddRange(found.Take(20-targets.Count));
+            }
+        }finally{DpiContext(previous);}
+        return D("ok",true,"targets",targets);
+    }
     static object Execute(Dictionary<string,object> q){
         string action=Text(q,"action"),app=Text(q,"app");
         if(action.StartsWith("computer_",StringComparison.Ordinal))return Computer(q,action);
         if(action=="avatar_window")return AvatarWindow(q);
+        if(action=="avatar_screen_targets")return AvatarScreenTargets(q);
         if(action=="catalog_discover")return DiscoverApplications(q);
         if(action=="catalog_drives")return D("ok",true,"drives",DriveInfo.GetDrives().Where(d=>d.DriveType==DriveType.Fixed&&d.IsReady).Select(d=>d.RootDirectory.FullName.ToUpperInvariant()).ToArray());
         if(action=="file_replace")return ReplaceTextFile(q);
+        if(action=="wild_tab_inspect"||action=="wild_tab_close")return WildBrowserTab(q,action=="wild_tab_close");
+        if(action=="chess_view"||action=="chess_move"){
+            var previous=DpiContext(new IntPtr(-4));
+            try{return WildBrowserTab(q,false,true,action=="chess_move");}
+            finally{if(previous!=IntPtr.Zero)DpiContext(previous);}
+        }
         if(action.StartsWith("catalog_",StringComparison.Ordinal))return Catalog(q,action);
         if(action=="browser_open"||action=="browser_input")return Catalog(q,action);
         if(app!="notepad"&&app!="calculator")throw new InvalidOperationException("Unsupported application.");
@@ -1223,12 +1567,15 @@ class DesktopActions {
         var process=Window(app,calculate);
         if(action=="status")return D("ok",true,"running",process!=null,"app",app,"windowTitle",process==null?"":Clean(process.MainWindowTitle,180));
         string[] scientificInput=null;
+        string angle="deg";
         double expected=0;
         if(calculate){
             if(app!="calculator"||!Double.TryParse(Text(q,"expected"),System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture,out expected)||Double.IsInfinity(expected)||Double.IsNaN(expected))
                 throw new InvalidOperationException("Invalid Calculator result to verify.");
             scientificInput=ScientificInput(Text(q,"buttons"));
+            if(q.ContainsKey("angleUnit"))angle=Text(q,"angleUnit");
+            if(angle!="deg"&&angle!="rad"&&angle!="grad")throw new InvalidOperationException("Invalid Calculator angle unit.");
         }
         if(action=="launch"||calculate){
             if(process==null){
@@ -1244,7 +1591,7 @@ class DesktopActions {
             return D("ok",true,"app",app,"running",true,"processId",process.Id,"startedAtTicks",process.StartTime.ToUniversalTime().Ticks.ToString(),"focused",focused,"confirmation",action=="launch"?"Opened the app.":focused?"Brought the app forward.":"The app is open, but Windows did not allow it to take focus.");
         }
         var root=Root(process);
-        if(scientificInput!=null)return CalculateInWindow(process,root,scientificInput,expected);
+        if(scientificInput!=null)return CalculateInWindow(process,root,scientificInput,expected,angle);
         if(action=="controls"){
             var controls=BoundedControls(root).Where(e=>!e.Current.IsPassword).Select(e=>D("id",Clean(e.Current.AutomationId,100),"type",ControlTypeName(e.Current.ControlType),"name",Clean(e.Current.Name,120),"enabled",e.Current.IsEnabled)).Take(80).ToArray();
             return D("ok",true,"app",app,"untrustedControls",controls,"limited",controls.Length>=80);
@@ -1364,7 +1711,7 @@ class DesktopActions {
         foreach(var id in visited)if(id.Length>0)cache[id]=result;return result;
     }
     static bool WebSearchField(AutomationElement field){
-        return Regex.IsMatch(field.Current.AutomationId??"",@"^(?:q|search|searchbox|APjFqb)$",RegexOptions.IgnoreCase)||Regex.IsMatch(field.Current.Name??"",@"^(?:search|search query|search Google|search the web|поиск|найти|поисковый запрос|suchen|rechercher|buscar|cerca|pesquisar|szukaj|пошук|بحث|搜索|検索|검색)$",RegexOptions.IgnoreCase);
+        return Regex.IsMatch(field.Current.AutomationId??"",@"^(?:q|search|searchbox|APjFqb|store_nav_search_term)$",RegexOptions.IgnoreCase)||Regex.IsMatch(field.Current.Name??"",@"^(?:search|search query|search Google|search the web|search (?:the )?store|поиск по магазину|поиск|найти|поисковый запрос|suchen|rechercher|buscar|cerca|pesquisar|szukaj|пошук|بحث|搜索|検索|검색)$",RegexOptions.IgnoreCase);
     }
     static bool IsBrowserProcess(int processId){
         using(var process=Process.GetProcessById(processId))return new[]{"chrome","msedge","firefox","brave","opera","vivaldi","browser"}.Contains(process.ProcessName.ToLowerInvariant());
@@ -1395,6 +1742,261 @@ class DesktopActions {
             return url.AbsoluteUri;
         }
         return null;
+    }
+    static readonly Dictionary<string,string> WildAiSites=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase){
+        {"gemini.google.com","Gemini"},{"claude.ai","Claude"},{"chatgpt.com","ChatGPT"},
+        {"chat.openai.com","ChatGPT"},{"copilot.microsoft.com","Copilot"},{"chat.deepseek.com","DeepSeek"},
+        {"grok.com","Grok"},{"poe.com","Poe"},{"chat.mistral.ai","Le Chat"},
+        {"www.perplexity.ai","Perplexity"},{"perplexity.ai","Perplexity"}
+    };
+    static string WildOmniboxUrl(AutomationElement field){
+        object pattern;
+        if(field.Current.HasKeyboardFocus||!field.TryGetCurrentPattern(ValuePattern.Pattern,out pattern))return null;
+        var text=((ValuePattern)pattern).Current.Value;
+        if(String.IsNullOrEmpty(text)||text.Length>2048||text.Any(Char.IsControl))return null;
+        Uri url;
+        if(!Uri.TryCreate(text.Contains("://")?text:"https://"+text,UriKind.Absolute,out url)||url.Scheme!="https"||!url.IsDefaultPort||url.UserInfo.Length!=0)return null;
+        return url.AbsoluteUri;
+    }
+    static bool WildDocumentMatches(HashSet<string> documents,Uri address){
+        // Chromium can report background documents as visible and lag behind in-tab history updates.
+        // The browser-owned address field supplies the current origin, and the selected tab pins the target.
+        return documents.Any(value=>{
+            Uri document;
+            return Uri.TryCreate(value,UriKind.Absolute,out document)&&document.Scheme==address.Scheme&&document.Port==address.Port&&
+                String.Equals(document.IdnHost,address.IdnHost,StringComparison.OrdinalIgnoreCase);
+        });
+    }
+    static bool WildTabRemoved(IntPtr window,uint pid,AutomationElement strip,string tabRuntimeId){
+        var timer=Stopwatch.StartNew();
+        do{
+            uint currentPid;
+            if(GetWindowThreadProcessId(window,out currentPid)==0||currentPid!=pid)return true;
+            try{
+                // A tab changing its URL or selection is still present in the same strip.
+                var walker=TreeWalker.ControlViewWalker;
+                var child=walker.GetFirstChild(strip);
+                int checkedChildren=0;
+                bool found=false;
+                while(child!=null&&checkedChildren++<180&&timer.ElapsedMilliseconds<1600){
+                    if(child.Current.ControlType==ControlType.TabItem&&RuntimeId(child)==tabRuntimeId){found=true;break;}
+                    child=walker.GetNextSibling(child);
+                }
+                if(!found&&child==null&&checkedChildren>0&&timer.ElapsedMilliseconds<1600)return true;
+            }catch(ElementNotAvailableException){}catch(InvalidOperationException){}
+            Thread.Sleep(80);
+        }while(timer.ElapsedMilliseconds<1600);
+        return false;
+    }
+    static bool SameChessDocument(string document,Uri address){
+        Uri url;
+        if(!Uri.TryCreate(document,UriKind.Absolute,out url)||url.Scheme!="https"||!url.IsDefaultPort||url.UserInfo.Length!=0)return false;
+        // Chromium can elide www and presentation-only query details in the omnibox.
+        var documentHost=url.IdnHost=="www.chess.com"?"chess.com":url.IdnHost;
+        var addressHost=address.IdnHost=="www.chess.com"?"chess.com":address.IdnHost;
+        return String.Equals(documentHost,addressHost,StringComparison.OrdinalIgnoreCase)&&String.Equals(url.AbsolutePath.TrimEnd('/'),address.AbsolutePath.TrimEnd('/'),StringComparison.Ordinal);
+    }
+    static bool ChessPointerAt(PointerPoint expected){
+        PointerPoint current;
+        return GetCursorPos(out current)&&Math.Abs(current.x-expected.x)<=1&&Math.Abs(current.y-expected.y)<=1;
+    }
+    static volatile bool ChessCancelled;
+    [DllImport("user32.dll")] static extern IntPtr GetDesktopWindow();
+    [DllImport("user32.dll")] static extern bool ScreenToClient(IntPtr window,ref PointerPoint point);
+    [DllImport("user32.dll")] static extern IntPtr ChildWindowFromPointEx(IntPtr window,PointerPoint point,uint flags);
+    static IntPtr ChessWindowAt(PointerPoint point){
+        const int layeredTransparent=0x80000|0x20;
+        var hit=GetAncestor(WindowFromPoint(point),2);
+        if(hit==IntPtr.Zero||(GetWindowStyle(hit,-20)&layeredTransparent)!=layeredTransparent)return hit;
+        // A layered, click-through overlay cannot receive the clicks. Ask Windows
+        // for the underlying window without skipping any visible opaque window.
+        var desktop=GetDesktopWindow();
+        if(!ScreenToClient(desktop,ref point))return IntPtr.Zero;
+        return ChildWindowFromPointEx(desktop,point,1|4);
+    }
+    [StructLayout(LayoutKind.Sequential)] struct LastInputInfo {public uint size,time;}
+    [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LastInputInfo input);
+    static bool ChessInputBusy(bool requireIdle=false){
+        foreach(int key in new[]{1,2,4,5,6,16,17,18,27,91,92})if((GetAsyncKeyState(key)&0x8000)!=0)return true;
+        if(requireIdle){
+            var input=new LastInputInfo{size=(uint)Marshal.SizeOf(typeof(LastInputInfo))};
+            return !GetLastInputInfo(ref input)||unchecked((uint)Environment.TickCount-input.time)<500;
+        }
+        return false;
+    }
+    static uint ChessClick(PointerPoint point,Func<bool> stillCurrent,out string probe,Action onPressed=null){
+        probe="input_rejected";
+        if(ChessCancelled)return 0;
+        var down=new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=2}}};
+        var up=new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=4}}};
+        int size=Marshal.SizeOf(typeof(Input));
+        // The verified browser document and both squares already use screen coordinates.
+        if(!SetCursorPos(point.x,point.y))return 0;
+        Thread.Sleep(30);
+        if(ChessCancelled||!stillCurrent()){probe="target_changed";return 1;}
+        if(ChessInputBusy()){probe="input_in_use";return 1;}
+        if(!ChessPointerAt(point)){probe="pointer_changed";return 1;}
+        if(SendInput(1,new[]{down},size)!=1)return 1;
+        uint released;
+        try{if(onPressed!=null)onPressed();Thread.Sleep(45);}
+        finally{released=SendInput(1,new[]{up},size);}
+        return 2+released;
+    }
+    static string ChessMove(Dictionary<string,object> q,Uri page,string token,string tabId,IntPtr window,System.Windows.Rect document,Func<bool> stillCurrent,out string moveProbe){
+        moveProbe="target_changed";
+        string expectedTab=Text(q,"tabId");
+        if(Text(q,"token")!=token||(tabId!=null&&expectedTab.Length>0&&expectedTab!=tabId)||
+            (page.IdnHost!="chess.com"&&page.IdnHost!="www.chess.com")||
+            !Regex.IsMatch(page.AbsolutePath,@"^/(?:[a-z]{2}(?:-[a-z]{2,8})?/)?(?:play/computer(?:/(?:group/)?[A-Za-z0-9_-]+)?|game/computer/[A-Za-z0-9_-]+)/?$",RegexOptions.IgnoreCase))return "blocked";
+        moveProbe="target_obscured";
+        int fromX,fromY,toX,toY;
+        if(!Int32.TryParse(Text(q,"fromX"),out fromX)||!Int32.TryParse(Text(q,"fromY"),out fromY)||
+            !Int32.TryParse(Text(q,"toX"),out toX)||!Int32.TryParse(Text(q,"toY"),out toY)||
+            (fromX==toX&&fromY==toY))return "blocked";
+        var from=new PointerPoint{x=fromX,y=fromY};var to=new PointerPoint{x=toX,y=toY};
+        if(!document.Contains(from.x,from.y)||!document.Contains(to.x,to.y)||
+            ChessWindowAt(from)!=window||ChessWindowAt(to)!=window)return "blocked";
+        moveProbe="input_in_use";
+        if(ChessInputBusy(true))return "blocked";
+        moveProbe="input_rejected";
+        PointerPoint restore;
+        if(!GetCursorPos(out restore))return "blocked";
+        // Chromium needs time to register the press on a piece before releasing it.
+        // The bridge cancels through stdin, allowing the current press to be released in finally.
+        uint sent=ChessClick(from,()=>stillCurrent()&&ChessWindowAt(from)==window,out moveProbe);
+        if(sent==0)return "blocked";
+        var last=from;
+        try{
+            if(sent==1)return "blocked";
+            if(sent!=3)return "uncertain";
+            Thread.Sleep(100);
+            moveProbe="target_changed";
+            if(ChessCancelled||!ChessPointerAt(from)||!stillCurrent()||ChessWindowAt(to)!=window)return "uncertain";
+            last=to;
+            moveProbe="input_rejected";
+            if(ChessClick(to,()=>stillCurrent()&&ChessWindowAt(to)==window,out moveProbe,()=>{
+                try{Console.Error.WriteLine("chess_move_pressed");Console.Error.Flush();}catch(IOException){}
+            })!=3)return "uncertain";
+            Thread.Sleep(60);
+            moveProbe=null;
+            return "sent";
+        }finally{
+            if(ChessPointerAt(last))SetCursorPos(restore.x,restore.y);
+        }
+    }
+    static object WildBrowserTab(Dictionary<string,object> q,bool close,bool chessView=false,bool chessMove=false){
+        var none=D("ok",true,"tab",null,"closed",false);
+        if(close)none["reason"]="target_changed";
+        if(chessView)none["probe"]="window_unavailable";
+        int x=0,y=0;
+        long hwnd=0;
+        var sourceWindow=chessView?Text(q,"hwnd"):"";
+        if(sourceWindow.Length>0&&(!Int64.TryParse(sourceWindow,out hwnd)||hwnd<=0||hwnd>UInt32.MaxValue))return none;
+        bool atPoint=chessView&&Int32.TryParse(Text(q,"x"),out x)&&Int32.TryParse(Text(q,"y"),out y)&&Math.Abs((long)x)<100000&&Math.Abs((long)y)<100000;
+        Func<IntPtr> activeWindow;
+        if(atPoint)activeWindow=()=>ChessWindowAt(new PointerPoint{x=x,y=y});
+        else if(hwnd!=0)activeWindow=()=>new IntPtr(hwnd);
+        else activeWindow=GetForegroundWindow;
+        IntPtr window=activeWindow();uint pid;
+        if(window==IntPtr.Zero||GetWindowThreadProcessId(window,out pid)==0)return none;
+        if(chessView&&(!IsWindowVisible(window)||IsIconic(window)))return none;
+        try{
+            if(chessView)none["probe"]="browser_unsupported";
+            string omniboxId,closeButtonClass;
+            using(var process=Process.GetProcessById((int)pid)){
+                string file=process.MainModule.FileName;
+                if(!NativeBrowserExecutable(file))return none;
+                switch(process.ProcessName.ToLowerInvariant()){
+                    case "chrome":omniboxId="view_1012";closeButtonClass="TabCloseButton";break;
+                    case "msedge":omniboxId="view_1017";closeButtonClass="EdgeTabCloseButton";break;
+                    default:return none;
+                }
+            }
+            var root=AutomationElement.FromHandle(window);
+            if(chessView)none["probe"]="browser_controls_unavailable";
+            var documents=new HashSet<string>(StringComparer.Ordinal);
+            var chessDocuments=new List<KeyValuePair<string,System.Windows.Rect>>();
+            var tabs=new List<AutomationElement>();
+            var omniboxes=new List<AutomationElement>();
+            var queue=new Queue<AutomationElement>();queue.Enqueue(root);
+            var timer=Stopwatch.StartNew();int count=0;
+            while(queue.Count>0&&count<240&&timer.ElapsedMilliseconds<900){
+                var item=queue.Dequeue();var info=item.Current;
+                if(info.ControlType==ControlType.Document){
+                    var documentAddress=info.IsOffscreen?null:BrowserDocumentAddress(item,root);
+                    if(documentAddress!=null){
+                        documents.Add(documentAddress);
+                        if(chessView)chessDocuments.Add(new KeyValuePair<string,System.Windows.Rect>(documentAddress,info.BoundingRectangle));
+                    }
+                    continue;
+                }
+                object pattern;
+                if(info.ControlType==ControlType.Edit&&info.ProcessId==(int)pid&&!info.IsOffscreen&&
+                    (info.AutomationId==omniboxId||info.ClassName=="OmniboxViewViews")&&BrowserAddressField(item,root))omniboxes.Add(item);
+                if(info.ControlType==ControlType.TabItem&&info.ProcessId==(int)pid&&!info.IsOffscreen&&item.TryGetCurrentPattern(SelectionItemPattern.Pattern,out pattern)&&((SelectionItemPattern)pattern).Current.IsSelected){
+                    var parent=TreeWalker.ControlViewWalker.GetParent(item);
+                    if(chessView||(parent!=null&&parent.Current.ControlType==ControlType.Tab))tabs.Add(item);
+                }
+                for(var child=TreeWalker.ControlViewWalker.GetFirstChild(item);child!=null&&count++<240;child=TreeWalker.ControlViewWalker.GetNextSibling(child))queue.Enqueue(child);
+            }
+            if(chessView){
+                if(activeWindow()!=window){none["probe"]="browser_window_changed";return none;}
+                if(omniboxes.Count==0){none["probe"]="address_control_unavailable";return none;}
+            }else if(queue.Count>0||omniboxes.Count!=1||tabs.Count!=1||activeWindow()!=window)return none;
+            // Corroborate the browser's unfocused address field with a read-only document address.
+            var omnibox=omniboxes[0];string address;
+            if(chessView)none["probe"]="address_unavailable";
+            if(chessView){
+                var addresses=omniboxes.Select(field=>new KeyValuePair<AutomationElement,string>(field,WildOmniboxUrl(field)))
+                    .Where(pair=>pair.Value!=null).GroupBy(pair=>pair.Value,StringComparer.Ordinal).Take(2).ToArray();
+                if(addresses.Length!=1)return none;
+                var chosen=addresses[0].First();omnibox=chosen.Key;address=chosen.Value;
+            }else address=WildOmniboxUrl(omnibox);
+            if(address==null)return none;
+            var url=new Uri(address);string service=null;
+            if(!chessView&&(!WildAiSites.TryGetValue(url.IdnHost,out service)||!WildDocumentMatches(documents,url)))return none;
+            var tab=tabs.Count==1?tabs[0]:null;string id=tab==null?"":RuntimeId(tab);
+            if(!chessView&&id.Length==0)return none;
+            string windowId,tabId,token;
+            using(var sha=SHA256.Create()){
+                windowId=BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(window+"/"+pid))).Replace("-","");
+                tabId=id.Length==0?null:BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(window+"/"+pid+"/"+id))).Replace("-","");
+                // Gemini and similar sites update paths and query parameters inside a single tab.
+                // Wild's prompt names the site and the exact tab, so those in-site changes keep the same binding.
+                var pageAddress=url.GetLeftPart(chessView?UriPartial.Query:UriPartial.Authority);
+                token=BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes((chessView?windowId:tabId)+"/"+pageAddress))).Replace("-","");
+            }
+            if(chessView){
+                none["probe"]="document_mismatch";
+                var matching=chessDocuments.Where(item=>SameChessDocument(item.Key,url)&&(!atPoint||item.Value.Contains(x,y))).Select(item=>item.Value).Distinct().Take(2).ToArray();
+                if(matching.Length!=1||activeWindow()!=window||(tab!=null&&!((SelectionItemPattern)tab.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected)||WildOmniboxUrl(omnibox)!=address)return none;
+                var rect=matching[0];
+                if(rect.IsEmpty||rect.Width<=0||rect.Height<=0||(atPoint&&!rect.Contains(x,y)))return none;
+                if(chessMove){
+                    string moveProbe;
+                    string status=ChessMove(q,url,token,tabId,window,rect,()=>activeWindow()==window&&WildOmniboxUrl(omnibox)==address&&(tab==null||((SelectionItemPattern)tab.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected),out moveProbe);
+                    return D("ok",true,"status",status,"moveProbe",moveProbe);
+                }
+                return D("ok",true,"view",D("origin",url.GetLeftPart(UriPartial.Authority),"path",url.AbsolutePath,"token",token,"tabId",tabId,"windowId",windowId,"hwnd",window.ToInt64().ToString(),"processId",pid,"bounds",D("x",rect.Left,"y",rect.Top,"width",rect.Width,"height",rect.Height)));
+            }
+            if(close&&!String.Equals(Text(q,"token"),token,StringComparison.Ordinal))return none;
+            var closeButtons=BoundedControls(tab,10,250).Where(button=>
+                button.Current.ControlType==ControlType.Button&&button.Current.ProcessId==(int)pid&&button.Current.IsEnabled&&!button.Current.IsOffscreen&&
+                String.Equals(button.Current.ClassName,closeButtonClass,StringComparison.Ordinal))
+                .Take(2).ToArray();
+            object invoke;
+            if(closeButtons.Length!=1||!closeButtons[0].TryGetCurrentPattern(InvokePattern.Pattern,out invoke)){
+                if(close)none["reason"]="close_control_unavailable";
+                return none;
+            }
+            var strip=close?TreeWalker.ControlViewWalker.GetParent(tab):null;
+            if(close&&(strip==null||strip.Current.ControlType!=ControlType.Tab))return none;
+            if(GetForegroundWindow()!=window||!((SelectionItemPattern)tab.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected||WildOmniboxUrl(omnibox)!=address)return none;
+            if(!close)return D("ok",true,"tab",D("service",service,"tabId",tabId,"token",token));
+            none["reason"]="close_unverified";
+            ((InvokePattern)invoke).Invoke();
+            return WildTabRemoved(window,pid,strip,id)?D("ok",true,"closed",true):none;
+        }catch(ElementNotAvailableException){return none;}catch(InvalidOperationException){return none;}catch(ArgumentException){return none;}catch(System.ComponentModel.Win32Exception){return none;}
     }
     static object Catalog(Dictionary<string,object> q,string action){
         string packageId=Text(q,"packageId");
@@ -1549,7 +2151,16 @@ class DesktopActions {
     }
     [STAThread] static void Main(){
         Console.InputEncoding=new UTF8Encoding(false);Console.OutputEncoding=new UTF8Encoding(false);var json=new JavaScriptSerializer(){MaxJsonLength=65536,RecursionLimit=12};
-        try{string line=Console.ReadLine();if(line==null||line.Length>16384)throw new InvalidOperationException("Invalid request.");var command=json.Deserialize<Dictionary<string,object>>(line);if(Text(command,"action")=="computer_watch_escape"){WatchEscape(command,json);return;}Console.WriteLine(json.Serialize(Execute(command)));}
+        try{
+            string line=Console.ReadLine();if(line==null||line.Length>16384)throw new InvalidOperationException("Invalid request.");
+            var command=json.Deserialize<Dictionary<string,object>>(line);string action=Text(command,"action");
+            if(action=="computer_watch_escape"){WatchEscape(command,json);return;}
+            if(action=="chess_move"){
+                var cancellation=new Thread(()=>{try{Console.ReadLine();}catch(IOException){}finally{ChessCancelled=true;}});
+                cancellation.IsBackground=true;cancellation.Start();
+            }
+            Console.WriteLine(json.Serialize(Execute(command)));
+        }
         catch(Exception error){var preflight=error as InputPreflightException;var result=D("ok",false,"error",Clean(error.Message,320));if(preflight!=null){result["errorCode"]=preflight.Code;result["inputPerformed"]=false;}Console.WriteLine(json.Serialize(result));Environment.ExitCode=1;}
     }
 }

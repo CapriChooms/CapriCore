@@ -19,6 +19,7 @@ import {
   openRouterFreeReplyTimeoutMs,
   readApiSettings,
 } from '../apps/desktop/inference-api.mjs';
+import { spotifyPlanner } from '../apps/desktop/spotify-planner.mjs';
 import { createGatewayConfiguration } from '../packages/runtime/src/context.mjs';
 import { settings } from '../packages/runtime/src/config/settings.mjs';
 import { buildOpenAICompletionsParams } from '@openclaw/ai/transports';
@@ -607,6 +608,54 @@ test('owner reasoning markers are one-turn controls with a bounded answer budget
   await (await send({ reasoning_effort: 'medium', max_completion_tokens: 6144 })).text();
   assert.equal(requests[5].max_tokens, 6144, 'Preserve a context-aware SDK limit.');
   assert.equal(requests[5].max_completion_tokens, undefined);
+});
+
+test('saved API streams normalize multi-line events before removing reasoning and echoed credentials', async (t) => {
+  const { api } = await fixture(t, async () => {
+    const newline = '\r\n';
+    const lines = [
+      ': heartbeat',
+      'id: 1',
+      'data: {"choices": [',
+      'data: {"delta":{"content":"Visible reply ","reasoning_content":"hidden chain"}}',
+      'data: ]}',
+      '',
+      'data: {"choices":[',
+      'data: {"delta":{"content":"' + key + '"}}]}',
+      '',
+      'data: [DONE]',
+      '',
+      '',
+    ]
+      .join(newline)
+      .replace('data: ]}\r\n\r\n', 'data: ]}\n\r\n');
+    const bytes = new TextEncoder().encode(lines);
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          for (let offset = 0; offset < bytes.length; offset += 7)
+            controller.enqueue(bytes.slice(offset, offset + 7));
+          controller.close();
+        },
+      }),
+      { headers: { 'content-type': 'text/event-stream' } },
+    );
+  });
+  const response = await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [], stream: true }),
+  });
+  const output = await response.text();
+  const [comment, eventId, data] = output.split('\n');
+  assert.deepEqual([comment, eventId], [': heartbeat', 'id: 1']);
+  assert.deepEqual(JSON.parse(data.slice('data: '.length)), {
+    choices: [{ delta: { content: 'Visible reply ' } }],
+  });
+  assert.match(output, /\[DONE\]/);
+  assert.match(output, /\[REDACTED\]/);
+  assert.doesNotMatch(output, /hidden chain|reasoning_content/);
+  assert.equal(output.includes(key), false);
+  assert.equal(output.includes(key.slice(0, 8)), false);
 });
 
 test('cancelling a selected reasoning turn aborts its provider request promptly', async (t) => {
@@ -1599,6 +1648,75 @@ test('tool-free vision uses the selected API, rejects unexpected actions, and AP
     'https://example.com/#secret',
   ])
     assert.throws(() => apiSettings({ ...config, baseUrl }));
+});
+
+test('Anthropic accepts structured screen descriptions through its OpenAI-compatible endpoint', async (t) => {
+  const schema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['summary'],
+    properties: { summary: { type: 'string' } },
+  };
+  let request;
+  const { api } = await fixture(
+    t,
+    async (_, options) => {
+      request = JSON.parse(options.body);
+      if (request.response_format?.json_schema?.strict !== true || 'temperature' in request)
+        return Response.json(
+          { error: { message: 'Unsupported request parameters' } },
+          { status: 400 },
+        );
+      return Response.json({ choices: [{ message: { content: '{"summary":"blue"}' } }] });
+    },
+    { ...config, baseUrl: 'https://api.anthropic.com/v1/', model: 'claude-opus-5-5' },
+  );
+  const response = await api.localFetch(api.url + '/api/chat', {
+    method: 'POST',
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: 'Describe', images: ['AA=='] }],
+      format: schema,
+      options: { num_predict: 192, temperature: 0.85 },
+    }),
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).message.content, '{"summary":"blue"}');
+  assert.deepEqual(request.response_format, {
+    type: 'json_schema',
+    json_schema: { name: 'capri_result', schema, strict: true },
+  });
+  assert.equal(request.messages.at(-1).content[1].image_url.url, 'data:image/png;base64,AA==');
+  assert.equal(request.max_tokens, 192);
+  assert.equal(request.tools, undefined);
+});
+
+test('Spotify planning through Claude omits unsupported parameters and still validates the command', async (t) => {
+  const requests = [];
+  const model = 'claude-haiku-5-5';
+  const { api } = await fixture(
+    t,
+    async (_url, { body }) => {
+      const request = JSON.parse(body);
+      requests.push(request);
+      if ('response_format' in request || 'temperature' in request)
+        return Response.json(
+          { error: { message: 'Unsupported request parameters' } },
+          { status: 400 },
+        );
+      const content =
+        requests.length === 1 ? '{"action":"pause"}' : '{"action":"pause","unexpected":true}';
+      return Response.json({ choices: [{ message: { content }, finish_reason: 'stop' }] });
+    },
+    { ...config, baseUrl: 'https://api.anthropic.com/v1/', model },
+  );
+  const plan = spotifyPlanner({
+    url: api.url,
+    model,
+    fetchImpl: (...args) => api.localFetch(...args),
+  });
+  assert.deepEqual(await plan('Coloque o Spotify em pausa.'), { action: 'pause' });
+  await assert.rejects(plan('Pause Spotify.'), { code: 'CAPRI_SPOTIFY_PLAN_INVALID' });
+  assert.equal(requests.length, 2);
 });
 
 test('OpenRouter Nemotron reserves the output budget for visible replies unless thinking is selected', async (t) => {

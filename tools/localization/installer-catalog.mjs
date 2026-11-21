@@ -16,16 +16,18 @@ export function setInstallerString(value, key, text) {
 }
 export function validateInstallerLocale(source, value, locale) {
   const expected = installerStrings(source),
-    actual = installerStrings(value);
+    actual = installerStrings(value),
+    translatedByKey = new Map(actual);
   if (
-    JSON.stringify(actual.map(([key]) => key).sort()) !==
-    JSON.stringify(expected.map(([key]) => key).sort())
+    actual.length !== expected.length ||
+    translatedByKey.size !== actual.length ||
+    expected.some(([key]) => !translatedByKey.has(key))
   )
     throw new Error('Installer translation keys do not match the English catalog');
   if (!Array.isArray(value.pages) || value.pages.length !== source.pages.length)
     throw new Error('Installer page order is invalid');
   for (const [key, text] of expected) {
-    const translated = actual.find(([path]) => path === key)?.[1];
+    const translated = translatedByKey.get(key);
     try {
       if (locale) validateLocaleTranslation(text, translated, locale);
       else validateTranslation(text, translated);

@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import {
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   writeFileSync,
   existsSync,
@@ -17,10 +16,10 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { writeJsonAtomic } from '../packages/runtime/src/atomic-json.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 const windows = process.platform === 'win32';
-const parent = path.join(root, '.runtime/installer-recovery-unit');
-mkdirSync(parent, { recursive: true });
-const folder = () => mkdtempSync(path.join(parent, 'fixture-'));
+// The wizard accepts verification output only inside the project's .runtime.
+const folder = temporaryFolders('capri-installer-recovery-unit-', path.join(root, '.runtime'));
 const native = path.join(folder(), 'session-harness.exe');
 if (windows) {
   const result = spawnSync(

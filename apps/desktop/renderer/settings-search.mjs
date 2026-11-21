@@ -46,11 +46,9 @@ export function indexSettings(scopes) {
         if (!name) continue;
         if (target.matches('h3, h4')) heading = target;
         const help = (label?.contains(target) ? label : target).nextElementSibling;
-        const helpRow = label?.closest('[data-help-id]') ?? target.closest('[data-help-id]');
         const descriptions = [
           referencedText(target, 'aria-describedby'),
           help?.matches('.settings-help:not([role="status"])') && textOf(help),
-          helpRow && textOf(target.ownerDocument.getElementById(helpRow.dataset.helpId)),
           target.getAttribute('title'),
           ...Array.from(target.options ?? [], (option) => clean(option.textContent)),
         ].filter(Boolean);

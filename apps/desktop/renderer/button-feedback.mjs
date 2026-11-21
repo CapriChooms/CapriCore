@@ -2,14 +2,11 @@
 /** A brief visual acknowledgement of input, independent from operation success. */
 export class ButtonFeedback {
   constructor() {
-    this.enabled = true;
     this.animations = new Map();
     this.onClick = (event) => {
       const button = event.target.closest?.('button');
       if (!event.isTrusted || !button) return;
-      // The preview follows the checkbox draft without saving unrelated settings.
-      const preview = document.getElementById(button.dataset.feedbackSetting);
-      this.press(button, preview?.type === 'checkbox' ? preview.checked : this.enabled);
+      this.press(button);
     };
     this.onVisibility = () => {
       if (document.hidden) this.clear();
@@ -17,16 +14,12 @@ export class ButtonFeedback {
     document.addEventListener('click', this.onClick, true);
     document.addEventListener('visibilitychange', this.onVisibility);
   }
-  press(button, enabled = this.enabled) {
-    if (
-      !enabled ||
-      !button.isConnected ||
-      button.disabled ||
-      button.getAttribute('aria-disabled') === 'true'
-    )
+  press(button) {
+    if (!button.isConnected || button.disabled || button.getAttribute('aria-disabled') === 'true')
       return;
     this.animations.get(button)?.cancel();
-    const style = getComputedStyle(button);
+    const surface = button.querySelector(':scope > .general-switch-track') ?? button;
+    const style = getComputedStyle(surface);
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     // Animate only paint: no layout shifts, extra outline, sound or global glitch.
     // Sampling each button's ink preserves pink support and red destructive actions.
@@ -35,7 +28,7 @@ export class ButtonFeedback {
       boxShadow: `inset 0 0 0 1px ${style.color}, inset 0 0 18px color-mix(in srgb, ${style.color} 28%, transparent)`,
     };
     const base = { backgroundColor: style.backgroundColor, boxShadow: style.boxShadow };
-    const animation = button.animate(
+    const animation = surface.animate(
       reduced
         ? [lit, lit]
         : [
@@ -62,10 +55,6 @@ export class ButtonFeedback {
       button.classList.remove('button-acknowledged');
     }
     this.animations.clear();
-  }
-  configure(value) {
-    this.enabled = value !== false;
-    if (!this.enabled) this.clear();
   }
   destroy() {
     this.clear();

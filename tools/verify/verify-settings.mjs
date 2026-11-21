@@ -75,13 +75,15 @@ try {
   await page.evaluate(() => document.getElementById('settings-open').click());
   const findSettings = async () => {
     for (let i = 0; i < 100; i++) {
-      const view = application.windows().find((w) => w.url().endsWith('/settings.html'));
+      const view = application
+        .windows()
+        .find((w) => !w.isClosed() && w.url().endsWith('/settings.html'));
       if (view) return view;
       await new Promise((r) => setTimeout(r, 50));
     }
     throw new Error('Settings window did not open');
   };
-  const settings = await findSettings();
+  let settings = await findSettings();
   await settings.waitForSelector('[data-section="general"][aria-current="page"]');
   // Check the Windows-presented pixels before any second open, focus or resize.
   // DOM visibility or a renderer screenshot cannot detect a gray native window.
@@ -244,15 +246,97 @@ try {
   await settings.locator('#skill-show-button').uncheck();
   await page.waitForSelector('#coding-toggle[hidden]', { state: 'attached' });
   record('Disabled skills remain configurable and toolbar visibility is independent');
+  const betaSkills = [
+    'applications',
+    'chess',
+    'computer',
+    'initiative',
+    'music',
+    'screen',
+    'spotify',
+    'youtube-music',
+  ];
   for (const [section] of SETTINGS_GROUPS.find(({ id }) => id === 'skills').sections) {
     await navigate(section);
     assert.ok(await settings.locator('#skill-settings-description').textContent());
     assert.equal(await settings.locator('#skill-show-button').isVisible(), true);
+    const beta = betaSkills.includes(section);
+    const headingBadge = settings.locator('#skill-settings-beta');
+    const navBadge = settings.locator(`[data-section="${section}"] .beta-badge`);
+    assert.equal(await headingBadge.isVisible(), beta, section);
+    assert.equal(await navBadge.count(), Number(beta), section);
+    if (beta) {
+      assert.equal(await navBadge.textContent(), 'BETA');
+      assert.equal(
+        await headingBadge.evaluate((badge) => getComputedStyle(badge).color),
+        'rgb(231, 239, 142)',
+      );
+    }
   }
   await navigate('microphone');
   assert.equal(await settings.locator('#language-recognition').isVisible(), true);
   await settings.screenshot({ path: path.join(folder, 'settings-skills.png') });
   record('Every disabled skill opens its own settings with an independent toolbar switch');
+  const youtubeMusicId = 'capri.youtube-music';
+  await navigate('youtube-music');
+  assert.equal(await settings.locator('#skill-settings-title').textContent(), 'YouTube Music');
+  assert.equal(await skill(youtubeMusicId).isChecked(), false);
+  const youtubeMusicOpen = settings.locator('#youtube-music-open');
+  const youtubeMusicCheck = settings.locator('#youtube-music-check');
+  const youtubeMusicPreferred = settings.locator('#youtube-music-preferred');
+  assert.equal(await youtubeMusicOpen.isEnabled(), false);
+  assert.equal(await youtubeMusicCheck.isEnabled(), false);
+  assert.equal(await youtubeMusicPreferred.isEnabled(), false);
+  await skill(youtubeMusicId).check();
+  await youtubeMusicPreferred.check();
+  await settings.waitForFunction(
+    async (id) => (await window.capri.bootstrap()).skills[id].preferred === true,
+    youtubeMusicId,
+  );
+  await settings.waitForSelector('#youtube-music-open:enabled');
+  assert.equal(await youtubeMusicCheck.isEnabled(), true);
+  assert.equal(
+    (await settings.evaluate(() => window.capri.youtubeMusic({ op: 'status' }))).configured,
+    true,
+  );
+  const savedYouTubeMusic = JSON.parse(
+    readFileSync(path.join(folder, 'desktop', 'skills.json'), 'utf8'),
+  ).settings[youtubeMusicId];
+  assert.equal(savedYouTubeMusic.enabled && savedYouTubeMusic.preferred, true);
+  await application.evaluate(({ shell }) => {
+    globalThis.settingsVerificationOpenExternal = shell.openExternal;
+    globalThis.settingsVerificationExternalUrls = [];
+    shell.openExternal = async (url) => {
+      globalThis.settingsVerificationExternalUrls.push(url);
+    };
+  });
+  try {
+    await youtubeMusicOpen.click();
+    await settings.waitForFunction(
+      () => document.getElementById('youtube-music-status').textContent === 'Opened YouTube Music.',
+    );
+    const reply = await page.evaluate(async () => {
+      await window.capri.send({ id: crypto.randomUUID(), text: 'Open YouTube Music' });
+      return (await window.capri.bootstrap()).messages.at(-1).text;
+    });
+    assert.equal(reply, 'Opened YouTube Music.');
+    assert.deepEqual(
+      await application.evaluate(() => globalThis.settingsVerificationExternalUrls),
+      ['https://music.youtube.com/', 'https://music.youtube.com/'],
+    );
+  } finally {
+    await application.evaluate(({ shell }) => {
+      shell.openExternal = globalThis.settingsVerificationOpenExternal;
+      delete globalThis.settingsVerificationOpenExternal;
+      delete globalThis.settingsVerificationExternalUrls;
+    });
+  }
+  await settings.screenshot({ path: path.join(folder, 'settings-youtube-music.png') });
+  await youtubeMusicPreferred.uncheck();
+  await skill(youtubeMusicId).uncheck();
+  record(
+    'YouTube Music saves the preferred service and opens its official site from Settings and chat',
+  );
   await navigate('general');
   const navigation = settings.locator('#settings-navigation');
   const groupedSections = await navigation
@@ -273,8 +357,9 @@ try {
   const search = settings.locator('#settings-search');
   const results = settings.locator('#settings-search-results');
   const generalControls = settings.locator('#general-panel .general-setting');
-  assert.equal(await generalControls.count(), 10);
+  assert.equal(await generalControls.locator('[data-window-action]').count(), 7);
   assert.equal(await generalControls.locator('#general-reset-settings').count(), 1);
+  assert.equal(await generalControls.locator('#reply-auto-hide').count(), 1);
   assert.equal(
     await generalControls.evaluateAll((rows) =>
       rows.every((row) => {
@@ -682,7 +767,7 @@ try {
   const context = settings.locator('#models-context');
   assert.deepEqual(
     await context.locator('option').evaluateAll((options) => options.map((o) => o.value)),
-    ['32768', '65536', '131072', '262144'],
+    ['16384', '32768', '65536', '131072', '262144'],
   );
   assert.equal(await settings.locator('#models-context-apply').isDisabled(), true);
   await context.selectOption('65536');
@@ -831,7 +916,7 @@ try {
   await page.waitForTimeout(1100);
   assert.equal(await page.locator('#stopwatch-hud').textContent(), paused);
   record('Stopwatch HUD, fresh elapsed replies and pause agree', { first, paused });
-  for (const locale of ['ru', 'ar', 'en']) {
+  for (const locale of ['ru', 'ar', 'de', 'en']) {
     await page.evaluate(
       async (language) =>
         window.capri.setLanguages({
@@ -856,10 +941,33 @@ try {
       assert.match(await portraitResult.innerText(), /Масштаб портрета/);
       await search.press('Escape');
     }
+    if (locale === 'de') {
+      await navigate('web-search');
+      assert.equal(
+        await settings.locator('#skill-composer-control span').textContent(),
+        'Schaltfläche in der Nachrichtenleiste anzeigen',
+      );
+      await navigate('spotify');
+      assert.equal(
+        await settings.locator('#skill-settings-description').textContent(),
+        'Findet Titel, steuert die Wiedergabe und passt die Spotify-Lautstärke an.',
+      );
+      assert.equal(
+        await settings.locator('label:has(#skill-show-button) span').textContent(),
+        'Schaltfläche in Capris Symbolleiste anzeigen',
+      );
+      assert.equal(
+        await settings.locator('[data-section="avatar-skill"]').textContent(),
+        'Avatar-Interaktion',
+      );
+      record(
+        'German skill settings translate the Spotify description and both visibility switches',
+      );
+    }
     await settings.screenshot({ path: path.join(folder, 'settings-' + locale + '.png') });
   }
   record(
-    'Localized search works in Russian and settings switch through RTL Arabic back to English',
+    'Localized search works in Russian and settings switch through Arabic and German back to English',
   );
   await navigate('initiative');
   await settings.locator('#initiative-level').selectOption('conversational');
@@ -868,7 +976,46 @@ try {
   await settings.waitForFunction(
     async () => (await window.capri.bootstrap()).initiative.hourlyLimit === 17,
   );
-  record('Custom initiative limit saves through actual IPC');
+  const savedInitiative = await settings.evaluate(
+    async () => (await window.capri.bootstrap()).initiative,
+  );
+  const initiativeLimit = settings.locator('#initiative-hourly-limit');
+  const quietHours = settings.locator('#initiative-quiet-enabled');
+  await initiativeLimit.fill('30');
+  await quietHours.uncheck();
+  await application.evaluate(({ webContents }) => {
+    const view = webContents
+      .getAllWebContents()
+      .find((contents) => contents.getURL() === 'capri://desktop/settings.html');
+    view.send('capri:event', {
+      type: 'initiative.status',
+      settings: {
+        active: false,
+        status: 'off',
+        scheduling: { reason: 'initiative status fixture', nextAt: 0 },
+      },
+    });
+  });
+  await settings.waitForFunction(() =>
+    document.getElementById('initiative-status').textContent.includes('initiative status fixture'),
+  );
+  await settings.locator('#settings-window-close').click();
+  await settings.locator('#settings-discard').click();
+  await settingsView(application, 'initiative');
+  assert.equal(await initiativeLimit.inputValue(), '17');
+  assert.equal(await quietHours.isChecked(), savedInitiative.quietHoursEnabled);
+  assert.equal(
+    await settings.locator('#initiative-quiet-start').inputValue(),
+    String(savedInitiative.quietStart),
+  );
+  await initiativeLimit.fill('30');
+  await quietHours.uncheck();
+  await saveSettings(settings);
+  assert.deepEqual(
+    await settings.evaluate(async () => (await window.capri.bootstrap()).initiative),
+    { ...savedInitiative, hourlyLimit: 30, quietHoursEnabled: false },
+  );
+  record('Initiative status stays live and settings save after discarding a draft');
   await navigate('models');
   await settings.waitForFunction(() => document.querySelector('.model-progress-card').hidden);
   record('Idle model selection has no download progress card');
@@ -878,8 +1025,10 @@ try {
   assert.equal(await githubAccess.locator('#updates-token').isVisible(), true);
   await githubAccess.locator('details').evaluate((node) => (node.open = true));
   assert.equal(await githubAccess.locator('#updates-token-page').isVisible(), true);
-  assert.equal(await githubAccess.locator('#updates-classic-token-page').isVisible(), false);
-  record('Optional GitHub access exposes the fine-grained read-only token path');
+  assert.equal(await githubAccess.locator('#updates-classic-token-page').isVisible(), true);
+  assert.match(await githubAccess.textContent(), /Contents: Read-only/);
+  assert.match(await githubAccess.textContent(), /classic token scopes are broader/);
+  record('GitHub access explains the read-only token and classic fallback scopes');
   await application.evaluate(({ BrowserWindow }) => {
     const owner = BrowserWindow.getAllWindows().find(
       (w) => w.webContents.getURL() === 'capri://desktop/index.html',
@@ -902,6 +1051,8 @@ try {
   for (let i = 0; i < 10; i++) {
     await settings.evaluate(() => window.capri.closeSettings());
     await page.evaluate(() => window.capri.openSettings('general'));
+    settings = await findSettings();
+    await settings.waitForSelector('[data-section="general"][aria-current="page"]');
   }
   assert.equal(application.windows().length, 2);
   const prefs = await application.evaluate(({ BrowserWindow }) =>

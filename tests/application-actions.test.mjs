@@ -204,6 +204,7 @@ test('the calculator setting sends the validated expression to Windows Calculato
       app: 'calculator',
       buttons: '4 2 4 minus open 5 5 power 4 close',
       expected: '-9.150201e+6',
+      angleUnit: 'deg',
     },
   ]);
   assert.equal(result.display.ok, true);
@@ -213,6 +214,38 @@ test('the calculator setting sends the validated expression to Windows Calculato
     expression: 'gcd(12, 20)',
   });
   assert.equal(unsupported.result, '4');
-  assert.equal(unsupported.display.ok, false);
+  assert.deepEqual(unsupported.display, { ok: false, reason: 'unsupported_expression' });
   assert.equal(calls.length, 1);
+});
+
+test('the calculator window receives the nested trigonometric expression and its angle unit', async (t) => {
+  const calls = [];
+  const f = await fixture(
+    t,
+    async (_root, command) => {
+      calls.push(command);
+      if (command.angleUnit === 'rad') throw new Error('Window unavailable');
+      return { ok: true };
+    },
+    () => true,
+  );
+  f.grant();
+  const command = {
+    action: 'calculate',
+    expression: '134^4 - sqrt(14) + ln(cos(24))',
+    showWindow: false,
+  };
+  const degrees = await f.service.execute('nested-degrees', command);
+  assert.equal(degrees.display.ok, true);
+  assert.equal(degrees.displayResult, '3.224179321679205e+8');
+  assert.equal(calls[0].angleUnit, 'deg');
+  assert.match(calls[0].buttons, /\b2 4 cos ln\b/);
+  assert.equal(calls[0].expected, degrees.result);
+
+  const radians = await f.service.execute('nested-radians', { ...command, angleUnit: 'rad' });
+  assert.equal(radians.ok, true);
+  assert.deepEqual(radians.display, { ok: false, reason: 'windows_calculator_failed' });
+  assert.equal(calls[1].angleUnit, 'rad');
+  assert.equal(calls[1].buttons, calls[0].buttons);
+  assert.notEqual(radians.result, degrees.result);
 });

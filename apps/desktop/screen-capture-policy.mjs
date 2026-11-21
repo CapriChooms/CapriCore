@@ -23,7 +23,10 @@ function monitorPng(thumbnail) {
           width: Math.max(1, Math.floor(width * scale)),
           height: Math.max(1, Math.floor(height * scale)),
         });
-  const png = image.toPNG({ scaleFactor: 1 });
+  return boundedMonitorPng(image.toPNG({ scaleFactor: 1 }));
+}
+
+function boundedMonitorPng(png) {
   if (!Buffer.isBuffer(png) || png.length < 33 || png.length > monitorFrameBytes)
     throw new Error('Monitor frame exceeds limits');
   if (!png.subarray(0, 8).equals(pngSignature) || png.toString('ascii', 12, 16) !== 'IHDR')
@@ -45,11 +48,12 @@ export class ScreenCapturePolicy {
   constructor({
     sources,
     displays = () => [],
+    sampleMonitor,
     ownerFrame,
     onChange = () => {},
     now = () => Date.now(),
   }) {
-    Object.assign(this, { sources, displays, ownerFrame, onChange, now });
+    Object.assign(this, { sources, displays, sampleMonitor, ownerFrame, onChange, now });
     this.catalog = new Map();
     this.epoch = 0;
     this.displayEpoch = 0;
@@ -233,6 +237,7 @@ export class ScreenCapturePolicy {
         layoutKey: selected.layoutKey,
         monitorIds: selected.monitorIds,
         displayIds: selected.displayIds,
+        controller: new AbortController(),
       }),
       mode,
       durationMs,
@@ -345,27 +350,46 @@ export class ScreenCapturePolicy {
       this.requireMonitorLease(capture, frame);
       let monitors;
       try {
-        // Verify the selected set before asking Electron for screen pixels.
+        // Verify the exact selected set before sampling any pixels.
         const available = await this.enumerate(['screen']);
         this.requireMonitorLease(capture, frame);
-        this.matchingMonitors(available, capture);
-        const sampled = await this.enumerate(['screen'], monitorThumbnail);
-        this.requireMonitorLease(capture, frame);
-        monitors = this.matchingMonitors(sampled, capture);
+        monitors = this.matchingMonitors(available, capture);
+        if (!this.sampleMonitor) {
+          const sampled = await this.enumerate(['screen'], monitorThumbnail);
+          this.requireMonitorLease(capture, frame);
+          monitors = this.matchingMonitors(sampled, capture);
+        }
       } catch (error) {
         if (this.capture === capture) this.stop('source-unavailable');
         throw error;
       }
       let total = 0;
-      const frames = monitors.map(({ thumbnail }) => {
-        const png = monitorPng(thumbnail);
+      const result = [];
+      const layout = this.sampleMonitor ? this.monitorLayout(monitors) : null;
+      if (this.sampleMonitor && JSON.stringify(layout) !== capture.layoutKey) {
+        this.displayTopologyChanged();
+        throw new Error('The selected monitors are no longer available');
+      }
+      for (let index = 0; index < monitors.length; index++) {
+        this.requireMonitorLease(capture, frame);
+        let png;
+        if (layout) {
+          const { x, y, width, height } = layout[index];
+          png = boundedMonitorPng(
+            await this.sampleMonitor(
+              { bounds: { x, y, width, height } },
+              monitorThumbnail,
+              capture.controller.signal,
+            ),
+          );
+        } else png = monitorPng(monitors[index].thumbnail);
         total += png.length;
         if (total > monitorSampleBytes) throw new Error('Monitor frames exceed limits');
-        return { png: new Uint8Array(png) };
-      });
+        result.push({ png: new Uint8Array(png) });
+      }
       this.requireMonitorLease(capture, frame);
       if (capture.mode === 'one-shot') capture.monitorFrameDelivered = true;
-      return frames;
+      return result;
     } catch {
       throw new Error('Monitor capture is unavailable');
     } finally {
@@ -425,6 +449,7 @@ export class ScreenCapturePolicy {
     this.expiryTimer = null;
     if (this.capture) {
       const id = this.capture.id;
+      this.capture.controller?.abort(new Error('Screen capture stopped'));
       this.lastStop = { reason, at: this.now(), mode: this.capture.mode };
       console.info('Capri screen capture stopped:', JSON.stringify(this.lastStop));
       this.capture = null;

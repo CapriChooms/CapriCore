@@ -133,9 +133,9 @@ test('cancel and revoke do not enable another session or silently accept a denie
   assert.equal(f.gate.armed(), false);
 });
 
-test('music preferences default off and cannot persist a capture grant, PCM or microphone selection', () => {
+test('animation preferences cannot persist a capture grant, PCM or microphone selection', () => {
   assert.deepEqual(validateMusicListeningSettings(), {
-    enabled: false,
+    enabled: true,
     notes: true,
     motion: true,
     autoBpm: true,

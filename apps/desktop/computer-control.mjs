@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomUUID } from 'node:crypto';
 import { canClickTarget } from './computer-click-target.mjs';
+import { computerTaskCommand } from './computer-mode-request.mjs';
+import { isCyberpunkLauncherWindow, isCyberpunkPlayLabel } from './steam-game-launch.mjs';
+import { steamTextPoint } from './steam-screen-text.mjs';
+import { isSteamClient, isSteamPlayLabel, steamGameGoal } from './steam-task-state.mjs';
 
 export const COMPUTER_SESSION_TIMEOUT_MS = 600000;
 export const COMPUTER_ACTIONS = new Set([
@@ -31,6 +35,41 @@ const sameLabel = (left, right) =>
   typeof right === 'string' &&
   left.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase() ===
     right.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase();
+const boundsKeys = ['x', 'y', 'width', 'height'];
+
+function visualFieldTargets(native, point, x, y) {
+  const fields = native.filter(
+    (target) =>
+      !target.surface &&
+      target.editable &&
+      !target.browserDocumentAddress &&
+      /^ControlType\.(?:Edit|ComboBox)$/u.test(target.role ?? '') &&
+      hasBounds(target.bounds),
+  );
+  const named = fields.filter((target) => sameLabel(target.label, point.label));
+  if (named.length) {
+    const inside = named.filter((target) => containsPoint(target.bounds, x, y));
+    if (inside.length) return inside;
+    // A point from a reduced screenshot can land a little outside a short
+    // input. Allow a small tolerance only with a matching native label.
+    return named.filter(({ bounds }) => {
+      const margin = Math.min(24, bounds.height * 0.75);
+      return containsPoint(
+        {
+          x: bounds.x - margin,
+          y: bounds.y - margin,
+          width: bounds.width + 2 * margin,
+          height: bounds.height + 2 * margin,
+        },
+        x,
+        y,
+      );
+    });
+  }
+  // A translated or paraphrased label is only paired on a unique hit inside a
+  // real edit field. Never turn a page search into an address-bar operation.
+  return fields.filter((target) => !target.browserAddress && containsPoint(target.bounds, x, y));
+}
 function settleWithin(task, milliseconds) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(false), milliseconds);
@@ -55,6 +94,7 @@ export class ComputerControl {
     bridge,
     capture,
     describe,
+    readSteamText,
     visionAvailable = () => true,
     registerEscape,
     unregisterEscape,
@@ -76,6 +116,7 @@ export class ComputerControl {
       bridge,
       capture,
       describe,
+      readSteamText,
       visionAvailable,
       registerEscape,
       unregisterEscape,
@@ -177,22 +218,28 @@ export class ComputerControl {
     try {
       try {
         if (!(await this.registerEscape(() => void this.stop()))) throw new Error();
-      } catch {
-        throw new Error('Escape emergency stop is unavailable. Computer control did not start.');
+      } catch (cause) {
+        throw Object.assign(
+          new Error('Escape emergency stop is unavailable. Computer control did not start.', {
+            cause,
+          }),
+          { code: 'COMPUTER_ESCAPE_UNAVAILABLE' },
+        );
       }
       const boundary = AbortSignal.any([
         session.controller.signal,
         AbortSignal.timeout(this.indicatorTimeoutMs),
       ]);
       await new Promise((resolve, reject) => {
-        const abort = () =>
+        const abort = () => {
+          if (session.controller.signal.aborted)
+            return reject(new Error('Computer control cancelled.'));
           reject(
-            new Error(
-              session.controller.signal.aborted
-                ? 'Computer control cancelled.'
-                : 'Computer control indicator did not become visible.',
-            ),
+            Object.assign(new Error('Computer control indicator did not become visible.'), {
+              code: 'COMPUTER_INDICATOR_TIMEOUT',
+            }),
           );
+        };
         boundary.addEventListener('abort', abort, { once: true });
         Promise.resolve()
           .then(() => {
@@ -348,8 +395,17 @@ export class ComputerControl {
       const before = await this.bridge({ action: 'computer_state' }, { signal: combined });
       combined.throwIfAborted();
       const nativeOnly = session.nativeOnlyApplications?.includes(before.applicationKind) === true;
+      const steamClient = isSteamClient(before.executable);
+      const launcherClient = isCyberpunkLauncherWindow(before);
+      const game =
+        !before.modal && (steamClient || launcherClient)
+          ? (session.steamGame ?? steamGameGoal(computerTaskCommand(session.goal)))
+          : null;
+      const steamGame = steamClient ? game?.name : null;
+      const cyberpunkLauncher = launcherClient && game?.name === 'Cyberpunk 2077';
       let scene = null,
         image = null,
+        steamText = [],
         visionStatus = args.vision === false || nativeOnly ? 'not_requested' : 'unavailable';
       try {
         const window = args.visualWindow;
@@ -363,31 +419,63 @@ export class ComputerControl {
         if (args.vision !== false && !nativeOnly && this.visionAvailable()) {
           if (!matchingWindow) visionStatus = 'window_mismatch';
           else {
-            image = await this.capture({ signal: combined, displayWindow: before.windowId });
-            scene = await this.describe({ ...image, goal: session.goal, signal: combined });
-            visionStatus = 'ready';
+            image = await this.capture({
+              signal: combined,
+              displayWindow: before.windowId,
+              steamGame,
+              cyberpunkLauncher,
+            });
+            [scene, steamText] = await Promise.all([
+              Promise.resolve()
+                .then(() =>
+                  this.describe({
+                    png: image.png,
+                    width: image.width,
+                    height: image.height,
+                    goal: session.goal,
+                    signal: combined,
+                    ...(steamGame && { steamGame }),
+                  }),
+                )
+                .catch((error) => {
+                  if (!cyberpunkLauncher) throw error;
+                  return null;
+                }),
+              (steamGame || cyberpunkLauncher) && this.readSteamText
+                ? this.readSteamText(image.ocrPng ?? image.png, combined)
+                : [],
+            ]);
+            if (scene) visionStatus = 'ready';
           }
         }
       } catch {
         combined.throwIfAborted();
+        image = null;
       }
       const after = await this.bridge({ action: 'computer_state' }, { signal: combined });
       combined.throwIfAborted();
       if (
         before.windowId !== after.windowId ||
         before.processId !== after.processId ||
-        before.startedAtTicks !== after.startedAtTicks ||
-        (image &&
-          ['x', 'y', 'width', 'height'].some(
-            (key) =>
-              before[key] !== after[key] ||
-              (after.displayBounds && image.bounds?.[key] !== after.displayBounds[key]),
-          ))
+        before.startedAtTicks !== after.startedAtTicks
       )
         throw Object.assign(
           new Error('The foreground window changed during observation. Observe it again.'),
           { code: 'COMPUTER_OBSERVATION_CHANGED' },
         );
+      if (
+        image &&
+        boundsKeys.some(
+          (key) =>
+            before[key] !== after[key] ||
+            (after.displayBounds && image.bounds?.[key] !== after.displayBounds[key]),
+        )
+      ) {
+        // A resize or mixed DPI may invalidate pixel targets. The independent Windows
+        // observation still describes the current controls in the verified foreground.
+        image = scene = null;
+        visionStatus = 'unavailable';
+      }
       if (this.requireSession() !== session) throw new Error('Computer control session changed.');
       const application = await this.applicationAdapter?.observe(after, combined);
       if (application) {
@@ -487,9 +575,106 @@ export class ComputerControl {
               }
             : {}),
         });
-      if (scene && image?.bounds) {
+      let visualLauncherPlay = false;
+      if (image?.bounds && (scene || (cyberpunkLauncher && steamText.length))) {
         const native = [...targets.values()];
-        for (const [index, point] of scene.targets.entries()) {
+        const observedWindowBounds = boundsKeys.every((key) => Number.isInteger(after[key]))
+          ? Object.fromEntries(boundsKeys.map((key) => [key, after[key]]))
+          : undefined;
+        const { bounds, ocrWidth = image.width, ocrHeight = image.height } = image;
+        const viewport = observedWindowBounds && {
+          x: ((after.x - bounds.x) * ocrWidth) / bounds.width,
+          y: ((after.y - bounds.y) * ocrHeight) / bounds.height,
+          width: (after.width * ocrWidth) / bounds.width,
+          height: (after.height * ocrHeight) / bounds.height,
+        };
+        if (cyberpunkLauncher && !after.modal && viewport) {
+          const captions = native.filter(
+            (item) =>
+              !item.surface &&
+              !item.editable &&
+              isCyberpunkPlayLabel(item.label) &&
+              (item.clickKind === 'candidate' || item.role === 'ControlType.Button'),
+          );
+          if (captions.length === 1) {
+            const [caption] = captions;
+            const located = steamTextPoint(
+              steamText,
+              { label: caption.label, steamRole: 'launcher_play' },
+              viewport,
+            );
+            if (
+              located &&
+              containsPoint(
+                caption.captionBounds ?? caption.bounds,
+                bounds.x + Math.floor(((located.x + 0.5) * bounds.width) / ocrWidth),
+                bounds.y + Math.floor(((located.y + 0.5) * bounds.height) / ocrHeight),
+              )
+            ) {
+              caption.visualConfirmed = true;
+              caption.actionRole = 'button';
+              if (caption.clickKind === 'candidate') caption.clickKind = 'visual-caption';
+              visualLauncherPlay = true;
+            }
+          }
+        }
+        const detections = [...(scene?.targets ?? [])];
+        if (
+          steamGame &&
+          viewport &&
+          scene?.steamLibrary?.page === 'game' &&
+          scene.steamLibrary.launchState === 'ready' &&
+          sameLabel(scene.steamLibrary.gameTitle, steamGame) &&
+          !detections.some((point) => point.steamRole === 'play' && isSteamPlayLabel(point.label))
+        ) {
+          const labels = new Set(
+            steamText
+              .flatMap((line) => line.map((word) => word.text?.toLowerCase()))
+              .filter(isSteamPlayLabel),
+          );
+          const plays = [...labels].flatMap((label) => {
+            const point = steamTextPoint(steamText, { label, steamRole: 'play' }, viewport);
+            return point
+              ? [
+                  {
+                    label,
+                    role: 'button',
+                    steamRole: 'play',
+                    x: (point.x * image.width) / ocrWidth,
+                    y: (point.y * image.height) / ocrHeight,
+                  },
+                ]
+              : [];
+          });
+          if (plays.length === 1) detections.push(plays[0]);
+        }
+        for (const [index, detected] of detections.entries()) {
+          let point = detected;
+          if (steamGame && this.readSteamText && point.steamRole) {
+            const nativeMatches = native.filter(
+              (target) =>
+                !target.surface &&
+                sameLabel(target.label, point.label) &&
+                (point.steamRole === 'library_search'
+                  ? target.editable
+                  : target.clickKind === 'control') &&
+                containsPoint(after, target.x, target.y),
+            );
+            if (nativeMatches.length === 1) {
+              nativeMatches[0].steamRole = point.steamRole;
+              continue;
+            }
+            if (!viewport) continue;
+            const located = steamTextPoint(steamText, point, viewport);
+            // Never dispatch to a model-estimated Steam position when the text
+            // or a unique, actionable Windows control could not place it.
+            if (!located) continue;
+            point = {
+              ...point,
+              x: (located.x * image.width) / ocrWidth,
+              y: (located.y * image.height) / ocrHeight,
+            };
+          }
           const x =
             image.bounds.x + Math.floor(((point.x + 0.5) * image.bounds.width) / image.width);
           const y =
@@ -498,20 +683,25 @@ export class ComputerControl {
           // Background windows are visible in the scene. To act inside one,
           // first switch foreground and obtain a new native window identity.
           if (!surface && hasBounds(after) && !containsPoint(after, x, y)) continue;
-          const matches = native.filter(
-            (target) =>
-              target.surface?.windowId === surface?.windowId &&
-              !target.browserDocumentAddress &&
-              !target.duplicateCaption &&
-              sameLabel(target.label, point.label) &&
-              (target.clickKind === 'candidate'
-                ? visualButtonRoles.has(point.role) && containsPoint(target.captionBounds, x, y)
-                : containsPoint(target.bounds, x, y)),
-          );
+          const matches =
+            point.role === 'field' && !surface
+              ? visualFieldTargets(native, point, x, y)
+              : native.filter(
+                  (target) =>
+                    target.surface?.windowId === surface?.windowId &&
+                    !target.browserDocumentAddress &&
+                    !target.duplicateCaption &&
+                    sameLabel(target.label, point.label) &&
+                    (target.clickKind === 'candidate'
+                      ? visualButtonRoles.has(point.role) &&
+                        containsPoint(target.captionBounds, x, y)
+                      : containsPoint(target.bounds, x, y)),
+                );
           if (matches.length === 1) {
             const [target] = matches;
             target.visualConfirmed = true;
             target.actionRole = point.role;
+            if (steamGame && !surface) target.steamRole = point.steamRole;
             if (target.clickKind === 'candidate') target.clickKind = 'visual-caption';
             continue;
           }
@@ -520,9 +710,11 @@ export class ComputerControl {
             source: 'vision',
             label: point.label,
             actionRole: point.role,
+            ...(steamGame && !surface && point.steamRole && { steamRole: point.steamRole }),
             clickKind: 'visual',
             x,
             y,
+            ...(observedWindowBounds && !surface ? { observedWindowBounds } : {}),
             ...(surface ? { surface, pageContent: false } : {}),
           });
         }
@@ -570,11 +762,15 @@ export class ComputerControl {
             : {}),
           ...(typeof after.fullscreen === 'boolean' ? { fullscreen: after.fullscreen } : {}),
           ...(after.modal === true ? { modal: true } : {}),
+          ...(steamClient && { applicationKind: 'steam' }),
         },
         scene: scene?.summary ?? null,
+        ...(steamGame &&
+          !after.modal &&
+          scene?.steamLibrary && { steamLibrary: scene.steamLibrary }),
         ...(application ? { application } : {}),
         visionStatus,
-        screenAvailable: Boolean(scene),
+        screenAvailable: Boolean(scene || visualLauncherPlay),
         targets: [...targets].map(([targetId, value]) => ({
           targetId,
           untrustedLabel: value.label,
@@ -591,6 +787,7 @@ export class ComputerControl {
           ...(value.value !== undefined ? { untrustedValue: value.value } : {}),
           ...(value.role ? { role: value.role } : {}),
           ...(value.actionRole ? { actionRole: value.actionRole } : {}),
+          ...(value.steamRole ? { steamRole: value.steamRole } : {}),
           ...(value.clickKind ? { clickKind: value.clickKind } : {}),
           ...(value.duplicateCaption ? { duplicateCaption: true } : {}),
           ...(value.automationId ? { automationId: value.automationId } : {}),
@@ -626,12 +823,18 @@ export class ComputerControl {
     // Resolve operations re-read native identity, active project and all source
     // ranges inside their adapter. They do not consume stale pixel coordinates.
     if (!target || (this.now() - target.at > 30000 && args.action !== 'resolve_assemble'))
-      throw new Error('Observe the current target before input.');
+      throw Object.assign(new Error('Observe the current target before input.'), {
+        code: 'COMPUTER_OBSERVATION_CHANGED',
+        inputPerformed: false,
+      });
     if (
       (['press_keys', 'scroll'].includes(args.action) || args.observationId !== undefined) &&
       args.observationId !== target.observationId
     )
-      throw new Error('Use the observationId from the latest observe result.');
+      throw Object.assign(new Error('Use the observationId from the latest observe result.'), {
+        code: 'COMPUTER_OBSERVATION_CHANGED',
+        inputPerformed: false,
+      });
     const command = {
       windowId: target.windowId,
       processId: target.processId,
@@ -693,6 +896,10 @@ export class ComputerControl {
         clickCount: args.clickCount ?? 1,
         durationMs: this.pointerDuration(),
         ...(point.nativeId ? { controlId: point.nativeId } : {}),
+        ...(point.observedWindowBounds ? { observedWindowBounds: point.observedWindowBounds } : {}),
+        ...(args.action === 'click' && point.source === 'vision' && point.actionRole === 'field'
+          ? { visualField: true }
+          : {}),
         ...(args.action === 'click' && point.captionControlId
           ? { captionControlId: point.captionControlId }
           : {}),

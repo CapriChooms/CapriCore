@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { LANGUAGE_PACKS } from './language-settings.mjs';
+import {
+  audioOutputDevice,
+  bindAudioOutput,
+  createAudioOutputContext,
+} from './local-audio-output.mjs';
+
+const usesVoiceCatalogInstaller = (model) =>
+  model?.backend === 'qwen3-tts' || model?.backend === 'breeze-tts';
 
 export function voiceModelInstallLanguage(model, language) {
   // English Multilingual still needs the shared multilingual weights, not Turbo.
@@ -11,7 +19,7 @@ export function voiceModelInstallLanguage(model, language) {
 export function voiceModelInstallState(catalog, speech, model, language) {
   if (catalog?.phase === 'installing') return catalog;
   if (speech?.phase === 'installing') return speech;
-  if (model?.backend === 'qwen3-tts')
+  if (usesVoiceCatalogInstaller(model))
     return catalog?.installingModelId === model.id &&
       (!catalog.installingLanguage || catalog.installingLanguage === language)
       ? catalog
@@ -36,6 +44,8 @@ export function voiceModelInstallProgress(install) {
 export class VoiceModelPanel {
   constructor({ api, ui, host, onError }) {
     Object.assign(this, { api, ui, onError });
+    this.outputDevice = '';
+    this.previewGeneration = 0;
     this.panel = document.createElement('section');
     this.panel.className = 'settings-card';
     this.panel.innerHTML = `
@@ -43,19 +53,38 @@ export class VoiceModelPanel {
       <label for="voice-model-language">Voice language</label><select id="voice-model-language"></select>
       <label for="voice-model-choice">Voice model</label><select id="voice-model-choice"></select>
       <p id="voice-model-details" class="settings-help"></p>
+      <div id="voice-model-breeze" hidden>
+        <p class="settings-help" data-inline-help>Breeze supports English and Mandarin on Windows x64 with AVX2. Vulkan can use a compatible AMD, NVIDIA or Intel GPU. A graphics driver with Vulkan support is required.</p>
+        <p id="voice-model-breeze-profile" class="settings-help" role="status" data-untranslated></p>
+        <div class="settings-actions"><button id="voice-model-breeze-import" type="button">Import .breeze voice</button></div>
+        <div id="voice-model-breeze-terms">
+          <p class="settings-help" data-inline-help>The Breeze model license limits the weights and generated audio to research and noncommercial use.</p>
+          <div class="settings-actions"><button id="voice-model-breeze-license" type="button">View Breeze model license</button></div>
+          <label><input id="voice-model-breeze-accept" type="checkbox"> I accept the Breeze model license</label>
+        </div>
+      </div>
       <div class="settings-actions"><button id="voice-model-install" type="button">Download voice model</button><button id="voice-model-install-cancel" type="button" hidden>Cancel download</button><button id="voice-model-select" type="button">Use this voice model</button><button id="voice-model-cuda" type="button" hidden>Install NVIDIA acceleration</button></div>
       <p id="voice-model-cuda-help" class="settings-help" hidden></p>
       <div id="voice-model-rocm-actions" class="settings-actions" hidden><button id="voice-model-rocm" type="button">Install AMD ROCm acceleration</button></div>
       <p id="voice-model-rocm-help" class="settings-help" hidden></p>
       <p id="voice-model-install-status" role="status" aria-live="polite"></p>
       <button id="voice-model-cpu-alternative" type="button" data-untranslated hidden></button>
-      <h4>Capri voice training</h4>
-      <p class="settings-help">Train a compatible model using reviewed Capri recordings on this PC. Listen to the new voice before applying it.</p>
-      <p id="voice-model-training-help" class="settings-help"></p>
-      <button id="voice-model-import" type="button">Import reviewed recordings</button>
-      <div class="settings-actions"><button id="voice-model-train" type="button">Train Capri voice</button><button id="voice-model-cancel" type="button" hidden>Cancel training</button></div>
-      <p id="voice-model-status" role="status" aria-live="polite"></p>
-      <div class="settings-actions"><button id="voice-model-preview" type="button" hidden>Listen to trained voice</button><button id="voice-model-apply" type="button" hidden>Apply trained voice</button></div>`;
+      <div id="voice-model-training">
+        <h4>Capri voice training</h4>
+        <p id="voice-model-training-help" class="settings-help"></p>
+        <button id="voice-model-import" type="button">Choose recordings folder</button>
+        <div id="voice-model-recording-review" hidden>
+          <p class="settings-help">Check the words against each recording. Confirm only after reviewing the text.</p>
+          <p id="voice-model-recording-help" class="settings-help" hidden>Automatic transcription was unavailable for some clips. Enter the words you hear.</p>
+          <label for="voice-model-recording-reference">Neutral reference recording</label>
+          <select id="voice-model-recording-reference" data-untranslated></select>
+          <div id="voice-model-recording-list"></div>
+          <div class="settings-actions"><button id="voice-model-approve-train" type="button">Import and train</button><button id="voice-model-approve" type="button">Import reviewed recordings</button><button id="voice-model-discard" type="button">Cancel</button></div>
+        </div>
+        <div class="settings-actions"><button id="voice-model-train" type="button">Train Capri voice</button><button id="voice-model-cancel" type="button" hidden>Cancel training</button></div>
+        <p id="voice-model-status" role="status" aria-live="polite"></p>
+        <div class="settings-actions"><button id="voice-model-preview" type="button" hidden>Listen to trained voice</button><button id="voice-model-apply" type="button" hidden>Apply trained voice</button></div>
+      </div>`;
     host.append(this.panel);
     this.get = (name) => this.panel.querySelector('#voice-model-' + name);
     this.get('language').replaceChildren(
@@ -65,6 +94,7 @@ export class VoiceModelPanel {
     );
     this.get('language').onchange = () => this.choices();
     this.get('choice').onchange = () => this.details();
+    this.get('breeze-accept').onchange = () => this.details();
     this.get('cpu-alternative').onclick = () => {
       const model = this.value.models.find(
         (item) =>
@@ -99,13 +129,30 @@ export class VoiceModelPanel {
     action('rocm', async () =>
       this.show(await api.installVoiceModel({ ...selection(), rocm: true })),
     );
+    action('breeze-license', () => api.openBreezeLicense());
+    action('breeze-import', async () => {
+      this.importingBreezeVoice = true;
+      this.details();
+      try {
+        const result = await api.importBreezeVoice();
+        if (result) this.show(result);
+      } finally {
+        this.importingBreezeVoice = false;
+      }
+    });
     action('install', async () => {
-      const model = this.value.models.find((item) => item.id === selection().modelId);
-      if (model.backend === 'qwen3-tts') this.show(await api.installVoiceModel(selection()));
-      else
+      const requested = selection();
+      const model = this.value.models.find((item) => item.id === requested.modelId);
+      if (usesVoiceCatalogInstaller(model)) {
+        if (model.backend === 'breeze-tts') {
+          if (!this.get('breeze-accept').checked) return;
+          requested.acceptLicense = true;
+        }
+        this.show(await api.installVoiceModel(requested));
+      } else
         this.speechStatus(
           await api.installSpeech({
-            speech: voiceModelInstallLanguage(model, selection().language),
+            speech: voiceModelInstallLanguage(model, requested.language),
             recognition: 'off',
           }),
         );
@@ -114,17 +161,55 @@ export class VoiceModelPanel {
       if (this.value.phase === 'installing') this.show(await api.cancelVoiceModelInstall());
       else this.speechStatus(await api.cancelSpeechInstall());
     });
-    action('import', async () => this.trainingStatus(await api.importVoiceTrainingDataset()));
+    action('import', async () => {
+      const result = await api.importVoiceTrainingDataset();
+      const { draft, ...status } = result;
+      if (Object.hasOwn(result, 'draft')) this.showDraft(draft);
+      this.trainingStatus(status);
+    });
+    const approve = async (train) => {
+      const chosen = selection();
+      const { id } = this.recordingDraft;
+      const texts = [...this.get('recording-list').querySelectorAll('textarea')].map(
+        (field) => field.value,
+      );
+      const result = await api.approveVoiceTrainingRecordings({
+        id,
+        texts,
+        reference: Number(this.get('recording-reference').value),
+      });
+      this.showDraft(null);
+      this.trainingStatus(result);
+      if (train) this.trainingStatus(await api.startVoiceTraining(chosen));
+    };
+    action('approve', () => approve(false));
+    action('approve-train', () => approve(true));
+    action('discard', async () => {
+      await api.approveVoiceTrainingRecordings({ id: this.recordingDraft.id, texts: null });
+      this.showDraft(null);
+    });
     action('train', async () => this.trainingStatus(await api.startVoiceTraining(selection())));
     action('cancel', async () => this.trainingStatus(await api.cancelVoiceTraining()));
     action('apply', async () => this.trainingStatus(await api.applyVoiceTraining()));
     action('preview', async () => {
+      const stopped = this.stopPreview();
+      const generation = this.previewGeneration;
+      await stopped;
       const audio = await api.previewVoiceTraining();
-      await this.stopPreview();
-      const context = (this.audio = new AudioContext());
-      const bytes = Uint8Array.from(atob(audio.audioBase64), (char) => char.charCodeAt(0));
-      const buffer = await context.decodeAudioData(bytes.buffer);
-      if (this.audio !== context) return;
+      if (generation !== this.previewGeneration) return;
+      const context = (this.audio = createAudioOutputContext(this.outputDevice));
+      let buffer;
+      try {
+        await bindAudioOutput(context, this.outputDevice);
+        if (this.audio !== context) return;
+        const bytes = Uint8Array.from(atob(audio.audioBase64), (char) => char.charCodeAt(0));
+        buffer = await context.decodeAudioData(bytes.buffer);
+      } catch (error) {
+        if (this.audio !== context) return;
+        await this.stopPreview();
+        throw error;
+      }
+      if (this.audio !== context || generation !== this.previewGeneration) return;
       const source = context.createBufferSource();
       source.buffer = buffer;
       source.connect(context.destination);
@@ -134,10 +219,97 @@ export class VoiceModelPanel {
       source.start();
     });
   }
+  showDraft(draft) {
+    this.releaseRecordingAudio();
+    this.recordingDraft = draft;
+    this.get('recording-review').hidden = !draft;
+    this.get('recording-help').hidden = !draft?.clips.some(({ text }) => !text.trim());
+    const list = this.get('recording-list');
+    list.replaceChildren();
+    const reference = this.get('recording-reference');
+    reference.replaceChildren(
+      ...(draft?.clips.flatMap(({ file, referenceEligible }, index) =>
+        referenceEligible ? [new Option(file, String(index))] : [],
+      ) ?? []),
+    );
+    if (draft) reference.value = String(draft.clips.findIndex((clip) => clip.reference));
+    draft?.clips.forEach(({ file, text }, index) => {
+      const section = document.createElement('div');
+      const label = document.createElement('label');
+      const field = document.createElement('textarea');
+      field.id = `voice-model-recording-text-${index}`;
+      field.value = text;
+      field.rows = 2;
+      field.maxLength = 2000;
+      field.dir = 'auto';
+      field.oninput = () => this.updateReviewButtons();
+      label.htmlFor = field.id;
+      label.textContent = file;
+      label.dataset.untranslated = 'true';
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.textContent = this.ui.text('Play');
+      play.onclick = async () => {
+        play.disabled = true;
+        this.releaseRecordingAudio();
+        const request = (this.recordingPlayback = Symbol());
+        try {
+          const result = await this.api.voiceTrainingRecording({ id: draft.id, index });
+          if (this.recordingPlayback !== request) return;
+          const player = (this.recordingPlayer = document.createElement('audio'));
+          player.controls = true;
+          player.src = URL.createObjectURL(
+            new Blob([result.audio], { type: result.flac ? 'audio/flac' : 'audio/wav' }),
+          );
+          await bindAudioOutput(player, this.outputDevice);
+          if (this.recordingPlayback !== request) return;
+          section.append(player);
+          void player.play().catch(() => {});
+        } catch (error) {
+          if (this.recordingPlayback === request) {
+            this.releaseRecordingAudio();
+            this.onError(error.message);
+          }
+        } finally {
+          play.disabled = false;
+        }
+      };
+      section.append(label, field, play);
+      list.append(section);
+    });
+    this.updateReviewButtons();
+  }
+  releaseRecordingAudio() {
+    this.recordingPlayback = null;
+    const player = this.recordingPlayer;
+    if (!player) return;
+    player.pause();
+    URL.revokeObjectURL(player.src);
+    player.remove();
+    this.recordingPlayer = null;
+  }
+  updateReviewButtons(busy = this.reviewBusy) {
+    this.reviewBusy = busy;
+    const incomplete = [...this.get('recording-list').querySelectorAll('textarea')].some(
+      (field) => !field.value.trim(),
+    );
+    this.get('approve').disabled = busy || incomplete;
+    this.get('approve-train').disabled = busy || incomplete;
+    this.get('discard').disabled = busy;
+    this.get('recording-reference').disabled = busy;
+  }
   async stopPreview() {
+    this.previewGeneration++;
+    this.releaseRecordingAudio();
     const audio = this.audio;
     this.audio = null;
     if (audio) await audio.close();
+  }
+  setOutputDevice(value = '') {
+    const deviceId = audioOutputDevice(value);
+    if (deviceId === this.outputDevice) return;
+    this.outputDevice = deviceId;
+    void this.stopPreview().catch((error) => this.onError(error.message));
   }
   show(value) {
     const previousChoice = this.get('choice').value;
@@ -172,18 +344,41 @@ export class VoiceModelPanel {
       option.textContent = this.ui.languageName(option.value);
     const model = this.value.models.find((item) => item.id === this.get('choice').value);
     const language = this.get('language').value;
+    const breeze = model?.backend === 'breeze-tts';
+    const breezeUnavailable = breeze && this.value.breezeSupported === false;
     const installing = this.value.phase === 'installing' || this.speech?.phase === 'installing';
     const busy =
+      this.importingBreezeVoice ||
       ['training', 'importing'].includes(this.training?.phase) ||
       this.training?.phase === 'applying' ||
       this.value.phase === 'applying' ||
       installing;
-    this.get('select').disabled = busy || !model?.installed;
+    this.get('select').disabled =
+      busy || !model?.installed || breezeUnavailable || (breeze && !this.value.breezeVoice);
     this.get('language').disabled = busy;
     this.get('choice').disabled = busy;
-    this.get('install').disabled = busy || !model || model.installed;
+    this.get('install').disabled =
+      busy ||
+      !model ||
+      model.installed ||
+      breezeUnavailable ||
+      (breeze && !this.get('breeze-accept').checked);
     this.get('install').hidden = Boolean(model?.installed);
     this.get('install-cancel').hidden = !installing;
+    this.get('breeze').hidden = !breeze;
+    this.get('training').hidden = breeze;
+    this.get('breeze-terms').hidden = Boolean(model?.installed);
+    this.get('breeze-accept').disabled = busy || breezeUnavailable;
+    this.get('breeze-import').disabled = busy || breezeUnavailable;
+    const name = this.value.breezeVoice?.name;
+    this.get('breeze-profile').textContent = this.ui.text(
+      breezeUnavailable
+        ? 'Breeze TTS 2 requires Windows x64 with AVX2.'
+        : name
+          ? 'Imported voice profile · {name}'
+          : 'Import a .breeze voice profile to use this model.',
+      { name },
+    );
     const russianVoiceInstalled = model?.installed && model.id === 'qwen3-tts-1.7b-capri-ru';
     const accelerated = russianVoiceInstalled && this.value.russianQwenCudaReady;
     const qwen = model?.backend === 'qwen3-tts';
@@ -206,18 +401,25 @@ export class VoiceModelPanel {
         : 'Optional NVIDIA acceleration needs a GPU with BF16 support and 12 GiB of free disk space.',
     );
     this.get('import').disabled = busy;
-    const identity = model?.training
-      ? this.ui.text('Fine-tuning supported')
-      : model?.voiceIdentity === 'trained-capri-adapter'
-        ? 'LoRA'
-        : this.ui.text('Capri reference voice');
     const devices = qwen
       ? ['CPU', ...(accelerated ? ['NVIDIA CUDA'] : []), ...(rocmInstalled ? ['AMD ROCm'] : [])]
-      : model?.devices;
+      : breeze
+        ? ['Vulkan', 'CPU']
+        : model?.devices;
+    const identity = breeze
+      ? ''
+      : ' · ' +
+        (model?.training
+          ? this.ui.text('Fine-tuning supported')
+          : model?.voiceIdentity === 'trained-capri-adapter'
+            ? 'LoRA'
+            : this.ui.text('Capri reference voice'));
     this.get('details').textContent = model
-      ? `${model.repository} · ${this.ui.text(model.installed ? 'Installed' : 'Not installed')} · ${identity} · ${devices.join(' / ')}${model.downloadBytes ? ` · ${this.ui.text('Model weights')} ≈ ${(model.downloadBytes / 1e9).toFixed(2)} GB` : ''}${model.minimumFreeBytes ? ` · ${this.ui.text('Required free space')} ≈ ${(model.minimumFreeBytes / 1e9).toFixed(1)} GB` : ''}${qwen && !accelerated && !rocmInstalled ? '. ' + this.ui.text('CPU speech is experimental and can be slower than real time.') : ''}`
+      ? `${model.repository} · ${this.ui.text(model.installed ? 'Installed' : 'Not installed')}${identity} · ${devices.join(' / ')}${model.downloadBytes ? ` · ${this.ui.text('Model weights')} ≈ ${(model.downloadBytes / 1e9).toFixed(2)} GB` : ''}${model.minimumFreeBytes ? ` · ${this.ui.text('Required free space')} ≈ ${(model.minimumFreeBytes / 1e9).toFixed(1)} GB` : ''}${qwen && !accelerated && !rocmInstalled ? '. ' + this.ui.text('CPU speech is experimental and can be slower than real time.') : ''}`
       : '';
     const trainable = model?.id === 'chatterbox-turbo' && language === 'en';
+    this.get('approve-train').hidden = !trainable;
+    this.updateReviewButtons(busy);
     this.get('train').disabled = busy || !trainable || !this.training?.available;
     this.get('training-help').textContent = this.ui.text(
       !trainable
@@ -272,7 +474,7 @@ export class VoiceModelPanel {
     if (progress !== null) {
       const { received, total } = install.progress;
       if (
-        (install.cuda || install.rocm) &&
+        (install.cuda || install.rocm || breeze) &&
         Number.isSafeInteger(received) &&
         Number.isSafeInteger(total)
       ) {

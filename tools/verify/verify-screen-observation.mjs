@@ -146,16 +146,33 @@ try {
     if (message.text().startsWith('Capri screen startup failed:'))
       processLog.push(message.text() + '\n');
   });
-  const waitState = async (predicate, timeout = 30000) => {
+  const waitState = async (predicate, timeout = 30000, target = page) => {
     const until = Date.now() + timeout;
     while (Date.now() < until) {
-      const state = await page.evaluate(() => window.capri.bootstrap());
+      const state = await target.evaluate(() => window.capri.bootstrap());
       if (predicate(state)) return state;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     throw new Error('Observation state did not become ready');
   };
+  const waitForReplies = (count) =>
+    waitState(
+      ({ messages }) =>
+        messages.filter(({ role, status }) => role === 'assistant' && status === 'complete')
+          .length >= count,
+      30000,
+      companion,
+    );
   await page.waitForFunction(() => document.body.dataset.phase === 'ready');
+  await companion.evaluate(() => {
+    window.__screenObservationCues = 0;
+    new MutationObserver((records) => {
+      for (const { addedNodes } of records)
+        for (const node of addedNodes)
+          if (node.matches?.('.avatar-observation[data-kind="screen"]'))
+            window.__screenObservationCues++;
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   await application.evaluate(async ({ BrowserWindow }) => {
     const fixture = new BrowserWindow({
       width: 440,
@@ -194,6 +211,16 @@ try {
     source,
   );
   report.refreshRetainsSelectedSource = true;
+  assert.equal(await companion.evaluate(() => window.__screenObservationCues), 0);
+  let expectedCues = 1;
+  if (!real && !unsupported && !monitor) {
+    await page.locator('#screen-capture').click();
+    await page.locator('#screen-preview:not([hidden])').waitFor({ timeout: 15000 });
+    await companion.waitForFunction(() => window.__screenObservationCues === 1);
+    await companion.waitForSelector('.avatar-observation', { state: 'detached' });
+    report.oneShotObservationCue = true;
+    expectedCues++;
+  }
   await page.locator('.screen-watch-settings summary').click({ force: true });
   await page.locator('#screen-watch-interval').fill('15');
   await saveSettings(page);
@@ -211,6 +238,11 @@ try {
     }, monitor);
   const observationStarted = performance.now();
   await page.locator('#screen-watch-start').click({ force: true });
+  await companion.waitForFunction(
+    (count) => window.__screenObservationCues === count,
+    expectedCues,
+  );
+  report.backgroundObservationCue = true;
   if (monitor) {
     await waitState((state) => Boolean(state.screenObservation.lastAnalysedAt), 15000);
     assert.equal(analyses, 1);
@@ -303,6 +335,7 @@ try {
     );
     await page.waitForTimeout(2200);
     if (!real) assert.equal(analyses, 1, 'Unchanged source must not be analysed repeatedly');
+    assert.equal(await companion.evaluate(() => window.__screenObservationCues), expectedCues);
     await application.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()
         .find((w) => w.getTitle() === 'CAPRI OBSERVATION FIXTURE')
@@ -312,9 +345,12 @@ try {
     );
     await companion.locator('#message').fill('What can you see in the selected window?');
     await companion.locator('#message').press('Enter');
-    await companion.waitForSelector('.message[data-role="assistant"][data-status="complete"]', {
-      state: 'attached',
-    });
+    await companion.waitForFunction(
+      (count) => window.__screenObservationCues === count,
+      expectedCues + 1,
+    );
+    report.foregroundObservationCue = true;
+    await waitForReplies(1);
     assert.equal(requests.length, 1);
     assert.match(requests[0].messages.at(-1).content, /Read-only screen observation/);
     if (!real) {
@@ -344,11 +380,7 @@ try {
     );
     await companion.locator('#message').fill('Look at my screen again. What changed?');
     await companion.locator('#message').press('Enter');
-    await companion.waitForFunction(
-      () =>
-        document.querySelectorAll('.message[data-role="assistant"][data-status="complete"]')
-          .length >= 2,
-    );
+    await waitForReplies(2);
     assert.equal(requests.length, 2);
     if (!real) {
       assert.equal(analyses, 3, 'A second question must bypass the background interval');
@@ -359,11 +391,7 @@ try {
       rejectForegroundFrame = true;
       await companion.locator('#message').fill('Can we keep chatting?');
       await companion.locator('#message').press('Enter');
-      await companion.waitForFunction(
-        () =>
-          document.querySelectorAll('.message[data-role="assistant"][data-status="complete"]')
-            .length >= 3,
-      );
+      await waitForReplies(3);
       assert.equal(requests.length, 3);
       assert.match(requests[2].messages.at(-1).content, /Data: null/);
       assert.doesNotMatch(requests[2].messages.at(-1).content, /fresh green/i);

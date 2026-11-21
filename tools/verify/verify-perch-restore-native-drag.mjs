@@ -531,7 +531,7 @@ const configureCollision = async () => {
   if (!overlapHome && !pinMini) return;
   if (pinMini) {
     if ((await page.evaluate(() => document.body.dataset.presence)) === 'core') {
-      await page.locator('#presence-core').press('Enter', { timeout: 3000 });
+      await page.locator('#presence-toggle').press('Enter', { timeout: 3000 });
       await page.waitForFunction(() => document.body.dataset.presence === 'portrait', undefined, {
         timeout: 3000,
       });
@@ -557,9 +557,7 @@ const configureCollision = async () => {
   const current = await page.evaluate(() => document.body.dataset.presence);
   const wanted = homePresentation === 'expanded' ? 'portrait' : 'core';
   if (current !== wanted) {
-    await page
-      .locator(current === 'core' ? '#presence-core' : '#presence-toggle')
-      .press('Enter', { timeout: 3000 });
+    await page.locator('#presence-toggle').press('Enter', { timeout: 3000 });
     await page.waitForFunction((wanted) => document.body.dataset.presence === wanted, wanted, {
       timeout: 3000,
     });

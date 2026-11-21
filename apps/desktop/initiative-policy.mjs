@@ -5,6 +5,7 @@ import {
   initiativeLimit,
 } from './initiative-settings.mjs';
 const MEDIA_APPS = new Set(['vlc', 'mpv', 'spotify', 'wmplayer', 'mediaplayer']);
+const DISMISSIBLE = new Set(['return', 'media-app', 'screen']);
 const EVENTS = new Set([
   'app.foreground',
   'user.idle',
@@ -39,7 +40,9 @@ export function validateObservation(value, { now = Date.now() } = {}) {
     value.kind === 'app.foreground' &&
     (typeof value.fullscreen !== 'boolean' ||
       !Number.isInteger(value.processId) ||
-      value.processId < 0)
+      value.processId < 0 ||
+      (value.windowId !== undefined &&
+        (typeof value.windowId !== 'string' || !/^[1-9]\d{0,19}$/.test(value.windowId))))
   )
     throw new Error('Invalid window event');
   return {
@@ -53,6 +56,7 @@ export function validateObservation(value, { now = Date.now() } = {}) {
     ...(value.kind === 'app.foreground'
       ? { fullscreen: value.fullscreen, processId: value.processId }
       : {}),
+    ...(value.kind === 'app.foreground' && value.windowId ? { windowId: value.windowId } : {}),
   };
 }
 /** Scheduling is deterministic; observed text never grants actions or bypasses gates. */
@@ -89,13 +93,9 @@ export class InitiativePolicy {
       ? value.recentText.filter((t) => typeof t === 'string' && t.length <= 240).slice(-8)
       : [];
     this.dismissed = new Set(
-      Array.isArray(value.dismissed)
-        ? value.dismissed.filter((c) => ['return', 'media-app'].includes(c))
-        : [],
+      Array.isArray(value.dismissed) ? value.dismissed.filter((c) => DISMISSIBLE.has(c)) : [],
     );
-    this.lastCategory = ['return', 'media-app'].includes(value.lastCategory)
-      ? value.lastCategory
-      : undefined;
+    this.lastCategory = DISMISSIBLE.has(value.lastCategory) ? value.lastCategory : undefined;
   }
   budget() {
     return {
@@ -138,6 +138,10 @@ export class InitiativePolicy {
   reason(candidate, state = {}, { admitted = false } = {}) {
     const now = this.now(),
       s = this.settings;
+    const follow = candidate?.category === 'screen' && candidate.screen?.follow;
+    const sharedForeground = Boolean(
+      follow?.windowId && follow.windowId === this.foreground?.windowId,
+    );
     for (const [blocked, reason] of [
       [s.level === 'off', 'disabled'],
       [!candidate, 'no_candidate'],
@@ -154,11 +158,16 @@ export class InitiativePolicy {
       [state.hidden, 'hidden'],
       [quietHour(s, this.hour()), 'quiet_hours'],
       [this.dismissed.has(candidate?.category), 'dismissed'],
-      [this.foreground?.fullscreen, 'fullscreen'],
+      [this.foreground?.fullscreen && !(s.watchTogether && sharedForeground), 'fullscreen'],
       [this.foreground && s.excludedApps.includes(this.foreground.processName), 'excluded_app'],
     ])
       if (blocked) return reason;
     if (candidate.category === 'media-app' && candidate.event.id !== this.foreground?.id)
+      return 'stale_event';
+    if (
+      candidate.category === 'screen' &&
+      (!state.screenCurrent || (follow ? !s.watchTogether || !sharedForeground : !s.screenComments))
+    )
       return 'stale_event';
     const cooldown = 3600000 / initiativeLimit(s);
     this.recent = this.recent.filter((t) => t > now - 3600000);
@@ -173,12 +182,14 @@ export class InitiativePolicy {
   spoken(candidate, text) {
     this.lastSpoken = this.now();
     this.recent.push(this.lastSpoken);
-    this.recentText.push(text);
-    this.recentText = this.recentText.slice(-8);
+    if (candidate.category !== 'screen') {
+      this.recentText.push(text);
+      this.recentText = this.recentText.slice(-8);
+    }
     this.lastCategory = candidate.category;
   }
   dismiss(category = this.lastCategory) {
-    if (['return', 'media-app'].includes(category)) this.dismissed.add(category);
+    if (DISMISSIBLE.has(category)) this.dismissed.add(category);
   }
   restore() {
     this.dismissed.clear();

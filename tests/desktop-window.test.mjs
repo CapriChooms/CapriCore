@@ -59,6 +59,13 @@ test('IPC hit regions cannot expand interaction outside the companion window', (
   }
   const footprint = { x: 90, y: 500, width: 290, height: 181 };
   const bounds = { width: 380, height: 680 };
+  assert.equal(
+    validateRegions({ controls: [], sprite, replyCollapsed: true, replyMotion: true }, bounds)
+      .replyCollapsed,
+    true,
+  );
+  assert.throws(() => validateRegions({ controls: [], sprite, replyCollapsed: 'true' }, bounds));
+  assert.throws(() => validateRegions({ controls: [], sprite, replyMotion: 'true' }, bounds));
   assert.deepEqual(validateRegions({ controls: [], sprite, footprint }, bounds).footprint, {
     ...footprint,
     height: 180,

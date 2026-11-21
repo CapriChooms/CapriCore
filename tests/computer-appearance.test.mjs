@@ -26,7 +26,7 @@ test('appearance settings reject foreign fields and out-of-range effects without
     assert.throws(() => computerPreferences(value), /Invalid/);
   assert.equal(computerPreferences({ intensity: 0, pointerDuration: 0 }).intensity, 0);
 });
-test('indicators cover negative-origin work areas and a lost renderer closes all indicators exactly once', async () => {
+test('indicators cover full displays, including taskbars, and a lost renderer closes all indicators exactly once', async () => {
   class Window extends EventEmitter {
     constructor(options) {
       super();
@@ -61,8 +61,16 @@ test('indicators cover negative-origin work areas and a lost renderer closes all
     }
   }
   const displays = [
-    { id: 1, workArea: { x: -1920, y: 0, width: 1920, height: 1080 } },
-    { id: 2, workArea: { x: 0, y: 0, width: 2560, height: 1392 } },
+    {
+      id: 1,
+      bounds: { x: -1920, y: 0, width: 1920, height: 1080 },
+      workArea: { x: -1920, y: 0, width: 1920, height: 1040 },
+    },
+    {
+      id: 2,
+      bounds: { x: 0, y: 0, width: 2560, height: 1440 },
+      workArea: { x: 0, y: 0, width: 2560, height: 1392 },
+    },
   ];
   const screen = Object.assign(new EventEmitter(), {
     getAllDisplays: () => displays,
@@ -78,7 +86,7 @@ test('indicators cover negative-origin work areas and a lost renderer closes all
   const windows = [...overlay.windows];
   assert.deepEqual(
     windows.map((w) => w.bounds),
-    displays.map((d) => d.workArea),
+    displays.map((d) => d.bounds),
   );
   assert(windows.every((w) => w.ignores && w.options.focusable === false));
   windows[0].webContents.emit('render-process-gone');

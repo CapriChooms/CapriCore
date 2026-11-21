@@ -382,6 +382,21 @@ test('local startup retains language preparation, required inventory and CPU war
   }
 });
 
+test('startup skips a redundant language warmup with a larger window already resident', async () => {
+  await fixture(
+    {
+      remote: { enabled: false },
+      installed: ['fixture-language:latest', 'fixture-memory:latest'],
+      resident: [{ name: 'fixture-language:latest', context_length: 16_384, size_vram: 0 }],
+    },
+    async ({ core, rt, names }) => {
+      await core.startCore(rt, { warmMemory: false });
+      assert.ok(names().includes('/api/ps'));
+      assert.ok(!names().includes('/api/chat'));
+    },
+  );
+});
+
 test('a failed optional warmup does not take an already verified local core offline', async () => {
   await fixture(
     {

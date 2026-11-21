@@ -8,7 +8,7 @@ using System.Security.Principal;
 using System.Threading;
 
 internal static class CapriPayloadInfo {
-    internal static readonly string Sha256="",VoiceSha256="";
+    internal static readonly string Sha256="",VoiceSha256="",CameraSha256="";
 }
 
 internal static class InstallerLauncherHarness {

@@ -15,7 +15,7 @@ export function whenPromptSkill(state, ids, ...items) {
 export function desktopTurnContext(
   state = {},
   history = [],
-  { dialogueOnly = false, includeLocalGreeting = false } = {},
+  { dialogueOnly = false, includeLocalDialogue = false } = {},
 ) {
   const recent = repeatedPhrasing(history);
   // A local calculation has no gateway turn. Carry its verified result into the
@@ -24,9 +24,9 @@ export function desktopTurnContext(
     (message) => message.role === 'assistant' && message.status === 'complete',
   );
   const calculation = lastReply?.localCalculation;
-  // A direct greeting also has no gateway turn. Keep immediate follow-ups coherent.
-  const greeting =
-    includeLocalGreeting && lastReply?.localGreeting === true
+  // Direct local replies also have no gateway turn. Keep immediate follow-ups coherent.
+  const dialogue =
+    includeLocalDialogue && (lastReply?.localDialogue === true || lastReply?.localGreeting === true)
       ? history.findLast(
           (message) => message.role === 'user' && message.turnId === lastReply.turnId,
         )
@@ -74,10 +74,10 @@ export function desktopTurnContext(
           previousCalculation: { expression: calculation.expression, result: calculation.result },
         })
       : {}),
-    ...(greeting
+    ...(dialogue
       ? {
           previousDialogue: {
-            user: greeting.text.slice(0, 100),
+            user: dialogue.text.slice(0, 400),
             reply: lastReply.text.slice(0, 800),
           },
         }

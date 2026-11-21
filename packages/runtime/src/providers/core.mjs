@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto';
 import { ensureNativeLanguageModel } from './native-model.mjs';
 import { ensureEmbeddingModel } from './embedding-model.mjs';
 import { responsiveness } from '../hardware/responsiveness.mjs';
-import { localRunnerOptions } from './runner-policy.mjs';
+import { localRunnerOptions, residentLanguageMatches } from './runner-policy.mjs';
 
 export async function startCore(
   rt = runtime(),
@@ -189,12 +189,7 @@ export async function prewarmModels(rt = runtime(), { signal, inventory, warmMem
   signal?.throwIfAborted();
   const { models = [] } = await request(`${rt.ollamaUrl}/api/ps`, { signal });
   signal?.throwIfAborted();
-  const languageReady = models.some(
-    (model) =>
-      model.name === settings.model &&
-      model.context_length === settings.contextTokens &&
-      (settings.acceleration !== 'cpu' || model.size_vram === 0),
-  );
+  const languageReady = models.some((model) => residentLanguageMatches(model, settings));
   await Promise.all([
     languageReady || !warmLanguage
       ? undefined

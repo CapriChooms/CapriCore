@@ -16,7 +16,9 @@ import { modelPlan } from '../packages/runtime/src/providers/model-plan.mjs';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { registerHooks } from 'node:module';
 import { startGateway } from '../packages/runtime/src/providers/services.mjs';
+import { waitForOwnedService } from '../packages/runtime/src/host/readiness.mjs';
 import { nodePath, settings } from '../packages/runtime/src/index.mjs';
 import {
   applyModelProfile,
@@ -96,6 +98,108 @@ test('occupied Gateway ports are detected before sending private credentials', a
   });
   await assert.rejects(startGateway(rt), /occupied by another installation/);
   assert.deepEqual(observed, [undefined]);
+});
+
+test('reconnect replaces a timed-out Gateway but reuses a ready or independently replaced one', async (t) => {
+  const port = createServer();
+  await new Promise((resolve) => port.listen(0, '127.0.0.1', resolve));
+  const gatewayPort = port.address().port;
+  await new Promise((resolve) => port.close(resolve));
+  const rt = runtime({ stateDir: folder(), workspace: folder(), gatewayPort });
+  const fixtureId = 'capri-gateway-reconnect-' + randomUUID();
+  const url = new URL('../packages/runtime/src/providers/services.mjs', import.meta.url);
+  url.searchParams.set('fixture', fixtureId);
+  const hung = { pid: 100, startedAt: '100' };
+  const healthy = { pid: 200, startedAt: '200' };
+  let owner = hung;
+  let ready = false;
+  let launches = 0;
+  const stops = [];
+  globalThis[fixtureId] = {
+    managedProcess: () => owner,
+    requiresPrivacyRestart: () => false,
+    stopProcess: async (name, { expected } = {}) => {
+      assert.equal(name, rt.logPrefix);
+      assert.equal(expected, owner);
+      stops.push(owner);
+      owner = null;
+    },
+    launch: async () => {
+      launches++;
+      ready = true;
+      return (owner = healthy);
+    },
+    request: async (endpoint) => {
+      if (endpoint.endsWith('/v1/models')) return { data: [] };
+      if (endpoint.endsWith('/tools/invoke'))
+        return { ok: ready, result: { details: { agentId: settings.agentId } } };
+      return { ok: true };
+    },
+    waitForOwnedService(check, options) {
+      let elapsed = 0;
+      return waitForOwnedService(check, {
+        ...options,
+        getProcess: () => owner,
+        now: () => elapsed,
+        timeout: 5,
+        pause: async (ms) => {
+          elapsed += ms;
+        },
+      });
+    },
+  };
+  t.after(() => {
+    delete globalThis[fixtureId];
+  });
+  const mocks = new Map([
+    [
+      '../host/processes.mjs',
+      'const { managedProcess, requiresPrivacyRestart, stopProcess, launch } = fixture; export { managedProcess, requiresPrivacyRestart, stopProcess, launch };',
+    ],
+    ['../host/readiness.mjs', 'export const { waitForOwnedService } = fixture;'],
+    ['../http.mjs', 'export const { request } = fixture;'],
+    ['./openclaw-compat.mjs', 'export const applyOpenClawCompatibility = () => false;'],
+    [
+      './dependency-security.mjs',
+      'export const applyDependencySecurityPatches = () => ({ changed: false });',
+    ],
+  ]);
+  const hook = registerHooks({
+    resolve(specifier, context, next) {
+      const source = context.parentURL === url.href && mocks.get(specifier);
+      return source
+        ? {
+            url:
+              'data:text/javascript,' +
+              encodeURIComponent(
+                `const fixture = globalThis[${JSON.stringify(fixtureId)}];\n${source}`,
+              ),
+            shortCircuit: true,
+          }
+        : next(specifier, context);
+    },
+  });
+  let start;
+  try {
+    ({ startGateway: start } = await import(url.href));
+  } finally {
+    hook.deregister();
+  }
+  await assert.rejects(start(rt), { code: 'CAPRI_SERVICE_STARTUP_TIMEOUT' });
+  assert.deepEqual(stops, []);
+  await assert.rejects(start(rt, { signal: AbortSignal.abort() }), { name: 'AbortError' });
+  assert.deepEqual(await start(rt), { data: [] });
+  assert.deepEqual(await start(rt), { data: [] });
+  assert.deepEqual(stops, [hung]);
+  assert.equal(launches, 1);
+
+  ready = false;
+  await assert.rejects(start(rt), { code: 'CAPRI_SERVICE_STARTUP_TIMEOUT' });
+  owner = { pid: healthy.pid, startedAt: '300' };
+  ready = true;
+  assert.deepEqual(await start(rt), { data: [] });
+  assert.deepEqual(stops, [hung]);
+  assert.equal(launches, 1);
 });
 test('moving a checkout rebases only proven managed workspace and plugin paths', () => {
   const rt = runtime(),

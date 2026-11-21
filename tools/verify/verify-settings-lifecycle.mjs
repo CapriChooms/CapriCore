@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { settingsView } from './settings-view.mjs';
@@ -91,6 +92,7 @@ try {
       );
       return (
         view && {
+          id: view.id,
           handle: view.getNativeWindowHandle().readBigUInt64LE().toString(),
           visible: view.isVisible(),
           parent: Boolean(view.getParentWindow()),
@@ -189,29 +191,108 @@ try {
   assert.equal(await strength.inputValue(), '79');
   record('Save leaves Settings open and the next Close hides it without another prompt');
 
-  const crashedHandle = settingsHandle;
-  const destroyed = await application.evaluate(({ BrowserWindow }) => {
-    const view = BrowserWindow.getAllWindows().find((w) =>
-      w.webContents.getURL().endsWith('/settings.html'),
-    );
-    const closed = new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(false), 5000);
-      view.once('closed', () => {
-        clearTimeout(timer);
-        resolve(true);
+  await page.evaluate(() => {
+    window.settingsRendererLossCount = 0;
+    window.capri.onEvent((event) => {
+      if (event.type === 'settings.renderer-lost') window.settingsRendererLossCount++;
+    });
+  });
+  await application.evaluate(({ app }) => {
+    globalThis.verifiedSettingsCreations = [];
+    app.on('browser-window-created', (_event, view) => {
+      const id = view.id;
+      view.webContents.on('did-start-navigation', ({ isMainFrame, isSameDocument, url }) => {
+        if (isMainFrame && !isSameDocument && url === 'capri://desktop/settings.html')
+          globalThis.verifiedSettingsCreations.push(id);
       });
     });
-    view.webContents.forcefullyCrashRenderer();
-    return closed;
   });
-  assert.equal(destroyed, true);
-  assert.equal(native(crashedHandle).exists, false);
+  const creations = () => application.evaluate(() => globalThis.verifiedSettingsCreations);
+  const lossCount = () => page.evaluate(() => window.settingsRendererLossCount);
+  const ownerState = () =>
+    application.evaluate(({ BrowserWindow }) => {
+      const owner = BrowserWindow.getAllWindows().find((w) =>
+        w.webContents.getURL().endsWith('/index.html'),
+      );
+      return {
+        id: owner.id,
+        renderer: owner.webContents.getOSProcessId(),
+        crashed: owner.webContents.isCrashed(),
+        visible: owner.isVisible(),
+      };
+    });
+  const crashSettings = (id) =>
+    application.evaluate(({ BrowserWindow }, id) => {
+      const view = BrowserWindow.fromId(id);
+      if (!view?.isVisible() || view.webContents.getURL() !== 'capri://desktop/settings.html')
+        throw Error('Expected the visible Settings window to crash.');
+      const closed = new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(false), 5000);
+        view.once('closed', () => {
+          clearTimeout(timer);
+          resolve(true);
+        });
+      });
+      view.webContents.forcefullyCrashRenderer();
+      return closed;
+    }, id);
+
+  const ownerBeforeCrash = await ownerState();
+  assert.equal(ownerBeforeCrash.visible, true);
+  assert.equal(ownerBeforeCrash.crashed, false);
+  const first = await state();
+  assert.equal(await crashSettings(first.id), true);
+  assert.equal(native(first.handle).exists, false);
+  // Inspect the replacement directly. settingsView would explicitly reopen it
+  // and could mask an automatic recovery failure.
+  let recovered, replacement;
+  const deadline = Date.now() + 12000;
+  while (Date.now() < deadline) {
+    replacement = await state();
+    recovered = application
+      .windows()
+      .find((view) => view.url() === 'capri://desktop/settings.html');
+    if (replacement?.visible && recovered && recovered !== settings) break;
+    await delay(60);
+  }
+  assert.ok(
+    replacement?.visible && recovered && recovered !== settings,
+    'Settings should recover automatically',
+  );
+  assert.notEqual(replacement.id, first.id);
+  settingsHandle = replacement.handle;
+  assert.equal(native(settingsHandle).visible, true);
+  await recovered.locator('#companion-glitch-strength').waitFor({ timeout: 5000 });
+  assert.equal(await recovered.locator('#companion-glitch-strength').inputValue(), '79');
+  assert.deepEqual(await creations(), [replacement.id]);
+  assert.equal(await lossCount(), 0, 'Successful recovery does not emit settings.renderer-lost');
+  assert.deepEqual(await ownerState(), ownerBeforeCrash);
   assert.equal(await page.evaluate(() => document.body.dataset.phase), 'ready');
+  record(
+    'A Settings renderer crash automatically restores the open tab without touching the companion',
+  );
+
+  assert.equal(await crashSettings(replacement.id), true);
+  assert.equal(native(settingsHandle).exists, false);
+  await page.waitForFunction(() => window.settingsRendererLossCount > 0, null, { timeout: 5000 });
+  await delay(800);
+  assert.equal(await lossCount(), 1, 'A repeated crash emits settings.renderer-lost once');
+  assert.deepEqual(
+    await creations(),
+    [replacement.id],
+    'A repeated crash must not create another window',
+  );
+  assert.equal(await state(), undefined);
+  assert.deepEqual(await ownerState(), ownerBeforeCrash);
+  assert.equal(await page.evaluate(() => document.body.dataset.phase), 'ready');
+  record('A second Settings crash stops recovery and leaves the companion running');
+
   const reopened = await settingsView(application, 'appearance');
   settingsHandle = (await state()).handle;
   assert.equal(native(settingsHandle).visible, true);
   assert.equal(await reopened.locator('#companion-glitch-strength').inputValue(), '79');
-  record('Settings can reopen after a renderer crash while the companion stays responsive');
+  assert.equal(await lossCount(), 1);
+  record('Explicit reopening works after automatic recovery has stopped');
   assert.deepEqual(report.errors, []);
 } finally {
   await application?.close();

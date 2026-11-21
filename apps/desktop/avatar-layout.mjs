@@ -1,4 +1,5 @@
 export const DEFAULT_AVATAR_LAYOUT = Object.freeze({ x: 0.5, y: 1, zoom: 1.15 });
+export const FULL_AVATAR_LAYOUT = Object.freeze({ ...DEFAULT_AVATAR_LAYOUT, framing: 'full' });
 export const MIN_AVATAR_ZOOM = 0.6;
 export const MAX_AVATAR_ZOOM = 3;
 const clamp = (value, low, high) => Math.max(low, Math.min(value, high));
@@ -12,10 +13,16 @@ export function validateAvatarLayout(value) {
     value.y < 0 ||
     value.y > 1 ||
     value.zoom < MIN_AVATAR_ZOOM ||
-    value.zoom > MAX_AVATAR_ZOOM
+    value.zoom > MAX_AVATAR_ZOOM ||
+    (value.framing !== undefined && value.framing !== 'full')
   )
     throw new Error('Invalid avatar layout');
-  return { x: value.x, y: value.y, zoom: value.zoom };
+  return {
+    x: value.x,
+    y: value.y,
+    zoom: value.zoom,
+    ...(value.framing === 'full' ? { framing: 'full' } : {}),
+  };
 }
 
 function panBounds(viewport, zoom) {
@@ -68,6 +75,32 @@ export function registeredAvatarRect(
     x: rect.x + ((627 - frame.anchor.x) / canvas.width) * rect.width,
     y: rect.y + ((referenceY - frame.anchor.y - 75) / canvas.height) * rect.height,
   };
+}
+
+/** Use the visible artwork for the full-body framing, including transparent sprite padding. */
+export function fitAvatarLayout(layout, viewport, frame) {
+  const bounds = frame?.visibleBounds ?? { x: 0, y: 0, width: 1254, height: 1254 };
+  const base = avatarRect({ x: 0.5, y: 0.5, zoom: 1 }, viewport).width;
+  const fit = Math.min(
+    (viewport.width * 0.93 * 1254) / (bounds.width * base),
+    (viewport.height * 0.93 * 1254) / (bounds.height * base),
+    DEFAULT_AVATAR_LAYOUT.zoom,
+  );
+  const placement = {
+    x: 0.5,
+    y: 0.5,
+    zoom: clamp((fit * layout.zoom) / DEFAULT_AVATAR_LAYOUT.zoom, MIN_AVATAR_ZOOM, MAX_AVATAR_ZOOM),
+  };
+  const rect = registeredAvatarRect(placement, viewport, frame);
+  return moveAvatar(
+    placement,
+    viewport,
+    viewport.x + viewport.width / 2 - rect.x - ((bounds.x + bounds.width / 2) / 1254) * rect.width,
+    viewport.y +
+      viewport.height / 2 -
+      rect.y -
+      ((bounds.y + bounds.height / 2) / 1254) * rect.height,
+  );
 }
 
 /** Frame the whole sleeping silhouette, with room for the drifting Zs. */
@@ -133,7 +166,7 @@ export function clippedAvatarRect(rect, bounds, viewport = { x: 0, y: 0, ...boun
     y = Math.max(0, viewport.y, rect.y);
   const width = Math.min(bounds.width, viewport.x + viewport.width, rect.x + rect.width) - x;
   const height = Math.min(bounds.height, viewport.y + viewport.height, rect.y + rect.height) - y;
-  if (width <= 0 || height <= 0) throw new Error('Avatar outside window');
+  if (width <= 0 || height <= 0) return null;
   return {
     x,
     y,

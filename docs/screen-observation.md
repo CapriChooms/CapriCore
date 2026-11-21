@@ -26,7 +26,7 @@ This reuses the existing model rather than downloading another vision model. It 
 
 Frames, preview video and change samples remain in memory. The separate explicit “Capri, clip that” command can save one PNG locally; see [screen-clips.md](screen-clips.md). No screenshots or automatic scene descriptions are written as files, attached to OpenClaw media, sent to cloud services or logged in routine diagnostics. Only a description actually used with an owner's message joins shared conversation history. Stopping clears the unused in-memory description and releases the stream.
 
-Crop/redaction controls, application exclusion lists, webcam capture, video/audio understanding and spontaneous screen-based comments remain separate future work. Existing event-based Initiative controls continue to govern their own app/idle reactions.
+For optional reactions to a shared foreground video or game window, see [Follow videos and gameplay](initiative.md#follow-videos-and-gameplay-beta). Initiative applies its own limits and quiet hours to these comments.
 
 ## Validation
 

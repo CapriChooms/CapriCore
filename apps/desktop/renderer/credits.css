@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 #credits-panel {
-  --credits-text: var(--theme-text, #d7eeed);
-  --credits-muted: color-mix(in srgb, var(--credits-text) 68%, var(--theme-background, #07131c));
-  --credits-border: color-mix(in srgb, var(--cyan, #8ef5ed) 27%, transparent);
-  --credits-accent: var(--cyan, #8ef5ed);
+  --credits-text: var(--settings-copy, #d7eeed);
+  --credits-muted: var(--settings-subtle, #a1bfc7);
+  --credits-border: var(--settings-divider-ink, #2d5863);
+  --credits-accent: var(--settings-title, #8ef5ed);
   color: var(--credits-text);
   container-type: inline-size;
 }
@@ -23,18 +23,6 @@
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 5px 0 18px;
-  background: none;
-  border: 0;
-  position: relative;
-}
-#credits-panel .credits-hero::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  block-size: 1px;
-  background: linear-gradient(90deg, var(--credits-accent), var(--pink, #ff3c68) 40%, transparent);
-  opacity: 0.45;
 }
 #credits-panel .credits-emblem {
   flex: 0 0 35px;
@@ -54,12 +42,6 @@
 #credits-panel .credits-heading-copy {
   min-inline-size: 0;
 }
-#credits-panel .credits-eyebrow {
-  color: var(--credits-muted);
-  font-size: 8px;
-  letter-spacing: 0.26em;
-  line-height: 1.5;
-}
 #credits-panel .credits-hero h3 {
   margin-block: 2px 5px;
   font-size: clamp(21px, 6cqi, 28px);
@@ -74,31 +56,8 @@
   font-size: 10px;
   line-height: 1.5;
 }
-#credits-panel .credits-section {
-  margin-block-start: 21px;
-  min-inline-size: 0;
-}
-#credits-panel .credits-section-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  margin-block-end: 13px;
-}
-#credits-panel .credits-section-heading h3 {
-  color: var(--credits-muted);
-  font-size: 12px;
-  font-weight: 550;
-  line-height: 1.5;
-}
-#credits-panel .credits-section-code {
-  direction: ltr;
-  unicode-bidi: isolate;
-  flex: none;
-  color: var(--credits-muted);
-  font-size: 8px;
-  letter-spacing: 0.1em;
-  opacity: 0.6;
+#credits-panel .credits-team-section h3 {
+  margin-block-end: 12px;
 }
 /* Every nickname keeps its palette and phase as the list is searched/scrolled. */
 #credits-panel .credits-floating-item {
@@ -160,7 +119,6 @@
     0 0 3px color-mix(in srgb, var(--name-glow) 60%, transparent),
     0 0 9px color-mix(in srgb, var(--name-glow) 28%, transparent);
   overflow-wrap: anywhere;
-  user-select: none;
 }
 #credits-panel .credits-floating-item[data-in-view] .credits-drift {
   will-change: transform;
@@ -173,9 +131,7 @@
     var(--credits-drift-delay, 0s) infinite alternate;
 }
 #credits-panel[data-scrolling] .credits-drift,
-#credits-panel[data-scrolling] .credits-name-gradient,
-#credits-panel[data-scrolling] .credits-ray-sheet,
-#credits-panel[data-scrolling] .credits-glyph-sheen::before {
+#credits-panel[data-scrolling] .credits-name-gradient {
   animation-play-state: paused !important;
 }
 #credits-panel .credits-team {
@@ -209,94 +165,26 @@
 }
 #credits-panel .credits-god-rays {
   position: absolute;
-  inset: -72px -96px;
+  inset: -50px -59px;
   z-index: 0;
   pointer-events: none;
   user-select: none;
-  overflow: visible;
-  /* Fade fully before the generous surface edge, rather than clipping rays. */
-  mask-image: radial-gradient(ellipse at center, #000 8%, #000b 28%, transparent 67%);
 }
 #credits-panel .credits-ray-sheet {
-  display: none;
   position: absolute;
   inset: 0;
-  --ray-colour: var(--name-a);
-  --ray-time: 7.4s;
-  --ray-phase: 0s;
-  --ray-lean: -1.5deg;
-  filter: blur(0.7px);
-  opacity: 0.55;
-}
-#credits-panel .credits-ray-sheet[data-ray-tone='1'] {
-  --ray-colour: var(--name-b);
-  --ray-time: 9.7s;
-  --ray-phase: -3.2s;
-  --ray-lean: 1.8deg;
-  filter: blur(1.1px);
-}
-#credits-panel .credits-ray-sheet[data-ray-tone='2'] {
-  --ray-colour: color-mix(in srgb, var(--name-glow) 45%, white);
-  --ray-time: 11.3s;
-  --ray-phase: -6.1s;
-  --ray-lean: 0.8deg;
-  filter: blur(1.5px);
-}
-#credits-panel .credits-glyph-ray {
-  position: absolute;
-  inset: 72px 96px;
-  transform: translate(var(--ray-x), var(--ray-y)) scale(var(--ray-scale-x), var(--ray-scale-y));
-  transform-origin: center;
-  opacity: var(--ray-alpha);
-  color: var(--ray-colour);
-  -webkit-text-fill-color: currentColor;
-}
-#credits-panel :is(.credits-glyph-ray, .credits-glyph-sheen)::before {
-  content: attr(data-text);
-  display: block;
-  font: inherit;
-  letter-spacing: inherit;
-  overflow-wrap: anywhere;
-}
-#credits-panel .credits-team-card[data-in-view] .credits-ray-sheet {
-  display: block;
-  will-change: transform, opacity;
-  animation: credits-glyph-rays var(--ray-time) ease-in-out
-    calc(var(--credits-drift-delay, 0s) + var(--ray-phase)) infinite;
+  inline-size: 100%;
+  block-size: 100%;
+  opacity: 0.7;
+  mask-image: radial-gradient(ellipse closest-side, #000 38%, #000b 72%, transparent);
 }
 #credits-panel .credits-team-name {
   position: relative;
   z-index: 1;
   font: inherit;
   letter-spacing: inherit;
-}
-#credits-panel .credits-glyph-sheen {
-  display: none;
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  user-select: none;
-}
-#credits-panel .credits-team-card[data-in-view] .credits-glyph-sheen {
-  display: block;
-}
-#credits-panel .credits-glyph-sheen::before {
-  background: linear-gradient(
-    110deg,
-    transparent 42%,
-    color-mix(in srgb, var(--name-a) 50%, transparent) 47%,
-    #fff9 50%,
-    color-mix(in srgb, var(--name-b) 60%, transparent) 53%,
-    transparent 58%
-  );
-  background-size: 300% 100%;
-  background-position: 200% 50%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: credits-glyph-sheen var(--credits-gradient-time, 8s) steps(160, end)
-    var(--credits-drift-delay, 0s) infinite;
+  -webkit-text-stroke: 0.6px #fff;
+  text-shadow: 0 0 5px color-mix(in srgb, var(--name-glow) 40%, transparent);
 }
 #credits-panel .credits-team-role {
   display: block;
@@ -315,7 +203,6 @@
   letter-spacing: 0.025em;
   line-height: 1.55;
   overflow-wrap: anywhere;
-  user-select: none;
 }
 #credits-panel .credits-team-identity .credits-epithet {
   font-size: 10px;
@@ -323,27 +210,19 @@
 #credits-panel .credits-future-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
+  gap: var(--settings-section-gap);
 }
 #credits-panel .credits-future-card {
   position: relative;
-  padding: 0;
-  min-inline-size: 0;
-  border: 0;
-  background: transparent;
 }
 #credits-panel .credits-future-card h3 {
-  color: var(--credits-muted);
-  font-size: 11px;
-  font-weight: 550;
   padding-inline-start: 17px;
-  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 #credits-panel .credits-reserved-icon {
   position: absolute;
-  inset-inline-start: 0;
-  inset-block-start: 0;
+  inset-inline-start: var(--settings-card-padding);
+  inset-block-start: var(--settings-card-padding);
   color: var(--credits-accent);
   opacity: 0.55;
   font-size: 13px;
@@ -390,9 +269,6 @@
   color: var(--credits-muted);
   font-size: 10px;
   line-height: 1.5;
-}
-#credits-panel .credits-supporters-section {
-  margin-block-start: 26px;
 }
 #credits-panel .credits-roster-toolbar {
   display: flex;
@@ -500,20 +376,14 @@
   cursor: pointer;
 }
 @container (max-width: 335px) {
-  #credits-panel .credits-team {
+  #credits-panel :is(.credits-team, .credits-future-grid) {
     grid-template-columns: minmax(0, 1fr);
-  }
-  #credits-panel .credits-section-code {
-    display: none;
   }
   #credits-panel .credits-supporters {
     column-gap: 18px;
   }
 }
 @container (max-width: 240px) {
-  #credits-panel .credits-future-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
   #credits-panel .credits-hero {
     gap: 9px;
   }
@@ -537,31 +407,6 @@
 @keyframes credits-spectrum {
   to {
     background-position: 100% 50%;
-  }
-}
-@keyframes credits-glyph-rays {
-  0%,
-  100% {
-    transform: rotate(calc(-1 * var(--ray-lean))) scale(0.98);
-    opacity: 0.38;
-  }
-  45% {
-    transform: rotate(var(--ray-lean)) scale(1.04);
-    opacity: 0.9;
-  }
-  72% {
-    transform: rotate(0deg) scale(1.01);
-    opacity: 0.6;
-  }
-}
-@keyframes credits-glyph-sheen {
-  0%,
-  15% {
-    background-position: 200% 50%;
-  }
-  85%,
-  100% {
-    background-position: -100% 50%;
   }
 }
 @keyframes credits-signal {
@@ -596,7 +441,10 @@
     color: CanvasText;
     text-shadow: none;
   }
-  #credits-panel :is(.credits-god-rays, .credits-glyph-sheen) {
+  #credits-panel .credits-team-name {
+    -webkit-text-stroke: 0;
+  }
+  #credits-panel .credits-god-rays {
     display: none;
   }
 }

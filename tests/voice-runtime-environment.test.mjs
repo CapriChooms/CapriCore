@@ -19,4 +19,18 @@ test('only a valid AMD runtime receipt selects the packaged SDK before Python st
   writeFileSync(file, JSON.stringify({ profile: 'amd' }));
   assert.deepEqual(voiceRuntimeEnvironment(root), { ROCM_SDK_TARGET_FAMILY: 'custom' });
   assert.equal(voiceRuntimeEnvironment(root).HSA_OVERRIDE_GFX_VERSION, undefined);
+
+  for (const invalid of ['1', -1, 8, 1.5]) {
+    writeFileSync(file, JSON.stringify({ profile: 'amd', hipVisibleDevice: invalid }));
+    assert.deepEqual(voiceRuntimeEnvironment(root, {}), { ROCM_SDK_TARGET_FAMILY: 'custom' });
+  }
+  writeFileSync(file, JSON.stringify({ profile: 'amd', hipVisibleDevice: 1 }));
+  assert.deepEqual(voiceRuntimeEnvironment(root, {}), {
+    ROCM_SDK_TARGET_FAMILY: 'custom',
+    HIP_VISIBLE_DEVICES: '1',
+  });
+  assert.deepEqual(voiceRuntimeEnvironment(root, { HIP_VISIBLE_DEVICES: '0,2' }), {
+    ROCM_SDK_TARGET_FAMILY: 'custom',
+    HIP_VISIBLE_DEVICES: '0,2',
+  });
 });

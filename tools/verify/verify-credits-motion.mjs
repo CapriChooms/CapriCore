@@ -100,6 +100,7 @@ try {
           gradient: ink.backgroundImage,
           fill: ink.webkitTextFillColor,
           bloom: ink.textShadow,
+          outline: { width: ink.webkitTextStrokeWidth, color: ink.webkitTextStrokeColor },
           transform,
           offset: { x: matrix.m41, y: matrix.m42 },
           rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom },
@@ -132,6 +133,20 @@ try {
       undefined,
       { timeout: 10000 },
     );
+  const raySignatures = () =>
+    panel.locator('canvas.credits-ray-sheet').evaluateAll((canvases) =>
+      canvases.map((canvas) => {
+        const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+        let hash = 2166136261;
+        for (let i = 3; i < data.length; i += 4) hash = Math.imul(hash ^ data[i], 16777619);
+        return hash;
+      }),
+    );
+  const assertStillRays = async (label) => {
+    const before = await raySignatures();
+    await settings.waitForTimeout(200);
+    assert.deepEqual(await raySignatures(), before, label);
+  };
   const assertGeometry = (sample, label) => {
     report.samples.push({
       label,
@@ -164,6 +179,13 @@ try {
   };
   await settle();
   await waitForMotion();
+  const sheets = panel.locator('canvas.credits-ray-sheet');
+  assert.equal(await sheets.count(), roster.team.length);
+  await settings.waitForFunction(() =>
+    [...document.querySelectorAll('#credits-panel canvas.credits-ray-sheet')].every(
+      (canvas) => canvas.width > 1 && canvas.height > 1,
+    ),
+  );
   let sample = await snapshot();
   assert.equal(
     sample.total,
@@ -192,11 +214,85 @@ try {
     assert(name.gradient.includes('gradient('), 'Nickname text has a color gradient');
     assert.equal(name.fill, 'rgba(0, 0, 0, 0)', 'Gradient is clipped into readable text');
     assert.notEqual(name.bloom, 'none', 'Nickname text has lightweight bloom');
+    if (name.kind === 'team') {
+      const width = Number.parseFloat(name.outline.width);
+      assert(width > 0 && width <= 1, `${name.name} has a thin outline`);
+      assert.match(name.outline.color, /^rgba?\(255, 255, 255(?:, [\d.]+)?\)$/u);
+    }
   }
   assertGeometry(sample, 'top');
+  report.rayOrbit = await sheets.first().evaluate(async (canvas) => {
+    const context = canvas.getContext('2d');
+    const { width, height } = canvas;
+    const start = performance.now();
+    const samples = [];
+    for (const offset of [0, 2000, 4000, 6000, 8000]) {
+      const time = await new Promise((resolve) => {
+        const observe = (now) => {
+          if (now < start + offset) requestAnimationFrame(observe);
+          else resolve(now - start);
+        };
+        requestAnimationFrame(observe);
+      });
+      const pixels = context.getImageData(0, 0, width, height).data;
+      const alpha = new Uint8Array(width * height);
+      let weight = 0;
+      let x = 0;
+      let y = 0;
+      for (let i = 0; i < alpha.length; i++) {
+        const opacity = pixels[i * 4 + 3];
+        alpha[i] = opacity;
+        weight += opacity;
+        x += (i % width) * opacity;
+        y += Math.floor(i / width) * opacity;
+      }
+      samples.push({ alpha, time, weight, x: x / weight, y: y / weight });
+    }
+    const quarters = samples.slice(0, 4);
+    const center = {
+      x: quarters.reduce((sum, point) => sum + point.x, 0) / quarters.length,
+      y: quarters.reduce((sum, point) => sum + point.y, 0) / quarters.length,
+    };
+    const angles = samples.map((point) => Math.atan2(point.y - center.y, point.x - center.x));
+    const advances = angles.slice(1).map((angle, i) => {
+      const delta = angle - angles[i];
+      return Math.atan2(Math.sin(delta), Math.cos(delta));
+    });
+    const initial = samples[0];
+    const bitmapDistance = (sample) =>
+      sample.alpha.reduce((sum, opacity, i) => sum + Math.abs(opacity - initial.alpha[i]), 0) /
+      (sample.weight + initial.weight);
+    return {
+      times: samples.map(({ time }) => time),
+      weights: samples.map(({ weight }) => weight),
+      advances,
+      averageRadiansPerSecond:
+        (1000 * Math.abs(advances.reduce((sum, angle) => sum + angle, 0))) /
+        (samples.at(-1).time - initial.time),
+      quarterDistance: bitmapDistance(samples[1]),
+      returnDistance: bitmapDistance(samples.at(-1)),
+    };
+  });
+  const orbit = report.rayOrbit;
+  assert(
+    orbit.weights.every((weight) => weight > 0),
+    'Each orbit pose paints visible rays',
+  );
+  assert(
+    orbit.advances.every(
+      (angle) => Math.sign(angle) === Math.sign(orbit.advances[0]) && Math.abs(angle) > 0.75,
+    ),
+    'The rays turn through four consecutive quarters in the same direction',
+  );
+  assert(Math.abs(orbit.averageRadiansPerSecond - Math.PI / 4) < 0.12);
+  assert(orbit.quarterDistance > 0.07, 'A quarter turn visibly changes the rendered rays');
+  assert(
+    orbit.returnDistance < orbit.quarterDistance * 0.45,
+    'The rays return after eight seconds',
+  );
   await settings.screenshot({ path: path.join(folder, 'top.png') });
   report.checks.push(
-    'Complete roster and three team roles; compact title; unboxed gradient text with bloom',
+    'Complete roster, compact title, gradient team nicknames with a thin white stroke, and a continuous eight-second light orbit',
   );
 
   await panel.locator('#credits-supporters-title').scrollIntoViewIfNeeded();
@@ -253,6 +349,7 @@ try {
   await settle();
   sample = await snapshot();
   assertGeometry(sample, 'middle');
+  await assertStillRays('Offscreen team rays stop animating');
   assert(
     sample.visible.every((name) => !initialNames.has(name.key)),
     'Viewport moved to a new roster region',
@@ -306,12 +403,16 @@ try {
   await settings.emulateMedia({ reducedMotion: 'reduce' });
   await settle();
   assert.equal(await runningCount(), 0, 'Reduced motion suppresses every credits animation');
+  await panel.locator('#credits-team').scrollIntoViewIfNeeded();
+  await settle();
+  await assertStillRays('Reduced motion keeps the visible rays static');
   await settings.emulateMedia({ reducedMotion: 'no-preference' });
   await settle();
   await waitForMotion();
   await settings.locator('[data-section="support"]').click();
   await settle();
   assert.equal(await runningCount(), 0, 'Hidden credits tab suppresses every credits animation');
+  await assertStillRays('The hidden Credits tab stops drawing rays');
   await settings.locator('[data-section="credits"]').click();
   await settle();
   await waitForMotion();
@@ -332,10 +433,15 @@ try {
   };
   assert.equal(report.nativeAfterClose.visible, false, 'Close hides the native settings window');
   assert.equal(await runningCount(), 0, 'Hidden native window suppresses every credits animation');
+  await assertStillRays('The hidden native settings window stops drawing rays');
   await settingsView(application, 'credits');
   await settings.waitForFunction(() => !document.hidden);
+  await panel.locator('#credits-team').scrollIntoViewIfNeeded();
   await settle();
   await waitForMotion();
+  const reopenedRays = await raySignatures();
+  await settings.waitForTimeout(250);
+  assert.notDeepEqual(await raySignatures(), reopenedRays, 'Reopening resumes the visible rays');
   report.checks.push(
     'Reduced motion, hidden tab and hidden native window stop all effects; reopening resumes',
   );

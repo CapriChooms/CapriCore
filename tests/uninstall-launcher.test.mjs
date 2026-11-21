@@ -25,6 +25,7 @@ const digest = (value) => createHash('sha256').update(value).digest('hex');
 const names = [
   'uninstall.ps1',
   'uninstall-window.cs',
+  'cyberpunk-theme.cs',
   'common.ps1',
   'shell-link.cs',
   'localization.ps1',
@@ -130,6 +131,11 @@ internal static class ResolverHarness {
         Type type = assembly.GetType("CapriUninstallLauncher", true);
         MethodInfo resolver = type.GetMethod("ResolveScript", BindingFlags.Static | BindingFlags.NonPublic);
         Console.WriteLine((string)resolver.Invoke(null, new object[]{args[2], Path.Combine(args[2], "missing-profile"), args[3]}) ?? "MISSING");
+      } else if(args.Length == 3 && args[0] == "--launch-root") {
+        Assembly assembly = Assembly.LoadFrom(args[1]);
+        Type type = assembly.GetType("CapriUninstallLauncher", true);
+        MethodInfo resolver = type.GetMethod("LauncherRoot", BindingFlags.Static | BindingFlags.NonPublic);
+        Console.WriteLine((string)resolver.Invoke(null, new object[]{args[2]}) ?? "MISSING");
       } else Console.WriteLine(CapriUninstallLauncher.ResolveScript(args[0],args[1],args[2]) ?? "MISSING");
       return 0;
     } catch(Exception error) { Console.Error.WriteLine(error.GetType().Name); return 1; }
@@ -149,9 +155,11 @@ internal static class ResolverHarness {
       '/reference:System.Windows.Forms.dll',
       '/reference:System.Drawing.dll',
       '/reference:System.Web.Extensions.dll',
+      '/reference:Microsoft.CSharp.dll',
       path.join(root, 'packages/installer/windows/uninstall-launcher.cs'),
       path.join(root, 'packages/installer/windows/setup-localization.cs'),
       path.join(root, 'packages/installer/windows/uninstall-window.cs'),
+      path.join(root, 'packages/installer/windows/cyberpunk-theme.cs'),
       generated,
       harness,
     ],
@@ -286,13 +294,14 @@ test(
   () => {
     const base = folder(),
       install = path.join(base, 'Registration 東京'),
-      verification = path.join(install, '.runtime/verification'),
+      verification = path.join(install, 'verification'),
       id = randomUUID();
     const copied = [
       'register.ps1',
       'common.ps1',
       'uninstall.ps1',
       'uninstall-window.cs',
+      'cyberpunk-theme.cs',
       'uninstall-launcher.cs',
       'setup-localization.cs',
       'localization.ps1',
@@ -339,7 +348,8 @@ try {
  & (Join-Path $Source 'packages/installer/windows/register.ps1') -InstallRoot $InstallRoot -VerificationRoot $VerificationRoot
  $key='HKCU:\\Software\\CapriInstallerTests\\'+$Id
  $registration=Get-ItemProperty -LiteralPath $key
- if($registration.QuietUninstallString -ne ('"'+(Join-Path $InstallRoot 'uninstall.exe')+'" --quiet')){throw 'Quiet removal did not use the native resolver'}
+ $command='"'+(Join-Path $VerificationRoot ('Uninstall/'+$Id+'/uninstall.exe'))+'"'
+ if($registration.UninstallString -ne $command -or $registration.QuietUninstallString -ne ($command+' --quiet')){throw 'Windows Apps must use the independent recovery executable'}
 } finally {
  $key='HKCU:\\Software\\CapriInstallerTests\\'+$Id
  if((Test-Path -LiteralPath $key) -and (Get-ItemProperty -LiteralPath $key).InstallLocation -eq $InstallRoot){Remove-Item -LiteralPath $key -Force}
@@ -367,9 +377,25 @@ try {
       readFileSync(path.join(install, '.runtime/installer/registration.json'), 'utf8'),
     );
     assert.equal(registration.root, install);
+    const directLauncher = path.join(install, 'uninstall.exe');
+    const recoveryLauncher = path.join(registration.recovery, 'uninstall.exe');
+    assert.deepEqual(readFileSync(recoveryLauncher), readFileSync(directLauncher));
+    for (const [executable, expected] of [
+      [directLauncher, install],
+      [recoveryLauncher, install],
+      [path.join(base, 'uninstall.exe'), 'MISSING'],
+    ]) {
+      const binding = spawnSync(compileHarness(), ['--launch-root', recoveryLauncher, executable], {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 10000,
+      });
+      assert.equal(binding.status, 0, binding.stderr);
+      assert.equal(binding.stdout.trim(), expected);
+    }
     const resolved = spawnSync(
       compileHarness(),
-      ['--assembly', path.join(install, 'uninstall.exe'), install, registration.recovery],
+      ['--assembly', recoveryLauncher, install, registration.recovery],
       { encoding: 'utf8', windowsHide: true, timeout: 10000 },
     );
     assert.equal(resolved.status, 0, resolved.stderr);
@@ -383,7 +409,9 @@ try {
     );
     const tidy = receipt.files.find((entry) => entry.path === 'Support/README.md');
     assert.equal(tidy.sha256, digest(readFileSync(path.join(install, 'Support/README.md'))));
-    unlinkSync(path.join(registration.recovery, 'uninstall.ps1'));
+    const cachedScript = path.join(registration.recovery, 'uninstall.ps1');
+    const originalScript = readFileSync(cachedScript);
+    unlinkSync(cachedScript);
     const fallback = spawnSync(
       compileHarness(),
       ['--assembly', path.join(install, 'uninstall.exe'), install, registration.recovery],
@@ -399,5 +427,28 @@ try {
       true,
       'no uninstall operation was executed',
     );
+    writeFileSync(cachedScript, originalScript);
+    unlinkSync(directLauncher);
+    const model = path.join(install, 'data/models/keep.bin');
+    const personalSettings = path.join(install, 'data/desktop/keep.json');
+    put(model, 'model');
+    put(personalSettings, 'personal settings');
+    const lock = path.join(install, '.runtime/installer/install.lock.json');
+    json(lock, { pid: process.pid });
+    const remove = () =>
+      spawnSync(recoveryLauncher, ['--quiet'], {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 30000,
+      });
+    assert.equal(remove().status, 1, 'Windows must receive a failed result if removal is busy');
+    assert.ok(existsSync(path.join(install, 'Capri.exe')));
+    unlinkSync(lock);
+    const removed = remove();
+    assert.equal(removed.status, 0, removed.stdout + removed.stderr);
+    assert.equal(existsSync(path.join(install, 'Capri.exe')), false);
+    assert.ok(existsSync(recoveryLauncher));
+    assert.equal(readFileSync(model, 'utf8'), 'model');
+    assert.equal(readFileSync(personalSettings, 'utf8'), 'personal settings');
   },
 );

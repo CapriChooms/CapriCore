@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { execFile, spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import {
   existsSync,
   readFileSync,
@@ -112,35 +113,81 @@ export function runVoiceTraining({ root, jobId, signal, onProgress }) {
   });
 }
 
-export function runVoiceDatasetImport({ root, source, importId, signal }) {
+function voiceImportEnvironment() {
+  const env = {
+    PYTHONNOUSERSITE: '1',
+    PYTHONUTF8: '1',
+    HF_HUB_OFFLINE: '1',
+    HF_HUB_DISABLE_TELEMETRY: '1',
+  };
+  for (const key of ['SystemRoot', 'WINDIR', 'PATH', 'TEMP', 'TMP', 'USERPROFILE', 'LOCALAPPDATA'])
+    if (process.env[key]) env[key] = process.env[key];
+  return env;
+}
+
+function runVoiceDatasetDraft({ root, source, signal, transcribe }) {
+  const python = path.join(
+    root,
+    transcribe ? '.runtime/asr-venv' : '.runtime/voice-training-venv',
+    'Scripts/python.exe',
+  );
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const child = execFile(
+      python,
+      transcribe
+        ? [
+            '-I',
+            '-S',
+            '-X',
+            'utf8',
+            '-B',
+            '-u',
+            path.join(root, 'integrations/asr_runtime/bootstrap.py'),
+            '--transcribe-recordings',
+          ]
+        : ['-B', '-m', 'integrations.voice_training.review_recordings'],
+      {
+        cwd: root,
+        env: { ...voiceImportEnvironment(), CAPRI_ASR_LANGUAGE: 'en' },
+        windowsHide: true,
+        encoding: 'utf8',
+        timeout: 5 * 60 * 1000,
+        maxBuffer: 4 * 1024 * 1024,
+        signal,
+      },
+      (error, stdout) => {
+        if (error) return reject(error);
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (failure) {
+          reject(failure);
+        }
+      },
+    );
+    child.stdin.on('error', () => {});
+    child.stdin.end(JSON.stringify({ source }));
+  });
+}
+
+export function runVoiceDatasetImport({ root, source, importId, signal, reviewed, rawAtRoot }) {
   signal.throwIfAborted();
   return new Promise((resolve, reject) => {
-    const env = {
-      PYTHONNOUSERSITE: '1',
-      PYTHONUTF8: '1',
-      HF_HUB_OFFLINE: '1',
-      HF_HUB_DISABLE_TELEMETRY: '1',
-    };
-    for (const key of [
-      'SystemRoot',
-      'WINDIR',
-      'PATH',
-      'TEMP',
-      'TMP',
-      'USERPROFILE',
-      'LOCALAPPDATA',
-    ])
-      if (process.env[key]) env[key] = process.env[key];
     const child = spawn(
       path.join(root, '.runtime/voice-training-venv/Scripts/python.exe'),
       ['-m', 'integrations.voice_training.import_dataset', '--id', importId],
-      { cwd: root, env, windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] },
+      {
+        cwd: root,
+        env: voiceImportEnvironment(),
+        windowsHide: true,
+        stdio: ['pipe', 'ignore', 'ignore'],
+      },
     );
     const stop = () => child.kill();
     const timer = setTimeout(stop, 2 * 60 * 1000);
     signal.addEventListener('abort', stop, { once: true });
     child.stdin.on('error', () => {});
-    child.stdin.end(JSON.stringify({ source }));
+    child.stdin.end(JSON.stringify({ source, reviewed, rawAtRoot }));
     const cleanup = () => {
       clearTimeout(timer);
       signal.removeEventListener('abort', stop);
@@ -174,8 +221,9 @@ export class VoiceTrainingService {
     ready = async () => {},
     run = runVoiceTraining,
     importRun = runVoiceDatasetImport,
+    draftRun = runVoiceDatasetDraft,
   }) {
-    Object.assign(this, { root, emit, before, ready, run, importRun });
+    Object.assign(this, { root, emit, before, ready, run, importRun, draftRun });
     this.file = voiceDataPath(root, 'data/speech/voice-training-status.json');
     this.lock = voiceDataPath(root, '.runtime/voice-training-job.lock');
     this.value = {
@@ -273,6 +321,115 @@ export class VoiceTrainingService {
   busy() {
     return Boolean(this.task || this.applying);
   }
+  chooseDataset(source) {
+    if (this.busy()) throw new Error('Wait for the current voice operation to finish.');
+    if (!existsSync(path.join(this.root, '.runtime/voice-training-venv/Scripts/python.exe')))
+      throw new Error(
+        'Install the English Capri voice runtime before importing training recordings.',
+      );
+    noLinks(source);
+    const metadata = path.join(source, 'metadata.csv');
+    noLinks(metadata);
+    this.recordingDraft = null;
+    if (existsSync(metadata))
+      return this.importDataset({ source }).then((status) => ({ ...status, draft: null }));
+    const { phase, stage } = this.value;
+    const controller = (this.controller = new AbortController());
+    this.publish({ phase: 'importing', stage: 'Preparing recordings…', error: null });
+    this.task = this.prepareDraft(source, controller.signal, { phase, stage }).finally(() => {
+      this.task = null;
+      this.controller = null;
+    });
+    return this.task;
+  }
+  async prepareDraft(source, signal, previous) {
+    const root = this.root;
+    const draft = (transcribe) => this.draftRun({ root, source, signal, transcribe });
+    try {
+      let value;
+      if (existsSync(path.join(root, '.runtime/asr-venv/Scripts/python.exe'))) {
+        try {
+          value = await draft(true);
+        } catch {
+          signal.throwIfAborted();
+        }
+      }
+      value ??= await draft(false);
+      signal.throwIfAborted();
+      const id = randomUUID();
+      this.recordingDraft = { ...value, source, id };
+      return {
+        ...this.publish({ ...previous, error: null }),
+        draft: {
+          id,
+          clips: value.rows.map(({ file, text, split, referenceEligible }) => ({
+            file: file.slice(4),
+            text,
+            reference: split === 'reference',
+            referenceEligible: referenceEligible === true,
+          })),
+        },
+      };
+    } catch {
+      return {
+        ...this.publish({
+          ...previous,
+          error: signal.aborted
+            ? null
+            : 'Use four or more short WAV or FLAC recordings from separate takes, including a clean 6–15 second reference.',
+        }),
+        draft: null,
+      };
+    }
+  }
+  async recordingAudio({ id, index } = {}) {
+    const draft = this.recordingDraft;
+    const row = draft && draft.id === id && Number.isInteger(index) ? draft.rows[index] : null;
+    if (!row) throw new Error('Choose the recordings folder again.');
+    const file = path.join(draft.source, draft.rawAtRoot ? row.file.slice(4) : row.file);
+    try {
+      noLinks(file);
+      const size = statSync(file).size;
+      if (size <= 0 || size > 64 * 1024 * 1024) throw new Error();
+      const audio = await readFile(file);
+      if (createHash('sha256').update(audio).digest('hex') !== row.sha256) throw new Error();
+      return {
+        audio: Uint8Array.from(audio),
+        flac: path.extname(file).toLowerCase() === '.flac',
+      };
+    } catch {
+      throw new Error('A recording changed. Choose the recordings folder again.');
+    }
+  }
+  async approveRecordings({ id, texts, reference } = {}) {
+    const draft = this.recordingDraft;
+    if (!draft || draft.id !== id) throw new Error('Choose the recordings folder again.');
+    if (texts === null) {
+      this.recordingDraft = null;
+      return this.snapshot();
+    }
+    if (
+      !Array.isArray(texts) ||
+      texts.length !== draft.rows.length ||
+      texts.some((text) => typeof text !== 'string' || !text.trim() || text.length > 2000)
+    )
+      throw new Error('Check the transcript for each recording.');
+    if (!Number.isInteger(reference) || !draft.rows[reference]?.referenceEligible)
+      throw new Error('Choose a neutral reference recording.');
+    const reviewed = draft.rows.map((row, index) => ({
+      ...row,
+      text: texts[index].trim(),
+      split: index === reference ? 'reference' : '',
+      approved: 'yes',
+    }));
+    const status = await this.importDataset({
+      source: draft.source,
+      reviewed,
+      rawAtRoot: draft.rawAtRoot,
+    });
+    this.recordingDraft = null;
+    return status;
+  }
   importDataset(input) {
     if (this.busy()) throw new Error('Wait for the current voice operation to finish.');
     this.task = this.importRecordings(input).finally(() => {
@@ -280,7 +437,7 @@ export class VoiceTrainingService {
     });
     return this.task;
   }
-  async importRecordings({ source } = {}) {
+  async importRecordings({ source, reviewed, rawAtRoot } = {}) {
     if (this.busy()) throw new Error('Wait for the current voice operation to finish.');
     if (typeof source !== 'string' || !path.isAbsolute(source) || source.length > 16000)
       throw new Error('Choose a local folder containing reviewed recordings.');
@@ -293,7 +450,14 @@ export class VoiceTrainingService {
     this.controller = controller;
     try {
       this.publish({ phase: 'importing', stage: 'checking', error: null });
-      await this.importRun({ root: this.root, source, importId, signal: controller.signal });
+      await this.importRun({
+        root: this.root,
+        source,
+        importId,
+        signal: controller.signal,
+        reviewed,
+        rawAtRoot,
+      });
       controller.signal.throwIfAborted();
       const datasetDir = 'data/voices/capri/en/imports/' + importId;
       const receipt = readJson(voiceDataPath(this.root, datasetDir + '/import-receipt.json'));

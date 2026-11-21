@@ -3,18 +3,24 @@ import {
   existsSync,
   lstatSync,
   realpathSync,
-  readdirSync,
+  opendirSync,
   readFileSync,
   writeFileSync,
   renameSync,
   unlinkSync,
-  mkdirSync,
 } from 'node:fs';
+import { open as openFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { CodingEditorBridge } from './coding-editor-bridge.mjs';
+import {
+  CodingProjectMonitor,
+  privateProjectPart,
+  projectRelative,
+  scanProjectFiles,
+} from './coding-project-files.mjs';
 import {
   assertPrivatePath,
   writePrivateBytesAtomic,
@@ -22,8 +28,10 @@ import {
 
 const run = promisify(execFile),
   hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
-const denied =
-  /^(?:\.git|\.svn|node_modules|\.venv|venv|\.ssh|\.aws|\.azure|\.capri|\.env(?:\..*)?|credentials(?:\..*)?|secrets?(?:\..*)?|.*\.(?:pem|pfx|p12|key))$/i;
+const maxFileBytes = 512 * 1024;
+const maxReadLines = 400;
+const textDecoder = new TextDecoder('utf-8', { fatal: true });
+const lineEnding = /\r\n|\n|\r/g;
 const inside = (root, target) => {
   const relative = path.relative(root, target);
   return (
@@ -43,6 +51,28 @@ const cleanEnv = () =>
     ),
   );
 const positive = (number, max) => Number.isInteger(number) && number > 0 && number <= max;
+
+function rangedText(result, line, endLine) {
+  if (line === undefined && endLine === undefined) return result;
+  const fromLine = line ?? 1;
+  if (!positive(fromLine, 10000000) || (endLine !== undefined && !positive(endLine, 10000000)))
+    fail('Use positive line numbers for a project file range.');
+  if (endLine !== undefined && endLine < fromLine)
+    fail('The last line must be at or after the first line.');
+  const starts = [0];
+  for (const match of result.text.matchAll(lineEnding)) starts.push(match.index + match[0].length);
+  if (fromLine > starts.length) fail('The requested line is outside the project file.');
+  const toLine = Math.min(endLine ?? fromLine + 149, fromLine + maxReadLines - 1, starts.length);
+  const text = result.text.slice(starts[fromLine - 1], starts[toLine] ?? result.text.length);
+  return {
+    ...result,
+    text: toLine < starts.length ? text.replace(/(?:\r\n|\n|\r)$/, '') : text,
+    fromLine,
+    toLine,
+    totalLines: starts.length,
+    partial: fromLine !== 1 || toLine !== starts.length,
+  };
+}
 
 export const IDE_KINDS = [
   'vscode',
@@ -65,14 +95,33 @@ export function editorArguments(kind, file, line = 1, column = 1) {
   return [`+call cursor(${line},${column})`, file];
 }
 
+export function editorProjectArguments(kind, workspace) {
+  if (!IDE_KINDS.includes(kind)) fail('Choose a supported editor executable.');
+  if (kind === 'notepad++')
+    return ['-multiInst', '-nosession', '-openFoldersAsWorkspace', workspace];
+  if (kind === 'vscode') return ['--reuse-window', workspace];
+  return [workspace];
+}
+
 /** A separate project grant, never an implicit extension of desktop/full access. */
 export class CodingService {
-  constructor({ root, runImpl = run, spawnImpl = spawn, bridge = new CodingEditorBridge() }) {
+  constructor({
+    root,
+    runImpl = run,
+    spawnImpl = spawn,
+    bridge = new CodingEditorBridge(),
+    onProjectChange = () => {},
+  }) {
     Object.assign(this, { root, runImpl, spawnImpl, bridge });
     this.buffers = new Map();
+    this.monitorEnabled = false;
+    this.monitor = new CodingProjectMonitor({
+      resolve: (relative, options) => this.resolve(relative, options),
+      onChange: onProjectChange,
+    });
     this.file = path.join(root, 'data/desktop/coding.json');
     assertPrivatePath(this.file);
-    this.config = { workspace: '', editor: null, tasks: [], bridge: false };
+    this.config = { workspace: '', editor: null, tasks: [], bridge: false, reviewWrites: false };
     if (existsSync(this.file)) {
       const stat = lstatSync(this.file);
       if (!stat.isFile() || stat.nlink !== 1 || stat.size > 16384)
@@ -83,21 +132,24 @@ export class CodingService {
   validate(value) {
     if (
       !value ||
-      Object.keys(value).some((key) => !['workspace', 'editor', 'tasks', 'bridge'].includes(key))
+      Object.keys(value).some(
+        (key) => !['workspace', 'editor', 'tasks', 'bridge', 'reviewWrites'].includes(key),
+      )
     )
       fail('Invalid coding settings.');
     if (typeof value.workspace !== 'string' || value.workspace.length > 2048)
       fail('Choose a project folder.');
+    let workspace = '';
     if (value.workspace) {
-      assertPrivatePath(value.workspace);
-      if (
-        !path.isAbsolute(value.workspace) ||
-        !lstatSync(value.workspace).isDirectory() ||
-        path.parse(value.workspace).root === value.workspace
-      )
+      if (!path.isAbsolute(value.workspace)) fail('Choose a project folder.');
+      workspace = path.resolve(value.workspace);
+      assertPrivatePath(workspace);
+      if (!lstatSync(workspace).isDirectory() || path.parse(workspace).root === workspace)
         fail('Choose a specific project folder, not an entire disk.');
+      workspace = realpathSync.native(workspace);
       // Capri credentials/runtime/history are never a coding workspace grant.
-      if (inside(this.root, value.workspace) || inside(value.workspace, this.root))
+      const installation = existsSync(this.root) ? realpathSync.native(this.root) : this.root;
+      if (inside(installation, workspace) || inside(workspace, installation))
         fail('Choose a project outside Capri’s installation and private data.');
     }
     if (
@@ -145,30 +197,63 @@ export class CodingService {
       fail('Invalid editor bridge selection.');
     if (value.bridge && value.editor?.kind !== 'vscode')
       fail('The live editor bridge requires a VS Code-compatible editor.');
+    if (value.reviewWrites !== undefined && typeof value.reviewWrites !== 'boolean')
+      fail('Invalid coding review setting.');
     return {
-      workspace: value.workspace ? realpathSync(value.workspace) : '',
+      workspace,
       editor: value.editor ?? null,
       tasks: value.tasks,
       bridge: value.bridge === true && value.editor?.kind === 'vscode',
+      reviewWrites: value.reviewWrites === true,
     };
   }
   save(value) {
+    const config = this.validate(value);
+    writePrivateBytesAtomic(this.file, Buffer.from(JSON.stringify(config, null, 2) + '\n'));
     this.buffers.clear();
-    this.config = this.validate(value);
-    writePrivateBytesAtomic(this.file, Buffer.from(JSON.stringify(this.config, null, 2) + '\n'));
+    this.config = config;
+    this.setMonitoring(this.monitorEnabled);
     return this.snapshot();
+  }
+  setMonitoring(enabled) {
+    this.monitorEnabled = enabled === true && Boolean(this.config.workspace);
+    let workspace = '';
+    if (this.monitorEnabled) {
+      try {
+        workspace = this.resolve('');
+      } catch {
+        // Preserve the saved configuration so the user can reconnect to a moved project.
+      }
+    }
+    this.monitor.start(workspace);
+    return this.monitor.snapshot();
   }
   snapshot() {
     return {
       ...structuredClone(this.config),
       available: Boolean(this.config.workspace),
-      capabilities: ['list', 'read', 'search', 'edit', 'create', 'open', 'run_task', 'diagnostics'],
+      monitor: this.monitor.snapshot(),
+      capabilities: [
+        'list',
+        'read',
+        'find',
+        'search',
+        'changes',
+        'context',
+        'edit',
+        'create',
+        'open',
+        'run_task',
+        'diagnostics',
+      ],
     };
   }
   resolve(relative = '', { existing = true } = {}) {
     const base = this.config.workspace;
     if (!base) fail('Choose a project folder in Settings → Coding mode first.');
     assertPrivatePath(base);
+    if (!lstatSync(base).isDirectory())
+      fail('Choose a project folder in Settings → Coding mode first.');
     if (
       typeof relative !== 'string' ||
       relative.length > 2048 ||
@@ -176,16 +261,24 @@ export class CodingService {
       /[:\x00-\x1f]/.test(relative)
     )
       fail('Use a project-relative path.');
-    const parts = relative.split(/[\\/]/);
-    if (parts.some((part) => part === '..' || denied.test(part)))
+    const normal = projectRelative(relative);
+    if (normal.split('/').some(privateProjectPart))
       fail('This project path is private or outside the coding scope.');
-    const target = path.resolve(base, relative);
+    const target = path.resolve(base, normal);
     if (!inside(base, target)) fail('This file is outside the project.');
     assertPrivatePath(target);
-    if (existing && (!existsSync(target) || !inside(base, realpathSync(target))))
-      fail('Project file not found.');
-    if (existsSync(target) && lstatSync(target).isFile() && lstatSync(target).nlink !== 1)
-      fail('Linked project files cannot be edited.');
+    if (!existsSync(target)) {
+      if (existing) fail('Project file not found.');
+    } else {
+      const stat = lstatSync(target);
+      if (stat.isFile() && stat.nlink !== 1) fail('Linked project files cannot be edited.');
+      const canonical = realpathSync.native(target);
+      if (
+        !inside(base, canonical) ||
+        projectRelative(path.relative(base, canonical)).split('/').some(privateProjectPart)
+      )
+        fail('This project path is private or outside the coding scope.');
+    }
     return target;
   }
   read(relative) {
@@ -193,12 +286,12 @@ export class CodingService {
       fail('Choose a project file, not the project root.');
     const file = this.resolve(relative),
       stat = lstatSync(file);
-    if (!stat.isFile() || stat.size > 512 * 1024) fail('Choose a text file smaller than 512 KB.');
+    if (!stat.isFile() || stat.size > maxFileBytes) fail('Choose a text file smaller than 512 KB.');
     const bytes = readFileSync(file);
     if (bytes.includes(0)) fail('Binary files cannot be read in coding mode.');
     let text;
     try {
-      text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      text = textDecoder.decode(bytes);
     } catch {
       fail(
         'Coding mode supports UTF-8 text files. Convert this file in your editor before editing.',
@@ -211,45 +304,119 @@ export class CodingService {
       bom: bytes.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])),
     };
   }
-  list(relative = '') {
+  list(relative = '', offset = 0) {
+    if (!Number.isInteger(offset) || offset < 0 || offset > 50000)
+      fail('Invalid project directory page.');
     const folder = this.resolve(relative);
     if (!lstatSync(folder).isDirectory()) fail('Choose a project directory.');
-    const rows = readdirSync(folder, { withFileTypes: true })
-      .filter((row) => !denied.test(row.name) && !row.isSymbolicLink())
-      .slice(0, 200);
-    return {
-      path: relative,
-      entries: rows.map((row) => ({ name: row.name, directory: row.isDirectory() })),
-    };
+    const directory = opendirSync(folder);
+    const entries = [];
+    let remaining = offset;
+    try {
+      for (let row; (row = directory.readSync()); ) {
+        if (privateProjectPart(row.name) || (!row.isFile() && !row.isDirectory())) continue;
+        if (remaining > 0) {
+          remaining--;
+          continue;
+        }
+        if (entries.length === 200) return { path: relative, entries, nextOffset: offset + 200 };
+        entries.push({ name: row.name, directory: row.isDirectory() });
+      }
+    } finally {
+      directory.closeSync();
+    }
+    return { path: relative, entries };
   }
-  search(query, relative = '') {
+
+  async scan(relative, signal, maxFiles, visit) {
+    const workspace = this.config.workspace;
+    const resolve = (entry) => {
+      if (workspace !== this.config.workspace)
+        fail('The selected project changed. Retry the action.');
+      return this.resolve(entry);
+    };
+    const result = await scanProjectFiles({
+      workspace,
+      root: resolve(relative),
+      resolve,
+      signal,
+      maxFiles,
+      visit: (entry) => visit(entry, resolve),
+    });
+    if (workspace !== this.config.workspace)
+      fail('The selected project changed. Retry the action.');
+    signal?.throwIfAborted();
+    return result;
+  }
+
+  async find(query, relative = '', signal) {
+    if (typeof query !== 'string' || !query.trim() || query.length > 160)
+      fail('Enter part of a project file name or path.');
+    const terms = projectRelative(query.trim()).toLowerCase().split(/\s+/);
+    const matches = [];
+    const scan = await this.scan(relative, signal, 12000, (entry, resolve) => {
+      const name = entry.toLowerCase();
+      if (terms.every((term) => name.includes(term))) {
+        try {
+          resolve(entry);
+          matches.push({ path: entry });
+        } catch {
+          // A promising match may have been moved or replaced by a filesystem link.
+        }
+      }
+      return matches.length >= 40;
+    });
+    return { matches, ...scan };
+  }
+
+  async search(query, relative = '', caseSensitive = true, signal) {
     if (typeof query !== 'string' || !query || query.length > 160)
       fail('Enter a short literal search string.');
+    if (typeof caseSensitive !== 'boolean') fail('Invalid project search setting.');
     const matches = [];
-    let scanned = 0;
-    const visit = (directory, depth) => {
-      if (depth > 6 || scanned >= 300 || matches.length >= 40) return;
-      for (const row of this.list(directory).entries) {
-        const name = path.join(directory, row.name);
-        if (row.directory) visit(name, depth + 1);
-        else {
-          scanned++;
-          try {
-            const value = this.read(name);
-            value.text.split(/\r?\n/).some((line, index) => {
-              if (line.includes(query))
-                matches.push({ path: name, line: index + 1, text: line.slice(0, 240) });
-              return matches.length >= 40;
-            });
-          } catch {
-            /* Skip binary/large/linked files. */
-          }
-        }
-        if (scanned >= 300 || matches.length >= 40) break;
+    const needle = caseSensitive ? null : new RegExp(RegExp.escape(query), 'iu');
+    const scan = await this.scan(relative, signal, 2400, async (entry, resolve) => {
+      let handle;
+      try {
+        handle = await openFile(resolve(entry), 'r');
+        const opened = await handle.stat();
+        const current = lstatSync(resolve(entry));
+        if (
+          !opened.isFile() ||
+          opened.nlink !== 1 ||
+          opened.size > maxFileBytes ||
+          opened.dev !== current.dev ||
+          opened.ino !== current.ino
+        )
+          return false;
+        const bytes = Buffer.allocUnsafe(opened.size + 1);
+        const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
+        const content = bytes.subarray(0, bytesRead);
+        if (bytesRead > maxFileBytes || content.includes(0)) return false;
+        textDecoder
+          .decode(content)
+          .split(lineEnding)
+          .some((line, index) => {
+            const match = needle ? line.search(needle) : line.indexOf(query);
+            if (match !== -1) {
+              const start = Math.max(0, match - 60);
+              matches.push({
+                path: entry,
+                line: index + 1,
+                column: match + 1,
+                text: line.slice(start, start + 240),
+              });
+            }
+            return matches.length >= 40;
+          });
+      } catch {
+        // Skip binary, unreadable or replaced files without delaying other matches.
+      } finally {
+        await handle?.close().catch(() => {});
       }
-    };
-    visit(relative, 0);
-    return { matches, scanned, limited: scanned >= 300 || matches.length >= 40 };
+      return matches.length >= 40;
+    });
+    return { matches, ...scan };
   }
   edit(relative, text, expectedHash, create = false) {
     if (typeof text !== 'string' || text.includes('\0') || Buffer.byteLength(text) > 512 * 1024)
@@ -283,15 +450,13 @@ export class CodingService {
     }
     return this.read(relative);
   }
-  async open(relative, line = 1, column = 1) {
-    const file = this.resolve(relative),
-      editor = this.config.editor;
+  async launchEditor(args) {
+    const { editor, workspace } = this.config;
     if (!editor) fail('Choose an editor in Coding mode settings first.');
     assertPrivatePath(editor.executable);
-    const args = editorArguments(editor.kind, file, line, column);
     await new Promise((resolve, reject) => {
       const child = this.spawnImpl(editor.executable, args, {
-        cwd: this.config.workspace,
+        cwd: workspace,
         windowsHide: true,
         detached: false,
         stdio: 'ignore',
@@ -303,6 +468,22 @@ export class CodingService {
         resolve();
       });
     });
+    return editor.kind;
+  }
+
+  async openProject() {
+    const workspace = this.resolve('');
+    const { editor } = this.config;
+    if (!editor) fail('Choose an editor in Coding mode settings first.');
+    await this.launchEditor(editorProjectArguments(editor.kind, workspace));
+    return { opened: true, editor: editor.kind };
+  }
+
+  async open(relative, line = 1, column = 1) {
+    const file = this.resolve(relative);
+    const { editor } = this.config;
+    if (!editor) fail('Choose an editor in Coding mode settings first.');
+    await this.launchEditor(editorArguments(editor.kind, file, line, column));
     return {
       opened: true,
       path: relative,
@@ -311,6 +492,38 @@ export class CodingService {
       note: 'The CLI accepted the file. Unsaved editor buffers are not overwritten or inspected.',
     };
   }
+
+  async activeContext(signal) {
+    const { bridge, workspace } = this.config;
+    if (!bridge || !workspace) return { active: null };
+    try {
+      const { active } =
+        (await this.bridge.request(workspace, { action: 'context' }, signal)) ?? {};
+      if (
+        workspace === this.config.workspace &&
+        this.config.bridge &&
+        active &&
+        typeof active.path === 'string' &&
+        positive(active.line, 10000000) &&
+        positive(active.column, 100000) &&
+        typeof active.dirty === 'boolean' &&
+        lstatSync(this.resolve(active.path)).isFile()
+      )
+        return {
+          active: {
+            path: projectRelative(active.path),
+            line: active.line,
+            column: active.column,
+            dirty: active.dirty,
+          },
+        };
+    } catch {
+      // A missing, older, or temporarily disconnected editor can still use the saved project.
+      signal?.throwIfAborted();
+    }
+    return { active: null };
+  }
+
   async task(id, signal) {
     const task = this.config.tasks.find((row) => row.id === id);
     if (!task) fail('Only tasks explicitly approved in Coding mode settings may run.');
@@ -345,7 +558,19 @@ export class CodingService {
       !args ||
       Object.keys(args).some(
         (key) =>
-          !['action', 'path', 'text', 'hash', 'query', 'task', 'line', 'column'].includes(key),
+          ![
+            'action',
+            'path',
+            'text',
+            'hash',
+            'query',
+            'task',
+            'line',
+            'column',
+            'endLine',
+            'caseSensitive',
+            'offset',
+          ].includes(key),
       )
     )
       fail('Invalid coding action.');
@@ -355,15 +580,16 @@ export class CodingService {
       const previous = this.buffers.get(args.path);
       if (args.action === 'edit' && (!previous || previous.hash !== args.hash))
         fail('Read the current editor document before editing.');
+      const request = args.action === 'read' ? { action: 'read', path: args.path } : args;
       const result = await this.bridge.request(
         this.config.workspace,
-        { ...args, ...(args.action === 'edit' ? { version: previous.version } : {}) },
+        { ...request, ...(args.action === 'edit' ? { version: previous.version } : {}) },
         signal,
       );
       if (result) {
         if (result.hash && Number.isInteger(result.version))
           this.buffers.set(args.path, { hash: result.hash, version: result.version });
-        return result;
+        return args.action === 'read' ? rangedText(result, args.line, args.endLine) : result;
       }
       if (args.action !== 'open')
         fail(
@@ -376,13 +602,20 @@ export class CodingService {
           workspace: Boolean(this.config.workspace),
           editor: this.config.editor?.kind ?? null,
           tasks: this.config.tasks.map((task) => task.id),
+          monitor: { watching: Boolean(this.monitor.watcher), revision: this.monitor.revision },
         };
+      case 'changes':
+        return this.monitor.snapshot();
+      case 'context':
+        return this.activeContext(signal);
       case 'list':
-        return this.list(args.path);
+        return this.list(args.path, args.offset);
       case 'read':
-        return this.read(args.path);
+        return rangedText(this.read(args.path), args.line, args.endLine);
+      case 'find':
+        return this.find(args.query, args.path, signal);
       case 'search':
-        return this.search(args.query, args.path);
+        return this.search(args.query, args.path, args.caseSensitive, signal);
       case 'edit':
         return this.edit(args.path, args.text, args.hash);
       case 'create':

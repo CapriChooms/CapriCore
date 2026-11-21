@@ -359,7 +359,8 @@ export class ChatGPTPlanAuth {
           !same(url.searchParams.get('state'), state)
         )
           return reject();
-        if (url.searchParams.has('error')) {
+        const declined = url.searchParams.has('error');
+        if (declined) {
           rejectCallback(
             problem('ChatGPT sign-in was declined or could not finish.', 'CAPRI_CHATGPT_CONSENT'),
           );
@@ -382,7 +383,11 @@ export class ChatGPTPlanAuth {
           'referrer-policy': 'no-referrer',
           'content-security-policy': "default-src 'none'",
         });
-        res.end('Return to Capri to finish connecting your ChatGPT account.');
+        res.end(
+          declined
+            ? 'ChatGPT sign-in did not complete. Return to Capri.'
+            : 'Return to Capri to finish connecting your ChatGPT account.',
+        );
       });
       server.requestTimeout = 5000;
       await new Promise((resolve, reject) => {
@@ -431,7 +436,10 @@ export class ChatGPTPlanAuth {
           signal,
         );
         if (typeof packet.id_token !== 'string')
-          throw problem('ChatGPT identity could not be verified. Sign in again.');
+          throw problem(
+            'ChatGPT identity could not be verified. Sign in again.',
+            'CAPRI_CHATGPT_IDENTITY',
+          );
         const identity = await this.identity(
           packet.id_token,
           { clientId: result.clientId, nonce, subject: profile.subject },

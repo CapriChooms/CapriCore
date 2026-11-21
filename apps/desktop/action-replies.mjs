@@ -15,6 +15,47 @@ const mutations = {
   // reply explain the complete task; do not replace it with a launch receipt.
   desktop_control: ['type_text', 'open_url', 'trash', 'browser_input'],
 };
+
+export function youtubeMusicReply(result, language) {
+  const status = result?.status;
+  let key = 'YouTube Music did not confirm this action. Check the player.';
+  if (status === 'disabled') key = 'Enable YouTube Music in Settings → Skills first.';
+  else if (status === 'tab_not_found')
+    key = 'YouTube Music tab not found. Open it in your browser and select the tab.';
+  else if (status === 'player_unavailable') key = 'YouTube Music is not playing anything.';
+  else if (result?.ok === true) {
+    if (status === 'volume_set' && Number.isFinite(result.volume))
+      return uiText('YouTube Music volume: {value}%.', language, { value: result.volume });
+    if (result.playing === true && result.track)
+      return uiText('Playing on YouTube Music: {track}.', language, { track: result.track });
+    switch (status) {
+      case 'opened':
+        key = 'Opened YouTube Music.';
+        break;
+      case 'search_opened':
+        key = 'Opened the YouTube Music search results.';
+        break;
+      case 'paused':
+        key = 'Paused.';
+        break;
+      case 'resumed':
+        key = 'Resumed.';
+        break;
+      case 'ready':
+        if (result.playing === false) key = 'Paused.';
+        else if (!result.track && result.playing !== true)
+          key = 'YouTube Music is not playing anything.';
+        break;
+      case 'playing':
+      case 'previous':
+      case 'skipped':
+        key = 'YouTube Music playback was updated.';
+        break;
+    }
+  }
+  return uiText(key, language);
+}
+
 export function factualActionReply(tool, args, result, language = 'en') {
   if (
     tool === 'desktop_control' &&
@@ -27,10 +68,14 @@ export function factualActionReply(tool, args, result, language = 'en') {
     tool === 'application_control' &&
     args.action === 'calculate' &&
     typeof result.result === 'string'
-  )
-    return uiText('Result: {value}', language, {
+  ) {
+    const answer = uiText('Result: {value}', language, {
       value: (result.displayResult ?? result.result) + (result.unit ? ' ' + result.unit : ''),
     });
+    return result.display?.ok === false
+      ? `${answer}\n${uiText('I couldn’t show the calculation in Windows Calculator.', language)}`
+      : answer;
+  }
   if (
     result?.ok === true &&
     tool === 'spotify_control' &&

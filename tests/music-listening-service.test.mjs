@@ -441,6 +441,11 @@ test('the service carries capture timing to both music listeners without retaini
   assert(!JSON.stringify(f.events).includes('capturedAt'));
   assert(!JSON.stringify(f.events).includes('pcm'));
   f.settings.enabled = false;
+  const withoutAnimation = f.service.snapshot();
+  assert.equal(withoutAnimation.tempo, 150);
+  assert.equal(withoutAnimation.beatAt, 11400);
+  assert.equal(musicAnimationReady(withoutAnimation), false);
+  f.service.stop(sessionId);
   assert.equal(f.service.snapshot().tempo, 0);
   assert.equal(f.service.snapshot().beatAt, 0);
 });

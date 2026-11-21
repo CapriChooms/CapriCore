@@ -2,7 +2,7 @@
 const companionUrl = 'capri://desktop/index.html';
 const companionOrigins = ['capri://desktop', 'capri://desktop/'];
 
-/** A single owner-click loopback grant, independent of microphone/ASR access. */
+/** A single loopback grant for the enabled music skill, independent of microphone/ASR access. */
 export class MusicAudioCapture {
   constructor({
     ownerFrame,

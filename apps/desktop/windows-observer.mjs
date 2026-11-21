@@ -118,7 +118,17 @@ export class WindowsObserver extends EventEmitter {
               this.lastFailure = null;
               this.publish('active');
               resolve(this.snapshot());
-            } else if (ready) this.emit('observation', validateObservation(event));
+            } else if (
+              ready &&
+              event.kind === 'browser.tab-changed' &&
+              event.schemaVersion === 1 &&
+              event.source === 'windows-events'
+            )
+              this.emit('browser-tab-changed', {
+                windowId: event.windowId,
+                processName: event.processName,
+              });
+            else if (ready) this.emit('observation', validateObservation(event));
             else throw new Error('Observer was not ready');
           } catch (error) {
             failure(error);

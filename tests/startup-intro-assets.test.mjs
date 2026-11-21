@@ -5,7 +5,6 @@ import {
   copyFileSync,
   linkSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   unlinkSync,
   writeFileSync,
@@ -24,11 +23,11 @@ import {
 import { createDesktopResources } from '../apps/desktop/main/resources.mjs';
 import { resourceResponse } from '../apps/desktop/main/protocol.mjs';
 import { sourceFiles } from '../packages/installer/src/payload.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 
-const parent = path.join(root, '.runtime/startup-intro-assets-unit');
-mkdirSync(parent, { recursive: true });
+const temporaryFolder = temporaryFolders('capri-startup-intro-assets-unit-');
 function fixture() {
-  const folder = mkdtempSync(path.join(parent, 'pack-'));
+  const folder = temporaryFolder();
   const files = [...startupIntroSourceFiles(root), 'assets/capri/sprites/v1/capri-neutral.png'];
   for (const name of files) {
     mkdirSync(path.dirname(path.join(folder, name)), { recursive: true });

@@ -58,6 +58,8 @@ const env = {
   CAPRI_DESKTOP_VERIFICATION_DIR: folder,
   CAPRI_DESKTOP_VERIFICATION_PORT: String(port),
   CAPRI_DESKTOP_VERIFICATION_SKIP_START: '1',
+  CAPRI_DESKTOP_VERIFICATION_ASR: '0',
+  CAPRI_DESKTOP_VERIFICATION_VOICE: '0',
 };
 delete env.ELECTRON_RUN_AS_NODE;
 let app;
@@ -83,9 +85,9 @@ try {
   assert.equal(await settings.locator('#saved-memory-view').isHidden(), true);
   await settings.locator('#memory-view').click();
   await settings.waitForFunction(
-    () => document.querySelectorAll('#saved-memory-list > li').length === 5,
+    () => document.querySelectorAll('#saved-memory-list > li').length === 2,
   );
-  assert.match(await settings.locator('#saved-memory-status').innerText(), /5/);
+  assert.match(await settings.locator('#saved-memory-status').innerText(), /2/);
   assert.equal(await settings.locator('#saved-memory-list img').count(), 0);
   assert.equal(await settings.evaluate(() => window.memoryExecuted), undefined);
   assert.ok((await settings.locator('#saved-memory-list').innerText()).includes(markup));
@@ -110,7 +112,18 @@ try {
   writeFileSync(notes, original + '- 2026-11-05 "My sample plant needs indirect light"\n');
   await settings.locator('#saved-memory-refresh').click();
   await settings.waitForFunction(
-    () => document.querySelectorAll('#saved-memory-list > li').length === 6,
+    () => document.querySelectorAll('#saved-memory-list > li').length === 3,
+  );
+  await settings.evaluate(() => window.capri.setSkill({ id: 'capri.owner-memory', enabled: true }));
+  const savedName = 'My name is Veridian';
+  const sent = await owner.evaluate(() =>
+    window.capri.send({ id: crypto.randomUUID(), text: 'Remember my name. Veridian' }),
+  );
+  assert.equal(sent.ok, true);
+  await settings.locator('#saved-memory-list').getByText(savedName, { exact: true }).waitFor();
+  assert.equal(await settings.locator('#saved-memory-list > li').count(), 4);
+  await owner.waitForFunction(
+    () => document.getElementById('subtitle-text').textContent === 'Memory saved and verified.',
   );
   await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()
@@ -155,7 +168,7 @@ try {
   assert.equal(requests, 0, 'Viewing and filtering memory must never call the model');
   assert.deepEqual(errors, []);
   console.log(
-    'PASS real Settings: private memory read, literal markup, search, refresh, empty state, narrow layout and tab cleanup.',
+    'PASS real Settings: saved facts, literal markup, search, manual and chat refresh, empty state, narrow layout and tab cleanup.',
   );
   console.log('Screenshots: ' + folder);
 } finally {

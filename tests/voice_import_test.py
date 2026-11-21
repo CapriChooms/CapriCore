@@ -2,12 +2,14 @@ import csv
 import json
 import tempfile
 import unittest
+from importlib.util import find_spec
 from pathlib import Path
 from unittest.mock import patch
 import numpy as np
 import soundfile as sf
 from integrations.voice_training import dataset
 from integrations.voice_training import import_dataset as importer
+from integrations.voice_training.review_recordings import draft, read_clip
 
 
 class VoiceImportTests(unittest.TestCase):
@@ -64,6 +66,36 @@ class VoiceImportTests(unittest.TestCase):
                 self.run_import()
             self.assertFalse((self.root/'data').exists())
             self.rows[0]=previous
+
+    def test_raw_folder_drafts_a_dataset_without_a_csv_and_imports_reviewed_edits(self):
+        (self.source / 'metadata.csv').unlink()
+        prepared = draft(self.source / 'raw')
+        self.assertTrue(prepared['rawAtRoot'])
+        self.assertEqual([row['split'] for row in prepared['rows']], ['', '', '', 'reference'])
+        self.assertTrue(all(row['text'] == '' for row in prepared['rows']))
+        for index, row in enumerate(prepared['rows']):
+            row.update(text=f'Corrected transcript {index}.', approved='yes')
+        import_id = '00000000-0000-0000-0000-000000000002'
+        with patch.object(importer, 'ROOT', self.root), patch.object(dataset, 'ROOT', self.root):
+            importer.import_dataset(str(self.source / 'raw'), import_id,
+                                    reviewed=prepared['rows'], raw_at_root=True)
+        saved = self.root / 'data/voices/capri/en/imports' / import_id / 'metadata.csv'
+        self.assertIn('Corrected transcript 0.', saved.read_text(encoding='utf-8'))
+        self.assertFalse((self.source / 'metadata.csv').exists())
+
+    @unittest.skipUnless(find_spec('av'), 'PyAV is supplied by the recognition environment')
+    def test_recognition_decodes_and_resamples_lossless_clips(self):
+        class Recognizer:
+            def transcribe(self, pcm):
+                self.length = len(pcm)
+                return 'Draft transcript.'
+
+        engine = Recognizer()
+        file = self.source / 'raw' / 'stereo.flac'
+        waveform, _ = sf.read(self.source / 'raw' / 'clip0.wav')
+        sf.write(file, np.column_stack((waveform, waveform)), 24000)
+        self.assertEqual(read_clip(file, engine), (2, 24000, 2, 'Draft transcript.'))
+        self.assertEqual(engine.length, 32000)
 
 
 if __name__=='__main__':

@@ -2,15 +2,39 @@
 export class PrivateMemoryPanel {
   constructor({ element, api, ui, onError }) {
     Object.assign(this, { element, api, ui, onError });
-    element.className = 'settings-card';
-    element.innerHTML =
-      '<h3>Locked private memory</h3><p>Encrypted on disk with your password. Private replies stay in this window and are erased when locked. They are not added to ordinary chat history. Forgotten passwords cannot be recovered.</p><label for="private-password">Password</label><input id="private-password" type="password" minlength="8" maxlength="256" autocomplete="off"><div class="settings-actions"><button type="button" id="private-unlock">Unlock</button><button type="button" id="private-lock">Lock now</button></div><p id="private-status" role="status"></p><div id="private-open" hidden><label for="private-note">Private note</label><textarea id="private-note" rows="3" maxlength="1200"></textarea><button type="button" id="private-save">Save private note</button><ul id="private-notes" data-untranslated></ul><h3>Private conversation</h3><p>This conversation bypasses ordinary history and tools. By default, private notes stay on this computer.</p><label><input id="private-api" type="checkbox">Allow this private request to use the selected external API</label><label for="private-message">Message Capri privately</label><textarea id="private-message" rows="3" maxlength="2000"></textarea><button type="button" id="private-send">Send privately</button><p id="private-reply" data-untranslated dir="auto"></p><label for="private-new-password">New password</label><input id="private-new-password" type="password" minlength="8" maxlength="256" autocomplete="off"><button id="private-change-password" type="button">Change password</button></div>';
+    element.classList.add('settings-stack');
+    element.innerHTML = `
+      <section class="settings-card" aria-labelledby="private-lock-title">
+        <h3 id="private-lock-title">Locked private memory</h3>
+        <p>Encrypted on disk with your password. Private replies stay in this window and are erased when locked. They are not added to ordinary chat history. Forgotten passwords cannot be recovered.</p>
+        <label for="private-password">Password</label><input id="private-password" type="password" minlength="8" maxlength="256" autocomplete="off">
+        <div class="settings-actions"><button type="button" id="private-unlock">Unlock</button><button type="button" id="private-lock">Lock now</button></div>
+        <p id="private-status" role="status"></p>
+      </section>
+      <div id="private-open" class="settings-stack" hidden>
+        <section class="settings-card" aria-labelledby="private-notes-title">
+          <h3 id="private-notes-title">Private note</h3>
+          <textarea id="private-note" rows="3" maxlength="1200" aria-labelledby="private-notes-title"></textarea>
+          <div class="settings-actions"><button type="button" id="private-save">Save private note</button></div>
+          <ul id="private-notes" data-untranslated></ul>
+        </section>
+        <section class="settings-card" aria-labelledby="private-conversation-title">
+          <h3 id="private-conversation-title">Private conversation</h3>
+          <p>This conversation bypasses ordinary history and tools. By default, private notes stay on this computer.</p>
+          <label><input id="private-api" type="checkbox">Allow this private request to use the selected external API</label>
+          <label for="private-message">Message Capri privately</label><textarea id="private-message" rows="3" maxlength="2000"></textarea>
+          <div class="settings-actions"><button type="button" id="private-send">Send privately</button></div>
+          <p id="private-reply" data-untranslated dir="auto"></p>
+        </section>
+        <section class="settings-card" aria-labelledby="private-password-title">
+          <h3 id="private-password-title">Change password</h3>
+          <label for="private-current-password">Current password</label><input id="private-current-password" type="password" minlength="8" maxlength="256" autocomplete="off">
+          <label for="private-new-password">New password</label><input id="private-new-password" type="password" minlength="8" maxlength="256" autocomplete="off">
+          <div class="settings-actions"><button id="private-change-password" type="button">Change password</button></div>
+        </section>
+      </div>`;
     const $ = (id) => element.querySelector('#' + id);
     this.$ = $;
-    $('private-new-password').previousElementSibling.insertAdjacentHTML(
-      'beforebegin',
-      '<label for="private-current-password">Current password</label><input id="private-current-password" type="password" minlength="8" maxlength="256" autocomplete="off">',
-    );
     $('private-unlock').onclick = () =>
       this.run(async () => {
         const password = $('private-password').value;

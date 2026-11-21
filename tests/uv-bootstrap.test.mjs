@@ -4,28 +4,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { root } from '../packages/runtime/src/host/paths.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 const literal = (value) => "'" + value.replaceAll("'", "''") + "'";
 const manifest = JSON.parse(readFileSync(path.join(root, 'config/installer.json'), 'utf8'));
+const temporaryFolder = temporaryFolders('capri-uv-bootstrap-');
 test(
   'a missing private uv is restored by bundled Node; no Node gives an actionable Setup repair error',
   // Cold Windows CI runners can spend over 45s in one guarded native repair.
   // Keep each phase bounded and the parent consistent with all three phases.
   { skip: process.platform !== 'win32', timeout: 285000 },
   () => {
-    const parent = path.join(root, '.runtime/uv-bootstrap-tests');
-    mkdirSync(parent, { recursive: true });
-    const folder = mkdtempSync(path.join(parent, 'case-')),
+    const folder = temporaryFolder(),
       project = path.join(folder, 'новая Капри'),
       pathProject = path.join(folder, 'PATH Node');
     mkdirSync(project);

@@ -64,13 +64,53 @@ if ($LASTEXITCODE -ne 0) { throw 'Voice dependencies could not be installed' }
         if(Test-Path -LiteralPath $capriLockFile -PathType Leaf){Remove-Item -LiteralPath $capriLockFile}
     }
 }
-if(-not $PlanOnly){[IO.File]::WriteAllText((Join-Path $capriRoot '.runtime/voice-runtime.json'),($capriVoiceRuntime|ConvertTo-Json -Depth 5),(New-Object Text.UTF8Encoding($false)))}
-if($DependenciesOnly -or $PlanOnly){return}
-& $capriVenvPython -m integrations.voice_training init
-if ($LASTEXITCODE -ne 0) { throw 'Voice folders could not be created' }
-& $capriVenvPython -m integrations.voice_training download
-if ($LASTEXITCODE -ne 0) { throw 'The pinned voice model could not be downloaded' }
-& $capriVenvPython -m integrations.voice_training doctor --inference-only
-if ($LASTEXITCODE -ne 0) { throw ('The voice runtime could not be inspected ('+$capriVoiceRuntime.backend+', exit '+$LASTEXITCODE+'). Check the output above, or choose text-only replies to finish Setup.') }
-$capriVoiceDoctor = Get-Content -LiteralPath (Join-Path $capriRoot 'logs/voice-training-doctor.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-if (-not $capriVoiceDoctor.cuda -or -not $capriVoiceDoctor.cudaCompute.kernelReady -or -not $capriVoiceDoctor.modelReady) { throw ('The selected voice runtime is not ready. '+$capriVoiceDoctor.cudaCompute.error+' Check the GPU driver, available GPU memory and model download.') }
+if($PlanOnly){return}
+
+function Invoke-CapriVoiceComputeProbe {
+    $lines=@(& $capriVenvPython -m integrations.voice_training doctor --runtime-only)
+    $code=$LASTEXITCODE
+    $lines | Write-Host
+    $report=$null
+    if($code -eq 0 -and $lines.Count){$report=$lines[-1] | ConvertFrom-Json}
+    return @{code=$code;ready=[bool]($report.cuda -and $report.cudaCompute.kernelReady);error=$report.cudaCompute.error}
+}
+
+if(-not $DependenciesOnly -or $capriVoiceRuntime.profile -eq 'amd'){
+    $probe=Invoke-CapriVoiceComputeProbe
+    $adapterCount=[Math]::Min(8,[int]$capriVoiceRuntime.amdAdapterCount)
+    $hipMask=[Environment]::GetEnvironmentVariable('HIP_VISIBLE_DEVICES','Process')
+    $cudaMask=[Environment]::GetEnvironmentVariable('CUDA_VISIBLE_DEVICES','Process')
+    if(-not $probe.ready -and $capriVoiceRuntime.profile -eq 'amd' -and $adapterCount -gt 1 -and
+       $null -eq $hipMask -and $null -eq $cudaMask -and $probe.code -in @(0,-1073741819,3221225477)){
+        try {
+            # ROCm ordinals need not match Windows display order. Test each candidate in
+            # a clean process and only retain the one that actually executes GPU kernels.
+            for($adapter=0;$adapter -lt $adapterCount;$adapter++){
+                Write-Host ('Retrying AMD voice compute with only HIP adapter '+$adapter+'.')
+                $env:HIP_VISIBLE_DEVICES=[string]$adapter
+                $candidate=Invoke-CapriVoiceComputeProbe
+                if($candidate.ready){
+                    $probe=$candidate
+                    $capriVoiceRuntime | Add-Member -NotePropertyName hipVisibleDevice -NotePropertyValue $adapter
+                    break
+                }
+            }
+        } finally {
+            [Environment]::SetEnvironmentVariable('HIP_VISIBLE_DEVICES',$hipMask,'Process')
+        }
+    }
+    if($probe.code -ne 0){
+        throw ('The voice runtime could not be inspected ('+$capriVoiceRuntime.backend+', exit '+$probe.code+'). Check the output above, or choose text-only replies to finish Setup.')
+    }
+    if(-not $probe.ready){
+        throw ('The selected voice runtime is not ready. '+$probe.error+' Check the GPU driver and choose a compatible voice.')
+    }
+}
+if(-not $DependenciesOnly){
+    & $capriVenvPython -m integrations.voice_training init
+    if($LASTEXITCODE -ne 0){throw 'Voice folders could not be created'}
+    # The download command verifies every pinned file before writing the model receipt.
+    & $capriVenvPython -m integrations.voice_training download
+    if($LASTEXITCODE -ne 0){throw 'The pinned voice model could not be downloaded'}
+}
+[IO.File]::WriteAllText((Join-Path $capriRoot '.runtime/voice-runtime.json'),($capriVoiceRuntime|ConvertTo-Json -Depth 5),(New-Object Text.UTF8Encoding($false)))

@@ -2,6 +2,7 @@ import { SubtitleController } from './subtitle-controller.mjs';
 import { AttachmentComposer } from './attachment-composer.mjs';
 import { HistoryAttachments } from './history-attachments.mjs';
 import { VoicePlayer } from './voice-player.mjs';
+import { bindAudioOutput, createAudioOutputContext } from './local-audio-output.mjs';
 import { ReplyVisibility } from './reply-visibility.mjs';
 import { VoiceEffectsPanel } from './voice-effects-panel.mjs';
 import { InterfaceLanguage, languageName } from './language-settings.mjs';
@@ -20,6 +21,8 @@ import { ButtonFeedback } from './button-feedback.mjs';
 import { inferencePrivacy } from './inference-privacy.mjs';
 import { renderInferenceLabel } from './inference-panel.mjs';
 import { InferencePicker } from './inference-picker.mjs';
+import { GuideOverlay } from './guide-overlay.mjs';
+import { faqContent } from './faq-content.mjs';
 import { VoiceVolumeMenu } from './voice-volume-menu.mjs';
 import { StartupPanel } from './startup-panel.mjs';
 import { StartupIntro } from './startup-intro.mjs';
@@ -36,7 +39,7 @@ import { SystemMusicClient } from './system-music-capture.mjs';
 import { MusicAnimation, MusicPoseLayer, MusicNotesLayer } from './music-animation.mjs';
 import { musicAnimationReady } from './music-listening-settings.mjs';
 import { SpeechPanel } from './speech-panel.mjs';
-import { validateDimming, shadeBounds } from './dimming-settings.mjs';
+import { dimmingFeatherWidth, validateDimming, shadeBounds } from './dimming-settings.mjs';
 import { DimmingMask } from './dimming-mask.mjs';
 import { OverflowTicker } from './overflow-ticker.mjs';
 import { isClipCommand } from './clip-command.mjs';
@@ -48,9 +51,12 @@ import { PANEL_SECTIONS } from './settings-registry.mjs';
 import { StopwatchHUD } from './stopwatch-hud.mjs';
 import { MemoryHUD } from './memory-hud.mjs';
 import { AnimationDirector, SpriteImages } from './animation-director.mjs';
+import { AvatarWave } from './avatar-wave.mjs';
 import { AvatarHeadpat } from './avatar-headpat.mjs';
+import { playAvatarObservation } from './avatar-observation.mjs';
 import { showAvatarTapEffect } from './avatar-tap-effect.mjs';
 import { AvatarMouthLayer, AvatarVisemes, avatarPoseLandmarks } from './avatar-mouth.mjs';
+import { CameraFramePublisher } from './call-camera-frame.mjs';
 import { playTeleportSound } from './avatar-teleport-sound.mjs';
 import { CRT_CURVATURE, screenSample } from './screen-geometry.mjs';
 import {
@@ -58,6 +64,7 @@ import {
   avatarRect,
   registeredAvatarRect,
   sleepingAvatarRect,
+  fitAvatarLayout,
   avatarFacePoint,
   centerAvatarFace,
   clippedAvatarRect,
@@ -147,16 +154,14 @@ const musicClient = new SystemMusicClient({
   onState: () => renderMusicState(),
   onError: () => notice('Music listening could not start. Try again from Settings.', 'warning'),
 });
-window.capriRunMusicCommand = async (action) => {
-  if (action === 'stop') await musicClient.stop();
-  else if (action === 'start') {
-    if (!(await musicClient.start()))
-      throw Error('Music listening could not start. Try again from Settings.');
-  } else throw Error('Invalid music listening command.');
-  return true;
+window.capriStartMusicListening = async () => {
+  if (!(await musicClient.start()))
+    throw Error('Music listening could not start. Try again from Settings.');
 };
 musicButton.onclick = () =>
-  window.capriRunMusicCommand(musicClient.run ? 'stop' : 'start').catch(() => {});
+  api
+    .setSkill({ id: 'capri.music', enabled: !skillState['capri.music']?.enabled })
+    .catch((error) => notice(error.message, 'warning'));
 const memoryHUD = new MemoryHUD({
   element: document.getElementById('memory-hud'),
   contextButton: document.getElementById('context-hud'),
@@ -180,7 +185,7 @@ let pendingAction = null;
 let pendingActionTimer;
 let dueReminder;
 let computerTaskLabel;
-const buttonFeedback = new ButtonFeedback();
+new ButtonFeedback();
 const confirmDialog = new ConfirmationDialog({
   ui,
   onChange: (open) => {
@@ -243,6 +248,13 @@ const elements = Object.fromEntries(
     'history-empty',
   ].map((id) => [id, document.getElementById(id)]),
 );
+const companionToolbar = document.createElement('div');
+companionToolbar.className = 'companion-toolbar';
+elements.handle.before(companionToolbar);
+companionToolbar.append(elements.handle, document.getElementById('quick-actions'));
+const dockTelemetry = document.querySelector('.dock-telemetry');
+const callAudioDock = document.getElementById('call-audio-dock');
+const inputDock = document.getElementById('input-dock');
 const messages = new Map();
 const messageViews = new Map();
 let latestMessageId = null;
@@ -283,10 +295,10 @@ const companionPanel = new CompanionPanel({
   confirm: confirmDialog,
   api,
   ui,
+  wakeOutputDevice: () => audioPlaybackDevice,
   onError: notice,
   onOpen: (open) => preferencesOpened('companion-settings', open),
   onChange: (value) => {
-    buttonFeedback.configure(value.buttonFeedback);
     companionSettings = value;
     replyVisibility?.configure(value);
     presence.expandOnReply = value.expandOnReply !== false;
@@ -399,12 +411,14 @@ let backend = { phase: 'starting', message: 'Starting local core…' };
 let power = { phase: 'awake' };
 function showPower(value) {
   power = value ?? { phase: 'awake' };
+  if (power.phase !== 'awake') resumeMicrophoneAfterRestart = false;
   controls();
 }
 function syncSleepingVisual() {
   const wasSleeping = presence.sleeping;
   presence.setSleeping(visuallySleeping(power.phase, backend.phase));
   document.body.dataset.sleeping = String(presence.sleeping);
+  if (presence.sleeping) portraitWave.stop();
   if (avatarTapsSleeping(power.phase, backend.phase)) headpat.clear();
   document.getElementById('sleep-indicator').hidden = !presence.sleeping;
   if (wasSleeping && !presence.sleeping) {
@@ -413,11 +427,19 @@ function syncSleepingVisual() {
   }
 }
 let activeTurnId = null;
-const pendingSpotifyTools = new Set();
+const pendingMusicTools = new Map();
 let submitting = false;
 let clearingHistory = false;
 const responsePaintStarts = new Map();
 let ready = false;
+let resumeMicrophoneAfterRestart = false;
+function resumeRestartedMicrophone() {
+  if (!ready || !resumeMicrophoneAfterRestart) return;
+  if (backend.phase === 'offline' || power.phase !== 'awake') resumeMicrophoneAfterRestart = false;
+  if (!resumeMicrophoneAfterRestart || backend.phase !== 'ready') return;
+  resumeMicrophoneAfterRestart = false;
+  void microphoneClient.start();
+}
 let miniDraftRevision = 0,
   lastMiniSnapshot;
 let dragPointer = null;
@@ -445,19 +467,144 @@ let queuedSelection = null;
 let avatarPlacement = { ...DEFAULT_AVATAR_LAYOUT };
 let placementReady = false;
 let avatarCenterFrame = 0;
+let avatarZoom = null;
 let spriteDrag = null;
 let lastSpriteTap = null;
 const presence = new PresenceModel();
+const guide = new GuideOverlay({
+  language: () => ui.language,
+  faq: () => faqContent(ui),
+  blocked: () => confirmDialog.dialog.open,
+  onActive: (active) => {
+    presence.guiding = active;
+    if (active) {
+      presence.reveal();
+      startupIntro?.cancel();
+    } else presence.touch();
+    scheduleRegions();
+  },
+  onPanel: (panel) => {
+    if (panel === 'inference') void inferencePicker.open(false, { preview: true });
+    else if (inferencePicker.previewing) inferencePicker.close(false);
+  },
+  openSettings: (section) => api.openSettings(section),
+  openLink: (id) => api.communityLink(id),
+});
+confirmDialog.dialog.addEventListener('close', () => guide.maybeStart());
 const avatarDetachButton = document.getElementById('avatar-detach');
 let avatarDetachPhase = 'attached';
 let avatarDetachPending = false;
 let desktopCue;
 let desktopStatus;
+const replySlot = document.getElementById('reply-slot');
+const replyStage = elements['subtitle-stage'];
+const replyMotionPreference = matchMedia('(prefers-reduced-motion: reduce)');
+let replyNativeMotion, replyFade, replyChangePending;
+let focusReplyAfterReveal = false;
+
+function settleReplyPresentation(hidden) {
+  replyNativeMotion = null;
+  replyChangePending = false;
+  replyFade?.cancel();
+  replyFade = null;
+  replySlot.hidden = hidden;
+  delete replySlot.dataset.resizing;
+  replySlot.style.removeProperty('--reply-reveal');
+  replySlot.style.removeProperty('height');
+  if (!hidden && focusReplyAfterReveal) {
+    focusReplyAfterReveal = false;
+    document.getElementById('subtitle-collapse').focus({ preventScroll: true });
+  }
+  scheduleRegions();
+}
+
+function paintNativeReplyMotion() {
+  if (!replyNativeMotion) return;
+  const { compactHeight, expandedHeight, collapsed, animated } = replyNativeMotion;
+  if (Math.abs(innerHeight - (collapsed ? compactHeight : expandedHeight)) <= 1) {
+    settleReplyPresentation(collapsed);
+    return;
+  }
+  if (!animated) return;
+  const reveal = Math.min(
+    1,
+    Math.max(0, (innerHeight - compactHeight) / (expandedHeight - compactHeight)),
+  );
+  const style = getComputedStyle(replyStage);
+  const height =
+    replyStage.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+  replySlot.style.height = height * reveal + 'px';
+  replySlot.style.setProperty('--reply-reveal', String(reveal));
+}
+
+function beginNativeReplyMotion(event) {
+  if (
+    !document.body.hasAttribute('data-vertical-portrait') ||
+    event.collapsed !== (document.body.dataset.replyHidden === 'true')
+  )
+    return;
+  replyChangePending = false;
+  replyNativeMotion = event;
+  if (event.animated && !replySlot.hidden) replySlot.dataset.resizing = '';
+  paintNativeReplyMotion();
+  scheduleRegions();
+}
+
+function presentReply(hidden) {
+  if (
+    document.body.hasAttribute('data-vertical-portrait') &&
+    !guide.active &&
+    !confirmDialog.dialog.open
+  ) {
+    replyChangePending = true;
+    if (hidden && !replyNativeMotion && replySlot.hasAttribute('data-resizing')) {
+      // The reveal was reversed before the native window started growing.
+      settleReplyPresentation(true);
+      return;
+    }
+    if (!hidden && replySlot.hidden) {
+      // Keep the slot at zero until Electron prepares the matching height change.
+      replySlot.dataset.resizing = '';
+      replySlot.style.height = '0px';
+      replySlot.style.setProperty('--reply-reveal', '0');
+      replySlot.hidden = false;
+    }
+    return;
+  }
+  if (!document.body.hasAttribute('data-horizontal-portrait') || replyMotionPreference.matches) {
+    settleReplyPresentation(hidden);
+    return;
+  }
+  const opacity = replyFade ? getComputedStyle(replyStage).opacity : hidden ? 1 : 0;
+  const translate = replyFade
+    ? getComputedStyle(replyStage).translate
+    : hidden
+      ? '0 0px'
+      : '0 12px';
+  replyFade?.cancel();
+  replySlot.hidden = false;
+  const fade = replyStage.animate(
+    [
+      { opacity, translate },
+      { opacity: hidden ? 0 : 1, translate: hidden ? '0 10px' : '0 0px' },
+    ],
+    { duration: hidden ? 165 : 235, easing: 'cubic-bezier(.25,.75,.25,1)', fill: 'both' },
+  );
+  replyFade = fade;
+  fade.onfinish = () => {
+    if (replyFade === fade) settleReplyPresentation(hidden);
+  };
+}
+
 replyVisibility = new ReplyVisibility({
   onChange: ({ hidden, turnId }) => {
+    const changed = hidden !== (document.body.dataset.replyHidden === 'true');
     document.body.dataset.replyHidden = String(hidden);
+    if (hidden) focusReplyAfterReveal = false;
+    replyStage.inert = hidden;
     document.getElementById('subtitle-collapse').hidden = hidden;
     document.getElementById('subtitle-reveal').hidden = !hidden;
+    if (changed) presentReply(hidden);
     subtitleController?.setHidden(hidden);
     const subtitle = subtitleController?.state;
     if (
@@ -470,7 +617,6 @@ replyVisibility = new ReplyVisibility({
     scheduleRegions();
   },
 });
-const replyStage = elements['subtitle-stage'];
 replyStage.addEventListener('pointerenter', () => replyVisibility.hold('hover', true));
 replyStage.addEventListener('pointerleave', () => replyVisibility.hold('hover', false));
 replyStage.addEventListener('focusin', () => replyVisibility.hold('focus', true));
@@ -515,11 +661,19 @@ let voiceBusy = false;
 let microphoneClient, screenPanel;
 let savedScreenshotId = null;
 let screenshotAudioContext, screenshotSample;
+let audioPlaybackDevice = '';
+async function cueAudioContext() {
+  const deviceId = audioPlaybackDevice;
+  if (!screenshotAudioContext || screenshotAudioContext.state === 'closed')
+    screenshotAudioContext = createAudioOutputContext(deviceId, { latencyHint: 'interactive' });
+  const context = screenshotAudioContext;
+  await bindAudioOutput(context, deviceId);
+  return audioPlaybackDevice === deviceId && context.state !== 'closed' ? context : null;
+}
 async function screenshotSound() {
   try {
-    const context =
-      [screenshotAudioContext, voicePlayer.context].find((c) => c && c.state !== 'closed') ??
-      (screenshotAudioContext = new AudioContext({ latencyHint: 'interactive' }));
+    const context = await cueAudioContext();
+    if (!context) return;
     if (context.state === 'suspended') await context.resume();
     screenshotSample ??= api
       .screenshotSound()
@@ -626,9 +780,26 @@ const voicePlayer = new VoicePlayer({
   onError: (error) => {
     console.error('Voice playback failed:', error?.message ?? 'Unknown audio output error');
     api.stopVoice().catch(() => {});
-    notice('Audio playback failed. Try unmuting Capri again.');
+    notice(
+      error?.code === 'CAPRI_SPEAKER_OUTPUT'
+        ? error.message
+        : 'Audio playback failed. Try unmuting Capri again.',
+    );
   },
 });
+function applyAudioRouting(value) {
+  const id = value?.routes?.speaker ?? '';
+  if (id !== audioPlaybackDevice) {
+    companionPanel.stopWakePreview();
+    audioPlaybackDevice = id;
+    if (screenshotAudioContext?.state !== 'closed')
+      void screenshotAudioContext?.close().catch(() => {});
+    screenshotAudioContext = undefined;
+  }
+  modelsPanel.voices.setOutputDevice(id);
+  timePanel.setOutputDevice(id);
+  void voicePlayer.setSpeakerDevice(id).catch((error) => notice(error.message));
+}
 const voiceEffectsPanel = new VoiceEffectsPanel({
   api,
   ui,
@@ -799,7 +970,12 @@ microphoneClient = new MicrophoneClient({
     presence.replyAttention();
   },
   onWake: (_event, context) => {
-    wakeFeedback.activate(context);
+    if (audioPlaybackDevice)
+      void cueAudioContext().then(
+        (output) => wakeFeedback.activate(output),
+        () => wakeFeedback.activate(null),
+      );
+    else wakeFeedback.activate(context);
     presence.wakeUp({ reveal: presence.expandOnReply });
     director?.attend(performance.now(), true);
     redrawAvatar();
@@ -818,6 +994,7 @@ window.capriRunCallAudioCommand = async ({
   deviceId,
   micDeviceId,
   wakeFromSystem,
+  systemToken,
   mixMic,
   enabled,
 }) => {
@@ -851,7 +1028,7 @@ window.capriRunCallAudioCommand = async ({
   if (action === 'system-on') {
     if (microphoneClient.state.status !== 'listening')
       throw new Error('System audio requires an active microphone in Capri.');
-    if (!(await microphoneClient.setSystemAudio(true, wakeFromSystem)))
+    if (!(await microphoneClient.setSystemAudio(true, wakeFromSystem, systemToken)))
       throw new Error('System audio could not start. Microphone input is still active.');
   }
   if (action === 'system-off') await microphoneClient.setSystemAudio(false);
@@ -913,7 +1090,7 @@ function avatarViewport() {
     y: frame.y - origin.y + 14,
     width,
     height,
-    baseSize: Math.min(430, width, director ? height : height * 2),
+    baseSize: Math.min(430, width, height),
     centerFaces: true,
   };
 }
@@ -930,6 +1107,7 @@ function avatarClip(rect) {
 
 function avatarHitRegion(rect) {
   const sprite = avatarClip(rect);
+  if (!sprite) return null;
   sprite.enabled =
     presence.snapshot().expanded &&
     avatarDetachPhase === 'attached' &&
@@ -958,18 +1136,20 @@ function avatarGeometry() {
   const { x, y, width, height } = elements['sprite-region'].getBoundingClientRect();
   const rect = { x, y, width, height };
   const clip = avatarClip(rect);
-  return { rect, clip: { x: clip.x, y: clip.y, width: clip.width, height: clip.height } };
+  return clip && { rect, clip: { x: clip.x, y: clip.y, width: clip.width, height: clip.height } };
 }
 
 function avatarDepartureGeometry() {
   startupIntro?.cancel();
   cancelAvatarCentering();
+  cancelAvatarZoom();
   const frameId = currentAvatarFrameId();
   if (avatarDetachPhase !== 'attached' || !frameId || document.body.dataset.avatarArriving)
     return null;
   presence.touch();
   endSpriteDrag();
-  return { frameId, ...avatarGeometry() };
+  const geometry = avatarGeometry();
+  return geometry && { frameId, ...geometry };
 }
 
 globalThis.capriAvatarDepartureGeometry = () => {
@@ -1004,7 +1184,8 @@ globalThis.capriAvatarReturnGeometry = (drop) => {
     // including a return by button rather than only a drag-and-drop return.
     avatarPlacement = centeredHomePlacement();
     redrawAvatar();
-    return { ...avatarGeometry(), layout: avatarPlacement };
+    const geometry = avatarGeometry();
+    return geometry && { ...geometry, layout: avatarPlacement };
   } finally {
     avatarPlacement = previousPlacement;
     dataset.presence = previousPresence;
@@ -1042,6 +1223,7 @@ function updateAvatarDetachPhase(phase) {
   const returning = avatarDetachPhase === 'returning' && phase === 'attached';
   cancelAvatarCentering();
   avatarDetachPhase = phase;
+  if (phase !== 'attached') portraitWave.stop();
   desktopCue = undefined;
   desktopStatus = undefined;
   subtitleController.render();
@@ -1126,12 +1308,14 @@ function redrawAvatar() {
     `${Math.round(document.getElementById('input-dock').getBoundingClientRect().height)}px`,
   );
   const viewport = avatarViewport();
+  const frameArt = portraitWave.image ? frameCatalog.get('neutral') : renderedFrame;
+  const placement = displayedAvatarPlacement(viewport, frameArt);
   const rect =
-    renderedFrame?.id === 'pose-sleep'
-      ? sleepingAvatarRect(viewport, renderedFrame.visibleBounds, avatarPlacement.zoom)
+    frameArt?.id === 'pose-sleep'
+      ? sleepingAvatarRect(viewport, frameArt.visibleBounds, avatarPlacement.zoom)
       : director
-        ? registeredAvatarRect(avatarPlacement, viewport, renderedFrame)
-        : avatarRect(avatarPlacement, viewport);
+        ? registeredAvatarRect(placement, viewport, frameArt)
+        : avatarRect(placement, viewport);
   const viewportStyle = document.getElementById('avatar-viewport').style;
   viewportStyle.clipPath = `inset(${viewport.y}px ${innerWidth - viewport.x - viewport.width}px ${innerHeight - viewport.y - viewport.height}px ${viewport.x}px)`;
   if (document.body.dataset.avatarArriving) {
@@ -1159,7 +1343,14 @@ function redrawAvatar() {
   scheduleRegions();
 }
 
+function displayedAvatarPlacement(viewport, frame = renderedFrame) {
+  return avatarPlacement.framing === 'full'
+    ? fitAvatarLayout(avatarPlacement, viewport, frame)
+    : avatarPlacement;
+}
+
 function centeredHomePlacement() {
+  if (avatarPlacement.framing === 'full') return avatarPlacement;
   const frame =
     renderedFrame?.id === 'pose-sleep' ? frameCatalog.get(director?.base?.frameId) : renderedFrame;
   return centerAvatarFace(
@@ -1178,7 +1369,15 @@ function cancelAvatarCentering() {
 
 function centerHomeAvatar({ immediate = false } = {}) {
   cancelAvatarCentering();
-  if (!placementReady || !director || spriteDrag || avatarDetachPhase !== 'attached') return;
+  if (
+    !placementReady ||
+    !director ||
+    spriteDrag ||
+    avatarZoom ||
+    avatarPlacement.framing === 'full' ||
+    avatarDetachPhase !== 'attached'
+  )
+    return;
   const from = { ...avatarPlacement };
   const target = centeredHomePlacement();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -1214,20 +1413,72 @@ function centerHomeAvatar({ immediate = false } = {}) {
 
 function setPlacement(value, persist = true) {
   cancelAvatarCentering();
+  cancelAvatarZoom();
   presence.touch();
   avatarPlacement = validateAvatarLayout(value);
   redrawAvatar();
-  if (persist)
-    api.setAvatarLayout(avatarPlacement).catch(() => notice('Could not save Capri’s placement.'));
+  if (persist) savePlacement();
 }
 
-function changeZoom(zoom, anchor) {
-  if (!placementReady || spriteDrag) return;
-  if (anchor) {
-    const origin = document.getElementById('companion').getBoundingClientRect();
-    anchor = { x: anchor.x - origin.x, y: anchor.y - origin.y };
+function savePlacement() {
+  api.setAvatarLayout(avatarPlacement).catch(() => notice('Could not save Capri’s placement.'));
+}
+
+function cancelAvatarZoom(save = false) {
+  if (!avatarZoom) return;
+  cancelAnimationFrame(avatarZoom.frame);
+  const { persist } = avatarZoom;
+  avatarZoom = null;
+  if (save && persist) savePlacement();
+}
+
+function animateAvatarZoom(target, { from = avatarPlacement, anchor, persist = false } = {}) {
+  cancelAvatarZoom();
+  cancelAvatarCentering();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) {
+    setPlacement(target, persist);
+    return;
   }
-  setPlacement(zoomAvatar(avatarPlacement, avatarViewport(), zoom, anchor));
+  presence.touch();
+  const transition = { target, persist, frame: 0 };
+  const started = performance.now();
+  const step = (now) => {
+    if (avatarZoom !== transition) return;
+    const progress = Math.min(1, Math.max(0, (now - started) / 170));
+    const ease = 1 - (1 - progress) ** 3;
+    const zoom = from.zoom + (target.zoom - from.zoom) * ease;
+    avatarPlacement =
+      progress === 1
+        ? target
+        : anchor
+          ? zoomAvatar(from, avatarViewport(), zoom, anchor)
+          : {
+              ...target,
+              x: from.x + (target.x - from.x) * ease,
+              y: from.y + (target.y - from.y) * ease,
+              zoom,
+            };
+    redrawAvatar();
+    signalFx?.invalidate();
+    if (progress < 1) transition.frame = requestAnimationFrame(step);
+    else {
+      avatarZoom = null;
+      if (persist) savePlacement();
+    }
+  };
+  avatarZoom = transition;
+  transition.frame = requestAnimationFrame(step);
+}
+
+function changeZoom(factor, anchor) {
+  if (!placementReady || spriteDrag) return;
+  const origin = document.getElementById('companion').getBoundingClientRect();
+  const point = { x: anchor.x - origin.x, y: anchor.y - origin.y };
+  const viewport = avatarViewport();
+  const from = displayedAvatarPlacement(viewport);
+  const pending = avatarZoom?.persist ? avatarZoom.target.zoom : from.zoom;
+  const target = zoomAvatar(from, viewport, pending * factor, point);
+  if (target.zoom !== pending) animateAvatarZoom(target, { from, anchor: point, persist: true });
 }
 
 function startSpriteDrag(event) {
@@ -1235,18 +1486,21 @@ function startSpriteDrag(event) {
   const frameId = currentAvatarFrameId() ?? avatars.get(elements.sprite.dataset.avatar)?.frameId;
   if (!frameId || avatarDetachPhase !== 'attached' || !presence.snapshot().expanded) return;
   cancelAvatarCentering();
+  cancelAvatarZoom(true);
   const target = elements['sprite-region'];
   const sprite = avatarHitRegion(target.getBoundingClientRect());
+  if (!sprite?.enabled) return;
   event.preventDefault();
   target.setPointerCapture(event.pointerId);
+  const viewport = avatarViewport();
   const gesture = {
     pointerId: event.pointerId,
     x: event.clientX,
     y: event.clientY,
     sample: screenSample({ x: event.clientX, y: event.clientY }, sprite.lens),
     lens: sprite.lens,
-    layout: { ...avatarPlacement },
-    viewport: avatarViewport(),
+    layout: displayedAvatarPlacement(viewport),
+    viewport,
     started: performance.now(),
     accepted: false,
     moved: false,
@@ -1408,10 +1662,7 @@ async function setDimmingPanel(open) {
 
 function showDimmingSettings(value) {
   value = validateDimming(value);
-  const shade = document.getElementById('window-shade');
-  shade.style.setProperty('--shade-strength', String(value.enabled ? value.level / 100 : 0));
-  shade.style.setProperty('--shade-softness', `${value.softness}px`);
-  shade.dataset.softEdges = String(value.softness > 0);
+  dimmingMask.configure(value);
   document.getElementById('dimming-enabled').checked = value.enabled;
   document.getElementById('dimming-level').value = String(value.level);
   document.getElementById('dimming-softness').value = String(value.softness);
@@ -1421,14 +1672,16 @@ function showDimmingSettings(value) {
 
 function refreshDimmingLabels() {
   const level = Number(document.getElementById('dimming-level').value),
-    softness = Number(document.getElementById('dimming-softness').value);
+    softness = document.getElementById('dimming-softness');
   document.getElementById('dimming-level-value').textContent = new Intl.NumberFormat(ui.language, {
     style: 'percent',
     maximumFractionDigits: 0,
   }).format(level / 100);
-  document.getElementById('dimming-softness-value').textContent = ui.text('{value} px', {
-    value: new Intl.NumberFormat(ui.language).format(softness),
+  const softnessText = ui.text('{value} px', {
+    value: new Intl.NumberFormat(ui.language).format(dimmingFeatherWidth(Number(softness.value))),
   });
+  document.getElementById('dimming-softness-value').textContent = softnessText;
+  softness.setAttribute('aria-valuetext', softnessText);
 }
 
 function updateDimming() {
@@ -1454,7 +1707,8 @@ function sizeInput() {
   }
   elements.message.style.height = '29px';
   const maximum = innerHeight <= 400 ? 29 : innerHeight <= 540 ? 48 : 67;
-  elements.message.style.height = `${Math.max(29, Math.min(maximum, elements.message.scrollHeight))}px`;
+  if (elements.message.value && maximum > 29)
+    elements.message.style.height = `${Math.max(29, Math.min(maximum, elements.message.scrollHeight))}px`;
   scheduleRegions();
 }
 
@@ -1479,6 +1733,7 @@ function setPacketOrigin(origin) {
       initiative: 'CAPRI // INITIATIVE',
       screen: 'YOU // SNAPSHOT',
       'avatar-click': 'CAPRI',
+      'chess-reaction': 'Chess',
     }[origin] ?? 'YOU';
   packetOriginLabel.textContent = ui.text(packetOrigin);
 }
@@ -1536,6 +1791,24 @@ async function showAvatar(selection) {
 let poseSettle;
 const avatarVisemes = new AvatarVisemes();
 const portraitMouth = new AvatarMouthLayer(elements.sprite);
+const portraitWave = new AvatarWave(elements['sprite-region'], {
+  canPlay: () => avatarDetachPhase === 'attached' && !presence.sleeping && !spriteDrag,
+  onChange: () => {
+    if (portraitWave.image) presence.reveal();
+    redrawAvatar();
+    signalFx?.invalidate();
+  },
+});
+const cameraPublisher = new CameraFramePublisher({
+  image: () =>
+    avatarDetachPhase === 'attached'
+      ? (portraitWave.image ?? portraitMouth.image(headpat.image(elements.sprite)))
+      : elements.sprite,
+  send: (frame) => api.publishCameraFrame(frame),
+  sendPreview: (frame) => api.publishCameraPreview(frame),
+  loadBackground: (revision) => api.callCameraBackgroundImage(revision),
+});
+window.addEventListener('pagehide', () => cameraPublisher.stop(), { once: true });
 let mouthShape = 'closed',
   desktopMouth;
 function animateCharacter(now, snapshot, reduced) {
@@ -1576,6 +1849,7 @@ function animateCharacter(now, snapshot, reduced) {
   // Moving Capri or her window changes placement, not the current music pose.
   const musicActive = Boolean(
     musicAnimationReady(musicState) &&
+      !portraitWave.image &&
       !presence.sleeping &&
       !activeTurnId &&
       !elements.message.value.trim() &&
@@ -1639,7 +1913,13 @@ function animateCharacter(now, snapshot, reduced) {
       const poseChanged = renderedFrame && frame.pose !== renderedFrame.pose;
       const sleepTransition = frame.id === 'pose-sleep' || renderedFrame?.id === 'pose-sleep';
       const previousFace =
-        poseChanged && !sleepTransition && avatarDetachPhase === 'attached' && !spriteDrag
+        poseChanged &&
+        !sleepTransition &&
+        !portraitWave.image &&
+        avatarDetachPhase === 'attached' &&
+        !spriteDrag &&
+        !avatarZoom &&
+        avatarPlacement.framing !== 'full'
           ? avatarFacePoint(
               avatarPlacement,
               avatarViewport(),
@@ -1719,10 +1999,46 @@ function notice(text = '', severity = 'error') {
   elements.notice.hidden = !noticeSource;
   scheduleRegions();
 }
+const wildTabNotice = document.getElementById('wild-tab-notice');
+const wildTabMessage = document.getElementById('wild-tab-message');
+const wildTabReaction = document.getElementById('wild-tab-reaction');
+const wildTabKeep = document.getElementById('wild-tab-keep');
+const wildTabCountdown = document.getElementById('wild-tab-countdown');
+let wildPrompt, wildCountdownAnimation;
+wildTabKeep.onclick = () => {
+  if (wildPrompt) void api.keepWildTab(wildPrompt).catch((error) => notice(error.message));
+};
+function renderWildTabPrompt(pending) {
+  wildCountdownAnimation?.cancel();
+  wildPrompt = pending?.id;
+  wildTabNotice.hidden = !pending;
+  wildTabKeep.hidden = !pending;
+  wildTabCountdown.hidden = !pending;
+  wildTabReaction.hidden = true;
+  wildTabReaction.textContent = '';
+  if (pending) {
+    wildTabMessage.textContent = ui.text('I’m about to close {service}.', {
+      service: pending.service,
+    });
+    wildCountdownAnimation = wildTabCountdown.animate(
+      [{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }],
+      { duration: pending.graceMs, fill: 'forwards' },
+    );
+    requestAnimationFrame(() => {
+      if (wildPrompt === pending.id && wildTabKeep.checkVisibility({ visibilityProperty: true }))
+        void api.wildTabPromptShown(pending.id).catch(() => {});
+    });
+  }
+  scheduleRegions();
+}
 function renderInstalledVersion(status) {
-  if (typeof status?.current !== 'string') return;
+  const version = status?.current;
+  if (typeof version !== 'string') return;
+  document.getElementById('capri-header-version').textContent = version
+    .replace(/^v/u, '')
+    .replace(/^(\d+\.\d+\.\d+)-experimental\.(\d+)$/u, '$1E$2');
   const label = document.getElementById('capri-version');
-  label.textContent = status.current;
+  label.textContent = version;
   label.hidden = false;
 }
 function renderMicrophoneLabel(value) {
@@ -1748,6 +2064,7 @@ function refreshInterface() {
   internetMode.refresh();
   renderInferenceLabel(inference, ui);
   if (!inferencePicker.menu.hidden && inferencePicker.value) inferencePicker.render();
+  if (companionLocale !== ui.language) guide.refresh();
   if (companionLocale !== ui.language) {
     companionLocale = ui.language;
     setAvatarExpression(avatarExpression);
@@ -1812,15 +2129,21 @@ function controls() {
     if (attachmentComposer.items.length && backend.phase !== 'ready') elements.send.disabled = true;
   }
   elements.reconnect.hidden = backend.phase !== 'offline' || busy;
-  elements.status.textContent = ui.text(
+  elements.status.classList.toggle('sr-only', elements.reconnect.hidden);
+  if (!elements.reconnect.hidden) {
+    const label = ui.text(
+      backend.code === 'CAPRI_LOCAL_MODEL_SETUP_REQUIRED' ? 'Language model' : 'Reconnect',
+    );
+    if (elements.reconnect.textContent !== label) elements.reconnect.textContent = label;
+  }
+  const status = ui.text(
     activeTurnId
-      ? pendingSpotifyTools.size
-        ? 'Working with Spotify…'
-        : 'Capri is replying…'
+      ? (pendingMusicTools.values().next().value ?? 'Capri is replying…')
       : voiceBusy
         ? 'Capri is speaking…'
         : backend.message,
   );
+  if (elements.status.textContent !== status) elements.status.textContent = status;
   document.body.dataset.phase = backend.phase;
   document.body.dataset.replying = String(Boolean(activeTurnId));
   document.body.dataset.voiceBusy = String(voiceBusy);
@@ -2091,8 +2414,13 @@ function renderHistoryMessage(message, refreshLocale = false) {
 
 let interfaceLanguageRevision = 0;
 function onEvent(event) {
+  if (event.type === 'window.reply-resize') {
+    beginNativeReplyMotion(event);
+    return;
+  }
   if (event.type === 'skills.settings') {
     skillState = event.settings;
+    if (!skillState['capri.music']?.enabled && musicClient.run) musicClient.stop(false);
     if (event.changed === 'capri.attachment-viewer' && !skillState[event.changed]?.enabled)
       attachmentComposer.clear();
     skillButtons.render(event.settings);
@@ -2135,6 +2463,10 @@ function onEvent(event) {
         presence.snapshot(),
         matchMedia('(prefers-reduced-motion: reduce)').matches,
       );
+    return;
+  }
+  if (event.type === 'music.stop-requested') {
+    if (musicClient.run) musicClient.stop(false);
     return;
   }
   if (event.type === 'avatar.composer.action') {
@@ -2182,13 +2514,11 @@ function onEvent(event) {
       preset !== 'off' &&
       ['leaving', 'teleporting', 'returning'].includes(event.phase)
     ) {
-      try {
-        if (!screenshotAudioContext || screenshotAudioContext.state === 'closed')
-          screenshotAudioContext = new AudioContext();
-        playTeleportSound(screenshotAudioContext, preset);
-      } catch {
-        /* The animation still completes when the audio device is unavailable. */
-      }
+      void cueAudioContext()
+        .then((context) => {
+          if (context) playTeleportSound(context, preset);
+        })
+        .catch(() => {});
     }
     return;
   }
@@ -2317,11 +2647,11 @@ function onEvent(event) {
   }
   if (event.type === 'companion.settings') {
     companionSettings = event.settings;
+    applyWindowLayout(event.settings);
     replyVisibility.configure(event.settings);
     presence.expandOnReply = event.settings.expandOnReply !== false;
     memoryHUD.configure(event.settings);
     signalFx?.configure(event.settings);
-    buttonFeedback.configure(event.settings.buttonFeedback);
     companionPanel.show(event.settings);
     wakeFeedback.configure(event.settings, () => api.wakeAudio());
     if (event.reset === true) {
@@ -2335,6 +2665,13 @@ function onEvent(event) {
   }
   if (event.type === 'monitor.error') {
     notice(event.message);
+    return;
+  }
+  if (event.type === 'chess.explain') {
+    const draft = elements.message.value.trimEnd();
+    elements.message.value = draft ? `${draft}\n\n${event.draft}` : event.draft;
+    elements.message.dispatchEvent(new Event('input', { bubbles: true }));
+    elements.message.focus();
     return;
   }
   if (event.type === 'settings.renderer-lost') {
@@ -2364,7 +2701,12 @@ function onEvent(event) {
     elements['subtitle-text'].textContent = '';
     return;
   }
+  if (event.type === 'microphone.gain') voicePlayer.setMicrophoneGain(event.microphoneGain);
   if (microphoneClient.event(event)) return;
+  if (event.type === 'audio-routing.changed') {
+    applyAudioRouting(event);
+    return;
+  }
   if (event.type === 'voice.settings') {
     showVoiceSettings(event);
     controls();
@@ -2385,6 +2727,7 @@ function onEvent(event) {
   if (event.type === 'speech.settings') {
     speechPanel.show(event.settings);
     microphoneClient.settings({ microphoneGain: event.settings.microphoneGain });
+    voicePlayer.setMicrophoneGain(event.settings.microphoneGain);
     return;
   }
   if (event.type === 'open-file-access') {
@@ -2458,6 +2801,36 @@ function onEvent(event) {
     screenPanel.observation(event.settings);
     return;
   }
+  if (event.type === 'avatar.observation') {
+    if (!presence.sleeping && avatarDetachPhase === 'attached') {
+      if (presence.snapshot().expanded)
+        playAvatarObservation(elements['sprite-region'], event.kind, currentAvatarFrameId());
+      else playAvatarObservation(document.getElementById('compact-status'), event.kind);
+    }
+    return;
+  }
+  if (event.type === 'avatar.wave') {
+    if (portraitWave.available()) {
+      startupIntro?.cancel();
+      headpat.clear();
+      presence.reveal();
+      signalFx?.invalidate();
+      void portraitWave.play();
+    }
+    return;
+  }
+  if (event.type === 'wild-tabs.prompt') {
+    renderWildTabPrompt(event.pending);
+    return;
+  }
+  if (event.type === 'wild-tabs.reaction') {
+    if (wildPrompt !== event.id || wildTabNotice.hidden) return;
+    wildTabReaction.textContent = event.text;
+    wildTabReaction.hidden = false;
+    if (!presence.sleeping) director?.react(event.expression, performance.now(), 2200);
+    scheduleRegions();
+    return;
+  }
   if (event.type === 'screen.clip-request') {
     void screenPanel.clipFrame(event);
     return;
@@ -2518,6 +2891,14 @@ function onEvent(event) {
     controls();
     return;
   }
+  if (event.type === 'call-camera.state') {
+    cameraPublisher.setState(event.state);
+    return;
+  }
+  if (event.type === 'call-camera.preview') {
+    cameraPublisher.setPreview(event.enabled);
+    return;
+  }
   if (event.type === 'call-audio.reset') {
     callSpeechRequest = null;
     callOutputGeneration++;
@@ -2574,8 +2955,9 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'backend') {
-    backend = { phase: event.phase, message: event.message };
+    backend = { phase: event.phase, message: event.message, code: event.code };
     controls();
+    resumeRestartedMicrophone();
     return;
   }
   if (event.type === 'power.state') {
@@ -2593,7 +2975,20 @@ function onEvent(event) {
   }
   if (event.type === 'avatar.layout') {
     endSpriteDrag();
-    setPlacement(event.layout, false);
+    const target = validateAvatarLayout(event.layout);
+    if (event.reset) {
+      presence.reveal();
+      signalFx?.invalidate();
+      setPlacement(target, false);
+    } else if (
+      placementReady &&
+      target.framing === avatarPlacement.framing &&
+      target.zoom !== avatarPlacement.zoom
+    ) {
+      animateAvatarZoom(target);
+    } else {
+      setPlacement(target, false);
+    }
     return;
   }
   if (event.type === 'turn.started') {
@@ -2611,7 +3006,7 @@ function onEvent(event) {
     thinkingMode.begin(event.turnId);
     internetMode.begin(event.turnId);
     if (event.source === 'attachment') attachmentComposer?.clear();
-    pendingSpotifyTools.clear();
+    pendingMusicTools.clear();
     director?.attend(performance.now(), true);
     frameTicket++;
     wantedFrame = '';
@@ -2626,7 +3021,11 @@ function onEvent(event) {
     presence.voiceBusy = voiceBusy;
     setPacketOrigin(event.source);
     if (event.user?.text != null) setPacketInput(event.user.text);
-    else setPacketInput('', event.source === 'avatar-click' ? '' : 'A thought of her own.');
+    else
+      setPacketInput(
+        '',
+        ['avatar-click', 'chess-reaction'].includes(event.source) ? '' : 'A thought of her own.',
+      );
     activeTurnId = event.turnId;
     activeAssistantId = null;
     followOutput = true;
@@ -2651,9 +3050,18 @@ function onEvent(event) {
   }
   if (thinkingMode.event(event)) return;
   if (event.type === 'turn.tool') {
-    if (event.turnId === activeTurnId && event.tool === 'spotify_control') {
-      if (event.phase === 'start') pendingSpotifyTools.add(event.callId);
-      else pendingSpotifyTools.delete(event.callId);
+    if (
+      event.turnId === activeTurnId &&
+      ['spotify_control', 'youtube_music_control'].includes(event.tool)
+    ) {
+      if (event.phase === 'start')
+        pendingMusicTools.set(
+          event.callId,
+          event.tool === 'spotify_control'
+            ? 'Working with Spotify…'
+            : 'Working with YouTube Music…',
+        );
+      else pendingMusicTools.delete(event.callId);
       controls();
     }
     return;
@@ -2682,7 +3090,7 @@ function onEvent(event) {
     return;
   }
   if (['turn.completed', 'turn.failed', 'turn.cancelled'].includes(event.type)) {
-    pendingSpotifyTools.clear();
+    pendingMusicTools.clear();
     if (event.type === 'turn.completed' && event.assistant?.text?.trim())
       presence.text(event.turnId);
     presence.finish(event.turnId);
@@ -2768,26 +3176,74 @@ async function send() {
 
 const visualRegionSelector = '#handle, #input-dock, #subtitle-stage, .resource-warning';
 
+function applyWindowLayout({ windowLayout = 'vertical', horizontalMonitorPosition = 'between' }) {
+  const state = document.body.dataset;
+  if (
+    state.windowLayout === windowLayout &&
+    state.horizontalMonitorPosition === horizontalMonitorPosition
+  )
+    return;
+  state.windowLayout = windowLayout;
+  state.horizontalMonitorPosition = horizontalMonitorPosition;
+  redrawAvatar();
+  if (subtitleController.state.id) showSubtitles(subtitleController.state);
+}
+
 function publishRegions() {
   regionsFrame = null;
-  const { avatarDock, presence: mode } = document.body.dataset;
+  const { avatarDock, avatarDetach, presence: mode, windowLayout } = document.body.dataset;
+  const homePortrait =
+    mode === 'portrait' &&
+    avatarDetach === 'attached' &&
+    avatarDock !== 'compact' &&
+    elements['history-panel'].hidden;
+  const horizontalPortrait = homePortrait && windowLayout === 'horizontal';
+  const verticalPortrait = homePortrait && !horizontalPortrait;
+  const wasVertical = document.body.hasAttribute('data-vertical-portrait');
+  const layoutChanged =
+    document.body.hasAttribute('data-horizontal-portrait') !== horizontalPortrait;
+  document.body.toggleAttribute('data-horizontal-portrait', horizontalPortrait);
+  document.body.toggleAttribute('data-vertical-portrait', verticalPortrait);
+  if (horizontalPortrait) {
+    if (inputDock.nextElementSibling !== dockTelemetry) inputDock.after(dockTelemetry);
+  } else if (callAudioDock.previousElementSibling !== dockTelemetry) {
+    callAudioDock.before(dockTelemetry);
+  }
+  if (layoutChanged) {
+    sizeInput();
+    if (subtitleController.state.id) showSubtitles(subtitleController.state);
+  }
+  guide.scheduleLayout();
   const compact = mode === 'core' || avatarDock === 'compact';
-  // Collapsing the reply preserves the native window size and portrait layout.
-  // Shade only the remaining UI instead of its now-empty reserved reply area.
-  const fitBackdrop = compact || document.body.dataset.replyHidden === 'true';
-  const modal = confirmDialog.dialog.open;
+  const modal = confirmDialog.dialog.open || guide.active;
+  document.body.toggleAttribute('data-window-resizable', mode === 'portrait' && !compact && !modal);
+  const replyHidden = document.body.dataset.replyHidden === 'true';
+  if (
+    (wasVertical && (!verticalPortrait || modal) && (replyNativeMotion || replyChangePending)) ||
+    (layoutChanged && replyFade)
+  )
+    settleReplyPresentation(replyHidden);
+  const replyCollapsed = verticalPortrait && replyHidden && !modal;
+  const reply = document.getElementById('subtitle-frame');
+  reply.toggleAttribute(
+    'data-hit-region',
+    horizontalPortrait && !replyHidden && reply.scrollHeight > reply.clientHeight + 1,
+  );
+  const fitBackdrop = compact || replyHidden || windowLayout === 'horizontal';
   const viewport = { width: innerWidth, height: innerHeight };
   const rectangle = (element) => {
     const rect = element.getBoundingClientRect();
     const notifications =
       mode === 'core' ? element.closest('.dock-notifications')?.getBoundingClientRect() : null;
-    const x = Math.max(rect.left, notifications?.left ?? rect.left);
-    const y = Math.max(rect.top, notifications?.top ?? rect.top);
+    const clip =
+      element.closest('#reply-slot[data-resizing]')?.getBoundingClientRect() ?? notifications;
+    const x = Math.max(rect.left, clip?.left ?? rect.left);
+    const y = Math.max(rect.top, clip?.top ?? rect.top);
     return {
       x,
       y,
-      width: Math.min(rect.right, notifications?.right ?? rect.right) - x,
-      height: Math.min(rect.bottom, notifications?.bottom ?? rect.bottom) - y,
+      width: Math.min(rect.right, clip?.right ?? rect.right) - x,
+      height: Math.min(rect.bottom, clip?.bottom ?? rect.bottom) - y,
     };
   };
   const measured = [
@@ -2798,7 +3254,12 @@ function publishRegions() {
     ),
   ]
     .filter((element) => getComputedStyle(element).visibility === 'visible')
-    .map((element) => ({ hit: element.hasAttribute('data-hit-region'), rect: rectangle(element) }));
+    .map((element) => ({
+      hit:
+        element.hasAttribute('data-hit-region') && !element.closest('#reply-slot[data-resizing]'),
+      resizeEdge: element.dataset.resizeEdge,
+      rect: rectangle(element),
+    }));
   // Only the actual answer text is interactive for deliberate selection/copy.
   // The surrounding transparent subtitle stage still passes desktop clicks through.
   const controls = measured
@@ -2827,8 +3288,9 @@ function publishRegions() {
         ),
     );
   const shade = document.getElementById('window-shade');
-  const backdrop = measured.map(({ rect }) => rect);
-  const bounds = shadeBounds(backdrop, viewport, fitBackdrop);
+  const origin = shade.parentElement.getBoundingClientRect();
+  const backdrop = measured.filter(({ resizeEdge }) => !resizeEdge).map(({ rect }) => rect);
+  const bounds = shadeBounds(backdrop, viewport, fitBackdrop, origin.y);
   for (const [name, value] of Object.entries({
     left: bounds.x,
     top: bounds.y,
@@ -2836,17 +3298,12 @@ function publishRegions() {
     height: bounds.height,
   }))
     shade.style[name] = value + 'px';
-  dimmingMask.draw(
-    bounds.width,
-    bounds.height,
-    Number(document.getElementById('dimming-softness').value) || 0,
-  );
+  dimmingMask.draw(bounds, origin);
   let footprint;
   if (modal) controls.push({ x: 0, y: 0, ...viewport });
   else if (compact) {
     // Clamp native placement around the dock's resting position, without its float animation.
-    const floatY = Number.parseFloat(document.body.style.getPropertyValue('--float-y')) || 0;
-    const resting = shadeBounds(backdrop, viewport, true, floatY);
+    const resting = shadeBounds(backdrop, viewport, true, origin.y);
     if (resting.width > 0 && resting.height > 0) {
       const x = Math.floor(resting.x);
       // Chromium rounds translated DOM rectangles to its internal subpixel precision.
@@ -2859,8 +3316,15 @@ function publishRegions() {
       };
     }
   }
-  const sprite = avatarHitRegion(elements['sprite-region'].getBoundingClientRect());
-  api.setRegions({ controls, sprite, footprint }).catch(() => {});
+  const sprite = avatarHitRegion(elements['sprite-region'].getBoundingClientRect()) ?? {
+    x: 0,
+    y: 0,
+    width: 1,
+    height: 1,
+    enabled: false,
+  };
+  const replyMotion = replyChangePending && !modal && !replyMotionPreference.matches;
+  api.setRegions({ controls, sprite, footprint, replyCollapsed, replyMotion }).catch(() => {});
 }
 
 function scheduleRegions() {
@@ -2869,9 +3333,10 @@ function scheduleRegions() {
 
 function startDrag(event) {
   if (event.button !== 0 || event.target.closest('button') || spriteDrag) return;
+  if (replyNativeMotion) settleReplyPresentation(replyVisibility.hidden === true);
   dragPointer = event.pointerId;
   event.currentTarget.setPointerCapture(event.pointerId);
-  api.startDrag().catch(() => {});
+  api.startDrag(event.currentTarget.dataset.resizeEdge).catch(() => {});
 }
 
 function endDrag(event) {
@@ -2881,7 +3346,7 @@ function endDrag(event) {
   api.endDrag().catch(() => {});
 }
 
-for (const element of [elements.handle]) {
+for (const element of [elements.handle, ...document.querySelectorAll('[data-resize-edge]')]) {
   element.addEventListener('pointerdown', startDrag);
   element.addEventListener('pointerup', endDrag);
   element.addEventListener('pointercancel', endDrag);
@@ -2895,7 +3360,6 @@ function togglePresence() {
     .setPresencePinned(presence.pinned)
     .catch(() => notice('Could not save Capri’s presence setting.'));
 }
-document.getElementById('presence-core').addEventListener('click', togglePresence);
 document.getElementById('presence-toggle').addEventListener('click', togglePresence);
 document.getElementById('companion').addEventListener('pointerenter', () => {
   presence.interacting = true;
@@ -2921,7 +3385,7 @@ elements['sprite-region'].addEventListener(
     event.preventDefault();
     const units = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
     const delta = Math.max(-240, Math.min(240, event.deltaY * units));
-    changeZoom(avatarPlacement.zoom * Math.exp(-delta * 0.0015), {
+    changeZoom(Math.exp(-delta * 0.0015), {
       x: event.clientX,
       y: event.clientY,
     });
@@ -2936,7 +3400,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     endDrag({});
     endSpriteDrag();
-  } else if (subtitleController.state.id) renderSubtitle();
+  } else {
+    if (subtitleController.state.id) renderSubtitle();
+    guide.maybeStart();
+  }
 });
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !modelsPanel.panel.hidden && !confirmDialog.dialog.open) {
@@ -3072,8 +3539,8 @@ document.getElementById('subtitle-collapse').addEventListener('click', () => {
   document.getElementById('subtitle-reveal').focus({ preventScroll: true });
 });
 document.getElementById('subtitle-reveal').addEventListener('click', () => {
+  focusReplyAfterReveal = true;
   replyVisibility.reveal();
-  document.getElementById('subtitle-collapse').focus({ preventScroll: true });
 });
 elements.messages.addEventListener('scroll', () => {
   followOutput =
@@ -3084,12 +3551,23 @@ const regionObserver = new ResizeObserver(() => {
   redrawAvatar();
   scheduleRegions();
 });
+let composerWidth;
+new ResizeObserver(([{ contentRect }]) => {
+  if (contentRect.width === composerWidth) return;
+  composerWidth = contentRect.width;
+  sizeInput();
+}).observe(elements.message.parentElement);
 for (const element of [
   document.body,
   ...document.querySelectorAll(`[data-hit-region], ${visualRegionSelector}`),
+  document.getElementById('portrait-panel'),
   elements['sprite-region'],
 ])
   regionObserver.observe(element);
+for (const scroller of document.querySelectorAll(
+  '.dock-notifications, #process-graphs-hud, #memory-hud',
+))
+  scroller.addEventListener('scroll', scheduleRegions, { passive: true });
 document.getElementById('clip-open').addEventListener('click', () => {
   if (savedScreenshotId)
     api
@@ -3106,11 +3584,17 @@ document.getElementById('clip-close').addEventListener('click', () => {
   sizeInput();
   scheduleRegions();
 });
+let viewportWidth = innerWidth;
 window.addEventListener('resize', () => {
+  const replyResizing = Boolean(replyNativeMotion);
+  paintNativeReplyMotion();
   endSpriteDrag();
-  sizeInput();
+  if (!replyResizing || innerWidth !== viewportWidth) {
+    viewportWidth = innerWidth;
+    sizeInput();
+    if (subtitleController.state.id) showSubtitles(subtitleController.state);
+  }
   redrawAvatar();
-  if (subtitleController.state.id) showSubtitles(subtitleController.state);
   scheduleRegions();
 });
 document.fonts.ready.then(() => {
@@ -3129,6 +3613,7 @@ startupIntro = new StartupIntro({
   api,
   eligible: () =>
     ready &&
+    !guide.active &&
     !presence.sleeping &&
     presence.snapshot().expanded &&
     document.body.dataset.presence === 'portrait' &&
@@ -3141,6 +3626,7 @@ startupIntro = new StartupIntro({
   interrupted: () =>
     Boolean(
       activeTurnId ||
+        guide.active ||
         voiceBusy ||
         (presence.sleeping && backend.phase !== 'starting') ||
         presence.speaking ||
@@ -3163,8 +3649,8 @@ signalFx = new SignalFX({
   sprite: elements.sprite,
   getSpriteImage: () =>
     startupIntro?.texture ??
+    portraitWave.image ??
     musicPose.image(portraitMouth.image(headpat.image(elements.sprite)), currentMusicMotion),
-  orb: document.getElementById('presence-core'),
   frame: document.getElementById('portrait-panel'),
   audioLevel: () => voicePlayer.level,
   onLayout: () => {
@@ -3181,7 +3667,9 @@ window.addEventListener(
   'beforeunload',
   () => {
     cancelAvatarCentering();
+    cancelAvatarZoom();
     startupIntro?.destroy();
+    portraitWave.stop();
     microphoneClient.stop();
     void musicClient.stop();
     musicNotes?.destroy();
@@ -3200,6 +3688,7 @@ window.addEventListener(
 
 try {
   const snapshot = await api.bootstrap();
+  cameraPublisher.setState(snapshot.callCamera);
   await prepareInterfaceLocale(snapshot.languages.interface);
   skillState = snapshot.skills ?? {};
   skillButtons.render(snapshot.skills);
@@ -3215,21 +3704,24 @@ try {
   );
   allowModelCallAudio = snapshot.allowModelCallAudio === true;
   voicePlayer.setCallVoiceVolume(snapshot.callVoiceVolume);
+  applyAudioRouting(snapshot.audioRouting);
   inference = snapshot.inference;
   attachmentVision = snapshot.attachmentVision === true;
   screenPanel.visionBlocked = Boolean(inference?.remote && !inference.vision);
   applicationsPanel.showSpotify(snapshot.spotify);
   modelsPanel.show(snapshot.models);
-  updatesPanel.show(snapshot.updates);
-  renderInstalledVersion(snapshot.updates);
-  updateNotification.show(snapshot.updates);
+  // A check can finish while the renderer loads its locale after bootstrap.
+  const updateStatus = updatesPanel.value ?? snapshot.updates;
+  updatesPanel.show(updateStatus);
+  renderInstalledVersion(updateStatus);
+  updateNotification.show(updateStatus);
   startupPanel.update(snapshot.startup);
   companionSettings = snapshot.companion;
+  applyWindowLayout(snapshot.companion);
   replyVisibility.configure(snapshot.companion);
   presence.expandOnReply = snapshot.companion.expandOnReply !== false;
   memoryHUD.configure(snapshot.companion);
   signalFx.configure(snapshot.companion);
-  buttonFeedback.configure(snapshot.companion.buttonFeedback);
   companionPanel.show(snapshot.companion);
   wakeFeedback.configure(snapshot.companion, () => api.wakeAudio());
   backend = snapshot.backend;
@@ -3259,6 +3751,8 @@ try {
   timePanel.show(snapshot.time);
   stopwatchHUD.show(snapshot.time);
   microphoneClient.settings(snapshot.microphone);
+  voicePlayer.setMicrophoneGain(snapshot.microphone.microphoneGain);
+  resumeMicrophoneAfterRestart = snapshot.microphone?.resumeAfterRestart === true;
   speechPanel.show(snapshot.speech);
   showDimmingSettings(snapshot.dimming);
   avatarPlacement = validateAvatarLayout(snapshot.avatarLayout);
@@ -3318,8 +3812,10 @@ try {
   // Core readiness can arrive before avatar decoding and restored preferences.
   // Expose completion of renderer initialization independently of backend phase.
   document.body.dataset.initialized = 'true';
+  if (snapshot.offerBeginnerGuide) guide.startOnLaunch();
   startupIntro.configure(snapshot.startupIntro);
   controls();
+  resumeRestartedMicrophone();
   scheduleRegions();
 } catch {
   startupIntro?.cancel();

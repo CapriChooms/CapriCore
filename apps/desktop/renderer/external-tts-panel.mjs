@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { EXTERNAL_TTS_DEFAULTS, externalTtsSettings } from './external-tts-settings.mjs';
 import { apiKeyProblem, normalizeApiKey } from './api-key.mjs';
+import {
+  audioOutputDevice,
+  bindAudioOutput,
+  createAudioOutputContext,
+} from './local-audio-output.mjs';
 
 const connection = (value) =>
   externalTtsSettings(
@@ -22,6 +27,7 @@ export class ExternalTtsPanel {
   constructor({ api, ui }) {
     Object.assign(this, { api, ui });
     this.previewGeneration = 0;
+    this.outputDevice = '';
     this.panel = document.createElement('section');
     this.panel.id = 'external-tts-panel';
     this.panel.className = 'preferences-panel';
@@ -318,7 +324,17 @@ export class ExternalTtsPanel {
     const audio = await this.api.testVoiceApi();
     if (generation !== this.previewGeneration || this.panel.hidden) return;
     await this.stopPreview();
-    const context = (this.audio = new AudioContext({ sampleRate: audio.sampleRate }));
+    if (generation !== this.previewGeneration || this.panel.hidden) return;
+    const context = (this.audio = createAudioOutputContext(this.outputDevice));
+    try {
+      await bindAudioOutput(context, this.outputDevice);
+    } catch (error) {
+      if (this.audio !== context) return;
+      await this.stopPreview();
+      throw error;
+    }
+    if (this.audio !== context || generation !== this.previewGeneration || this.panel.hidden)
+      return;
     const bytes = Uint8Array.from(atob(audio.pcm), (character) => character.charCodeAt(0)),
       pcm = new DataView(bytes.buffer);
     const buffer = context.createBuffer(1, bytes.byteLength / 4, audio.sampleRate),
@@ -343,6 +359,12 @@ export class ExternalTtsPanel {
     const context = this.audio;
     this.audio = null;
     if (context) await context.close();
+  }
+  setOutputDevice(value = '') {
+    const deviceId = audioOutputDevice(value);
+    if (deviceId === this.outputDevice) return;
+    this.outputDevice = deviceId;
+    this.clearPreview();
   }
   clearPreview() {
     this.previewGeneration++;

@@ -119,12 +119,14 @@ test('semantic Discord planning preserves exact message text and validates neste
 
 test('a Discord-looking observation cannot grant a planner action, and Discord joining cannot become Resolve assembly', async () => {
   let allow = false;
+  const formats = [];
   const plan = computerPlanner({
     url: 'http://127.0.0.1:1234',
     model: 'fixture',
     fetchImpl: async (_url, options) => {
       const body = JSON.parse(options.body);
-      assert.equal(Boolean(branch(body.format, 'discord_task')), allow);
+      formats.push(body.format === 'json' ? 'json' : 'schema');
+      if (body.format !== 'json') assert.equal(Boolean(branch(body.format, 'discord_task')), allow);
       const context = JSON.parse(body.messages[1].content.split('\n\nORIGINAL OWNER GOAL')[0]);
       assert.equal(context.currentObservation.discordTaskAllowed, allow);
       assert.equal(context.currentObservation.resolveAssemblyPending, false);
@@ -156,6 +158,7 @@ test('a Discord-looking observation cannot grant a planner action, and Discord j
     },
   });
   assert.equal(parsed.action, 'discord_task');
+  assert.deepEqual(formats, ['schema', 'json', 'schema']);
 });
 
 test('the multilingual classifier receives Discord app examples without executing anything', async () => {

@@ -31,6 +31,7 @@ const LEGACY_PROFILE = 'legacy';
 const MAX_PROFILES = 20;
 const OPENROUTER_ORIGIN = 'https://openrouter.ai';
 const GROQ_ORIGIN = 'https://api.groq.com';
+const ANTHROPIC_ORIGIN = 'https://api.anthropic.com';
 const GROQ_REASONING_MODELS = new Set([
   'openai/gpt-oss-20b',
   'openai/gpt-oss-120b',
@@ -123,10 +124,16 @@ function withoutPrivateReasoning(packet) {
   return packet;
 }
 function privateReasoningFreeSse(events) {
-  return events.replace(/^data: ?([^\r\n]*)/gm, (line, value) => {
-    if (value === '[DONE]' || !value) return line;
-    return 'data: ' + JSON.stringify(withoutPrivateReasoning(JSON.parse(value)));
-  });
+  return events
+    .split(/\r?\n\r?\n/u)
+    .map((frame) => {
+      const data = eventData(frame);
+      if (!data || data === '[DONE]') return frame;
+      const fields = frame.split(/\r?\n/u).filter((line) => !/^data(?::|$)/u.test(line));
+      fields.push('data: ' + JSON.stringify(withoutPrivateReasoning(JSON.parse(data))));
+      return fields.join('\n');
+    })
+    .join('\n\n');
 }
 async function unlessAborted(operation, signal) {
   const pending = Promise.resolve(operation);
@@ -666,8 +673,8 @@ async function* completionStream(response, { key, signal, limit = 16 * 1024 * 10
     if (total > limit) throw completionLimit();
     tail += decoder.decode(bytes, { stream: true });
     const lf = tail.lastIndexOf('\n\n');
-    const crlf = tail.lastIndexOf('\r\n\r\n');
-    const end = crlf > lf ? crlf + 4 : lf >= 0 ? lf + 2 : 0;
+    const crlf = tail.lastIndexOf('\n\r\n');
+    const end = crlf > lf ? crlf + 3 : lf >= 0 ? lf + 2 : 0;
     if (end) {
       const safe = redact(privateReasoningFreeSse(tail.slice(0, end)));
       if (safe) yield safe;
@@ -1300,6 +1307,30 @@ export class InferenceApi {
               message.content.some((part) => part?.type === 'image_url')),
         );
         if (imageRequest && !this.config.vision) throw imagesUnsupported();
+        const anthropicAuxiliary =
+          ollama &&
+          this.config.authMode !== 'chatgpt' &&
+          new URL(this.config.baseUrl).origin === ANTHROPIC_ORIGIN;
+        // Anthropic accepts strict JSON schemas. Keep the existing prompt and
+        // caller validation for schemas with optional fields or local grammar constraints.
+        const anthropicSchema =
+          anthropicAuxiliary &&
+          outputSchema?.type === 'object' &&
+          outputSchema.additionalProperties === false &&
+          Array.isArray(outputSchema.required) &&
+          outputSchema.required.length > 0 &&
+          Object.keys(outputSchema.properties ?? {}).length === outputSchema.required.length &&
+          Object.entries(outputSchema.properties ?? {}).every(
+            ([name, property]) =>
+              outputSchema.required.includes(name) &&
+              property?.type === 'string' &&
+              Object.keys(property).length === 1,
+          );
+        const structuredOutput =
+          (this.config.authMode === 'chatgpt' &&
+            typeof outputSchema === 'object' &&
+            !Array.isArray(outputSchema)) ||
+          anthropicSchema;
         const conversation = ollama ? null : conversationReasoning(input, this.config);
         let payload = ollama
           ? {
@@ -1323,22 +1354,19 @@ export class InferenceApi {
                     REASONING_BUDGETS[effort],
                   )
                 : Math.min(input.options?.num_predict || 768, 4096),
-              temperature: input.options?.temperature ?? 0.85,
-              ...(input.format
+              ...(!anthropicAuxiliary ? { temperature: input.options?.temperature ?? 0.85 } : {}),
+              ...(input.format && (!anthropicAuxiliary || anthropicSchema)
                 ? {
-                    response_format:
-                      this.config.authMode === 'chatgpt' &&
-                      typeof input.format === 'object' &&
-                      !Array.isArray(input.format)
-                        ? {
-                            type: 'json_schema',
-                            json_schema: {
-                              name: 'capri_result',
-                              schema: outputSchema,
-                              strict: false,
-                            },
-                          }
-                        : { type: 'json_object' },
+                    response_format: structuredOutput
+                      ? {
+                          type: 'json_schema',
+                          json_schema: {
+                            name: 'capri_result',
+                            schema: outputSchema,
+                            strict: anthropicSchema,
+                          },
+                        }
+                      : { type: 'json_object' },
                   }
                 : {}),
             }

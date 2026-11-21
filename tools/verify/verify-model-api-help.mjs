@@ -100,9 +100,14 @@ try {
   await page.screenshot({ path: path.join(folder, 'models-en.png') });
   await page.locator('[data-section="api"]').click();
   await page.locator('#api-add').click();
-  assert.equal(await page.locator('#inference-panel h2').innerText(), 'API connections');
-  assert.equal(await page.locator('#api-guide').getAttribute('open'), '');
-  assert.equal(await page.locator('#api-guide li').count(), 3);
+  assert.match(await page.locator('#inference-panel h2').innerText(), /^API connections\b/u);
+  const apiHelp = (field) =>
+    page.locator(`.settings-help-row:has(> label[for="api-${field}"]) > [data-settings-info]`);
+  await apiHelp('url').click();
+  await page.locator('dialog.settings-guide[open][lang="en"]').waitFor();
+  await page.locator('#api-url[data-settings-guide-highlight]').waitFor();
+  await page.keyboard.press('Escape');
+  await page.locator('dialog.settings-guide').waitFor({ state: 'hidden' });
   for (const field of ['name', 'url', 'model', 'key', 'context'])
     assert(await page.locator('#api-' + field).getAttribute('placeholder'), field);
   assert.equal(await page.locator('#api-model').inputValue(), '');
@@ -129,9 +134,13 @@ try {
     );
   });
   await page.waitForFunction(() => document.documentElement.lang === 'ru');
-  assert.equal(await page.locator('#inference-panel h2').innerText(), 'Подключения API');
+  assert.match(await page.locator('#inference-panel h2').innerText(), /^Подключения API\b/u);
   assert.match(await page.locator('#api-model').getAttribute('placeholder'), /^Пример:/);
-  assert.equal(await page.locator('#api-guide summary').innerText(), 'Как подключить API');
+  await apiHelp('model').click();
+  await page.locator('dialog.settings-guide[open][lang="ru"]').waitFor();
+  await page.locator('#api-model[data-settings-guide-highlight]').waitFor();
+  await page.keyboard.press('Escape');
+  await page.locator('dialog.settings-guide').waitFor({ state: 'hidden' });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.locator('#api-form').evaluate((node) => node.scrollIntoView({ block: 'start' }));
   await page.screenshot({ path: path.join(folder, 'api-ru.png') });

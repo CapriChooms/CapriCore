@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, utimesSync } from 'node:fs';
 import path from 'node:path';
 import { inflateRawSync, crc32 } from 'node:zlib';
 import { runInNewContext } from 'node:vm';
@@ -17,6 +17,7 @@ import { SETTINGS_CHANNELS } from '../apps/desktop/main/settings-channels.mjs';
 import { readFileSync } from 'node:fs';
 import { ACTIVE_AVATAR_CATALOG } from '../apps/desktop/avatar-catalog.mjs';
 import { probeResourceUsage } from '../apps/desktop/diagnostics/resources.mjs';
+import { ChessDiagnostics } from '../apps/desktop/chess/diagnostics.mjs';
 import {
   privateLog,
   privateLogRecord,
@@ -85,6 +86,60 @@ test('bounded diagnostic logs preserve the latest reply failure after more than 
   assert.equal(records.at(-1).stage, 'failed');
   assert.equal(records.at(-1).elapsedMs, 609);
   assert.equal(output.includes('PRIVATE-LOG-CANARY'), false);
+});
+
+test('Chess diagnostics keep technical events in the report and strip board and browser data', async () => {
+  const base = fixture();
+  const file = path.join(base, 'logs/chess.jsonl');
+  const log = new ChessDiagnostics(file);
+  const canary = 'PRIVATE-CHESS-DATA-255';
+  const trace = log.start('watch', { source: 'display', fen: canary });
+  trace('access', {
+    provider: 'chess-com',
+    localized: true,
+    reason: 'route_rejected',
+    url: canary,
+  });
+  trace('result', { searchMs: 275, depth: 21, move: canary, screenshot: canary });
+  await log.flush();
+  const disk = readFileSync(file, 'utf8');
+  assert.ok(!disk.includes(canary));
+  const rotated = 'logs/chess.jsonl.1';
+  put(
+    base,
+    rotated,
+    JSON.stringify({
+      ...JSON.parse(disk.trim().split('\n').at(-1)),
+      message: canary,
+      path: canary,
+      reason: canary,
+    }) + '\n',
+  );
+  for (const name of ['logs/chess.jsonl', rotated]) utimesSync(path.join(base, name), 1, 1);
+  for (let i = 0; i < 25; i++) put(base, `logs/noise-${i}.log`, 'started');
+  const options = {
+    root: base,
+    hardware: async () => ({}),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+  };
+  const report = unpack(
+    (await createDiagnosticReport({ ...options, input: { includeLogs: true } })).bytes,
+  );
+  const rows = report
+    .get('logs/chess.jsonl')
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  assert.equal(rows[1].reason, 'route_rejected');
+  assert.equal(rows[1].localized, true);
+  assert.equal(rows[2].searchMs, 275);
+  assert.equal(rows[2].traceId, rows[0].traceId);
+  assert.equal(JSON.parse(report.get(rotated)).depth, 21);
+  assert.ok(![...report.values()].join('\n').includes(canary));
+  const withoutLogs = unpack(
+    (await createDiagnosticReport({ ...options, input: { includeLogs: false } })).bytes,
+  );
+  assert.equal(withoutLogs.has('logs/chess.jsonl'), false);
 });
 
 test('diagnostic ZIP keeps the active model ID and reply flag without keys, prompts or private paths', async () => {

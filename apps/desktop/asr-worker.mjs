@@ -22,6 +22,7 @@ const nativeStartupCodes = new Map([
 const workerStopped = 'The local speech recognizer stopped. Restart the microphone.';
 const startupRepair =
   'Speech recognition could not start. Check the selected language and setup-multilingual.cmd.';
+const nativeStartupStages = ['ASR_START_DEPENDENCIES', 'ASR_START_MODEL'];
 const canRecoverStartup = (error) =>
   error.code === 'ASR_START_NATIVE_CRASH' && error.startupStage === 'ASR_START_MODEL';
 
@@ -119,8 +120,12 @@ export class ASRWorker extends EventEmitter {
       readyReject = reject;
     });
     this.rejectStart = readyReject;
-    const timer = setTimeout(() => fail('ASR_START_TIMEOUT'), 60000);
-    this.startTimer = timer;
+    let lastTimedStage = -1;
+    let timer;
+    const armStartup = (milliseconds) => {
+      clearTimeout(timer);
+      this.startTimer = timer = setTimeout(() => fail('ASR_START_TIMEOUT'), milliseconds);
+    };
     const fail = (code = this.rejectStart ? 'ASR_START_PROTOCOL' : 'ASR_WORKER_PROTOCOL') => {
       if (this.child !== child) return;
       const starting = Boolean(this.rejectStart);
@@ -138,6 +143,7 @@ export class ASRWorker extends EventEmitter {
       this.pending.clear();
       if (safeStartup || !canRecoverStartup(error)) this.emit('failure', error);
     };
+    armStartup(60000);
     child.on('error', () => fail(this.rejectStart ? 'ASR_START_SPAWN' : 'ASR_WORKER_IO'));
     // Wait for stdout to close so a startup-error record can arrive before the exit status.
     child.on('close', (status) =>
@@ -184,6 +190,13 @@ export class ASRWorker extends EventEmitter {
             return;
           }
           startupStage = event.code;
+          const timedStage = nativeStartupStages.indexOf(startupStage);
+          // Native imports can take longer than starting Python. Give each
+          // expensive phase its own bounded window, once and in order.
+          if (timedStage > lastTimedStage) {
+            lastTimedStage = timedStage;
+            armStartup(120000);
+          }
         } else if (event.type === 'startup-error') {
           fail(this.rejectStart && reportedStartupCodes.has(event.code) ? event.code : undefined);
           return;

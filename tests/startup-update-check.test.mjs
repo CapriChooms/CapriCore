@@ -316,3 +316,84 @@ test('a manual operation before UI readiness prevents a duplicate startup check'
   assert.deepEqual(await f.service.checkOnStartup(), manual);
   assert.equal(f.calls.releases, 1);
 });
+
+test('automatic checks discover releases published during the same session', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  let tags = [];
+  let requests = 0;
+  const f = fixture({
+    releases: async () => {
+      requests++;
+      return tags.map((tag) => release(tag));
+    },
+  });
+  t.after(() => f.service.close());
+  const poll = async () => {
+    t.mock.timers.tick(30 * 60_000);
+    await f.service.automaticOperation;
+  };
+
+  await f.service.startAutomaticChecks();
+  assert.equal(f.service.snapshot().automatic, true);
+  assert.equal(f.service.snapshot().notification, null);
+  t.mock.timers.tick(30 * 60_000 - 1);
+  assert.equal(requests, 1);
+  tags = ['v0.5.3'];
+  t.mock.timers.tick(1);
+  await f.service.automaticOperation;
+  assert.deepEqual(f.service.snapshot().notification, { tag: 'v0.5.3' });
+  assert.equal(f.events.length, 1);
+  await poll();
+  assert.equal(requests, 3);
+  assert.equal(f.events.length, 1);
+
+  f.service.remindLater();
+  await poll();
+  assert.equal(f.service.snapshot().notification, null);
+  tags = ['v0.5.4', 'v0.5.3'];
+  await poll();
+  assert.deepEqual(f.service.snapshot().notification, { tag: 'v0.5.4' });
+  assert.equal(f.calls.downloads, 0);
+});
+
+test('turning checks off persists, cancels a pending poll and leaves manual checks available', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const pending = deferred();
+  let requests = 0;
+  const f = fixture({
+    experimental: true,
+    credential: async () => null,
+    releases: async () => {
+      if (++requests === 1) return [];
+      if (requests === 2) return pending.promise;
+      return [release('v0.5.3')];
+    },
+  });
+  t.after(() => f.service.close());
+  assert.equal(f.service.snapshot().experimental, true);
+  assert.equal(f.service.snapshot().automatic, true, 'legacy preferences inherit the default');
+  await f.service.startAutomaticChecks();
+  t.mock.timers.tick(30 * 60_000);
+  const poll = f.service.automaticOperation;
+  await delay(0);
+  assert.equal(requests, 2);
+  f.service.setSettings({ experimental: false, automatic: false });
+  pending.resolve([release('v0.9.0')]);
+  await poll;
+  assert.equal(f.service.snapshot().notification, null);
+  t.mock.timers.tick(30 * 60_000);
+  assert.equal(requests, 2);
+  assert.equal((await f.service.check()).release.tag, 'v0.5.3');
+  const restarted = new UpdateService(f.options);
+  t.after(() => restarted.close());
+  await restarted.startAutomaticChecks();
+  assert.equal(restarted.snapshot().automatic, false);
+  assert.equal(requests, 3);
+  restarted.setSettings({ experimental: false, automatic: true });
+  await delay(0);
+  assert.deepEqual(restarted.snapshot().notification, { tag: 'v0.5.3' });
+  assert.equal(requests, 4);
+  restarted.close();
+  t.mock.timers.tick(30 * 60_000);
+  assert.equal(requests, 4);
+});

@@ -1,0 +1,26 @@
+{
+  "hang-catch": {
+    "x": 209,
+    "y": 68,
+    "width": 938,
+    "height": 1130
+  },
+  "hang-pullup": {
+    "x": 200,
+    "y": 73,
+    "width": 856,
+    "height": 1147
+  },
+  "hang-wrist-scan": {
+    "x": 208,
+    "y": 75,
+    "width": 924,
+    "height": 1104
+  },
+  "ledge-keytar": {
+    "x": 78,
+    "y": 100,
+    "width": 1017,
+    "height": 1096
+  }
+}

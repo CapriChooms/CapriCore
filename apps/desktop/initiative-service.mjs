@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { InitiativePolicy } from './initiative-policy.mjs';
 import { plainDialogueText } from '../../packages/runtime/src/text.mjs';
 
+const sameScene = (a, b) => Boolean(a && b && a.captureId === b.captureId && a.scene === b.scene);
+
 export class InitiativeService {
   constructor({
     settings,
@@ -18,12 +20,13 @@ export class InitiativeService {
     settleMs = 1500,
     onStatus = () => {},
     random = Math.random,
+    screenEvidence = () => null,
   }) {
     Object.assign(this, { state, generate, commit, deliver, onError, persist, now, settleMs });
     this.policy = new InitiativePolicy({ settings, now, ...(hour ? { hour } : {}) });
     this.policy.restoreBudget(budget);
     this.typingUntil = 0;
-    Object.assign(this, { onStatus, random });
+    Object.assign(this, { onStatus, random, screenEvidence });
     this.history = [];
     this.reschedule(true);
     this.scheduler = setInterval(() => this.tick(), 15000);
@@ -50,7 +53,29 @@ export class InitiativeService {
     this.onStatus(this.snapshot());
   }
   tick(force = false) {
-    if ((!this.policy.settings.spontaneous && !force) || this.active || this.timer) return;
+    if (this.active || this.timer) return;
+    const { screenComments, watchTogether } = this.policy.settings;
+    const evidence = !force && (screenComments || watchTogether) && this.screenEvidence();
+    if (evidence && !sameScene(evidence, this.lastScreenAttempt)) {
+      const candidate = {
+        category: 'screen',
+        expiresAt: evidence.expiresAt,
+        event: {
+          kind: 'screen.scene',
+          source: 'screen-observation',
+          timestamp: evidence.capturedAt,
+        },
+        screen: evidence,
+      };
+      if (this.policy.permitted(candidate, this.candidateState(candidate))) {
+        const { captureId, scene } = evidence;
+        this.lastScreenAttempt = { captureId, scene };
+        this.reschedule();
+        void this.run(candidate);
+        return;
+      }
+    }
+    if (!this.policy.settings.spontaneous && !force) return;
     const candidate = {
       category: 'spontaneous',
       expiresAt: this.now() + 60000,
@@ -82,9 +107,16 @@ export class InitiativeService {
   }
   candidateState(candidate) {
     const state = this.currentState();
+    if (candidate?.category === 'screen')
+      return { ...state, screenCurrent: sameScene(candidate.screen, this.screenEvidence()) };
     return candidate?.preview
       ? { ...state, quiet: false, typing: Boolean(this.state().typing) }
       : state;
+  }
+  screenChanged() {
+    const candidate = this.active?.candidate;
+    if (candidate?.category === 'screen' && !sameScene(candidate.screen, this.screenEvidence()))
+      this.cancel();
   }
   observe(event) {
     const candidate = this.policy.observe(event);

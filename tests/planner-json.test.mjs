@@ -41,9 +41,7 @@ test('the initial outline has a separate required final deliverable and sends no
   };
   const plan = planner(async (_url, { body }) => {
     requests.push(JSON.parse(body));
-    return packet(
-      requests.length === 1 ? { milestones: step().plan } : { milestones: [], outcome },
-    );
+    return packet(requests.length <= 2 ? { milestones: step().plan } : { milestones: [], outcome });
   });
   const input = {
     originalOwnerGoal: goal,
@@ -52,11 +50,14 @@ test('the initial outline has a separate required final deliverable and sends no
   };
   await assert.rejects(plan.outline(input), /Invalid computer plan/);
   assert.deepEqual(await plan.outline(input), { milestones: [], outcome });
-  assert.deepEqual(JSON.parse(requests[1].messages[1].content), {
-    originalOwnerGoal: goal,
-    language: 'en',
-  });
-  assert.deepEqual(requests[1].tools, []);
+  assert.equal(requests.length, 3);
+  for (const request of requests) {
+    assert.deepEqual(JSON.parse(request.messages[1].content), {
+      originalOwnerGoal: goal,
+      language: 'en',
+    });
+    assert.deepEqual(request.tools, []);
+  }
 });
 
 test('deep thinking uses the selected effort only for the initial task outline', async () => {
@@ -137,7 +138,7 @@ test('JSON planner accepts numeric checkpoint IDs and exact bracketed live targe
     milestones: [{ ...step().plan[0], id: 1 }],
     outcome: { label: 'Finish QA', successCriterion: 'QA button is visible.' },
   };
-  const values = [
+  const validValues = [
     outline,
     {
       action: 'click',
@@ -151,6 +152,8 @@ test('JSON planner accepts numeric checkpoint IDs and exact bracketed live targe
       evidence: 'QA button',
       verifiedCheckpoints: [{ id: 1, evidence: 'QA button' }],
     },
+  ];
+  const invalidValues = [
     { action: 'click', targetId: '[stale-1]', summary: 'Select the QA button.' },
     { action: 'click', targetId: 'Wrong label [live-1]', summary: 'Select the QA button.' },
     {
@@ -161,6 +164,7 @@ test('JSON planner accepts numeric checkpoint IDs and exact bracketed live targe
     },
   ];
   let calls = 0;
+  const values = [...validValues, ...invalidValues.flatMap((value) => [value, value])];
   const plan = planner(async () => (++calls === 1 ? rejected() : packet(values.shift())));
   assert.equal((await plan.outline(state())).milestones[0].id, '1');
   const click = await plan(state());
@@ -172,6 +176,7 @@ test('JSON planner accepts numeric checkpoint IDs and exact bracketed live targe
   assert.equal((await plan(later)).verifiedCheckpoints[0].id, '1');
   for (let attempt = 0; attempt < 3; attempt++)
     await assert.rejects(plan(later), { code: 'COMPUTER_PLAN_SCHEMA' });
+  assert.equal(values.length, 0);
 });
 
 test('a failing JSON fallback is not retried again', async () => {
@@ -213,7 +218,7 @@ test('cached JSON completion reviews retain boolean and current-evidence constra
   assert.equal((await plan(state(), { review: true })).action, 'finish');
   invalid = true;
   await assert.rejects(plan(state(), { review: true }), /Invalid computer plan/);
-  assert.equal(calls, 4);
+  assert.equal(calls, 5);
 });
 
 test('completion reviews use JSON output without loosening the host evidence check or action format', async () => {
@@ -223,11 +228,11 @@ test('completion reviews use JSON output without loosening the host evidence che
   const proof = 'QA button: https://atlas.example/manual';
   const plan = planner(async (_url, options) => {
     formats.push(JSON.parse(options.body).format);
-    if (formats.length === 1)
+    if (formats.length <= 2)
       return packet({ complete: true, evidence: 'An unrelated window', summary: 'Done.' });
-    if (formats.length === 2)
+    if (formats.length === 3)
       return packet({ complete: false, missing: 'Find the current result.' });
-    if (formats.length === 3) return packet({ complete: true, evidence: proof, summary: 'Done.' });
+    if (formats.length === 4) return packet({ complete: true, evidence: proof, summary: 'Done.' });
     return packet(step());
   });
   await assert.rejects(plan(state(), { review: true }), /Invalid computer plan/);
@@ -238,8 +243,8 @@ test('completion reviews use JSON output without loosening the host evidence che
   });
   assert.equal((await plan(input, { review: true })).evidence, proof);
   assert.equal((await plan(state())).action, 'launch');
-  assert.deepEqual(formats.slice(0, 3), ['json', 'json', 'json']);
-  assert(Array.isArray(formats[3].anyOf));
+  assert.deepEqual(formats.slice(0, 4), ['json', undefined, 'json', 'json']);
+  assert(Array.isArray(formats[4].anyOf));
 });
 
 test('JSON fallback retains complete branch, target, argument and first-plan constraints', async () => {
@@ -287,7 +292,7 @@ test('remote JSON-object adapters cannot bypass the full action schema without a
       return packet(value);
     });
     await assert.rejects(plan(state()), /Invalid computer plan/);
-    assert.equal(calls, 1);
+    assert.equal(calls, 2);
   }
   const valid = planner(async () => packet(step()));
   assert.equal((await valid(state())).action, 'launch');

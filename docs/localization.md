@@ -53,6 +53,22 @@ node tools/localization/build-interface-locales.mjs
 
 Generation resumes from saved messages. Contextual review checkpoints each batch and records its source revision; a changed English key or source value invalidates an older review. `--locales=de,fr` limits a preparation/review run. These are developer tools, never part of normal app startup or a language switch. Machine corrections remain reviewable JSON. Reports are local under ignored `logs/`.
 
+Settings guides use the English text as the key in `apps/desktop/guide-locales/<locale>.json`.
+The authored English and Russian texts remain in the guide modules. When a guide
+changes, check coverage and generate missing translations with:
+
+```powershell
+node tools/localization/translate-settings-guides.mjs --check
+node tools/localization/translate-settings-guides.mjs --public-ui-only --provider=bing --locales=de,fr
+node tools/localization/translate-settings-guides.mjs --check
+```
+
+Generation sends only public guide text to the selected translation provider,
+keeps existing translations and saves each batch. Review generated text in the
+locale files. The check reports missing and obsolete source keys and validates
+numbers, placeholders, product names and writing systems. A changed English
+string needs a fresh translation and review.
+
 ## Verification
 
 `node --test tests/interface-locales.test.mjs tests/workflow-localization.test.mjs tests/language-settings.test.mjs` checks locale coverage, catalog packaging, core terminology, substitution slots, writing systems, RTL metadata and separation from dialogue settings. `node tools/verify/verify-interface-locales.mjs` uses an isolated real Electron window and synthetic messages to check every advertised language, persistence, labels/tooltips, native menus, workflow captions, layout bounds and preservation of chat/draft/file data. Verification images contain only the test window; no physical microphone, webcam or user screen is captured.

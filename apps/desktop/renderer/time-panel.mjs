@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import {
+  audioOutputDevice,
+  createAudioOutputContext,
+  matchesAudioOutput,
+} from './local-audio-output.mjs';
+
 const MAX_SECONDS = 366 * 86400;
 const clampDuration = (seconds) => Math.max(0, Math.min(MAX_SECONDS, Math.round(seconds)));
 const offsets = [-3, -2, -1, 0, 1, 2, 3];
@@ -89,6 +95,7 @@ function durationDial(unit, panel) {
     const changed = value !== shown;
     setValue(value);
     settle(changed ? direction : 0);
+    return changed;
   }
   function position(start, travel) {
     const nearest = Math.round(travel);
@@ -128,7 +135,9 @@ function durationDial(unit, panel) {
     coastFrame = requestAnimationFrame(frame);
     return true;
   }
-  const step = (delta) => set(wrap(read() + delta), Math.sign(delta));
+  function step(delta) {
+    if (set(wrap(read() + delta), Math.sign(delta))) panel.tick();
+  }
   dial.addEventListener(
     'wheel',
     (event) => {
@@ -217,6 +226,7 @@ const duration = (ms) => {
 export class TimePanel {
   constructor({ api, ui, onOpen, onError }) {
     Object.assign(this, { api, ui, onOpen, onError });
+    this.outputDevice = '';
     this.panel = document.getElementById('time-panel');
     const dials = document.getElementById('time-duration');
     this.dials = units.map((unit) => durationDial(unit, this));
@@ -259,7 +269,13 @@ export class TimePanel {
   }
   tick() {
     if (!globalThis.AudioContext) return;
-    const audio = (this.tickAudio ??= new AudioContext());
+    let audio;
+    try {
+      audio = this.tickAudio ??= createAudioOutputContext(this.outputDevice);
+    } catch {
+      return;
+    }
+    if (!matchesAudioOutput(audio, this.outputDevice)) return;
     if (audio.state === 'suspended') void audio.resume().catch(() => {});
     const now = audio.currentTime;
     if (now < (this.nextTick ?? 0)) return;
@@ -277,6 +293,14 @@ export class TimePanel {
     };
     oscillator.start(now);
     oscillator.stop(now + 0.025);
+  }
+  setOutputDevice(value = '') {
+    const deviceId = audioOutputDevice(value);
+    if (deviceId === this.outputDevice) return;
+    this.outputDevice = deviceId;
+    if (this.tickAudio?.state !== 'closed') void this.tickAudio?.close().catch(() => {});
+    this.tickAudio = null;
+    this.nextTick = 0;
   }
   setDuration(seconds, direction = 0) {
     seconds = clampDuration(seconds);

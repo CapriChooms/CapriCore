@@ -14,11 +14,30 @@ export class WorkflowsPanel {
     this.panel.id = 'workflows-panel';
     this.panel.className = 'preferences-panel';
     this.panel.hidden = true;
-    this.panel.innerHTML =
-      '<h2>Task training</h2><div class="preferences-content"><div class="settings-card"><p>Record clicks, dragging, scrolling and shortcuts for up to two minutes. Ordinary typing, clipboard contents and password fields are not recorded. Add text steps manually, review the draft and save it. Esc stops recording or playback.</p><div class="settings-actions"><button id="workflow-record" type="button">Start recording</button><button id="workflow-stop" type="button" disabled>Stop</button></div><p id="workflow-status" role="status"></p><label for="workflow-name">Workflow name</label><input id="workflow-name" maxlength="80"><div id="workflow-steps"></div><div class="settings-actions"><button id="workflow-add-text" type="button">Add text after the last input-field click</button><button id="workflow-save" type="button">Save workflow</button></div><details><summary>Advanced step editor</summary><textarea id="workflow-json" rows="10" spellcheck="false"></textarea><button id="workflow-edit" type="button">Use edited steps</button></details></div><div class="settings-card"><h3>Saved workflows</h3><p>Playback requires full computer access. Targets must match uniquely. Capri stops if a target changes or Esc is pressed.</p><label for="workflow-variables">Variables (JSON object)</label><textarea id="workflow-variables" rows="3" placeholder="{&quot;query&quot;:&quot;a song name&quot;}"></textarea><div id="workflow-list"></div></div></div>';
+    this.panel.innerHTML = `
+      <h2>Task training</h2>
+      <div class="preferences-content">
+        <section class="settings-card">
+          <div class="settings-actions"><button id="workflow-record" type="button">Start recording</button><button id="workflow-stop" type="button" disabled>Stop</button></div>
+          <p id="workflow-status" role="status"></p>
+        </section>
+        <section class="settings-card">
+          <label for="workflow-name">Workflow name</label><input id="workflow-name" maxlength="80">
+          <div id="workflow-steps"></div>
+          <div class="settings-actions"><button id="workflow-add-text" type="button">Add text after the last input-field click</button><button id="workflow-save" type="button">Save workflow</button></div>
+        </section>
+        <details class="settings-disclosure">
+          <summary>Advanced step editor</summary>
+          <div class="settings-disclosure-content"><textarea id="workflow-json" rows="10" spellcheck="false"></textarea><button id="workflow-edit" type="button">Use edited steps</button></div>
+        </details>
+        <section class="settings-card">
+          <h3>Saved workflows</h3>
+          <p class="settings-help">Playback requires full computer access. Targets must match uniquely. Capri stops if a target changes or Esc is pressed.</p>
+          <label for="workflow-variables">Variables (JSON object)</label><textarea id="workflow-variables" rows="3" placeholder="{&quot;query&quot;:&quot;a song name&quot;}"></textarea>
+          <div id="workflow-list"></div>
+        </section>
+      </div>`;
     this.panel.dataset.panelCut = '12';
-    for (const paragraph of this.panel.querySelectorAll('.settings-card > p:not([id])'))
-      paragraph.classList.add('settings-help');
     document.getElementById('companion').append(this.panel);
     const $ = (id) => this.panel.querySelector('#' + id);
     this.$ = $;

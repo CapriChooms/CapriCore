@@ -3,23 +3,45 @@
 function Format-CapriMemoryRange($Range) {
     return (@($Range|ForEach-Object{([Math]::Max(0.0,[double]$_)).ToString('0.0')}) -join ' - ')+' GiB'
 }
-function Get-CapriRequiredRam($Profile,$Hardware,$Estimates) {
+function Get-CapriRequiredRam($Profile,$Hardware,$Estimates,[string]$LanguageDevice) {
+    if($LanguageDevice -eq 'cpu'){return $Profile.ramGiB}
     $model=$Estimates.models.PSObject.Properties[$Profile.id].Value
     $threshold=if($Profile.recommendedVramGiB -gt 0){$Profile.recommendedVramGiB}else{[Math]::Ceiling($model.vram[1])}
     if($Hardware.vramGiB -gt 0 -and $Hardware.vramGiB -ge ($threshold-0.125)){return $model.gpuSystemRamGiB}
     return $Profile.ramGiB
 }
+function Get-CapriSavedLanguageDevice([string]$Target) {
+    if(-not $Target){return 'auto'}
+    try {
+        $settings=Join-Path $Target 'data/desktop/model-devices.json'
+        Assert-CapriNoLinks $settings
+        if(Test-Path -LiteralPath $settings -PathType Leaf){
+            $saved=Read-CapriJson $settings
+            if($saved.schemaVersion -eq 1 -and $saved.language -eq 'cpu'){return 'cpu'}
+        }else{
+            $legacy=Join-Path $Target 'config/core.local.json'
+            Assert-CapriNoLinks $legacy
+            if(Test-Path -LiteralPath $legacy -PathType Leaf){
+                $value=(Read-CapriJson $legacy).PSObject.Properties['acceleration']
+                if($value -and $value.Value -eq 'cpu'){return 'cpu'}
+            }
+        }
+    }catch{} # Invalid or unavailable preferences cannot inform an estimate.
+    return 'auto'
+}
 function Get-CapriMemoryBudget($Selection,$Hardware,$Estimates) {
     $modelProperty=$Estimates.models.PSObject.Properties[$Selection.profile]
     if(-not $modelProperty){throw 'Unknown model memory estimate'}
     $model=$modelProperty.Value;$gpu=$Hardware.vramGiB -gt 0
+    $languageDevice=if($Selection -is [Collections.IDictionary]){$Selection['languageDevice']}elseif($Selection.PSObject.Properties['languageDevice']){$Selection.languageDevice}
+    $languageGpu=$gpu -and $languageDevice -ne 'cpu'
     $freeVram=if($gpu -and $null -ne $Hardware.availableVramGiB){$Hardware.availableVramGiB}else{$null}
     $gpuBudget=if($null -ne $freeVram){$freeVram}else{$Hardware.vramGiB}
     $ram=@([double]$Estimates.base.ram[0],[double]$Estimates.base.ram[1])
     $vram=if($gpu){@([double]$Estimates.base.vram[0],[double]$Estimates.base.vram[1])}else{@(0.0,0.0)}
     $parts=New-Object Collections.Generic.List[object]
     if($Selection.downloadModels){
-        $parts.Add(@{ram=$(if($gpu){$model.hostRam}else{$model.cpuRam});vram=$(if($gpu){$model.vram}else{@(0,0)})})
+        $parts.Add(@{ram=$(if($languageGpu){$model.hostRam}else{$model.cpuRam});vram=$(if($languageGpu){$model.vram}else{@(0,0)})})
     }
     $english=$Selection.conversationLanguage -eq 'en'
     if($Selection.recognition){$parts.Add($(if($english){$Estimates.recognitionEnglish}else{$Estimates.recognitionMultilingual}))}
@@ -37,7 +59,7 @@ function Get-CapriMemoryBudget($Selection,$Hardware,$Estimates) {
             }
         }
     }
-    $offload=$Selection.downloadModels -and $gpu -and $vram[1] -gt $gpuBudget
+    $offload=$Selection.downloadModels -and $languageGpu -and $vram[1] -gt $gpuBudget
     if($offload){for($i=0;$i -lt 2;$i++){
         $fraction=[Math]::Min(1.0,[Math]::Max(0.0,([double]$vram[$i]-[double]$gpuBudget))/[double]$model.vram[$i])
         $ram[$i]+=$fraction*[Math]::Max(0.0,([double]$model.cpuRam[$i]-[double]$model.hostRam[$i]))
@@ -47,7 +69,7 @@ function Get-CapriMemoryBudget($Selection,$Hardware,$Estimates) {
         $limit=if($known){$Available}else{$Total}
         return @{estimate=@($Range|ForEach-Object{[Math]::Round($_,1,[MidpointRounding]::AwayFromZero)});total=$Total;available=$(if($known){$Available}else{$null});remaining=$(if($known){@([Math]::Round(($Available-$Range[1]),1,[MidpointRounding]::AwayFromZero),[Math]::Round(($Available-$Range[0]),1,[MidpointRounding]::AwayFromZero))}else{$null});exceedsAvailable=($null -ne $limit -and $Range[1] -gt $limit)}
     }
-    return @{contextTokens=$Estimates.contextTokens;mode=$(if($gpu){'gpu'}else{'cpu'});offload=[bool]$offload;ram=(Row $ram $Hardware.ramGiB $Hardware.availableRamGiB);vram=(Row $vram $(if($gpu){$Hardware.vramGiB}else{$null}) $freeVram)}
+    return @{contextTokens=$Estimates.contextTokens;mode=$(if($languageGpu){'gpu'}else{'cpu'});offload=[bool]$offload;ram=(Row $ram $Hardware.ramGiB $Hardware.availableRamGiB);vram=(Row $vram $(if($gpu){$Hardware.vramGiB}else{$null}) $freeVram)}
 }
 function Update-CapriMemorySnapshot($Hardware) {
     try {

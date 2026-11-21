@@ -22,6 +22,16 @@ import { writePrivateBytesAtomic } from '../../packages/runtime/src/safe-file.mj
 import { probeHardware } from '../../packages/runtime/src/hardware/probe.mjs';
 import { voiceRocmSupported } from '../../packages/runtime/src/hardware/voice-gpu.mjs';
 import { voiceRuntimeEnvironment } from '../../integrations/voice_runtime/environment.mjs';
+import {
+  installBreezeTts,
+  installedBreezeTts,
+} from '../../packages/installer/src/breeze-tts-install.mjs';
+import {
+  BREEZE_PROFILE_ERROR,
+  loadBreezeProfile,
+  prepareBreezeProfile,
+  saveBreezeProfile,
+} from './breeze-voice.mjs';
 
 export const RUSSIAN_QWEN_ID = 'qwen3-tts-1.7b-capri-ru';
 const qwenGpuVersions = { cuda: 'cu128', rocm: 'rocm7.2.1' };
@@ -56,6 +66,7 @@ export function voiceRuntimeKind(model) {
   if (model.id === RUSSIAN_QWEN_ID) return 'qwen3-tts-ru-lora';
   if (model.backend === 'chatterbox-turbo') return 'turbo';
   if (model.backend === 'qwen3-tts') return 'qwen3-tts';
+  if (model.backend === 'breeze-tts') return 'breeze-tts';
   return model.component ?? 'multilingual-v3';
 }
 
@@ -147,6 +158,7 @@ export function selectedVoiceModel(root, language, configRoot = root) {
 }
 
 export function voiceRuntimes(root, model) {
+  if (model.backend === 'breeze-tts') return [];
   if (model.backend !== 'qwen3-tts')
     return [
       {
@@ -202,6 +214,7 @@ export class VoiceCatalogService {
         module.prepareVoiceCatalog(options),
       ),
     ownerStamp = () => processStartedAt(process.pid),
+    installBreeze = installBreezeTts,
   }) {
     Object.assign(this, {
       root,
@@ -213,6 +226,7 @@ export class VoiceCatalogService {
       hardware,
       prepare,
       ownerStamp,
+      installBreeze,
     });
     this.models = readJson(path.join(configRoot, 'config/tts-catalog.json')).models;
     this.applying = false;
@@ -231,6 +245,7 @@ export class VoiceCatalogService {
   }
   installed(model) {
     try {
+      if (model.backend === 'breeze-tts') return Boolean(installedBreezeTts(this.root));
       const companion = readVoiceSettings(this.root, { configRoot: this.configRoot });
       const profile = voiceDataPath(this.root, companion.profileDir);
       if (
@@ -256,6 +271,7 @@ export class VoiceCatalogService {
   }
   snapshot() {
     const selections = readVoiceSelections(this.root, this.models);
+    const breeze = loadBreezeProfile(this.root);
     return {
       schemaVersion: 1,
       ...this.value,
@@ -264,6 +280,8 @@ export class VoiceCatalogService {
       russianQwenCudaReady: Boolean(qwenGpuRuntime(this.root, 'cuda')),
       qwenRocmReady: Boolean(qwenGpuRuntime(this.root, 'rocm')),
       qwenRocmSupported: this.qwenRocmSupported === true,
+      breezeSupported: process.platform === 'win32' && process.arch === 'x64',
+      breezeVoice: breeze ? { name: breeze.name } : null,
       models: this.models.map((model) => ({ ...model, installed: this.installed(model) })),
       defaults: voiceDefaults,
     };
@@ -282,6 +300,8 @@ export class VoiceCatalogService {
     );
     if (!model) throw new Error('This voice model does not support the selected language.');
     if (!this.installed(model)) throw new Error('Install this voice model before selecting it.');
+    if (model.backend === 'breeze-tts' && !loadBreezeProfile(this.root))
+      throw new Error(BREEZE_PROFILE_ERROR);
     this.applying = true;
     try {
       await this.beforeChange();
@@ -297,6 +317,18 @@ export class VoiceCatalogService {
     const value = this.snapshot();
     this.emit({ type: 'voice-catalog.status', ...value });
     return value;
+  }
+  async importBreezeVoice(source) {
+    if (this.busy()) throw new Error('Wait for the voice operation to finish.');
+    const profile = prepareBreezeProfile(source);
+    this.applying = true;
+    try {
+      await this.beforeChange();
+      saveBreezeProfile(this.root, profile);
+    } finally {
+      this.applying = false;
+    }
+    return this.publish({});
   }
   busy() {
     return Boolean(this.applying || this.task);
@@ -317,11 +349,19 @@ export class VoiceCatalogService {
     this.emit({ type: 'voice-catalog.status', ...value });
     return value;
   }
-  install({ modelId, language, cuda = false, rocm = false } = {}) {
+  install({ modelId, language, cuda = false, rocm = false, acceptLicense = false } = {}) {
     if (this.busy()) throw new Error('Wait for the voice operation to finish.');
     const model = this.models.find(
       (item) => item.id === modelId && item.languages.includes(language),
     );
+    if (model?.backend === 'breeze-tts') {
+      if (acceptLicense !== true) throw new Error('Accept the Breeze TTS 2 model license.');
+      if (process.platform !== 'win32' || process.arch !== 'x64')
+        throw new Error('Breeze TTS 2 requires Windows x64 with AVX2.');
+      if (this.root !== this.configRoot)
+        throw new Error('Installation is unavailable in interface verification.');
+      return this.downloadBreeze(model, language);
+    }
     if (!model || model.backend !== 'qwen3-tts')
       throw new Error('Use Install and enable in Languages for the Chatterbox voice models.');
     if (
@@ -513,6 +553,60 @@ export class VoiceCatalogService {
           lastFailure: failure,
           errorCode: failure?.code ?? null,
           error: controller.signal.aborted ? null : message,
+        });
+      })
+      .finally(() => {
+        this.task = null;
+        this.controller = null;
+        unlock();
+      });
+    return this.snapshot();
+  }
+  downloadBreeze(model, language) {
+    if (this.installed(model)) return this.snapshot();
+    const cache = voiceDataPath(this.root, '.runtime/installer');
+    mkdirSync(cache, { recursive: true });
+    const unlock = installationLock(cache);
+    const controller = new AbortController();
+    try {
+      assertDiskSpace(this.root, this.free(this.root), model.minimumFreeBytes);
+    } catch (error) {
+      unlock();
+      throw error;
+    }
+    this.controller = controller;
+    this.publish({
+      phase: 'installing',
+      stage: 'breeze-download',
+      installingModelId: model.id,
+      installingLanguage: language,
+      progress: null,
+      cuda: false,
+      rocm: false,
+      error: null,
+      errorCode: null,
+      lastFailure: null,
+    });
+    this.task = Promise.resolve()
+      .then(() =>
+        this.installBreeze({
+          root: this.root,
+          signal: controller.signal,
+          progress: (progress) => this.publish({ progress }),
+        }),
+      )
+      .then(() => {
+        if (!this.installed(model)) throw new Error('Voice installation could not be verified.');
+        this.publish({ phase: 'ready', stage: null, progress: 100 });
+      })
+      .catch((error) => {
+        const failure = controller.signal.aborted ? null : installFailure(error, this.value.stage);
+        this.publish({
+          phase: failure ? 'error' : 'cancelled',
+          stage: null,
+          lastFailure: failure,
+          errorCode: failure?.code ?? null,
+          error: failure ? 'Voice installation failed. Retry or save a diagnostic report.' : null,
         });
       })
       .finally(() => {

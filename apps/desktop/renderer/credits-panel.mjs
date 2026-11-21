@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { normalizeCreditNames, validateEpithet } from '../credits-epithets.mjs';
+import { createCreditsRays } from './credits-rays.mjs';
 const TEAM = Object.freeze([
   Object.freeze({ name: 'Overyx', role: 'Developer' }),
   Object.freeze({ name: 'v1rch', role: 'Discord developer' }),
@@ -7,6 +8,7 @@ const TEAM = Object.freeze([
 ]);
 const GITHUB_LOGIN = /^(?!.*--)[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i;
 const MAX_REGISTRY_LENGTH = 2 * 1024 * 1024;
+const rayFrameInterval = 32;
 // One stable palette/phase per nickname, with no per-name timers.
 function nameStyle(element, name) {
   let hash = 2166136261;
@@ -28,46 +30,6 @@ function gradientName(name, tag = 'span') {
   return label;
 }
 
-function teamNameLight(name) {
-  const wrapper = document.createElement('span');
-  wrapper.className = 'credits-team-light';
-  wrapper.dir = 'ltr';
-  const rays = document.createElement('span');
-  rays.className = 'credits-god-rays';
-  rays.setAttribute('aria-hidden', 'true');
-  // Three small sheets of static glyph projections; only the sheets animate.
-  for (const [index, direction] of [
-    [-0.8, -0.65],
-    [0.8, -0.4],
-    [0.12, 0.85],
-  ].entries()) {
-    const sheet = document.createElement('span');
-    sheet.className = 'credits-ray-sheet';
-    sheet.dataset.rayTone = String(index);
-    for (let step = 1; step <= 10; step++) {
-      const progress = step / 10;
-      const ray = document.createElement('span');
-      ray.className = 'credits-glyph-ray';
-      ray.dataset.text = name;
-      ray.style.setProperty('--ray-x', `${direction[0] * progress * 42}px`);
-      ray.style.setProperty('--ray-y', `${direction[1] * progress * 44}px`);
-      ray.style.setProperty('--ray-scale-x', String(1 + progress * 0.55));
-      ray.style.setProperty('--ray-scale-y', String(1 + progress * 2.2));
-      ray.style.setProperty('--ray-alpha', String(0.13 * (1 - progress * 0.9) ** 1.4));
-      sheet.append(ray);
-    }
-    rays.append(sheet);
-  }
-  const label = gradientName(name, 'strong');
-  label.classList.add('credits-team-name');
-  const sheen = document.createElement('span');
-  sheen.className = 'credits-glyph-sheen';
-  sheen.dataset.text = name;
-  sheen.setAttribute('aria-hidden', 'true');
-  wrapper.append(rays, label, sheen);
-  return wrapper;
-}
-
 function registryData(value) {
   if (
     !value ||
@@ -81,13 +43,12 @@ function registryData(value) {
   )
     throw new Error('Invalid Hall of Fame registry');
 
-  const team = TEAM.map((member) => {
+  for (const member of TEAM) {
     const matches = value.team.filter(
       (entry) => entry && entry.name === member.name && entry.role === member.role,
     );
     if (matches.length !== 1) throw new Error('Invalid Hall of Fame team');
-    return { name: member.name, role: member.role };
-  });
+  }
   const majorSupporters = normalizeCreditNames(value.majorSupporters);
   const communityHelpers = normalizeCreditNames(value.communityHelpers);
   const seen = new Set();
@@ -106,7 +67,7 @@ function registryData(value) {
     if (!value.epithets || typeof value.epithets !== 'object' || Array.isArray(value.epithets))
       throw new Error('Invalid Hall of Fame epithets');
     const names = new Set(
-      [...team.map(({ name }) => name), ...supporters, ...majorSupporters, ...communityHelpers].map(
+      [...TEAM.map(({ name }) => name), ...supporters, ...majorSupporters, ...communityHelpers].map(
         (name) => name.toLowerCase(),
       ),
     );
@@ -125,7 +86,6 @@ function registryData(value) {
     if (epithets.size !== names.size) throw new Error('Incomplete Hall of Fame epithets');
   }
   return {
-    team,
     supporters,
     epithets,
     majorSupporters,
@@ -141,6 +101,16 @@ export class CreditsPanel {
     this.supporters = [];
     this.epithets = new Map();
     this.motionState = new WeakMap();
+    this.teamNames = [];
+    this.rayElapsed = 0;
+    this.rayStartedAt = null;
+    this.rayFrame = null;
+    this.animateTeamRays = this.animateTeamRays.bind(this);
+    this.rayMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    this.rayColors = matchMedia('(forced-colors: active)');
+    this.rayMotion.addEventListener('change', () => this.syncTeamRays());
+    this.rayColors.addEventListener('change', () => this.paintTeamRays());
+    this.rayResize = new ResizeObserver(() => this.paintTeamRays());
     this.panel = document.createElement('section');
     this.panel.id = 'credits-panel';
     this.panel.className = 'preferences-panel';
@@ -151,25 +121,23 @@ export class CreditsPanel {
     this.panel.innerHTML = `
       <h2 id="credits-title">Credits</h2>
       <div class="preferences-content credits-content">
-        <header class="credits-hero">
+        <header class="settings-card credits-hero">
           <div class="credits-emblem" aria-hidden="true" data-untranslated>
             <svg viewBox="0 0 52 52" fill="none"><path d="M36 12H20l-9 9v18h25l6-6H21V23l5-5h10" /><path d="M32 25h10v10" /></svg>
           </div>
           <div class="credits-heading-copy">
-          <p class="credits-eyebrow" data-untranslated data-inline-help>CAPRI</p>
           <h3>Hall of Fame</h3>
           <p class="credits-hero-description" data-inline-help>The people who bring Capri to life.</p>
           </div>
         </header>
 
-        <section class="credits-section credits-team-section" aria-labelledby="credits-team-title">
-          <div class="credits-section-heading"><h3 id="credits-team-title">The team</h3><span class="credits-section-code" aria-hidden="true" data-untranslated>01 / 03</span></div>
+        <section class="settings-card credits-team-section" aria-labelledby="credits-team-title">
+          <h3 id="credits-team-title">The team</h3>
           <ul id="credits-team" class="credits-team"></ul>
         </section>
 
-        <section class="credits-section credits-future-section">
-          <div class="credits-future-grid">
-            <section class="credits-future-card" aria-labelledby="credits-major-title">
+        <div class="credits-future-grid">
+            <section class="settings-card credits-future-card" aria-labelledby="credits-major-title">
               <div class="credits-reserved-icon" aria-hidden="true" data-untranslated>◇</div>
               <h3 id="credits-major-title">Major supporters</h3>
               <ul id="credits-major-supporters" class="credits-reserved-list">
@@ -178,7 +146,7 @@ export class CreditsPanel {
                 <li><span>Reserved</span><span class="credits-reserved-index" aria-hidden="true" data-untranslated>03</span></li>
               </ul>
             </section>
-            <section class="credits-future-card" aria-labelledby="credits-helpers-title">
+            <section class="settings-card credits-future-card" aria-labelledby="credits-helpers-title">
               <div class="credits-reserved-icon" aria-hidden="true" data-untranslated>+</div>
               <h3 id="credits-helpers-title">Community helpers</h3>
               <ul id="credits-community-helpers" class="credits-reserved-list">
@@ -187,11 +155,10 @@ export class CreditsPanel {
                 <li><span>Pending</span><span class="credits-reserved-index" aria-hidden="true" data-untranslated>03</span></li>
               </ul>
             </section>
-          </div>
-        </section>
+        </div>
 
-        <section class="credits-section credits-supporters-section" aria-labelledby="credits-supporters-title">
-          <div class="credits-section-heading"><h3 id="credits-supporters-title">Early access supporters</h3><span class="credits-section-code" aria-hidden="true" data-untranslated>03 / 03</span></div>
+        <section class="settings-card credits-supporters-section" aria-labelledby="credits-supporters-title">
+          <h3 id="credits-supporters-title">Early access supporters</h3>
           <div class="credits-roster-toolbar">
             <div class="credits-count"><strong id="credits-count" data-untranslated>—</strong><span>Supporters</span></div>
             <div id="credits-search-field" class="credits-search-field" hidden>
@@ -224,7 +191,7 @@ export class CreditsPanel {
     root?.addEventListener('scroll', () => this.onScroll(), { passive: true });
     root?.addEventListener('scrollend', () => this.finishScroll(), { passive: true });
     visibility();
-    this.renderTeam(TEAM);
+    this.renderTeam();
     this.get('retry').addEventListener('click', () => this.open({ retry: true }));
     this.get('search').addEventListener('input', () => this.filterSupporters());
     this.ui.apply(this.ui.language);
@@ -234,6 +201,7 @@ export class CreditsPanel {
     this.nativeVisible = visible;
     this.panel.toggleAttribute('data-page-hidden', !visible || document.hidden);
     if (!visible || document.hidden) this.finishScroll();
+    else this.syncTeamRays();
   }
 
   onScroll() {
@@ -241,6 +209,7 @@ export class CreditsPanel {
     if (!this.scrolling) {
       this.scrolling = true;
       this.panel.setAttribute('data-scrolling', '');
+      this.syncTeamRays();
     }
     clearTimeout(this.scrollEndTimer);
     this.scrollEndTimer = setTimeout(() => this.finishScroll(), 140);
@@ -251,6 +220,7 @@ export class CreditsPanel {
     this.scrollEndTimer = null;
     this.scrolling = false;
     this.panel.removeAttribute('data-scrolling');
+    this.syncTeamRays();
   }
 
   updateMotion(entries) {
@@ -274,11 +244,12 @@ export class CreditsPanel {
         target.style.setProperty('--credits-drift-delay', `${state.delay - state.elapsed / 1000}s`);
       target.toggleAttribute('data-in-view', isIntersecting);
     }
+    if (updates.some(({ target }) => target.classList.contains('credits-team-card')))
+      this.syncTeamRays();
   }
 
-  epithet(name) {
+  epithet(name, caption = document.createElement('span')) {
     const phrase = this.epithets.get(name.toLowerCase());
-    const caption = document.createElement('span');
     caption.className = 'credits-epithet';
     caption.dataset.untranslated = '';
     caption.dir = 'ltr';
@@ -287,9 +258,9 @@ export class CreditsPanel {
     return caption;
   }
 
-  renderTeam(team) {
+  renderTeam() {
     const fragment = document.createDocumentFragment();
-    team.forEach((member, index) => {
+    TEAM.forEach((member, index) => {
       const card = document.createElement('li');
       card.className = 'credits-team-card';
       nameStyle(card, member.name);
@@ -299,11 +270,81 @@ export class CreditsPanel {
       const role = document.createElement('span');
       role.className = 'credits-team-role';
       role.textContent = this.ui.text(member.role);
-      identity.append(teamNameLight(member.name), this.epithet(member.name), role);
+      const label = gradientName(member.name, 'strong');
+      label.classList.add('credits-team-name');
+      const wrapper = document.createElement('span');
+      wrapper.className = 'credits-team-light';
+      wrapper.dir = 'ltr';
+      const rays = createCreditsRays(label);
+      wrapper.append(rays.element, label);
+      const caption = this.epithet(member.name);
+      this.teamNames.push({ name: member.name, card, rays, caption });
+      identity.append(wrapper, caption, role);
       card.append(identity);
       fragment.append(card);
     });
     this.replaceNames(this.get('team'), fragment);
+    for (const { rays } of this.teamNames) this.rayResize.observe(rays.element);
+  }
+
+  paintTeamRays() {
+    if (this.canShowTeamRays()) {
+      const elapsed = this.teamRayTime(performance.now());
+      for (const { rays } of this.teamNames) {
+        rays.measure();
+        rays.paint(elapsed);
+      }
+    }
+    this.syncTeamRays();
+  }
+
+  canShowTeamRays() {
+    return (
+      !this.panel.hidden && !this.panel.hasAttribute('data-page-hidden') && !this.rayColors.matches
+    );
+  }
+
+  canAnimateTeamRays() {
+    return (
+      this.canShowTeamRays() &&
+      !this.scrolling &&
+      !this.rayMotion.matches &&
+      this.teamNames.some(({ card }) => !this.motionObserver || card.hasAttribute('data-in-view'))
+    );
+  }
+
+  teamRayTime(now) {
+    return (
+      this.rayElapsed + (this.rayStartedAt === null ? 0 : Math.max(0, now - this.rayStartedAt))
+    );
+  }
+
+  syncTeamRays() {
+    if (this.canAnimateTeamRays()) {
+      if (this.rayStartedAt !== null) return;
+      this.rayStartedAt = performance.now();
+      this.rayLastPaint = -Infinity;
+      this.rayFrame = requestAnimationFrame(this.animateTeamRays);
+    } else if (this.rayStartedAt !== null) {
+      this.rayElapsed = this.teamRayTime(performance.now());
+      this.rayStartedAt = null;
+      cancelAnimationFrame(this.rayFrame);
+      this.rayFrame = null;
+    }
+  }
+
+  animateTeamRays(now) {
+    if (!this.canAnimateTeamRays()) {
+      this.syncTeamRays();
+      return;
+    }
+    if (now - this.rayLastPaint >= rayFrameInterval) {
+      this.rayLastPaint = now;
+      const elapsed = this.teamRayTime(now);
+      for (const { card, rays } of this.teamNames)
+        if (!this.motionObserver || card.hasAttribute('data-in-view')) rays.paint(elapsed);
+    }
+    this.rayFrame = requestAnimationFrame(this.animateTeamRays);
   }
 
   replaceNames(parent, fragment) {
@@ -397,7 +438,7 @@ export class CreditsPanel {
         if (source.length > MAX_REGISTRY_LENGTH) throw new Error('Hall of Fame registry too large');
         const data = registryData(JSON.parse(source));
         this.epithets = data.epithets;
-        this.renderTeam(data.team);
+        for (const { name, caption } of this.teamNames) this.epithet(name, caption);
         this.renderAcknowledgements('major-supporters', data.majorSupporters);
         this.renderAcknowledgements('community-helpers', data.communityHelpers);
         this.renderSupporters(data.supporters);

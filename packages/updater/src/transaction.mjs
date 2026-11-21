@@ -194,7 +194,7 @@ function restore(root, backup, journal) {
 /** A failed/interrupted update restores owned source files. Private data is never a transaction target. */
 export async function applyUpdate(
   { root, source, tag },
-  { execute = runCommand, emit = () => {}, register = true } = {},
+  { execute = runCommand, emit = () => {}, register = true, availableDisk = diskFree } = {},
 ) {
   root = path.resolve(root);
   source = path.resolve(source);
@@ -353,7 +353,7 @@ export async function applyUpdate(
     const needed =
       updates.reduce((sum, file) => sum + file.bytes * 2, 0) +
       (npmChanged ? 2 * 1024 ** 3 : 64 * 1024 ** 2);
-    if (diskFree(root) < needed)
+    if (availableDisk(root) < needed)
       throw new Error('Not enough free space for the update and its backup.');
     const id = randomUUID();
     backup = path.join(updateRoot, 'backups', id);

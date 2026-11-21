@@ -2,7 +2,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ComputerAgent } from '../apps/desktop/computer-agent.mjs';
-import { computerActionSchema, computerPlanner } from '../apps/desktop/computer-planner.mjs';
+import {
+  computerActionSchema,
+  computerPlanner,
+  plannerContextState,
+} from '../apps/desktop/computer-planner.mjs';
 
 const checkpoint = (id, label, successCriterion) => ({ id, label, successCriterion });
 const site = checkpoint('site', 'Open the requested site', 'The requested page is visible');
@@ -19,6 +23,24 @@ const address = (value) => ({
   editable: true,
   browserAddress: true,
   focused: false,
+});
+
+test('16K planning retains recent steps and verified progress without replaying a long trace', () => {
+  const steps = Array.from({ length: 20 }, (_, index) => ({
+    action: 'click',
+    text: `Step ${index} ` + 'example '.repeat(100),
+    ok: index !== 0,
+  }));
+  const state = { actualSteps: steps, checkpoints: ['keep the owner goal'] };
+  const view = { targets: [{ targetId: 'current' }] };
+  const compact = plannerContextState(state, view, 16384);
+  assert.equal(compact.currentObservation, view);
+  assert.equal(compact.checkpoints, state.checkpoints);
+  assert.equal(compact.actualSteps.length, 6);
+  assert.equal(compact.completedSteps.length, 12);
+  assert.ok(compact.completedSteps.every(({ ok, text }) => ok && text.length <= 240));
+  assert.equal(compact.earlierCompletedStepCount, 1);
+  assert.equal(plannerContextState(state, view, 32768).actualSteps, steps);
 });
 
 // No native application or input is involved. Every target ID belongs to the
@@ -86,6 +108,105 @@ function fixture({ view, plan, outline, onPlan, input = async () => ({ ok: true 
   });
   return { agent, control, calls, applicationCalls, contexts };
 }
+
+test('an unavailable outline leaves the original goal and independent review in the action loop', async () => {
+  const goal = 'Find the archived trail map and tell me where I can download it.';
+  const resultLabel = 'Publisher archive: trail map PDF';
+  let outlineAttempts = 0;
+  let reads = 0;
+  let opened = false;
+  const f = fixture({
+    outline: async () => {
+      outlineAttempts++;
+      throw Object.assign(new Error('Invalid computer plan'), { code: 'COMPUTER_PLAN_SCHEMA' });
+    },
+    view: () => ({
+      window: { windowId: '1', untrustedTitle: 'Trail association' },
+      targets: [button('source', opened ? resultLabel : 'Open publisher archive')],
+    }),
+    input: async (args) => {
+      assert.equal(args.action, 'click');
+      assert.equal(opened, false);
+      opened = true;
+      return { ok: true };
+    },
+    plan: async (context, { review }) => {
+      assert.equal(context.originalOwnerGoal, goal);
+      assert.equal(context.taskPlan.outcomeId, 'owner-outcome');
+      if (review) reads++;
+      return opened
+        ? {
+            action: 'finish',
+            evidence: resultLabel,
+            summary: 'Download the PDF from the publisher.',
+          }
+        : {
+            action: 'click',
+            targetId: context.currentObservation.targets[0].targetId,
+            summary: '',
+          };
+    },
+  });
+  const result = await f.agent.run(goal);
+  assert.equal(outlineAttempts, 2);
+  assert.equal(reads, 1);
+  assert.equal(result.verified, true);
+  assert.equal(result.steps, 1);
+  assert.ok(
+    f.agent.diagnostics().actions.some(({ outcome }) => outcome === 'incremental_fallback'),
+  );
+});
+
+test('a text provider that rejects structured output gets one prompt-format fallback with validation', async () => {
+  const formats = [];
+  const outline = {
+    milestones: [],
+    outcome: { label: 'Find a trailer', successCriterion: 'The matching trailer is visible' },
+  };
+  const planner = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const body = JSON.parse(request.body);
+      formats.push(body.format);
+      if (body.format) return Response.json({}, { status: 422 });
+      const reply = body.messages[0].content.includes('Plan the entire originalOwnerGoal')
+        ? outline
+        : { action: 'click', summary: 'Open trailer', targetId: 'hallucinated id' };
+      return Response.json({ done: true, message: { content: JSON.stringify(reply) } });
+    },
+  });
+  const originalOwnerGoal = 'Open Google Chrome, google cyberpunk edgerunners and find a trailer';
+  assert.deepEqual(await planner.outline({ originalOwnerGoal, language: 'en' }), outline);
+  assert.equal(typeof formats[0], 'object');
+  assert.equal(formats[1], undefined);
+  await assert.rejects(planner({ originalOwnerGoal, currentObservation: { targets: [] } }), {
+    code: 'COMPUTER_PLAN_SCHEMA',
+  });
+  assert.ok(formats.slice(1).every((format) => format === undefined));
+});
+
+test('truncated planner output is discarded before retrying with a larger bounded budget', async () => {
+  const budgets = [];
+  const reply = { action: 'ask_user', summary: 'Which window should I open?' };
+  const planner = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      budgets.push(JSON.parse(request.body).options.num_predict);
+      return Response.json({
+        done: true,
+        ...(budgets.length === 1 && { done_reason: 'length' }),
+        message: { content: JSON.stringify(reply) },
+      });
+    },
+  });
+  assert.deepEqual(
+    await planner({ originalOwnerGoal: 'Open the app.', currentObservation: { targets: [] } }),
+    reply,
+  );
+  assert.deepEqual(budgets, [900, 1800]);
+});
 
 test('an up-front research plan survives replays and cannot finish at the initial search results', async () => {
   const goal = 'Find the archived trail map and tell me where I can download it.';

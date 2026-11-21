@@ -7,10 +7,10 @@ export class SavedMemoryPanel {
     this.generation = 0;
     this.state = 'idle';
     element.innerHTML = `
-      <div class="saved-memory-heading"><strong>Saved memories</strong><button type="button" id="saved-memory-refresh">Refresh</button></div>
       <p class="saved-memory-help">Facts Capri can recall in future conversations.</p>
       <label for="saved-memory-new">Add a memory</label><textarea id="saved-memory-new" rows="3" maxlength="280" placeholder="A fact you want Capri to remember…"></textarea><button id="saved-memory-add" type="button">Save memory</button><button id="saved-memory-cancel" type="button" hidden>Cancel</button><p id="saved-memory-receipt" role="status"></p>
       <input id="saved-memory-search" type="search" maxlength="200" placeholder="Search saved memories…" aria-label="Search saved memories…" autocomplete="off" spellcheck="false">
+      <button type="button" id="saved-memory-refresh">Refresh</button>
       <p id="saved-memory-status" role="status" aria-live="polite"></p>
       <ul id="saved-memory-list" data-untranslated aria-label="Saved memories"></ul>
       <p id="saved-memory-limit" hidden>Showing a limited list. Some notes could not be displayed.</p>`;

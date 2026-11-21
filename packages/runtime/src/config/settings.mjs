@@ -1,7 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { root } from '../host/paths.mjs';
-import { MIN_COMPANION_CONTEXT, isManagedCapriModel } from './context-policy.mjs';
+import {
+  EXPERIMENTAL_COMPANION_CONTEXT,
+  MIN_COMPANION_CONTEXT,
+  isManagedCapriModel,
+} from './context-policy.mjs';
 import { deviceSettingsFile, readModelDevices } from '../model-device-settings.mjs';
 import { cpuExecutionProfile } from '../hardware/cpu-execution.mjs';
 
@@ -56,7 +60,11 @@ export function validateCoreSettings(value) {
     result.contextTokens > 262144
   )
     throw new Error('Unsupported local context size');
-  if (isManagedCapriModel(result.model))
+  if (result.experimentalContext !== undefined && typeof result.experimentalContext !== 'boolean')
+    throw new Error('Invalid experimental context setting');
+  if (result.experimentalContext && result.contextTokens !== EXPERIMENTAL_COMPANION_CONTEXT)
+    result.experimentalContext = false;
+  if (isManagedCapriModel(result.model) && !result.experimentalContext)
     result.contextTokens = Math.max(MIN_COMPANION_CONTEXT, result.contextTokens);
   if (
     typeof result.preloadModels !== 'boolean' ||

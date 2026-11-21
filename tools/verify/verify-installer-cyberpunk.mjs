@@ -18,6 +18,19 @@ import { transformPreviewSource } from '../preview/build-installer-cyberpunk.mjs
 
 const digest = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 const read = (file) => readFileSync(file, 'utf8').replace(/^\uFEFF/u, '');
+const pages = [
+  'interface',
+  'license',
+  'location',
+  'device',
+  'conversation',
+  'model',
+  'voice',
+  'components',
+  'review',
+  'progress',
+  'finish',
+];
 export function installerPreviewMatrix(quick = false) {
   return quick
     ? [{ dpi: 96, languages: ['en', 'ru'] }]
@@ -169,9 +182,9 @@ $observer=[EventHandler]{
  if($script:qaCapturing){return}
  $fields=Get-Variable fields -Scope Script -ValueOnly -ErrorAction SilentlyContinue
  if(-not $fields -or -not $fields.ContainsKey('heading')){return}
- $number=Get-Variable page -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+ $page=Get-Variable page -Scope Script -ValueOnly -ErrorAction SilentlyContinue
  $lang=Get-Variable installerLanguage -Scope Script -ValueOnly -ErrorAction SilentlyContinue
- $key=[string]$lang+'-'+[string]$number
+ $key=[string]$lang+'-'+[string]$page
  try{
   $counts=@{};$native=New-Object 'Collections.Generic.List[string]'
   $queue=New-Object Collections.Stack;$queue.Push($form)
@@ -181,13 +194,13 @@ $observer=[EventHandler]{
    foreach($child in $control.Controls){$queue.Push($child)}
   }
   $previewBadge=[Capri.Setup.Cyberpunk.Theme].GetProperty('DesignPreview',[Reflection.BindingFlags]'NonPublic,Static').GetValue($null,$null)
-  $script:qaObserved[$key]=@{language=$lang;page=$number;classes=$counts;unthemedNative=@($native.ToArray());formArgb=$form.BackColor.ToArgb();fontUnit=[string]$form.Font.Unit;previewBadge=[bool]$previewBadge}
-  if($Dpi -eq 96 -and $lang -eq 'en' -and $number -in @(0,3,4) -and -not $script:qaNativeCapture.ContainsKey($key)){
+  $script:qaObserved[$key]=@{language=$lang;page=$page;classes=$counts;unthemedNative=@($native.ToArray());formArgb=$form.BackColor.ToArgb();fontUnit=[string]$form.Font.Unit;previewBadge=[bool]$previewBadge}
+  $field=switch($page){'interface'{'installerLanguage'};'model'{'profile'};'voice'{'voiceMode'}}
+  if($Dpi -eq 96 -and $lang -eq 'en' -and $field -and $fields.ContainsKey($field) -and -not $script:qaNativeCapture.ContainsKey($key)){
    $script:qaCapturing=$true
    try{
     $form.TopMost=$true;$form.Refresh();[Windows.Forms.Application]::DoEvents()
     $closed=[CapriQaCapture]::Save($form.Handle,(Join-Path $Output ($key+'-live.png')))
-    $field=if($number -eq 0){'installerLanguage'}elseif($number -eq 3){'profile'}else{'voiceMode'}
     $combo=$fields[$field];$selected=$combo.SelectedIndex;$text=[string]$combo.SelectedItem
     $combo.DroppedDown=$true;[Windows.Forms.Application]::DoEvents()
     $popup=[CapriQaCapture]::SaveList($combo,(Join-Path $Output ($key+'-popup-live.png')))
@@ -266,7 +279,7 @@ export function verifyInstallerCyberpunk({ source, voicePack = '', quick = false
       const controls = JSON.parse(read(path.join(output, 'skin-controls.json')));
       assert.deepEqual(controls.errors, []);
       for (const language of entry.languages) {
-        for (let page = 0; page < 8; page++) {
+        for (const page of pages) {
           const file = path.join(output, `${language}-${page}.png`);
           const bytes = readFileSync(file);
           assert.equal(bytes.subarray(1, 4).toString(), 'PNG');
@@ -295,7 +308,7 @@ export function verifyInstallerCyberpunk({ source, voicePack = '', quick = false
       }
       report.runs.push({
         ...entry,
-        pages: entry.languages.length * 8,
+        pages: entry.languages.length * pages.length,
         nativeCapture: controls.capture,
         builtInAssertionsPassed: true,
         liveControlAuditObserved: controls.pages.length > 0,

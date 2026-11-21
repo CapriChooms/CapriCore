@@ -5,11 +5,14 @@ export class DesktopAiPanel {
     this.modelsRequest = 0;
     this.selectedModels = new Map();
     this.panel = document.createElement('section');
-    this.panel.className = 'settings-card desktop-ai-card';
-    this.panel.innerHTML = `<details id="desktop-ai-details"><summary><strong>AI apps and ChatGPT plan</strong></summary><h3>AI apps on this PC</h3>
-      <p class="settings-help" data-inline-help>Find installed AI apps and local model servers. Detection reads application metadata and queries known loopback model lists. It does not sign in, send conversations, run AI commands or load models.</p>
-      <div class="settings-actions"><button id="desktop-ai-scan" type="button">Find installed AI apps</button></div>
-      <p id="desktop-ai-status" role="status" aria-live="polite"></p><div id="desktop-ai-installed"></div><div id="desktop-ai-servers"></div>
+    this.panel.className = 'settings-stack';
+    this.panel.innerHTML = `<details id="desktop-ai-details" class="settings-disclosure"><summary>AI apps and ChatGPT plan</summary>
+      <div class="settings-disclosure-content">
+        <h3>AI apps on this PC</h3>
+        <p class="settings-help" data-inline-help>Find installed AI apps and local model servers. Detection reads application metadata and queries known loopback model lists. It does not sign in, send conversations, run AI commands or load models.</p>
+        <div class="settings-actions"><button id="desktop-ai-scan" type="button">Find installed AI apps</button></div>
+        <p id="desktop-ai-status" role="status" aria-live="polite"></p><div id="desktop-ai-installed"></div><div id="desktop-ai-servers"></div>
+      </div>
       </details><div id="chatgpt-plan-card" class="settings-card">
         <h3>Connect your ChatGPT plan</h3>
         <p class="settings-help" data-inline-help>Continue with ChatGPT to authorize Capri separately. Your existing app login and conversations are not imported. Eligible accounts can use their ChatGPT plan; its usage limits apply. The ChatGPT desktop app is not required.</p>
@@ -22,7 +25,7 @@ export class DesktopAiPanel {
         <p class="settings-help" data-inline-help>Capri sends conversation context and authorized tool results through the official Responses API. Images require a compatible model and enabled vision. A test sends only a fixed short sample.</p>
         <div class="settings-actions"><button id="chatgpt-plan-usage" type="button">Manage usage</button><button id="chatgpt-plan-signout" type="button" disabled>Sign out</button></div>
       </div>`;
-    host.prepend(this.panel);
+    host.append(this.panel);
     this.get = (id) => this.panel.querySelector('#' + id);
     this.get('desktop-ai-details').addEventListener('toggle', () => {
       if (this.get('desktop-ai-details').open && !this.scanned) {

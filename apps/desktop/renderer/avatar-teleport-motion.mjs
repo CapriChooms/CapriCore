@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Approved Stage 1 red-lightning choreography. Coordinates are in CSS pixels.
+import { drawSpark, getSparkAtlas, sparkPalette } from './spark-atlas.mjs';
+import { TELEPORT_LIGHTNING_DEFAULTS, TELEPORT_LIGHTNING_RANGES } from './teleport-effects.mjs';
+
 const fps = 24;
 const frames = 28;
 const transitStart = 6;
 const arrivalStart = 15;
 const settleFrame = frames - 1;
 const headPositions = [0.11, 0.19, 0.3, 0.42, 0.55, 0.67, 0.79, 0.9, 1];
+const launchPositions = [0, 0.09, ...headPositions];
 const strikeReach = [0.15, 0.34, 0.26, 0.19, 0.11, 0.055];
 const boltOnlyFrames = arrivalStart + strikeReach.length;
-const red = '#ff003d';
+const red = TELEPORT_LIGHTNING_DEFAULTS.teleportColor;
 const filament = '#cc123c';
 
 function sample(values, at) {
@@ -20,8 +24,10 @@ function sample(values, at) {
   );
 }
 
-function effectLevel(value, fallback) {
-  return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) / 100 : fallback;
+function effectLevel(effects, key) {
+  const value = effects?.[key];
+  const { min, max, defaultValue } = TELEPORT_LIGHTNING_RANGES[key];
+  return (Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : defaultValue) / 100;
 }
 
 function phase(frame) {
@@ -172,11 +178,71 @@ function pointAt(points, t) {
   return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, t };
 }
 
-function drop(context, at, radius, color = red) {
+function drop(context, at, radius, color) {
   context.beginPath();
   context.ellipse(at.x, at.y, radius, radius * 0.83, -0.35, 0, Math.PI * 2);
   context.fillStyle = color;
   context.fill();
+}
+
+function prepareBoltSparks(points, scale, length, profile) {
+  const pairs = Math.round(Math.min(48, 6 + length / 18) * profile.sparkAmount);
+  if (profile.reducedFlash || !pairs) return [];
+  const random = randomSource(profile.seed ^ 0x97d828a5);
+  const sparkScale = Math.max(0.62, Math.min(1.32, scale / 100));
+  const sparks = [];
+  for (let index = 0; index < pairs; index++) {
+    const at = 0.04 + ((index + 0.25 + random() * 0.5) / pairs) * 0.92;
+    const step = launchPositions.findIndex((position) => position >= at);
+    const from = launchPositions[step - 1];
+    const birth = transitStart - 3 + step + (at - from) / (launchPositions[step] - from);
+    const origin = pointAt(points, at);
+    const axis = lineBetween(pointAt(points, at - 0.025), pointAt(points, at + 0.025));
+    // Each emission point sends one shard to each side of its local tangent.
+    for (const side of [-1, 1]) {
+      sparks.push({
+        origin,
+        axis,
+        side,
+        birth,
+        life: Math.min(boltOnlyFrames - birth, 4.5 + random() * 3.8),
+        reach: (10 + random() * 42) * sparkScale * profile.sparkTravel,
+        drift: (-4 - random() * 18) * sparkScale * profile.sparkTravel,
+        size: (4.8 + random() * 11.5) * sparkScale,
+        seed: Math.floor(random() * 4294967296),
+      });
+    }
+  }
+  return sparks;
+}
+
+function drawBoltSparks(context, sparks, profile, time) {
+  if (!sparks.length || time < transitStart - 2 || time >= boltOnlyFrames) return;
+  const atlas = getSparkAtlas(profile.color === red ? undefined : profile.color, profile.glow);
+  if (!atlas) return;
+  const alpha = context.globalAlpha;
+  for (const { origin, axis, side, birth, life, reach, drift, size, seed } of sparks) {
+    const age = (time - birth) / life;
+    if (age < 0 || age >= 1) continue;
+    const progress = 1 - (1 - age) ** 1.4;
+    const { x, y } = along(origin, axis, progress * drift, side * (2.5 + progress * reach));
+    context.globalAlpha = alpha * (1 - age) ** 1.35;
+    drawSpark(context, atlas, x, y, size * (1 - age * 0.54), age, seed);
+  }
+  context.globalAlpha = alpha;
+}
+
+function glowingRibbon(context, points, width, { color, glow, reducedFlash }, jaggedness) {
+  if (!glow) {
+    ribbon(context, points, width, color, jaggedness);
+    return;
+  }
+  const { shadowBlur, shadowColor } = context;
+  context.shadowBlur = glow * (reducedFlash ? 4 : 17);
+  context.shadowColor = color;
+  ribbon(context, points, width, color, jaggedness);
+  context.shadowBlur = shadowBlur;
+  context.shadowColor = shadowColor;
 }
 
 function drawBranches(
@@ -185,7 +251,7 @@ function drawBranches(
   head,
   tail,
   scale,
-  { branches, intensity, jaggedness, reducedFlash, seed },
+  { branches, intensity, jaggedness, reducedFlash, seed, color, filamentColor, thickness },
 ) {
   const count = Math.ceil(branches * (reducedFlash ? 2 : 6));
   const random = randomSource(seed ^ 0xf27a64b5);
@@ -209,29 +275,29 @@ function drawBranches(
       fork(-0.86, 0.88),
       fork(-1.15, 1.04),
     ];
-    const thickness = growth * (0.48 + intensity * 0.66) * (reducedFlash ? 0.65 : 1);
+    const weight = growth * (0.48 + intensity * 0.66) * (reducedFlash ? 0.65 : 1) * thickness;
     ribbon(
       context,
       stem,
-      (_point, i) => [1.45, 2.05, 1.65, 1.2, 0.8, 0.55, 0.12][i] * thickness,
-      filament,
+      (_point, i) => [1.45, 2.05, 1.65, 1.2, 0.8, 0.55, 0.12][i] * weight,
+      filamentColor,
     );
     if (!reducedFlash && branches > 0.5 && jaggedness > 0.38 && index % 2 === 0) {
       const tip = fork(-0.35, 1.19);
       ribbon(
         context,
         [stem[3], fork(-0.23, 0.63), fork(-0.27, 0.86), tip],
-        (_point, i) => [0.8, 0.56, 0.35, 0.12][i] * growth,
-        red,
+        (_point, i) => [0.8, 0.56, 0.35, 0.12][i] * growth * thickness,
+        color,
       );
-      drop(context, along(tip, axis, reach * 0.06, side * reach * 0.08), 1.25 * growth);
+      drop(context, along(tip, axis, reach * 0.06, side * reach * 0.08), 1.25 * growth, color);
     }
   }
 }
 
 function drawBolt(context, points, head, tail, scale, profile) {
   if (head <= tail) return;
-  const { jaggedness, reducedFlash } = profile;
+  const { jaggedness, reducedFlash, thickness } = profile;
   const travelled = head - tail;
   const shoulder = head - travelled * 0.17;
   const segment = [
@@ -240,15 +306,15 @@ function drawBolt(context, points, head, tail, scale, profile) {
     pointAt(points, shoulder),
     pointAt(points, head),
   ];
-  const radius = Math.max(1, scale * (reducedFlash ? 0.065 : 0.125));
+  const radius = Math.max(1, scale * (reducedFlash ? 0.065 : 0.125)) * thickness;
   const width = ({ t }, index) => {
-    if (!index || index === segment.length - 1) return 0.55;
+    if (!index || index === segment.length - 1) return 0.55 * thickness;
     const fraction = (t - tail) / travelled;
     const stagger = index % 2 ? 0.19 : -0.16;
     return radius * (0.46 + 0.47 * fraction + stagger * jaggedness);
   };
   if (travelled > 0.1) drawBranches(context, points, head, tail, scale, profile);
-  ribbon(context, segment, width, red, reducedFlash ? 0 : jaggedness);
+  glowingRibbon(context, segment, width, profile, reducedFlash ? 0 : jaggedness);
 }
 
 function drawReveal(context, at, focus, scale, amount, tint, drawCapri) {
@@ -286,7 +352,7 @@ function drawBreak(
   scale,
   strength,
   spread,
-  { branches, intensity, jaggedness, reducedFlash, seed },
+  { branches, intensity, jaggedness, reducedFlash, seed, color, filamentColor, thickness: weight },
 ) {
   if (strength <= 0) return;
   const random = randomSource(seed);
@@ -302,7 +368,7 @@ function drawBreak(
     const thickness = Math.max(1, scale * (0.004 + random() * 0.014));
     const length = scale * (0.026 + random() * 0.077);
     if (index % 3 === 0) {
-      drop(context, start, thickness * 1.15);
+      drop(context, start, thickness * 1.15, color);
       continue;
     }
     fill(
@@ -313,7 +379,7 @@ function drawBreak(
         along(start, radial, -length * 0.1, thickness),
         along(start, radial, length * 0.16, 0),
       ],
-      red,
+      color,
     );
   }
   const lash = [
@@ -324,12 +390,12 @@ function drawBreak(
     along(focus, axis, extent * 0.02, extent * 0.39),
     along(focus, axis, extent * 0.89, extent * 1.16),
   ];
-  const peak = scale * (reducedFlash ? 0.023 : 0.059);
+  const peak = scale * (reducedFlash ? 0.023 : 0.059) * weight;
   ribbon(
     context,
     lash,
     (_point, index) => [0.2, peak, peak * 0.42, peak, peak * 0.67, 0.2][index],
-    red,
+    color,
     reducedFlash ? 0 : jaggedness,
   );
   if (!reducedFlash && branches > 0) {
@@ -339,7 +405,12 @@ function drawBreak(
       along(focus, axis, extent * 0.16, -extent * 0.53),
       along(focus, axis, extent * 0.95, -extent * 1.15),
     ];
-    ribbon(context, echo, (_point, i) => [1.75, 1.4, 0.9, 0.16][i] * branches, filament);
+    ribbon(
+      context,
+      echo,
+      (_point, i) => [1.75, 1.4, 0.9, 0.16][i] * branches * weight,
+      filamentColor,
+    );
   }
   context.restore();
 }
@@ -370,7 +441,7 @@ function assemble(
   scale,
   anchor,
   age,
-  { intensity, jaggedness, reducedFlash },
+  { intensity, jaggedness, reducedFlash, color, thickness },
   drawCapri,
 ) {
   if (age === 0) return;
@@ -425,7 +496,8 @@ function assemble(
           Math.min(area.width, area.height) *
           (1 - progress) *
           (0.46 + intensity * 0.72) *
-          (reducedFlash ? 0.009 : 0.018),
+          (reducedFlash ? 0.009 : 0.018) *
+          thickness,
       });
   }
   context.clip();
@@ -436,11 +508,12 @@ function assemble(
       context,
       edge,
       (_point, index) => (index === 0 || index === edge.length - 1 ? 0.2 : width),
-      red,
+      color,
     );
 }
 
-function arrivalStrike(context, focus, axis, scale, age, { branches, jaggedness, reducedFlash }) {
+function arrivalStrike(context, focus, axis, scale, age, profile) {
+  const { branches, jaggedness, reducedFlash, color, filamentColor, thickness } = profile;
   const reach = age < strikeReach.length ? scale * sample([...strikeReach, 0], age) : 0;
   if (!reach) return;
   const slash = [
@@ -451,12 +524,12 @@ function arrivalStrike(context, focus, axis, scale, age, { branches, jaggedness,
     along(focus, axis, reach * 0.28, reach * 0.42),
     along(focus, axis, reach * 0.7, reach * 0.86),
   ];
-  const width = reach * (reducedFlash ? 0.04 : 0.09);
-  ribbon(
+  const width = reach * (reducedFlash ? 0.04 : 0.09) * thickness;
+  glowingRibbon(
     context,
     slash,
     (_point, index) => [0.15, width, width * 0.68, width, width * 0.62, 0.15][index],
-    red,
+    profile,
     reducedFlash ? 0 : jaggedness,
   );
   if (branches > 0.5 && age < 4) {
@@ -470,8 +543,8 @@ function arrivalStrike(context, focus, axis, scale, age, { branches, jaggedness,
     ribbon(
       context,
       echo,
-      (_point, i) => [0.8, 1.4, 0.72, 0.1][i] * (reducedFlash ? 0.5 : 1),
-      filament,
+      (_point, i) => [0.8, 1.4, 0.72, 0.1][i] * (reducedFlash ? 0.5 : 1) * thickness,
+      filamentColor,
     );
   }
   if (!reducedFlash && age > 0) {
@@ -484,7 +557,7 @@ function arrivalStrike(context, focus, axis, scale, age, { branches, jaggedness,
         along(chip, axis, size, -size * 0.26),
         along(chip, axis, size * 0.55, size * 0.27),
       ],
-      red,
+      color,
     );
   }
 }
@@ -503,10 +576,21 @@ export function prepareTeleportMotion({
   const start = from.focus ?? { x: from.x, y: from.y - departureScale * 0.52 };
   const end = to.focus ?? { x: to.x, y: to.y - arrivalScale * 0.52 };
   const axis = lineBetween(start, end);
+  const requestedColor = effects?.teleportColor;
+  const color =
+    typeof requestedColor === 'string' && /^#[\da-f]{6}$/i.test(requestedColor)
+      ? requestedColor.toLowerCase()
+      : red;
   const profile = {
-    intensity: effectLevel(effects?.teleportIntensity, 0.75),
-    jaggedness: effectLevel(effects?.teleportJaggedness, 0.78),
-    branches: effectLevel(effects?.teleportBranches, 0.75),
+    intensity: effectLevel(effects, 'teleportIntensity'),
+    jaggedness: effectLevel(effects, 'teleportJaggedness'),
+    branches: effectLevel(effects, 'teleportBranches'),
+    color,
+    filamentColor: color === red ? filament : sparkPalette(color).shard[0].slice(0, 7),
+    thickness: effectLevel(effects, 'teleportThickness'),
+    glow: effectLevel(effects, 'teleportGlow'),
+    sparkAmount: effectLevel(effects, 'teleportSparkAmount'),
+    sparkTravel: effectLevel(effects, 'teleportSparkTravel'),
     reducedFlash: reducedFlash || effects?.teleportReducedFlash === true,
     seed,
   };
@@ -519,7 +603,19 @@ export function prepareTeleportMotion({
     travelStrength *
     (0.18 + profile.jaggedness * 1.13);
   const points = makeRoute(start, end, axis, amplitude, profile, bounds);
-  return { departureScale, arrivalScale, start, end, axis, energy, boltScale, profile, points };
+  const sparks = prepareBoltSparks(points, scale, axis.length, profile);
+  return {
+    departureScale,
+    arrivalScale,
+    start,
+    end,
+    axis,
+    energy,
+    boltScale,
+    profile,
+    points,
+    sparks,
+  };
 }
 
 export function teleportViewport(
@@ -530,7 +626,10 @@ export function teleportViewport(
   { width, height },
   arrivalAnchor = anchor,
 ) {
-  const padding = 14 + 0.85 * Math.max(from.scale, to.scale);
+  const padding = Math.max(
+    14 + 0.85 * Math.max(from.scale, to.scale),
+    ...motion.sparks.map(({ reach, drift, size }) => reach + Math.abs(drift) + size),
+  );
   const x = motion.points.map(({ x }) => x),
     y = motion.points.map(({ y }) => y);
   for (const [point, support] of [
@@ -577,8 +676,20 @@ function draw(
     if (materialize) drawCapri(to);
     return current;
   }
-  const { departureScale, arrivalScale, start, end, axis, energy, boltScale, profile, points } =
-    motion;
+  const {
+    departureScale,
+    arrivalScale,
+    start,
+    end,
+    axis,
+    energy,
+    boltScale,
+    profile,
+    points,
+    sparks,
+  } = motion;
+
+  drawBoltSparks(context, sparks, profile, time);
 
   if (current === 'departure') {
     const reveal = sample([1, 1, 1, 0.74, 0.37, 0], time);

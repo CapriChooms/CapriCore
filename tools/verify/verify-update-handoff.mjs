@@ -29,9 +29,14 @@ mkdirSync(path.join(source, 'packages/updater/windows'), { recursive: true });
 mkdirSync(path.join(source, 'packages/updater/bin'), { recursive: true });
 mkdirSync(path.join(source, 'packages/installer/windows'), { recursive: true });
 mkdirSync(path.join(source, 'config'), { recursive: true });
+mkdirSync(path.join(source, 'assets/default'), { recursive: true });
 for (const relative of [
   'packages/installer/windows/localization.ps1',
+  'packages/installer/windows/cyberpunk-theme.ps1',
+  'packages/installer/windows/cyberpunk-theme.cs',
   'config/installer-shell-text.json',
+  'assets/default/app.ico',
+  'assets/default/capri-installer-sleep.png',
 ])
   copyFileSync(path.join(root, relative), path.join(source, relative));
 copyFileSync(
@@ -151,8 +156,11 @@ try {
   );
   if (!suppliedScript)
     assert(
-      events.some((event) => event.phase === 'ui-shown' && event.language === 'ar' && event.rtl),
-      'Independent update UI must use the requested Arabic interface and RTL layout',
+      events.some(
+        (event) =>
+          event.phase === 'ui-shown' && event.language === 'ar' && event.rtl && event.sprite,
+      ),
+      'Independent update UI must use the Arabic layout and bundled artwork',
     );
   assert.deepEqual(JSON.parse(readFileSync(path.join(target, 'applied-after-exit.json'))), {
     parentPid: owner.pid,

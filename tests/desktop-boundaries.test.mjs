@@ -42,6 +42,41 @@ test('holding a transparent window does not repeatedly move it or accumulate fra
   assert.deepEqual([calls[1].x, calls[1].y], [200, 30]);
 });
 
+test('resizing a transparent window by its corner holds the opposite edges and respects the work area', () => {
+  let bounds = { x: 120, y: 80, width: 480, height: 600 };
+  let cursor = { x: 125, y: 85 };
+  const calls = [];
+  const pointer = new PointerController({
+    window: {
+      isDestroyed: () => false,
+      isVisible: () => true,
+      getBounds: () => bounds,
+      setBounds: (value) => {
+        calls.push(value);
+        bounds = value;
+      },
+    },
+    screen: { getCursorScreenPoint: () => cursor },
+    getRegions: () => null,
+  });
+  const area = { x: -40, y: -20, width: 1000, height: 840 };
+  const minimum = { width: 380, height: 520 };
+  pointer.beginWindow({ edge: 'nw', workArea: area, minimum });
+  cursor = { x: 375, y: 300 };
+  pointer.tick();
+  assert.deepEqual(bounds, { x: 220, y: 160, width: 380, height: 520 });
+  cursor = { x: -200, y: -200 };
+  pointer.tick();
+  assert.deepEqual(bounds, { x: -40, y: -20, width: 640, height: 700 });
+  pointer.endWindow();
+  pointer.beginWindow({ edge: 'e', workArea: area, minimum });
+  cursor = { x: 1500, y: 100 };
+  pointer.tick();
+  pointer.tick();
+  assert.deepEqual(bounds, { x: -40, y: -20, width: 1000, height: 700 });
+  assert.equal(calls.length, 3);
+});
+
 test('desktop resources admit only exact local allowlisted GET requests', async () => {
   const parent = path.join(paths.cache, 'test-data/protocol');
   mkdirSync(parent, { recursive: true });

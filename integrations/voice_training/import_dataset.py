@@ -2,37 +2,42 @@
 import argparse
 import contextlib
 import csv
+import hashlib
 import io
 import json
 import re
 import shutil
 import sys
 from pathlib import Path, PurePosixPath
-import soundfile as sf
 from .dataset import ROOT, FIELDS, read_config, prepare, write_json
 from .job import no_links
 
 
-def import_dataset(source, import_id):
+def import_dataset(source, import_id, *, reviewed=None, raw_at_root=False):
+    import soundfile as sf
+
     if not re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}', import_id):
         raise ValueError('Invalid import identifier')
     source = Path(source)
     if not source.is_absolute() or not source.is_dir():
         raise ValueError('Choose a local dataset directory')
     no_links(source)
-    metadata = source / 'metadata.csv'
-    no_links(metadata)
-    if not metadata.is_file() or not 1 <= metadata.stat().st_size <= 1024 * 1024:
-        raise ValueError('Expected a bounded metadata.csv file')
-    with metadata.open(encoding='utf-8-sig', newline='') as stream:
-        reader = csv.DictReader(stream)
-        if reader.fieldnames != FIELDS:
-            raise ValueError('Unexpected metadata columns')
-        rows = list(reader)
+    if reviewed is None:
+        metadata = source / 'metadata.csv'
+        no_links(metadata)
+        if not metadata.is_file() or not 1 <= metadata.stat().st_size <= 1024 * 1024:
+            raise ValueError('Expected a bounded metadata.csv file')
+        with metadata.open(encoding='utf-8-sig', newline='') as stream:
+            reader = csv.DictReader(stream)
+            if reader.fieldnames != FIELDS:
+                raise ValueError('Unexpected metadata columns')
+            rows = list(reader)
+    else:
+        rows = [{key: row[key] for key in FIELDS} for row in reviewed]
     if not 4 <= len(rows) <= 200:
         raise ValueError('Use 4 to 200 reviewed clips from distinct scenes')
     copied, seconds, bytes_total = [], 0, 0
-    for row in rows:
+    for index, row in enumerate(rows):
         relative = PurePosixPath(row['file'].replace('\\', '/'))
         if (relative.is_absolute() or len(relative.parts) < 2 or relative.parts[0] != 'raw'
                 or '..' in relative.parts or ':' in str(relative)
@@ -41,7 +46,7 @@ def import_dataset(source, import_id):
                 or not row['scene'].strip() or not 1 <= len(row['text'].strip()) <= 2000
                 or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', row['id'])):
             raise ValueError('Each clip needs reviewed speech, transcript and scene, with audio in raw/')
-        file = source.joinpath(*relative.parts)
+        file = source.joinpath(*(relative.parts[1:] if raw_at_root else relative.parts))
         no_links(file)
         if not file.is_file() or not 0 < file.stat().st_size <= 64 * 1024 * 1024:
             raise ValueError('Invalid or oversized audio recording')
@@ -54,16 +59,20 @@ def import_dataset(source, import_id):
         seconds += info.duration
         if seconds > 300:
             raise ValueError('The voice dataset exceeds five minutes')
-        copied.append((file, relative))
+        copied.append((file, relative, reviewed[index]['sha256'] if reviewed is not None else None))
     destination = ROOT / 'data/voices/capri/en/imports' / import_id
     no_links(destination)
     destination.mkdir(parents=True, exist_ok=False)
-    for file, relative in copied:
+    for file, relative, fingerprint in copied:
         target = destination.joinpath(*relative.parts)
         no_links(file)
         no_links(target)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(file, target)
+        if fingerprint:
+            with target.open('rb') as stream:
+                if hashlib.file_digest(stream, 'sha256').hexdigest() != fingerprint:
+                    raise ValueError('A recording changed after review')
     with (destination / 'metadata.csv').open('w', encoding='utf-8', newline='') as stream:
         writer = csv.DictWriter(stream, fieldnames=FIELDS)
         writer.writeheader()
@@ -84,8 +93,9 @@ def main():
     parser.add_argument('--id', required=True)
     args = parser.parse_args()
     try:
-        request = json.loads(sys.stdin.read(32768))
-        import_dataset(request['source'], args.id)
+        request = json.loads(sys.stdin.read(2 * 1024 * 1024))
+        import_dataset(request['source'], args.id, reviewed=request.get('reviewed'),
+                       raw_at_root=request.get('rawAtRoot', False))
         print('{"ready":true}', flush=True)
     except Exception:
         # Transcripts, audio names and the imported directory stay on this PC.

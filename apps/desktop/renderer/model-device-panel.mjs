@@ -3,8 +3,9 @@ export class ModelDevicePanel {
   constructor({ api, ui, host, onError }) {
     Object.assign(this, { api, ui, onError });
     this.panel = document.createElement('section');
-    this.panel.className = 'settings-card model-device-card';
-    this.panel.innerHTML = `<h3>Model devices</h3>
+    this.panel.className = 'settings-stack';
+    this.panel.innerHTML = `<section class="settings-card model-device-card">
+      <h3>Model devices</h3>
       <label for="model-device-language">Language model device</label><select id="model-device-language" aria-describedby="model-device-language-reason"></select>
       <p id="model-device-language-reason" class="settings-help" role="status"></p>
       <label for="model-device-voice">Voice model device</label><select id="model-device-voice" aria-describedby="model-device-voice-reason"></select>
@@ -12,7 +13,8 @@ export class ModelDevicePanel {
       <p class="settings-help">Choose independently for language and voice. CPU uses system RAM and can be slower. An external API runs on the provider's hardware.</p>
       <div class="settings-actions"><button type="button" id="model-device-refresh">Refresh devices</button><button type="button" id="model-device-apply">Save and restart Capri</button><button type="button" id="model-device-npu-guide" hidden>Open NPU installation guide</button></div>
       <p id="model-device-status" class="settings-help" role="status" aria-live="polite"></p>
-      <details class="settings-help" id="model-device-npu-advanced"><summary>Advanced NPU setup</summary></details>`;
+      </section>
+      <details class="settings-disclosure" id="model-device-npu-advanced"><summary>Advanced NPU setup</summary></details>`;
     host.append(this.panel);
     this.get = (id) => this.panel.querySelector('#model-device-' + id);
     for (const role of ['language', 'voice']) this.get(role).onchange = () => this.details();

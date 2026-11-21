@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempDisposableSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -13,10 +13,13 @@ import { root, runtime, initialize, environment } from '../../packages/runtime/s
 import { settingsView } from './settings-view.mjs';
 
 const windowsLoopback = process.argv.includes('--windows-loopback');
-if (windowsLoopback && process.platform !== 'win32') throw new Error('Windows is required.');
+const routed = process.argv.includes('--routed');
+if ((windowsLoopback || routed) && process.platform !== 'win32')
+  throw new Error('Windows is required.');
 const parent = path.join(root, '.runtime', 'call-audio-settings-verification');
 mkdirSync(parent, { recursive: true });
-const folder = mkdtempSync(path.join(parent, 'run-'));
+using verification = mkdtempDisposableSync(path.join(parent, 'run-'));
+const folder = verification.path;
 const entry = path.join(folder, 'entry.mjs');
 const toneFile = path.join(folder, 'generated-tone.wav');
 const run = promisify(execFile);
@@ -52,8 +55,47 @@ writeFileSync(
   `
 import { app, nativeImage, session } from 'electron';
 import { ASRWorker } from ${JSON.stringify(pathToFileURL(path.join(root, 'apps/desktop/asr-worker.mjs')).href)};
-const fixture = globalThis.audioFixture = { consents: [], packets: 0, mixedTones: false };
+import { MicrophoneService } from ${JSON.stringify(pathToFileURL(path.join(root, 'apps/desktop/microphone-service.mjs')).href)};
+import { WindowsAudioEndpoints } from ${JSON.stringify(pathToFileURL(path.join(root, 'apps/desktop/windows-audio-endpoints.mjs')).href)};
+import { MusicListeningService } from ${JSON.stringify(pathToFileURL(path.join(root, 'apps/desktop/music-listening-service.mjs')).href)};
+const fixture = globalThis.audioFixture = { consents: [], packets: 0, mixedTones: false, named: [], stops: [], musicPackets: 0 };
 const windowsLoopback = ${windowsLoopback};
+const routed = ${routed};
+const startMicrophone = MicrophoneService.prototype.start;
+MicrophoneService.prototype.start = function (...args) {
+  this.config.autoSend = false;
+  return startMicrophone.apply(this, args);
+};
+if (routed) {
+  WindowsAudioEndpoints.prototype.list = async () => [
+    { id: 'fixture-music-in', label: 'Music bus', kind: 'input' },
+    { id: 'fixture-call-out', label: 'Call bus', kind: 'output' },
+  ];
+  WindowsAudioEndpoints.prototype.capture = async function (id, { onPacket, signal }) {
+    fixture.named.push(id);
+    const pcm = Buffer.alloc(6400);
+    for (let i = 0; i < 1600; i++) pcm.writeFloatLE(0.17 * Math.sin(2 * Math.PI * 1370 * i / 16000), i * 4);
+    const timer = setInterval(() => onPacket(pcm), 100);
+    const stop = () => { clearInterval(timer); fixture.stops.push(id); };
+    signal.addEventListener('abort', stop, { once: true });
+    return { stop };
+  };
+  MusicListeningService.prototype.initialize = async function (session) {
+    session.ready = true;
+    session.child = {
+      stdin: {
+        writable: true,
+        writableLength: 0,
+        write(value) {
+          const bytes = Buffer.from(JSON.parse(value).pcm, 'base64');
+          if (bytes.length === 32000 && bin(bytes, 1370) > 0.1) fixture.musicPackets++;
+        },
+        destroy() {},
+      },
+      kill() {},
+    };
+  };
+}
 function bin(samples, frequency) {
   const rotation = (2 * Math.PI * frequency) / 16000;
   const coefficient = 2 * Math.cos(rotation);
@@ -70,7 +112,7 @@ ASRWorker.prototype.send = async function ({ type, sessionId, pcm }) {
   if (type === 'start') Object.assign(fixture, { worker: this, sessionId });
   if (type === 'pcm') {
     fixture.packets++;
-    if (windowsLoopback && fixture.measure && !fixture.mixedTones) {
+    if ((windowsLoopback || routed) && fixture.measure && !fixture.mixedTones) {
       // Retain only whether this packet contains both known test tones. No recording or ASR.
       const samples = Buffer.from(pcm, 'base64');
       fixture.mixedTones = bin(samples, 440) > 0.03 && bin(samples, 1370) > 0.0002 &&
@@ -166,15 +208,47 @@ try {
       return stream;
     };
   });
+  if (routed) {
+    const audio = await settingsView(application, 'audio');
+    await audio.locator('#audio-route-music').selectOption('fixture-music-in');
+    const system = audio.locator('#audio-route-system');
+    await system.selectOption('fixture-call-out');
+    await audio.waitForFunction(() => !document.getElementById('audio-route-system').disabled);
+    const saved = JSON.parse(
+      readFileSync(path.join(folder, 'desktop', 'audio-routing.json'), 'utf8'),
+    ).settings;
+    assert.equal(saved.routes.music, 'fixture-music-in');
+    assert.equal(saved.routes.system, 'fixture-call-out');
+    assert.deepEqual(await application.evaluate(() => globalThis.audioFixture.named), []);
+    await audio.evaluate(() => window.capri.setSkill({ id: 'capri.music', enabled: true }));
+    await audio.waitForFunction(
+      async () => (await window.capri.musicStatus()).phase === 'listening',
+    );
+    const deadline = Date.now() + 3000;
+    while (
+      Date.now() < deadline &&
+      !(await application.evaluate(() => globalThis.audioFixture.musicPackets))
+    )
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.ok(await application.evaluate(() => globalThis.audioFixture.musicPackets));
+    await audio.evaluate(() => window.capri.setSkill({ id: 'capri.music', enabled: false }));
+    assert.deepEqual(await application.evaluate(() => globalThis.audioFixture.stops), [
+      'fixture-music-in',
+    ]);
+    console.log(
+      'PASS Audio tab stores independent endpoints and feeds only the music input to the detector.',
+    );
+  }
   const settings = await settingsView(application, 'calls');
   settings.on('pageerror', (error) => errors.push(error.message));
+  await settings.evaluate(() => window.capri.setSkill({ id: 'capri.voice-calls', enabled: true }));
   const enable = settings.locator('#call-system-enable');
   const stop = settings.locator('#call-system-stop');
   const indicator = companion.locator('#system-audio-indicator');
   assert.equal(await enable.isDisabled(), true);
   assert.equal(await indicator.isHidden(), true);
   assert.deepEqual(await application.evaluate(() => globalThis.audioFixture.consents), []);
-  await companion.locator('#microphone-toggle').evaluate((button) => button.click());
+  await settings.evaluate(() => window.capri.setSkill({ id: 'capri.microphone', enabled: true }));
   await settings
     .waitForFunction(() => !document.getElementById('call-system-enable').disabled, null, {
       timeout: 5000,
@@ -188,6 +262,7 @@ try {
       throw new Error(JSON.stringify({ details, errors }), { cause: error });
     });
   assert.equal(await indicator.isHidden(), true);
+  if (routed) await application.evaluate(() => (globalThis.audioFixture.measure = true));
   await enable.evaluate((button) => button.click());
   await indicator.waitFor({ state: 'visible', timeout: 12000 }).catch(async (error) => {
     const consent = await application.evaluate(() => globalThis.audioFixture.consents);
@@ -196,10 +271,24 @@ try {
     );
     throw new Error(JSON.stringify({ consent, state, errors }), { cause: error });
   });
-  assert.deepEqual(await application.evaluate(() => globalThis.audioFixture.consents), [
-    { gesture: true, video: true },
-  ]);
+  assert.deepEqual(
+    await application.evaluate(() => globalThis.audioFixture.consents),
+    routed ? [] : [{ gesture: true, video: true }],
+  );
   assert.ok(await application.evaluate(() => globalThis.audioFixture.packets > 0));
+  if (routed) {
+    const deadline = Date.now() + 3000;
+    while (
+      Date.now() < deadline &&
+      !(await application.evaluate(() => globalThis.audioFixture.mixedTones))
+    )
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(await application.evaluate(() => globalThis.audioFixture.mixedTones), true);
+    assert.deepEqual(await application.evaluate(() => globalThis.audioFixture.named), [
+      'fixture-music-in',
+      'fixture-call-out',
+    ]);
+  }
   if (windowsLoopback) {
     writeFileSync(toneFile, testTone());
     await application.evaluate(() => {
@@ -273,22 +362,39 @@ try {
     companion.evaluate(() =>
       window.testMediaTracks.map(({ kind, readyState }) => [kind, readyState]).sort(),
     );
-  assert.deepEqual(await states(), [
-    ['audio', 'live'],
-    ['video', 'ended'],
-  ]);
+  assert.deepEqual(
+    await states(),
+    routed
+      ? []
+      : [
+          ['audio', 'live'],
+          ['video', 'ended'],
+        ],
+  );
   await stop.evaluate((button) => button.click());
   await indicator.waitFor({ state: 'hidden' });
-  assert.deepEqual(await states(), [
-    ['audio', 'ended'],
-    ['video', 'ended'],
-  ]);
+  assert.deepEqual(
+    await states(),
+    routed
+      ? []
+      : [
+          ['audio', 'ended'],
+          ['video', 'ended'],
+        ],
+  );
   assert.equal(await companion.evaluate(() => window.testMicrophone.readyState), 'live');
+  if (routed)
+    assert.deepEqual(await application.evaluate(() => globalThis.audioFixture.stops), [
+      'fixture-music-in',
+      'fixture-call-out',
+    ]);
   assert.deepEqual(errors, []);
   console.log(
-    windowsLoopback
-      ? 'PASS native Windows loopback, simultaneous test-tone input, wake review and release.'
-      : 'PASS actual Settings and main IPC activate, identify, and stop generated system audio.',
+    routed
+      ? 'PASS named call audio uses only its selected bus, mixes mic/system PCM and releases capture without closing the mic.'
+      : windowsLoopback
+        ? 'PASS native Windows loopback, simultaneous test-tone input, wake review and release.'
+        : 'PASS actual Settings and main IPC activate, identify, and stop generated system audio.',
   );
 } finally {
   await application?.close();

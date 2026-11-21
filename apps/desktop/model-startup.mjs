@@ -1,6 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { readFileSync, unlinkSync } from 'node:fs';
+import { lstatSync, readFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
+import {
+  assertPrivatePath,
+  writePrivateBytesAtomic,
+} from '../../packages/runtime/src/safe-file.mjs';
+
+export function saveMicrophoneRestart(state, now = Date.now()) {
+  try {
+    writePrivateBytesAtomic(
+      path.join(state, 'microphone-restart.json'),
+      Buffer.from(JSON.stringify({ at: now })),
+    );
+  } catch {
+    // A storage error must not prevent applying the requested model device.
+  }
+}
+
+export function consumeMicrophoneRestart(state, now = Date.now()) {
+  const file = path.join(state, 'microphone-restart.json');
+  try {
+    assertPrivatePath(file);
+    const info = lstatSync(file);
+    if (!info.isFile() || info.nlink !== 1 || info.size > 128) return false;
+    const contents = readFileSync(file, 'utf8');
+    unlinkSync(file);
+    const { at } = JSON.parse(contents);
+    return Number.isSafeInteger(at) && now >= at && now - at <= 2 * 60_000;
+  } catch {
+    return false;
+  }
+}
 
 /** The wizard's choice applies only to the next desktop launch, including via a shortcut. */
 export function consumeFirstLaunchPreload(state) {

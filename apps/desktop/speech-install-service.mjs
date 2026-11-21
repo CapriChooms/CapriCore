@@ -54,8 +54,12 @@ export class SpeechInstallService {
   snapshot() {
     return structuredClone(this.value);
   }
-  busy() {
-    return Boolean(this.task) && this.value.phase === 'installing';
+  busy(component) {
+    return (
+      Boolean(this.task) &&
+      this.value.phase === 'installing' &&
+      (component === undefined || this.value.selection[component] !== 'off')
+    );
   }
   logMessage(message) {
     try {
@@ -112,7 +116,7 @@ export class SpeechInstallService {
     });
     this.task = Promise.resolve()
       .then(async () => {
-        await this.before(controller.signal);
+        await this.before(controller.signal, selection);
         controller.signal.throwIfAborted();
         await this.install(selection, {
           root: this.root,

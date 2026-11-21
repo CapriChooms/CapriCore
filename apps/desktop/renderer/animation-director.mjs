@@ -31,6 +31,10 @@ export class AnimationDirector {
     this.nextActivity = now + this.settings.firstActivityMs;
     if (interrupt || this.sequence?.kind === 'ambient') this.sequence = null;
   }
+  react(id, now, duration) {
+    const frameId = this.choices.get(id)?.frameId;
+    if (this.frames.has(frameId)) this.reaction = { frameId, until: now + duration };
+  }
   play(id, now, kind = 'reaction') {
     const clip = this.clips.get(id);
     if (!clip) return false;
@@ -96,6 +100,7 @@ export class AnimationDirector {
     if (this.revision < 0) return null;
     if (sleeping) {
       this.sequence = null;
+      this.reaction = null;
       this.nextActivity = now + this.settings.firstActivityMs;
       this.nextBlink = now + 3000;
       return this.result(this.frames.has('pose-sleep') ? 'pose-sleep' : this.base.frameId, 'sleep');
@@ -110,6 +115,8 @@ export class AnimationDirector {
       this.nextActivity = now + this.settings.firstActivityMs;
     }
     if (this.frames.has(heldFrame)) return this.result(heldFrame, 'reaction');
+    if (this.reaction && (now >= this.reaction.until || active || typing)) this.reaction = null;
+    if (this.reaction && !dragging) return this.result(this.reaction.frameId, 'reaction');
     if (active || typing || speaking) this.attend(now);
     if (reduced) {
       this.sequence = null;

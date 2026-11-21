@@ -25,12 +25,12 @@ function localPath(value) {
     value.path.split(/[\\/]/).some((part) => part === '..' || privateName.test(part))
   )
     throw Error('invalid_scope');
-  const root = fs.realpathSync(value.workspace);
+  const root = fs.realpathSync.native(value.workspace);
   if (
     !(vscode.workspace.workspaceFolders ?? []).some(
       (folder) =>
         folder.uri.scheme === 'file' &&
-        fs.realpathSync(folder.uri.fsPath).toLowerCase() === root.toLowerCase(),
+        fs.realpathSync.native(folder.uri.fsPath).toLowerCase() === root.toLowerCase(),
     )
   )
     throw Error('workspace_not_open');
@@ -48,6 +48,26 @@ function localPath(value) {
 }
 async function action(value) {
   if (!vscode.workspace.isTrusted) throw Error('workspace_not_trusted');
+  if (value.action === 'context') {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.uri.scheme !== 'file') return { active: null };
+    const root = localPath({ ...value, path: '' });
+    const relative = path.relative(root, editor.document.uri.fsPath);
+    if (!relative || !inside(root, editor.document.uri.fsPath)) return { active: null };
+    try {
+      localPath({ ...value, path: relative });
+    } catch {
+      return { active: null };
+    }
+    return {
+      active: {
+        path: relative.split(path.sep).join('/'),
+        line: editor.selection.active.line + 1,
+        column: editor.selection.active.character + 1,
+        dirty: editor.document.isDirty,
+      },
+    };
+  }
   const file = localPath(value),
     uri = vscode.Uri.file(file);
   if (value.action === 'diagnostics')

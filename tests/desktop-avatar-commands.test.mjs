@@ -45,6 +45,25 @@ test('Settings window names resolve across conversation and interface languages 
     assert.equal(isSettingsWindowTitle(name), false, name);
 });
 
+test('a direct request to wave is a local avatar command', () => {
+  for (const text of [
+    'Wave!',
+    'Capri, could you wave at me, please?',
+    'Капри, помаши мне рукой.',
+    'Можешь помахать рукой?',
+    'Capri, fais-moi coucou !',
+    'Acena para mim.',
+  ])
+    assert.deepEqual(desktopAvatarCommand(text), { action: 'wave' }, text);
+  for (const text of [
+    'What is a wave?',
+    'Не маши рукой.',
+    'Скажи «помаши рукой»',
+    'Wave goodbye to the dog.',
+  ])
+    assert.equal(desktopAvatarCommand(text), null, text);
+});
+
 test('automatic landing stays on the selected monitor and avoids the companion and last position', () => {
   const area = { x: -1400, y: 40, width: 1400, height: 960 };
   const owner = { x: -480, y: 400, width: 460, height: 550 };

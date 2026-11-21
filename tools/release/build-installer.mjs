@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import path from 'node:path';
-import { readFileSync, mkdirSync, mkdtempSync, copyFileSync, statSync, existsSync } from 'node:fs';
+import {
+  readFileSync,
+  mkdirSync,
+  mkdtempDisposableSync,
+  copyFileSync,
+  statSync,
+  existsSync,
+} from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { exportSource } from './source-export.mjs';
+import { buildCamera } from './build-camera.mjs';
 import { root, writeJsonAtomic } from '../../packages/runtime/src/index.mjs';
 import { fileHash } from '../../packages/installer/src/download.mjs';
 import { exportVoicePack } from './voice-pack-export.mjs';
@@ -57,14 +65,21 @@ validateInstallerCatalog(
   JSON.parse(readFileSync(path.join(root, 'config/installer-text.json'), 'utf8')),
   JSON.parse(readFileSync(path.join(root, 'config/interface-locales.json'), 'utf8')).locales,
 );
-const source = exportSource(),
-  version = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version;
+using source = exportSource({ temporary: true });
+const version = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 const release = JSON.parse(readFileSync(path.join(root, 'config/release.json'), 'utf8'));
 if (release.repository !== REPOSITORY || parseVersion(release.tag).version !== version)
   throw new Error('Release tag must match the package version and repository');
 const parent = path.join(root, 'release');
 mkdirSync(parent, { recursive: true });
-const folder = mkdtempSync(path.join(parent, 'installer-' + version + '-'));
+const build = mkdtempDisposableSync(path.join(parent, 'installer-' + version + '-'));
+const folder = build.path;
+let complete = false;
+using incompleteBuild = {
+  [Symbol.dispose]() {
+    if (!complete) build.remove();
+  },
+};
 const voice = voiceOptions.length
   ? exportVoicePack({
       source: path.resolve(voiceOptions[0].slice('--voice-pack='.length)),
@@ -76,6 +91,7 @@ if (russianOptions.length)
     path.resolve(russianOptions[0].slice('--test-russian-voice='.length)),
     path.join(voice.directory, 'russian'),
   );
+const camera = await buildCamera(path.join(folder, 'camera-pack'));
 const result = spawnSync(
   'powershell.exe',
   [
@@ -91,6 +107,8 @@ const result = spawnSync(
     folder,
     '-Version',
     version,
+    '-CameraPack',
+    camera,
     ...(voice ? ['-VoicePack', voice.directory] : []),
     ...signingArguments,
   ],
@@ -136,4 +154,5 @@ const manifest = {
   signature: signed ? 'Authenticode signed and timestamped' : 'unsigned release build',
 };
 writeJsonAtomic(path.join(folder, 'BUILD_MANIFEST.json'), manifest);
+complete = true;
 console.log(JSON.stringify({ executable, manifest }));

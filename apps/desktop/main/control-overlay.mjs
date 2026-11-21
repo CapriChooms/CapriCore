@@ -1,8 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
-/** Transparent, click-through indicators within each monitor's work area. */
+/** Transparent, click-through indicators over the entire area of each monitor. */
 import { computerPreferences } from '../computer-preferences.mjs';
 
 const sameBounds = (a, b) => ['x', 'y', 'width', 'height'].every((key) => a[key] === b[key]);
+
+function verifyDisplayBounds(border, { bounds: expected, scaleFactor }) {
+  const actual = border.getBounds();
+  // Windows and Electron can round the same physical edge to adjacent DIP
+  // coordinates at fractional scaling. Check the four edges independently.
+  const tolerance = Number.isFinite(scaleFactor) && !Number.isInteger(scaleFactor) ? 1 : 0;
+  if (
+    Math.abs(actual.x - expected.x) <= tolerance &&
+    Math.abs(actual.y - expected.y) <= tolerance &&
+    Math.abs(actual.x + actual.width - expected.x - expected.width) <= tolerance &&
+    Math.abs(actual.y + actual.height - expected.y - expected.height) <= tolerance
+  )
+    return;
+  throw Object.assign(Error('Computer control indicator could not cover the entire display.'), {
+    code: 'COMPUTER_INDICATOR_BOUNDS_FAILED',
+    geometry: { expected, actual, scaleFactor },
+  });
+}
 
 export class ControlOverlay {
   constructor({
@@ -22,11 +40,10 @@ export class ControlOverlay {
   onDisplayMetricsChanged = (_event, display, metrics) => {
     const border = this.displayWindows.get(display.id);
     if (!border || this.closed || border.isDestroyed()) return;
-    if (!metrics.includes('workArea') && !metrics.includes('bounds')) return;
+    if (!['bounds', 'scaleFactor', 'rotation'].some((metric) => metrics.includes(metric))) return;
     try {
-      border.setBounds(display.workArea, false);
-      if (!sameBounds(border.getBounds(), display.workArea))
-        throw Error('Computer control indicator could not cover the display work area.');
+      border.setBounds(display.bounds, false);
+      verifyDisplayBounds(border, display);
       this.previous = null;
     } catch {
       this.lost('indicator_bounds_failed');
@@ -68,6 +85,21 @@ export class ControlOverlay {
     this.planView = value;
     this.script('plan', value);
   }
+  async captureWithoutPointer(capture) {
+    try {
+      await Promise.all(
+        this.windows.map((border) =>
+          this.wait(
+            border.webContents.executeJavaScript('globalThis.capriControl.suspendPointer()'),
+            border,
+          ),
+        ),
+      );
+      return await capture();
+    } finally {
+      this.script('resumePointer');
+    }
+  }
   assertOpen(border) {
     if (this.closed || border?.isDestroyed()) throw Error('Computer control indicator closed.');
   }
@@ -106,7 +138,7 @@ export class ControlOverlay {
         const display = this.screen.getAllDisplays().find(({ id }) => id === displayId);
         if (!display) throw Error('Computer control indicator display was disconnected.');
         const border = new this.BrowserWindow({
-          ...display.workArea,
+          ...display.bounds,
           show: false,
           frame: false,
           transparent: true,
@@ -158,7 +190,12 @@ export class ControlOverlay {
         );
         if (this.planView) this.script('plan', this.planView, [border]);
         this.assertOpen(border);
+        const displayBeforeShow = this.screen.getAllDisplays().find(({ id }) => id === displayId);
+        if (!displayBeforeShow) throw Error('Computer control indicator display was disconnected.');
         border.showInactive();
+        // Windows may initially size the hidden window against the work area.
+        if (!sameBounds(border.getBounds(), displayBeforeShow.bounds))
+          border.setBounds(displayBeforeShow.bounds, false);
         await this.wait(
           border.webContents.executeJavaScript(
             'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
@@ -166,14 +203,9 @@ export class ControlOverlay {
           border,
         );
         const currentDisplay = this.screen.getAllDisplays().find(({ id }) => id === displayId);
-        if (
-          this.closed ||
-          border.isDestroyed() ||
-          !border.isVisible() ||
-          !currentDisplay ||
-          !sameBounds(border.getBounds(), currentDisplay.workArea)
-        )
-          throw Error('Computer control indicator could not cover the display work area.');
+        if (!currentDisplay) throw Error('Computer control indicator display was disconnected.');
+        if (!border.isVisible()) throw Error('Computer control indicator did not become visible.');
+        verifyDisplayBounds(border, currentDisplay);
       }
       this.tracker = setInterval(() => {
         if (this.closed) return;

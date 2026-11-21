@@ -7,6 +7,8 @@ export const INITIATIVE_DEFAULTS = {
   spontaneous: true,
   returnReactions: true,
   appReactions: false,
+  screenComments: false,
+  watchTogether: false,
   excludedApps: ['discord', 'ms-teams', 'teams', 'zoom', 'powerpnt', 'obs64'],
 };
 export function validateInitiative(value) {
@@ -15,12 +17,14 @@ export function validateInitiative(value) {
     hourlyLimit: value.hourlyLimit ?? null,
     quietHoursEnabled: value.quietHoursEnabled ?? value.quietStart !== value.quietEnd,
     spontaneous: value.spontaneous ?? true,
+    screenComments: value.screenComments ?? false,
+    watchTogether: value.watchTogether ?? false,
   };
   if (
     !value ||
     typeof value !== 'object' ||
     Array.isArray(value) ||
-    Object.keys(value).length !== 9 ||
+    Object.keys(value).length !== Object.keys(INITIATIVE_DEFAULTS).length ||
     Object.keys(value).some((k) => !Object.hasOwn(INITIATIVE_DEFAULTS, k)) ||
     !['off', 'occasional', 'conversational'].includes(value.level) ||
     (value.hourlyLimit !== null &&
@@ -30,6 +34,8 @@ export function validateInitiative(value) {
     typeof value.quietHoursEnabled !== 'boolean' ||
     typeof value.spontaneous !== 'boolean' ||
     typeof value.appReactions !== 'boolean' ||
+    typeof value.screenComments !== 'boolean' ||
+    typeof value.watchTogether !== 'boolean' ||
     !Array.isArray(value.excludedApps) ||
     value.excludedApps.length > 30 ||
     !value.excludedApps.every((n) => typeof n === 'string' && /^[a-z0-9_.-]{1,60}$/i.test(n))
@@ -44,6 +50,8 @@ export function validateInitiative(value) {
     spontaneous: value.spontaneous,
     returnReactions: value.returnReactions,
     appReactions: value.appReactions,
+    screenComments: value.screenComments,
+    watchTogether: value.watchTogether,
     excludedApps: [...new Set(value.excludedApps.map((n) => n.toLowerCase()))],
   };
 }

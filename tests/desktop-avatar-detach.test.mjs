@@ -16,12 +16,14 @@ import { avatarDropOutside, spriteGrabPoint } from '../apps/desktop/geometry.mjs
 import { DesktopTeleportMenu } from '../apps/desktop/main/desktop-teleport-menu.mjs';
 import {
   arrivalStart,
+  boltOnlyFrames,
   draw,
   frames,
   prepareTeleportMotion,
   teleportViewport,
   transitStart,
 } from '../apps/desktop/renderer/avatar-teleport-motion.mjs';
+import { TELEPORT_LIGHTNING_DEFAULTS } from '../apps/desktop/renderer/teleport-effects.mjs';
 
 const area = { x: -1600, y: -180, width: 1600, height: 900 };
 const geometry = {
@@ -73,7 +75,7 @@ function fixture({
           return Promise.resolve();
         }
         const parkedCall =
-          /^globalThis\.capriAvatarDetach\.(park|setFrame|setTether|setReply|toggleReply|stepReply|setReplyNear|setMouth|setStatus|waitForMotionChange|finishArrival|whenSettled)\((.*)\)$/.exec(
+          /^globalThis\.capriAvatarDetach\.(park|setFrame|setTether|setReply|toggleReply|stepReply|setReplyNear|setMouth|setStatus|waitForMotionChange|finishArrival|whenSettled|playSurface|stopSurface)\((.*)\)$/.exec(
             source,
           );
         if (parkedCall)
@@ -159,6 +161,37 @@ test('leave frame accepts DPI rounding of one logical pixel but rejects a mispos
     /could not cover the display/,
   );
   assert.equal(clipped.controller.phase, 'attached');
+});
+
+test('surface performance waits for the end of teleport and rechecks the lease before playback', async () => {
+  const actions = [];
+  let settlement;
+  const { controller } = fixture({
+    parked(method, value) {
+      if (method === 'whenSettled' && settlement) return settlement.promise;
+      if (method === 'playSurface') actions.push(value);
+      return true;
+    },
+  });
+  try {
+    assert.equal(await controller.leave(geometry, sprite, canvas), true);
+    settlement = Promise.withResolvers();
+    const next = controller.playSurface('hang-pullup', 'left');
+    assert.deepEqual(actions, []);
+    settlement.resolve(true);
+    assert.equal(await next, true);
+    assert.deepEqual(actions, [{ action: 'hang-pullup', side: 'left' }]);
+
+    settlement = Promise.withResolvers();
+    let allowed = true;
+    const cancelled = controller.playSurface('hang-catch', 'left', () => allowed);
+    allowed = false;
+    settlement.resolve(true);
+    assert.equal(await cancelled, false);
+    assert.equal(actions.length, 1);
+  } finally {
+    controller.reset();
+  }
 });
 
 test('a 4K teleport overlay reapplies its target bounds if Windows initially limits the window', async () => {
@@ -442,6 +475,26 @@ test('reset removes outgoing effect layers and stale completion cannot close a n
   controller.reset();
 });
 
+test('Sandevistan returns Capri to the frame before discarding the trail overlay', async () => {
+  const tail = Promise.withResolvers();
+  const { controller, overlays, phases } = fixture({
+    getEffects: () => ({ teleportStyle: 'sandevistan', sandevistanHoldMs: 2000 }),
+    parked: (method) => (method === 'whenSettled' ? tail.promise : true),
+  });
+
+  await controller.leave(geometry, sprite, canvas);
+  assert.equal(await controller.returnToFrame(), true);
+  assert.equal(phases.at(-1), 'attached');
+  assert.equal(controller.overlay, null);
+  assert.equal(overlays[0].isDestroyed(), false);
+  assert.ok(controller.settlingOverlays.has(overlays[0]));
+
+  tail.resolve(true);
+  await new Promise(setImmediate);
+  assert.equal(overlays[0].isDestroyed(), true);
+  assert.equal(controller.settlingOverlays.size, 0);
+});
+
 test('an echoed standing frame does not interrupt the active arrival effect', async () => {
   const updates = [];
   const standing = { ...sprite, anchor: { ...sprite.anchor, name: 'ground' } };
@@ -562,14 +615,26 @@ test('a subsequent teleport uses the currently saved effect controls', async () 
     teleportJaggedness: 52,
     teleportBranches: 92,
     teleportReducedFlash: false,
+    teleportColor: '#28c5ff',
+    teleportThickness: 155,
+    teleportGlow: 80,
+    teleportSparkAmount: 100,
+    teleportSparkTravel: 80,
   };
   const { controller, commands } = fixture({ getEffects: () => effects });
   assert.equal(await controller.leave(geometry, sprite, canvas), true);
   assert.deepEqual(commands[0].effects, effects);
-  effects = { ...effects, teleportBranches: 0, teleportReducedFlash: true };
+  effects = {
+    ...effects,
+    teleportBranches: 0,
+    teleportReducedFlash: true,
+    teleportColor: '#ff003d',
+    teleportSparkAmount: 0,
+  };
   assert.equal(await controller.hop(), true);
   assert.deepEqual(commands[1].effects, effects);
   assert.equal(commands[0].effects.teleportBranches, 92);
+  assert.equal(commands[0].effects.teleportColor, '#28c5ff');
   controller.reset();
 });
 
@@ -700,7 +765,14 @@ test('a transparent gap accepts a tethered desktop drag but never a tap', async 
   const seed = actions[0].seed;
   assert.ok(Number.isInteger(seed));
   assert.deepEqual(actions, [
-    { from: point, to: moved, intensity: 65, chaos: 55, seed },
+    {
+      from: point,
+      to: moved,
+      intensity: 65,
+      chaos: 55,
+      seed,
+      effects: TELEPORT_LIGHTNING_DEFAULTS,
+    },
     null,
     'drop',
   ]);
@@ -876,10 +948,15 @@ test('desktop drag draws the same tether across a second monitor and clears the 
   const target = { id: 8, workArea: { x: 0, y: -640, width: 1000, height: 1450 } };
   const paints = [];
   const drops = [];
+  const effects = {
+    ...TELEPORT_LIGHTNING_DEFAULTS,
+    teleportColor: '#1269cb',
+    teleportSparkTravel: 82,
+  };
   const { controller, commands, overlays } = fixture({
     targetDisplay: target,
     onDragDrop: (cursor) => drops.push(cursor),
-    getEffects: () => ({ avatarDragTether: true, avatarDragTetherIntensity: 70 }),
+    getEffects: () => ({ ...effects, avatarDragTether: true, avatarDragTetherIntensity: 70 }),
     parked: (method, value, view) => {
       if (method === 'setTether') paints.push({ view, value });
       return true;
@@ -905,7 +982,7 @@ test('desktop drag draws the same tether across a second monitor and clears the 
   const seed = paints[0].value.seed;
   assert.ok(Number.isInteger(seed));
   assert.deepEqual(paints, [
-    { view: overlays[0], value: { from, to: finish, intensity: 70, chaos: 55, seed } },
+    { view: overlays[0], value: { from, to: finish, intensity: 70, chaos: 55, seed, effects } },
     {
       view,
       value: {
@@ -914,6 +991,7 @@ test('desktop drag draws the same tether across a second monitor and clears the 
         intensity: 70,
         chaos: 55,
         seed,
+        effects,
       },
     },
   ]);
@@ -1294,6 +1372,41 @@ test('teleport reuses its curve and draws a distinct interpolated position insid
   };
   assert.notDeepEqual(render(transitStart + 1.45), render(transitStart + 1));
   assert.notDeepEqual(render(transitStart + 1.45), render(transitStart + 2));
+});
+
+test('teleport keeps seeded sparks paired, bounded, and optional', () => {
+  const options = {
+    from: { x: 120, y: 510, scale: 180 },
+    to: { x: 3380, y: 670, scale: 160 },
+    scale: 160,
+    seed: 35,
+  };
+  const prepare = (effects) => prepareTeleportMotion({ ...options, effects });
+  const maximum = prepare({ teleportSparkAmount: 100, teleportSparkTravel: 100 });
+  assert.equal(maximum.sparks.length, 96);
+  assert.deepEqual(
+    maximum.sparks,
+    prepare({ teleportSparkAmount: 100, teleportSparkTravel: 100 }).sparks,
+  );
+  for (let i = 0; i < maximum.sparks.length; i += 2) {
+    const [left, right] = maximum.sparks.slice(i, i + 2);
+    assert.deepEqual([left.side, right.side], [-1, 1]);
+    assert.equal(left.birth, right.birth);
+    assert.deepEqual(left.origin, right.origin);
+    assert.ok(left.birth + left.life <= boltOnlyFrames);
+    assert.ok(right.birth + right.life <= boltOnlyFrames);
+  }
+  assert.ok(
+    prepare({ teleportSparkTravel: 0 }).sparks.every(
+      ({ reach, drift }) => reach === 0 && drift === 0,
+    ),
+  );
+  assert.equal(prepare({ teleportSparkAmount: 0 }).sparks.length, 0);
+  assert.equal(prepare({ teleportReducedFlash: true }).sparks.length, 0);
+  const custom = prepare({ teleportColor: '#38CAFF', teleportThickness: 160, teleportGlow: 90 });
+  assert.equal(custom.profile.color, '#38caff');
+  assert.equal(custom.profile.thickness, 1.6);
+  assert.equal(custom.profile.glow, 0.9);
 });
 
 test('docking geometry uses the nearest allowed edge and preserves its fractional anchor', () => {

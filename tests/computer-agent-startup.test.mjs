@@ -2,6 +2,58 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ComputerAgent } from '../apps/desktop/computer-agent.mjs';
+import { ComputerControl } from '../apps/desktop/computer-control.mjs';
+
+test('an indicator geometry failure reports why computer control stopped before performing input', async () => {
+  const geometry = {
+    expected: { x: 0, y: 0, width: 1280, height: 720 },
+    actual: { x: 0, y: 0, width: 1280, height: 680 },
+    scaleFactor: 1.5,
+  };
+  const control = new ComputerControl({
+    allowed: () => true,
+    canStart: () => true,
+    bridge: () => assert.fail('Input must wait for a verified indicator'),
+    registerEscape: () => true,
+    unregisterEscape: () => {},
+    showBorder: async () => {
+      throw Object.assign(new Error('Overlay geometry'), {
+        code: 'COMPUTER_INDICATOR_BOUNDS_FAILED',
+        geometry,
+      });
+    },
+    hideBorder: () => {},
+  });
+  const agent = new ComputerAgent({
+    control,
+    plan: () => assert.fail('Planning must wait for a verified indicator'),
+    language: () => 'en',
+  });
+  const result = await agent.run('Open Notepad.');
+  assert.equal(result.status, 'incomplete');
+  assert.equal(result.steps, 0);
+  assert.match(result.summary, /indicator frame did not match the display bounds/);
+  assert.equal(agent.diagnostics().lastOutcome.reason, 'indicator_bounds_failed');
+  assert.deepEqual(agent.diagnostics().lastFailure.geometry, geometry);
+  assert.equal(control.snapshot().active, false);
+});
+
+test('Escape registration failure has a specific reply and reports that zero actions ran', async () => {
+  const control = new ComputerControl({
+    allowed: () => true,
+    canStart: () => true,
+    registerEscape: () => false,
+    unregisterEscape: () => {},
+    showBorder: () => assert.fail('No indicator may start without its emergency stop'),
+    hideBorder: () => {},
+  });
+  const agent = new ComputerAgent({ control, language: () => 'en' });
+  const result = await agent.run('Create a text file in Downloads.');
+  assert.equal(result.steps, 0);
+  assert.match(result.summary, /Escape emergency stop was unavailable/);
+  assert.equal(agent.diagnostics().lastOutcome.reason, 'escape_unavailable');
+  assert.equal(control.snapshot().active, false);
+});
 
 function fixture({
   verified = true,
@@ -170,35 +222,46 @@ test('missing observations never authorize guessed clicks, ambiguous launch targ
   }
 });
 
-test('a requested website can bootstrap direct navigation without an existing input window', async () => {
-  const f = fixture({ ambiguous: true });
-  let opened = false;
-  f.agent.applications.findApplications = async () => [];
-  f.agent.applications.execute = async (_id, args) => {
-    assert.equal(args.action, 'open_url');
-    assert.equal(args.url, 'https://www.youtube.com/');
-    opened = true;
-    return { ok: true, navigationRequested: true, windowId: '42' };
-  };
-  f.control.execute = async ({ action }) => {
-    assert.equal(action, 'observe');
-    if (!opened)
-      throw Object.assign(new Error('No application.'), {
-        code: 'COMPUTER_APPLICATION_UNAVAILABLE',
-      });
-    return {
-      window: { windowId: '42', untrustedTitle: 'YouTube' },
-      targets: [{ browserAddress: true, untrustedValue: 'https://www.youtube.com/' }],
+test('opening YouTube works without a model or an existing input window', async () => {
+  for (const goal of ['Open YouTube', 'Capre use full computer access and open YouTube.']) {
+    const f = fixture({ ambiguous: true });
+    let sent = 0;
+    let browserStillOpening = true;
+    f.agent.applications.findApplications = async (query) =>
+      query === 'Microsoft Edge' ? [{ name: query, executable: 'C:/Browser/msedge.exe' }] : [];
+    f.agent.applications.execute = async (_id, args) => {
+      assert.equal(args.action, 'open_url');
+      assert.equal(args.query, 'Microsoft Edge');
+      assert.equal(args.url, 'https://www.youtube.com/');
+      sent++;
+      return { ok: true, navigationRequested: true, windowId: '42' };
     };
-  };
-  f.agent.plan = async () =>
-    opened
-      ? { action: 'finish', evidence: 'YouTube', summary: 'Opened YouTube.' }
-      : { action: 'open_url', query: 'Google Chrome', url: 'https://www.youtube.com/' };
-  const result = await f.agent.run('Open YouTube.');
-  assert.equal(result.ok, true);
-  assert.equal(result.steps, 1);
-  assert.equal(f.control.session, null);
+    f.control.execute = async (args) => {
+      assert.deepEqual(args, { action: 'observe', vision: false });
+      if (!sent)
+        throw Object.assign(new Error('No application.'), {
+          code: 'COMPUTER_APPLICATION_UNAVAILABLE',
+        });
+      if (browserStillOpening) {
+        browserStillOpening = false;
+        throw Object.assign(new Error('The browser is still opening.'), {
+          code: 'COMPUTER_FOREGROUND_CHANGED',
+        });
+      }
+      return {
+        window: { windowId: '42', untrustedTitle: 'YouTube' },
+        targets: [{ browserAddress: true, untrustedValue: 'https://www.youtube.com/' }],
+      };
+    };
+    f.agent.plan = async () => assert.fail('A home-page request must not use a model step');
+    f.agent.plan.outline = async () => assert.fail('A home-page request must not need an outline');
+    const result = await f.agent.run(goal);
+    assert.equal(result.ok, true);
+    assert.equal(result.verified, true);
+    assert.equal(result.steps, 1);
+    assert.equal(sent, 1);
+    assert.equal(f.control.session, null);
+  }
 });
 
 test('unavailable observations cannot bootstrap typing into an owner-selected existing tab', async () => {

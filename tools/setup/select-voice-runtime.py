@@ -60,6 +60,16 @@ def amd_supported(names):
     return any(re.search(r'\b(?:RX (?:9070(?: XT)?|9060 XT|7900 XTX|7700)|(?:AI )?PRO (?:R9700|W7900(?: Dual Slot)?))\b', str(name), re.I) for name in names)
 
 
+def amd_inventory():
+    try:
+        inventory = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', '@(Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) | ConvertTo-Json -Compress'], capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+        names = json.loads(inventory.stdout)
+        return [name for name in (names if isinstance(names, list) else [names])
+                if isinstance(name, str) and re.search(r'\b(?:AMD|Radeon)\b', name, re.I)]
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return []
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--profile', choices=['auto', 'legacy', 'blackwell', 'amd'], default='auto')
@@ -67,15 +77,13 @@ def main():
     devices, warning = gpu_inventory()
     spec = json.loads((ROOT / 'config/voice-runtime.json').read_text(encoding='utf-8'))
     profile = select_profile(devices, os.environ.get('CUDA_VISIBLE_DEVICES'), args.profile, spec['blackwellMinimumComputeMajor'])
-    if profile == 'legacy' and not devices and args.profile == 'auto':
-        try:
-            inventory = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', '@(Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) | ConvertTo-Json -Compress'], capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
-            names = json.loads(inventory.stdout)
-            if amd_supported(names if isinstance(names, list) else [names]):
-                profile = 'amd'
-        except (OSError, ValueError, subprocess.TimeoutExpired):
-            pass
-    print(json.dumps({'profile': profile, **spec['profiles'][profile], 'devices': devices, 'warning': warning}), flush=True)
+    amd = []
+    if profile == 'amd' or (profile == 'legacy' and not devices and args.profile == 'auto'):
+        amd = amd_inventory()
+        if amd_supported(amd):
+            profile = 'amd'
+    print(json.dumps({'profile': profile, **spec['profiles'][profile], 'devices': devices,
+                      'warning': warning, **({'amdAdapterCount': len(amd)} if profile == 'amd' else {})}), flush=True)
 
 
 if __name__ == '__main__':

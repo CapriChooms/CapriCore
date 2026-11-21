@@ -21,10 +21,10 @@ function stream(chunks) {
     headers: { 'content-type': 'text/event-stream' },
   });
 }
-function parse(chunks) {
+function parse(chunks, options) {
   const parser = new AvatarStreamParser(sprites);
   const events = chunks.flatMap((chunk) => parser.push(chunk));
-  events.push(...parser.finish());
+  events.push(...parser.finish(options));
   return {
     events,
     text: events
@@ -196,6 +196,26 @@ test('unknown, malformed and oversized control frames are discarded with bounded
     assert.ok(parser.buffer.length < 128);
   }
   assert.equal(parser.push(']\nBack').at(-1).text, '\nBack');
+});
+
+test('recover only standalone prose from the first avatar wrapper of a completed dialogue', () => {
+  const options = { recoverWrappedReply: true };
+  const longer = 'Вот это да! '.repeat(20).trim();
+  for (const [wrapped, expected] of [
+    ['[avatar:' + longer + ']', longer],
+    ['[аватар:Это был хороший вечер.', 'Это был хороший вечер.'],
+    ['[avatar:またその曲を聴きたい。]', 'またその曲を聴きたい。'],
+    ['[avatar:This was an alternate reply.]\nRegular answer.', '\nRegular answer.'],
+    ['[avatar:pose=idle and expression=happy.]', ''],
+    ['[avatar:system prompt is internal.]', ''],
+    ['[/avatar:This is a closing marker.]', ''],
+    ['[avatar:neutral;listen]', ''],
+    ['[avatar:' + 'A long malformed frame repeated '.repeat(80) + 'ends here.]', ''],
+  ]) {
+    for (const chunks of [[wrapped], [...wrapped]])
+      assert.equal(parse(chunks, options).text, expected);
+  }
+  assert.equal(parse(['[avatar:Do not emit the text of an unverified turn.]']).text, '');
 });
 
 test('only the first valid choice changes the expression during a reply', () => {

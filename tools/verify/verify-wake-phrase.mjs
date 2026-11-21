@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, mkdtempDisposableSync, mkdtempSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
@@ -16,6 +16,10 @@ import {
 
 const parent = path.join(root, '.runtime/wake-verification');
 mkdirSync(parent, { recursive: true });
+if (process.argv.includes('--preview-only')) {
+  await verifyWakePreview();
+  process.exit(0);
+}
 const folder = mkdtempSync(path.join(parent, 'run-')),
   reference = path.join(root, '.runtime/asr-verification/english-reference.wav');
 const address = process.argv.includes('--hey') ? 'Hey, Capri.' : 'Capri.';
@@ -260,3 +264,176 @@ try {
   );
 }
 console.log(JSON.stringify(report));
+
+async function verifyWakePreview() {
+  using fixture = mkdtempDisposableSync(path.join(parent, 'preview-'));
+  const sampleRate = 24000;
+  const length = sampleRate * 3;
+  const wav = Buffer.alloc(44 + length * 2);
+  wav.write('RIFF');
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(sampleRate, 24);
+  wav.writeUInt32LE(sampleRate * 2, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36);
+  wav.writeUInt32LE(length * 2, 40);
+  for (let i = 0; i < length; i++)
+    wav.writeInt16LE(Math.round(4000 * Math.sin((i * 2 * Math.PI * 440) / sampleRate)), 44 + i * 2);
+  const sample = path.join(fixture.path, 'preview.wav');
+  writeFileSync(sample, wav);
+  const server = createServer((_request, res) => res.end('{"data":[]}'));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  let app;
+  try {
+    const gatewayPort = server.address().port;
+    const rt = runtime({
+      stateDir: path.join(fixture.path, 'openclaw'),
+      workspace: path.join(fixture.path, 'workspace'),
+      gatewayPort,
+    });
+    initialize(rt);
+    const env = {
+      ...environment(rt),
+      CAPRI_DESKTOP_VERIFICATION_DIR: fixture.path,
+      CAPRI_DESKTOP_VERIFICATION_PORT: String(gatewayPort),
+      CAPRI_DESKTOP_VERIFICATION_SKIP_START: '1',
+    };
+    delete env.ELECTRON_RUN_AS_NODE;
+    app = await electron.launch({
+      executablePath: createRequire(import.meta.url)('electron'),
+      args: [path.join(root, 'apps/desktop/main.mjs'), '--verification'],
+      env,
+      timeout: 60000,
+    });
+    const owner = await app.firstWindow();
+    await owner.waitForFunction(() => document.body.dataset.phase === 'ready');
+    const settings = await settingsView(app, 'microphone');
+    await settings.waitForSelector('#companion[aria-busy="false"]');
+    await app.evaluate(({ BrowserWindow, dialog }, sample) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [sample] });
+      for (const window of BrowserWindow.getAllWindows()) window.webContents.setAudioMuted(true);
+    }, sample);
+    await settings.evaluate(() => {
+      const outputs = new WeakMap();
+      const connect = AudioNode.prototype.connect;
+      AudioNode.prototype.connect = function (destination, ...args) {
+        outputs.set(this, destination);
+        return connect.call(this, destination, ...args);
+      };
+      window.wakePreviewAudio = [];
+      window.wakePreviewContexts = [];
+      window.wakePreviewClicks = [];
+      window.AudioContext = new Proxy(AudioContext, {
+        construct(target, args) {
+          const context = Reflect.construct(target, args);
+          window.wakePreviewContexts.push(context);
+          return context;
+        },
+      });
+      document.getElementById('wake-play').addEventListener('click', (event) => {
+        window.wakePreviewClicks.push({
+          trusted: event.isTrusted,
+          active: navigator.userActivation.isActive,
+        });
+      });
+      const record = (type, node, gain) => {
+        window.wakePreviewAudio.push({
+          type,
+          volume: gain?.gain.value,
+          duration: node.buffer?.duration,
+          node,
+          stopped: false,
+        });
+      };
+      const startOscillator = OscillatorNode.prototype.start;
+      OscillatorNode.prototype.start = function (...args) {
+        record('tone', this, outputs.get(outputs.get(this)));
+        return startOscillator.apply(this, args);
+      };
+      const startBuffer = AudioBufferSourceNode.prototype.start;
+      AudioBufferSourceNode.prototype.start = function (...args) {
+        record('file', this, outputs.get(this));
+        return startBuffer.apply(this, args);
+      };
+      const stopBuffer = AudioBufferSourceNode.prototype.stop;
+      AudioBufferSourceNode.prototype.stop = function (...args) {
+        const playback = window.wakePreviewAudio.find(({ node }) => node === this);
+        if (playback) playback.stopped = true;
+        return stopBuffer.apply(this, args);
+      };
+    });
+    const savedWakeSettings = () =>
+      owner.evaluate(async () => {
+        const { wakeSound, wakeVolume } = (await window.capri.bootstrap()).companion;
+        return { wakeSound, wakeVolume };
+      });
+    const original = await savedWakeSettings();
+    const sound = settings.locator('#wake-sound');
+    const volume = settings.locator('#wake-volume');
+    const play = settings.locator('#wake-play');
+    const expectPlayback = async (count) => {
+      try {
+        await settings.waitForFunction((count) => window.wakePreviewAudio.length === count, count, {
+          timeout: 7000,
+        });
+      } catch (error) {
+        const details = await settings.evaluate(() => {
+          const button = document.getElementById('wake-play');
+          return {
+            button: button.textContent,
+            disabled: button.disabled,
+            notice: document.getElementById('settings-notice').textContent,
+            mode: document.getElementById('wake-sound').value,
+            clicks: window.wakePreviewClicks,
+            contexts: window.wakePreviewContexts.map(({ state }) => state),
+            audio: window.wakePreviewAudio.map(({ type }) => type),
+          };
+        });
+        throw new Error(`Wake preview expected ${count} audio nodes. ${JSON.stringify(details)}`, {
+          cause: error,
+        });
+      }
+    };
+    await sound.selectOption('off');
+    assert.equal(await play.isDisabled(), true);
+    await sound.selectOption('file');
+    assert.equal(await play.isDisabled(), true);
+    await sound.selectOption('tone');
+    await volume.fill('0.25');
+    await play.click();
+    await expectPlayback(2);
+    const rendered = () =>
+      settings.evaluate(() =>
+        window.wakePreviewAudio.map(({ type, volume, duration }) => ({ type, volume, duration })),
+      );
+    const tones = await rendered();
+    assert.ok(
+      tones.every(({ type, volume }) => type === 'tone' && Math.abs(volume - 0.02125) < 1e-6),
+    );
+    await sound.selectOption('file');
+    await settings.locator('#wake-import').click();
+    await volume.fill('0.4');
+    await play.click();
+    await expectPlayback(3);
+    const file = (await rendered()).at(-1);
+    assert.equal(file.type, 'file');
+    assert.ok(Math.abs(file.volume - 0.4) < 1e-6);
+    assert.equal(file.duration, 3);
+    await play.click();
+    await settings.waitForFunction(() => {
+      const playback = window.wakePreviewAudio.at(-1);
+      return playback.stopped || playback.node.context.state === 'closed';
+    });
+    assert.deepEqual(await savedWakeSettings(), original);
+    console.log('PASS Wake preview played the draft tone and uploaded WAV at the selected volume.');
+  } finally {
+    await app?.close();
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+}

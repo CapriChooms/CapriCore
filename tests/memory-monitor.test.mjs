@@ -15,11 +15,21 @@ import {
   sparkline,
 } from '../apps/desktop/renderer/memory-hud.mjs';
 import { ProcessLoadSampler } from '../apps/desktop/process-load.mjs';
-import { celsiusFromDecikelvin, CpuSampler } from '../apps/desktop/system-resources.mjs';
+import {
+  celsiusFromDecikelvin,
+  cpuPackageTemperature,
+  CpuSampler,
+  libreCpuTemperature,
+  resourceDiskUsage,
+} from '../apps/desktop/system-resources.mjs';
+import {
+  resourceMonitorDisplay,
+  resourceMonitorNeedsProcessLoad,
+} from '../apps/desktop/renderer/resource-metrics.mjs';
 import { ContextSampler, contextUsage } from '../apps/desktop/context-usage.mjs';
 import {
   COMPANION_DEFAULTS,
-  setMonitorDisplay,
+  monitorDisplayChange,
   validateCompanionSettings,
 } from '../apps/desktop/companion-settings.mjs';
 import { startModelServices } from '../apps/desktop/model-startup.mjs';
@@ -157,7 +167,12 @@ test('existing preferences gain enabled memory charts; invalid values cannot cre
     validateCompanionSettings({ memoryStyle: 'rings', memoryMonitor: false }).memoryMonitor,
     false,
   );
-  for (const value of [0, 0.01, 1, 100, NaN, '3'])
+  for (let seconds = 1; seconds <= 10; seconds++)
+    assert.equal(
+      validateCompanionSettings({ memoryIntervalSeconds: seconds }).memoryIntervalSeconds,
+      seconds,
+    );
+  for (const value of [0, 0.01, 1.5, 11, 100, NaN, '3'])
     assert.throws(() =>
       validateCompanionSettings({ ...COMPANION_DEFAULTS, memoryIntervalSeconds: value }),
     );
@@ -166,16 +181,79 @@ test('existing preferences gain enabled memory charts; invalid values cannot cre
 
 test('display shortcut collapses graphs without replacing the previous compact style', () => {
   const legacy = validateCompanionSettings({ processGraphs: true, memoryStyle: 'bars' });
-  const collapsed = setMonitorDisplay(legacy, 'toggle');
+  const collapsed = { ...legacy, ...monitorDisplayChange(legacy, 'toggle') };
   assert.equal(collapsed.processGraphs, false);
   assert.equal(collapsed.memoryStyle, 'bars');
-  assert.deepEqual(setMonitorDisplay(collapsed, 'graphs'), legacy);
-  const circles = setMonitorDisplay({ ...legacy, memoryMonitor: false }, 'rings');
+  assert.deepEqual({ ...collapsed, ...monitorDisplayChange(collapsed, 'graphs') }, legacy);
+  const circles = { ...legacy, ...monitorDisplayChange(legacy, 'rings') };
   assert.equal(circles.processGraphs, false);
   assert.equal(circles.memoryStyle, 'rings');
   assert.equal(circles.memoryMonitor, true);
   assert.equal(circles.memoryIntervalSeconds, legacy.memoryIntervalSeconds);
-  assert.throws(() => setMonitorDisplay(legacy, 'invalid'), /Invalid monitor display/);
+  const hidden = { ...circles, ...monitorDisplayChange(circles, 'off') };
+  assert.deepEqual(resourceMonitorDisplay(hidden), { graphs: [], meters: [] });
+  assert.deepEqual({ ...hidden, ...monitorDisplayChange(hidden, 'rings') }, circles);
+  assert.throws(() => monitorDisplayChange(legacy, 'invalid'), /Invalid monitor display/);
+});
+
+test('graph and compact meter selections migrate independently and enforce the four-item limit', () => {
+  const defaults = validateCompanionSettings({});
+  assert.deepEqual(defaults.graphMetrics, ['cpu', 'gpu', 'ram', 'vram']);
+  assert.deepEqual(defaults.meterMetrics, ['cpu', 'gpu', 'ram', 'vram']);
+  const custom = validateCompanionSettings({
+    graphMetrics: ['disk', 'gpuTemperature'],
+    meterMetrics: ['capriRam'],
+  });
+  const expanded = resourceMonitorDisplay(custom);
+  assert.deepEqual(expanded, { graphs: ['disk', 'gpuTemperature'], meters: [] });
+  assert.equal(resourceMonitorNeedsProcessLoad(expanded), false);
+  const compact = resourceMonitorDisplay({ ...custom, ...monitorDisplayChange(custom, 'toggle') });
+  assert.deepEqual(compact, { graphs: [], meters: ['capriRam'] });
+  assert.equal(resourceMonitorNeedsProcessLoad(compact), true);
+  assert.deepEqual(resourceMonitorDisplay({ ...custom, graphMetrics: [] }), compact);
+  assert.deepEqual(resourceMonitorDisplay({ ...custom, graphMetrics: [], meterMetrics: [] }), {
+    graphs: [],
+    meters: [],
+  });
+  for (const invalid of [
+    null,
+    'cpu',
+    ['other'],
+    ['ram', 'ram'],
+    ['cpu', 'gpu', 'ram', 'vram', 'disk'],
+  ]) {
+    assert.throws(
+      () => validateCompanionSettings({ graphMetrics: invalid }),
+      /Invalid resource metrics/,
+    );
+    assert.throws(
+      () => validateCompanionSettings({ meterMetrics: invalid }),
+      /Invalid resource metrics/,
+    );
+  }
+});
+
+test('disk occupancy uses the installation volume and preserves unavailable readings', async () => {
+  const disk = await resourceDiskUsage('fixture-volume', async (location) => {
+    assert.equal(location, 'fixture-volume');
+    return { bsize: 4096, blocks: 1000, bfree: 250, bavail: 200 };
+  });
+  assert.deepEqual(disk, {
+    totalBytes: 4096000,
+    freeBytes: 1024000,
+    usedBytes: 3072000,
+    percent: 75,
+  });
+  assert.equal(
+    await resourceDiskUsage('invalid', async () => ({ bsize: 4096, blocks: 0, bfree: 0 })),
+    null,
+  );
+  assert.equal(
+    await resourceDiskUsage('missing', async () => {
+      throw Error('Volume unavailable');
+    }),
+    null,
+  );
 });
 
 test('process samples share one probe, ignore reused PIDs and expose unavailable counters', async () => {
@@ -212,9 +290,64 @@ test('process samples share one probe, ignore reused PIDs and expose unavailable
 });
 
 test('graph gaps keep unknown measurements distinct from zero', () => {
-  assert.equal(sparkline([null, undefined], 100), '');
-  assert.equal(sparkline([10, null, 0], 100).match(/M/g).length, 2);
-  assert.equal(sparkline([10, 0], 100).match(/L/g).length, 1);
+  const plot = (values) =>
+    sparkline(
+      values.map((value, index) => ({ at: index * 1000, value })),
+      100,
+      3000,
+      70,
+    );
+  assert.equal(plot([null, undefined]), '');
+  assert.equal(plot([10, null, 0]).match(/M/g).length, 2);
+  assert.equal(plot([10, 0]).match(/L/g).length, 1);
+});
+
+test('wider graphs show older seconds on the same time and percentage scales', () => {
+  const values = [
+    { at: 40_000, value: 0 },
+    { at: 130_000, value: 0 },
+    { at: 200_000, value: 100 },
+  ];
+  assert.equal(sparkline(values, 100, 200_000, 70), 'M1.0 15.0h.1L69.0 1.0');
+  assert.equal(sparkline(values, 100, 200_000, 280), 'M30.1 15.0h.1L52.0 15.0L69.0 1.0');
+});
+
+test('CPU temperature selects the package reading from the CPU hardware and rejects other thermals', () => {
+  assert.equal(
+    cpuPackageTemperature([
+      { id: '/nvidiagpu/0/temperature/0', name: 'Core (Tctl/Tdie)', value: 99 },
+      { id: '/amdcpu/0/temperature/1', name: 'Core (Tctl)', value: 54 },
+      { id: '/amdcpu/0/temperature/2', name: 'CPU CCD1 (Tdie)', value: 55 },
+      { id: '/amdcpu/0/temperature/5', name: 'Core (Tctl/Tdie)', value: '49,67' },
+    ]),
+    49.7,
+  );
+  assert.equal(
+    cpuPackageTemperature([
+      { id: '/intelcpu/0/temperature/0', name: 'Core #1 Distance to TjMax', value: 43 },
+      { id: '/lpc/it8688e/temperature/0', name: 'CPU Package', value: 44 },
+      { id: '/intelcpu/0/temperature/8', name: 'CPU Package', value: '—' },
+    ]),
+    null,
+  );
+  assert.equal(
+    libreCpuTemperature({
+      Children: [
+        {
+          Children: [
+            {
+              SensorId: '/intelcpu/0/temperature/8',
+              Text: 'CPU Package',
+              Type: 'Temperature',
+              RawValue: '46.25',
+              Value: '115.3 °F',
+            },
+          ],
+        },
+      ],
+    }),
+    46.3,
+  );
 });
 
 test('system readings distinguish missing temperature and idle GPU usage', async () => {
@@ -251,6 +384,21 @@ test('system readings distinguish missing temperature and idle GPU usage', async
     temperatureCelsius: null,
     temperatureSampledAt: null,
   });
+});
+
+test('desktop polling can update CPU load while the temperature probe is pending', async () => {
+  let finish;
+  let times = { cores: 4, idle: 200, total: 400 };
+  const sampler = new CpuSampler({
+    readTimes: () => times,
+    readTemperature: () => new Promise((resolve) => (finish = resolve)),
+  });
+  assert.equal((await sampler.sample({ awaitTemperature: false })).temperatureCelsius, null);
+  times = { cores: 4, idle: 440, total: 800 };
+  assert.equal((await sampler.sample({ awaitTemperature: false })).utilization, 40);
+  const completed = sampler.sample();
+  finish(43.5);
+  assert.equal((await completed).temperatureCelsius, 43.5);
 });
 
 test('hardware warnings need distinct high samples and persist until recovery', () => {

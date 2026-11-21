@@ -2,11 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_AVATAR_LAYOUT,
+  FULL_AVATAR_LAYOUT,
   avatarRect,
   avatarFacePoint,
   centerAvatarFace,
   clippedAvatarRect,
+  fitAvatarLayout,
   moveAvatar,
+  registeredAvatarRect,
   zoomAvatar,
   validateAvatarLayout,
 } from '../apps/desktop/avatar-layout.mjs';
@@ -16,6 +19,38 @@ import { avatarPoseLandmarks } from '../apps/desktop/renderer/avatar-mouth.mjs';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 
 const viewport = { x: 16, y: 50, width: 428, height: 420 };
+
+test('reset fits all visible sprite bounds at tall, short and horizontal portrait sizes', () => {
+  assert.deepEqual(validateAvatarLayout(FULL_AVATAR_LAYOUT), FULL_AVATAR_LAYOUT);
+  const catalog = requireCapriAvatar(root);
+  for (const frame of [...catalog.publicAnimation().frames, ...catalog.publicMusic().frames]) {
+    for (const [width, height] of [
+      [428, 266],
+      [192, 147],
+      [410, 90],
+    ]) {
+      const area = {
+        x: 16,
+        y: 40,
+        width,
+        height,
+        baseSize: Math.min(width, height),
+        centerFaces: true,
+      };
+      const rect = registeredAvatarRect(
+        fitAvatarLayout(FULL_AVATAR_LAYOUT, area, frame),
+        area,
+        frame,
+      );
+      const { x, y, width: artWidth, height: artHeight } = frame.visibleBounds;
+      const scale = rect.width / 1254;
+      assert.ok(rect.x + x * scale >= area.x, frame.id);
+      assert.ok(rect.y + y * scale >= area.y, frame.id);
+      assert.ok(rect.x + (x + artWidth) * scale <= area.x + width, frame.id);
+      assert.ok(rect.y + (y + artHeight) * scale <= area.y + height, frame.id);
+    }
+  }
+});
 
 test('the home camera centers the authored face of every portrait and music pose at every zoom', () => {
   const catalog = requireCapriAvatar(root);

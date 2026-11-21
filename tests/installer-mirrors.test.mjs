@@ -14,7 +14,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { fetchArtifact } from '../packages/installer/src/download.mjs';
+import { artifactUrl, fetchArtifact } from '../packages/installer/src/download.mjs';
 import { downloadUpdate } from '../packages/updater/src/download.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,6 +41,28 @@ const partial = (base, source, index) =>
   path.join(base, digest(data) + '.zip') +
   (index === 0 ? '.part' : '.source-' + digest(new URL(source).href).slice(0, 24) + '.part');
 const modes = [false, true];
+
+test('cancelling an existing archive checksum keeps the cache and avoids any network request', async () => {
+  for (const resumable of modes) {
+    const base = folder(),
+      value = Buffer.alloc(8 * 1024 ** 2, 21),
+      sha256 = digest(value),
+      target = path.join(base, sha256 + '.zip'),
+      controller = new AbortController(),
+      reason = new Error('owner cancelled checksum');
+    writeFileSync(target, value);
+    setImmediate(() => controller.abort(reason));
+    await assert.rejects(
+      fetchArtifact(spec({ bytes: value.length, sha256 }), base, {
+        signal: controller.signal,
+        ...(resumable ? { pauseFile: path.join(base, 'pause') } : {}),
+        fetchImpl: () => assert.fail('Cancelled verification made a network request'),
+      }),
+      (error) => error === reason,
+    );
+    assert.equal(digest(readFileSync(target)), sha256);
+  }
+});
 
 test('the configured llama.cpp archive switches to its mirror after a connection reset', async () => {
   const config = JSON.parse(readFileSync(path.join(root, 'config/installer.json'), 'utf8'));
@@ -304,6 +326,13 @@ for (const resumable of modes) {
     }
   });
 }
+
+test('the pinned Zig build dependency is accepted without allowing arbitrary downloads from its host', () => {
+  const url = 'https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip';
+  assert.equal(artifactUrl(url).href, url);
+  for (const other of [url + '?mirror=1', url.replace('windows', 'linux')])
+    assert.throws(() => artifactUrl(other), /Unapproved dependency download URL/);
+});
 
 test('all mirror URLs and pins are validated before any network or cache access', async () => {
   for (const more of [

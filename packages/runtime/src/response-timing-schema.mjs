@@ -10,6 +10,9 @@ const stages = new Set([
   'intent_start',
   'intent_ready',
   'computer_outcome',
+  'youtube_music_planning',
+  'youtube_music_start',
+  'youtube_music_result',
   'context_start',
   'context_ready',
   'gateway_dispatch',
@@ -45,6 +48,9 @@ const computerReasons = new Set([
   'target_covered',
   'foreground_changed',
   'window_changed',
+  'indicator_bounds_failed',
+  'escape_unavailable',
+  'indicator_timeout',
   'action_failed',
   'stalled',
   'limit',
@@ -59,6 +65,45 @@ const computerReasons = new Set([
   'profile',
   'exact_control_clicked',
   'checkpoint_pending',
+  'application_ambiguous',
+  'application_not_found',
+  'navigation_unverified',
+  'steam_game_unverified',
+  'started',
+  'running',
+  'unconfirmed',
+  'not-installed',
+  'client-unavailable',
+  'unavailable',
+  'no_progress',
+]);
+const computerPhases = new Set([
+  'acting',
+  'call-focus',
+  'idle',
+  'observing',
+  'planning',
+  'starting',
+  'verifying',
+]);
+const computerFailureCodes = new Set([
+  'COMPUTER_APPLICATION_UNAVAILABLE',
+  'COMPUTER_BROWSER_WINDOW_UNVERIFIED',
+  'COMPUTER_ESCAPE_UNAVAILABLE',
+  'COMPUTER_FIELD_FOCUS_CHANGED',
+  'COMPUTER_FIELD_STALE',
+  'COMPUTER_FOREGROUND_CHANGED',
+  'COMPUTER_FULLSCREEN_TOOLBAR',
+  'COMPUTER_INDICATOR_BOUNDS_FAILED',
+  'COMPUTER_INDICATOR_TIMEOUT',
+  'COMPUTER_OBSERVATION_CHANGED',
+  'COMPUTER_PLAN_HTTP',
+  'COMPUTER_PLAN_JSON',
+  'COMPUTER_PLAN_SCHEMA',
+  'COMPUTER_PLAN_TIMEOUT',
+  'COMPUTER_TARGET_COVERED',
+  'COMPUTER_TARGET_NOT_CLICKABLE',
+  'COMPUTER_TARGET_STALE',
 ]);
 const submissionReasons = new Set([
   'maintenance',
@@ -71,6 +116,41 @@ const submissionReasons = new Set([
   'busy',
   'skill_disabled',
   'internal',
+]);
+const youtubeMusicActions = new Set([
+  'open',
+  'search',
+  'play',
+  'start',
+  'pause',
+  'resume',
+  'next',
+  'previous',
+  'volume',
+  'status',
+]);
+const youtubeMusicResults = new Set([
+  'ready',
+  'opened',
+  'search_opened',
+  'playing',
+  'resumed',
+  'paused',
+  'skipped',
+  'previous',
+  'volume_set',
+  'disabled',
+  'unsupported',
+  'tab_not_found',
+  'ambiguous_tab',
+  'no_results',
+  'player_unavailable',
+  'helper_unavailable',
+  'browser_open_failed',
+  'playback_unverified',
+  'control_unavailable',
+  'control_unverified',
+  'error',
 ]);
 const counters = new Set([
   'contextShift',
@@ -151,8 +231,17 @@ export function responseTimingRecord(value) {
       result[key] = Math.round(value[key] * 1000) / 1000;
   if (value.stage === 'failed' && value.source === 'desktop' && submissionReasons.has(value.reason))
     result.reason = value.reason;
+  if (value.stage === 'youtube_music_start' && youtubeMusicActions.has(value.action))
+    result.action = value.action;
+  if (value.stage === 'youtube_music_result' && youtubeMusicResults.has(value.reason))
+    result.reason = value.reason;
   if (value.stage === 'computer_outcome') {
     if (computerReasons.has(value.reason)) result.reason = value.reason;
+    if (computerPhases.has(value.phase)) result.phase = value.phase;
+    if (computerFailureCodes.has(value.failureCode)) result.failureCode = value.failureCode;
+    if (Number.isInteger(value.httpStatus) && value.httpStatus >= 400 && value.httpStatus <= 599)
+      result.httpStatus = value.httpStatus;
+    if (value.outlineFallback === true) result.outlineFallback = true;
     for (const key of ['steps', 'completedCheckpoints', 'remainingCheckpoints'])
       if (Number.isInteger(value[key]) && value[key] >= 0 && value[key] <= 100)
         result[key] = value[key];

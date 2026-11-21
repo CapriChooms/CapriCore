@@ -122,6 +122,9 @@ async function startLocalLlama(
   });
   return waitForOwnedService(health, { name: 'llama', label: 'llama.cpp', signal, timeout: 15000 });
 }
+
+const timedOutGateways = new Map();
+
 export async function startGateway(rt = runtime(), { signal } = {}) {
   signal?.throwIfAborted();
   requireExecutable(nodePath, 'Node.js');
@@ -135,9 +138,20 @@ export async function startGateway(rt = runtime(), { signal } = {}) {
   if (requiresPrivacyRestart(managedProcess(rt.logPrefix))) await stopProcess(rt.logPrefix);
   if (applyOpenClawCompatibility(root) && managedProcess(rt.logPrefix))
     await stopProcess(rt.logPrefix);
+  signal?.throwIfAborted();
+  let owner = managedProcess(rt.logPrefix);
+  const timedOut = timedOutGateways.get(rt.logPrefix);
+  if (owner && timedOut && owner.pid === timedOut.pid && owner.startedAt === timedOut.startedAt) {
+    // Reconnect should replace a service that missed its readiness deadline.
+    // The saved identity prevents stopping a replacement started in the meantime.
+    await stopProcess(rt.logPrefix, { expected: timedOut });
+    signal?.throwIfAborted();
+    owner = managedProcess(rt.logPrefix);
+  }
+  timedOutGateways.delete(rt.logPrefix);
   // Probe occupancy without credentials. Never send a new installation's token
   // to an unrelated process that happens to own the default port.
-  if (!managedProcess(rt.logPrefix)) {
+  if (!owner) {
     const occupied = await fetch(`${rt.gatewayUrl}/readyz`, {
       redirect: 'error',
       signal: signal
@@ -153,45 +167,49 @@ export async function startGateway(rt = runtime(), { signal } = {}) {
         { code: 'CAPRI_SERVICE_PORT_OCCUPIED' },
       );
     }
-  }
-  const current = await request(`${rt.gatewayUrl}/v1/models`, {
-    headers: headers(rt),
-    timeout: 1500,
-    signal,
-  }).catch(() => null);
-  signal?.throwIfAborted();
-  if (current && !managedProcess(rt.logPrefix))
-    throw Object.assign(new Error(`Gateway port ${rt.gatewayPort} belongs to another process.`), {
-      code: 'CAPRI_SERVICE_PORT_OCCUPIED',
-    });
-  if (!current)
-    await launch(
+    signal?.throwIfAborted();
+    owner = await launch(
       rt.logPrefix,
       nodePath,
       [path.join(root, 'packages/runtime/bin/gateway-host.mjs'), rt.logPrefix],
       rt,
       rt.remote?.enabled ? { env: { CAPRI_REMOTE_PROXY_TOKEN: rt.remoteProxyToken } } : {},
     );
-  await waitForOwnedService(
-    async () => {
-      await request(`${rt.gatewayUrl}/startupz`, { timeout: 3000, signal });
-      await request(`${rt.gatewayUrl}/readyz`, { timeout: 3000, signal });
-      return request(`${rt.gatewayUrl}/v1/models`, { headers: headers(rt), timeout: 3000, signal });
-    },
-    { name: rt.logPrefix, label: 'OpenClaw', signal },
-  );
-  await waitForOwnedService(
-    async () => {
-      const value = await request(`${rt.gatewayUrl}/tools/invoke`, {
-        method: 'POST',
-        headers: headers(rt),
-        timeout: 10000,
-        signal,
-        body: JSON.stringify({ tool: 'session_status', args: {}, sessionKey: settings.sessionKey }),
-      });
-      return value?.ok && value.result?.details?.agentId === settings.agentId;
-    },
-    { name: rt.logPrefix, timeout: 180000, label: 'Capri agent admission', signal },
-  );
-  return request(`${rt.gatewayUrl}/v1/models`, { headers: headers(rt) });
+  }
+  const readiness = { name: rt.logPrefix, expected: owner, signal };
+  try {
+    const models = await waitForOwnedService(
+      async () => {
+        await request(`${rt.gatewayUrl}/startupz`, { timeout: 3000, signal });
+        await request(`${rt.gatewayUrl}/readyz`, { timeout: 3000, signal });
+        return request(`${rt.gatewayUrl}/v1/models`, {
+          headers: headers(rt),
+          timeout: 3000,
+          signal,
+        });
+      },
+      { ...readiness, label: 'OpenClaw' },
+    );
+    await waitForOwnedService(
+      async () => {
+        const value = await request(`${rt.gatewayUrl}/tools/invoke`, {
+          method: 'POST',
+          headers: headers(rt),
+          timeout: 10000,
+          signal,
+          body: JSON.stringify({
+            tool: 'session_status',
+            args: {},
+            sessionKey: settings.sessionKey,
+          }),
+        });
+        return value?.ok && value.result?.details?.agentId === settings.agentId;
+      },
+      { ...readiness, timeout: 180000, label: 'Capri agent admission' },
+    );
+    return models;
+  } catch (error) {
+    if (error.code === 'CAPRI_SERVICE_STARTUP_TIMEOUT') timedOutGateways.set(rt.logPrefix, owner);
+    throw error;
+  }
 }

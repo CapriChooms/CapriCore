@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 
-export const NATIVE_SOURCES = ['SpotifyBridge.cs', 'SpotifyAudio.cs', 'SpotifyAccessibility.cs'];
+export const NATIVE_SOURCES = [
+  'SpotifyBridge.cs',
+  'SpotifyAudio.cs',
+  'SpotifyAccessibility.cs',
+  'SpotifySearch.cs',
+];
 export function spotifySourceHash(root) {
   const hash = createHash('sha256');
   for (const name of [...NATIVE_SOURCES, 'ExportAutomation.cs'])

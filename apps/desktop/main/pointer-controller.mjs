@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { pointInRect, spriteDragHit, spritePressKind } from '../geometry.mjs';
+import { pointInRect, resizeWindowBounds, spriteDragHit, spritePressKind } from '../geometry.mjs';
 /** Native click-through and bounded drag gestures are independent of visual effects. */
 export class PointerController {
   constructor({
@@ -28,19 +28,20 @@ export class PointerController {
     this.avatarPress = null;
     this.ignored = true;
   }
-  beginWindow() {
+  beginWindow(resize) {
     this.endAvatar();
     this.drag = {
       cursor: this.screen.getCursorScreenPoint(),
       bounds: this.window.getBounds(),
+      resize,
       started: this.now(),
     };
-    this.drag.last = { x: this.drag.bounds.x, y: this.drag.bounds.y };
+    this.drag.last = this.drag.bounds;
   }
   endWindow() {
     const drag = this.drag;
     this.drag = null;
-    this.onEnd(drag);
+    if (drag) this.onEnd?.(drag);
   }
   beginAvatar(point, sprite, mask, headpat) {
     if (this.drag || this.avatarPress || !point) return false;
@@ -78,21 +79,24 @@ export class PointerController {
     if (this.drag) {
       if (time - this.drag.started > 30000) this.endWindow();
       else {
-        const bounds = this.placeDrag(
-          {
-            ...this.drag.bounds,
-            x: Math.round(this.drag.bounds.x + cursor.x - this.drag.cursor.x),
-            y: Math.round(this.drag.bounds.y + cursor.y - this.drag.cursor.y),
-          },
-          cursor,
-        );
-        const { x, y } = bounds;
+        const { bounds: start, resize, last } = this.drag;
+        const movement = { x: cursor.x - this.drag.cursor.x, y: cursor.y - this.drag.cursor.y };
+        const bounds = resize
+          ? resizeWindowBounds(start, resize.edge, movement, resize.workArea, resize.minimum)
+          : this.placeDrag(
+              {
+                ...start,
+                x: Math.round(start.x + movement.x),
+                y: Math.round(start.y + movement.y),
+              },
+              cursor,
+            );
         // setPosition can accumulate native DIP rounding while a transparent
         // Windows window is dragged at fractional scaling. Preserve its size in
         // the same operation, and make no native call for a stationary cursor.
-        if (x !== this.drag.last.x || y !== this.drag.last.y) {
+        if (['x', 'y', 'width', 'height'].some((key) => bounds[key] !== last[key])) {
           this.window.setBounds(bounds, false);
-          this.drag.last = { x, y };
+          this.drag.last = bounds;
         }
       }
     }

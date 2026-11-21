@@ -11,7 +11,7 @@ Scheduling is local and deterministic, before invoking a language model:
 - A custom limit of 1–30 comments per hour overrides the preset. The minimum spacing is one hour divided by that limit. Clearing the number restores the preset; selecting another preset also clears the override. This is a maximum, not a promise to speak that often. The full rolling-hour budget survives restart.
 - Failed/declined attempts have a one-minute cooldown. Budgets and recent comment text survive restart.
 - Quiet hours default to 23:00–09:00 in local Windows time; the Quiet hours switch explicitly disables them. Older equal start/end configurations migrate as disabled.
-- Typing, active user speech, replies/playback, settings/history, lock, sleep, hidden windows, fullscreen apps and process exclusions suppress comments.
+- Typing, active user speech, replies/playback, settings/history, lock, sleep, hidden windows and process exclusions suppress comments. Fullscreen comments require the opted-in video and gameplay mode and a matching shared foreground window.
 - Discord, Teams, Zoom, PowerPoint and OBS are excluded initially. Add process names for other calls, windowed games or presentations; browser calls and all windowed games cannot be detected reliably.
 - Candidates settle briefly, expire after 15–20 seconds and are dropped after a foreground change. There is no catch-up queue.
 
@@ -19,7 +19,15 @@ Spontaneous comments can be enabled independently of return/media reactions. A c
 
 Typing and microphone activity temporarily block delivery without moving the scheduled attempt indefinitely into the future. A completed ordinary reply adds a 45-second quiet period. Conversational mode allows at most two earlier retries, 60–90 seconds apart, after the model chooses silence; it then returns to the normal interval. Spontaneous thoughts use shared conversation and avoid return greetings and internal system-event wording. Silence remains a valid choice when there is no useful topic.
 
-Other supported triggers are returning after idle and, if separately selected, bringing VLC, mpv, Spotify or Windows Media Player forward. A media app being foreground does not prove playback or establish video content. No comment may claim screen perception. Session-ending notifications cancel optional work; they never start Qwen or delay shutdown. Prepared farewell playback and richer media events remain future work.
+Other supported triggers are returning after idle and, if separately selected, bringing VLC, mpv, Spotify or Windows Media Player forward. These events establish app focus or user activity only. Session-ending notifications cancel optional work without starting a reply.
+
+## Follow videos and gameplay (BETA)
+
+Enable **Follow videos and gameplay** in **Initiative**, then start **Screen observation** for the video or game window with a local vision model selected. Capri uses the existing frame analysis to react to a recent visible moment. For video, Windows media data can supply the title and playback position when a single session matches the shared foreground window. Unavailable times are left out. Gameplay comments use visible details from the selected window, including supported fullscreen capture.
+
+This setting starts off. Selecting a window starts the existing bounded capture session. The preview adds a bounded Windows metadata read beside a scheduled image analysis and uses the same quiet hours, cancellation and comment limits. The description and playback details stay in memory for the active observation. Screen comments use local voice synthesis when available. A context change can discard a pending comment. [Windows media timeline](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessiontimelineproperties)
+
+## Conversation and delivery
 
 The selected local Qwen generates a short structured response or chooses silence. This path provides no action tools and has no program/file/music dispatch mechanism. It reads bounded history from the existing OpenClaw session and current persona/shared owner memory. A delivered line is appended as an assistant message to that session with an event label, and appears in the normal desktop journal/subtitles/voice pipeline. It does not create a second conversation or pretend that the owner sent an event prompt.
 

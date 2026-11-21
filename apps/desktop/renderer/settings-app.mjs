@@ -4,12 +4,15 @@ import { finishSettingsLoading, panelLoading } from './settings-loading.mjs';
 import { KnowledgePanel } from './knowledge-panel.mjs';
 import { WorkflowsPanel } from './workflows-panel.mjs';
 import { CodingPanel } from './coding-panel.mjs';
+import { ChessPanel } from './chess-panel.mjs';
 import { UserToolsPanel } from './user-tools-panel.mjs';
 import { CreditsPanel } from './credits-panel.mjs';
 import { DeveloperPanel } from './developer-panel.mjs';
 import { inferencePrivacy } from './inference-privacy.mjs';
 import { DiscordPanel } from './discord-panel.mjs';
 import { MusicListeningPanel } from './music-listening-panel.mjs';
+import { AudioRoutingPanel } from './audio-routing-panel.mjs';
+import { bindAudioOutput, createAudioOutputContext } from './local-audio-output.mjs';
 // SPDX-License-Identifier: GPL-3.0-only
 import { InterfaceLanguage, validateLanguages } from './language-settings.mjs';
 import { prepareInterfaceLocale } from './interface-translations.mjs';
@@ -45,8 +48,11 @@ import {
 } from './settings-registry.mjs';
 import { findSettings, indexSettings } from './settings-search.mjs';
 import { SettingsLocation } from './settings-location.mjs';
+import { SettingsGuide } from './settings-guide.mjs';
 import { interferenceFrame } from './presence-model.mjs';
 import { CALL_VOICE_VOLUME_DEFAULT } from './call-audio-settings.mjs';
+import { dimmingFeatherWidth } from './dimming-settings.mjs';
+import { CAMERA_BACKGROUND_COLOR, CAMERA_HEIGHT, CAMERA_WIDTH } from '../call-camera-protocol.mjs';
 
 const raw = window.capri,
   ui = new InterfaceLanguage(),
@@ -58,7 +64,7 @@ let locationSuspended = false,
   locationTimer;
 function rememberLocation() {
   clearTimeout(locationTimer);
-  if (!current || busy || locationSuspended) return;
+  if (!current || busy || locationSuspended || $('capri-guide').open) return;
   location.remember(current, $('companion').scrollTop, $('settings-navigation').scrollTop);
 }
 function restoreLocation() {
@@ -95,7 +101,7 @@ let closeRequested = false,
   previewTail = Promise.resolve(),
   lastPreview;
 const deferred = new Map();
-const feedback = new ButtonFeedback();
+new ButtonFeedback();
 function notice(message = '') {
   message = String(message).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
   clearTimeout(noticeTimer);
@@ -120,8 +126,13 @@ const confirmationRequests = new ConfirmationRequests({
   respond: (value) => raw.confirmAction(value),
 });
 async function close() {
+  if (settingsGuide.active) {
+    settingsGuide.close();
+    return;
+  }
   if (applyingDraft || resettingSettings || document.querySelector('dialog[open]')) return;
   stopMicrophoneMonitor();
+  companion.stopWakePreview();
   await Promise.allSettled([...writes]);
   closeRequested = true;
   if (!syncDraftActions().length) {
@@ -136,15 +147,7 @@ if (!response.ok) throw new Error('Settings forms unavailable');
 const template = new DOMParser().parseFromString(await response.text(), 'text/html');
 for (const form of template.querySelectorAll('.preferences-panel, #dimming-panel'))
   $('settings-forms').append(form.cloneNode(true));
-for (const id of ['initiative-panel', 'screen-panel']) {
-  const heading = document.querySelector('#' + id + ' h2');
-  if (heading) {
-    const badge = document.createElement('small');
-    badge.className = 'beta-badge';
-    badge.textContent = ' (BETA)';
-    heading.append(badge);
-  }
-}
+const chess = new ChessPanel({ api: raw.chess, ui, host: $('settings-forms') });
 const general = document.createElement('section');
 general.id = 'general-panel';
 general.className = 'preferences-panel';
@@ -153,7 +156,8 @@ general.dataset.panelCut = '12';
 general.innerHTML = `
   <h2>General</h2>
   <p id="general-status" role="status"></p>
-  <section class="general-group" aria-labelledby="general-window-title">
+  <div class="preferences-content">
+  <section class="settings-card general-group" aria-labelledby="general-window-title">
     <h3 id="general-window-title">Window controls</h3>
     <div class="general-setting">
       <button type="button" data-window-action="hide" aria-describedby="general-hide-help">Hide to tray</button>
@@ -180,7 +184,7 @@ general.innerHTML = `
       <p id="general-focus-mode-help">Hide both windows until you bring Capri back from the system tray.</p>
     </div>
   </section>
-  <section class="general-group" aria-labelledby="general-session-title">
+  <section class="settings-card general-group" aria-labelledby="general-session-title">
     <h3 id="general-session-title">Connection, sleep and quit</h3>
     <div class="general-setting">
       <button type="button" data-window-action="reconnect" aria-describedby="general-reconnect-help">Reconnect</button>
@@ -195,13 +199,14 @@ general.innerHTML = `
       <p id="general-quit-help">Capri will close and unload the local models. Any active reply will stop.</p>
     </div>
   </section>
-  <section class="general-group" aria-labelledby="general-reset-title">
+  <section class="settings-card general-group" aria-labelledby="general-reset-title">
     <h3 id="general-reset-title">Settings reset</h3>
     <div class="general-setting">
       <button type="button" class="danger-action" id="general-reset-settings" aria-describedby="general-reset-help">Reset settings to defaults</button>
       <p id="general-reset-help">Your conversations, memory, installed models, connections and permissions are kept.</p>
     </div>
   </section>
+  </div>
 `;
 $('settings-forms').append(general);
 const shared = {
@@ -220,9 +225,9 @@ language = new LanguagePanel({ ...shared, confirm, onChange: () => renderNavigat
 companion = new CompanionPanel({
   ...shared,
   confirm,
+  wakeOutputDevice: () => audioPlaybackDevice,
   deferDrafts: true,
-  onChange: (value) => {
-    feedback.configure(value.buttonFeedback);
+  onChange: () => {
     captureDrafts('companion-settings');
     syncDraftActions();
   },
@@ -231,6 +236,35 @@ const models = new ModelsPanel(shared),
   updates = new UpdatesPanel({ ...shared, deferDrafts: true });
 const inference = new InferencePanel({ api, ui, onError: notice });
 const voiceApi = new ExternalTtsPanel({ api, ui });
+const audioRouting = new AudioRoutingPanel({
+  api: raw,
+  ui,
+  onError: notice,
+  onOpenSettings: async (section) => {
+    await navigate(section);
+    if (section === 'calls' && audioRouting.value?.routes?.call) {
+      $('call-output-advanced').open = true;
+      $('call-output-device').scrollIntoView({ block: 'center' });
+    }
+  },
+});
+$('settings-forms').append(audioRouting.panel);
+let audioPlaybackDevice = '';
+function showAudioRouting(snapshot) {
+  if (!snapshot) return;
+  audioRouting.show(snapshot);
+  if (snapshot.routes) {
+    const id = snapshot.routes.speaker ?? '';
+    if (audioPlaybackDevice !== id) {
+      stopMicrophoneMonitor();
+      companion.stopWakePreview();
+    }
+    audioPlaybackDevice = id;
+    voiceApi.setOutputDevice(id);
+    models.voices.setOutputDevice(id);
+    time.setOutputDevice(id);
+  }
+}
 const knowledge = new KnowledgePanel({ api, ui, onError: notice });
 const workflows = new WorkflowsPanel({ api, ui, onError: notice });
 const coding = new CodingPanel({ api, ui, onError: notice });
@@ -266,7 +300,18 @@ raw.onEvent((event) => {
 });
 const effects = new VoiceEffectsPanel({ ...shared, onSettings: () => {}, deferDrafts: true });
 const files = new FileAccessPanel(shared),
-  applications = new ApplicationsPanel({ ...shared, deferDrafts: true });
+  applications = new ApplicationsPanel({
+    ...shared,
+    deferDrafts: true,
+    resumeApplicationAccess: async () => {
+      const { id } = SKILL_BY_SECTION.applications;
+      if (!skillState[id]?.enabled) {
+        await raw.setSkill({ id, enabled: true });
+        return raw.applicationAccess();
+      }
+      return raw.applicationAccess(true);
+    },
+  });
 raw.onEvent((event) => {
   if (event.type === 'computer-access') applications.showComputerAccess(event.settings);
 });
@@ -290,6 +335,7 @@ function skillPanel(section, ...controls) {
 }
 
 const reasoningSettings = document.createElement('div');
+reasoningSettings.className = 'settings-card';
 reasoningSettings.innerHTML = `<label for="reasoning-effort">Reasoning effort</label>
   <select id="reasoning-effort" aria-describedby="reasoning-effort-help">
     <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
@@ -297,17 +343,24 @@ reasoningSettings.innerHTML = `<label for="reasoning-effort">Reasoning effort</l
   <p id="reasoning-effort-help" class="settings-help">Higher effort gives supported models more time and tokens for difficult requests.</p>`;
 skillPanel('reasoning', reasoningSettings);
 const webSearchOptions = document.createElement('div');
+webSearchOptions.className = 'settings-card';
 webSearchOptions.innerHTML = `<label for="web-search-engine">Search engine</label>
   <select id="web-search-engine"><option value="duckduckgo">DuckDuckGo</option><option value="wikipedia">Wikipedia</option></select>
   <label for="web-search-sort">Result order</label>
-  <select id="web-search-sort"><option value="relevance">Relevance</option><option value="title">Title (A–Z)</option></select>
-  <label for="web-search-domains">Website domains</label>
+  <select id="web-search-sort"><option value="relevance">Relevance</option><option value="title">Title (A–Z)</option></select>`;
+const webSearchFilter = document.createElement('div');
+webSearchFilter.className = 'settings-card';
+webSearchFilter.innerHTML = `<label for="web-search-domains">Website domains</label>
   <input id="web-search-domains" type="text" maxlength="512" placeholder="example.org, example.com" aria-describedby="web-search-filter-help">
   <label><input type="checkbox" id="web-search-exclude"> Exclude these domains</label>
-  <p id="web-search-filter-help" class="settings-help">Enter domains to keep only results from those sites. Leave empty for all websites.</p>
-  <button id="web-search-save" type="button">Save search settings</button>`;
-skillPanel('web-search', webSearchOptions);
+  <p id="web-search-filter-help" class="settings-help">Enter domains to keep only results from those sites. Leave empty for all websites.</p>`;
+const webSearchActions = document.createElement('div');
+webSearchActions.className = 'settings-actions';
+webSearchActions.innerHTML =
+  '<button id="web-search-save" type="button">Save search settings</button>';
+skillPanel('web-search', webSearchOptions, webSearchFilter, webSearchActions);
 const attachmentFormats = document.createElement('div');
+attachmentFormats.className = 'settings-card';
 attachmentFormats.innerHTML = `
   <h3>Formats supported by the current model</h3>
   <dl>
@@ -328,7 +381,7 @@ function showAttachmentFormats(vision) {
 }
 reasoningSettings.querySelector('select').onchange = ({ currentTarget }) =>
   void changeSkill(SKILL_BY_SECTION.reasoning, { effort: currentTarget.value });
-webSearchOptions.querySelector('button').onclick = () =>
+$('web-search-save').onclick = () =>
   void changeSkill(SKILL_BY_SECTION['web-search'], {
     search: {
       engine: $('web-search-engine').value,
@@ -338,14 +391,72 @@ webSearchOptions.querySelector('button').onclick = () =>
     },
   });
 skillPanel('private-memory', $('private-memory-controls'));
-skillPanel('spotify', applications.panel.querySelector('.spotify-access'));
+const spotifyAccess = applications.panel.querySelector('.spotify-access');
+spotifyAccess.classList.add('settings-card');
+skillPanel('spotify', spotifyAccess);
+const youtubeMusicAccess = document.createElement('section');
+youtubeMusicAccess.className = 'settings-card';
+youtubeMusicAccess.innerHTML = `
+  <p id="youtube-music-help">Use YouTube Music in your browser. Sign in there to use your account. Capri controls only the YouTube Music tab.</p>
+  <label><input id="youtube-music-preferred" type="checkbox"> <span>Use YouTube Music for music requests</span></label>
+  <div class="settings-actions">
+    <button id="youtube-music-open" type="button" aria-describedby="youtube-music-help">Open YouTube Music</button>
+    <button id="youtube-music-check" type="button">Verify connection</button>
+  </div>
+  <p id="youtube-music-status" role="status" data-untranslated></p>`;
+skillPanel('youtube-music', youtubeMusicAccess);
+const youtubeMusicSkill = SKILL_BY_SECTION['youtube-music'];
+let youtubeMusicStatus = '';
+let youtubeMusicRequest;
+function showYouTubeMusicSettings() {
+  const saved = skillState[youtubeMusicSkill.id];
+  const pending = pendingSkills.get(youtubeMusicSkill.id);
+  const enabled = (pending?.enabled ?? saved?.enabled) === true;
+  const preferred = $('youtube-music-preferred');
+  preferred.checked = (pending?.preferred ?? saved?.preferred) === true;
+  preferred.disabled = !enabled || Boolean(pending);
+  $('youtube-music-open').disabled = $('youtube-music-check').disabled =
+    !enabled || Boolean(youtubeMusicRequest || pending);
+  const status =
+    youtubeMusicRequest?.op === 'verify'
+      ? 'Checking YouTube Music connection…'
+      : youtubeMusicStatus || 'YouTube Music control is enabled.';
+  $('youtube-music-status').textContent = ui.text(
+    enabled ? status : 'Enable YouTube Music in Settings → Skills first.',
+  );
+}
+async function runYouTubeMusic(op) {
+  if (youtubeMusicRequest || !skillState[youtubeMusicSkill.id]?.enabled) return;
+  const request = { op };
+  youtubeMusicRequest = request;
+  showYouTubeMusicSettings();
+  try {
+    const result = await raw.youtubeMusic(request);
+    if (youtubeMusicRequest === request) youtubeMusicStatus = result.message;
+  } catch {
+    if (youtubeMusicRequest === request)
+      youtubeMusicStatus = 'YouTube Music did not confirm this action. Check the player.';
+  } finally {
+    if (youtubeMusicRequest === request) {
+      youtubeMusicRequest = undefined;
+      showYouTubeMusicSettings();
+    }
+  }
+}
+$('youtube-music-open').onclick = () => void runYouTubeMusic('open');
+$('youtube-music-check').onclick = () => void runYouTubeMusic('verify');
+$('youtube-music-preferred').onchange = ({ currentTarget }) =>
+  void changeSkill(youtubeMusicSkill, { preferred: currentTarget.checked });
 const calculatorPermission = $('application-calculator').closest('label');
 const calculatorDisplay = document.createElement('label');
 calculatorDisplay.innerHTML =
   '<input id="calculator-show-window" type="checkbox"> <span>Show calculations in Windows Calculator</span>';
 calculatorDisplay.querySelector('input').onchange = ({ currentTarget }) =>
   void changeSkill(SKILL_BY_SECTION.calculator, { showWindow: currentTarget.checked });
-skillPanel('calculator', calculatorDisplay);
+const calculatorCard = document.createElement('div');
+calculatorCard.className = 'settings-card';
+calculatorCard.append(calculatorDisplay);
+skillPanel('calculator', calculatorCard);
 calculatorPermission.nextElementSibling.remove();
 calculatorPermission.hidden = true;
 calculatorPermission.setAttribute('aria-hidden', 'true');
@@ -356,15 +467,8 @@ $('brain-enabled').closest('label').setAttribute('aria-hidden', 'true');
 $('discord-enabled').closest('label').hidden = true;
 $('discord-enabled').closest('label').setAttribute('aria-hidden', 'true');
 const voiceContent = effects.panel.querySelector('.preferences-content');
-function moveLanguageControls(id, last, host) {
-  const field = $('language-' + id);
-  const card = document.createElement('section');
-  card.className = 'settings-card';
-  for (let node = field.labels[0], next; node; node = next) {
-    next = node.nextElementSibling;
-    card.append(node);
-    if (node.id === last) break;
-  }
+function moveLanguageControls(id, host) {
+  const card = $('language-' + id + '-controls');
   const apply = document.createElement('button');
   apply.type = 'button';
   apply.textContent = 'Apply languages';
@@ -379,18 +483,16 @@ function moveLanguageControls(id, last, host) {
       syncDraftActions();
     }
   };
-  card.append(apply);
+  const actions = document.createElement('div');
+  actions.className = 'settings-actions';
+  actions.append(apply);
+  card.append(actions);
   host.prepend(card);
   return card;
 }
-const voiceLanguageControls = moveLanguageControls(
-  'speech',
-  'language-install-progress',
-  voiceContent,
-);
+const voiceLanguageControls = moveLanguageControls('speech', voiceContent);
 const recognitionLanguageControls = moveLanguageControls(
   'recognition',
-  'language-recognition-status',
   speech.panel.querySelector('.preferences-content'),
 );
 const speechInstallation = document.createElement('div');
@@ -402,20 +504,22 @@ speechInstallation.append(
 voiceLanguageControls.lastElementChild.before(speechInstallation);
 const effectHeading = document.createElement('h3');
 effectHeading.textContent = 'Voice effects';
+$('voice-effects-card').prepend(effectHeading);
 const voiceSources = document.createElement('div');
+voiceSources.className = 'settings-card';
 voiceSources.innerHTML = `
+  <p id="voice-source-status" role="status"></p>
   <div class="settings-actions" role="group" aria-label="Current voice source">
     <button id="voice-source-local" type="button" aria-controls="voice-local-settings">Local</button>
     <button id="voice-source-api" type="button" aria-controls="external-tts-panel">Voice API</button>
-  </div>
-  <p id="voice-source-status" role="status"></p>
-  <div id="voice-local-settings">
-    <button id="voice-use-local" type="button" hidden>Use local voice</button>
   </div>`;
-voiceLanguageControls.before(voiceSources);
-const localVoicePanel = $('voice-local-settings');
+const localVoicePanel = document.createElement('div');
+localVoicePanel.id = 'voice-local-settings';
+localVoicePanel.className = 'settings-stack';
+localVoicePanel.innerHTML =
+  '<div class="settings-actions" id="voice-use-local-actions" hidden><button id="voice-use-local" type="button">Use local voice</button></div>';
+voiceLanguageControls.before(voiceSources, localVoicePanel, voiceApi.panel);
 localVoicePanel.append(voiceLanguageControls, models.voices.panel);
-voiceSources.after(voiceApi.panel, effectHeading);
 voiceApi.panel.classList.remove('preferences-panel');
 voiceApi.panel.classList.add('skill-embedded-panel');
 delete voiceApi.panel.dataset.panelCut;
@@ -431,7 +535,7 @@ $('voice-use-local').onclick = () => void voiceApi.setEnabled(false);
 voiceApi.onSourceChange = (cloud, busy) => {
   $('voice-source-status').textContent =
     ui.text('Current voice source') + ' · ' + ui.text(cloud ? 'Cloud voice' : 'Local');
-  $('voice-use-local').hidden = !cloud;
+  $('voice-use-local-actions').hidden = !cloud;
   $('voice-use-local').disabled = busy;
 };
 const drafts = [];
@@ -563,30 +667,26 @@ $('settings-stay').onclick = () => {
 };
 $('settings-discard').onclick = () => resolveDrafts(false);
 $('settings-apply').onclick = () => resolveDrafts(true);
-// Split the existing personality/wake/appearance forms without duplicating their state.
-const groups = new Map();
 const contents = companion.panel.querySelector('[data-companion-tab="settings"]');
-let group;
-for (const node of [...contents.children]) {
-  if (node.tagName === 'H3') {
-    group = document.createElement('div');
-    group.dataset.companionGroup = node.textContent.trim();
-    groups.set(group.dataset.companionGroup, group);
-    contents.insertBefore(group, node);
-  }
-  if (group) group.append(node);
-}
-contents.append($('companion-save').parentElement);
+const groups = new Map(
+  [...contents.querySelectorAll(':scope > [data-companion-group]')].map((group) => [
+    group.dataset.companionGroup,
+    group,
+  ]),
+);
 companion.replySettings = $('reply-visibility-settings');
-$('general-focus-mode-help').parentElement.after(companion.replySettings);
+const replyCard = document.createElement('section');
+replyCard.className = 'settings-card general-group';
+replyCard.append(companion.replySettings);
+$('general-window-title').parentElement.after(replyCard);
 // Keep one set of motion controls and one draft; legacy deep links resolve to Window.
 const windowDimming = $('dimming-panel');
 windowDimming.querySelector('.settings-heading')?.setAttribute('hidden', '');
 delete windowDimming.dataset.panelCut;
 const dimmingTitle = document.createElement('h3');
 dimmingTitle.textContent = 'Window dimming';
-windowDimming.prepend(dimmingTitle);
-groups.get('Window motion').append(windowDimming);
+windowDimming.querySelector('.settings-card').prepend(dimmingTitle);
+groups.get('Window motion').after(windowDimming);
 const reminderSettings = groups.get('Reminders');
 companion.reminderSettings = reminderSettings;
 groups.delete('Reminders');
@@ -594,16 +694,15 @@ time.panel.querySelector('.preferences-content').append(reminderSettings);
 const companionSections = new Map(
   Object.entries({
     appearance: [
-      'Button press feedback',
       'Visual glitch',
       'Interface theme',
       'Portrait',
       'Desktop presentation',
       'System resource usage',
     ],
-    window: ['Window motion'],
-    personality: ['Conversation', 'Personality'],
-    dialogue: ['Memory controls'],
+    window: ['Window layout', 'Window motion'],
+    personality: ['Conversation', 'Hands-free conversation', 'Personality'],
+    dialogue: ['Saved memories', 'Memory controls'],
     'avatar-skill': [
       'Desktop roaming',
       'Teleport effects',
@@ -628,7 +727,8 @@ const automaticMemoryHelp = document.createElement('p');
 automaticMemoryHelp.className = 'settings-help';
 automaticMemoryHelp.textContent =
   'The active model may check short statements about your preferences after a reply. You can edit or delete saved facts here.';
-groups.get('Memory controls').append(automaticMemory, automaticMemoryHelp);
+const savedMemory = groups.get('Saved memories');
+savedMemory.querySelector('h3').after(automaticMemory, automaticMemoryHelp);
 const micGroup = document.createElement('div');
 micGroup.className = 'settings-card';
 micGroup.innerHTML = `
@@ -637,13 +737,12 @@ micGroup.innerHTML = `
   <button id="settings-device-refresh" type="button">Refresh devices</button>
   <div class="microphone-monitor-row">
     <label class="skill-display-control"><input id="settings-microphone-monitor" type="checkbox" role="switch" aria-describedby="settings-microphone-monitor-help"><span>Listen to microphone</span></label>
-    <meter id="settings-microphone-level" min="0" max="1" value="0" aria-label="Microphone level"></meter>
+    <meter id="settings-microphone-level" min="0" max="1" high="0.95" optimum="0" value="0" aria-label="Microphone level"></meter>
   </div>
   <p id="settings-microphone-monitor-help" class="settings-help">Use headphones to avoid feedback.</p>
   <label class="microphone-gain-label" for="settings-microphone-gain"><span>Microphone gain</span><output id="settings-microphone-gain-value" for="settings-microphone-gain"></output></label>
   <input id="settings-microphone-gain" type="range" step="1">`;
-$('speech-panel').querySelector('.preferences-content')?.prepend(micGroup) ??
-  $('speech-panel').append(micGroup);
+(speech.panel.querySelector('.preferences-content') ?? speech.panel).prepend(micGroup);
 const microphoneDevice = $('settings-audio-device');
 const microphoneMonitor = $('settings-microphone-monitor');
 const microphoneLevel = $('settings-microphone-level');
@@ -678,15 +777,18 @@ async function startMicrophoneMonitor() {
     if (monitorRun !== run) return;
     stopMicrophoneMonitor();
     notice(
-      ['NotAllowedError', 'SecurityError'].includes(error?.name)
-        ? 'Microphone access was denied. Check Windows microphone access for desktop apps.'
-        : 'The microphone could not start.',
+      error?.code === 'CAPRI_SPEAKER_OUTPUT'
+        ? error.message
+        : ['NotAllowedError', 'SecurityError'].includes(error?.name)
+          ? 'Microphone access was denied. Check Windows microphone access for desktop apps.'
+          : 'The microphone could not start.',
     );
   };
   try {
-    // Preview stays on the Windows default playback device at a modest level.
-    run.context = new AudioContext({ latencyHint: 'interactive' });
-    const resumed = run.context.resume();
+    run.context = createAudioOutputContext(audioPlaybackDevice, { latencyHint: 'interactive' });
+    const resumed = bindAudioOutput(run.context, audioPlaybackDevice).then(() =>
+      run.context.resume(),
+    );
     void resumed.catch(fail);
     run.timer = setTimeout(() => fail(), 10000);
     if (!(await raw.setMicrophoneMonitor(true))) throw new Error('Microphone preview unavailable');
@@ -781,6 +883,133 @@ $('settings-device-refresh').onclick = () => {
   stopMicrophoneMonitor();
   void devices();
 };
+let callCamera = {},
+  cameraRequest,
+  cameraBackgroundBusy = false;
+const cameraPreview = $('call-camera-preview');
+cameraPreview.width = CAMERA_WIDTH;
+cameraPreview.height = CAMERA_HEIGHT;
+let settingsVisible = false,
+  cameraPreviewInView = false,
+  cameraPreviewRequested = false,
+  cameraPreviewRevision = 0;
+
+function syncCameraPreview() {
+  const requested = settingsVisible && cameraPreviewInView && callCamera.supported === true;
+  if (requested === cameraPreviewRequested) return;
+  cameraPreviewRequested = requested;
+  cameraPreviewRevision++;
+  if (!requested) cameraPreview.width = CAMERA_WIDTH;
+  void raw.setCameraPreview(requested).catch(() => {});
+}
+
+new IntersectionObserver(([entry]) => {
+  cameraPreviewInView = entry.isIntersecting;
+  syncCameraPreview();
+}).observe(cameraPreview);
+
+async function drawCameraPreview(bytes) {
+  if (!cameraPreviewRequested) return;
+  const revision = ++cameraPreviewRevision;
+  const frame = await createImageBitmap(new Blob([bytes], { type: 'image/png' })).catch(() => null);
+  if (!frame) return;
+  if (revision === cameraPreviewRevision) cameraPreview.getContext('2d')?.drawImage(frame, 0, 0);
+  frame.close();
+}
+
+function showCallCamera() {
+  const input = $('call-camera-enabled');
+  const skillEnabled = skillState['capri.voice-calls']?.enabled === true;
+  const pending = cameraRequest !== undefined || callCamera.pending === true;
+  input.checked = cameraRequest ?? callCamera.enabled === true;
+  input.disabled = !callCamera.supported || !skillEnabled || pending;
+  $('call-camera-card').setAttribute('aria-busy', String(pending || cameraBackgroundBusy));
+  $('call-camera-status').textContent = ui.text(
+    !callCamera.supported
+      ? 'Unavailable'
+      : (callCamera.error ?? (callCamera.enabled ? 'Ready' : 'Off')),
+  );
+  const { color = CAMERA_BACKGROUND_COLOR, imageRevision = null } = callCamera.background ?? {};
+  const editable = callCamera.supported && skillEnabled && !cameraBackgroundBusy;
+  $('call-camera-background').hidden = !callCamera.supported;
+  $('call-camera-color').value = color;
+  $('call-camera-color').disabled = !editable;
+  $('call-camera-image-pick').disabled = !editable;
+  $('call-camera-image-remove').hidden = imageRevision === null;
+  $('call-camera-image-remove').disabled = !editable;
+  $('call-camera-background-reset').disabled =
+    !editable || (imageRevision === null && color === CAMERA_BACKGROUND_COLOR);
+  $('call-camera-preview-panel').hidden = !callCamera.supported;
+  syncCameraPreview();
+}
+
+$('call-camera-enabled').onchange = async (event) => {
+  cameraRequest = event.target.checked;
+  showCallCamera();
+  try {
+    callCamera = await raw.callCamera(cameraRequest);
+  } catch (error) {
+    notice(error.message);
+  } finally {
+    cameraRequest = undefined;
+    showCallCamera();
+  }
+};
+
+async function saveCameraBackground(prepare) {
+  if (cameraBackgroundBusy) return;
+  cameraBackgroundBusy = true;
+  showCallCamera();
+  try {
+    callCamera = await raw.setCallCameraBackground(await prepare());
+  } catch (error) {
+    notice(error.message);
+  } finally {
+    cameraBackgroundBusy = false;
+    showCallCamera();
+  }
+}
+
+async function cameraBackgroundPng(file) {
+  const invalid = 'Choose a valid PNG or JPEG image up to 12 MB.';
+  if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 12 * 1024 * 1024)
+    throw new Error(invalid);
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = CAMERA_WIDTH;
+    canvas.height = CAMERA_HEIGHT;
+    const scale = Math.max(CAMERA_WIDTH / bitmap.width, CAMERA_HEIGHT / bitmap.height);
+    const width = bitmap.width * scale;
+    const height = bitmap.height * scale;
+    canvas
+      .getContext('2d')
+      .drawImage(bitmap, (CAMERA_WIDTH - width) / 2, (CAMERA_HEIGHT - height) / 2, width, height);
+    const png = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    return new Uint8Array(await png.arrayBuffer());
+  } catch {
+    throw new Error(invalid);
+  } finally {
+    bitmap?.close();
+  }
+}
+
+$('call-camera-color').onchange = (event) => {
+  const color = event.target.value;
+  void saveCameraBackground(() => ({ color }));
+};
+$('call-camera-image-pick').onclick = () => $('call-camera-image-file').click();
+$('call-camera-image-file').onchange = (event) => {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (file) void saveCameraBackground(async () => ({ image: await cameraBackgroundPng(file) }));
+};
+$('call-camera-image-remove').onclick = () =>
+  void saveCameraBackground(() => ({ color: callCamera.background.color }));
+$('call-camera-background-reset').onclick = () =>
+  void saveCameraBackground(() => ({ color: CAMERA_BACKGROUND_COLOR }));
+
 let callAudio = {},
   callOutputs = [],
   callAudioBusy = false,
@@ -893,7 +1122,11 @@ function showCallAudio() {
   $('call-voice-volume').disabled = !supported || pending;
   showCallVolume();
   const select = $('call-output-device');
-  const selected = callAudio.deviceId || select.value;
+  const preferred = callAudio.preferredDeviceId ?? '';
+  const selected =
+    callAudio.deviceId ||
+    (select.dataset.preferredDevice === preferred ? select.value || preferred : preferred);
+  select.dataset.preferredDevice = preferred;
   const placeholder = document.createElement('option');
   placeholder.value = '';
   placeholder.textContent = ui.text('Choose a call output device…');
@@ -1001,7 +1234,7 @@ $('general-reset-settings').onclick = async () => {
   if (resettingSettings || applyingDraft || busy) return;
   resettingSettings = true;
   $('settings-forms').inert = true;
-  closeSettingHelp();
+  settingsGuide.close({ restoreFocus: false });
   clearTimeout(previewTimer);
   syncDraftActions();
   let reset = false;
@@ -1074,7 +1307,7 @@ function dimmingDraft() {
 }
 const companionPanelId = companion.panel.id;
 const companionDiscard = () => companion.show(deferred.get(companionPanelId) ?? companion.value);
-addDraft(
+const companionDraft = addDraft(
   'appearance',
   companionPanelId,
   () => JSON.stringify(companion.readSettings()),
@@ -1198,9 +1431,9 @@ addDraft(
 addDraft(
   'updates',
   updates.panel.id,
-  () => updates.channel().experimental,
-  () => updates.saveChannel(),
-  () => updates.show(updates.value, { resetChannel: true }),
+  () => JSON.stringify(updates.settings()),
+  () => updates.saveSettings(),
+  () => updates.show(updates.value, { resetSettings: true }),
 );
 addDraft(
   'music',
@@ -1304,6 +1537,8 @@ function refreshScreenText() {
 function applyLanguage(locale) {
   const changed = ui.language !== locale;
   ui.apply(locale);
+  settingsGuide.refresh();
+  audioRouting.render();
   if (changed) speech.renderValue();
   voiceApi.examples();
   voiceApi.sync();
@@ -1353,7 +1588,6 @@ function showScreen(value) {
 }
 const helpCaption = 'label, h2, h3';
 const helpText = (element) => element.textContent.replace(/\s+/gu, ' ').trim();
-let activeHelp;
 
 function helpAnchor(description) {
   if (description.dataset.helpFor) return $(description.dataset.helpFor);
@@ -1374,112 +1608,59 @@ function helpAnchor(description) {
   return previous?.matches('.settings-heading') ? previous.querySelector('h2, h3') : null;
 }
 
-function closeSettingHelp(closeNative = true) {
-  if (!activeHelp) return false;
-  const { button, fallback } = activeHelp;
-  activeHelp = undefined;
-  button.setAttribute('aria-expanded', 'false');
-  fallback.inert = true;
-  fallback.removeAttribute('data-open');
-  if (closeNative) void raw.settingsHelp(null).catch(() => {});
-  return true;
-}
-
-async function toggleSettingHelp(entry) {
-  if (activeHelp === entry) return void closeSettingHelp();
-  closeSettingHelp();
-  activeHelp = entry;
-  entry.button.setAttribute('aria-expanded', 'true');
-  const styles = getComputedStyle(document.documentElement);
-  const palette = Object.fromEntries(
-    ['--cyan', '--theme-panel', '--theme-border', '--theme-text'].map((key) => [
-      key,
-      styles.getPropertyValue(key).trim(),
-    ]),
-  );
-  const placement = entry.button.getBoundingClientRect();
-  const copy = [...entry.copy.children].map(helpText).join('\n\n');
-  entry.native = await raw
-    .settingsHelp({
-      title: helpText(entry.anchor).slice(0, 160),
-      text: copy.slice(0, 2000),
-      y: Math.max(0, Math.round(placement.top + placement.height / 2)),
-      palette,
-    })
-    .catch(() => false);
-  if (activeHelp !== entry || entry.native) return;
-  entry.fallback.inert = false;
-  entry.fallback.setAttribute('data-open', '');
-}
-
-function installSettingHelp() {
-  const descriptions = document.querySelectorAll(
+const guideDescriptions = [
+  ...document.querySelectorAll(
     '.preferences-panel p.settings-help, #call-audio-panel .settings-card > p:not([id])',
-  );
-  const grouped = new Map();
-  for (const description of descriptions) {
-    if (description.matches('[role], [data-inline-help]') || helpText(description).length <= 130)
-      continue;
-    const anchor = helpAnchor(description);
-    if (!anchor || !anchor.parentElement) continue;
-    if (!grouped.has(anchor)) grouped.set(anchor, []);
-    grouped.get(anchor).push(description);
-  }
-  let index = 0;
-  for (const [anchor, longHelp] of grouped) {
-    const row = document.createElement('div');
-    row.className = 'settings-help-row';
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'settings-info-button';
-    button.dataset.settingsInfo = '';
-    button.textContent = 'i';
-    button.setAttribute('aria-label', 'More information');
-    button.setAttribute('aria-expanded', 'false');
-    const fallback = document.createElement('div');
-    fallback.className = 'settings-help-fallback';
-    fallback.inert = true;
-    const copy = document.createElement('div');
-    copy.className = 'settings-info-copy';
-    copy.id = `setting-info-${index++}`;
-    button.setAttribute('aria-controls', copy.id);
-    button.setAttribute('aria-describedby', copy.id);
-    row.dataset.helpId = copy.id;
-    anchor.before(row);
-    row.append(anchor, button);
-    const heading = row.parentElement.closest('.settings-heading');
-    (heading ?? row).after(fallback);
-    fallback.append(copy);
-    copy.append(...longHelp);
-    const entry = { anchor, button, copy, fallback, native: false };
-    button.onclick = () => toggleSettingHelp(entry);
-  }
-}
-installSettingHelp();
-document.addEventListener('pointerdown', ({ target }) => {
-  if (
-    activeHelp &&
-    !activeHelp.fallback.contains(target) &&
-    !target.closest('[data-settings-info]')
-  )
-    closeSettingHelp();
+  ),
+].flatMap((description) => {
+  if (description.matches('[role], [data-inline-help]') || helpText(description).length <= 130)
+    return [];
+  const anchor = helpAnchor(description);
+  return anchor ? [{ description, anchor }] : [];
 });
-$('companion').addEventListener(
-  'wheel',
-  () => {
-    if (activeHelp?.native) closeSettingHelp();
-  },
-  { passive: true },
-);
 const navigation = $('settings-navigation');
 const search = $('settings-search');
 const results = $('settings-search-items');
 const svgNamespace = 'http://www.w3.org/2000/svg';
+const betaSections = new Set([
+  'audio',
+  'api',
+  'screen',
+  'applications',
+  'chess',
+  'spotify',
+  'youtube-music',
+  'music',
+  'initiative',
+  'computer',
+]);
+function appendBetaBadge(element) {
+  const badge = document.createElement('small');
+  badge.className = 'beta-badge';
+  badge.dataset.untranslated = '';
+  badge.textContent = 'BETA';
+  element.append(' ', badge);
+}
+for (const [section, , panel] of SETTINGS_SECTIONS)
+  if (betaSections.has(section) && !SKILL_BY_SECTION[section])
+    appendBetaBadge($(panel).querySelector('h2'));
+for (const selector of [
+  '[data-companion-group="Desktop roaming"] h3',
+  '#companion-conversation-mode-label',
+  '#wild-close-ai-tabs-label',
+  '#call-camera-card .skill-display-control > span',
+])
+  appendBetaBadge(document.querySelector(selector));
 const skillHeader = document.createElement('section');
 skillHeader.className = 'skill-settings-header';
 skillHeader.hidden = true;
-skillHeader.innerHTML =
-  '<h2 id="skill-settings-title"></h2><p id="skill-settings-description"></p><label class="skill-display-control"><input id="skill-show-button" type="checkbox" role="switch"><span>Show button in Capri’s toolbar</span></label><label class="skill-display-control" id="skill-composer-control"><input id="skill-show-composer" type="checkbox" role="switch"><span>Show button in the message bar</span></label>';
+skillHeader.innerHTML = `
+  <h2><span id="skill-settings-title"></span> <small id="skill-settings-beta" class="beta-badge" data-untranslated hidden>BETA</small></h2>
+  <p id="skill-settings-description"></p>
+  <div class="settings-card">
+    <label class="skill-display-control"><input id="skill-show-button" type="checkbox" role="switch"><span>Show button in Capri’s toolbar</span></label>
+    <label class="skill-display-control" id="skill-composer-control"><input id="skill-show-composer" type="checkbox" role="switch"><span>Show button in the message bar</span></label>
+  </div>`;
 const pendingSkills = new Map();
 let skillState = {};
 function skillGlyph(icon) {
@@ -1492,11 +1673,14 @@ function skillGlyph(icon) {
   return glyph;
 }
 function showSkillSettings() {
+  showCallCamera();
   const skill = SKILL_BY_SECTION[current];
   skillHeader.hidden = !skill;
   if (skill) {
     $('skill-settings-title').textContent = ui.text(skill.name);
+    $('skill-settings-beta').hidden = !betaSections.has(skill.section);
     $('skill-settings-description').textContent = ui.text(skill.description);
+    if (skill === youtubeMusicSkill) showYouTubeMusicSettings();
     $('skill-show-button').checked =
       pendingSkills.get(skill.id)?.showButton ??
       skillState[skill.id]?.showButton ??
@@ -1585,6 +1769,32 @@ for (const [id, key] of [
     const skill = SKILL_BY_SECTION[current];
     if (skill) void changeSkill(skill, { [key]: currentTarget.checked });
   };
+const settingsGuide = new SettingsGuide({
+  ui,
+  activeSection: () => current,
+  available: () =>
+    !busy &&
+    !applyingDraft &&
+    !resettingSettings &&
+    !document.body.hasAttribute('data-settings-loading') &&
+    !document.querySelector('dialog[open]:not(.settings-guide)'),
+  revealable: (element) =>
+    element === localVoicePanel || element === voiceApi.panel || element.id === 'api-form',
+  reveal: (element) => {
+    if (element.id === 'api-form') {
+      inference.setFormOpen(true);
+      return { key: 'api-form', restore: () => inference.setFormOpen(false) };
+    }
+    const previous = localVoicePanel.hidden ? 'api' : 'local';
+    showVoiceSource(element === localVoicePanel ? 'local' : 'api');
+    return { key: 'voice-view', restore: () => showVoiceSource(previous) };
+  },
+  descriptions: (anchors) => {
+    for (const { description, anchor } of guideDescriptions)
+      if (anchors.has(anchor)) description.classList.add('settings-guide-copy');
+  },
+  onError: notice,
+});
 const navGroups = SETTINGS_GROUPS.map(({ id, labels, sections, icon }) => {
   const group = document.createElement('div');
   const heading = document.createElement('p');
@@ -1604,7 +1814,10 @@ const navGroups = SETTINGS_GROUPS.map(({ id, labels, sections, icon }) => {
   group.append(heading);
   const tabs = sections.map(([section, label]) => {
     const button = document.createElement('button');
-    const caption = document.createElement('span');
+    const caption = document.createTextNode('');
+    const captionContainer = document.createElement('span');
+    captionContainer.append(caption);
+    if (betaSections.has(section)) appendBetaBadge(captionContainer);
     const skill = SKILL_BY_SECTION[section];
     let toggle;
     button.type = 'button';
@@ -1623,7 +1836,7 @@ const navGroups = SETTINGS_GROUPS.map(({ id, labels, sections, icon }) => {
       row.append(button, toggle);
       group.append(row);
     } else group.append(button);
-    button.append(caption);
+    button.append(captionContainer);
     return { button, caption, section, label, skill, toggle };
   });
   return { group, title, labels, tabs };
@@ -1646,9 +1859,9 @@ function renderNavigation() {
   for (const { title, labels, tabs } of navGroups) {
     title.textContent = labels.map((label) => ui.text(label)).join(' · ');
     for (const { button, caption, section, label } of tabs) {
-      caption.textContent = ui.text(label);
+      caption.data = ui.text(label);
       if (SKILL_BY_SECTION[section])
-        button.title = `${caption.textContent}\n${ui.text(SKILL_BY_SECTION[section].description)}`;
+        button.title = `${caption.data}\n${ui.text(SKILL_BY_SECTION[section].description)}`;
       if (current === section) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     }
@@ -1679,7 +1892,7 @@ function renderNavigation() {
   );
 }
 
-let searchHighlight;
+let searchHighlight, pendingNavigation;
 function revealSearchMatch(match, panel) {
   const { target, label, heading, root } = match;
   if (!target?.isConnected) return;
@@ -1704,25 +1917,31 @@ async function navigate(id, focus = null, match = null) {
   id = settingsSection(id);
   if (busy || applyingDraft || resettingSettings || !SETTINGS_SECTIONS.some((s) => s[0] === id))
     return;
-  if (current === 'microphone' && id !== current) stopMicrophoneMonitor();
+  settingsGuide.close({ restoreFocus: false });
+  if (current === 'microphone' && id !== current) {
+    stopMicrophoneMonitor();
+    companion.stopWakePreview();
+  }
   rememberLocation();
   locationSuspended = false;
   busy = true;
+  settingsGuide.refresh();
   panelLoading(true);
   try {
     if (id !== 'developer') developer.close();
     if (current && id !== current) {
       if (current === 'voice') void models.voices.stopPreview();
+      if (current === 'support') companion.showSupportFrame(false);
       closeRequested = false;
       notice();
     }
     const row = SETTINGS_SECTIONS.find((s) => s[0] === id);
-    closeSettingHelp();
     if (id !== 'dialogue') companion.savedMemory.close();
     current = id;
     for (const panel of document.querySelectorAll('.preferences-panel, #dimming-panel'))
       panel.hidden = true;
     const panel = $(row[2]);
+    panel.dataset.panelCut ??= '12';
     panel.hidden = false;
     if (SKILL_BY_SECTION[id]) panel.prepend(skillHeader);
     skillHeader.hidden = !SKILL_BY_SECTION[id];
@@ -1759,8 +1978,8 @@ async function navigate(id, focus = null, match = null) {
     if (id === 'private-memory') await knowledge.privateMemory.open();
     if (id === 'workflows') await workflows.open();
     if (id === 'coding') await coding.open();
+    if (id === 'chess') await chess.open();
     if (id === 'user-tools') await userTools.open();
-    if (id === 'credits') await credits.open();
     if (id === 'developer') await developer.open();
     if (id === 'discord') {
       const pending = dirty.has('discord-panel');
@@ -1778,10 +1997,12 @@ async function navigate(id, focus = null, match = null) {
       }
     }
     if (id === 'languages') await language.open(true);
+    if (id === 'audio') await audioRouting.open();
     if (id === 'time') await time.refresh();
     if (id === 'files') await files.recovery();
     if (id === 'screen') await screenCommand({ action: 'state' });
     if (id === 'calls') await runCallAudio('state');
+    if (id === 'youtube-music') void runYouTubeMusic('status');
     if (id === 'music') {
       const pending = dirty.has(music.panel.id);
       await music.open({ preserveDraft: pending });
@@ -1792,13 +2013,19 @@ async function navigate(id, focus = null, match = null) {
     queuePreview();
     frames?.destroy();
     frames = new PanelFrames();
+    await settingsGuide
+      .prepare()
+      .catch((error) => console.error('Settings guide unavailable:', error));
     applyLanguage(ui.language);
     renderNavigation();
     await document.fonts.ready;
+    if (id === 'credits') credits.paintTeamRays();
     await new Promise((resolve) => requestAnimationFrame(resolve));
     panelLoading(false);
     finishSettingsLoading();
     restoreLocation();
+    if (id === 'coding') coding.revealPending();
+    if (id === 'credits') void credits.open();
     if (match) revealSearchMatch(match, panel);
     else if (id === 'models' && ['context', 'devices', 'model'].includes(focus)) {
       const control = $(
@@ -1816,6 +2043,7 @@ async function navigate(id, focus = null, match = null) {
   } finally {
     busy = false;
     panelLoading(false);
+    settingsGuide.refresh();
     rememberLocation();
     if (current && !firstContentFrame) {
       // Native ready-to-show can fire for the empty shell. Acknowledge only
@@ -1830,6 +2058,9 @@ async function navigate(id, focus = null, match = null) {
         firstContentFrame = null;
       });
     }
+    const next = pendingNavigation;
+    pendingNavigation = null;
+    if (next) void navigate(next.section, next.focus);
   }
 }
 function dimming(value) {
@@ -1837,7 +2068,11 @@ function dimming(value) {
   $('dimming-level').value = value.level;
   $('dimming-softness').value = value.softness;
   $('dimming-level-value').textContent = value.level + '%';
-  $('dimming-softness-value').textContent = value.softness + ' px';
+  const softness = ui.text('{value} px', {
+    value: new Intl.NumberFormat(ui.language).format(dimmingFeatherWidth(value.softness)),
+  });
+  $('dimming-softness-value').textContent = softness;
+  $('dimming-softness').setAttribute('aria-valuetext', softness);
 }
 function showAvatarLayout(value) {
   $('settings-portrait-zoom').value = Math.round(value.zoom * 100);
@@ -1851,7 +2086,6 @@ function applyReset(value) {
   latest.dimming = value.dimming;
   latest.avatarLayout = value.avatarLayout;
   companion.show(value.companion);
-  feedback.configure(value.companion.buttonFeedback);
   dimming(value.dimming);
   showAvatarLayout(value.avatarLayout);
   effects.show(value.voiceEffects);
@@ -1881,7 +2115,10 @@ function show(snapshot) {
   showAttachmentFormats(snapshot.attachmentVision === true);
   latest = snapshot;
   skillState = snapshot.skills ?? {};
+  callCamera = snapshot.callCamera ?? {};
+  showAudioRouting(snapshot.audioRouting);
   applyLanguage(snapshot.languages.interface);
+  showCallCamera();
   inferencePrivacy(snapshot.inference, ui);
   revisions = snapshot.settingsVersions;
   applications.showSpotify(snapshot.spotify);
@@ -1889,7 +2126,6 @@ function show(snapshot) {
   models.show(snapshot.models);
   updates.show(snapshot.updates);
   companion.show(snapshot.companion);
-  feedback.configure(snapshot.companion.buttonFeedback);
   effects.show(snapshot.voiceEffects);
   effects.availability(!snapshot.activeTurnId && snapshot.voice.language !== 'off');
   language.installed(snapshot.recognitionAvailability, snapshot.speechAvailability);
@@ -1917,19 +2153,57 @@ function show(snapshot) {
 let savedLanguageRevision = 0;
 let languagePreviewRevision = 0;
 function event(value) {
+  if (value.type === 'saved-memory.changed') {
+    void companion.savedMemory.load();
+    return;
+  }
+  if (value.type?.startsWith('coding.')) {
+    coding.onEvent(value);
+    return;
+  }
+  if (value.type === 'audio-routing.changed') {
+    showAudioRouting(value);
+    return;
+  }
   if (value.type === 'skills.settings') {
+    if (value.changed === youtubeMusicSkill.id) {
+      youtubeMusicStatus = '';
+      youtubeMusicRequest = undefined;
+    }
     skillState = value.settings;
     showSkillSettings();
     return;
   }
   if (value.type === 'settings.visibility') {
-    if (value.visible === false) stopMicrophoneMonitor();
+    if (value.visible === false) {
+      settingsGuide.close({ restoreFocus: false });
+      stopMicrophoneMonitor();
+      companion.stopWakePreview();
+    }
+    settingsVisible = value.visible === true;
+    companion.showSupportFrame(settingsVisible && current === 'support');
+    syncCameraPreview();
     credits.setVisible(value.visible === true);
     developer.setVisible(value.visible === true && current === 'developer');
     if (value.visible === true && current === 'developer') void developer.refresh();
     return;
   }
   if (value.preview === true) return;
+  if (value.type === 'companion.settings' && value.monitorChange && companionDraft.baseline) {
+    // Rebase only the controls changed by the monitor shortcut. The rest of the
+    // open draft still belongs to Settings, even though it shares one revision.
+    const { monitorChange } = value;
+    companion.value = { ...companion.value, ...monitorChange };
+    companion.showMonitorDisplay(monitorChange);
+    companionDraft.baseline = JSON.stringify({
+      ...JSON.parse(companionDraft.baseline),
+      ...monitorChange,
+    });
+    if (deferred.has(companionPanelId)) deferred.set(companionPanelId, value.settings);
+    else revisions.companion = value.settingsVersions.companion;
+    void queuePreview(true).catch((error) => notice(error.message));
+    return;
+  }
   if (value.type === 'music.status' || value.type === 'music-listening.status') {
     const snapshot = value.state ?? value;
     latest.musicListening = snapshot;
@@ -1942,10 +2216,6 @@ function event(value) {
     }
     if (value.settingsVersions?.musicListening !== undefined)
       revisions.musicListening = value.settingsVersions.musicListening;
-    return;
-  }
-  if (value.type === 'settings.help-closed') {
-    closeSettingHelp(false);
     return;
   }
   if (value.type === 'window.focus-mode') {
@@ -1961,9 +2231,12 @@ function event(value) {
     }
     return;
   }
-  if (value.type === 'microphone.device-changed' && current === 'microphone') {
-    stopMicrophoneMonitor();
-    void devices();
+  if (value.type === 'microphone.device-changed') {
+    audioRouting.show({ microphone: { deviceId: value.deviceId, deviceLabel: value.deviceLabel } });
+    if (current === 'microphone') {
+      stopMicrophoneMonitor();
+      void devices();
+    }
     return;
   }
   if (value.type === 'microphone.monitor-stop') {
@@ -1995,6 +2268,7 @@ function event(value) {
     return;
   }
   if (value.type === 'settings.resume') {
+    pendingNavigation = null;
     if (!document.hidden) rememberLocation();
     lastPreview = undefined;
     locationSuspended = false;
@@ -2007,7 +2281,9 @@ function event(value) {
   }
   if (value.type === 'settings.navigate') {
     lastPreview = undefined;
-    void navigate(value.section, value.focus);
+    // A shortcut can reopen Settings before the previous pane finishes painting.
+    if (busy) pendingNavigation = value;
+    else void navigate(value.section, value.focus);
     return;
   }
   if (value.type === 'settings.close-request') {
@@ -2025,6 +2301,20 @@ function event(value) {
       callVoiceVolume: callAudio.callVoiceVolume,
     };
     showCallAudio();
+    const ready = callAudio.callOutputReady === true;
+    const deviceId = callAudio.deviceId ?? '';
+    const previousOutput = audioRouting.value?.callOutput;
+    if (previousOutput?.ready !== ready || previousOutput?.deviceId !== deviceId)
+      audioRouting.show({ callOutput: { ready, deviceId } });
+    return;
+  }
+  if (value.type === 'call-camera.state') {
+    callCamera = value.state ?? {};
+    showCallCamera();
+    return;
+  }
+  if (value.type === 'call-camera.preview-frame') {
+    void drawCameraPreview(value.bytes);
     return;
   }
   if (value.type === 'settings.call-setup') {
@@ -2067,7 +2357,6 @@ function event(value) {
     'file-access': [files, 'show'],
     applications: [applications, 'show'],
     'initiative.settings': [initiative, 'show'],
-    'initiative.status': [initiative, 'status'],
     'speech.settings': [speech, 'show'],
     'models.status': [models, 'show'],
     'updates.status': [updates, 'show'],
@@ -2076,6 +2365,12 @@ function event(value) {
   if (value.type === 'huggingface.status') models.hub.show(value);
   if (value.type === 'voice-catalog.status') models.voices.show(value);
   if (value.type === 'voice-training.status') models.voices.trainingStatus(value);
+  if (value.type === 'chess.engine') chess.showEngine(value.engine);
+  if (value.type === 'chess.watch') chess.updateTracking(value);
+  if (value.type === 'initiative.status') {
+    initiative.status(value.settings);
+    return;
+  }
   if (value.type === 'initiative.activity') {
     initiative.activity(value.settings);
     return;
@@ -2087,7 +2382,6 @@ function event(value) {
       captureDrafts('dimming-panel');
     }
   }
-  if (value.type === 'companion.settings') feedback.configure(value.settings.buttonFeedback);
   if (value.type === 'languages') {
     const revision = ++savedLanguageRevision;
     void prepareInterfaceLocale(value.settings.interface)
@@ -2108,9 +2402,10 @@ function event(value) {
   }
   if (value.type === 'avatar.layout') {
     latest.avatarLayout = value.layout;
-    if (!dirty.has('avatar-layout')) {
+    if (value.reset || !dirty.has('avatar-layout')) {
       showAvatarLayout(value.layout);
       captureDrafts('avatar-layout');
+      if (value.reset) syncDraftActions();
     }
   }
   if (value.type === 'speech-install.status') {
@@ -2121,6 +2416,8 @@ function event(value) {
     language.installed(value.recognitionAvailability, value.speechAvailability);
   if (value.type === 'voice.settings') {
     latest.voice = value;
+    if (audioRouting.value?.voiceVolume !== value.volume)
+      audioRouting.show({ voiceVolume: value.volume });
     language.externalVoice = value.source === 'api';
     language.details();
     effects.availability(!latest.activeTurnId && !latest.playbackBusy && value.language !== 'off');
@@ -2199,14 +2496,18 @@ window.addEventListener('keydown', (e) => {
     void raw.closeSettings();
     return;
   }
-  if (closeSettingHelp()) {
-    e.preventDefault();
-    return;
-  }
   if (closeRequested) $('settings-stay').click();
   else void close();
 });
-raw.onEvent(event);
+let settingsInitialized = false;
+const eventsDuringInitialization = new Map();
+raw.onEvent((value) => {
+  if (settingsInitialized) event(value);
+  else {
+    const key = value.type === 'settings.resume' ? 'settings.navigate' : value.type;
+    eventsDuringInitialization.set(key, value);
+  }
+});
 try {
   const snapshot = await raw.bootstrap();
   await prepareInterfaceLocale(snapshot.languages.interface);
@@ -2215,6 +2516,9 @@ try {
   for (const draft of drafts)
     if (!['microphone-device', 'discord-panel', 'computer-access-panel'].includes(draft.panel))
       draft.baseline = draft.read();
+  settingsInitialized = true;
+  for (const value of eventsDuringInitialization.values()) event(value);
+  eventsDuringInitialization.clear();
   await raw.settingsReady();
 } catch (error) {
   console.error('Settings initialization failed:', error);

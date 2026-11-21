@@ -64,39 +64,68 @@ static class Program {
     static AutomationElement Find(AutomationElement root, Func<string, bool> predicate, ControlType type = null) {
         return Elements(root, type).FirstOrDefault(e => predicate(Name(e)));
     }
-    static AutomationElement SearchField(AutomationElement root) {
-        // Chromium can expose the same search input as either role. Never fall
-        // back to an unrelated editable field, such as a browser address bar.
-        foreach(var type in new[]{ControlType.ComboBox,ControlType.Edit}) {
-            var field=Find(root,n=>Is(n,"What do you want to play?","Что хотите включить?"),type);
-            if(field!=null && field.Current.IsEnabled)return field;
-        }
-        return null;
+    static AutomationElement ById(AutomationElement root,string id) {
+        return root.FindFirst(TreeScope.Descendants,new PropertyCondition(AutomationElement.AutomationIdProperty,id));
     }
-    static async Task<AutomationElement> ReadySearchField() {
+    static bool SearchLandmark(AutomationElement element,AutomationElement navigation) {
+        var walker=TreeWalker.RawViewWalker;
+        for(var i=0;i<8 && element!=null && !Automation.Compare(element,navigation);i++,element=walker.GetParent(element)) {
+            if(SpotifySearch.EqualsText(element.Current.LocalizedControlType,"search"))return true;
+        }
+        return false;
+    }
+    static bool SearchCandidate(AutomationElement element,int processId,AutomationElement navigation) {
+        try {
+            var current=element.Current;
+            if(current.ProcessId!=processId)return false;
+            object value;
+            bool editable=element.TryGetCurrentPattern(ValuePattern.Pattern,out value) && !((ValuePattern)value).Current.IsReadOnly;
+            return SpotifySearch.InputEligible(current.ControlType==ControlType.Edit || current.ControlType==ControlType.ComboBox,
+                current.IsEnabled,current.IsOffscreen,current.IsKeyboardFocusable,editable,
+                navigation!=null && SearchLandmark(element,navigation),current.Name);
+        }catch(ElementNotAvailableException){return false;}
+    }
+    static AutomationElement SearchField(AutomationElement root) {
+        // Spotify's Chromium window also exposes an omnibox and library filters.
+        // Prefer the global search landmark, with its exact known labels for older builds.
+        var navigation=ById(root,"global-nav-bar");
+        var processId=root.Current.ProcessId;
+        var types=new[]{ControlType.ComboBox,ControlType.Edit};
+        var scoped=navigation==null?null:types.SelectMany(type=>Elements(navigation,type))
+            .FirstOrDefault(field=>SearchCandidate(field,processId,navigation));
+        return scoped ?? types.SelectMany(type=>Elements(root,type)).FirstOrDefault(field=>SearchCandidate(field,processId,null));
+    }
+    static async Task<AutomationElement> ReadySearchField(IntPtr window,int processId) {
         // A restored Chromium window may publish its accessibility tree after
         // the first query. Retry discovery only; text entry happens once below.
         var timer=Stopwatch.StartNew();
+        bool opened=false;
         do {
-            try { var field=SearchField(Root(true));if(field!=null)return field; }
+            try { var field=SearchField(Root(window,processId,true));if(field!=null)return field; }
             catch(ElementNotAvailableException) { }
+            if(!opened && timer.ElapsedMilliseconds>=900){
+                SpotifyAccessibility.OpenSearch(window,processId);
+                opened=true;
+            }
             await Task.Delay(100);
         }while(timer.ElapsedMilliseconds<3000);
         throw new SpotifyException("search_unavailable","Spotify's search field is unavailable. Open its main window and close any dialog, then retry.");
     }
     static bool Is(string text, params string[] values) { return values.Any(v => String.Equals(text, v, StringComparison.OrdinalIgnoreCase)); }
-    static bool MusicButton(string name){return name.StartsWith("Play ",StringComparison.OrdinalIgnoreCase)||name.StartsWith("Pause ",StringComparison.OrdinalIgnoreCase)||Is(name,"Pause")||name.StartsWith("Воспроизвести ",StringComparison.OrdinalIgnoreCase);}
-    static string PlayLabel(string name){return name.StartsWith("Pause ",StringComparison.OrdinalIgnoreCase)?"Play "+name.Substring(6):name;}
+    static bool MusicButton(string name){return SpotifySearch.MusicButton(name);}
+    static string PlayLabel(string name){return SpotifySearch.PlayLabel(name);}
     static Process SpotifyProcess() {
         var process = Process.GetProcessesByName("Spotify").FirstOrDefault(p => p.MainWindowHandle != IntPtr.Zero);
         if (process == null) throw new SpotifyException("spotify_closed", "Open Spotify and sign in before using music controls.");
         return process;
     }
     static AutomationElement Root(bool restore) {
-        var process = SpotifyProcess();
-        if (restore && IsIconic(process.MainWindowHandle)) ShowWindow(process.MainWindowHandle, 9);
-        var root = AutomationElement.FromHandle(process.MainWindowHandle);
-        if (root.Current.ProcessId != process.Id) throw new SpotifyException("target_changed", "The Spotify window changed. Try again.");
+        using(var process=SpotifyProcess())return Root(process.MainWindowHandle,process.Id,restore);
+    }
+    static AutomationElement Root(IntPtr window,int processId,bool restore) {
+        var root = AutomationElement.FromHandle(window);
+        if (root.Current.ProcessId != processId) throw new SpotifyException("target_changed", "The Spotify window changed. Try again.");
+        if (restore && IsIconic(window)) ShowWindow(window, 9);
         return root;
     }
     static AutomationElement Player(bool restore = false) {
@@ -106,9 +135,14 @@ static class Program {
         return player;
     }
     static AutomationElement MainContent() {
-        var process=SpotifyProcess();var id=SpotifyAccessibility.MainId(process.MainWindowHandle);
+        using(var process=SpotifyProcess())return MainContent(Root(process.MainWindowHandle,process.Id,true),process.MainWindowHandle);
+    }
+    static AutomationElement MainContent(AutomationElement root,IntPtr window) {
+        var main=ById(root,"main");
+        if(main!=null)return main;
+        var id=SpotifyAccessibility.MainId(window);
         if(id==null)return null;
-        return Elements(Root(true)).FirstOrDefault(e=>e.GetRuntimeId().SequenceEqual(id));
+        return Elements(root).FirstOrDefault(e=>e.GetRuntimeId().SequenceEqual(id));
     }
     static void Invoke(AutomationElement element) {
         if (element == null || !element.Current.IsEnabled) throw new SpotifyException("control_unavailable", "This Spotify control is unavailable in the current state.");
@@ -124,12 +158,12 @@ static class Program {
         if (element != null && element.TryGetCurrentPattern(RangeValuePattern.Pattern, out pattern)) return ((RangeValuePattern)pattern).Current.Value;
         throw new SpotifyException("control_unavailable", "Spotify did not expose this slider.");
     }
-    static string Link(AutomationElement element) {
+    static string Link(AutomationElement element,IntPtr window) {
         object pattern;
         if (element.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) { var value=((ValuePattern)pattern).Current.Value; if(!String.IsNullOrEmpty(value))return value; }
         var property = AutomationProperty.LookupById(30093); // LegacyIAccessible.Value
         if (property != null) { var value = element.GetCurrentPropertyValue(property, true) as string; if (!String.IsNullOrEmpty(value)) return value; }
-        return SpotifyAccessibility.Link(element,SpotifyProcess().MainWindowHandle);
+        return SpotifyAccessibility.Link(element,window);
     }
     static string SpotifyUri(string value) {
         if (Regex.IsMatch(value ?? "", "^spotify:(track|album|artist|playlist):[A-Za-z0-9]{22}$")) return value;
@@ -211,57 +245,53 @@ static class Program {
     static async Task<List<Dictionary<string, object>>> Search(string query, string kind) {
         if (query.Length < 1 || query.Length > 180 || Regex.IsMatch(query,"[\\x00-\\x1f]")) throw new SpotifyException("invalid_request","Use a short song, artist, album or playlist name.");
         if (!new[]{"track","album","artist","playlist","any"}.Contains(kind)) throw new SpotifyException("invalid_request","Unknown search type.");
-        var root=Root(true);
-        var searchField=await ReadySearchField();
-        SpotifyAccessibility.EnterSearch(searchField,SpotifyProcess().MainWindowHandle,query);
+        IntPtr window;int processId;
+        using(var process=SpotifyProcess()){window=process.MainWindowHandle;processId=process.Id;}
+        var searchField=await ReadySearchField(window,processId);
+        SpotifyAccessibility.EnterSearch(searchField,window,processId,query);
         await Task.Delay(650);
         AutomationElement main = null;
-        bool ready=false;
+        AutomationElement filter=null;
         var timer = Stopwatch.StartNew();
         while (timer.ElapsedMilliseconds < 8000) {
             await Task.Delay(300);
-            main = MainContent();
-            root = Root(true);
-            var field=SearchField(root);
-            object valuePattern;
-            bool queryMatches=field!=null && field.TryGetCurrentPattern(ValuePattern.Pattern,out valuePattern) && String.Equals(((ValuePattern)valuePattern).Current.Value.Replace('+',' '),query.Replace('+',' '),StringComparison.OrdinalIgnoreCase);
-            var currentFilter=main==null?null:Find(main,n=>Is(n,"Songs","Треки"),ControlType.Hyperlink);
-            var filterLink=currentFilter==null?"":Link(currentFilter);
-            bool routeMatches=false;Uri route;
-            if(Uri.TryCreate(filterLink,UriKind.Absolute,out route)){
-                var parts=route.AbsolutePath.Split('/');
-                if(parts.Length>2 && parts[1]=="search")routeMatches=String.Equals(Uri.UnescapeDataString(parts[2]).Replace('+',' '),query.Replace('+',' '),StringComparison.OrdinalIgnoreCase);
-            }
-            if (queryMatches && routeMatches && main != null && Find(main,MusicButton,ControlType.Button)!=null) {ready=true;break;}
+            var root=Root(window,processId,false);
+            main=MainContent(root,window);
+            // Spotify can clear the field after navigating. The filter's URL
+            // identifies the current results independently of the field value.
+            if(main==null)continue;
+            filter=Elements(main,ControlType.Hyperlink).FirstOrDefault(e=>
+                e.Current.IsEnabled && SpotifySearch.FilterMatches(Link(e,window),query,kind));
+            if(filter!=null && Find(main,MusicButton,ControlType.Button)!=null)break;
+            filter=null;
         }
-        if (!ready) throw new SpotifyException("search_unavailable","Spotify search did not open. Check its connection and sign-in.");
-        var filters = kind == "track" ? new[]{"Songs","Треки"} : kind == "album" ? new[]{"Albums","Альбомы"} : kind == "artist" ? new[]{"Artists","Исполнители"} : kind == "playlist" ? new[]{"Playlists","Плейлисты"} : new string[0];
-        var filter = Find(main,n=>Is(n,filters),ControlType.Hyperlink);
-        if (filter != null) { Invoke(filter); await Task.Delay(650); }
+        if(filter==null)throw new SpotifyException("search_unavailable","Spotify search did not open. Check its connection and sign-in.");
+        if(kind!="any") { Invoke(filter); await Task.Delay(650); }
         if(kind=="track") {
             AutomationElement songs=null; var gridTimer=Stopwatch.StartNew();
             while(gridTimer.ElapsedMilliseconds<5000) {
-                songs=Find(Root(true),n=>(n.StartsWith("All songs",StringComparison.OrdinalIgnoreCase) || n.StartsWith("Все треки",StringComparison.OrdinalIgnoreCase)) && n.Replace('+',' ').IndexOf(query.Replace('+',' '),StringComparison.OrdinalIgnoreCase)>=0,ControlType.DataGrid);
+                var pane=MainContent(Root(window,processId,false),window);
+                songs=Find(pane,n=>SpotifySearch.SongResultsName(n,query),ControlType.DataGrid);
                 if(songs!=null)break;
                 await Task.Delay(200);
             }
             if(songs==null)throw new SpotifyException("search_unavailable","Spotify's song-results grid did not open.");
             main=songs;
         } else {
-            main=MainContent() ?? main;
+            main=MainContent(Root(window,processId,false),window) ?? main;
         }
         var result = new List<Dictionary<string,object>>(); var seen = new HashSet<string>();
         var candidates = Elements(main,ControlType.Button).Where(e=>MusicButton(Name(e))).ToList();
-        var playing=candidates.Any(e=>Is(Name(e),"Pause"))?await Status():null;
+        var playing=candidates.Any(e=>SpotifySearch.GenericPause(Name(e)))?await Status():null;
         foreach (var button in candidates) {
             var label = PlayLabel(Name(button)); var row = ResultContainer(button);
-            if(Is(label,"Pause") && playing!=null && Text(playing,"title")!="")label="Play "+Text(playing,"title")+" by "+Text(playing,"artist");
-            var uris = row == null ? new string[0] : Elements(row,ControlType.Hyperlink).Select(e=>SpotifyUri(Link(e))).Where(u=>u!="").ToArray();
+            if(SpotifySearch.GenericPause(label) && playing!=null && Text(playing,"title")!="")label="Play "+Text(playing,"title")+" by "+Text(playing,"artist");
+            var uris = row == null ? new string[0] : Elements(row,ControlType.Hyperlink).Select(e=>SpotifyUri(Link(e,window))).Where(u=>u!="").ToArray();
             var uri=uris.FirstOrDefault(u=>kind=="any" || u.StartsWith("spotify:"+kind+":",StringComparison.Ordinal)) ?? "";
             // Never use a stale sidebar play button from the user's library as a search result.
-            if (row != null && AncestorNamed(row,"Your Library","Медиатека","Now playing bar","Панель воспроизведения")) continue;
+            if (row != null && AncestorNamed(row,"Your Library","Медиатека","Sua Biblioteca","Now playing bar","Панель воспроизведения","Barra Tocando agora")) continue;
             var detail = row == null ? label : Name(row);
-            if (detail.Length < label.Length && row!=null) detail=String.Join(" • ",Elements(row).Select(Name).Where(n=>n!="" && !n.StartsWith("Play ",StringComparison.OrdinalIgnoreCase)).Distinct().Take(10));
+            if (detail.Length < label.Length && row!=null) detail=String.Join(" • ",Elements(row).Select(Name).Where(n=>n!="" && !MusicButton(n)).Distinct().Take(10));
             if(detail.Length<label.Length)detail=label;
             var unique = uri != "" ? uri : detail;
             if (!seen.Add(unique)) continue;
@@ -292,11 +322,7 @@ static class Program {
         SearchItem item;
         if(!Results.TryGetValue(id,out item) || DateTime.UtcNow-item.Created>TimeSpan.FromMinutes(10))throw new SpotifyException("stale_result","Search again before using this result.");
         string title="",artist="";
-        if(item.Kind=="track") {
-            var label=item.Label.StartsWith("Play ",StringComparison.OrdinalIgnoreCase)?item.Label.Substring(5):"";
-            int separator=label.LastIndexOf(" by ",StringComparison.Ordinal);
-            if(separator>0){title=label.Substring(0,separator);artist=label.Substring(separator+4).Split(',')[0];}
-        }
+        if(item.Kind=="track")SpotifySearch.TrackIdentity(item.Label,out title,out artist);
         if(title!="" && artist!="") {
             var current=await Status();
             if(current.ContainsKey("playing") && (bool)current["playing"] && Comparable(Text(current,"title"))==Comparable(title) && Comparable(Text(current,"artist")).Contains(Comparable(artist)) && Text(current,"album")!="" && Comparable(item.Detail).Contains(Comparable(Text(current,"album"))))return;
@@ -318,12 +344,12 @@ static class Program {
     static async Task<AutomationElement> ResultButton(string id) {
         SearchItem item;
         if (!Results.TryGetValue(id,out item) || DateTime.UtcNow-item.Created>TimeSpan.FromMinutes(10)) throw new SpotifyException("stale_result","Search again before using this result.");
-        var button=Elements(Root(true),ControlType.Button).FirstOrDefault(e=>e.GetRuntimeId().SequenceEqual(item.RuntimeId) && (PlayLabel(Name(e))==item.Label || Is(Name(e),"Pause")));
+        var button=Elements(MainContent(),ControlType.Button).FirstOrDefault(e=>e.GetRuntimeId().SequenceEqual(item.RuntimeId) && (PlayLabel(Name(e))==item.Label || SpotifySearch.GenericPause(Name(e))));
         if (button!=null) return button;
         var refreshed=await Search(item.Query,item.Kind);
         var match=refreshed.Select(r=>Results[(string)r["resultId"]]).FirstOrDefault(r=>item.Uri!=""?r.Uri==item.Uri:r.Label==item.Label && r.Detail==item.Detail);
         if (match==null) throw new SpotifyException("stale_result","Spotify search results changed. Search again before selecting one.");
-        return Elements(Root(true),ControlType.Button).FirstOrDefault(e=>e.GetRuntimeId().SequenceEqual(match.RuntimeId) && (PlayLabel(Name(e))==match.Label || Is(Name(e),"Pause")));
+        return Elements(MainContent(),ControlType.Button).FirstOrDefault(e=>e.GetRuntimeId().SequenceEqual(match.RuntimeId) && (PlayLabel(Name(e))==match.Label || SpotifySearch.GenericPause(Name(e))));
     }
     static async Task<object> Execute(Dictionary<string,object> request) {
         string action=Text(request,"action");

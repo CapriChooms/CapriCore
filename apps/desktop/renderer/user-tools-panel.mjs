@@ -7,7 +7,7 @@ export class UserToolsPanel {
     this.panel.className = 'preferences-panel';
     this.panel.hidden = true;
     this.panel.innerHTML =
-      '<h2>User tools</h2><div class="preferences-content"><div class="settings-card"><p>Place each tool in its own subfolder with manifest.json and its script. Discovery does not run code. Review the code, permissions and output before enabling a tool. Changed code requires approval again.</p><p>Enabled tools run in a Windows AppContainer with a timeout and no inherited credentials. File access is limited to input files you select and temporary output. Network access must be declared. Only enable code you trust with its private settings.</p><div class="settings-actions"><button id="user-tools-folder" type="button">Open tools folder</button><button id="user-tools-refresh" type="button">Refresh tools</button><button id="user-tools-example" type="button">Create example tool</button><button id="user-tools-stop" type="button">Stop user tools</button></div><p id="user-tools-status" role="status"></p></div><div id="user-tools-list"></div></div>';
+      '<h2>User tools</h2><div class="preferences-content"><div class="settings-card"><p data-inline-help>Enabled tools run in a Windows AppContainer with a timeout and no inherited credentials. File access is limited to input files you select and temporary output. Network access must be declared. Only enable code you trust with its private settings.</p><div class="settings-actions"><button id="user-tools-folder" type="button">Open tools folder</button><button id="user-tools-refresh" type="button">Refresh tools</button><button id="user-tools-example" type="button">Create example tool</button><button id="user-tools-stop" type="button">Stop user tools</button></div><p id="user-tools-status" role="status"></p></div><div id="user-tools-list" class="settings-stack"></div></div>';
     this.panel.dataset.panelCut = '12';
     for (const paragraph of this.panel.querySelectorAll('.settings-card > p:not([id])'))
       paragraph.classList.add('settings-help');
@@ -138,6 +138,7 @@ export class UserToolsPanel {
         secrets.autocomplete = 'off';
         secrets.placeholder = row.configured ? this.ui.text('Encrypted') : '{"apiKey":"…"}';
         save.type = 'button';
+        save.dataset.guideUserTool = 'secrets';
         save.textContent = this.ui.text('Encrypt tool settings');
         save.onclick = () =>
           this.run(async () => {
@@ -153,6 +154,7 @@ export class UserToolsPanel {
         if (row.permissions.files === 'inputs') {
           const inputs = document.createElement('button');
           inputs.type = 'button';
+          inputs.dataset.guideUserTool = 'inputs';
           inputs.textContent = this.ui.text('Choose input files');
           inputs.onclick = () =>
             this.run(async () => {
@@ -169,6 +171,7 @@ export class UserToolsPanel {
         parameters.rows = 2;
         parameters.value = '{}';
         test.type = 'button';
+        test.dataset.guideUserTool = 'test';
         test.textContent = this.ui.text('Test tool');
         output.dataset.untranslated = '';
         output.style.whiteSpace = 'pre-wrap';

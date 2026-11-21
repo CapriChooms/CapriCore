@@ -3,7 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { FullComputerAccess } from '../apps/desktop/full-computer-access.mjs';
 import { ComputerRequests } from '../apps/desktop/computer-requests.mjs';
@@ -15,13 +16,52 @@ import { registerActionToolSkills } from '../packages/skills/src/action-tools.mj
 import { SETTINGS_SCHEMA } from '../integrations/companion-tools/index.mjs';
 import {
   computerModeRequest,
+  computerTaskCommand,
   dedicatedMusicRequest,
   mentionsDiscord,
   ownerAppLaunch,
+  ownerAppLaunchFollowUp,
 } from '../apps/desktop/computer-mode-request.mjs';
 import { computerIntentClassifier } from '../apps/desktop/computer-planner.mjs';
+import { steamGameGoal } from '../apps/desktop/steam-task-state.mjs';
 import { ownerRequestsWeb } from '../apps/desktop/computer-task-scope.mjs';
 import { toolDomain } from '../apps/desktop/task-route.mjs';
+
+test('explicit local Media Player playback goes to authorized computer control', async () => {
+  for (const goal of [
+    "Play some music from my Windows's Media Player",
+    'Resume the song in Media Player.',
+    'Включи музыку в проигрывателе Windows.',
+  ]) {
+    assert.deepEqual(computerModeRequest(goal, { fullComputerAccess: true }), {
+      enabled: true,
+      run: true,
+    });
+    assert.equal(computerModeRequest(goal), null);
+    assert.equal(dedicatedMusicRequest(goal), false);
+  }
+  assert.equal(dedicatedMusicRequest('Play some music in Spotify.'), true);
+  assert.equal(
+    computerModeRequest('Do not play music in Media Player.', { fullComputerAccess: true }),
+    null,
+  );
+  const f = fixture({
+    interfaceState: () => ({
+      fullComputerAccess: f.access.enabled,
+      spotify: { enabled: true, prepared: true },
+      youtubeMusic: { enabled: true },
+    }),
+    localMusic: () => assert.fail('Spotify may not intercept Windows Media Player'),
+    prepareMusic: () => assert.fail('Spotify may not plan Windows Media Player playback'),
+    prepareYouTubeMusic: () => assert.fail('YouTube Music may not intercept Windows Media Player'),
+  });
+  const enabling = f.send('Enable full computer access.');
+  assert.equal(f.accept(), true);
+  await enabling;
+  const goal = "Play some music from my Windows's Media Player";
+  await f.send(goal);
+  assert.deepEqual(f.goals, [goal]);
+});
 
 test('explicit computer commands preserve full goals; questions, negations and quotations do not enable access', () => {
   for (const text of [
@@ -30,10 +70,13 @@ test('explicit computer commands preserve full goals; questions, negations and q
     'Включи режим полного управления компьютером.',
     'Капри, можешь включить полный доступ ко всему компьютеру?',
     'Включи полное управление компьютером, пожалуйста.',
+    '¿Puedes activar el «fullComputerAccess» para comenzar?',
+    'Activa el control total del ordenador.',
   ])
     assert.deepEqual(computerModeRequest(text), { enabled: true, run: false }, text);
   for (const text of [
     'Use full computer control to open Chrome, search for Capri and click the first result.',
+    'Capre use full computer access and open YouTube.',
     'Enable full computer access and play music in Spotify, then calculate 2+2.',
     'Капри, включи режим полного управления компьютером и открой Chrome, затем введи Capri.',
     'Используй полное управление компьютером: открой Spotify и найди трек.',
@@ -42,7 +85,11 @@ test('explicit computer commands preserve full goals; questions, negations and q
     'Открой Chrome через полное управление компьютером.',
   ])
     assert.deepEqual(computerModeRequest(text), { enabled: true, run: true }, text);
-  for (const text of ['Disable full computer access.', 'Капри, отзови полный доступ к компьютеру.'])
+  for (const text of [
+    'Disable full computer access.',
+    'Капри, отзови полный доступ к компьютеру.',
+    'Desactiva el acceso completo a mi computadora.',
+  ])
     assert.deepEqual(computerModeRequest(text), { enabled: false, run: false }, text);
   for (const text of [
     'Can you control my PC?',
@@ -54,6 +101,9 @@ test('explicit computer commands preserve full goals; questions, negations and q
     'Play music in Spotify.',
     'Enable full access to Spotify.',
     'Включи полный доступ к Spotify.',
+    '¿Qué es "fullComputerAccess"?',
+    'No actives el control total del ordenador.',
+    'Escribe «activa el fullComputerAccess» en el Bloc de notas.',
   ])
     assert.equal(computerModeRequest(text), null, text);
   for (const fullComputerAccess of [false, true]) {
@@ -72,9 +122,101 @@ test('explicit computer commands preserve full goals; questions, negations and q
   }
 });
 
+test('a spoken request to use my computer carries the entire Steam task through consent', async () => {
+  const text =
+    'Can you use my computer to open Steam? Then find Cyberpunk 2077, open it and uh press play button.';
+  assert.deepEqual(computerModeRequest(text), { enabled: true, run: true });
+  assert.equal(toolDomain(text, { fullComputerAccess: false }), 'desktop');
+  assert.deepEqual(ownerAppLaunch(text), { name: 'Steam', single: false });
+  assert.deepEqual(steamGameGoal(text), { name: 'Cyberpunk 2077', play: true });
+
+  const f = fixture();
+  const first = f.send(text);
+  assert.equal(f.dialogs[0].delayMs, 3000);
+  assert.equal(f.access.enabled, false);
+  assert.equal(f.modelCalls, 0);
+  assert.deepEqual(f.goals, []);
+  assert.equal(f.confirmations.respond({ id: f.dialogs[0].id, choice: 'cancel' }), true);
+  await first;
+  assert.equal(f.access.enabled, false);
+  assert.deepEqual(f.goals, []);
+
+  const accepted = f.send(text);
+  assert.equal(f.accept(), true);
+  await accepted;
+  assert.deepEqual(f.goals, [text]);
+  await f.send(text);
+  assert.deepEqual(f.goals, [text, text]);
+  assert.equal(f.dialogs.filter((event) => event.type === 'confirmation.request').length, 2);
+});
+
+test('use my computer routes only a direct request with a concrete action', () => {
+  assert.deepEqual(computerModeRequest('Можешь использовать мой компьютер, чтобы открыть Steam?'), {
+    enabled: true,
+    run: true,
+  });
+  assert.deepEqual(ownerAppLaunch('Используй мой компьютер, чтобы открыть Steam.'), {
+    name: 'Steam',
+    single: true,
+  });
+  for (const text of [
+    'Can you use my computer?',
+    'Can you use my PC to open?',
+    'Can you use my computer to not open Steam?',
+    'Please do not use my computer to open Steam.',
+    'Explain how to use my computer to open Steam.',
+    'Write “use my computer to open Steam” in a message.',
+  ]) {
+    assert.equal(computerModeRequest(text), null, text);
+    assert.equal(computerModeRequest(text, { fullComputerAccess: true }), null, text);
+  }
+});
+
+test('opening the YouTube home page takes the desktop route from chat and the test field', async () => {
+  const f = fixture({
+    interfaceState: () => ({ fullComputerAccess: true, computerSkillEnabled: true }),
+    computerAccess: async () => ({ ok: true, enabled: true }),
+    prepareModel: () => assert.fail('This verified URL should not wait for a model'),
+    computerTask: async (goal) => {
+      f.goals.push(goal);
+      return { status: 'completed', steps: 1, summary: 'Opened the requested page.' };
+    },
+  });
+  const spoken = 'Capre use full computer access and open YouTube.';
+  await f.send(spoken);
+  await f.send('Open YouTube', { mode: 'computer' });
+  assert.deepEqual(f.goals, [spoken, 'Open YouTube']);
+  assert.equal(f.events.at(-1).assistant.text, 'Opened the requested page.');
+});
+
+test('an app substitution after a direct launch uses the verified desktop route', async () => {
+  const f = fixture({
+    interfaceState: () => ({ fullComputerAccess: true }),
+    computerAccess: async () => ({ ok: true }),
+    computerTask: async (goal) => {
+      f.goals.push(goal);
+      return { status: 'completed', steps: 1, summary: 'Application opened.' };
+    },
+  });
+  assert.deepEqual(ownerAppLaunch('Open Discord window.'), {
+    name: 'Discord',
+    literalName: 'Discord window',
+    single: true,
+  });
+  await f.send('Open Discord window.');
+  await f.send('ooookay, nevermind. how about FL Studio 2024?');
+  assert.deepEqual(f.goals, ['Open Discord window.', 'Open FL Studio 2024']);
+  assert.equal(f.events.at(-1).type, 'turn.completed');
+  for (const previous of [
+    undefined,
+    'What do you think of Discord?',
+    'Open Discord and press Enter.',
+  ])
+    assert.equal(ownerAppLaunchFollowUp('How about FL Studio 2024?', previous), null);
+  assert.equal(ownerAppLaunchFollowUp('How about doing something else?', 'Open Discord.'), null);
+});
+
 function fixture(overrides = {}) {
-  const parent = path.resolve('.runtime/computer-chat-tests');
-  mkdirSync(parent, { recursive: true });
   const records = new Map(),
     events = [],
     dialogs = [],
@@ -91,7 +233,10 @@ function fixture(overrides = {}) {
     emit: (event) => dialogs.push(event),
   });
   const access = new FullComputerAccess({
-    file: path.join(mkdtempSync(path.join(parent, 'case-')), 'access.json'),
+    file: path.join(
+      mkdtempSync(path.join(os.tmpdir(), 'capri-computer-chat-test-')),
+      'access.json',
+    ),
     discover: async () => {
       discoveries++;
       return ['C:\\'];
@@ -158,6 +303,64 @@ function fixture(overrides = {}) {
     },
   };
 }
+
+test('a status question reports live computer access without a model, action, or confirmation', async () => {
+  for (const [language, question, on, off] of [
+    [
+      'pt-BR',
+      'Você tem acesso total ao meu PC?',
+      'Acesso total ao computador está habilitado.',
+      'Acesso total ao computador está desativado.',
+    ],
+    [
+      'en',
+      'Do you currently have full access to my computer?',
+      'Full computer access is enabled.',
+      'Full computer access is off.',
+    ],
+    [
+      'ru',
+      'У тебя есть полный доступ к моему ПК?',
+      'Полный доступ к компьютеру включен.',
+      'Полный доступ к компьютеру выключен.',
+    ],
+  ]) {
+    let enabled = true;
+    const f = fixture({
+      interfaceState: () => ({
+        fullComputerAccess: enabled,
+        languages: { conversation: language },
+      }),
+      computerAccess: () => assert.fail('A question must not change permissions'),
+      computerTask: () => assert.fail('A question must not start a computer task'),
+    });
+    await f.send(question);
+    assert.equal(f.events.at(-1).type, 'turn.completed');
+    assert.equal(f.events.at(-1).assistant.text, on);
+    enabled = false;
+    await f.send(question);
+    assert.equal(f.events.at(-1).type, 'turn.completed');
+    assert.equal(f.events.at(-1).assistant.text, off);
+    assert.equal(f.events.at(-1).assistant.computerTask, undefined);
+    assert.equal(f.modelCalls, 0);
+    assert.equal(f.dialogs.length, 0);
+  }
+});
+
+test('a Spanish request to activate computer access opens one confirmation before model preparation', async () => {
+  const f = fixture();
+  const pending = f.send('¿Puedes activar el «fullComputerAccess» para comenzar?');
+  for (let i = 0; i < 20 && !f.dialogs.length; i++) await new Promise(setImmediate);
+  assert.equal(f.dialogs.length, 1);
+  assert.equal(f.access.enabled, false);
+  assert.equal(f.modelCalls, 0);
+  assert.equal(f.accept(), true);
+  await pending;
+  assert.equal(f.access.enabled, true);
+  assert.equal(f.modelCalls, 0);
+  assert.deepEqual(f.goals, []);
+  assert.equal(f.events.at(-1).type, 'turn.completed');
+});
 
 test('access complaints use ordinary conversation without desktop classification or a permission dialog', async () => {
   for (const fullComputerAccess of [false, true]) {
@@ -387,6 +590,152 @@ test('the reported ASR variants and Steam chains preserve the original task', ()
   }
   assert.equal(computerModeRequest('Useful computer access is hard to set up'), null);
   assert.equal(ownerAppLaunch('Then open it.'), null);
+});
+
+test('an explicit Steam game launch resolves the Steam client with the existing desktop grant', () => {
+  for (const text of [
+    'open cyberpunk from steam, then launch the game',
+    'Could you open Portal 2 from Steam and then start it?',
+    'Открой Киберпанк из Стима, затем запусти игру.',
+  ]) {
+    assert.deepEqual(ownerAppLaunch(text), { name: 'Steam', single: false });
+    assert.deepEqual(computerModeRequest(text, { fullComputerAccess: true }), {
+      enabled: true,
+      run: true,
+    });
+    assert.equal(computerModeRequest(text), null);
+  }
+  const reported = 'Используй компьютер, открой стим, найди там киберпанк и запусти его';
+  assert.deepEqual(ownerAppLaunch(reported), { name: 'Steam', single: false });
+  assert.deepEqual(computerModeRequest(reported), { enabled: true, run: true });
+  assert.equal(computerModeRequest('Используй компьютер для программирования'), null);
+  assert.equal(
+    ownerAppLaunch('Open Notepad and type "launch Cyberpunk from Steam"')?.name,
+    'Notepad',
+  );
+});
+
+test('the reported English Steam request keeps the game title and bypasses the chat classifier', async () => {
+  const goal =
+    "Hi, Capri! Can you please use my PC, open Steam, launch Alchemy Factory for me? I'll be glad";
+  assert.deepEqual(ownerAppLaunch(goal), { name: 'Steam', single: false });
+  assert.deepEqual(ownerAppLaunch('Play Alchemy Factory in Steam.'), {
+    name: 'Steam',
+    single: false,
+  });
+  assert.deepEqual(steamGameGoal('Open Steam, launch Alchemy Factory and press the Play button.'), {
+    name: 'Alchemy Factory',
+    play: true,
+  });
+  assert.deepEqual(steamGameGoal(computerTaskCommand(goal)), {
+    name: 'Alchemy Factory',
+    play: true,
+  });
+  assert.deepEqual(steamGameGoal('Open Steam and play Ori and the Blind Forest.'), {
+    name: 'Ori and the Blind Forest',
+    play: true,
+  });
+  assert.equal(steamGameGoal('Open Steam and launch Alchemy Factory and then open Discord'), null);
+  const f = fixture({
+    computerIntent: () => assert.fail('Explicit desktop request must not consult the classifier'),
+  });
+  const pending = f.send(goal);
+  assert.equal(f.access.enabled, false);
+  assert.equal(f.accept(), true);
+  await pending;
+  assert.deepEqual(f.goals, [goal]);
+});
+
+test('the reported Russian Steam command reaches authorized computer control intact', async () => {
+  const goal = 'Привет, используй пк и запусти алхими фактори из стима, пж';
+  assert.deepEqual(computerModeRequest(goal), { enabled: true, run: true });
+  assert.deepEqual(ownerAppLaunch(goal), { name: 'Steam', single: false });
+  assert.deepEqual(steamGameGoal(computerTaskCommand(goal)), {
+    name: 'алхими фактори',
+    play: true,
+  });
+  assert.equal(
+    computerModeRequest('Привет, не используй пк и не запускай игры из стима, пж'),
+    null,
+  );
+  const f = fixture({
+    computerIntent: () => assert.fail('Explicit desktop request must not consult the classifier'),
+  });
+  const pending = f.send(goal);
+  assert.equal(f.access.enabled, false);
+  assert.equal(f.accept(), true);
+  await pending;
+  assert.deepEqual(f.goals, [goal]);
+});
+
+test('the main model can hand a task to the host after a classifier miss and a silent gateway', async () => {
+  const goal = 'I need the Downloads tab in Steam visible on screen. Could you take care of it?';
+  let selected;
+  const f = fixture({
+    token: () => 'fixture',
+    persona: () => 'Capri',
+    prepareContext: () => ({}),
+    requestRouter: null,
+    computerIntent: async () => ({ intent: 'chat', usesPrevious: false }),
+    fetchImpl: async (_url, options) => {
+      assert.equal(options.headers['x-capri-tools-once'], 'desktop');
+      assert.match(options.body, /Decide yourself/);
+      assert.throws(
+        () => f.chat.selectModelComputerTask('A different task'),
+        /exact latest owner message/,
+      );
+      selected = f.chat.selectModelComputerTask(goal);
+      assert.deepEqual(f.chat.selectModelComputerTask(goal), selected);
+      await delay(60_000, undefined, { signal: options.signal });
+      return assert.fail('The host should release the gateway immediately after selection');
+    },
+  });
+  const pending = f.send(goal);
+  for (let attempt = 0; !f.dialogs.length && attempt < 20; attempt++) await delay(10);
+  assert.equal(selected?.status, 'delegated', JSON.stringify(f.chat.diagnostics().lastFailure));
+  assert.equal(f.access.enabled, false);
+  assert.deepEqual(f.goals, []);
+  assert.equal(f.accept(), true);
+  await pending;
+  assert.deepEqual(f.goals, [goal]);
+  assert.equal(f.events.at(-1).type, 'turn.completed');
+  assert.equal(f.events.at(-1).assistant.text, 'Verified the requested result.');
+});
+
+test('the model handoff cannot create a task from an ordinary question or continue after approval is refused', async () => {
+  const conversation = 'What is Steam?';
+  const task = 'I want the Steam Downloads tab on screen. Could you take care of it?';
+  let message = conversation;
+  const f = fixture({
+    token: () => 'fixture',
+    persona: () => 'Capri',
+    prepareContext: () => ({}),
+    requestRouter: null,
+    computerIntent: async () => ({ intent: 'chat', usesPrevious: false }),
+    fetchImpl: async (_url, options) => {
+      if (message === conversation) {
+        assert.throws(() => f.chat.selectModelComputerTask(message), /No current owner message/);
+        return new Response(
+          'data: {"choices":[{"delta":{"content":"A game platform."}}]}\n\ndata: [DONE]\n\n',
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
+      }
+      f.chat.selectModelComputerTask(message);
+      await delay(60_000, undefined, { signal: options.signal });
+      return assert.fail('The gateway should have been released');
+    },
+  });
+  await f.send(conversation);
+  assert.deepEqual(f.dialogs, []);
+  message = task;
+  const pending = f.send(task);
+  for (let attempt = 0; !f.dialogs.length && attempt < 20; attempt++) await delay(10);
+  assert(f.dialogs.length, JSON.stringify(f.chat.diagnostics().lastFailure));
+  f.confirmations.respond({ id: f.dialogs.at(-1).id, choice: 'cancel' });
+  await pending;
+  assert.equal(f.access.enabled, false);
+  assert.deepEqual(f.goals, []);
+  assert.equal(f.events.at(-1).assistant.computerTask.status, 'cancelled');
 });
 
 test('localized Steam commands resolve to the Windows client and keep the library destination', () => {

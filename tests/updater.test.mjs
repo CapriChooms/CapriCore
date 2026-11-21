@@ -267,6 +267,7 @@ test('an update from an older installation includes and synchronizes new local C
   const plan = fixture({ modular: true });
   let installs = 0;
   await applyUpdate(plan, {
+    availableDisk: () => 4 * 1024 ** 3,
     execute: async (_exe, args, { cwd }) => {
       if (!args.includes('ci')) return;
       installs++;
@@ -288,6 +289,19 @@ test('an update from an older installation includes and synchronizes new local C
     'private conversation',
   );
   assert.equal(json(path.join(plan.root, '.capri-install.json')).releaseTag, plan.tag);
+});
+
+test('an update requiring npm refuses insufficient disk space before replacing source', async () => {
+  const plan = fixture({ modular: true });
+  await assert.rejects(
+    applyUpdate(plan, {
+      availableDisk: () => 128 * 1024 ** 2,
+      execute: async () => assert.fail('No update process should start without backup space'),
+    }),
+    /Not enough free space for the update and its backup/,
+  );
+  assert.equal(readFileSync(path.join(plan.root, 'apps/desktop/sample.mjs'), 'utf8'), 'old source');
+  assert.equal(existsSync(path.join(plan.root, '.runtime/updates/active.json')), false);
 });
 
 test('failed registration rolls back source and identity, and a retry succeeds', async () => {
@@ -621,7 +635,9 @@ test(
       'packages/installer/windows/common.ps1',
       'packages/installer/windows/uninstall.ps1',
       'packages/installer/windows/uninstall-window.cs',
+      'packages/installer/windows/cyberpunk-theme.cs',
       'packages/installer/windows/uninstall-launcher.cs',
+      'packages/installer/windows/launcher.manifest',
       'packages/installer/windows/setup-localization.cs',
       'packages/installer/windows/localization.ps1',
       'packages/installer/windows/app-launcher.cs',

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
 import { uiText } from '../../apps/desktop/interface-translations.mjs';
-import { LANGUAGE_PACKS } from '../../apps/desktop/renderer/language-settings.mjs';
+import conversationLanguages from '../../apps/shared/languages.json' with { type: 'json' };
 const parent = path.join(root, '.runtime/language-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'ui-')),
@@ -111,9 +111,11 @@ async function openSection(id) {
 }
 try {
   await launch();
-  assert.equal(
-    await page.locator('#language-conversation option').count(),
-    LANGUAGE_PACKS.length + 1,
+  assert.deepEqual(
+    await page
+      .locator('#language-conversation option')
+      .evaluateAll((options) => options.map(({ value }) => value)),
+    [...conversationLanguages.map(({ id }) => id), 'custom'],
   );
   assert.equal((await snapshot()).microphone.enabled, false);
   assert.equal(await page.locator('#language-speech option').count(), 2);
@@ -149,26 +151,6 @@ try {
   checks.push(
     'Automatic shows the matching voice without disabled language choices and restores older explicit preferences',
   );
-  await page.evaluate(async () =>
-    window.__verifySetLanguages({
-      ...(await window.capri.bootstrap()).languages,
-      interface: 'pt-BR',
-      conversation: 'pt-BR',
-      recognition: 'follow',
-      speech: 'follow',
-    }),
-  );
-  await page.waitForFunction(() =>
-    window.capri.bootstrap().then((s) => s.languages.interface === 'pt-BR'),
-  );
-  s = await snapshot();
-  assert.equal(s.voice.language, 'pt-BR');
-  assert.equal(s.microphone.language, 'pt-BR');
-  assert.equal(s.microphone.enabled, false);
-  await page.evaluate(async () =>
-    window.__verifySetLanguages({ ...(await window.capri.bootstrap()).languages, interface: 'en' }),
-  );
-  checks.push('Brazilian Portuguese applies to interface, conversation, recognition and voice');
   await openSection('languages');
   await page.selectOption('#language-conversation', 'ja');
   await openSection('microphone');

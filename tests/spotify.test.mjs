@@ -137,6 +137,7 @@ test('worker uses an owned executable, private stdio and an environment without 
   writeFileSync(path.join(native, 'SpotifyBridge.cs'), source);
   writeFileSync(path.join(native, 'SpotifyAudio.cs'), 'fixture audio source');
   writeFileSync(path.join(native, 'SpotifyAccessibility.cs'), 'fixture accessibility source');
+  writeFileSync(path.join(native, 'SpotifySearch.cs'), 'fixture search source');
   writeFileSync(path.join(native, 'ExportAutomation.cs'), 'fixture export source');
   const hash = spotifySourceHash(fixture);
   const compiled = path.join(fixture, '.runtime/spotify-bridge'),

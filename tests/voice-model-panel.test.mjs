@@ -8,6 +8,7 @@ import {
 } from '../apps/desktop/renderer/voice-model-panel.mjs';
 
 const qwen = { id: 'qwen', backend: 'qwen3-tts' };
+const breeze = { id: 'breeze-tts-2-q4-k', backend: 'breeze-tts' };
 const chatterbox = {
   id: 'multilingual',
   backend: 'chatterbox-multilingual-v3',
@@ -37,6 +38,9 @@ test('voice installation errors belong to their selected backend and language', 
   };
   assert.equal(voiceModelInstallState(catalog, speech, chatterbox, 'fr'), speech);
   assert.equal(voiceModelInstallState(catalog, speech, qwen, 'fr'), catalog);
+  assert.deepEqual(voiceModelInstallState(catalog, speech, breeze, 'fr'), { phase: 'idle' });
+  const breezeFailure = { ...catalog, installingModelId: breeze.id, installingLanguage: 'zh' };
+  assert.equal(voiceModelInstallState(breezeFailure, speech, breeze, 'zh'), breezeFailure);
   assert.deepEqual(voiceModelInstallState(catalog, speech, chatterbox, 'de'), { phase: 'idle' });
   assert.deepEqual(voiceModelInstallState(catalog, speech, qwen, 'de'), { phase: 'idle' });
   assert.equal(voiceModelInstallProgress(catalog), null, 'A stale 0% must not follow an error.');

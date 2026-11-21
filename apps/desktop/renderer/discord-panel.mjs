@@ -10,22 +10,18 @@ export class DiscordPanel {
     this.panel.innerHTML = `<h2>Discord presence</h2>
       <div class="preferences-content"><div class="settings-card">
       <div class="settings-actions"><button id="discord-portal" type="button">Open Discord Developer Portal</button></div>
-      <ol class="settings-help">
-        <li>Click New Application and name it Capri.</li>
-        <li>In General Information, copy the Application ID.</li>
-        <li>Paste the ID, turn on the checkbox and save when closing Settings.</li>
-      </ol>
-      <p class="settings-help">Keep Discord Desktop open and enable sharing in User Settings → Activity Sharing.</p>
       <label for="discord-application">Discord Application ID</label><input id="discord-application" type="text" inputmode="numeric" maxlength="22" autocomplete="off" spellcheck="false" data-untranslated>
       <label><input id="discord-enabled" type="checkbox"> Show Capri in my Discord activity</label>
       <div class="settings-actions"><button id="discord-save" type="button">Apply settings</button><button id="discord-refresh" type="button">Refresh status</button></div>
       <p id="discord-status" role="status"></p>
-      <details>
+      </div>
+      <details class="settings-disclosure">
         <summary>Optional activity image</summary>
-        <p class="settings-help">Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.</p>
+        <div class="settings-disclosure-content">
         <label for="discord-asset">Application image asset key</label><input id="discord-asset" type="text" maxlength="64" autocomplete="off" spellcheck="false" data-untranslated>
+        </div>
       </details>
-      </div></div>`;
+      </div>`;
     document.getElementById('companion').append(this.panel);
     const get = (id) => this.panel.querySelector('#discord-' + id);
     this.get = get;

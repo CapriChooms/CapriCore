@@ -96,13 +96,13 @@ export class MusicListeningService {
       phase: this.phase,
       enabled: Boolean(this.session),
       supported: process.platform === 'win32' && Boolean(musicPython(this.root)),
-      hearingMusic: this.decision.hearingMusic && this.settings().enabled,
+      hearingMusic: this.decision.hearingMusic,
       energy: this.decision.energy,
       musicScore: this.decision.music,
       speechScore: this.decision.speech,
-      tempo: this.settings().enabled ? this.decision.tempo : 0,
-      tempoConfidence: this.settings().enabled ? this.decision.tempoConfidence : 0,
-      beatAt: this.settings().enabled ? this.decision.beatAt : 0,
+      tempo: this.decision.tempo,
+      tempoConfidence: this.decision.tempoConfidence,
+      beatAt: this.decision.beatAt,
       settings: { ...this.settings() },
       ...(this.progress ? { progress: this.progress } : {}),
       error: this.error,
@@ -305,10 +305,10 @@ export class MusicListeningService {
     );
     return { accepted: true };
   }
-  fail() {
+  fail(message = 'Music listening stopped. Enable it again to retry.') {
     this.stop();
     this.phase = 'error';
-    this.error = 'Music listening stopped. Enable it again to retry.';
+    this.error = message;
     this.publish();
   }
   stop(id = this.session?.id) {

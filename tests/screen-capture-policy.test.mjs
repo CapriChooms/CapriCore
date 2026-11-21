@@ -266,6 +266,39 @@ test('all monitors is an opaque extra choice and one gesture authorizes its orde
   f.policy.release(grant.id);
 });
 
+test('native monitor sampling uses only leased regions and interrupts capture on revocation', async () => {
+  const f = monitorFixture();
+  const selected = await f.selectGroup();
+  const grant = f.policy.prepare(selected.id, { mode: 'watch' });
+  await f.policy.consume(f.request(), () => {});
+  const regions = [];
+  f.policy.sampleMonitor = async ({ bounds }, limit, signal) => {
+    signal.throwIfAborted();
+    assert.deepEqual(limit, { width: 1280, height: 800 });
+    regions.push(bounds);
+    return thumbnail(bounds.x < 0 ? 11 : 22).toPNG();
+  };
+  assert.deepEqual(
+    (await f.policy.monitorFrames(grant.id, f.request().frame)).map(({ png }) => png[32]),
+    [11, 22],
+  );
+  assert.deepEqual(regions, [f.displays[1].bounds, f.displays[0].bounds]);
+  assert(f.calls.every(({ thumbnailSize }) => thumbnailSize.width === 0));
+  let confirmStart;
+  const started = new Promise((resolve) => {
+    confirmStart = resolve;
+  });
+  f.policy.sampleMonitor = (_monitor, _limit, signal) =>
+    new Promise((_, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      confirmStart();
+    });
+  const sample = f.policy.monitorFrames(grant.id, f.request().frame);
+  await started;
+  f.policy.release(grant.id);
+  await assert.rejects(sample, /unavailable/);
+});
+
 test('ambiguous monitor identities cannot authorize a group, and a changed layout must be reselected', async () => {
   const f = monitorFixture();
   const selected = await f.selectGroup();

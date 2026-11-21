@@ -18,6 +18,7 @@ static class SpotifyAccessibility {
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X,Y; }
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window,out int processId);
     [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
     [DllImport("user32.dll")] static extern bool GetCursorPos(out Point point);
     [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
@@ -49,12 +50,44 @@ static class SpotifyAccessibility {
         }finally{Point current;if(GetCursorPos(out current) && Math.Abs(current.X-target.X)<3 && Math.Abs(current.Y-target.Y)<3)SetCursorPos(previous.X,previous.Y);}
     }
     static Input Key(ushort key,bool up=false) { return new Input{Type=1,Key=key,Flags=up?2u:0u}; }
+    static void RequireIdleSearchKeys() {
+        foreach(var key in new[]{1,2,16,17,18,91,92})
+            if(GetAsyncKeyState(key)<0)throw new SpotifyException("input_busy","Release the mouse and modifier keys before asking Spotify to search.");
+    }
+    static bool SearchWindowOwned(IntPtr window,int expectedProcess) {
+        int processId;
+        return GetWindowThreadProcessId(window,out processId)!=0 && processId==expectedProcess;
+    }
+    static void RequireSearchFocus(IntPtr window,int processId) {
+        if(!SearchWindowOwned(window,processId) || GetForegroundWindow()!=window)
+            throw new SpotifyException("focus_required","Bring Spotify to the foreground and try the search again.");
+    }
+    public static void OpenSearch(IntPtr window,int processId) {
+        RequireIdleSearchKeys();
+        if(!SearchWindowOwned(window,processId))throw new SpotifyException("target_changed","The Spotify window changed. Try again.");
+        var previous=GetForegroundWindow();
+        try {
+            SetForegroundWindow(window);
+            RequireIdleSearchKeys();
+            RequireSearchFocus(window,processId);
+            // Spotify's documented Windows desktop command. No query is typed
+            // until the bridge independently discovers its editable search field.
+            var keys=new[]{Key(17),Key(76),Key(76,true),Key(17,true)};
+            if(SendInput((uint)keys.Length,keys,Marshal.SizeOf(typeof(Input)))!=keys.Length){
+                if(GetForegroundWindow()==window)SendInput(1,new[]{Key(17,true)},Marshal.SizeOf(typeof(Input)));
+                throw new SpotifyException("input_failed","Spotify did not receive the search shortcut. Open its search and retry.");
+            }
+            Thread.Sleep(120);
+        }finally{if(previous!=IntPtr.Zero && previous!=window && GetForegroundWindow()==window)SetForegroundWindow(previous);}
+    }
     // Chromium's ValuePattern setter changes the accessible value without firing
     // React's input handler. Real text input is limited to this verified field;
     // callers cannot supply keys, coordinates, an executable or another window.
-    public static void EnterSearch(AutomationElement field,IntPtr window,string query) {
+    public static void EnterSearch(AutomationElement field,IntPtr window,int processId,string query) {
         if(field==null)throw new SpotifyException("search_unavailable","Spotify's search field is unavailable.");
-        foreach(var key in new[]{1,2,16,17,18,91,92})if(GetAsyncKeyState(key)<0)throw new SpotifyException("input_busy","Release the mouse and modifier keys before asking Spotify to search.");
+        RequireIdleSearchKeys();
+        if(!SearchWindowOwned(window,processId) || field.Current.ProcessId!=processId)
+            throw new SpotifyException("target_changed","The Spotify window changed. Try again.");
         var previous=GetForegroundWindow();
         try {
             SetForegroundWindow(window);
@@ -63,15 +96,17 @@ static class SpotifyAccessibility {
             bool verified=false;
             do {
                 var focused=AutomationElement.FocusedElement;
-                verified=GetForegroundWindow()==window && focused!=null && focused.GetRuntimeId().SequenceEqual(field.GetRuntimeId());
+                verified=GetForegroundWindow()==window && focused!=null && focused.Current.ProcessId==processId && focused.GetRuntimeId().SequenceEqual(field.GetRuntimeId());
                 if(verified)break;
                 Thread.Sleep(50);
             }while(focusTimer.ElapsedMilliseconds<750);
-            if(!verified || GetForegroundWindow()!=window)
+            if(!verified)
                 throw new SpotifyException("focus_required","Bring Spotify to the foreground and try the search again.");
             var input=new List<Input>{Key(17),Key(65),Key(65,true),Key(17,true)};
             foreach(var character in query){input.Add(new Input{Type=1,Scan=character,Flags=4});input.Add(new Input{Type=1,Scan=character,Flags=6});}
             input.Add(Key(13));input.Add(Key(13,true));
+            RequireIdleSearchKeys();
+            RequireSearchFocus(window,processId);
             uint sent=SendInput((uint)input.Count,input.ToArray(),Marshal.SizeOf(typeof(Input)));
             if(sent!=input.Count){SendInput(1,new[]{Key(17,true)},Marshal.SizeOf(typeof(Input)));throw new SpotifyException("input_failed","Spotify did not receive the complete search. Check its search field before retrying.");}
             Thread.Sleep(250);
@@ -112,7 +147,7 @@ static class SpotifyAccessibility {
     }
     public static string Link(AutomationElement element,IntPtr window) {
         var key=String.Join(",",element.GetRuntimeId());string value;
-        if(Window!=window || DateTime.UtcNow-Updated>TimeSpan.FromMilliseconds(250) || !Values.ContainsKey(key))Refresh(window);
+        if(Window!=window || DateTime.UtcNow-Updated>TimeSpan.FromMilliseconds(250))Refresh(window);
         return Values.TryGetValue(key,out value)?value:"";
     }
     static void Refresh(IntPtr window) {

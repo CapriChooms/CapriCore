@@ -6,6 +6,7 @@ const canvas = document.getElementById('control-effects');
 const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
 let settings = { enabled: true, intensity: 50, theme: 'capri', cursor: true };
 let pointer = null,
+  pointerSuspended = false,
   previousPointer = null,
   phase = 'observing',
   pulseAt = -10000;
@@ -168,7 +169,7 @@ function render(now) {
   }
   ctx.shadowBlur = 0;
   while (trail.length && now - trail[0].at > 350) trail.shift();
-  if (settings.cursor && pointer) {
+  if (settings.cursor && pointer && !pointerSuspended) {
     const color = colors[2],
       pulse = Math.max(0, 1 - (now - pulseAt) / 450);
     for (const item of trail) {
@@ -242,9 +243,20 @@ globalThis.capriControl = Object.freeze({
     document.body.dataset.theme = settings.theme;
   },
   pointer(value) {
-    if (pointer) trail.push({ ...pointer, at: performance.now() });
+    if (pointer && !pointerSuspended) trail.push({ ...pointer, at: performance.now() });
     if (trail.length > 12) trail.shift();
     pointer = value;
+  },
+  suspendPointer() {
+    pointerSuspended = true;
+    if (previousPointer) ctx.clearRect(previousPointer.x - 100, previousPointer.y - 100, 200, 200);
+    for (const item of trail) ctx.clearRect(item.x - 30, item.y - 30, 60, 60);
+    previousPointer = null;
+    trail.length = 0;
+    return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  },
+  resumePointer() {
+    pointerSuspended = false;
   },
   pulse(action) {
     phase = action;

@@ -64,6 +64,7 @@ test('foreground screen context uses the post-submission frame even while typing
     question: 'What is visible now?',
   });
   assert.equal(calls.length, 1);
+  assert.equal(f.analyses.length, 1);
   assert.equal(calls[0].png, frame);
   assert.equal(calls[0].question, 'What is visible now?');
   assert.equal(context.current, true);
@@ -122,15 +123,18 @@ test('a stopped foreground capture cannot restore old private screen context', a
   await assert.rejects(pending);
   assert.equal(f.observer.context(), null);
 });
-function fixture(infer = async () => 'A red square and a blue circle.') {
+function fixture(infer = async () => 'A red square and a blue circle.', options = {}) {
   let now = 1000000;
   const state = {},
-    events = [];
+    events = [],
+    analyses = [];
   const observer = new ScreenObservation({
     infer,
     state: () => state,
     now: () => now,
     onChange: (s) => events.push(s),
+    onAnalysis: () => analyses.push(now),
+    ...options,
   });
   observer.start({
     id: 'lease',
@@ -142,6 +146,7 @@ function fixture(infer = async () => 'A red square and a blue circle.') {
     observer,
     state,
     events,
+    analyses,
     advance: (ms) => {
       now += ms;
     },
@@ -170,8 +175,12 @@ test('background inference is rate limited, scene-aware, transient and gives for
   const f = fixture(),
     o = f.observer;
   assert.equal(o.sample(f.packet()).analyse, true);
+  assert.equal(f.analyses.length, 0, 'Sampling alone must not start the observation cue');
   assert.equal((await o.frame(f.packet())).accepted, true);
+  assert.equal(f.analyses.length, 1);
   assert.equal(o.context().current, true);
+  const firstScene = o.commentEvidence();
+  assert.equal(firstScene.captureId, 'lease');
   assert.equal(Object.hasOwn(o.session, 'png'), false);
   f.advance(15000);
   assert.equal(o.sample(f.packet(1)).analyse, false, 'Unchanged frame must not invoke inference');
@@ -182,15 +191,20 @@ test('background inference is rate limited, scene-aware, transient and gives for
     false,
     'Changed but unanalysed view must not be described as current',
   );
+  assert.equal(o.commentEvidence(), null);
   f.state.busy = false;
   o.activity();
   assert.equal(o.sample(f.packet(1, 200)).analyse, false);
+  assert.equal(f.analyses.length, 1, 'Skipped samples must not start the observation cue');
   f.advance(10001);
   assert.equal(o.sample(f.packet(1, 200)).analyse, true);
   assert.equal((await o.frame(f.packet(1, 200))).accepted, true);
+  assert.equal(f.analyses.length, 2);
+  assert.notEqual(o.commentEvidence().scene, firstScene.scene);
   assert.throws(() => o.sample({ ...f.packet(), captureId: 'another-source' }));
   f.advance(90001);
   assert.equal(o.context().observation, null);
+  assert.equal(o.commentEvidence(), null);
   o.stop();
   assert.equal(o.context(), null);
   assert.equal(o.snapshot().active, false);
@@ -217,6 +231,114 @@ test('stopped or interrupted inference cannot restore a summary or revive a sour
     f.events.some((event) => event.lastAnalysedAt !== null),
     false,
   );
+});
+
+test('watch together enriches the existing frame once and keeps the result fresh during motion', async () => {
+  const calls = [],
+    reads = [];
+  let kind = 'video';
+  let summary = 'A short scene.';
+  let nativeWindow = 'window:123:0';
+  let playback = { title: 'Windows media title', positionMs: 45000, durationMs: 60000 };
+  const f = fixture(
+    async ({ follow, source }) => {
+      calls.push({ follow, capturedAt: source.capturedAt });
+      return { summary, kind, title: 'Untrusted title guess', positionMs: 1 };
+    },
+    {
+      followSource: (id) => (id === 'lease' ? nativeWindow : null),
+      readPlayback: async (nativeId, { capturedAt }) => {
+        reads.push({ nativeId, capturedAt });
+        return playback;
+      },
+    },
+  );
+  const o = f.observer;
+  const analyse = async (sequence, signatureValue) => {
+    const frame = f.packet(sequence, signatureValue);
+    assert.equal(o.sample(frame).analyse, true);
+    assert.equal((await o.frame(frame)).accepted, true);
+    return o.commentEvidence();
+  };
+  assert.equal(o.sample(f.packet()).analyse, true);
+  assert.deepEqual(calls, []);
+  assert.deepEqual(reads, []);
+  const first = await analyse(0, 0);
+  assert.deepEqual(calls, [{ follow: true, capturedAt: 1000000 }]);
+  assert.deepEqual(reads, [{ nativeId: 'window:123:0', capturedAt: 1000000 }]);
+  assert.deepEqual(first.follow, { kind: 'video', windowId: '123', playback });
+  assert.equal(first.expiresAt, first.capturedAt + 25000);
+  assert.equal(Object.hasOwn(o.context().observation, 'follow'), false);
+  assert.equal(Object.hasOwn(o.session, 'png'), false);
+  nativeWindow = 'window:456:0';
+  assert.equal(o.commentEvidence(), null);
+  nativeWindow = 'window:123:0';
+  f.advance(5000);
+  o.sample(f.packet(1, 180));
+  assert.equal(o.context().current, false);
+  assert.deepEqual(o.commentEvidence(), first);
+  const second = await analyse(1, 180);
+  assert.notEqual(second.scene, first.scene);
+  f.advance(60000);
+  const unchanged = await analyse(2, 180);
+  assert.notEqual(unchanged.scene, second.scene);
+
+  playback = { title: 'Title from Windows', positionMs: -1, durationMs: null };
+  f.advance(5000);
+  assert.deepEqual((await analyse(3, 0)).follow.playback, { title: 'Title from Windows' });
+  f.advance(25000);
+  assert.equal(o.commentEvidence(), null);
+
+  kind = 'game';
+  const game = await analyse(4, 180);
+  assert.deepEqual(game.follow, { kind: 'game', windowId: '123' });
+  summary = 'The player crosses the bridge.';
+  f.advance(5000);
+  assert.deepEqual((await analyse(5, 0)).follow, {
+    kind: 'game',
+    windowId: '123',
+    earlierView: 'A short scene.',
+  });
+  kind = 'other';
+  f.advance(5000);
+  assert.equal((await analyse(6, 180)).follow, undefined);
+  assert.equal(calls.length, 7);
+  assert.equal(reads.length, calls.length);
+});
+
+test('follow invalidation cancels pending playback and stale frames cannot restore comments', async () => {
+  let completeInference, playbackSignal;
+  let nativeId = 'window:123:0';
+  const f = fixture(
+    async () =>
+      new Promise((resolve) => {
+        completeInference = resolve;
+      }),
+    {
+      followSource: () => nativeId,
+      readPlayback: (_id, { signal }) => {
+        playbackSignal = signal;
+        return new Promise(() => {});
+      },
+    },
+  );
+  const o = f.observer;
+  o.sample(f.packet());
+  const pending = o.frame(f.packet());
+  o.invalidateFollow();
+  assert.equal(playbackSignal.aborted, true);
+  completeInference({ summary: 'The earlier video.', kind: 'video' });
+  assert.equal((await pending).accepted, false);
+  assert.equal(o.commentEvidence(), null);
+
+  f.advance(5000);
+  o.sample(f.packet(1, 200));
+  const wrongWindow = o.frame(f.packet(1, 200));
+  nativeId = 'window:456:0';
+  o.invalidateFollow();
+  completeInference({ summary: 'The wrong video.', kind: 'video' });
+  assert.equal((await wrongWindow).accepted, false);
+  assert.equal(o.context().observation, null);
 });
 
 test('visual summaries use local tool-free inference and reject action output', async () => {
@@ -253,6 +375,43 @@ test('visual summaries use local tool-free inference and reject action output', 
       Response.json({ done: true, message: { tool_calls: [{}], content: '{}' } }),
   });
   await assert.rejects(hostile({ png: Buffer.alloc(1), signal: new AbortController().signal }));
+});
+
+test('only background follow requests classify visible scenes and ignore model-supplied metadata', async () => {
+  let request;
+  let kind = 'video';
+  const model = screenObserverModel({
+    url: 'http://127.0.0.1:11434',
+    model: 'test',
+    fetchImpl: async (_url, options) => {
+      request = JSON.parse(options.body);
+      return Response.json({
+        done: true,
+        message: {
+          content: JSON.stringify({ summary: 'A blue circle.', kind, playback: 'guessed title' }),
+        },
+      });
+    },
+  });
+  const packet = { png: Buffer.from('single frame'), signal: new AbortController().signal };
+  assert.deepEqual(await model({ ...packet, follow: true }), {
+    summary: 'A blue circle.',
+    kind: 'video',
+  });
+  assert.deepEqual(request.format.required, ['summary', 'kind']);
+  assert.deepEqual(request.format.properties.kind.enum, ['video', 'game', 'other']);
+  assert.match(request.messages[0].content, /Do not guess the title/);
+  assert.equal(request.messages[1].images.length, 1);
+  assert.deepEqual(request.tools, []);
+  kind = 'opaque-guess';
+  assert.equal((await model({ ...packet, follow: true })).kind, 'other');
+  assert.equal(
+    await model({ ...packet, question: 'What is visible?', follow: true }),
+    'A blue circle.',
+  );
+  assert.deepEqual(request.format.required, ['summary']);
+  assert.equal(await model(packet), 'A blue circle.');
+  assert.deepEqual(request.format.required, ['summary']);
 });
 
 test('unsupported image responses preserve only the bounded exact local error code and fixed warning', async () => {

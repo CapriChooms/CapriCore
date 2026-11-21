@@ -64,6 +64,7 @@ test('turn budgets preserve explicit smaller model, generation and context limit
     512,
   );
   assert.equal(localTurnOutputBudget({ ...model(), contextWindow: 8192 }, mode('medium')), 4096);
+  assert.equal(localTurnOutputBudget({ ...model(), contextWindow: 16384 }, mode('medium')), 4096);
   assert.equal(
     localTurnOutputBudget({ ...model(), params: { num_ctx: 8192 } }, mode('medium')),
     4096,

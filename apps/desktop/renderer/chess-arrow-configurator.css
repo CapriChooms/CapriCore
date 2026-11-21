@@ -1,0 +1,304 @@
+.chess-arrow-editor {
+  container-type: inline-size;
+}
+.chess-arrow-editor .ca-workspace {
+  display: grid;
+  align-items: start;
+  gap: var(--settings-section-gap);
+  padding: var(--settings-card-padding);
+}
+.chess-arrow-editor .ca-preview {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  background: var(--settings-panel-surface);
+}
+.chess-arrow-editor .ca-preview-controls,
+.chess-arrow-editor .ca-move-readout {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.chess-arrow-editor .ca-preview-controls label,
+.chess-arrow-editor .ca-preview-controls select {
+  margin: 0;
+}
+.chess-arrow-editor .ca-preview-controls select {
+  width: auto;
+  max-width: 55%;
+}
+.chess-arrow-editor .ca-board-frame {
+  --ca-square-light: #e4e8c8;
+  --ca-square-dark: #729660;
+  position: relative;
+  width: min(100%, 198px);
+  margin-inline: auto;
+  aspect-ratio: 1;
+  outline: 1px solid var(--settings-divider-ink);
+  direction: ltr;
+}
+.chess-arrow-editor .ca-board-frame[data-theme='wood'] {
+  --ca-square-light: #f1d1a5;
+  --ca-square-dark: #a86e4f;
+}
+.chess-arrow-editor .ca-board-frame[data-theme='dark'] {
+  --ca-square-light: #8d9db4;
+  --ca-square-dark: #3a4a64;
+}
+.chess-arrow-editor .ca-board {
+  display: grid;
+  grid-template: repeat(8, minmax(0, 1fr)) / repeat(8, minmax(0, 1fr));
+  width: 100%;
+  height: 100%;
+}
+#chess-arrow-editor .ca-board button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  filter: none;
+  border-radius: 0;
+  clip-path: none;
+  background: var(--ca-square-light);
+  color: #fff9e7;
+  font:
+    16px / 1 'Segoe UI Symbol',
+    sans-serif;
+  text-shadow:
+    0 1px 2px #000,
+    0 -1px 1px #444;
+  cursor: crosshair;
+}
+#chess-arrow-editor .ca-board button.ca-dark {
+  background: var(--ca-square-dark);
+}
+#chess-arrow-editor .ca-board button.ca-black-piece {
+  color: #18212a;
+  text-shadow: 0 1px 1px #fff9;
+}
+#chess-arrow-editor .ca-board button:is(:hover, :focus-visible, .ca-source, .ca-target) {
+  box-shadow:
+    inset 0 0 0 2px var(--settings-control-ink),
+    inset 0 0 0 3px #0009;
+}
+.chess-arrow-editor .ca-board button[data-rank]::before,
+.chess-arrow-editor .ca-board button[data-file]::after {
+  position: absolute;
+  color: #fff;
+  font:
+    8px / 1 system-ui,
+    sans-serif;
+  text-shadow:
+    0 1px 2px #000,
+    0 -1px 1px #444;
+}
+.chess-arrow-editor .ca-board button[data-rank]::before {
+  content: attr(data-rank);
+  top: 2px;
+  left: 2px;
+}
+.chess-arrow-editor .ca-board button[data-file]::after {
+  content: attr(data-file);
+  right: 2px;
+  bottom: 2px;
+}
+.chess-arrow-editor .ca-preview-arrow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.chess-arrow-editor .settings-help {
+  margin: 0;
+}
+.chess-arrow-editor .ca-move {
+  padding: 3px 5px;
+  border: 1px solid var(--settings-divider-ink);
+  color: var(--settings-control-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  direction: ltr;
+}
+.chess-arrow-editor .ca-controls {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 8px;
+}
+.chess-arrow-editor .ca-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+.chess-arrow-editor .ca-presets button {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  line-height: 1.2;
+}
+.chess-arrow-editor .ca-presets svg {
+  width: 100%;
+  height: 21px;
+  pointer-events: none;
+}
+.chess-arrow-editor .ca-controls .settings-disclosure {
+  background: var(--settings-panel-surface);
+}
+.chess-arrow-editor .ca-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 122px), 1fr));
+  gap: 9px 12px;
+  padding: var(--settings-card-padding);
+}
+.chess-arrow-editor .ca-wide {
+  grid-column: 1 / -1;
+}
+.chess-arrow-editor .ca-terminal {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--settings-divider-ink);
+  padding: 0;
+}
+.chess-arrow-editor .ca-terminal legend {
+  margin-inline-start: 7px;
+  padding-inline: 4px;
+  color: var(--settings-title);
+}
+.chess-arrow-editor .ca-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 5px;
+  min-width: 0;
+}
+.chess-arrow-editor .ca-field label {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.chess-arrow-editor .ca-field :is(select, textarea, input:not([type='color'])) {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.chess-arrow-editor .ca-field :is(select, input[type='text'], textarea) {
+  width: 100%;
+  margin: 0;
+}
+#chess-arrow-editor .ca-field :is(textarea, input[type='text']) {
+  font-family: 'Cascadia Mono', monospace;
+  direction: ltr;
+}
+#chess-arrow-editor .ca-field [aria-invalid='true'] {
+  border-color: var(--danger, #ff6687);
+}
+.chess-arrow-editor .ca-field > .settings-help,
+.chess-arrow-editor .ca-sketch {
+  grid-column: 1 / -1;
+}
+.chess-arrow-editor .ca-sketch {
+  width: 100%;
+  height: 108px;
+  border: 1px solid var(--settings-divider-ink);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 15px, var(--settings-divider-ink) 15px 16px),
+    repeating-linear-gradient(90deg, transparent 0 15px, var(--settings-divider-ink) 15px 16px),
+    var(--settings-panel-surface);
+  color: var(--settings-control-ink);
+  cursor: crosshair;
+  touch-action: none;
+  direction: ltr;
+}
+.chess-arrow-editor .ca-sketch line {
+  stroke: currentColor;
+  stroke-width: 4;
+  opacity: 0.35;
+}
+.chess-arrow-editor .ca-sketch path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 13;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chess-arrow-editor .ca-sketch circle {
+  fill: currentColor;
+  opacity: 0.7;
+}
+.chess-arrow-editor .ca-field input[type='range'] {
+  width: 100%;
+  min-height: 22px;
+  margin: 0;
+}
+.chess-arrow-editor .ca-field input[type='color'] {
+  width: 34px;
+  height: 27px;
+  min-height: 0;
+  padding: 2px;
+  cursor: pointer;
+}
+.chess-arrow-editor .ca-field output {
+  color: var(--settings-control-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.chess-arrow-editor .ca-color-field output {
+  font-size: 0.86em;
+  opacity: 0.85;
+}
+.chess-arrow-editor .ca-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  grid-column: 1 / -1;
+}
+.chess-arrow-editor .ca-status {
+  margin: 0;
+  color: var(--danger, #ff6687);
+}
+@container (max-width: 330px) or (min-width: 550px) {
+  .chess-arrow-editor .ca-preview-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chess-arrow-editor .ca-preview-controls select {
+    width: 100%;
+    max-width: none;
+  }
+}
+@container (max-width: 330px) {
+  .chess-arrow-editor .ca-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 550px) {
+  .chess-arrow-editor .ca-workspace {
+    grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  }
+  .chess-arrow-editor .ca-preview {
+    position: sticky;
+    inset-block-start: 0;
+  }
+}
+.chess-frame-stage {
+  overflow: hidden;
+}
+.chess-frame-preview {
+  position: relative;
+  inline-size: min(82%, 290px);
+  margin-inline: auto;
+  margin-block: 24px;
+  aspect-ratio: 1;
+  background: repeating-conic-gradient(#71945a 0 25%, #ebedcf 0 50%) 0 0 / 25% 25%;
+}
+
+.chess-frame-art {
+  position: absolute;
+  pointer-events: none;
+}

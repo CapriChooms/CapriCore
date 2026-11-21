@@ -1,0 +1,58 @@
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font:
+    15px system-ui,
+    sans-serif;
+  user-select: none;
+}
+[hidden] {
+  display: none !important;
+}
+body.selecting {
+  cursor: crosshair;
+  background: #07131c24;
+}
+#instructions {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border: 1px solid #76e8e3;
+  background: #0a1824;
+  color: #e0ffff;
+  pointer-events: none;
+}
+#selection {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid #76e8e3;
+  box-shadow: 0 0 0 1px #0a1824;
+  pointer-events: none;
+}
+body:has(#lightning:not([hidden])) #arrow {
+  visibility: hidden;
+}
+#board {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#board-frame {
+  position: absolute;
+  pointer-events: none;
+}
+#arrow,
+#lightning {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+#arrow {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}

@@ -78,6 +78,9 @@ try {
     }, value);
   const status = companion.locator('.composer #wake-feedback');
   const field = companion.locator('#message');
+  const connectionStatus = companion.locator('#status');
+  const reconnect = companion.locator('#reconnect');
+  const composer = companion.locator('.composer');
   const listening = {
     type: 'microphone.settings',
     enabled: true,
@@ -88,10 +91,10 @@ try {
   const visibility = () =>
     application.evaluate(({ BrowserWindow }) =>
       Object.fromEntries(
-        BrowserWindow.getAllWindows().map((win) => [
-          new URL(win.webContents.getURL()).pathname,
-          win.isVisible(),
-        ]),
+        BrowserWindow.getAllWindows().flatMap((win) => {
+          const url = win.webContents.getURL();
+          return url ? [[new URL(url).pathname, win.isVisible()]] : [];
+        }),
       ),
     );
   const assertInsideComposer = () =>
@@ -107,6 +110,50 @@ try {
         status.bottom <= composer.bottom
       );
     });
+
+  const assertCompactInput = async () => {
+    assert.equal(await companion.locator('#input-dock > footer').count(), 0);
+    assert.equal(await reconnect.isHidden(), true);
+    assert.equal(
+      await connectionStatus.evaluate((node) => node.classList.contains('sr-only')),
+      true,
+    );
+    const emptySpace = await composer.evaluate(
+      (node) =>
+        node.parentElement.getBoundingClientRect().bottom - node.getBoundingClientRect().bottom,
+    );
+    assert.ok(Math.abs(emptySpace) <= 1, 'There is no reserved text row below the composer');
+  };
+  assert.equal(await connectionStatus.getAttribute('role'), 'status');
+  assert.equal(await connectionStatus.getAttribute('aria-live'), 'polite');
+  await assertCompactInput();
+  await events({
+    type: 'backend',
+    phase: 'asleep',
+    message: 'Sleeping. Send a message to wake Capri.',
+  });
+  await companion.locator('body[data-phase="asleep"]').waitFor();
+  await assertCompactInput();
+  await events({
+    type: 'backend',
+    phase: 'offline',
+    code: 'CAPRI_LOCAL_MODEL_SETUP_REQUIRED',
+    message: 'Choose a language model.',
+  });
+  await reconnect.waitFor();
+  assert.equal(await reconnect.textContent(), 'Language model');
+  assert.equal(await connectionStatus.textContent(), 'Choose a language model.');
+  assert.equal(
+    await connectionStatus.evaluate((node) => node.classList.contains('sr-only')),
+    false,
+  );
+  assert.ok((await reconnect.boundingBox()).y < (await composer.boundingBox()).y);
+  await events({ type: 'backend', phase: 'ready', message: 'Ready' });
+  await companion.locator('body[data-phase="ready"]').waitFor();
+  await assertCompactInput();
+  console.log(
+    'PASS composer has no footer space and shows the connection action only when needed.',
+  );
 
   for (const mode of ['portrait', 'core', 'detached']) {
     if (mode === 'detached') {
@@ -128,17 +175,12 @@ try {
       true,
       'Attached core and expanded detached input remain usable.',
     );
-    const composerHeight = await companion
-      .locator('.composer')
-      .evaluate((node) => node.offsetHeight);
+    const composerHeight = await composer.evaluate((node) => node.offsetHeight);
     await events(listening);
     await status.waitFor({ state: 'visible' });
     assert.match(await status.textContent(), /I'M LISTENING/);
     assert.equal(await assertInsideComposer(), true);
-    assert.equal(
-      await companion.locator('.composer').evaluate((node) => node.offsetHeight),
-      composerHeight,
-    );
+    assert.equal(await composer.evaluate((node) => node.offsetHeight), composerHeight);
     await field.fill('Existing draft');
     assert.equal(await field.inputValue(), 'Existing draft');
     assert.equal(await assertInsideComposer(), true);
@@ -151,7 +193,6 @@ try {
   await companion.locator('#presence-toggle').evaluate((button) => button.click());
   await companion.waitForFunction(() => document.body.dataset.presence === 'core');
   assert.equal(await field.isHidden(), true);
-  assert.equal(await companion.locator('#input-dock > footer').isHidden(), true);
   await events(listening);
   assert.equal(
     await status.isHidden(),
@@ -244,7 +285,7 @@ try {
   await settingsView(application, 'appearance');
   await theme.selectOption('custom');
   await appearance.locator('#theme-hue').fill('220');
-  await appearance.locator('[data-section="dialogue"]').click();
+  await appearance.locator('[data-section="personality"]').click();
   await appearance.locator('#communication-style').selectOption('wild');
   await appearance.locator('#settings-window-close').click();
   await draft.waitFor();
@@ -335,39 +376,18 @@ try {
   await time.locator('#time-list').getByText('Draft verification timer').waitFor();
 
   const general = await settingsView(application, 'general');
-  const help = general.locator('.general-setting:has([data-window-action="reset-position"])');
-  await help.locator('#general-reset-position-help').waitFor();
-  assert.equal(await help.locator('.settings-info-button').count(), 0);
   await general.locator('[data-section="appearance"]').click();
   const helpRow = general.locator('.settings-help-row:has(#companion-glitch-events)');
   const helpButton = helpRow.locator('.settings-info-button');
-  await helpButton.click();
   const info = await helpButton.boundingBox();
   assert.ok(info.width === info.height && info.width <= 20);
-  let appeared = false;
-  for (let attempt = 0; attempt < 50 && !appeared; attempt++) {
-    const helpView = application
-      .windows()
-      .find((page) => page.url() === 'capri://desktop/settings-help.html');
-    if (helpView) {
-      await helpView.locator('aside[data-open]').waitFor();
-      assert.equal(
-        await application.evaluate(({ BrowserWindow }) => {
-          const bounds = (name) =>
-            BrowserWindow.getAllWindows()
-              .find((view) => view.webContents.getURL() === `capri://desktop/${name}.html`)
-              .getBounds();
-          const owner = bounds('settings');
-          const help = bounds('settings-help');
-          return help.x >= owner.x + owner.width || help.x + help.width <= owner.x;
-        }),
-        true,
-      );
-      appeared = true;
-    } else if (await general.locator('.settings-help-fallback[data-open]').count()) appeared = true;
-    else await new Promise((resolve) => setTimeout(resolve, 80));
-  }
-  assert.equal(appeared, true);
+  await helpButton.click();
+  await general.locator('dialog.settings-guide[open][data-section="appearance"]').waitFor();
+  await general.locator('#companion-glitch-events[data-settings-guide-highlight]').waitFor();
+  assert.equal(
+    application.windows().some((page) => page.url() === 'capri://desktop/settings-help.html'),
+    false,
+  );
   await general.keyboard.press('Escape');
   await general
     .locator('.settings-help-row:has(#companion-glitch-events) [aria-expanded="false"]')
@@ -393,13 +413,13 @@ try {
   const support = await settingsView(application, 'support');
   assert.equal(await support.getByRole('button', { name: 'TikTok' }).count(), 1);
   assert.equal(
-    await support.locator('.brand-tiktok .brand-video[aria-hidden="true"] svg').count(),
+    await support.locator('.brand-tiktok .brand-icon[aria-hidden="true"] svg').count(),
     1,
   );
-  const links = await support.locator('.support-links').evaluate((group) => {
+  const links = await support.locator('[data-companion-tab="support"]').evaluate((group) => {
     const boosty = group.querySelector('.brand-boosty').getBoundingClientRect();
     const lava = group.querySelector('.brand-lava').getBoundingClientRect();
-    const social = [...group.querySelectorAll('.support-social button')];
+    const social = [...group.querySelectorAll('.support-social [data-community]')];
     return {
       aligned: boosty.y === lava.y && boosty.right < lava.left,
       above: social.every((button) => button.getBoundingClientRect().top > lava.bottom),
@@ -440,18 +460,28 @@ try {
         .executeJavaScript("document.body.dataset.phase === 'ready'")
         .catch(() => false);
     }, ownerId);
-  const settingsId = await application.evaluate(
-    ({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().find(
-        (win) => win.webContents.getURL() === 'capri://desktop/settings.html',
-      ).id,
-  );
-  await crash(settingsId);
+  const settingsId = () =>
+    application.evaluate(
+      ({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().find(
+          (win) => win.webContents.getURL() === 'capri://desktop/settings.html',
+        )?.id,
+    );
+  const firstSettingsId = await settingsId();
+  await crash(firstSettingsId);
   await wait(
-    () => application.evaluate(({ BrowserWindow }, id) => !BrowserWindow.fromId(id), settingsId),
+    () =>
+      application.evaluate(({ BrowserWindow }, id) => !BrowserWindow.fromId(id), firstSettingsId),
     'Crashed Settings window was not removed',
   );
   await wait(ready, 'Settings failure interrupted the companion');
+  await wait(
+    async () => (await visibility())['/settings.html'] === true,
+    'Settings did not restore automatically after the first crash',
+  );
+  const restoredSettingsId = await settingsId();
+  assert.notEqual(restoredSettingsId, firstSettingsId);
+  await crash(restoredSettingsId);
   await companion.waitForFunction(() =>
     document.getElementById('notice-message').textContent.includes('Settings closed unexpectedly'),
   );

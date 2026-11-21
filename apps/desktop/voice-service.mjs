@@ -13,17 +13,41 @@ import { LANGUAGE_PACKS } from './renderer/language-settings.mjs';
 export { SentenceBuffer, spokenText, MAX_SPEECH_SENTENCE } from './renderer/speech-text.mjs';
 
 const VOICE_LANGUAGE_MISMATCH = 'CAPRI_VOICE_LANGUAGE_MISMATCH';
+const VOICE_SPEECH_LIMIT = 'CAPRI_VOICE_SPEECH_LIMIT';
 const VOICE_LANGUAGE_WARNING =
   'The English voice cannot read this response language. Text replies remain available.';
 const VOICE_START_WARNING = 'Capri’s voice could not start. Text replies are still available.';
+const MAX_VOICE_SEGMENTS = 100;
+const MAX_SPLIT_SPEECH_LENGTH = 480;
+const MIN_SPEECH_RETRY_LENGTH = 160;
 const maxPcmBytes = 24000 * 4 * 45;
 const voiceFailureCodes = new Set([
   VOICE_LANGUAGE_MISMATCH,
-  'CAPRI_VOICE_SPEECH_LIMIT',
+  VOICE_SPEECH_LIMIT,
   'CAPRI_VOICE_CUDA_OOM',
   'CAPRI_VOICE_MODEL_MISSING',
   'CAPRI_VOICE_INFERENCE_FAILED',
 ]);
+
+function splitSpeech(text, limit, capacity) {
+  const parts = [];
+  while (text.length > limit && parts.length < capacity) {
+    const window = text.slice(0, limit + 1);
+    const clause = [...window.slice(0, limit).matchAll(/[,;:](?=\s)|[、，；：]/gu)].pop();
+    const clauseEnd = clause ? clause.index + 1 : 0;
+    const wordEnd = window.lastIndexOf(' ');
+    let cut = wordEnd >= limit / 2 ? wordEnd : limit;
+    if (clauseEnd >= limit / 2) cut = clauseEnd;
+    if (/^[\uDC00-\uDFFF]$/u.test(text[cut])) cut--;
+    parts.push(text.slice(0, cut).trimEnd());
+    text = text.slice(cut).trimStart();
+  }
+  if (!text) return parts;
+  if (parts.length >= capacity) return null;
+  parts.push(text);
+  return parts;
+}
+
 async function voiceHttpFailure(response) {
   const error = Object.assign(new Error(`Voice HTTP ${response.status}`), {
     httpStatus: response.status,
@@ -90,12 +114,13 @@ export class VoiceService {
     enabled = true,
     language = 'en',
     external,
+    native,
     ensureReady,
   }) {
     const endpoint = new URL(url);
     if (endpoint.protocol !== 'http:' || endpoint.hostname !== '127.0.0.1')
       throw new Error('Voice service must use loopback');
-    Object.assign(this, { url, headers, emit, fetchImpl, enabled, external, ensureReady });
+    Object.assign(this, { url, headers, emit, fetchImpl, enabled, external, native, ensureReady });
     this.turn = null;
     this.ready = false;
     this.running = false;
@@ -154,8 +179,9 @@ export class VoiceService {
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(600000)]);
     this.setReady(false);
     try {
-      if (this.external?.config.enabled) {
-        await this.external.prepare();
+      const adapter = this.external?.config.enabled ? this.external : this.native?.(language);
+      if (adapter) {
+        await adapter.prepare();
         if (this.prepareController === controller && this.language === language && !signal.aborted)
           this.setReady(true);
         return;
@@ -232,7 +258,7 @@ export class VoiceService {
     if (turn) {
       turn.controller.abort();
       this.turn = null;
-      if (turn.requestId && !turn.external)
+      if (turn.requestId && !turn.external && !turn.native)
         this.fetchImpl(`${this.url}/cancel`, {
           method: 'POST',
           headers: { ...this.headers(), 'content-type': 'application/json' },
@@ -253,11 +279,13 @@ export class VoiceService {
         id: turnId,
         language: this.language,
         external: this.external?.config.enabled === true,
+        native: this.external?.config.enabled ? null : this.native?.(this.language),
         controller: new AbortController(),
         buffer: new SentenceBuffer(),
         queue: [],
         final: false,
         sequence: 0,
+        requestSequence: 0,
         segments: 0,
         started: performance.now(),
         timing: currentResponseTiming(),
@@ -303,13 +331,14 @@ export class VoiceService {
     if (event.type === 'turn.preface') {
       if (
         turn.preface ||
+        turn.segments >= MAX_VOICE_SEGMENTS ||
         typeof event.text !== 'string' ||
         !event.text.trim() ||
         event.text.length > 240
       )
         return;
       turn.preface = true;
-      turn.queue.push(event.text);
+      turn.queue.push({ text: event.text, canSplit: true });
       turn.segments++;
       this.pump().catch(() => {});
       return;
@@ -321,7 +350,7 @@ export class VoiceService {
       }
       turn.final = event.type === 'turn.completed';
       const parts = turn.buffer.push(event.text || '', turn.final);
-      if (parts.some((text) => text.length > MAX_SPEECH_SENTENCE)) {
+      if (turn.external && parts.some((text) => text.length > MAX_SPEECH_SENTENCE)) {
         this.cancel();
         this.emit({
           type: 'voice.error',
@@ -329,13 +358,19 @@ export class VoiceService {
         });
         return;
       }
-      turn.segments += parts.length;
-      if (turn.segments > 100) {
-        this.cancel();
-        this.emit({ type: 'voice.error', message: 'This reply is too long to read aloud.' });
-        return;
+      for (const text of parts) {
+        const capacity = MAX_VOICE_SEGMENTS - turn.segments;
+        const limit = turn.native ? MAX_SPLIT_SPEECH_LENGTH : MAX_SPEECH_SENTENCE;
+        const chunks =
+          text.length > limit ? splitSpeech(text, MAX_SPLIT_SPEECH_LENGTH, capacity) : [text];
+        if (!chunks || chunks.length > capacity) {
+          this.cancel();
+          this.emit({ type: 'voice.error', message: 'This reply is too long to read aloud.' });
+          return;
+        }
+        turn.segments += chunks.length;
+        turn.queue.push(...chunks.map((chunk) => ({ text: chunk, canSplit: true })));
       }
-      turn.queue.push(...parts);
       this.pump().catch(() => {});
     }
   }
@@ -351,11 +386,12 @@ export class VoiceService {
     try {
       while (this.turn) {
         const turn = this.turn;
-        const text = turn.queue.shift();
-        if (!text) {
+        const segment = turn.queue.shift();
+        if (!segment) {
           if (turn.final) this.emit({ type: 'voice.generated', turnId: turn.id });
           break;
         }
+        const { text, canSplit } = segment;
         if (!turn.external && speechLanguageMismatch(text, turn.language)) {
           if (!turn.languageWarning) {
             turn.languageWarning = true;
@@ -369,16 +405,18 @@ export class VoiceService {
         }
         try {
           const started = Date.now();
-          turn.requestId = `${turn.id}:${turn.sequence}`;
-          if (turn.sequence === 0 && turn.timing)
+          if (turn.requestSequence === 0 && turn.timing)
             markResponseTiming(
               'voice_synthesis',
               { speechCharacters: text.length },
               { turn: turn.timing },
             );
+          turn.requestId = `${turn.id}:${turn.requestSequence++}`;
           let response;
           if (turn.external) {
             response = await this.external.synthesize({ text, signal: turn.controller.signal });
+          } else if (turn.native) {
+            response = await turn.native.synthesize({ text, signal: turn.controller.signal });
           } else {
             const signal = AbortSignal.any([turn.controller.signal, AbortSignal.timeout(90000)]);
             do {
@@ -434,6 +472,25 @@ export class VoiceService {
           });
         } catch (error) {
           if (this.turn === turn && !turn.controller.signal.aborted) {
+            if (
+              !turn.external &&
+              canSplit &&
+              error.code === VOICE_SPEECH_LIMIT &&
+              text.length >= MIN_SPEECH_RETRY_LENGTH
+            ) {
+              // The worker returned no audio for this request. Retry each smaller piece once.
+              const chunks = splitSpeech(
+                text,
+                Math.min(MAX_SPLIT_SPEECH_LENGTH, Math.ceil(text.length / 2)),
+                MAX_VOICE_SEGMENTS - turn.segments + 1,
+              );
+              if (chunks) {
+                turn.requestId = null;
+                turn.segments += chunks.length - 1;
+                turn.queue.unshift(...chunks.map((chunk) => ({ text: chunk, canSplit: false })));
+                continue;
+              }
+            }
             const failure =
               !turn.external && error.cause?.name === 'TimeoutError' ? error.cause : error;
             this.recordFailure(failure, 'synthesize');
@@ -442,7 +499,7 @@ export class VoiceService {
               type: 'voice.error',
               message: turn.external
                 ? error.message
-                : failure.name === 'TimeoutError' || error.code === 'CAPRI_VOICE_SPEECH_LIMIT'
+                : failure.name === 'TimeoutError' || error.code === VOICE_SPEECH_LIMIT
                   ? 'This sentence could not be spoken. Voice is still ready.'
                   : 'Capri’s voice is unavailable. Text replies are still available.',
             });

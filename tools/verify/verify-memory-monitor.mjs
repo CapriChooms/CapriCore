@@ -26,7 +26,7 @@ app.on('browser-window-created', (_, window) => window.webContents.setBackground
 BrowserWindow.prototype.show = BrowserWindow.prototype.showInactive = function () { visible.add(this); };
 BrowserWindow.prototype.hide = function () { visible.delete(this); };
 BrowserWindow.prototype.isVisible = function () { return visible.has(this); };
-const fixture = globalThis.monitorFixture = { at: 0, gpuFree: 4, lastFree: null, menu: null };
+const fixture = globalThis.monitorFixture = { at: 0, gpuFree: 4, lastFree: null, menu: null, cpuTemperature: 44 };
 Menu.prototype.popup = function () { fixture.menu = this.items; };
 MemorySampler.prototype.sample = async function () {
   const at = ++fixture.at;
@@ -38,7 +38,7 @@ MemorySampler.prototype.sample = async function () {
       ...memoryUsage(12e9, fixture.gpuFree * 12e7) }],
   };
 };
-CpuSampler.prototype.sample = async () => ({ utilization: 21, temperatureCelsius: 44, temperatureSampledAt: 1 });
+CpuSampler.prototype.sample = async () => ({ utilization: 21, temperatureCelsius: fixture.cpuTemperature, temperatureSampledAt: 1 });
 ProcessLoadSampler.prototype.sample = async () => ({ cpuPercent: 1, ramBytes: 1e9, vramBytes: null });
 await import(${source('apps/desktop/main.mjs')});
 `,
@@ -123,18 +123,30 @@ try {
     page.evaluate(() => {
       const charts = document.getElementById('process-graphs-hud').getBoundingClientRect();
       const display = document.getElementById('monitor-display').getBoundingClientRect();
-      const telemetry = document.querySelector('.dock-telemetry');
+      const telemetry = document.querySelector('.dock-telemetry').getBoundingClientRect();
+      const composer = document.querySelector('.composer').getBoundingClientRect();
       const context = document.getElementById('context-hud').getBoundingClientRect();
       const identity = document.querySelector('#handle .identity').getBoundingClientRect();
-      return (
-        context.right <= identity.right + 1 &&
-        display.x >= charts.right - 1 &&
-        display.top >= charts.top &&
-        display.bottom <= charts.bottom &&
-        telemetry.clientHeight <= charts.height + 1
-      );
+      return {
+        contextFits: context.right <= identity.right + 1,
+        displayBesideCharts: display.x >= charts.right - 1,
+        displayFits: display.top >= charts.top && display.bottom <= charts.bottom,
+        chartsFit:
+          charts.top >= telemetry.top - 1 &&
+          charts.bottom <= telemetry.bottom + 1 &&
+          telemetry.bottom <= composer.top + 1,
+        charts: charts.toJSON(),
+        display: display.toJSON(),
+        telemetry: telemetry.toJSON(),
+        contextRight: context.right,
+        identityRight: identity.right,
+      };
     });
-  assert.equal(await assertHeaderContextAndChartLayout(), true);
+  const layout = await assertHeaderContextAndChartLayout();
+  assert.ok(
+    layout.contextFits && layout.displayBesideCharts && layout.displayFits && layout.chartsFit,
+    JSON.stringify(layout),
+  );
   const vramWarning = page.locator('[data-warning-device="VRAM"]');
   const ramWarning = page.locator('[data-warning-device="RAM"]');
   await vramWarning.waitFor();
@@ -202,7 +214,7 @@ try {
   );
   await page.screenshot({ path: path.join(folder, 'portrait-bars.png') });
   report.checks.push('Enabled by default, live RAM, portrait layout');
-  assert.equal(await page.locator('#memory-hud .memory-gauge').count(), 2);
+  assert.equal(await page.locator('#memory-hud .memory-gauge').count(), 4);
   assert.equal(await contextButton.locator('strong').textContent(), '—');
   assert.match(await contextButton.getAttribute('title'), /tokens/);
   const settingsOpened = application.waitForEvent('window', { timeout: 15000 });
@@ -227,7 +239,14 @@ try {
   await page.evaluate(() => window.capri.openSettings('appearance'));
   await settings.locator('#memory-style').waitFor();
   await settings.locator('#memory-style').selectOption('rings');
-  await settings.locator('#memory-interval').selectOption('5');
+  const interval = settings.locator('#memory-interval');
+  assert.deepEqual(
+    await interval
+      .locator('option')
+      .evaluateAll((options) => options.map((option) => Number(option.value))),
+    Array.from({ length: 10 }, (_, index) => index + 1),
+  );
+  await interval.selectOption('2');
   await page.waitForFunction(() => document.querySelector('#memory-hud').dataset.style === 'rings');
   await fit();
   await settings.screenshot({ path: path.join(folder, 'settings.png') });
@@ -235,35 +254,122 @@ try {
   await settings.locator('#settings-apply').click();
   assert.equal(
     (await page.evaluate(() => window.capri.bootstrap())).companion.memoryIntervalSeconds,
-    5,
+    2,
   );
   await page.evaluate(() => window.capri.windowAction('portrait'));
   await page.waitForTimeout(700);
   await fit();
   await page.screenshot({ path: path.join(folder, 'compact-rings.png') });
   report.checks.push('Rings and refresh rate saved through Settings; compact layout');
+  // The compact presence header deliberately hides the CTX shortcut.
+  await page.evaluate(() => window.capri.windowAction('portrait', true));
+  await contextButton.waitFor({ state: 'visible' });
   await contextButton.focus();
   await contextButton.press('Enter');
   await contextFocused();
   await settings.locator('#settings-window-close').click();
   report.checks.push('Keyboard activation navigates reused settings; rings stay clickable');
+  await page.evaluate(() => window.capri.windowAction('portrait', false));
   await page.evaluate(() => window.capri.openSettings('appearance'));
   await settings.locator('#memory-style').selectOption('bars');
   await page.waitForFunction(() => document.querySelector('#memory-hud').dataset.style === 'bars');
   await fit();
-  report.checks.push('Both memory bars fit in the compact instrument rail');
-  const hintVisible = await page.locator('#input-hint').isVisible();
+  report.checks.push('All four default resource bars fit in the compact instrument rail');
+  const fieldVisible = await page.locator('#message').isVisible();
   await settings.locator('#memory-monitor').uncheck();
   assert.equal(await settings.locator('#memory-style').isDisabled(), true);
   await page.waitForFunction(() => document.querySelector('#memory-hud').hidden);
   assert.equal(await contextButton.isHidden(), true);
-  assert.equal(await page.locator('#input-hint').isVisible(), hintVisible);
+  assert.equal(await page.locator('#message').isVisible(), fieldVisible);
   assert.equal(await page.evaluate(() => window.capri.memoryStatus()), null);
-  report.checks.push('Disabled monitor stops sampling and leaves the composer hint unchanged');
+  report.checks.push('Disabled monitor stops sampling and preserves composer visibility');
   await settings.locator('#memory-monitor').check();
   await page.waitForFunction(() => !document.querySelector('#memory-hud').hidden);
+  const metric = (group, id) =>
+    settings.locator(`[data-resource-display="${group}"][value="${id}"]`);
+  await settings.locator('#process-graphs').check();
+  const graphCount = settings.locator('#resource-graph-count');
+  assert.equal(await graphCount.textContent(), '4/4');
+  assert.equal(await metric('graphMetrics', 'disk').isDisabled(), true);
+  await metric('graphMetrics', 'disk').press('Space');
+  assert.equal(await metric('graphMetrics', 'disk').isChecked(), false);
+  assert.equal(await graphCount.getAttribute('data-limit-hit'), '');
+  assert.equal(await graphCount.textContent(), '4/4');
+  await metric('graphMetrics', 'gpu').uncheck();
+  assert.equal(await graphCount.textContent(), '3/4');
+  await metric('graphMetrics', 'disk').check();
+  await metric('graphMetrics', 'cpu').uncheck();
+  await metric('graphMetrics', 'cpuTemperature').check();
+  const graphs = page.locator('#process-graphs-hud');
+  await graphs
+    .locator('[data-resource-metric="cpuTemperature"] strong')
+    .filter({ hasText: '44 °C' })
+    .waitFor();
+  await application.evaluate(() => {
+    globalThis.monitorFixture.cpuTemperature = null;
+  });
+  const cpuCard = graphs.locator('[data-resource-metric="cpuTemperature"]');
+  await page.waitForFunction(() =>
+    document
+      .querySelector('[data-resource-metric="cpuTemperature"]')
+      ?.title.includes('127.0.0.1:8085'),
+  );
+  assert.equal(await cpuCard.locator('.process-graph-reading').textContent(), 'Unavailable');
+  await application.evaluate(() => {
+    globalThis.monitorFixture.cpuTemperature = 44;
+  });
+  await page.waitForFunction(
+    () =>
+      document.querySelector('#process-graphs-hud [data-resource-metric="disk"]')?.dataset
+        .available === 'true',
+  );
+  assert.equal(await graphs.locator('.process-graph').count(), 4);
+  const plot = graphs.locator('[data-resource-metric="ram"]');
+  const measurePlot = () =>
+    plot.evaluate((card) => {
+      const rect = card.querySelector('svg').getBoundingClientRect();
+      return {
+        width: rect.width,
+        height: rect.height,
+        seconds: Number(
+          card.querySelector('.process-graph-time > span').textContent.replace(/[^\d]/g, ''),
+        ),
+      };
+    });
+  const fourGraphs = await measurePlot();
+  for (const id of ['vram', 'cpuTemperature', 'disk']) await metric('graphMetrics', id).uncheck();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#process-graphs-hud .process-graph').length === 1,
+  );
+  assert.equal(await graphCount.textContent(), '1/4');
+  const singleGraph = await measurePlot();
+  assert.ok(singleGraph.width > fourGraphs.width * 3);
+  assert.equal(singleGraph.height, fourGraphs.height);
+  for (const graph of [fourGraphs, singleGraph])
+    assert.equal(graph.seconds, Math.round(graph.width));
+  for (const id of ['vram', 'cpuTemperature', 'disk']) await metric('graphMetrics', id).check();
+  report.checks.push(
+    'The graph limit shakes at four and wider charts show longer history at the same height',
+  );
+  await settings.locator('#process-graphs').uncheck();
+  await metric('meterMetrics', 'vram').uncheck();
+  await metric('meterMetrics', 'capriRam').check();
+  const gauges = page.locator('#memory-hud');
+  await gauges
+    .locator('[data-resource-metric="capriRam"] strong')
+    .filter({ hasText: '0.9 GiB' })
+    .waitFor();
+  assert.equal(await gauges.locator('.memory-gauge:visible').count(), 4);
+  await fit();
   await settings.locator('#settings-window-close').click();
   await settings.locator('#settings-apply').click();
+  const { graphMetrics, meterMetrics } = (await page.evaluate(() => window.capri.bootstrap()))
+    .companion;
+  assert.deepEqual(new Set(graphMetrics), new Set(['ram', 'vram', 'cpuTemperature', 'disk']));
+  assert.deepEqual(new Set(meterMetrics), new Set(['cpu', 'gpu', 'ram', 'capriRam']));
+  report.checks.push(
+    'Independent four-item selections persist; disk, temperatures and Capri RAM display real values',
+  );
   await page.evaluate(() => window.capri.hide());
   assert.equal(await page.evaluate(() => window.capri.memoryStatus()), null);
   report.checks.push('Hidden companion does not probe hardware');

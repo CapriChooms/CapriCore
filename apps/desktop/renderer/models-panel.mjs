@@ -18,6 +18,7 @@ const descriptions = {
   desktop: 'More capable replies; uses more memory than the smaller models.',
   quality: 'Largest Qwen option. Uses more memory; voice needs additional resources.',
 };
+const contextLabel = (tokens) => `${tokens / 1024}K${tokens === 16384 ? ' · BETA' : ''}`;
 export class ModelsPanel {
   constructor({ api, ui, onOpen, onError }) {
     Object.assign(this, { api, ui, onOpen, onError });
@@ -29,19 +30,21 @@ export class ModelsPanel {
     this.panel.innerHTML = `
       <div class="settings-heading"><h2>Language model</h2><button type="button" id="models-close" aria-label="Close settings">×</button></div>
       <div class="preferences-content">
-        <p class="model-current"><span>Current model</span><strong id="models-current" data-untranslated></strong></p>
-        <label for="models-choice">Language model</label><select id="models-choice" aria-describedby="models-unavailable models-requirement"></select>
-        <button type="button" id="models-local" class="model-local-primary" aria-describedby="models-local-help" disabled>Use local model</button>
-        <p id="models-local-help" class="settings-help" role="status" aria-live="polite"></p>
-        <p id="models-unavailable" role="status" aria-live="polite" hidden></p>
-        <p id="models-language-recommendation" class="model-current" role="status" hidden data-untranslated><span id="models-language-label"></span><strong id="models-language-picks" dir="auto"></strong></p>
-        <div class="model-details"><p id="models-description"></p><p id="models-size"></p><p id="models-requirement"></p><p id="models-installed"></p><p id="models-recommendation"></p></div>
-        <p class="settings-help">GB describes model files, not RAM or VRAM use. Downloaded models are marked in the list; estimates can change with upstream versions.</p>
-        <p class="settings-help">GPU support depends on your hardware and Ollama. Larger models can be slower on a CPU. All choices keep the same conversation and memory.</p>
-        <div class="model-progress-card" hidden role="status" aria-live="polite"><p id="models-status"></p><progress id="models-progress" max="100" hidden></progress><output id="models-transfer" data-untranslated></output><p id="models-error"></p></div>
-        <div class="settings-actions"><button type="button" id="models-refresh">Refresh models</button><button type="button" id="models-folder">Open models folder</button><button type="button" id="models-prepare">Download and prepare</button><button type="button" id="models-cancel" hidden>Cancel download</button></div>
-        <div class="settings-actions"><button type="button" id="models-apply" hidden>Switch model and restart</button></div>
-        <p class="settings-help">Downloading keeps the current model active. Switch when you are ready; Capri will restart and prepare the new model. Downloaded models remain available for switching back.</p>
+        <section class="settings-card">
+          <p class="model-current"><span>Current model</span><strong id="models-current" data-untranslated></strong></p>
+          <label for="models-choice">Language model</label><select id="models-choice" aria-describedby="models-unavailable models-requirement"></select>
+          <button type="button" id="models-local" class="model-local-primary" aria-describedby="models-local-help" disabled>Use local model</button>
+          <p id="models-local-help" class="settings-help" role="status" aria-live="polite"></p>
+          <p id="models-unavailable" role="status" aria-live="polite" hidden></p>
+          <p id="models-language-recommendation" class="model-current" role="status" hidden data-untranslated><span id="models-language-label"></span><strong id="models-language-picks" dir="auto"></strong></p>
+          <div class="model-details"><p id="models-description"></p><p id="models-size"></p><p id="models-requirement"></p><p id="models-installed"></p><p id="models-recommendation"></p></div>
+          <p class="settings-help">GB describes model files, not RAM or VRAM use. Downloaded models are marked in the list; estimates can change with upstream versions.</p>
+          <p class="settings-help">GPU support depends on your hardware and Ollama. Larger models can be slower on a CPU. All choices keep the same conversation and memory.</p>
+          <div class="model-progress-card" hidden role="status" aria-live="polite"><p id="models-status"></p><progress id="models-progress" max="100" hidden></progress><output id="models-transfer" data-untranslated></output><p id="models-error"></p></div>
+          <div class="settings-actions"><button type="button" id="models-refresh">Refresh models</button><button type="button" id="models-folder">Open models folder</button><button type="button" id="models-prepare">Download and prepare</button><button type="button" id="models-cancel" hidden>Cancel download</button></div>
+          <div class="settings-actions"><button type="button" id="models-apply" hidden>Switch model and restart</button></div>
+          <p class="settings-help">Downloading keeps the current model active. Switch when you are ready; Capri will restart and prepare the new model. Downloaded models remain available for switching back.</p>
+        </section>
         <div class="settings-card model-context-card">
           <label for="models-context">Context window</label>
           <p id="models-context-current" class="settings-help"></p>
@@ -136,7 +139,7 @@ export class ModelsPanel {
       ...(value.contextChoices ?? []).map((tokens) => {
         const option = document.createElement('option');
         option.value = String(tokens);
-        option.textContent = `${tokens / 1024}K`;
+        option.textContent = contextLabel(tokens);
         return option;
       }),
     );
@@ -144,7 +147,7 @@ export class ModelsPanel {
       ? draft
       : String(value.contextTokens);
     this.get('context-current').textContent = this.ui.text('Active context: {size}', {
-      size: `${value.contextTokens / 1024}K`,
+      size: contextLabel(value.contextTokens),
     });
     this.renderChoices();
     const busy =
@@ -266,7 +269,10 @@ export class ModelsPanel {
             ? 'Cannot check downloaded models. Start the local core and refresh the list.'
             : !profile.supported
               ? 'This model needs more system RAM.'
-              : profile.active && profile.upstreamInstalled && !this.setupRequired
+              : profile.active &&
+                  profile.upstreamInstalled &&
+                  !this.setupRequired &&
+                  !this.value.modelSetupRequired
                 ? 'You are already using this model.'
                 : profile.upstreamInstalled
                   ? 'Downloaded on this PC.'
@@ -285,6 +291,7 @@ export class ModelsPanel {
       !this.value?.remoteActive &&
       !this.value?.nativeActive &&
       !this.setupRequired &&
+      !this.value?.modelSetupRequired &&
       profile?.upstreamInstalled === true &&
       !this.value?.inventoryUnavailable;
     this.get('prepare').disabled = busy || !profile?.supported || active;
@@ -309,10 +316,7 @@ export class ModelsPanel {
                 : 'Downloaded on this PC.';
     this.get('local-help').textContent = this.ui.text(explanation);
     this.get('apply').hidden =
-      this.value?.phase !== 'ready' ||
-      this.value.selected !== profile?.id ||
-      profile?.active ||
-      unavailable;
+      this.value?.phase !== 'ready' || this.value.selected !== profile?.id || active || unavailable;
     this.get('apply').disabled = busy || unavailable;
   }
   async useLocalModel() {
@@ -325,6 +329,7 @@ export class ModelsPanel {
     this.show(this.value);
     try {
       if (
+        !this.value.modelSetupRequired &&
         profile.configured &&
         profile.upstreamInstalled &&
         !this.value.inventoryUnavailable &&

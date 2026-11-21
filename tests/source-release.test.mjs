@@ -11,7 +11,8 @@ import {
   ACTIVE_AVATAR_POSES,
   requireCapriAvatar,
 } from '../apps/desktop/avatar-catalog.mjs';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { temporaryFolders } from './temporary-folders.mjs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { root, findExecutable } from '../packages/runtime/src/host/paths.mjs';
@@ -122,12 +123,11 @@ test('source export includes its own tooling and every Node command, excluding i
   );
 });
 
+const archiveFixture = temporaryFolders('capri-source-archive-unit-');
 test('standard Git source archives include the validated avatar and keep private directories excluded', (t) => {
   const git = findExecutable('git', { extra: [path.join(root, '.runtime/git/cmd/git.exe')] });
   if (!git) return t.skip('Git is needed to exercise its real export-ignore behavior');
-  const parent = path.join(root, '.runtime/source-archive-unit');
-  mkdirSync(parent, { recursive: true });
-  const folder = mkdtempSync(path.join(parent, 'case-'));
+  const folder = archiveFixture();
   const repository = path.join(folder, 'repo'),
     extracted = path.join(folder, 'extracted');
   mkdirSync(repository);

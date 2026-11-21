@@ -4,6 +4,7 @@ import { calculatorSkill } from './calculator.mjs';
 
 export const ACTION_SKILLS = Object.freeze({
   spotify: 'capri.spotify',
+  youtubeMusic: 'capri.youtube-music',
   applications: 'capri.applications',
   calculator: calculatorSkill.manifest.id,
   files: 'capri.files',
@@ -22,7 +23,11 @@ const string = (value) => typeof value === 'string';
 const boolean = (value) => typeof value === 'boolean';
 const userToolName = (value) => string(value) && /^[a-z][a-z0-9_-]{0,39}$/u.test(value);
 
-function appActionSkill(id, input = actionInput) {
+function appActionSkill(
+  id,
+  input = actionInput,
+  ui = { sectionId: 'applications', labelKey: 'Application access' },
+) {
   return {
     manifest: {
       id,
@@ -30,7 +35,7 @@ function appActionSkill(id, input = actionInput) {
       apiVersion: 1,
       requires: ['executeAction'],
       commands: { execute: toolCommand(input) },
-      ui: { sectionId: 'applications', labelKey: 'Application access' },
+      ui,
     },
     create: ({ ports }) => ({
       invoke: (_command, args, { requestId, signal }) =>
@@ -40,6 +45,10 @@ function appActionSkill(id, input = actionInput) {
 }
 
 const spotifySkill = appActionSkill(ACTION_SKILLS.spotify);
+const youtubeMusicSkill = appActionSkill(ACTION_SKILLS.youtubeMusic, actionInput, {
+  sectionId: 'youtube-music',
+  labelKey: 'YouTube Music',
+});
 const applicationsSkill = appActionSkill(
   ACTION_SKILLS.applications,
   (input) => actionInput(input) && input.action !== 'calculate',
@@ -170,9 +179,11 @@ const userToolsSkill = {
 /** Bind reviewed host services; skills receive just the operations they use. */
 export function registerActionToolSkills(
   core,
-  { spotify, applications, files, trash, workflows, userTools },
+  { spotify, youtubeMusic, applications, files, trash, workflows, userTools },
 ) {
   if (spotify) core.register(spotifySkill, { executeAction: spotify.execute.bind(spotify) });
+  if (youtubeMusic)
+    core.register(youtubeMusicSkill, { executeAction: youtubeMusic.execute.bind(youtubeMusic) });
   if (applications) {
     const execute = applications.execute.bind(applications);
     core.register(applicationsSkill, { executeAction: execute });

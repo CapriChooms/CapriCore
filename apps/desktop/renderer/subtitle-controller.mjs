@@ -53,7 +53,7 @@ export class SubtitleController {
     const element = this.elements['subtitle-text'],
       style = getComputedStyle(element);
     this.measure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const width = Math.max(1, element.clientWidth - 10),
+    const width = Math.max(1, element.parentElement.clientWidth - 10),
       spacing = parseFloat(style.letterSpacing) || 0;
     let lines = 1,
       used = 0;

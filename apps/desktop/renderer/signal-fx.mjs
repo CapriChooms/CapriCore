@@ -1,4 +1,4 @@
-import { SIGNAL_STATES, shardPoints, signalRandom, interfaceFloat } from './presence-model.mjs';
+import { SIGNAL_STATES, signalRandom, interfaceFloat } from './presence-model.mjs';
 import { PanelFrames, panelPath } from './panel-frames.mjs';
 import { CRTScreen } from './crt-screen.mjs';
 import { GlitchSchedule } from './glitch-settings.mjs';
@@ -12,7 +12,6 @@ export class SignalFX {
     model,
     sprite,
     getSpriteImage = () => sprite,
-    orb,
     frame,
     audioLevel,
     onLayout,
@@ -25,7 +24,6 @@ export class SignalFX {
       model,
       sprite,
       getSpriteImage,
-      orb,
       frame,
       audioLevel,
       onLayout,
@@ -185,7 +183,7 @@ export class SignalFX {
         node.textContent = this.text(SIGNAL_STATES[snapshot.state].label);
       const button = document.getElementById('presence-toggle');
       button.setAttribute('aria-pressed', String(snapshot.expanded));
-      button.title = this.text(snapshot.expanded ? 'Return Capri to signal core' : 'Show Capri');
+      button.title = this.text(snapshot.expanded ? 'Show or hide portrait' : 'Show Capri');
       button.setAttribute('aria-label', button.title);
       this.onLayout();
     }
@@ -221,7 +219,7 @@ export class SignalFX {
     if (changed || !this.motionMeasuredAt || now - this.motionMeasuredAt > 500) {
       const rectangles = [
         ...document.querySelectorAll(
-          '#handle,#quick-actions,#input-dock,#subtitle-stage,#portrait-panel,#presence-core,.preferences-panel,#history-panel,#startup-progress,#wake-feedback,#action-approval,#time-alert,#stopwatch-controls',
+          '#handle,#quick-actions,#input-dock,#subtitle-stage,#portrait-panel,.preferences-panel,#history-panel,#startup-progress,#wake-feedback,#action-approval,#time-alert,#stopwatch-controls',
         ),
       ]
         .filter((node) => getComputedStyle(node).visibility !== 'hidden')
@@ -303,92 +301,13 @@ export class SignalFX {
       reduced,
       visible: snapshot.expanded && !detached && intro !== 'pending',
     });
-    if (!detached && !arriving && !introActive) {
-      if (snapshot.expanded) this.drawPortrait(now, snapshot, interference);
-      else this.drawCore(reduced ? 0 : now / 1000, snapshot);
-    }
+    if (snapshot.expanded && !detached && !arriving && !introActive)
+      this.drawPortrait(now, snapshot, interference);
     if (interference.strength > 0.04) this.drawFrameDamage(interference, detached || arriving);
     this.canvas.dataset.effect = document.body.dataset.glitch;
     // The portrait scales during reveal. Recompute its image anchor until the
     // transition settles; otherwise the first drag would resize the sprite.
     if (changed || revealAge < 500) this.onLayout();
-  }
-  drawCore(time, snapshot) {
-    const ctx = this.ctx,
-      rect = this.orb.querySelector('.core-symbol').getBoundingClientRect();
-    const cx = rect.x + rect.width / 2,
-      cy = rect.y + rect.height / 2;
-    const active = ['thinking', 'replying', 'listening'].includes(snapshot.state)
-      ? 1
-      : snapshot.state === 'input'
-        ? 0.4
-        : 0;
-    const color = this.signalColor(snapshot.state);
-    ctx.save();
-    ctx.translate(cx, cy);
-    // Keep the entire procedural symbol (including activity dots) in its layout box.
-    const scale = Math.min(rect.width, rect.height) / 144;
-    ctx.scale(scale, scale);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.3;
-    ctx.beginPath();
-    ctx.arc(0, 0, 49, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([2, 10]);
-    ctx.beginPath();
-    ctx.arc(0, 0, 40, time * 0.2, time * 0.2 + Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 0.85;
-    ctx.lineWidth = 2.4;
-    for (let i = 0; i < 3; i++) {
-      const angle = time * 0.25 + (i * Math.PI * 2) / 3;
-      ctx.beginPath();
-      ctx.arc(0, 0, 51, angle, angle + 0.34);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-    for (let i = 0; i < 7; i++) {
-      const points = shardPoints(i, time, active);
-      ctx.fillStyle = i % 3 === 0 ? '#ff315c' : i % 3 === 1 ? '#eeef77' : '#79f9cd';
-      ctx.beginPath();
-      points.forEach(([x, y], j) => (j ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.rotate(Math.PI / 4);
-    ctx.fillStyle = '#071019';
-    ctx.fillRect(-12, -12, 24, 24);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(-12, -12, 24, 24);
-    ctx.rotate(-Math.PI / 4);
-    ctx.shadowColor = '#74eaff';
-    ctx.shadowBlur = 9;
-    ctx.strokeStyle = '#88f6ff';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(0, 0, 11, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#3861e8';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, 7, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = '#e4feff';
-    ctx.beginPath();
-    ctx.arc(Math.sin(time * 0.6) * 1.1, Math.cos(time * 0.8) * 0.7, 3.1, 0, Math.PI * 2);
-    ctx.fill();
-    if (active) {
-      ctx.fillStyle = color;
-      for (let i = 0; i < 5; i++) {
-        ctx.globalAlpha = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(time * 5 - i));
-        ctx.fillRect(-15 + i * 7, 66, 3, 3);
-      }
-    }
-    ctx.restore();
   }
   drawPortrait(now, snapshot, interference) {
     const ctx = this.ctx,
@@ -522,8 +441,9 @@ export class SignalFX {
       ctx.save();
       const notifications =
         document.body.dataset.presence === 'core' ? host.closest('.dock-notifications') : null;
-      if (notifications) {
-        const clip = notifications.getBoundingClientRect();
+      const clipping = host.closest('#reply-slot[data-resizing]') ?? notifications;
+      if (clipping) {
+        const clip = clipping.getBoundingClientRect();
         ctx.beginPath();
         ctx.rect(clip.x, clip.y, clip.width, clip.height);
         ctx.clip();

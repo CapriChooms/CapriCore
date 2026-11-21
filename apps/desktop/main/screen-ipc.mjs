@@ -28,6 +28,7 @@ export function registerScreenIpc(
     getVisualTurn,
     cancelVisual,
     submitSnapshot,
+    onCapture = () => {},
   },
 ) {
   handle('capri:clip-frame', (value) => clipFrames.accept(value));
@@ -134,7 +135,13 @@ export function registerScreenIpc(
   handle('capri:screen-finish', (id) => {
     requireEnabled();
     const capture = capturePolicy.capture;
-    if (capture?.id !== id || capture.phase !== 'capturing')
+    if (
+      !capture ||
+      capture.id !== id ||
+      capture.phase !== 'capturing' ||
+      capture.mode !== 'one-shot' ||
+      capture.expiresAt <= Date.now()
+    )
       throw new Error('No active selected-source capture');
     const preview = {
       id: randomUUID(),
@@ -142,6 +149,7 @@ export function registerScreenIpc(
     };
     capturePolicy.release(id, 'completed');
     screenPreviews.set(preview.id, preview);
+    onCapture();
     return preview;
   });
   handle('capri:screen-release', (id) => capturePolicy.release(id));

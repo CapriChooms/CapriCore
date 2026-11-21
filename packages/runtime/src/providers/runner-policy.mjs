@@ -10,6 +10,14 @@ export const localRunnerOptions = ({ acceleration, cpuThreads } = {}) => ({
   ...(cpuThreads ? { num_thread: Math.min(cpuThreads, availableParallelism()) } : {}),
 });
 
+// A larger resident window can already serve a smaller request without
+// replacing the model's conversation cache with a synthetic warmup turn.
+export const residentLanguageMatches = (entry, { model, contextTokens, acceleration }) =>
+  entry.name === model &&
+  Number.isSafeInteger(entry.context_length) &&
+  entry.context_length >= contextTokens &&
+  (acceleration !== 'cpu' || entry.size_vram === 0);
+
 /** Match the managed gateway's native Ollama runner. Changing shift reloads the
  * runner even when the model is already resident; auxiliary calls must agree.
  */

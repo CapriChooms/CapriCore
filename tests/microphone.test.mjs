@@ -8,6 +8,8 @@ import {
 } from '../apps/desktop/microphone-service.mjs';
 import { PCMFramer } from '../apps/desktop/renderer/microphone-worklet.mjs';
 import { MicrophoneClient } from '../apps/desktop/renderer/microphone.mjs';
+import { handsFreeReply } from '../apps/desktop/lemonade-dialogue.mjs';
+import { validateCompanionSettings } from '../apps/desktop/companion-settings.mjs';
 
 function fixture(config = {}) {
   const worker = new EventEmitter();
@@ -36,6 +38,106 @@ async function enable(f) {
 }
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+test('hands-free conversation is opt-in, keeps listening, and routes only addressed commands to skills', async () => {
+  assert.equal(validateCompanionSettings({}).conversationMode, false);
+  assert.equal(validateCompanionSettings({ conversationMode: true }).conversationMode, true);
+  assert.throws(() => validateCompanionSettings({ conversationMode: 'on' }), /Invalid/);
+  const f = fixture({ wakeWord: { enabled: true } });
+  const captured = [];
+  f.service.submit = async (value, _alive, mode) => captured.push([value.text, mode.handsFree]);
+  const id = await enable(f);
+  const speech = (utterance, text) =>
+    f.worker.emit('transcript', { sessionId: id, utterance, text, final: true });
+  speech(0, 'This stays behind the wake phrase.');
+  await settle();
+  assert.deepEqual(captured, []);
+  assert.equal(f.service.setConversationMode(true), true);
+  assert.equal(f.service.snapshot().wakeState, 'disabled');
+  speech(1, 'I am talking to you about my day.');
+  await settle();
+  speech(2, 'What do you think?');
+  await settle();
+  assert.deepEqual(f.interrupted, []);
+  assert.equal(
+    f.events.some((e) => e.type === 'microphone.partial' && e.text === 'What do you think?'),
+    false,
+  );
+  f.worker.emit('reset', {
+    sessionId: id,
+    utterance: 3,
+    nextUtterance: 4,
+    reason: 'utterance_limit',
+  });
+  assert.equal(f.worker.commands.at(-1).active, true);
+  speech(4, 'Capri, open the calculator.');
+  await settle();
+  assert.deepEqual(captured, [
+    ['I am talking to you about my day.', true],
+    ['What do you think?', true],
+    ['open the calculator.', false],
+  ]);
+  assert.equal(f.interrupted.length, 1);
+  f.service.setConversationMode(false);
+  assert.equal(f.service.snapshot().wakeState, 'waiting');
+  speech(5, 'This is background again.');
+  await settle();
+  assert.equal(captured.length, 3);
+  f.service.stop(id);
+  f.service.setConversationMode(true);
+  assert.equal(f.service.snapshot().enabled, false);
+});
+
+test('switching to mixed system audio revokes queued hands-free microphone input', async () => {
+  const f = fixture({ wakeWord: { enabled: true } });
+  f.service.setConversationMode(true);
+  const id = await enable(f);
+  assert.equal(f.worker.commands[0].attention, true);
+  f.worker.emit('transcript', {
+    sessionId: id,
+    utterance: 1,
+    text: 'Do you hear me?',
+    final: true,
+  });
+  f.service.enableSystemAudioReview(id);
+  await settle();
+  assert.deepEqual(f.submitted, []);
+  f.worker.emit('transcript', {
+    sessionId: id,
+    utterance: 2,
+    text: 'Call audio only.',
+    final: true,
+  });
+  await settle();
+  assert.deepEqual(f.submitted, []);
+  assert.equal(f.events.findLast((event) => event.type === 'microphone.partial').autoSend, false);
+  f.service.close();
+});
+
+test('hands-free inference keeps the silence marker private and accepts ordinary answers', async () => {
+  async function reply(content, finish_reason = 'stop') {
+    return handsFreeReply({
+      input: { id: 'current', text: 'I hope the weather holds.' },
+      history: [],
+      persona: 'You are Capri.',
+      languages: { conversation: 'en' },
+      model: 'test-model',
+      signal: new AbortController().signal,
+      request: async (payload) => {
+        assert.match(payload.messages[0].content, /exactly \[no response\]/u);
+        assert.equal(payload.messages.at(-1).role, 'user');
+        assert.equal(payload.stream, false);
+        assert.equal(payload.tools, undefined);
+        return Response.json({ choices: [{ message: { content }, finish_reason }] });
+      },
+    });
+  }
+  assert.equal(await reply(' [no response] \n'), null);
+  assert.equal(await reply('<think>Ignore the noise.</think>[NO RESPONSE]'), null);
+  assert.equal(await reply('Already looking cloudy.'), 'Already looking cloudy.');
+  assert.equal(await reply('[no response] Already looking cloudy.'), 'Already looking cloudy.');
+  assert.equal(await reply('Half a reply', 'length'), null);
+});
+
 test('changing microphone gain updates the live input without changing the system audio mix', () => {
   const values = [];
   const client = new MicrophoneClient({
@@ -50,12 +152,13 @@ test('changing microphone gain updates the live input without changing the syste
     systemAudio,
   };
   client.run = run;
-  for (const microphoneGain of [0, 100, 200])
+  for (const microphoneGain of [0, 100, 200, 800])
     assert.equal(client.event({ type: 'microphone.gain', microphoneGain }), true);
   assert.deepEqual(values, [
     [0, 4, 0.015],
     [1, 4, 0.015],
     [2, 4, 0.015],
+    [8, 4, 0.015],
   ]);
   assert.equal(client.run, run);
   assert.equal(client.run.systemAudio, systemAudio);

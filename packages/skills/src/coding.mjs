@@ -34,10 +34,12 @@ export const codingSkill = {
   create({ ports: { service, agent, assertModelIdle, installBridge } }) {
     let enabled = false;
     let installing = false;
+    let running;
     const commands = {
       status: () => ({ config: service.snapshot(), enabled }),
       enabled: () => enabled,
       resetMode: (_value, { emit }) => {
+        running?.abort(new Error('Coding mode was disabled.'));
         enabled = false;
         const state = { enabled };
         emit('settings', state);
@@ -71,7 +73,17 @@ export const codingSkill = {
           installing = false;
         }
       },
-      run: (text, { signal }) => agent.run(text, { signal }),
+      run: async (text, { signal }) => {
+        if (running) throw Error('A coding task is already running.');
+        const controller = (running = new AbortController());
+        try {
+          return await agent.run(text, {
+            signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
+          });
+        } finally {
+          running = undefined;
+        }
+      },
     };
     return {
       invoke: (command, input, operation) => commands[command](input, operation),

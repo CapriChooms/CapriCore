@@ -6,7 +6,6 @@ export class InitiativePanel {
       api.testInitiative().catch((error) => onError(error.message));
     document.getElementById('initiative-close').addEventListener('click', () => this.open(false));
     this.draft = () => ({
-      ...this.value,
       level: document.getElementById('initiative-level').value,
       hourlyLimit:
         document.getElementById('initiative-hourly-limit').value === ''
@@ -18,6 +17,8 @@ export class InitiativePanel {
       spontaneous: document.getElementById('initiative-spontaneous').checked,
       returnReactions: document.getElementById('initiative-return').checked,
       appReactions: document.getElementById('initiative-apps').checked,
+      screenComments: document.getElementById('initiative-screen-comments').checked,
+      watchTogether: document.getElementById('initiative-watch-together').checked,
       excludedApps: document
         .getElementById('initiative-exclusions')
         .value.split(',')
@@ -66,6 +67,8 @@ export class InitiativePanel {
     document.getElementById('initiative-level').value = value.level;
     document.getElementById('initiative-return').checked = value.returnReactions;
     document.getElementById('initiative-apps').checked = value.appReactions;
+    document.getElementById('initiative-screen-comments').checked = value.screenComments === true;
+    document.getElementById('initiative-watch-together').checked = value.watchTogether === true;
     document.getElementById('initiative-quiet-start').value = value.quietStart;
     document.getElementById('initiative-quiet-end').value = value.quietEnd;
     document.getElementById('initiative-quiet-enabled').checked =

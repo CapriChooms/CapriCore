@@ -45,12 +45,12 @@ try {
   assert.equal(bootstrap.musicListening.enabled, false);
   assert.equal(bootstrap.musicListening.phase, 'off');
   assert.deepEqual(bootstrap.musicListening.settings, {
-    enabled: false,
+    enabled: true,
     notes: true,
     motion: true,
     autoBpm: true,
   });
-  await application.evaluate(({ ipcMain, BrowserWindow }) => {
+  await application.evaluate(({ ipcMain, BrowserWindow }, skills) => {
     const state = (globalThis.musicSettingsFixture = {
       phase: 'off',
       enabled: false,
@@ -58,7 +58,7 @@ try {
       hearingMusic: false,
       musicScore: 0,
       speechScore: 0,
-      settings: { enabled: false, notes: true, motion: true, autoBpm: true },
+      settings: { enabled: true, notes: true, motion: true, autoBpm: true },
       starts: 0,
       stops: 0,
       saves: 0,
@@ -92,19 +92,29 @@ try {
       state.settings = { ...value };
       return publish();
     });
-    handle('music-command', (action) => {
-      if (action === 'start') {
+    handle('skill-settings', (change) => {
+      if (!change) return skills;
+      if (change.id !== 'capri.music') throw Error('Unexpected skill change');
+      Object.assign(
+        skills[change.id],
+        change.enabled === undefined
+          ? { showButton: change.showButton }
+          : { enabled: change.enabled },
+      );
+      if (change.enabled === true) {
         state.starts++;
         state.enabled = true;
         state.phase = 'listening';
-        state.settings.enabled = true;
-      } else {
+      } else if (change.enabled === false) {
         state.stops++;
         state.enabled = false;
         state.phase = 'off';
         state.hearingMusic = false;
       }
-      return publish();
+      for (const win of BrowserWindow.getAllWindows())
+        win.webContents.send('capri:event', { type: 'skills.settings', settings: skills });
+      publish();
+      return skills;
     });
     handle('music-audio-start', () => {
       state.captures++;
@@ -114,13 +124,13 @@ try {
       Object.assign(state, value);
       return publish();
     };
-  });
+  }, bootstrap.skills);
   let page = await settingsView(application, 'music');
   const panel = page.locator('#music-listening-panel');
+  const master = () => page.locator('input[data-skill="capri.music"]');
   await panel.waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#music-listening-start').isVisible(), true);
-  assert.equal(await page.locator('#music-listening-stop').isVisible(), false);
-  assert.equal(await page.locator('#music-listening-enabled').isChecked(), false);
+  assert.equal(await page.locator('#music-listening-start, #music-listening-stop').count(), 0);
+  assert.equal(await master().isChecked(), false);
   assert.match(await panel.textContent(), /No microphone is required/);
   report.checks.push(
     'actual isolated bootstrap stays off; the independent Music section opens with clear privacy help',
@@ -133,28 +143,30 @@ try {
   report.checks.push(
     'tab navigation preserves the unsaved music preference without an automatic save',
   );
-  await page.locator('#music-listening-enabled').check();
+  await page.locator('#music-listening-enabled').uncheck();
+  assert.equal(await application.evaluate(() => globalThis.musicSettingsFixture.starts), 0);
+  await master().check();
   await page.waitForFunction(
     () => document.getElementById('music-listening-status').textContent === 'Listening',
   );
-  assert.equal(await page.locator('#music-listening-enabled').isChecked(), true);
+  assert.equal(await page.locator('#music-listening-enabled').isChecked(), false);
   assert.equal(await page.locator('#music-listening-notes').isChecked(), false);
-  assert.equal(await page.locator('#music-listening-stop').isVisible(), true);
+  await page.locator('#music-listening-notes').check();
   await application.evaluate(() =>
     globalThis.musicSettingsEmit({ hearingMusic: true, musicScore: 0.95, speechScore: 0.04 }),
   );
-  await page.waitForFunction(
-    () => document.getElementById('music-listening-status').textContent === 'Music detected',
+  await page.waitForFunction(() =>
+    document.getElementById('music-listening-status').textContent.startsWith('Music detected'),
   );
-  assert.equal(await page.locator('#music-listening-notes').isChecked(), false);
+  assert.equal(await page.locator('#music-listening-notes').isChecked(), true);
   report.checks.push(
-    'explicit animation toggle starts listening; music events preserve dirty note preferences',
+    'the master skill switch starts listening with animations off; status preserves dirty notes',
   );
   await saveSettings(page);
   await page.waitForTimeout(300);
   const saved = await application.evaluate(() => ({ ...globalThis.musicSettingsFixture }));
-  assert.deepEqual(saved.settings, { enabled: true, notes: false, motion: true, autoBpm: true });
-  assert.equal(saved.saves, 1);
+  assert.deepEqual(saved.settings, { enabled: false, notes: true, motion: true, autoBpm: true });
+  assert.equal(saved.saves, 2);
   assert.equal(saved.starts, 1);
   assert.equal(saved.captures, 0);
   await page.screenshot({ path: path.join(folder, 'music-settings.png') });
@@ -180,11 +192,11 @@ try {
   report.checks.push(
     'close/save uses the existing draft barrier and all visible controls fit the real Settings card',
   );
-  await page.locator('#music-listening-stop').click();
+  await master().uncheck();
   await page.waitForFunction(
     () => document.getElementById('music-listening-status').textContent === 'Off',
   );
-  assert.equal(await page.locator('#music-listening-enabled').isChecked(), true);
+  assert.equal(await page.locator('#music-listening-enabled').isChecked(), false);
   await page.locator('#settings-window-close').click();
   await page
     .waitForFunction(
@@ -193,13 +205,15 @@ try {
     .catch(() => {});
   page = await settingsView(application);
   await page.waitForSelector('[data-section="music"][aria-current="page"]');
-  assert.equal(await page.locator('#music-listening-start').isVisible(), true);
-  assert.equal(await page.locator('#music-listening-enabled').isChecked(), true);
+  assert.equal(await master().isChecked(), false);
+  assert.equal(await page.locator('#music-listening-enabled').isChecked(), false);
   await application.evaluate(() => globalThis.musicSettingsEmit({ supported: false }));
-  await page.waitForFunction(() => document.getElementById('music-listening-start').disabled);
+  await page.waitForFunction(
+    () => document.getElementById('music-listening-status').textContent === 'Unavailable',
+  );
   assert.equal(await page.locator('#music-listening-status').textContent(), 'Unavailable');
   report.checks.push(
-    'Stop/reopen keeps preferences without capture; unavailable runtime disables Start',
+    'turning off the skill and reopening keeps visual preferences without restarting capture',
   );
   const final = await application.evaluate(() => globalThis.musicSettingsFixture);
   assert.equal(final.captures, 0);

@@ -36,6 +36,9 @@ test('cache cleanup previews by default and preserves user data, runtimes and AS
   const disposable = [
     '.runtime/test-data/result.txt',
     '.runtime/asr-verification/electron-example/profile',
+    '.runtime/installer-unit/case-example/source.zip',
+    '.runtime/desktop-identity-unit/fixture-example/Capri.exe',
+    '.runtime/source-archive-unit/case-example/source.zip',
     'integrations/example/__pycache__/module.pyc',
   ];
   const protectedFiles = [
@@ -49,7 +52,7 @@ test('cache cleanup previews by default and preserves user data, runtimes and AS
   [...disposable, ...protectedFiles].forEach(f.put);
   const preview = cleanCaches(f.root);
   assert.equal(preview.applied, false);
-  assert.equal(preview.files, 3);
+  assert.equal(preview.files, disposable.length);
   disposable.forEach((file) => assert.ok(f.has(file)));
   cleanCaches(f.root, { apply: true });
   disposable.forEach((file) => assert.equal(f.has(file), false));

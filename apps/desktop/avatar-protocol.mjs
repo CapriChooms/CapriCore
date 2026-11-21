@@ -1,8 +1,24 @@
 const STARTS = ['[avatar:', '[аватар:', '[/avatar:', '[/аватар:', '[/avatar]', '[/аватар]'];
 const MAX_START = Math.max(...STARTS.map((marker) => marker.length));
 const MAX_CONTROL = 128;
+const MAX_WRAPPED_REPLY = 2048;
 const LISTEN_SUFFIX = ';listen';
 const COMPLETE_LISTEN_SUFFIX = /^;listen\]?\s*$/i;
+const OPENING_AVATAR = /^\[(?:avatar|аватар):/iu;
+
+function wrappedProse(value, complete = false) {
+  const text = value.trim();
+  if (
+    !/^[¿¡"'“‘«]*[\p{L}\p{N}]/u.test(text) ||
+    /[\p{Cc}\[\]<>={};\\/]/u.test(text) ||
+    /^(?:system|developer)\s+(?:prompt|message|instructions?)\b/iu.test(text) ||
+    (!/[\p{L}\p{M}][,:.!?…]*\s+[\p{L}\p{N}]/u.test(text) &&
+      !/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Hangul}\p{Script=Thai}]{3}/u.test(text)) ||
+    (complete && !/[.!?…。！？؟։]["')\p{Pf}]*$/u.test(text))
+  )
+    return '';
+  return text;
+}
 
 export function avatarInstructions(sprites, { followUp = false, compact = false } = {}) {
   if (!sprites.length)
@@ -11,7 +27,7 @@ export function avatarInstructions(sprites, { followUp = false, compact = false 
     'LISTENING CONTROL: For a genuine question that invites a response, use [avatar:ID;listen]. Keep ;listen inside the opening marker. It only continues an already-enabled microphone.';
   if (compact)
     return [
-      `AVATAR CONTROL: Start with one hidden marker [avatar:ID] on its own line, followed by your reply. Pick the ID that fits: ${sprites.map((sprite) => sprite.id).join(', ')}. Use no closing tag.`,
+      `AVATAR CONTROL: Put one hidden marker [avatar:ID] alone on the first line. Close the bracket before writing your reply on the next line. Pick the ID that fits: ${sprites.map((sprite) => sprite.id).join(', ')}. Use no closing tag.`,
       ...(followUp ? [listening] : []),
     ].join('\n');
   const options = sprites.map((sprite) => `${sprite.id}: ${sprite.description}`).join('\n');
@@ -37,10 +53,13 @@ export class AvatarStreamParser {
     this.selected = null;
     this.controlsSeen = 0;
     this.textTail = '';
+    this.hasText = false;
+    this.wrappedReply = '';
   }
 
   emitText(value, events, final = false) {
     const text = this.textTail + value;
+    this.hasText ||= /\S/u.test(text);
     this.textTail = '';
     // Small models sometimes move the reserved flag to the end of their prose.
     // Hold only a possible suffix, so no partial flag reaches subtitles or TTS.
@@ -100,13 +119,20 @@ export class AvatarStreamParser {
       }
       const end = this.buffer.indexOf(']');
       const newline = this.buffer.indexOf('\n');
+      const firstOpening = !marker[1] && !this.hasText && this.controlsSeen === 0;
       if (newline >= 0 && (end < 0 || newline < end)) {
         this.controlsSeen++;
         this.buffer = this.buffer.slice(newline + 1);
         continue;
       }
       if (end < 0) {
-        if (this.buffer.length <= MAX_CONTROL) break;
+        if (
+          this.buffer.length <= MAX_CONTROL ||
+          (firstOpening &&
+            this.buffer.length <= MAX_WRAPPED_REPLY &&
+            wrappedProse(this.buffer.slice(marker[0].length)))
+        )
+          break;
         this.controlsSeen++;
         this.buffer = '';
         this.discarding = true;
@@ -115,6 +141,7 @@ export class AvatarStreamParser {
       const frame = this.buffer.slice(marker[0].length, end);
       this.buffer = this.buffer.slice(end + 1);
       this.controlsSeen++;
+      if (firstOpening && end <= MAX_WRAPPED_REPLY) this.wrappedReply = wrappedProse(frame, true);
       const [identity, listening, extra] = frame.split(';');
       const choice =
         !marker[1] &&
@@ -136,15 +163,23 @@ export class AvatarStreamParser {
     return events;
   }
 
-  finish() {
+  finish({ recoverWrappedReply = false } = {}) {
     const unfinished = STARTS.some(
       (marker) =>
         this.buffer.toLowerCase().startsWith(marker) ||
         (this.buffer.length > 1 && marker.startsWith(this.buffer.toLowerCase())),
     );
-    const text = !this.discarding && !unfinished ? this.buffer : '';
+    let text = !this.discarding && !unfinished ? this.buffer : '';
+    // A model can put the whole sentence inside its leading avatar wrapper.
+    // Recover it only for completed dialogue that had no other visible reply.
+    if (recoverWrappedReply && !this.hasText && !this.discarding && !text.trim()) {
+      const opening = this.controlsSeen === 0 ? OPENING_AVATAR.exec(this.buffer)?.[0] : null;
+      text =
+        this.wrappedReply || (opening ? wrappedProse(this.buffer.slice(opening.length), true) : '');
+    }
     this.buffer = '';
     this.discarding = false;
+    this.wrappedReply = '';
     const events = [];
     this.emitText(text, events, true);
     return events;

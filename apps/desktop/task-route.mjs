@@ -7,6 +7,7 @@ import {
   rejectsDesktopAction,
 } from './computer-mode-request.mjs';
 import { isScientificExpression } from '../../integrations/desktop-actions/math-expression.mjs';
+import { youtubeMusicRequest } from './youtube-music-request.mjs';
 
 const number = String.raw`-?\d{1,60}(?:\.\d{1,60})?`;
 const root = new RegExp(
@@ -96,7 +97,8 @@ export function toolDomain(text, state, routing) {
   const value = String(text).normalize('NFKC');
   if (rejectsDesktopAction(value)) return 'conversation';
   if (computerAccessDiscussion(value)) return 'conversation';
-  if (mentionsComputerMode(value)) return 'desktop';
+  if (mentionsComputerMode(value) || computerModeRequest(value)?.run) return 'desktop';
+  if (youtubeMusicRequest(value, state)) return 'conversation';
   if (
     /\bspotify\b|спотиф/iu.test(value) &&
     /\b(?:click|press|drag|cursor|mouse|keyboard|button|search\s+bar|type|write)\b|нажми|кликни|перетащи|курсор|мыш[ьи]|клавиш|кнопк|введи|напиши/iu.test(

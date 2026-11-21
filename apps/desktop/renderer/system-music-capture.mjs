@@ -66,7 +66,7 @@ export class SystemMusicClient {
     this.publish({ status: 'starting', enabled: true, sessionId: null });
     const current = () => this.run === run;
     try {
-      // Resume inside the click's transient user activation, before private IPC.
+      // Resume within the transient user activation, before private IPC.
       run.context = this.contextFactory();
       await run.context.resume();
       if (!current()) return false;

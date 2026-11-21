@@ -16,6 +16,26 @@ spec.loader.exec_module(selection)
 
 
 class VoiceCompatibilityTests(unittest.TestCase):
+    def test_installer_runtime_probe_checks_pinned_source_and_gpu_without_model_io(self):
+        from integrations.voice_training import __main__ as training
+
+        torch = NS(__version__='rocm fixture', cuda=NS(mem_get_info=Mock()))
+        config = {'engine': 'chatterbox-turbo', 'language': 'en'}
+        with (patch.dict(sys.modules, {'torch': torch}),
+              patch('importlib.metadata.version', return_value='fixture'),
+              patch('integrations.voice_runtime.compatibility.cuda_preflight',
+                    return_value={'available': True, 'kernelReady': True, 'backend': 'rocm'}) as compute,
+              patch('integrations.voice_training.provision.verify_model') as model,
+              patch('integrations.voice_training.provision.verify_source') as source,
+              patch.object(training, 'write_json') as write):
+            report = training.doctor(config, runtime_only=True)
+        source.assert_called_once_with()
+        compute.assert_called_once_with(torch)
+        model.assert_not_called()
+        torch.cuda.mem_get_info.assert_not_called()
+        write.assert_not_called()
+        self.assertTrue(report['cuda'] and report['cudaCompute']['kernelReady'])
+
     def test_installer_voice_check_survives_unavailable_rocm_memory_telemetry(self):
         from integrations.voice_training import __main__ as training
 

@@ -7,15 +7,43 @@ export const requiresFullscreen = (goal) =>
       '',
     ),
   );
+export const storeSearchFieldRequested = (goal) =>
+  /\b(?:search (?:the )?(?:steam )?store|(?:steam )?store(?:'s)? search (?:bar|box|field|input))\b|поиск[\p{L}]*\s+по\s+магазин[\p{L}]*/iu.test(
+    goal,
+  );
 export function requiresPageSearch(goal) {
   const value = String(goal).replace(
     /\b(?:do not|don't|never|not|without)\b[^.!?\n]{0,60}\baddress\s+bar\b|не\s+[^.!?\n]{0,50}адресн[\p{L}]*\s+строк[\p{L}]*/giu,
     '',
   );
   return (
-    /\bsearch\s+(?:bar|box|field)\b|(?:строк[\p{L}]*|пол[\p{L}]*)\s+поиска/iu.test(value) &&
+    (storeSearchFieldRequested(value) ||
+      /\bsearch\s+(?:bar|box|field|input)\b|(?:строк[\p{L}]*|пол[\p{L}]*)\s+поиска/iu.test(
+        value,
+      )) &&
     !/\baddress\s+bar\b|адресн[\p{L}]*\s+строк/iu.test(value)
   );
+}
+
+export function observedSteamStoreProduct(view) {
+  const address = observedBrowserAddress(view);
+  if (!address?.untrustedValue || address.focused) return null;
+  try {
+    const value = address.untrustedValue;
+    const url = new URL(/^[a-z]+:\/\//i.test(value) ? value : 'https://' + value);
+    if (
+      url.origin !== 'https://store.steampowered.com' ||
+      !/^\/app\/\d+(?:\/|$)/u.test(url.pathname)
+    )
+      return null;
+    return (
+      /^(.*?)\s+(?:on|в)\s+Steam(?:\s+[-–—]\s+.+)?$/iu
+        .exec(view.window?.untrustedTitle ?? '')?.[1]
+        ?.trim() || null
+    );
+  } catch {
+    return null;
+  }
 }
 
 // A blocking dialog is actionable screen state, not a failed navigation. This
@@ -226,6 +254,15 @@ export const browserSearchUrl = (text, site = 'google') =>
   (site === 'youtube'
     ? 'https://www.youtube.com/results?search_query='
     : 'https://www.google.com/search?q=') + encodeURIComponent(text.trim());
+
+/** A single home-page request. Leave in-site actions and tab selections to the task executor. */
+export function youtubeHomeDestination(command) {
+  return /^(?:open|visit|go\s+to|открой|перейди\s+на|abre|ouvre|ouvrez)\s+(?:youtube|ютуб|(?:www\.)?youtube\.com)[.!?]*$/iu.test(
+    command.trim(),
+  )
+    ? 'https://www.youtube.com/'
+    : null;
+}
 
 /** An exact owner-supplied URL needs no model-generated tab or keyboard input. */
 export function explicitBrowserDestination(goal) {

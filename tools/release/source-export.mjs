@@ -4,7 +4,7 @@ import {
   readFileSync,
   statSync,
   mkdirSync,
-  mkdtempSync,
+  mkdtempDisposableSync,
   copyFileSync,
   existsSync,
   lstatSync,
@@ -22,6 +22,7 @@ import { root, writeJsonAtomic } from '../../packages/runtime/src/index.mjs';
 import { assertEmptyOwnerTemplates } from '../../packages/runtime/src/owner-memory.mjs';
 import { startupIntroSourceFiles } from '../../apps/desktop/startup-intro-assets.mjs';
 import { musicArtworkSourceFiles } from '../../apps/desktop/music-artwork.mjs';
+import { hangingCelAssetNames } from '../../apps/desktop/renderer/hanging-cels.mjs';
 import {
   sourceFiles,
   forbiddenSource as forbidden,
@@ -63,6 +64,9 @@ export function validateSource(files) {
     ACTIVE_AVATAR_CATALOG,
     ACTIVE_AVATAR_POSES,
     'assets/default/capri-headpat.png',
+    'assets/default/capri-wave.webp',
+    'assets/default/hanging-cels/geometry.json',
+    ...hangingCelAssetNames.map((name) => 'assets/default/hanging-cels/' + name + '.webp'),
     ...artwork.frames.map((frame) => path.relative(root, frame.file).split(path.sep).join('/')),
   ])
     if (!files.includes(name)) errors.push('Missing required Capri artwork: ' + name);
@@ -132,26 +136,39 @@ export function validateSource(files) {
       .digest('hex'),
   }));
 }
-export function exportSource({ check = false } = {}) {
+export function exportSource({ check = false, temporary = false } = {}) {
   const manifest = validateSource(sourceFiles());
   if (check) return { passed: true, files: manifest.length };
   const parent = path.join(root, 'release');
   mkdirSync(parent, { recursive: true });
+  if (lstatSync(parent).isSymbolicLink()) throw new Error('Release staging cannot follow a link.');
   const version = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version;
   if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(version))
     throw new Error('Invalid release version');
-  const destination = mkdtempSync(path.join(parent, 'capri-source-' + version + '-'));
-  for (const entry of manifest) {
-    const target = path.join(destination, entry.path);
-    mkdirSync(path.dirname(target), { recursive: true });
-    copyFileSync(path.join(root, entry.path), target);
+  const prefix = path.join(parent, 'capri-source-' + version + '-');
+  const staging = mkdtempDisposableSync(prefix);
+  const destination = staging.path;
+  try {
+    for (const entry of manifest) {
+      const target = path.join(destination, entry.path);
+      mkdirSync(path.dirname(target), { recursive: true });
+      copyFileSync(path.join(root, entry.path), target);
+    }
+    writeJsonAtomic(path.join(destination, 'SOURCE_MANIFEST.json'), {
+      schemaVersion: 1,
+      license: 'GPL-3.0-only',
+      files: manifest,
+    });
+  } catch (error) {
+    staging.remove();
+    throw error;
   }
-  writeJsonAtomic(path.join(destination, 'SOURCE_MANIFEST.json'), {
-    schemaVersion: 1,
-    license: 'GPL-3.0-only',
-    files: manifest,
-  });
-  return { passed: true, destination, files: manifest.length };
+  return {
+    passed: true,
+    destination,
+    files: manifest.length,
+    ...(temporary && { [Symbol.dispose]: () => staging.remove() }),
+  };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
   try {

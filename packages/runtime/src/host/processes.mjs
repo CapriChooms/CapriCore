@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { root, paths } from './paths.mjs';
 import { runtime } from '../context.mjs';
 import { environment } from './environment.mjs';
@@ -23,12 +24,19 @@ export function markerPath(name) {
   if (!/^[a-z0-9-]{1,64}$/i.test(name)) throw new Error('Invalid managed process name');
   return path.join(paths.data, 'run', name + '.json');
 }
+function systemPowerShell() {
+  const windows = process.env.SystemRoot || process.env.WINDIR;
+  return windows && path.isAbsolute(windows)
+    ? path.join(windows, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    : 'powershell.exe';
+}
+
 export function processStartedAt(pid) {
   if (!Number.isInteger(pid) || pid < 1) return null;
   try {
     if (process.platform === 'win32')
       return execFileSync(
-        'powershell.exe',
+        systemPowerShell(),
         [
           '-NoProfile',
           '-NonInteractive',
@@ -87,7 +95,14 @@ export function launch(
   executable,
   args,
   rt = runtime(),
-  { onExit, env = {}, deviceKey, cleanEnv = false } = {},
+  {
+    onExit,
+    env = {},
+    deviceKey,
+    cleanEnv = false,
+    cwd = root,
+    probeStartedAt = processStartedAt,
+  } = {},
 ) {
   const existing = managedProcess(name);
   if (existing) {
@@ -141,7 +156,7 @@ export function launch(
   };
   let child;
   child = spawn(executable, args, {
-    cwd: root,
+    cwd,
     env: {
       ...(!cleanEnv ? environment(rt) : {}),
       ...env,
@@ -162,24 +177,46 @@ export function launch(
   return new Promise((resolve, reject) => {
     if (onExit) child.once('exit', onExit);
     child.once('error', reject);
-    child.once('spawn', () => {
+    child.once('spawn', async () => {
       record('stdout', { event: 'started' });
-      const startedAt = processStartedAt(child.pid);
-      if (!startedAt) {
-        child.unref();
-        reject(new Error(`${name} exited during startup; see logs.`));
-        return;
-      }
-      const marker = {
-        pid: child.pid,
-        startedAt,
-        executable,
-        args,
-        projectRoot: root,
-        privateLogSchema: PRIVATE_SERVICE_LOG_SCHEMA,
-        ...(typeof deviceKey === 'string' && deviceKey.length <= 128 ? { deviceKey } : {}),
-      };
       try {
+        let startedAt = probeStartedAt(child.pid);
+        const exited = () => child.exitCode !== null || child.signalCode !== null;
+        if (!startedAt) {
+          // Give Node a turn to receive a pending native exit and retry a
+          // transient lookup failure once before discarding ownership.
+          await delay(125);
+          if (!exited()) startedAt = probeStartedAt(child.pid);
+        }
+        if (exited()) {
+          const status = child.exitCode === null ? child.signalCode : `exit code ${child.exitCode}`;
+          reject(
+            Object.assign(new Error(`${name} exited during startup (${status}).`), {
+              code: 'CAPRI_SERVICE_EXITED',
+              exitCode: child.exitCode ?? undefined,
+            }),
+          );
+          return;
+        }
+        if (!startedAt) {
+          const code = 'CAPRI_SERVICE_IDENTITY_UNAVAILABLE';
+          record('stderr', { event: 'spawn-failed', code });
+          throw Object.assign(
+            new Error(
+              `${code}: Could not verify the ${name} process start time. Retry starting Capri.`,
+            ),
+            { code },
+          );
+        }
+        const marker = {
+          pid: child.pid,
+          startedAt,
+          executable,
+          args,
+          projectRoot: root,
+          privateLogSchema: PRIVATE_SERVICE_LOG_SCHEMA,
+          ...(typeof deviceKey === 'string' && deviceKey.length <= 128 ? { deviceKey } : {}),
+        };
         writeJsonAtomic(markerPath(name), marker);
         if (!onExit) child.unref();
         resolve(marker);
@@ -190,16 +227,20 @@ export function launch(
     });
   });
 }
-export async function stopProcess(name) {
+export async function stopProcess(name, { expected } = {}) {
   const marker = readMarker(name);
-  if (!marker) return;
+  if (
+    !marker ||
+    (expected && (marker.pid !== expected.pid || marker.startedAt !== expected.startedAt))
+  )
+    return;
   if (marker) {
     const supervised = marker.args?.[0]?.endsWith('gateway-host.mjs');
     const graceful = supervised || ['desktop', 'companion-voice', 'llama'].includes(name);
     const timeout = supervised ? 350000 : graceful ? 60000 : 20000;
     if (process.platform === 'win32') {
       await execFileAsync(
-        'powershell.exe',
+        systemPowerShell(),
         [
           '-NoProfile',
           '-NonInteractive',

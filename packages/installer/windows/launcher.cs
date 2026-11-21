@@ -170,7 +170,7 @@ internal static class CapriSetup {
             if(chooseLanguage && !CapriSetupLocale.Select(args[0].Substring("--language=".Length)))throw new ArgumentException(L("unsupportedArguments"));
             if(args.Length>0 && !extract && !chooseLanguage)throw new ArgumentException(L("unsupportedArguments"));
             string cacheKey=CapriPayloadInfo.Sha256;
-            if(!String.IsNullOrEmpty(CapriPayloadInfo.VoiceSha256))using(SHA256 keyHash=SHA256.Create())cacheKey=Hex(keyHash.ComputeHash(Encoding.UTF8.GetBytes(CapriPayloadInfo.Sha256+CapriPayloadInfo.VoiceSha256)));
+            if(!String.IsNullOrEmpty(CapriPayloadInfo.VoiceSha256+CapriPayloadInfo.CameraSha256))using(SHA256 keyHash=SHA256.Create())cacheKey=Hex(keyHash.ComputeHash(Encoding.UTF8.GetBytes(CapriPayloadInfo.Sha256+CapriPayloadInfo.VoiceSha256+CapriPayloadInfo.CameraSha256)));
             Log("payload",cacheKey);
             string target=extract?args[1]:Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Capri","Setup",cacheKey);
             string source,voice="";
@@ -181,6 +181,7 @@ internal static class CapriSetup {
                     if(!acquired)throw new IOException(L("wizardFailed")+"\n"+L("technicalDetails")+": Payload extraction lock timed out.");
                     source=Unpack(target,extract,"CapriPayload",CapriPayloadInfo.Sha256,100*1024*1024);
                     if(!String.IsNullOrEmpty(CapriPayloadInfo.VoiceSha256))voice=Unpack(Path.Combine(source,".bundled-voice"),false,"CapriVoicePayload",CapriPayloadInfo.VoiceSha256,200*1024*1024);
+                    if(!String.IsNullOrEmpty(CapriPayloadInfo.CameraSha256))Unpack(Path.Combine(source,".bundled-camera"),false,"CapriCameraPayload",CapriPayloadInfo.CameraSha256,10*1024*1024);
                 }finally{if(acquired)payloadLock.ReleaseMutex();}
             }
             if(extract)return 0;

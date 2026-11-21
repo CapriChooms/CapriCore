@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { request } from '../http.mjs';
-import { localRunnerOptions } from './runner-policy.mjs';
+import { localRunnerOptions, residentLanguageMatches } from './runner-policy.mjs';
 
 export const IMPORTED_CHAT_ERROR =
   'The imported model did not reply. Try another GGUF file or a smaller context window.';
@@ -14,6 +14,8 @@ export const modelPreparationErrors = Object.freeze({
     'The local model could not start on the selected GPU. Try a smaller context or choose Automatic or CPU in Model devices.',
   CAPRI_LLAMA_CPU_LOAD_FAILED:
     'The local model could not start on CPU. Try a smaller model or context.',
+  CAPRI_LLAMA_ILLEGAL_INSTRUCTION:
+    'The local engine stopped on an illegal CPU instruction. Repair the installation using Capri Setup.',
 });
 
 function preparationHttpError(response) {
@@ -90,9 +92,7 @@ export async function ensureLanguageModelReady(
     const { models = [] } = await requestImpl(`${url}/api/ps`, { timeout: 3000, signal });
     signal?.throwIfAborted();
     const matches = (entry) =>
-      entry.name === model &&
-      entry.context_length === contextTokens &&
-      (acceleration !== 'cpu' || entry.size_vram === 0);
+      residentLanguageMatches(entry, { model, contextTokens, acceleration });
     const resident = models.find(matches);
     if (resident)
       return {

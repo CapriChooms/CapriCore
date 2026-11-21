@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import net from 'node:net';
 import {
-  mkdtempSync,
   mkdirSync,
   readFileSync,
   writeFileSync,
@@ -40,13 +39,16 @@ import { installationLock } from '../packages/installer/src/lock.mjs';
 import { ACTIVE_AVATAR_CATALOG, requireCapriAvatar } from '../apps/desktop/avatar-catalog.mjs';
 import { LLAMA_VULKAN_FILES } from '../packages/runtime/src/host/llama-bundle.mjs';
 import {
+  readModelDevices,
+  saveModelDevices,
+} from '../packages/runtime/src/model-device-settings.mjs';
+import {
   ELECTRON_RUNTIME_FILES,
   electronBundleReady,
 } from '../packages/runtime/src/host/electron-bundle.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 
-const cache = path.join(root, '.runtime/installer-unit');
-mkdirSync(cache, { recursive: true });
-const folder = () => mkdtempSync(path.join(cache, 'case-'));
+const folder = temporaryFolders('capri-installer-unit-');
 const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const spec = json(path.join(root, 'config/installer.json'));
@@ -355,6 +357,7 @@ async function transactionFixture({
   llamaState,
   failLlamaPromotion = false,
   selectedProfile,
+  languageDeviceChoice,
   languageUpgrade,
   routerNativeFailure = false,
   russianAdapter,
@@ -383,6 +386,8 @@ async function transactionFixture({
   const languageFile = path.join(target, 'data/desktop/languages.json');
   if (languageUpgrade)
     writeJsonAtomic(languageFile, { schemaVersion: 1, settings: languageUpgrade.previous });
+  const previousDevices = { language: 'auto', voice: 'cuda:0:1234567890abcdef' };
+  if (languageDeviceChoice) saveModelDevices(target, previousDevices);
   const canary = path.join(target, 'data/workspace/memory.md');
   mkdirSync(path.dirname(canary), { recursive: true });
   writeFileSync(canary, 'private memory canary');
@@ -520,6 +525,12 @@ async function transactionFixture({
         resourceProfile: 'balanced',
       });
     if (args.includes('models')) {
+      if (languageDeviceChoice)
+        assert.deepEqual(readModelDevices(target), {
+          schemaVersion: 1,
+          ...previousDevices,
+          language: inferenceMode === 'api' ? previousDevices.language : languageDeviceChoice,
+        });
       modelCommands.push(args.slice(args.indexOf('models') + 1));
       if (selectedProfile) {
         const selected = spec.profiles.find((profile) => profile.id === selectedProfile);
@@ -552,6 +563,7 @@ async function transactionFixture({
       ...(voiceMode ? { voiceMode } : {}),
       conversationLanguage: languageUpgrade?.conversation ?? (voiceLanguage || 'en'),
       ...(inferenceMode ? { inferenceMode, downloadModels: true } : {}),
+      ...(languageDeviceChoice && { languageDevice: languageDeviceChoice }),
       ...(modelSource ? { modelSource, downloadModels: true } : {}),
       ...(selectedProfile
         ? {
@@ -625,6 +637,13 @@ async function transactionFixture({
       json(languageFile).settings,
       cancelModels ? languageUpgrade.previous : languageUpgrade.expected,
     );
+  if (languageDeviceChoice)
+    assert.deepEqual(readModelDevices(target), {
+      schemaVersion: 1,
+      ...previousDevices,
+      language:
+        cancelModels || inferenceMode === 'api' ? previousDevices.language : languageDeviceChoice,
+    });
   const state = json(path.join(target, '.runtime/installer/state.json'));
   if (state.status === 'complete' && voiceLanguage && !qwen) {
     const voiceActivities = events.filter(
@@ -1106,6 +1125,15 @@ test('interrupted upgrade model download restores the previously selected model'
   await transactionFixture({ selectedProfile: 'quality', cancelModels: true });
 });
 
+test('installer applies CPU before preparing models and retains the voice device', async () => {
+  await transactionFixture({ languageDeviceChoice: 'cpu' });
+});
+
+test('installer does not overwrite a device in API mode and restores it on cancellation', async () => {
+  await transactionFixture({ languageDeviceChoice: 'cpu', inferenceMode: 'api' });
+  await transactionFixture({ languageDeviceChoice: 'cpu', cancelModels: true });
+});
+
 const englishSettings = {
   interface: 'en',
   conversation: 'en',
@@ -1180,6 +1208,44 @@ test('API selection ignores a local model profile and its RAM and disk requireme
   assert.equal(plan.downloadModels, false);
   assert.equal(plan.profile, 'minimal');
   assert.throws(() => validateRequest({ ...input, inferenceMode: null }, context), /source/);
+});
+
+test('CPU model requirements apply even with VRAM or a saved CPU selection', () => {
+  const target = folder();
+  const input = { ...request(target), profile: 'desktop' };
+  const context = {
+    sourceRoot: root,
+    version: '1.2.0',
+    hardware: { ...hardware, ramBytes: 16 * 2 ** 30 },
+  };
+  assert.equal(validateRequest(input, context).languageDevice, undefined);
+  assert.equal(
+    validateRequest({ ...input, languageDevice: 'auto' }, context).languageDevice,
+    'auto',
+  );
+  assert.throws(() => validateRequest({ ...input, languageDevice: 'cpu' }, context), /24 GiB RAM/);
+  assert.throws(
+    () => validateRequest({ ...input, languageDevice: 'fake' }, context),
+    /language model device/,
+  );
+  writeJsonAtomic(path.join(target, '.capri-install.json'), {
+    schemaVersion: 1,
+    productId: 'capri.desktop',
+    root: target,
+    installId: randomUUID(),
+    version: '1.1.2',
+  });
+  writeJsonAtomic(path.join(target, 'config/core.local.json'), { acceleration: 'cpu' });
+  assert.throws(() => validateRequest(input, context), /24 GiB RAM/);
+  saveModelDevices(target, { language: 'cpu', voice: 'auto' });
+  assert.throws(() => validateRequest(input, context), /24 GiB RAM/);
+  assert.throws(() => validateRequest({ ...input, languageDevice: '' }, context), /24 GiB RAM/);
+  assert.equal(validateRequest({ ...input, languageDevice: 'auto' }, context).profile, 'desktop');
+  assert.equal(
+    validateRequest({ ...input, inferenceMode: 'api', languageDevice: 'cpu' }, context)
+      .languageDevice,
+    undefined,
+  );
 });
 
 test('download totals sum selected components independently of the disk-space reserve', () => {

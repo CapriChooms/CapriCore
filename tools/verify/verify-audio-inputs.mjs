@@ -26,7 +26,7 @@ wav.writeUInt16LE(16, 34);
 wav.write('data', 36);
 wav.writeUInt32LE(wav.length - 44, 40);
 for (let i = 0; i < (wav.length - 44) / 2; i++)
-  wav.writeInt16LE(Math.round(5000 * Math.sin((2 * Math.PI * 440 * i) / 16000)), 44 + i * 2);
+  wav.writeInt16LE(Math.round(1500 * Math.sin((2 * Math.PI * 440 * i) / 16000)), 44 + i * 2);
 writeFileSync(fakeAudio, wav);
 const server = createServer((req, res) => {
   if (req.url === '/v1/models') {
@@ -198,15 +198,17 @@ try {
   await previewTrack(0, 'live');
   assert.equal(await gain.inputValue(), '100');
   assert.equal(await gain.getAttribute('min'), '0');
-  assert.equal(await gain.getAttribute('max'), '200');
+  assert.equal(await gain.getAttribute('max'), '800');
   const previewBounds = await preview.boundingBox();
   const meterBounds = await meter.boundingBox();
   assert.ok(meterBounds.x > previewBounds.x + previewBounds.width);
-  await speechSettings.waitForFunction(() => document.querySelector('meter').value > 0.05);
+  await speechSettings.waitForFunction(() => document.querySelector('meter').value > 0.03);
   await gain.fill('0');
   await speechSettings.waitForFunction(() => document.querySelector('meter').value < 0.01);
   await gain.fill('200');
-  await speechSettings.waitForFunction(() => document.querySelector('meter').value > 0.2);
+  await speechSettings.waitForFunction(() => document.querySelector('meter').value > 0.07);
+  await gain.fill('800');
+  await speechSettings.waitForFunction(() => document.querySelector('meter').value > 0.3);
   await speechSettings.waitForFunction(() =>
     window.__previewPlayback.some(
       ({ context, gain }) => context.state === 'running' && gain > 0 && gain < 1,
@@ -225,7 +227,8 @@ try {
     () => window.__previewPlayback[0]?.context.state === 'closed',
   );
   await saveSettings(speechSettings);
-  assert.equal((await snapshot()).speech.microphoneGain, 200);
+  assert.equal((await snapshot()).speech.microphoneGain, 800);
+  record('Microphone monitoring amplifies a quiet input up to 8x and saves the gain');
   await preview.check();
   await previewTrack(1, 'live');
   await speechSettings.locator('[data-section="general"]').click();
@@ -265,6 +268,7 @@ try {
   await speechSettings.locator('#settings-window-close').click();
   record('Voice input saves the pause slider without opening the microphone');
 
+  assert.equal((await snapshot()).microphone.available, true, 'ASR runtime and model required');
   await page.locator('#microphone-toggle').click({ force: true });
   await page.waitForFunction(() => document.body.dataset.microphone === 'listening', null, {
     timeout: 30000,
@@ -287,7 +291,7 @@ try {
   await page.evaluate(() => window.capri.setSpeechSettings({ trailingSilenceSeconds: 3.2 }));
   assert.equal((await snapshot()).microphone.sessionId, first.sessionId);
   assert.equal((await snapshot()).microphone.trailingSilenceSeconds, 3.2);
-  assert.equal((await snapshot()).microphone.microphoneGain, 200);
+  assert.equal((await snapshot()).microphone.microphoneGain, 800);
   record('pause changes reach the warm ASR worker without restarting capture');
 
   await page.evaluate(() => window.capri.setMicrophoneDevice(''));

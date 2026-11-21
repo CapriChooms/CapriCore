@@ -17,6 +17,43 @@ test('a delayed observation stop remains bound to its own capture ID', () => {
   assert.deepEqual(released, ['old']);
 });
 
+test('only completing the active one-shot capture triggers its observation cue', () => {
+  const handlers = new Map();
+  const screenPreviews = new Map();
+  let cues = 0;
+  const capturePolicy = {
+    capture: {
+      id: 'lease',
+      mode: 'watch',
+      phase: 'capturing',
+      expiresAt: Date.now() + 60000,
+      nativeId: 'window:1',
+      label: 'Fixture',
+    },
+    release() {
+      this.capture = null;
+    },
+  };
+  registerScreenIpc((name, fn) => handlers.set(name, fn), {
+    capturePolicy,
+    screenPreviews,
+    onCapture: () => cues++,
+  });
+  const finish = handlers.get('capri:screen-finish');
+  assert.throws(() => finish('lease'), /No active selected-source capture/);
+  capturePolicy.capture.mode = 'one-shot';
+  assert.throws(() => finish('other-lease'), /No active selected-source capture/);
+  capturePolicy.capture.expiresAt = Date.now() - 1;
+  assert.throws(() => finish('lease'), /No active selected-source capture/);
+  capturePolicy.capture.expiresAt = Date.now() + 60000;
+  assert.equal(cues, 0);
+  const preview = finish('lease');
+  assert.equal(screenPreviews.get(preview.id), preview);
+  assert.equal(cues, 1);
+  assert.throws(() => finish('lease'), /No active selected-source capture/);
+  assert.equal(cues, 1);
+});
+
 test('all-monitor frames are available only to the exact companion main frame', () => {
   const handlers = new Map();
   const mainFrame = { url: 'capri://desktop/index.html' };

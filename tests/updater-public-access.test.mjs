@@ -5,10 +5,11 @@ import path from 'node:path';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { root } from '../packages/runtime/src/host/paths.mjs';
-import { githubFetch, listReleases } from '../packages/updater/src/github.mjs';
+import { githubFetch, listReleases, listUpdateReleases } from '../packages/updater/src/github.mjs';
 import { EXPERIMENTAL_REPOSITORY, REPOSITORY } from '../packages/updater/src/releases.mjs';
 import { downloadUpdate } from '../packages/updater/src/download.mjs';
 import { UpdateService } from '../apps/desktop/update-service.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 
 const api = `https://api.github.com/repos/${REPOSITORY}/releases`;
 const token = 'synthetic-optional-credential';
@@ -36,6 +37,136 @@ const release = {
     },
   ],
 };
+
+const gitlab = 'https://gitlab.com/api/v4/projects/capricore1%2FCapriCore';
+const mirrorInstaller = `${gitlab}/packages/generic/capri/1.1.0/${asset.name}`;
+const mirrorFolder = temporaryFolders('capri-gitlab-updater-', path.join(root, '.runtime'));
+
+test('an unavailable GitHub release feed falls back to GitLab for checking, history and downloading', async () => {
+  const installRoot = mirrorFolder();
+  mkdirSync(path.join(installRoot, 'config'));
+  writeFileSync(path.join(installRoot, 'config/release.json'), '{"tag":"v1.0.0"}');
+  const calls = [];
+  const files = [asset.name, 'Capri-1.1.0-source.zip'].map((name, index) => ({
+    id: index + 1,
+    file_name: name,
+    size: bytes.length,
+    file_sha256: asset.sha256,
+  }));
+  const fetchImpl = async (url, options) => {
+    const auth = new Headers(options.headers).get('authorization');
+    calls.push(url.href);
+    if (url.origin === 'https://api.github.com') return new Response(null, { status: 404 });
+    assert.equal(auth, null);
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'manual');
+    if (url.href === mirrorInstaller) return new Response(bytes);
+    assert.equal(url.searchParams.get('per_page'), '100');
+    const endpoint = url.href.split('?')[0];
+    if (endpoint === `${gitlab}/releases`)
+      return Response.json([
+        { tag_name: 'v1.1.0', description: 'Stable notes' },
+        { tag_name: 'v1.3.0-experimental.2' },
+        { tag_name: 'v1.4.0', upcoming_release: true },
+        { tag_name: 'v2.0.0' },
+      ]);
+    if (endpoint === `${gitlab}/packages`)
+      return Response.json([
+        { id: 10, name: 'capri', package_type: 'generic', version: '1.1.0' },
+        { id: 11, name: 'capri', package_type: 'generic', version: '1.3.0-experimental.2' },
+        { id: 12, name: 'capri', package_type: 'generic', version: '1.4.0' },
+        { id: 13, name: 'capri', package_type: 'generic', version: '2.0.0' },
+      ]);
+    if (endpoint === `${gitlab}/packages/13/package_files`)
+      return Response.json([{ ...files[0], file_name: 'CapriSetup-2.0.0.exe' }]);
+    assert.equal(endpoint, `${gitlab}/packages/10/package_files`);
+    return Response.json(files);
+  };
+  const service = new UpdateService({
+    root: installRoot,
+    state: path.join(installRoot, 'state'),
+    node: process.execPath,
+    credential: async () => token,
+    releases: (options) => listUpdateReleases({ ...options, fetchImpl }),
+    download: (selected, dir, options) => downloadUpdate(selected, dir, { ...options, fetchImpl }),
+  });
+  const status = await service.checkOnStartup();
+  assert.equal(status.release.tag, 'v1.1.0');
+  assert.equal((await service.check()).release.tag, 'v1.1.0');
+  const history = await service.history();
+  assert.equal(history.releases.length, 1);
+  assert.equal(history.releases[0].notes, 'Stable notes');
+  assert.equal(
+    service.historyUrl(history.releases[0].id),
+    'https://gitlab.com/capricore1/CapriCore/-/releases/v1.1.0',
+  );
+  await service.chooseHistory(history.releases[0].id);
+  const prepared = await service.prepare();
+  assert.equal(prepared.phase, 'ready');
+  assert.equal(prepared.installerRequired, true);
+  assert.equal(calls.at(-1), mirrorInstaller);
+});
+
+test('the GitLab backup preserves trust boundaries when a GitHub asset disappears', async () => {
+  const calls = [];
+  const file = await downloadUpdate(asset, mirrorFolder(), {
+    tag: 'v1.1.0',
+    token,
+    fetchImpl: async (url, options) => {
+      calls.push([url.href, new Headers(options.headers).get('authorization')]);
+      if (url.origin === 'https://api.github.com') return new Response(null, { status: 404 });
+      return new Response(bytes);
+    },
+  });
+  assert.deepEqual(readFileSync(file), bytes);
+  assert.deepEqual(calls, [
+    [`${api}/assets/${asset.id}`, `Bearer ${token}`],
+    [`${api}/assets/${asset.id}`, null],
+    [mirrorInstaller, null],
+  ]);
+  await assert.rejects(
+    downloadUpdate({ ...asset, sha256: '0'.repeat(64) }, mirrorFolder(), {
+      source: 'gitlab',
+      tag: 'v1.1.0',
+      fetchImpl: async () => new Response(bytes),
+    }),
+    /checksum/,
+  );
+  await assert.rejects(
+    downloadUpdate(asset, mirrorFolder(), {
+      source: 'gitlab',
+      tag: 'v1.1.0',
+      fetchImpl: async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://gitlab.com/another/project/file.exe' },
+        }),
+    }),
+    /Unapproved GitLab update URL/,
+  );
+  for (const repository of [REPOSITORY, EXPERIMENTAL_REPOSITORY]) {
+    const fetches = [];
+    const request = listUpdateReleases({
+      token,
+      repository,
+      fetchImpl: async (url) => {
+        fetches.push(url.origin);
+        return repository === REPOSITORY
+          ? Response.json([release])
+          : new Response(null, { status: 404 });
+      },
+    });
+    if (repository === REPOSITORY) assert.deepEqual(await request, [release]);
+    else await assert.rejects(request, { code: 'GITHUB_ACCESS_REQUIRED' });
+    assert.deepEqual(fetches, ['https://api.github.com']);
+  }
+  await assert.rejects(
+    listUpdateReleases({
+      fetchImpl: async () => new Response(null, { status: 404 }),
+    }),
+    { code: 'GITHUB_RELEASES_UNAVAILABLE' },
+  );
+});
 
 test('release history exposes notes and safely separates older versions from in-app updates', async () => {
   const base = folder();

@@ -128,7 +128,7 @@ export class MicrophoneClient {
       );
     }
   }
-  async setSystemAudio(enabled, wake = false) {
+  async setSystemAudio(enabled, wake = false, token = '') {
     const run = this.run;
     if (!run?.id || !run.micGain || this.state.status !== 'listening') return false;
     if (!enabled) {
@@ -136,14 +136,20 @@ export class MicrophoneClient {
       return true;
     }
     if (run.systemAudio || run.systemAudioRequest) return false;
-    const request = (run.systemAudioRequest = {});
+    const request = (run.systemAudioRequest = { token });
     this.settings({ systemAudioPending: true });
     const sameRequest = () => this.run === run && run.systemAudioRequest === request;
     const current = () => sameRequest() && !request.cancelled;
     let stream, source, gain;
     try {
-      await this.api.prepareSystemAudio(run.id, wake);
+      const prepared = await this.api.prepareSystemAudio(run.id, wake, token);
       if (!current()) return false;
+      if (token) {
+        if (prepared?.native !== true) throw Error('The selected audio source could not start.');
+        run.systemAudio = { token, packets: [] };
+        this.settings({ systemAudioActive: true });
+        return true;
+      }
       stream = await navigator.mediaDevices.getDisplayMedia({
         audio: { restrictOwnAudio: true },
         systemAudio: 'include',
@@ -178,6 +184,8 @@ export class MicrophoneClient {
         this.onError('System audio could not start. Microphone input is still active.');
       return false;
     } finally {
+      if (token && run.systemAudio?.token !== token)
+        void this.api.stopNativeSystemAudio(token).catch(() => {});
       if (run.systemAudio?.stream !== stream || !stream) {
         source?.disconnect();
         gain?.disconnect();
@@ -193,6 +201,10 @@ export class MicrophoneClient {
   updateSystemAudioGain(run) {
     const audio = run.systemAudio;
     if (!audio) return;
+    if (audio.token) {
+      if (this.loopbackPlayback) audio.packets.length = 0;
+      return;
+    }
     const time = run.context.currentTime;
     const audibleAt = this.loopbackPlayback ? null : Math.max(time, this.playbackTailUntil ?? time);
     for (const [param, muted, audible] of [
@@ -211,7 +223,9 @@ export class MicrophoneClient {
     }
     const audio = run.systemAudio;
     run.systemAudio = null;
-    if (audio) {
+    const token = audio?.token || run.systemAudioRequest?.token;
+    if (token) void this.api.stopNativeSystemAudio(token).catch(() => {});
+    if (audio && !audio.token) {
       audio.source.disconnect();
       audio.gain.disconnect();
       for (const track of audio.stream.getTracks()) track.stop();
@@ -227,6 +241,13 @@ export class MicrophoneClient {
   capturePacket(run, value) {
     if (this.run !== run) return;
     this.onLevel(Math.min(1, value.rms * 10));
+    const native = run.systemAudio?.packets;
+    const system = native?.shift();
+    if (system && !this.nativeSystemMuted(run) && value.pcm.byteLength === system.byteLength) {
+      const samples = new Float32Array(value.pcm);
+      for (let i = 0; i < samples.length; i++)
+        samples[i] = samples[i] * (1 - LOOPBACK_GAIN) + system[i] * LOOPBACK_GAIN;
+    }
     run.queue.push(new Uint8Array(value.pcm));
     if (run.queue.length > MAX_QUEUED_PACKETS) {
       this.stop();
@@ -234,6 +255,9 @@ export class MicrophoneClient {
       return;
     }
     void this.pump(run);
+  }
+  nativeSystemMuted(run) {
+    return this.loopbackPlayback || run.context.currentTime < (this.playbackTailUntil ?? 0);
   }
   async pump(run) {
     if (run.pumping) return;
@@ -315,6 +339,34 @@ export class MicrophoneClient {
     this.onState(this.state);
   }
   event(event) {
+    if (event.type === 'system-audio.pcm') {
+      const run = this.run;
+      const audio = run?.systemAudio;
+      const pcm = event.pcm;
+      if (
+        audio?.token &&
+        audio.token === event.token &&
+        !this.nativeSystemMuted(run) &&
+        pcm instanceof Uint8Array &&
+        pcm.byteLength === 6400 &&
+        pcm.byteOffset % 4 === 0
+      ) {
+        if (audio.packets.length >= 2) audio.packets.shift();
+        audio.packets.push(new Float32Array(pcm.buffer, pcm.byteOffset, 1600));
+      }
+      return true;
+    }
+    if (event.type === 'system-audio.source-ended') {
+      const run = this.run;
+      if (
+        run?.systemAudio?.token === event.token ||
+        run?.systemAudioRequest?.token === event.token
+      ) {
+        this.stopSystemAudio(run);
+        this.onError(event.message || 'The selected audio source disconnected.');
+      }
+      return true;
+    }
     if (event.type === 'microphone.device-changed') {
       this.stop(false);
       this.settings({ deviceId: event.deviceId, deviceLabel: event.deviceLabel });

@@ -52,11 +52,10 @@ test('music listening has its own skill page before the more specialised voice c
   assert.equal(PANEL_SECTIONS['music-listening-panel'], 'music');
 });
 
-test('an explicit animation toggle starts and stops listening, but restoring preferences never captures audio', async () => {
+test('animation preferences and live BPM are independent of the capture switch', () => {
   const originalDocument = globalThis.document;
   const fields = new Map(),
-    calls = [],
-    errors = [];
+    changes = [];
   const element = {
     dataset: {},
     set innerHTML(value) {
@@ -68,20 +67,12 @@ test('an explicit animation toggle starts and stops listening, but restoring pre
   try {
     const panel = new MusicListeningPanel({
       ui: { text: (value) => value },
-      api: {
-        musicCommand: async (action) => {
-          calls.push(action);
-          return {
-            enabled: action === 'start',
-            phase: action === 'start' ? 'listening' : 'off',
-            settings: { enabled: action === 'start' },
-          };
-        },
-      },
-      onError: (error) => errors.push(error),
+      onChange: () => changes.push(panel.draft()),
     });
     panel.show({ phase: 'off', enabled: false, settings: { enabled: true } });
-    assert.deepEqual(calls, []);
+    assert.deepEqual(changes, []);
+    assert.equal(fields.has('music-listening-start'), false);
+    assert.equal(fields.has('music-listening-stop'), false);
     panel.status({
       phase: 'listening',
       enabled: true,
@@ -93,22 +84,12 @@ test('an explicit animation toggle starts and stops listening, but restoring pre
     assert.equal(panel.get('status').textContent, 'Music detected · BPM …');
     panel.status({ tempo: 120.3, tempoConfidence: 0.8 });
     assert.equal(panel.get('status').textContent, 'Music detected · BPM 120');
-    panel.show({ phase: 'off', enabled: false, hearingMusic: false, settings: { enabled: true } });
     panel.get('enabled').checked = false;
-    await panel.get('enabled').onchange();
-    assert.deepEqual(calls, []);
-    panel.get('enabled').checked = true;
-    await panel.get('enabled').onchange();
-    assert.deepEqual(calls, ['start']);
+    panel.get('enabled').onchange();
+    assert.equal(changes[0].enabled, false);
+    panel.show({ settings: { enabled: false } });
+    assert.equal(panel.get('status').textContent, 'Music detected · BPM 120');
     assert.equal(panel.value.phase, 'listening');
-    panel.get('notes').checked = false;
-    panel.get('notes').onchange();
-    assert.deepEqual(calls, ['start']);
-    panel.get('enabled').checked = false;
-    await panel.get('enabled').onchange();
-    assert.deepEqual(calls, ['start', 'stop']);
-    assert.equal(panel.value.phase, 'off');
-    assert.deepEqual(errors, []);
   } finally {
     if (originalDocument === undefined) delete globalThis.document;
     else globalThis.document = originalDocument;

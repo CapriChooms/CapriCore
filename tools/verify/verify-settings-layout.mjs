@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { _electron } from 'playwright-core';
+import { loadCommunityLinks } from '../../apps/desktop/community-links.mjs';
 import {
   SETTINGS_GROUPS,
   SETTINGS_SECTIONS,
@@ -32,6 +33,15 @@ delete env.ELECTRON_RUN_AS_NODE;
 let application;
 const narrow = process.argv.includes('--narrow');
 const supportOnly = process.argv.includes('--support');
+const supportLinks = [
+  'boosty-donate',
+  'lava-donate',
+  'discord',
+  'tiktok',
+  'youtube',
+  'github',
+  'website',
+];
 const sidebarOnly = process.argv.includes('--sidebar');
 const themeOnly = process.argv.includes('--theme');
 verifyLayout: try {
@@ -47,6 +57,11 @@ verifyLayout: try {
     application,
     sidebarOnly ? 'languages' : supportOnly ? 'support' : themeOnly ? 'appearance' : 'general',
   );
+  if (supportOnly)
+    await application.evaluate(({ shell }) => {
+      globalThis.supportExternalLinks = [];
+      shell.openExternal = async (url) => globalThis.supportExternalLinks.push(url);
+    });
   if (sidebarOnly) {
     const divider = settings.locator('#settings-divider');
     const sidebar = settings.locator('#settings-sidebar');
@@ -131,6 +146,18 @@ verifyLayout: try {
     assert.equal(await width(), 120);
     await settings.locator('#language-interface').selectOption('ar');
     await settings.waitForFunction(() => document.documentElement.dir === 'rtl');
+    const beta = sidebar.locator('[data-section="chess"] .beta-badge');
+    await beta.scrollIntoViewIfNeeded();
+    assert.equal(await beta.textContent(), 'BETA');
+    const betaBounds = await beta.evaluate((badge) => ({
+      badge: badge.getBoundingClientRect().toJSON(),
+      caption: badge.parentElement.getBoundingClientRect().toJSON(),
+    }));
+    assert.ok(
+      betaBounds.badge.left >= betaBounds.caption.left - 1 &&
+        betaBounds.badge.right <= betaBounds.caption.right + 1,
+      JSON.stringify(betaBounds),
+    );
     await drag(-120);
     assert.equal(await width(), 240);
     await divider.press('ArrowLeft');
@@ -153,10 +180,13 @@ verifyLayout: try {
     await owner.locator('[data-quick="languages"]').click();
     await settings.locator('[data-section="languages"][aria-current="page"]').waitFor();
     assert.equal(await settings.locator('#language-interface').isVisible(), true);
-    assert.equal(await owner.locator('#screen-indicator svg circle').count(), 1);
+    await settings.evaluate(() => window.capri.setSkill({ id: 'capri.screen', showButton: true }));
+    await owner.locator('#screen-indicator:not([hidden]) svg path').waitFor();
+    assert.equal(await owner.locator('#screen-indicator svg path').count(), 1);
     await owner
       .locator('#screen-indicator')
       .screenshot({ path: path.join(folder, 'screen-observation-icon.png') });
+    await settings.evaluate(() => window.capri.setSkill({ id: 'capri.screen', showButton: false }));
   }
   if (narrow) {
     await application.evaluate(({ BrowserWindow }) => {
@@ -206,6 +236,17 @@ verifyLayout: try {
         });
       }
       await settings.locator(`#${panel}`).waitFor();
+      await settings.waitForFunction(
+        () => document.getElementById('companion').getAttribute('aria-busy') === 'false',
+      );
+      assert.ok(
+        (await settings
+          .locator(
+            `#${panel} :is(.settings-card, .settings-disclosure):not(.skill-settings-header *):visible`,
+          )
+          .count()) > 0,
+        `${section} has no visible settings blocks`,
+      );
       if (narrow)
         assert.ok(
           await settings.evaluate(() => innerWidth <= 430),
@@ -216,50 +257,205 @@ verifyLayout: try {
       });
       await settings.evaluate(() => document.fonts.ready);
       if (section === 'support') {
-        const marks = await settings.locator('.support-links button').evaluateAll((buttons) =>
-          buttons.map((button) => {
-            const icon = button.querySelector('.brand-icon');
-            const label = button.lastElementChild.getBoundingClientRect();
-            const bounds = button.getBoundingClientRect();
-            return {
-              id: button.dataset.community,
-              x: bounds.x,
-              y: bounds.y,
-              width: bounds.width,
-              left: label.left - bounds.left,
-              right: bounds.right - label.right,
-              ink: getComputedStyle(button).color,
-              mask: icon && getComputedStyle(icon).maskImage,
-              background: icon && getComputedStyle(icon).backgroundImage,
-              animation: icon && getComputedStyle(icon).animationName,
-            };
-          }),
+        const support = settings.locator('[data-companion-tab="support"]');
+        assert.equal(
+          await support.locator('[data-community="faq"], [data-community="releases"]').count(),
+          0,
         );
+        const boostyDonation = support.getByRole('button', {
+          name: 'Donate via Boosty',
+          exact: true,
+        });
+        const primary = settings.getByRole('button', { name: 'Donate via Lava.top', exact: true });
+        const browser = settings.getByRole('button', {
+          name: 'Open donation in browser',
+          exact: true,
+        });
+        assert.equal(await boostyDonation.getAttribute('data-community'), 'boosty-donate');
+        if (supportOnly) {
+          for (const id of supportLinks) {
+            const link = support.locator(`[data-community="${id}"]`);
+            await link.waitFor();
+            await link.evaluate((button) => button.onclick());
+          }
+        }
+        assert.equal(await primary.getAttribute('id'), 'support-donation-open');
+        assert.equal(await browser.getAttribute('data-community'), 'lava-donate');
+        const primaryBounds = await primary.boundingBox();
+        const browserBounds = await browser.boundingBox();
+        assert.ok(primaryBounds && browserBounds);
+        assert.ok(browserBounds.y >= primaryBounds.y + primaryBounds.height);
+        const marks = await support
+          .locator('.support-links button:has(.brand-icon)')
+          .evaluateAll((buttons) =>
+            buttons.map((button) => {
+              const icon = button.querySelector('.brand-icon');
+              const label = button.lastElementChild.getBoundingClientRect();
+              const bounds = button.getBoundingClientRect();
+              const labelText = button.lastElementChild.firstChild;
+              const range = document.createRange();
+              const keepsWordsWhole =
+                labelText?.nodeType === Node.TEXT_NODE &&
+                [...labelText.data.matchAll(/\S+/gu)].every((word) => {
+                  range.setStart(labelText, word.index);
+                  range.setEnd(labelText, word.index + word[0].length);
+                  return range.getClientRects().length === 1;
+                });
+              return {
+                id:
+                  button.id === 'support-donation-open'
+                    ? 'lava'
+                    : button.dataset.community.replace(/-donate$/, ''),
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+                keepsWordsWhole,
+                left: label.left - bounds.left,
+                right: bounds.right - label.right,
+                mask: icon && getComputedStyle(icon).maskImage,
+                background: icon && getComputedStyle(icon).backgroundImage,
+                iconColor: icon && getComputedStyle(icon).backgroundColor,
+                filter: icon && getComputedStyle(icon).filter,
+                animation: icon && getComputedStyle(icon).animationName,
+                fills: [...button.querySelectorAll('.brand-icon path')].map(
+                  (path) => getComputedStyle(path).fill,
+                ),
+                strokes: [...button.querySelectorAll('.brand-icon path')].map(
+                  (path) => getComputedStyle(path).stroke,
+                ),
+              };
+            }),
+          );
         assert.deepEqual(
           marks.map(({ id }) => id),
-          [
-            'boosty',
-            'lava',
-            'discord',
-            'tiktok',
-            'youtube',
-            'github',
-            'website',
-            'faq',
-            'releases',
-          ],
+          ['boosty', 'lava', 'discord', 'tiktok', 'youtube', 'github', 'website'],
         );
-        const [boosty, lava, ...other] = marks;
-        assert.equal(boosty.y, lava.y);
-        assert.ok(boosty.x + boosty.width < lava.x);
+        const [boosty, lava, discord, tiktok, youtube, github, website] = marks;
+        if (narrow) {
+          assert.equal(boosty.x, lava.x);
+          assert.ok(boosty.y + boosty.height < lava.y);
+        } else {
+          assert.equal(boosty.y, lava.y);
+          assert.ok(boosty.x + boosty.width < lava.x);
+        }
         assert.ok(Math.abs(boosty.width - lava.width) < 1);
+        assert.ok(Math.abs(boosty.height - lava.height) < 1);
+        assert.ok(
+          boosty.keepsWordsWhole && lava.keepsWordsWhole,
+          'donation labels keep whole words',
+        );
         for (const { id, left, right } of marks)
           assert.ok(left >= 5 && right >= 5, `${id} label needs side padding (${left}, ${right})`);
-        assert.equal(new Set(other.map(({ ink }) => ink)).size, 1);
+        assert.ok(discord.mask.includes('/brand/discord.svg'));
+        assert.equal(discord.iconColor, 'rgb(88, 101, 242)');
+        assert.ok(github.mask.includes('/brand/github.svg'));
+        assert.equal(github.iconColor, 'rgb(240, 246, 252)');
+        assert.ok(tiktok.strokes.includes('rgb(255, 255, 255)'));
+        assert.match(tiktok.filter, /rgb\(37, 244, 238\).*rgb\(254, 44, 85\)/);
+        assert.ok(youtube.fills.includes('rgb(255, 51, 51)'));
+        assert.ok(website.fills.includes('rgb(0, 244, 82)'));
+        assert.ok(website.fills.includes('rgb(255, 0, 61)'));
+        assert.equal(
+          await support.locator('[data-community="website"]').getAttribute('aria-label'),
+          'capri-core.com',
+        );
+        assert.deepEqual(
+          await support
+            .locator('.site-brand-wordmark > span')
+            .evaluateAll((words) =>
+              words.map((word) => [word.textContent, getComputedStyle(word).color]),
+            ),
+          [
+            ['CAPRI', 'rgb(0, 244, 82)'],
+            ['CORE', 'rgb(255, 0, 61)'],
+          ],
+        );
         for (const mark of [boosty, lava]) {
           assert.ok(mark.mask.includes(`/brand/${mark.id}.svg`));
           assert.match(mark.background, /linear-gradient/);
           assert.equal(mark.animation, 'support-brand-shimmer');
+        }
+        if (supportOnly) {
+          const frame = support.locator('#support-frame');
+          await frame.waitFor();
+          await settings.waitForFunction(() => {
+            const canvases = document.querySelectorAll('#support-frame canvas');
+            return canvases.length === 4 && [...canvases].every((canvas) => canvas.width > 1);
+          });
+          const geometry = await frame.evaluate((element) => {
+            const card = element.closest('.support-donation-card');
+            const cardBounds = card.getBoundingClientRect();
+            const cardStyle = getComputedStyle(card);
+            const frameBounds = element.getBoundingClientRect();
+            const scrollport = card.closest('#companion');
+            const scrollLeft = scrollport.getBoundingClientRect().left + scrollport.clientLeft;
+            const [top, right, bottom, left] = [...element.querySelectorAll('canvas')].map(
+              (canvas) => canvas.getBoundingClientRect(),
+            );
+            const heart = getComputedStyle(card.querySelector('.support-heart')).color;
+            const canvas = element.querySelector('canvas');
+            const context = canvas.getContext('2d');
+            const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            const channels = heart.match(/\d+/g).map(Number);
+            let matchingPixels = 0;
+            for (let index = 0; index < data.length; index += 4) {
+              if (
+                data[index + 3] > 75 &&
+                channels.every((channel, offset) => Math.abs(data[index + offset] - channel) < 18)
+              )
+                matchingPixels++;
+            }
+            window.supportFramePaints = 0;
+            const clear = context.clearRect.bind(context);
+            context.clearRect = (...args) => {
+              window.supportFramePaints++;
+              return clear(...args);
+            };
+            return {
+              cardBorder: cardStyle.borderWidth,
+              cardOverflow: cardStyle.overflow,
+              followsCard:
+                Math.abs(frameBounds.top - cardBounds.top) <= 5 &&
+                Math.abs(frameBounds.right - cardBounds.right) <= 5 &&
+                Math.abs(frameBounds.bottom - cardBounds.bottom) <= 5 &&
+                Math.abs(frameBounds.left - cardBounds.left) <= 5,
+              paintOutsets: [
+                cardBounds.top - top.top,
+                right.right - cardBounds.right,
+                bottom.bottom - cardBounds.bottom,
+                cardBounds.left - left.left,
+              ],
+              clearsCorners:
+                [top, bottom].every(
+                  (strip) => strip.left < frameBounds.left && strip.right > frameBounds.right,
+                ) &&
+                [left, right].every(
+                  (strip) => strip.top < frameBounds.top && strip.bottom > frameBounds.bottom,
+                ),
+              fitsHorizontally:
+                left.left >= scrollLeft - 1 &&
+                right.right <= scrollLeft + scrollport.clientWidth + 1,
+              matchingPixels,
+              pointerEvents: getComputedStyle(element).pointerEvents,
+              decorative: element.getAttribute('aria-hidden'),
+              bloom: Boolean(element.querySelector('filter feGaussianBlur')),
+            };
+          });
+          assert.equal(geometry.cardBorder, '0px', 'the effect is the only card border');
+          assert.equal(geometry.cardOverflow, 'visible', 'the card does not clip its sparks');
+          assert.ok(geometry.followsCard, 'the effect follows the donation card perimeter');
+          assert.ok(
+            geometry.paintOutsets.every((outset) => outset > 10),
+            `all four glow strips extend beyond the old clipping margin (${geometry.paintOutsets})`,
+          );
+          assert.ok(geometry.fitsHorizontally, 'the Settings scrollport does not crop the glow');
+          assert.ok(geometry.clearsCorners, 'the strips leave painting space beyond the corners');
+          assert.ok(geometry.matchingPixels > 20, 'frame pixels match the heart color');
+          assert.equal(geometry.pointerEvents, 'none');
+          assert.equal(geometry.decorative, 'true');
+          assert.ok(geometry.bloom);
+          await settings.waitForFunction(() => window.supportFramePaints >= 2);
         }
         await settings.emulateMedia({ reducedMotion: 'reduce' });
         assert.equal(
@@ -270,11 +466,22 @@ verifyLayout: try {
             ),
           true,
         );
+        if (supportOnly) {
+          await settings.waitForFunction(
+            () => matchMedia('(prefers-reduced-motion: reduce)').matches,
+          );
+          await settings.waitForTimeout(120);
+          const paints = await settings.evaluate(() => window.supportFramePaints);
+          await settings.waitForTimeout(120);
+          assert.equal(await settings.evaluate(() => window.supportFramePaints), paints);
+        }
         await settings.emulateMedia({ reducedMotion: 'no-preference' });
       }
       if (section === 'updates' && supportOnly) {
-        await settings.locator('#updates-lava').waitFor();
-        assert.match(await settings.locator('#updates-lava').textContent(), /Lava\.top/);
+        await settings.getByRole('button', { name: 'Lava.top', exact: true }).waitFor();
+        const boosty = settings.getByRole('button', { name: 'Boosty', exact: true });
+        await boosty.waitFor();
+        await boosty.evaluate((button) => button.onclick());
       }
       const metrics = await settings.locator('#companion').evaluate((main) => ({
         width: main.clientWidth,
@@ -282,7 +489,10 @@ verifyLayout: try {
         height: main.clientHeight,
         extent: main.scrollHeight,
       }));
-      assert.ok(metrics.content <= metrics.width + 2, `${section} overflows horizontally`);
+      assert.ok(
+        metrics.content <= metrics.width + 2,
+        `${section} overflows horizontally (${metrics.content}px in ${metrics.width}px)`,
+      );
       const heading = await settings
         .locator(`#${panel} h2:visible`)
         .first()
@@ -313,13 +523,43 @@ verifyLayout: try {
     }
     assert.deepEqual(errors, []);
     if (supportOnly) {
+      const opened = await application.evaluate(() => globalThis.supportExternalLinks);
+      const links = loadCommunityLinks(root);
+      assert.deepEqual(opened.sort(), [...supportLinks, 'boosty'].map((id) => links[id]).sort());
+      await settingsView(application, 'updates');
+      await settings.locator('#support-frame').waitFor({ state: 'hidden' });
+      await settings.waitForTimeout(120);
+      const paints = await settings.evaluate(() => window.supportFramePaints);
+      await settings.waitForTimeout(120);
+      assert.equal(await settings.evaluate(() => window.supportFramePaints), paints);
+      await settingsView(application, 'support');
+      await settings.waitForFunction(
+        () => document.getElementById('companion').getAttribute('aria-busy') === 'false',
+      );
+      await settings.locator('#companion').evaluate((main) => {
+        main.scrollTop = 0;
+      });
+      await settings.waitForFunction((previous) => window.supportFramePaints > previous, paints);
+      await settings.evaluate(() => window.capri.closeSettings());
+      await settings.locator('#support-frame').waitFor({ state: 'hidden' });
+      const hiddenPaints = await settings.evaluate(() => window.supportFramePaints);
+      await settings.waitForTimeout(120);
+      assert.equal(await settings.evaluate(() => window.supportFramePaints), hiddenPaints);
       console.log('PASS Support and Updates. Screenshots: ' + folder);
       break verifyLayout;
     }
     await settings.locator('[data-section="appearance"]').click();
     await settings.locator('#theme-preset').selectOption('cyberpunk-2077');
+    await settings.locator('#settings-window-close').focus();
+    await settings.mouse.move(3, 3);
     await owner.waitForFunction(
       () => document.documentElement.dataset.interfaceTheme === 'cyberpunk-2077',
+    );
+    await settings.waitForFunction(
+      () =>
+        getComputedStyle(document.querySelector('[data-section="appearance"]')).color ===
+          'rgb(118, 239, 233)' &&
+        !document.getAnimations().some((effect) => effect instanceof CSSTransition),
     );
     const gameMenuColors = await settings.evaluate(() => {
       const style = (selector) => getComputedStyle(document.querySelector(selector));
@@ -327,8 +567,8 @@ verifyLayout: try {
         selection: style('[data-section="appearance"]').color,
         dropdown: style('#theme-preset').color,
         dropdownBorder: style('#theme-preset').borderTopColor,
-        feedback: style('#feedback-preview').color,
-        feedbackBorder: style('#feedback-preview').borderTopColor,
+        preview: style('#glitch-preview').color,
+        previewBorder: style('#glitch-preview').borderTopColor,
         frame: style('#companion-settings .panel-outline').stroke,
         themeCard: style('[data-companion-group="Interface theme"]').borderTopColor,
       };
@@ -341,13 +581,13 @@ verifyLayout: try {
       return {
         dropdown: fill('#theme-preset'),
         secondDropdown: fill('#memory-style'),
-        feedback: fill('#feedback-preview'),
+        preview: fill('#glitch-preview'),
         search: fill('#settings-search'),
         backdrop: fill('#settings-header'),
       };
     });
     assert.notEqual(controlFills.dropdown, controlFills.backdrop);
-    for (const part of ['secondDropdown', 'feedback', 'search'])
+    for (const part of ['secondDropdown', 'preview', 'search'])
       assert.equal(
         controlFills[part],
         controlFills.dropdown,
@@ -518,6 +758,10 @@ verifyLayout: try {
       console.log('PASS theme preview, layout, discard and save. Screenshots: ' + folder);
       break verifyLayout;
     }
+    await settings.evaluate(async () => {
+      await window.capri.setSkill({ id: 'capri.timers', enabled: true });
+      await window.capri.setSkill({ id: 'capri.timers', showButton: true });
+    });
     await owner.evaluate(() => window.capri.timeAction({ action: 'stopwatch' }));
     await owner.locator('#quick-actions #stopwatch-hud').waitFor();
     assert.equal(await owner.locator('#handle #context-hud').count(), 1);

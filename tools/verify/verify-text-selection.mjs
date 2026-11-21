@@ -55,7 +55,7 @@ let application;
 const errors = [];
 const selection = (page) => page.evaluate(() => document.getSelection()?.toString() ?? '');
 const clear = (page) => page.evaluate(() => document.getSelection()?.removeAllRanges());
-async function dragText(page, locator, { moving = false } = {}) {
+async function dragText(page, locator, { moving = false, ink = false } = {}) {
   await clear(page);
   if (moving) {
     await locator.waitFor({ state: 'visible' });
@@ -65,11 +65,19 @@ async function dragText(page, locator, { moving = false } = {}) {
       element.scrollIntoView({ block: 'nearest', inline: 'nearest' }),
     );
   } else await locator.scrollIntoViewIfNeeded();
-  const box = await locator.boundingBox();
-  assert.ok(box?.width > 0 && box.height > 0, 'Visible text target');
-  await page.mouse.move(box.x + 1, box.y + box.height / 2);
+  const lines = ink
+    ? await locator.evaluate((element) => {
+        const text = document.createRange();
+        text.selectNodeContents(element);
+        return Array.from(text.getClientRects(), (line) => line.toJSON());
+      })
+    : [await locator.boundingBox()];
+  const first = lines[0];
+  const last = lines.at(-1);
+  assert.ok(first?.width > 0 && last.height > 0, 'Visible text target');
+  await page.mouse.move(first.x + 1, first.y + first.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width - 1, box.y + box.height / 2, { steps: 12 });
+  await page.mouse.move(last.x + last.width - 1, last.y + last.height / 2, { steps: 12 });
   await page.mouse.up();
   return selection(page);
 }
@@ -160,11 +168,36 @@ try {
   );
   report.historyAnswerSelection = true;
   const settings = await settingsView(application, 'general');
-  assert.equal(
-    await dragText(settings, settings.locator('#general-panel h2')),
-    '',
-    'Settings titles are not selectable',
+  assert.match(
+    await dragText(settings, settings.locator('#general-panel h2'), { ink: true }),
+    /General/,
+    'Settings titles support selection',
   );
+  const description = await dragText(settings, settings.locator('#general-hide-help'), {
+    ink: true,
+  });
+  assert.match(description, /Hide the companion window/, 'Settings descriptions support selection');
+  await settings.evaluate(() => {
+    document.addEventListener(
+      'copy',
+      (event) => {
+        // Observe the renderer's shortcut without writing to the system clipboard.
+        event.preventDefault();
+        window.verifiedSettingsCopy = {
+          text: document.getSelection().toString(),
+          trusted: event.isTrusted,
+        };
+      },
+      { once: true },
+    );
+  });
+  await settings.keyboard.press('Control+c');
+  await settings.waitForFunction(() => window.verifiedSettingsCopy, undefined, { timeout: 5000 });
+  assert.deepEqual(await settings.evaluate(() => window.verifiedSettingsCopy), {
+    text: description,
+    trusted: true,
+  });
+  report.settingsCopy = true;
   const search = settings.locator('#settings-search');
   await search.fill('Editable filter');
   await search.press('Control+A');
@@ -173,13 +206,31 @@ try {
     [0, 'Editable filter'.length],
   );
   await search.fill('');
+  await settingsView(application, 'avatar-skill');
+  const checkbox = settings.locator('#teleport-reduced-flash');
+  const optionLabel = settings.locator('#teleport-reduced-flash + span');
+  const checked = await checkbox.isChecked();
+  assert.match(
+    await dragText(settings, optionLabel, { ink: true }),
+    /teleport flashes/,
+    'Settings labels support selection',
+  );
+  assert.equal(
+    await checkbox.isChecked(),
+    checked,
+    'Selecting a label does not toggle its control',
+  );
+  await optionLabel.click();
+  assert.equal(await checkbox.isChecked(), !checked, 'Clicking the label still toggles');
+  await optionLabel.click();
+  assert.equal(await checkbox.isChecked(), checked);
   await settingsView(application, 'credits');
   const nickname = settings.locator('.credits-name-gradient').first();
   await nickname.waitFor({ state: 'visible' });
-  assert.equal(
-    await dragText(settings, nickname, { moving: true }),
-    '',
-    'Credits do not opt back into UI selection',
+  assert.match(
+    await dragText(settings, nickname, { moving: true, ink: true }),
+    /Overyx/,
+    'Credits names support selection',
   );
   report.settingsAndCredits = true;
   assert.deepEqual(errors, []);

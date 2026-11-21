@@ -21,7 +21,8 @@ import {
   managedInstallation,
   runtimeUpgradeRequired,
 } from '../../packages/updater/src/transaction.mjs';
-import { listReleases, githubCredential } from '../../packages/updater/src/github.mjs';
+import { listUpdateReleases, githubCredential } from '../../packages/updater/src/github.mjs';
+import { gitlabReleaseUrl } from '../../packages/updater/src/gitlab.mjs';
 import {
   EXPERIMENTAL_REPOSITORY,
   REPOSITORY,
@@ -47,15 +48,17 @@ function isExperimentalRelease(release) {
 
 const privateAccessMessage =
   'GitHub access is unavailable for this private repository. Connect GitHub in Updates and check your Capri invitation and token approval.';
+const automaticCheckInterval = 30 * 60_000;
 
-export function validateUpdateSettings(value) {
+export function validateUpdateSettings(value, automaticDefault = true) {
   if (
     !value ||
     typeof value.experimental !== 'boolean' ||
-    Object.keys(value).some((key) => key !== 'experimental')
+    (Object.hasOwn(value, 'automatic') && typeof value.automatic !== 'boolean') ||
+    Object.keys(value).some((key) => key !== 'experimental' && key !== 'automatic')
   )
     throw new Error('Invalid update settings');
-  return { experimental: value.experimental };
+  return { experimental: value.experimental, automatic: value.automatic ?? automaticDefault };
 }
 /** Download work does not block inference. Only an explicit install request closes Capri. */
 export class UpdateService {
@@ -65,7 +68,7 @@ export class UpdateService {
     node,
     emit = () => {},
     credential = githubCredential,
-    releases = listReleases,
+    releases = listUpdateReleases,
     download = downloadUpdate,
     stage = stageUpdate,
     launch = spawn,
@@ -86,7 +89,7 @@ export class UpdateService {
     });
     this.preferences = new Preferences(
       path.join(state, 'updates.json'),
-      { experimental: false },
+      { experimental: false, automatic: true },
       validateUpdateSettings,
     );
     const metadata = JSON.parse(readFileSync(path.join(root, 'config/release.json'), 'utf8'));
@@ -103,18 +106,20 @@ export class UpdateService {
       phase: 'idle',
       current: this.current,
       mode: this.mode,
-      experimental: this.preferences.value.experimental,
+      ...this.preferences.snapshot(),
       notification: null,
     };
     this.selected = null;
     this.prepared = null;
     this.controller = null;
     this.handoff = false;
-    this.startupController = null;
-    this.startupOperation = null;
+    this.automaticController = null;
+    this.automaticOperation = null;
+    this.automaticChecksStarted = false;
+    this.automaticTimer = null;
     this.startupAttempted = false;
     this.startupSuperseded = false;
-    this.notificationDeferred = false;
+    this.deferredTags = new Set();
     this.closed = false;
   }
   snapshot() {
@@ -131,9 +136,27 @@ export class UpdateService {
       ['checking', 'downloading', 'verifying', 'installing'].includes(this.value.phase)
     );
   }
-  cancelStartup() {
+  cancelAutomaticCheck() {
     this.startupSuperseded = true;
-    this.startupController?.abort(new Error('Startup update check cancelled'));
+    this.automaticController?.abort(new Error('Automatic update check cancelled'));
+  }
+  startAutomaticChecks() {
+    if (this.closed || this.automaticChecksStarted) return;
+    this.automaticChecksStarted = true;
+    this.syncAutomaticCheckTimer();
+    return this.checkOnStartup();
+  }
+  syncAutomaticCheckTimer() {
+    if (this.closed || !this.preferences.value.automatic) {
+      clearInterval(this.automaticTimer);
+      this.automaticTimer = null;
+    } else if (this.automaticChecksStarted && !this.automaticTimer) {
+      this.automaticTimer = setInterval(
+        () => void this.checkAutomatically(),
+        automaticCheckInterval,
+      );
+      this.automaticTimer.unref?.();
+    }
   }
   async optionalCredential() {
     try {
@@ -197,12 +220,23 @@ export class UpdateService {
     return publicRelease;
   }
   checkOnStartup() {
-    if (this.startupAttempted) return this.startupOperation ?? Promise.resolve(this.snapshot());
+    if (this.startupAttempted) return this.automaticOperation ?? Promise.resolve(this.snapshot());
     this.startupAttempted = true;
-    if (this.closed || this.startupSuperseded || this.busy() || this.value.phase !== 'idle')
+    if (this.startupSuperseded || this.value.phase !== 'idle')
       return Promise.resolve(this.snapshot());
+    return this.checkAutomatically();
+  }
+  checkAutomatically() {
+    if (
+      this.closed ||
+      !this.preferences.value.automatic ||
+      this.busy() ||
+      this.value.phase === 'ready'
+    )
+      return Promise.resolve(this.snapshot());
+    if (this.automaticOperation) return this.automaticOperation;
     const controller = new AbortController();
-    this.startupController = controller;
+    this.automaticController = controller;
     const experimental = this.preferences.value.experimental;
     let onAbort;
     const cancelled = new Promise((_, reject) => {
@@ -210,7 +244,7 @@ export class UpdateService {
       controller.signal.addEventListener('abort', onAbort, { once: true });
     });
     const timer = setTimeout(
-      () => controller.abort(new Error('Startup update check timed out')),
+      () => controller.abort(new Error('Automatic update check timed out')),
       this.startupTimeoutMs,
     );
     timer.unref?.();
@@ -218,6 +252,12 @@ export class UpdateService {
       const selected = await this.findRelease(experimental, controller.signal);
       controller.signal.throwIfAborted();
       if (!selected) return this.snapshot();
+      if (
+        this.selected &&
+        this.value.checkedExperimental === experimental &&
+        compareVersions(releaseVersion(selected), releaseVersion(this.selected)) <= 0
+      )
+        return this.snapshot();
       this.selected = selected;
       this.prepared = null;
       return this.publish({
@@ -229,18 +269,18 @@ export class UpdateService {
         installerReason: null,
         needsAccess: false,
         checkedExperimental: experimental,
-        notification: this.notificationDeferred ? null : { tag: selected.tag_name },
+        notification: this.deferredTags.has(selected.tag_name) ? null : { tag: selected.tag_name },
       });
     };
-    this.startupOperation = Promise.race([probe(), cancelled])
+    this.automaticOperation = Promise.race([probe(), cancelled])
       .catch(() => this.snapshot())
       .finally(() => {
         clearTimeout(timer);
         controller.signal.removeEventListener('abort', onAbort);
-        if (this.startupController === controller) this.startupController = null;
-        this.startupOperation = null;
+        this.automaticController = null;
+        this.automaticOperation = null;
       });
-    return this.startupOperation;
+    return this.automaticOperation;
   }
   describeRelease(selected) {
     return {
@@ -304,6 +344,7 @@ export class UpdateService {
   historyUrl(id) {
     const entry = this.historyEntries?.get(id);
     if (!entry) throw new Error('Load release history and choose a version.');
+    if (entry.release.downloadSource === 'gitlab') return gitlabReleaseUrl(entry.release.tag_name);
     return (
       'https://github.com/' +
       entry.release.repository +
@@ -318,7 +359,7 @@ export class UpdateService {
     if (entry.release.repository === EXPERIMENTAL_REPOSITORY && !(await this.optionalCredential()))
       throw new Error('Connect GitHub to access private preview versions.');
     if (this.busy()) throw new Error('Wait for the update operation to finish.');
-    this.cancelStartup();
+    this.cancelAutomaticCheck();
     this.selected = entry.release;
     this.prepared = null;
     return this.publish({
@@ -334,32 +375,42 @@ export class UpdateService {
     });
   }
   remindLater() {
-    this.notificationDeferred = true;
-    this.cancelStartup();
+    if (this.value.notification) this.deferredTags.add(this.value.notification.tag);
+    this.cancelAutomaticCheck();
     return this.publish({ notification: null });
   }
   setSettings(value) {
-    this.cancelStartup();
     if (this.busy()) throw new Error('Wait for the update operation to finish.');
-    const settings = this.preferences.set(value);
-    if (settings.experimental === this.value.checkedExperimental) return this.publish(settings);
-    this.selected = null;
-    this.prepared = null;
-    return this.publish({
-      ...settings,
-      phase: 'idle',
-      release: null,
-      progress: null,
-      error: null,
-      installerRequired: false,
-      installerReason: null,
-      needsAccess: false,
-      checkedExperimental: undefined,
-      notification: null,
-    });
+    const previous = this.preferences.value;
+    const settings = this.preferences.set(validateUpdateSettings(value, previous.automatic));
+    const channelChanged = settings.experimental !== previous.experimental;
+    const automaticChanged = settings.automatic !== previous.automatic;
+    if (channelChanged || automaticChanged) this.cancelAutomaticCheck();
+    this.syncAutomaticCheckTimer();
+    const patch = { ...settings };
+    if (!settings.automatic) patch.notification = null;
+    if (channelChanged && settings.experimental !== this.value.checkedExperimental) {
+      this.selected = null;
+      this.prepared = null;
+      Object.assign(patch, {
+        phase: 'idle',
+        release: null,
+        progress: null,
+        error: null,
+        installerRequired: false,
+        installerReason: null,
+        needsAccess: false,
+        checkedExperimental: undefined,
+        notification: null,
+      });
+    }
+    const snapshot = this.publish(patch);
+    if (automaticChanged && settings.automatic && this.automaticChecksStarted)
+      void Promise.resolve(this.automaticOperation).then(() => this.checkAutomatically());
+    return snapshot;
   }
   async check(value) {
-    this.cancelStartup();
+    this.cancelAutomaticCheck();
     const experimental =
       value === undefined
         ? this.preferences.value.experimental
@@ -400,7 +451,7 @@ export class UpdateService {
     }
   }
   async prepare() {
-    this.cancelStartup();
+    this.cancelAutomaticCheck();
     if (this.busy()) return this.snapshot();
     if (!this.selected) throw new Error('Check for updates first.');
     this.controller = new AbortController();
@@ -414,11 +465,14 @@ export class UpdateService {
     });
     const asset = releaseAsset(this.selected, this.mode === 'managed' ? 'source' : 'installer');
     try {
-      const token = await this.optionalCredential();
+      const token =
+        this.selected.downloadSource === 'gitlab' ? null : await this.optionalCredential();
       this.controller.signal.throwIfAborted();
       const downloadOptions = {
         token,
         repository: this.selected.repository ?? REPOSITORY,
+        tag: isExperimentalRelease(this.selected) ? undefined : this.selected.tag_name,
+        source: this.selected.downloadSource,
         signal: this.controller.signal,
         progress: (progress) => this.publish({ phase: 'downloading', progress }),
       };
@@ -482,12 +536,12 @@ export class UpdateService {
     }
   }
   cancel() {
-    this.cancelStartup();
+    this.cancelAutomaticCheck();
     this.controller?.abort(new Error('Update cancelled'));
     return this.snapshot();
   }
   async install({ parentPid, language, shutdown }) {
-    this.cancelStartup();
+    this.cancelAutomaticCheck();
     if (this.busy() || this.installOperation) return false;
     if (!this.prepared || this.value.phase !== 'ready')
       throw new Error('Download the update first.');
@@ -618,7 +672,8 @@ export class UpdateService {
   }
   close() {
     this.closed = true;
-    this.cancelStartup();
+    this.syncAutomaticCheckTimer();
+    this.cancelAutomaticCheck();
     if (!this.handoff) this.cancel();
   }
 }

@@ -3,7 +3,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mkdirSync,
-  mkdtempSync,
   copyFileSync,
   readFileSync,
   writeFileSync,
@@ -13,13 +12,13 @@ import {
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { callApplicationBridge } from '../integrations/desktop-actions/service.mjs';
-const parent = path.resolve('.runtime/bridge-upgrade-unit');
-mkdirSync(parent, { recursive: true });
+import { temporaryFolders } from './temporary-folders.mjs';
+const folder = temporaryFolders('capri-bridge-upgrade-unit-');
 test(
   'first action builds a missing/upgraded helper but rejects tampering with its current executable',
   { skip: process.platform !== 'win32' },
   async () => {
-    const root = mkdtempSync(path.join(parent, 'fixture-')),
+    const root = folder(),
       native = path.join(root, 'integrations/desktop-actions/native');
     mkdirSync(native, { recursive: true });
     mkdirSync(path.join(root, '.runtime/tmp'), { recursive: true });

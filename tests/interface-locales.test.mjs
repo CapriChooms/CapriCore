@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { COMMUNITY_LINKS } from '../apps/desktop/community-links.mjs';
+import { FAQ_KEYS, faqContent } from '../apps/desktop/renderer/faq-content.mjs';
+import { SETTINGS_SECTIONS } from '../apps/desktop/renderer/settings-registry.mjs';
 import {
   INTERFACE_LOCALES,
   interfaceLocale,
@@ -12,6 +15,7 @@ import {
   validateLanguages,
   languageBehaviorChanged,
 } from '../apps/desktop/renderer/language-settings.mjs';
+import { SKILL_SETTINGS } from '../packages/skills/src/settings-catalog.mjs';
 import {
   validateTranslation,
   validateLocaleTranslation,
@@ -50,6 +54,55 @@ test('every advertised UI locale contains the full source catalog and curated co
       assert.equal(messages[key], value);
   }
 });
+
+test('skill names, descriptions and visibility controls are in the source catalog', () => {
+  const labels = [
+    ...SKILL_SETTINGS.flatMap(({ name, description }) => [name, description]),
+    'Show button in Capri’s toolbar',
+    'Show button in the message bar',
+  ];
+  for (const label of labels) assert.equal(source[label], label);
+});
+
+test('the FAQ ships localized questions and answers with supported destinations', () => {
+  const forLocale = (language) => faqContent({ language, text: (key) => uiText(key, language) });
+  const entries = forLocale('en').groups.flatMap(({ items }) => items);
+  const exactTerms = [
+    'CapriSetup',
+    'Install Capri.cmd',
+    'uninstall.exe',
+    'SHA-256',
+    'Windows 10 22H2',
+    'Windows 11',
+    'YouTube Music',
+  ];
+  assert.ok(entries.length >= 32);
+  assert.equal(new Set(entries.map(({ id }) => id)).size, entries.length);
+  for (const key of FAQ_KEYS) assert.ok(Object.hasOwn(source, key), key);
+  for (const { id, actions } of entries)
+    for (const { link, section } of actions)
+      assert.ok(
+        link
+          ? Object.hasOwn(COMMUNITY_LINKS, link)
+          : SETTINGS_SECTIONS.some(([name]) => name === section),
+        id,
+      );
+  for (const { id, direction } of INTERFACE_LOCALES) {
+    const faq = forLocale(id);
+    assert.equal(faq.direction, direction);
+    if (id === 'en') continue;
+    for (const [index, item] of faq.groups.flatMap(({ items }) => items).entries()) {
+      for (const field of ['question', 'answer']) {
+        const label = `${id}: ${item.id} ${field}`;
+        const original = entries[index][field];
+        assert.notEqual(item[field], original, label);
+        for (const term of exactTerms)
+          if (original.includes(term)) assert.ok(item[field].includes(term), `${label}: ${term}`);
+      }
+    }
+  }
+});
+
 test('UI language changes do not imply dialogue, recognition, voice or capture changes', () => {
   for (const locale of INTERFACE_LOCALES)
     assert.equal(
@@ -131,6 +184,15 @@ test('locale-aware validation rejects cross-language contamination but preserves
     validateLocaleTranslation('Unavailable — {device}', 'उपलब्ध नहीं — {device}', 'hi'),
     'उपलब्ध नहीं — {device}',
   );
+  assert.equal(
+    validateLocaleTranslation('Unavailable — {device}', 'उपलब्ध नहीं — {उपकरण}', 'hi'),
+    'उपलब्ध नहीं — {device}',
+  );
+  assert.throws(
+    () =>
+      validateLocaleTranslation('Unavailable — {device}', 'उपलब्ध नहीं — {device} ({उपकरण})', 'hi'),
+    /Changed placeholders/,
+  );
 });
 test('recent desktop controls have localized labels instead of English source copies', () => {
   const labels = [
@@ -146,6 +208,20 @@ test('recent desktop controls have localized labels instead of English source co
     'Fit to screen',
     'Actual size',
     'Attachments',
+    'Choose recordings folder',
+    'Use separate takes. Group clips from the same scene in one subfolder.',
+    'Check the words against each recording. Confirm only after reviewing the text.',
+    'Automatic transcription was unavailable for some clips. Enter the words you hear.',
+    'Neutral reference recording',
+    'Import and train',
+    'Preparing recordings…',
+    'Use four or more short WAV or FLAC recordings from separate takes, including a clean 6–15 second reference.',
+    'Install',
+    'Recognition is not installed. Use Install below.',
+    'Voice is not installed. Use Install below.',
+    'Close other AI tabs',
+    'Keep tab open',
+    'I’m about to close {service}.',
     'Approach',
     'Automatically match the track BPM',
     'Send replies to call',

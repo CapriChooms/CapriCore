@@ -1,27 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { linkSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  linkSync,
+  mkdtempDisposableSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { ChatService, sseData, validateInput } from '../apps/desktop/chat-service.mjs';
 import { CompanionActions } from '../apps/desktop/companion-actions.mjs';
 import { createOwnerMemory } from '../apps/desktop/main/conversation-skills.mjs';
 import { clearSavedMemory } from '../apps/desktop/memory-controls.mjs';
-import { readSavedMemory } from '../apps/desktop/saved-memory.mjs';
 import { TranscriptStore } from '../apps/desktop/storage.mjs';
 import { CapriCore } from '../packages/core/src/index.mjs';
 import { root } from '../packages/runtime/src/index.mjs';
 import { ACTION_SKILLS, registerActionToolSkills } from '../packages/skills/src/action-tools.mjs';
 import { calculate } from '../integrations/desktop-actions/calculator.mjs';
 import { ApplicationService } from '../integrations/desktop-actions/service.mjs';
-import { ownerNoteRequest, recallOwnerNote, saveOwnerNote } from '../apps/desktop/owner-notes.mjs';
+import {
+  listOwnerFacts,
+  ownerNoteRequest,
+  recallOwnerNote,
+  saveOwnerNote,
+} from '../apps/desktop/owner-notes.mjs';
 
-mkdirSync(path.join(root, '.runtime/test-data'), { recursive: true });
+const fixtureDirectory = (name) => mkdtempSync(path.join(os.tmpdir(), `capri-${name}-`));
 function store() {
-  return new TranscriptStore(
-    path.join(mkdtempSync(path.join(root, '.runtime/test-data/desktop-')), 'transcript.json'),
-  );
+  return new TranscriptStore(path.join(fixtureDirectory('desktop-test'), 'transcript.json'));
 }
 const userText = (content) => content.split('\n\nDESKTOP STATE FOR THIS TURN')[0];
 const turnState = (content) => {
@@ -44,6 +54,133 @@ function client(options = {}) {
   });
 }
 
+test('the YouTube Music chat path verifies dedicated receipts without touching Spotify or the gateway', async () => {
+  const youtubeMusic = { enabled: true, preferred: true };
+  const commands = [];
+  const service = client({
+    interfaceState: () => ({ youtubeMusic, spotify: { enabled: true, prepared: true } }),
+    prepareYouTubeMusic: async (text) => {
+      if (text === 'play lo-fi music') return { action: 'search', query: 'lo-fi' };
+      assert.equal(text, 'Play Bohemian Rhapsody');
+      return { action: 'play', query: 'Invented title' };
+    },
+    localMusic: () => assert.fail('YouTube Music request reached Spotify'),
+    prepareModel: () => assert.fail('Common commands should bypass model preparation'),
+    fetchImpl: () => assert.fail('Common commands should bypass the gateway'),
+    localYouTubeMusic: async (_input, command, signal) => {
+      signal.throwIfAborted();
+      commands.push(command);
+      if (command.action === 'start')
+        return { ok: true, status: 'playing', playing: true, track: 'Recommendation' };
+      if (command.action === 'resume') return { ok: false, status: 'player_unavailable' };
+      if (command.action === 'volume') {
+        if (command.value === 47) return { ok: false, status: 'control_unverified' };
+        const volume = command.value ?? Math.max(0, Math.min(100, 40 + command.delta));
+        return { ok: true, status: 'volume_set', volume };
+      }
+      return command.action === 'play'
+        ? { ok: true, status: 'playing', playing: true, track: command.query }
+        : { ok: false, status: 'tab_not_found' };
+    },
+  });
+  async function ask(text, expectedPhases = ['start', 'result']) {
+    const events = [];
+    await service.send({ id: randomUUID(), text }, (event) => events.push(event));
+    assert.equal(events.at(-1).type, 'turn.completed');
+    assert.deepEqual(
+      events.filter(({ tool }) => tool === 'youtube_music_control').map(({ phase }) => phase),
+      expectedPhases,
+    );
+    return events.at(-1).assistant.text;
+  }
+  assert.equal(await ask('Play Believer on YouTube Music'), 'Playing on YouTube Music: Believer.');
+  assert.equal(
+    await ask('play c four one eight drayton'),
+    'Playing on YouTube Music: C418 Dreiton.',
+  );
+  assert.equal(
+    await ask('Play C four one eight Drayton on Youtube Music'),
+    'Playing on YouTube Music: C418 Dreiton.',
+  );
+  assert.equal(await ask('Play Bohemian Rhapsody'), 'Playing on YouTube Music: Bohemian Rhapsody.');
+  assert.equal(await ask('play lo-fi music'), 'Playing on YouTube Music: lo-fi music.');
+  assert.equal(
+    await ask('Capri play the music via YouTube music.'),
+    'Playing on YouTube Music: Recommendation.',
+  );
+  assert.equal(await ask('Resume YouTube Music'), 'YouTube Music is not playing anything.');
+  assert.match(await ask('Pause'), /tab not found/i);
+  assert.equal(await ask('Increse the volume a bit'), 'YouTube Music volume: 50%.');
+  assert.equal(await ask('Set the music volume to 100%'), 'YouTube Music volume: 100%.');
+  assert.equal(
+    await ask('Increased YouTube music volume by one hundred percent.'),
+    'YouTube Music volume: 100%.',
+  );
+  assert.equal(
+    await ask('Increase the volume of YouTube Music to fifty-five percent.'),
+    'YouTube Music volume: 55%.',
+  );
+  assert.equal(
+    await ask('Убавь громкость в YouTube Music на десять процентов.'),
+    'YouTube Music volume: 30%.',
+  );
+  assert.equal(
+    await ask('Increase the YouTube Music volume by 140%.', []),
+    'Say a YouTube Music volume from 0 to 100%.',
+  );
+  assert.match(await ask('Set the music volume to 47%'), /did not confirm/i);
+  youtubeMusic.enabled = false;
+  assert.match(await ask('Pause YouTube Music'), /Enable YouTube Music/i);
+  assert.deepEqual(commands, [
+    { action: 'play', query: 'Believer' },
+    { action: 'play', query: 'C418 Dreiton' },
+    { action: 'play', query: 'C418 Dreiton' },
+    { action: 'play', query: 'Bohemian Rhapsody' },
+    { action: 'play', query: 'lo-fi music' },
+    { action: 'start' },
+    { action: 'resume' },
+    { action: 'pause' },
+    { action: 'volume', delta: 10 },
+    { action: 'volume', value: 100 },
+    { action: 'volume', delta: 100 },
+    { action: 'volume', value: 55 },
+    { action: 'volume', delta: -10 },
+    { action: 'volume', value: 47 },
+  ]);
+});
+
+test('a local model stuck repeating the same answer is stopped without retrying the turn', async () => {
+  const fragment = 'Capri uses local models and can look up public information when asked. ';
+  let sent = 0;
+  let cancelled = false;
+  const service = client({
+    fetchImpl: async () =>
+      new Response(
+        new ReadableStream({
+          pull(controller) {
+            if (sent++ === 300) controller.close();
+            else controller.enqueue(new TextEncoder().encode(packet(fragment)));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { 'content-type': 'text/event-stream' } },
+      ),
+  });
+  const events = [];
+  await service.send({ id: randomUUID(), text: 'How does Capri work?' }, (event) =>
+    events.push(event),
+  );
+  assert.equal(events.at(-1).type, 'turn.failed');
+  assert.equal(
+    service.lastFailure.code,
+    'CAPRI_REPLY_REPETITION',
+    JSON.stringify(service.lastFailure),
+  );
+  assert.ok(cancelled && sent < 20);
+});
+
 test('built-in lore reaches ordinary chat by topic with owner memory disabled', async () => {
   const prompts = [];
   const service = client({
@@ -64,14 +201,14 @@ function ownerMemoryFixture(t, workspace) {
   const memory = createOwnerMemory(core, {
     save: (note) => saveOwnerNote(workspace, note),
     recall: (text) => recallOwnerNote(workspace, text),
-    read: () => readSavedMemory(workspace),
+    read: () => listOwnerFacts(workspace),
     clear: () => clearSavedMemory({ workspace }, async () => {}),
   });
   return { core, memory };
 }
 
 test('explicit owner notes persist and recall across fresh desktop sessions without model tools', async (t) => {
-  const workspace = mkdtempSync(path.join(root, '.runtime/test-data/owner-notes-'));
+  const workspace = fixtureDirectory('owner-notes-test');
   const memory = path.join(workspace, 'memory', 'capri-owner-notes.md');
   writeFileSync(path.join(workspace, 'MEMORY.md'), '# Previously saved note\n');
   const { core, memory: ownerMemory } = ownerMemoryFixture(t, workspace);
@@ -114,7 +251,7 @@ test('explicit owner notes persist and recall across fresh desktop sessions with
 });
 
 test('explicit memory rejects credentials and linked paths without forwarding or falsely claiming success', async (t) => {
-  const workspace = mkdtempSync(path.join(root, '.runtime/test-data/owner-notes-'));
+  const workspace = fixtureDirectory('owner-notes-test');
   const outside = path.join(workspace, 'outside.md');
   const memory = path.join(workspace, 'memory', 'capri-owner-notes.md');
   mkdirSync(path.dirname(memory));
@@ -171,12 +308,12 @@ test('natural explicit memory requests persist across restarts without relying o
       ],
       [
         'Você poderia por favor salvar minha cor de teste como verde-azulado?',
-        'Qual é a minha cor de teste?',
+        'Qual a minha cor de teste?',
         'verde-azulado',
       ],
       [
         'Por favor, salve a minha cor de teste como verde-azulado.',
-        'Qual é a minha cor de teste?',
+        'Você se lembra de qual é a minha cor de teste?',
         'verde-azulado',
       ],
       ['Remember my favorite word is please.', 'What is my favorite word?', 'please'],
@@ -188,7 +325,7 @@ test('natural explicit memory requests persist across restarts without relying o
         'documentação',
       ],
     ]) {
-      const workspace = mkdtempSync(path.join(root, '.runtime/test-data/owner-notes-'));
+      const workspace = fixtureDirectory('owner-notes-test');
       const newSession = () =>
         client({
           ownerMemoryWorkspace: workspace,
@@ -212,6 +349,92 @@ test('natural explicit memory requests persist across restarts without relying o
     }
 });
 
+test('a direct request with the supplied name writes a visible fact before acknowledging it', async (t) => {
+  using fixture = mkdtempDisposableSync(path.join(os.tmpdir(), 'capri-name-fact-'));
+  const workspace = fixture.path;
+  const { memory } = ownerMemoryFixture(t, workspace);
+  const turn = async (text, options = {}) => {
+    const session = client({
+      store: new TranscriptStore(path.join(workspace, `${randomUUID()}.json`)),
+      ownerMemory: memory,
+      interfaceState: () => ({ modelToolsAvailable: false, languages: { conversation: 'en' } }),
+      prepareModel: () => assert.fail('Explicit name requests must not start the model'),
+      fetchImpl: () => assert.fail('Explicit name requests must not call a provider'),
+      ...options,
+    });
+    const events = [];
+    await session.send({ id: randomUUID(), text }, (event) => events.push(event));
+    assert.equal(events.at(-1).type, 'turn.completed');
+    return events.at(-1).assistant.text;
+  };
+  assert.match(await turn('Remember my name.'), /Which name should I save/);
+  assert.deepEqual((await memory.read()).items, []);
+  assert.equal(await turn('Remember my name. Overyx'), 'Memory saved and verified.');
+  assert.deepEqual(
+    (await memory.read()).items.map(({ text }) => text),
+    ['My name is Overyx'],
+  );
+  assert.equal(await turn('What is my name?'), 'Overyx');
+  assert.equal(await turn('Remember my name Alex'), 'Memory saved and verified.');
+  assert.equal(await turn('Как меня зовут?'), 'Alex');
+  assert.equal(await turn('Запомни моё имя: Илья'), 'Memory saved and verified.');
+  assert.equal(await turn('What is my name?'), 'Илья');
+  assert.equal(await turn('Lembre-se do meu nome. Luís André'), 'Memory saved and verified.');
+  assert.equal(await turn('Como me chamo?'), 'Luís André');
+  assert.equal((await memory.read()).items[0].text, 'Meu nome é Luís André');
+  assert.equal(
+    await turn('Remember my name: Another Name', {
+      ownerMemory: { recall: () => null, save: async () => ({ saved: false }) },
+    }),
+    'The note could not be saved.',
+  );
+  assert.equal(await turn('What is my name?'), 'Luís André');
+});
+
+test('a first-person preference saved in Brazilian Portuguese is readable without the embedding service', async () => {
+  const workspace = fixtureDirectory('owner-notes-test');
+  saveOwnerNote(workspace, 'Eu prefiro chá de hortelã');
+  const session = client({
+    ownerMemoryWorkspace: workspace,
+    interfaceState: () => ({ modelToolsAvailable: true, languages: { conversation: 'pt-BR' } }),
+    prepareModel: () => assert.fail('Manual preference recall must not initialize the model'),
+    fetchImpl: () => assert.fail('Manual preference recall must not require the gateway'),
+  });
+  const events = [];
+  await session.send({ id: randomUUID(), text: 'Qual é a minha preferência?' }, (event) =>
+    events.push(event),
+  );
+  assert.equal(events.at(-1).type, 'turn.completed');
+  assert.equal(events.at(-1).assistant.text, 'chá de hortelã');
+});
+
+test('a fresh API chat can read back manually saved notes when the index is unavailable', async (t) => {
+  const workspace = fixtureDirectory('owner-notes-test');
+  const notes = ['Costumo tomar chá de hortelã.', 'Gosto de jazz instrumental.'];
+  const { memory } = ownerMemoryFixture(t, workspace);
+  for (const note of notes) memory.save(note, { source: 'settings' });
+  const session = client({
+    ownerMemory: ownerMemoryFixture(t, workspace).memory,
+    externalInference: true,
+    prepareModel: () => assert.fail('Saved notes must be available before model preparation'),
+    fetchImpl: () => assert.fail('Reading back local notes must not call the API'),
+  });
+  for (const query of [
+    'O que você tem salvo na memória?',
+    'What did I ask you to remember?',
+    'Что ты сохранила обо мне?',
+  ]) {
+    const events = [];
+    await session.send({ id: randomUUID(), text: query }, (event) => events.push(event));
+    assert.equal(events.at(-1).type, 'turn.completed');
+    assert.equal(events.at(-1).assistant.text, '• ' + notes.toReversed().join('\n• '));
+  }
+  assert.equal(
+    recallOwnerNote(workspace, 'O que você salvou sobre mim? Depois abra o navegador.'),
+    null,
+  );
+});
+
 test('memory wording never consumes quoted, negated, file or combined app requests', () => {
   for (const text of [
     'Do not remember that my test color is teal.',
@@ -219,6 +442,10 @@ test('memory wording never consumes quoted, negated, file or combined app reques
     'Não salve minha cor de teste como verde-azulado.',
     '"Remember that my test color is teal."',
     'Translate: remember that my test color is teal.',
+    'Remember my name for later.',
+    'Remember my name. Open Chrome.',
+    'Remember my name. Alex. Play Spotify.',
+    'Remember my name: Alex and then open Chrome.',
     'Can you save documents?',
     'Save my report as monthly.pdf.',
     'Save my file as C:\\folder\\result.txt.',
@@ -259,7 +486,7 @@ test('new memory request forms still refuse Portuguese secrets before persistenc
     'Salve a minha senha como synthetic-private.',
     'Anote meu PIN é synthetic-private.',
   ]) {
-    const workspace = mkdtempSync(path.join(root, '.runtime/test-data/owner-notes-'));
+    const workspace = fixtureDirectory('owner-notes-test');
     const session = client({
       ownerMemoryWorkspace: workspace,
       fetchImpl: () => assert.fail('Credentials must not reach a model'),
@@ -691,11 +918,20 @@ test('ordinary music and unqualified artist requests use an isolated plan and ve
       return { ok: true, data: { playing: true } };
     },
   });
-  for (const text of ['Play some nice music', 'Play Example Artist'])
+  const requests = [
+    'Play some nice music',
+    'Play Example Artist',
+    'Mets de la musique sur Spotify',
+  ];
+  for (const text of requests)
     await service.send({ id: randomUUID(), text }, (e) => events.push(e));
-  assert.deepEqual(plans, ['Play some nice music', 'Play Example Artist']);
-  assert.deepEqual(calls, [{ action: 'resume' }, { action: 'play', query: 'Example Artist' }]);
-  assert.equal(events.filter((e) => e.type === 'turn.completed').length, 2);
+  assert.deepEqual(plans, requests);
+  assert.deepEqual(calls, [
+    { action: 'resume' },
+    { action: 'play', query: 'Example Artist' },
+    { action: 'resume' },
+  ]);
+  assert.equal(events.filter((e) => e.type === 'turn.completed').length, requests.length);
   assert(
     events.filter((e) => e.type === 'turn.completed').every((e) => e.assistant.text === 'Resumed.'),
   );
@@ -796,29 +1032,86 @@ test('standalone calculator requests return the local result without preparing a
   assert.equal(followUpSent, true);
 });
 
-test('standalone calculations respect app permissions and leave compound requests on the model route', async () => {
-  let calculator = false;
+test('disabled Calculator explains the setting and compound tasks still go through their normal route', async () => {
+  let calculator = false,
+    fullComputerAccess = true,
+    conversation;
   let modelCalls = 0;
   const service = client({
-    interfaceState: () => ({ applications: { calculator } }),
-    localCalculation: () => assert.fail('This request cannot bypass the gateway'),
+    interfaceState: () => ({
+      applications: { calculator },
+      fullComputerAccess,
+      languages: { conversation },
+    }),
+    localCalculation: () => assert.fail('This request must not run a local calculation'),
     fetchImpl: () => {
       modelCalls++;
       return response('Hello.');
     },
   });
-  for (const text of [
-    'Капри, вычисли квадратный корень из 2653',
-    'Calculate 3^4 + 6! - sqrt(949) via calculator',
-  ])
-    await service.send({ id: randomUUID(), text }, () => {});
+  for (const [language, text, expected] of [
+    [
+      'ru',
+      'Капри, вычисли квадратный корень из 2653',
+      'Сначала включи «Калькулятор» в разделе «Настройки → Навыки».',
+    ],
+    [
+      'en',
+      'Calculate 134^4 - sqrt(14) + ln(cos(24))',
+      'Enable Calculator in Settings → Skills first.',
+    ],
+  ]) {
+    conversation = language;
+    const events = [];
+    await service.send({ id: randomUUID(), text }, (event) => events.push(event));
+    assert.equal(events.at(-1).type, 'turn.completed');
+    assert.equal(events.at(-1).assistant.text, expected);
+    fullComputerAccess = false;
+  }
+  assert.equal(modelCalls, 0);
   calculator = true;
   for (const text of [
     'Calculate sqrt(2653) and explain the result.',
     'Calculate 3^4 + 6! - sqrt(949) via calculator and explain the result.',
   ])
     await service.send({ id: randomUUID(), text }, () => {});
-  assert.equal(modelCalls, 4);
+  assert.equal(modelCalls, 2);
+});
+
+test('a calculator reply distinguishes a revoked skill or failed display from a failed calculation', async () => {
+  let outcome;
+  const expression = '134^4 - sqrt(14) + ln(cos(24))';
+  const result = { ok: true, result: '322417932.1679205', displayResult: '3.224179321679205e+8' };
+  const service = client({
+    interfaceState: () => ({ applications: { calculator: true }, modelToolsAvailable: false }),
+    fetchImpl: () => assert.fail('A standalone calculation does not need the gateway'),
+    localCalculation: async (_input, args) => {
+      assert.equal(args.expression, expression);
+      if (outcome instanceof Error) throw outcome;
+      return outcome;
+    },
+  });
+  for (const [calculation, expected] of [
+    [result, 'Result: 3.224179321679205e+8'],
+    [{ ...result, display: { ok: true } }, 'Result: 3.224179321679205e+8'],
+    [
+      { ...result, display: { ok: false } },
+      'Result: 3.224179321679205e+8\nI couldn’t show the calculation in Windows Calculator.',
+    ],
+    [
+      Object.assign(new Error('Calculator toggled off'), { code: 'skill_disabled' }),
+      'Enable Calculator in Settings → Skills first.',
+    ],
+    [new Error('Calculation failed'), 'Calculation could not be verified. Please try again.'],
+  ]) {
+    outcome = calculation;
+    const events = [];
+    await service.send({ id: randomUUID(), text: `Calculate ${expression}` }, (event) =>
+      events.push(event),
+    );
+    assert.equal(events.at(-1).type, 'turn.completed');
+    assert.equal(events.at(-1).assistant.text, expected);
+  }
 });
 
 test('calculator requests with app wording and postfix factorial use verified local results and preserve their expressions', async () => {
@@ -1390,6 +1683,52 @@ test('a classified conversation cannot inherit action tools, while the next feat
   assert(!events.some((event) => event.type === 'turn.failed'));
 });
 
+test('ordinary local chat bypasses the tool loop and preserves previous turns and action routes', async () => {
+  const direct = [],
+    gateway = [],
+    events = [];
+  const service = client({
+    requestRouter: {
+      classify: async (text) =>
+        text === 'Not much, just chilling.'
+          ? { mode: 'fast', reason: 'simple-dialogue' }
+          : { mode: 'normal', reason: 'unavailable' },
+    },
+    computerIntent: async (text) => ({
+      intent: text.startsWith('Set a timer') ? 'feature' : 'chat',
+    }),
+    interfaceState: () => ({ fullComputerAccess: true, languages: { conversation: 'en' } }),
+    prepareContext: () => ({ userToolContext: '\n\nUSER_TOOL_INSTRUCTIONS' }),
+    avatarSprites: [{ id: 'attentive', pose: 'standing', expression: 'attentive' }],
+    directLocalDialogue: async (body) => {
+      direct.push(body);
+      return response('[avatar:attentive]\nSounds good.');
+    },
+    fetchImpl: async (_url, { body, headers }) => {
+      gateway.push({ body: JSON.parse(body), headers });
+      return response('Timer reply.');
+    },
+  });
+  for (const text of ['Not much, just chilling.', 'How about you?', 'Set a timer for ten minutes.'])
+    await service.send({ id: randomUUID(), text }, (event) => events.push(event));
+  assert.equal(direct.length, 2);
+  assert.equal(direct[1].messages[1].content, 'Not much, just chilling.');
+  assert.equal(direct[1].messages[2].content, 'Sounds good.');
+  assert.match(direct[0].messages[0].content, /AVATAR CONTROL/);
+  assert.equal(events.find(({ type }) => type === 'turn.avatar')?.avatar.id, 'attentive');
+  assert.ok(
+    direct.every((body) => !body.tools && !JSON.stringify(body).includes('USER_TOOL_INSTRUCTIONS')),
+  );
+  assert.equal(gateway.length, 1);
+  assert.equal(gateway[0].headers['x-capri-tools-once'], undefined);
+  assert.match(gateway[0].body.messages[1].content, /^Set a timer/);
+  assert.deepEqual(turnState(gateway[0].body.messages[1].content).previousDialogue, {
+    user: 'How about you?',
+    reply: 'Sounds good.',
+  });
+  assert.equal(events.filter(({ type }) => type === 'turn.completed').length, 3);
+});
+
 test('greetings use the dialogue scope without exposing permissions, including the fast CPU route', async () => {
   for (const fullComputerAccess of [false, true]) {
     const seen = [];
@@ -1419,6 +1758,24 @@ test('greetings use the dialogue scope without exposing permissions, including t
     }
     assert.equal(seen[0].body.messages[1].content, 'hi capri');
   }
+});
+
+test('reviewing supplied code uses text only, while a request to edit a file keeps tools', async () => {
+  const scopes = [];
+  const service = client({
+    interfaceState: () => ({ fullComputerAccess: false }),
+    fetchImpl: async (_url, { headers }) => {
+      scopes.push(headers['x-capri-tools-once']);
+      return response('This function always returns the same value.');
+    },
+  });
+  for (const text of [
+    'Review this code.',
+    'Revise este código:\n\x60\x60\x60js\nconst value = 1;\n\x60\x60\x60',
+    'Review this code and change the implementation in app.js.',
+  ])
+    await service.send({ id: randomUUID(), text }, () => {});
+  assert.deepEqual(scopes, ['dialogue', 'dialogue', undefined]);
 });
 
 test('standalone greetings bypass stale agent context and complete despite a presentation error', async () => {
@@ -1606,6 +1963,37 @@ test('empty external-model replies use the existing API message and network diag
     );
     assert.doesNotMatch(JSON.stringify(failed.diagnostics()), /private-network/);
   }
+});
+
+test('a completed chat reply wrapped inside an invalid avatar marker is delivered once', async () => {
+  const expected = "Six years already? That's enough time for the soundtrack to feel like home.";
+  let calls = 0;
+  const service = client({
+    externalInference: true,
+    computerIntent: async () => ({ intent: 'chat' }),
+    fetchImpl: async (_url, { headers }) => {
+      assert.equal(headers['x-capri-tools-once'], 'dialogue');
+      calls++;
+      return new Response(
+        (calls === 1
+          ? packet('The soundtrack is great.')
+          : packet('[av') + packet('atar:' + expected) + packet(']')) + 'data: [DONE]\n\n',
+        { headers: { 'content-type': 'text/event-stream' } },
+      );
+    },
+  });
+  const earlier = [];
+  await service.send({ id: randomUUID(), text: 'Hello!' }, (event) => earlier.push(event));
+  assert.equal(earlier.at(-1).type, 'turn.completed');
+  const events = [];
+  await service.send(
+    { id: randomUUID(), text: 'It has been six years since I first played this game.' },
+    (event) => events.push(event),
+  );
+  assert.equal(calls, 2);
+  assert.equal(events.at(-1).type, 'turn.completed');
+  assert.equal(service.store.snapshot().at(-1).text, expected);
+  assert.doesNotMatch(JSON.stringify(events), /\[avatar:/u);
 });
 
 test('a tool-free external turn does not request gateway tools and explains a provider size rejection', async () => {

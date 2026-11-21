@@ -6,6 +6,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
+import { settingsView } from './settings-view.mjs';
 
 const parent = path.join(root, '.runtime/dimming-verification');
 mkdirSync(parent, { recursive: true });
@@ -84,6 +85,9 @@ async function settings(value) {
       0.001
     );
   }, value);
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
 }
 async function presence(mode) {
   if ((await page.evaluate(() => document.body.dataset.presence)) !== mode)
@@ -125,25 +129,70 @@ function assertGeometry(shade, compact) {
   assert.ok(shade.height < height, 'Signal core must not shade the unused portrait area');
 }
 async function shadePixels() {
-  // Hide our fixture's interface briefly so the PNG contains only our backdrop.
-  await page.locator('#companion').evaluate((el) => (el.style.visibility = 'hidden'));
+  const sample = await page.evaluate(() => {
+    const owner = document.getElementById('companion');
+    const layer = document.getElementById('window-shade');
+    const clone = layer.cloneNode(true);
+    const box = layer.getBoundingClientRect();
+    const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
+    const portrait = rect('#portrait-panel');
+    const composer = rect('.composer');
+    const reply = rect('#subtitle-frame');
+    const support = rect('#support-author');
+    const reportButton = rect('#report-bug');
+    const centerY = (r) => r.top + r.height / 2;
+    const panelGap = document.body.hasAttribute('data-horizontal-portrait')
+      ? [portrait.right + 5, centerY(portrait)]
+      : [portrait.left + portrait.width / 2, (portrait.top + reply.bottom) / 2];
+    const points = {
+      center: [portrait.left + portrait.width / 2, centerY(portrait)],
+      edge: [portrait.left + 2, centerY(portrait)],
+      corner: [1, 1],
+      composer: [composer.left + composer.width / 2, centerY(composer)],
+      cut: [composer.left + 2, composer.top + 2],
+      button: [support.left + support.width / 2, centerY(support)],
+      buttonGap: [(support.right + reportButton.left) / 2, centerY(support)],
+      panelGap,
+    };
+    clone.dataset.fixture = '';
+    Object.assign(clone.style, {
+      position: 'fixed',
+      left: box.x + 'px',
+      top: box.y + 'px',
+      width: box.width + 'px',
+      height: box.height + 'px',
+    });
+    document.body.append(clone);
+    owner.style.opacity = '0';
+    return { points, width: innerWidth, height: innerHeight };
+  });
   let bytes;
   try {
     bytes = await page.screenshot({ omitBackground: true });
   } finally {
-    await page.locator('#companion').evaluate((el) => el.style.removeProperty('visibility'));
+    await page.evaluate(() => {
+      document.querySelector('#window-shade[data-fixture]').remove();
+      document.getElementById('companion').style.removeProperty('opacity');
+    });
   }
-  return application.evaluate(({ nativeImage }, base64) => {
-    const image = nativeImage.createFromBuffer(Buffer.from(base64, 'base64')),
-      size = image.getSize(),
-      pixels = image.toBitmap();
-    const alpha = (x, y) => pixels[(y * size.width + x) * 4 + 3];
-    return {
-      center: alpha(Math.floor(size.width / 2), Math.floor(size.height / 2)),
-      edge: alpha(0, Math.floor(size.height / 2)),
-      corner: alpha(0, 0),
-    };
-  }, bytes.toString('base64'));
+  return application.evaluate(
+    ({ nativeImage }, { base64, points, width, height }) => {
+      const image = nativeImage.createFromBuffer(Buffer.from(base64, 'base64'));
+      const size = image.getSize();
+      const pixels = image.toBitmap();
+      const alpha = ([x, y]) =>
+        pixels[
+          (Math.floor((y * size.height) / height) * size.width +
+            Math.floor((x * size.width) / width)) *
+            4 +
+            3
+        ];
+      return Object.fromEntries(
+        Object.entries(points).map(([name, point]) => [name, alpha(point)]),
+      );
+    },
+    { ...sample, base64: bytes.toString('base64') },
+  );
 }
 try {
   await launch();
@@ -156,6 +205,19 @@ try {
     assertGeometry(shade, mode === 'core');
   }
   checks.push('Backdrop stays visible in signal core and portrait without intercepting clicks');
+  const drift = await page.evaluate(() => {
+    const companion = document.getElementById('companion');
+    const mask = document.querySelector('#window-shade .dimming-plane');
+    const composer = document.querySelector('.composer');
+    const positions = () => [mask, composer].map((node) => node.getBoundingClientRect().y);
+    const before = positions();
+    companion.style.translate = '0 -7px';
+    const after = positions();
+    companion.style.removeProperty('translate');
+    return after.map((value, index) => value - before[index]);
+  });
+  assert.deepEqual(drift, [-7, -7]);
+  checks.push('The mask moves with the floating controls');
   assert.equal(
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length),
     1,
@@ -221,7 +283,6 @@ try {
     'Repeated native dragging must not grow the companion',
   );
   checks.push('Repeated native pointer movement preserves window size');
-  // Full-portrait pixel checks retain the complete backdrop; compact bounds were checked above.
   await presence('portrait');
   const originalBounds = await application.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0].getBounds(),
@@ -243,7 +304,7 @@ try {
   assert.deepEqual([resized.width, resized.height], resized.viewport);
   assert.ok(resized.width < originalBounds.width && resized.height < originalBounds.height);
   const limited = await shadePixels();
-  assert.ok(Math.abs(limited.center - 166) <= 3 && limited.edge < 5);
+  assert.ok(Math.abs(limited.composer - 166) <= 3 && limited.cut < 5, JSON.stringify(limited));
   const restoredContent = await application.evaluate(({ BrowserWindow }, bounds) => {
     const win = BrowserWindow.getAllWindows()[0];
     win.setBounds(bounds);
@@ -257,26 +318,64 @@ try {
     restoredContent,
   );
   await settings({ enabled: true, level: 65, softness: 140 });
-  checks.push(
-    'Resizing and maximum feather width keep the center shaded and edges inside the viewport',
-  );
+  checks.push('Resizing and maximum feather width preserve the composer contour');
   const soft = await shadePixels();
   assert.ok(Math.abs(soft.center - 166) <= 3);
-  assert.ok(soft.edge < 5 && soft.corner < 5);
+  assert.ok(soft.edge < 80 && soft.corner < 5, JSON.stringify(soft));
+  assert.ok(soft.buttonGap < 5 && soft.panelGap < 5, JSON.stringify(soft));
   await settings({ enabled: true, level: 85, softness: 0 });
   const hard = await shadePixels();
   assert.ok(Math.abs(hard.center - 217) <= 3);
-  assert.ok(Math.abs(hard.corner - 217) <= 3);
+  assert.ok(Math.abs(hard.edge - 217) <= 3 && Math.abs(hard.button - 217) <= 3);
+  assert.ok(hard.corner < 5 && hard.cut < 5 && hard.buttonGap < 5 && hard.panelGap < 5);
   await settings({ enabled: false, level: 85, softness: 140 });
   const disabled = await shadePixels();
   assert.equal(disabled.center, 0);
   await settings({ enabled: true, level: 0, softness: 140 });
   assert.equal((await shadePixels()).center, 0);
   checks.push(
-    'Pixel alpha verifies feathered edges, the maximum strength, hard edges, disable and zero strength',
+    'Pixel alpha verifies clipped corners, clear gaps, feathered edges, disable and zero strength',
   );
+
+  await page.evaluate(async () => {
+    const { companion } = await window.capri.bootstrap();
+    await window.capri.setCompanionSettings({ ...companion, windowLayout: 'horizontal' });
+  });
+  await page.waitForFunction(() => document.body.hasAttribute('data-horizontal-portrait'));
+  await settings({ enabled: true, level: 85, softness: 0 });
+  const horizontal = await shadePixels();
+  assert.ok(Math.abs(horizontal.center - 217) <= 3, JSON.stringify(horizontal));
+  assert.ok(horizontal.panelGap < 5 && horizontal.buttonGap < 5, JSON.stringify(horizontal));
+  await page.evaluate(async () => {
+    const { companion } = await window.capri.bootstrap();
+    await window.capri.setCompanionSettings({ ...companion, windowLayout: 'vertical' });
+  });
+  await page.waitForFunction(() => !document.body.hasAttribute('data-horizontal-portrait'));
+  checks.push('Horizontal portrait keeps the space beside the portrait transparent');
+
   await settings({ enabled: true, level: 57, softness: 95 });
-  await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].hide());
+  const configuration = await settingsView(application, 'window');
+  const softness = configuration.locator('#dimming-softness');
+  assert.equal(await softness.getAttribute('aria-valuetext'), '9.5 px');
+  await softness.fill('320');
+  await page.waitForFunction(
+    () => document.getElementById('dimming-softness').getAttribute('aria-valuetext') === '32 px',
+  );
+  const preview = await shadePixels();
+  assert.ok(preview.edge < 60 && preview.panelGap < 5, JSON.stringify(preview));
+  await configuration.locator('#settings-window-close').click();
+  await configuration.locator('#settings-discard').click();
+  await page.waitForFunction(
+    () => document.getElementById('dimming-softness').getAttribute('aria-valuetext') === '9.5 px',
+  );
+  await configuration.evaluate(() => window.capri.closeSettings());
+  checks.push('Settings displays the new feather width, live preview and discard restore the mask');
+
+  await application.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((win) => win.webContents.getURL() === 'capri://desktop/index.html')
+      .hide(),
+  );
   assert.equal(
     await application.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows().some((win) => win.isVisible()),
@@ -284,7 +383,9 @@ try {
     false,
   );
   await application.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()[0].showInactive(),
+    BrowserWindow.getAllWindows()
+      .find((win) => win.webContents.getURL() === 'capri://desktop/index.html')
+      .showInactive(),
   );
   assert.equal((await layer()).opacity, 0.57);
   await page.screenshot({ path: path.join(folder, 'signal-core.png'), omitBackground: true });

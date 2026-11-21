@@ -58,3 +58,16 @@ test('a hung live process still has a bounded startup deadline and cancellation'
   );
   assert.equal(cancelled.elapsed(), 0);
 });
+
+test('a successful health response cannot complete an already cancelled startup', async () => {
+  const controller = new AbortController();
+  const cancelled = clock({ signal: controller.signal });
+  await assert.rejects(
+    waitForOwnedService(async () => {
+      controller.abort(new Error('stop startup'));
+      return { ready: true };
+    }, cancelled),
+    /stop startup/,
+  );
+  assert.equal(cancelled.elapsed(), 0);
+});

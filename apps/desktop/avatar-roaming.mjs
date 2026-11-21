@@ -1,6 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { COMPANION_DEFAULTS } from './companion-settings.mjs';
 
+export function chooseRoamingDisplay({
+  mode,
+  displays,
+  currentId,
+  pointerId,
+  observed,
+  random = Math.random,
+}) {
+  const current = displays.find(({ id }) => id === currentId) ?? displays[0];
+  if (mode === 'pointer') return displays.find(({ id }) => id === pointerId) ?? current;
+  const candidates =
+    mode === 'any'
+      ? displays.filter(({ id }) => id !== current?.id)
+      : observed && displays.filter(({ id }) => observed.has(id));
+  if (!candidates || (mode === 'any' && !candidates.length)) return current;
+  return candidates[Math.floor(random() * candidates.length)];
+}
+
 /** Uses the existing desktop tick: no extra timer, model request or screen capture. */
 export class AvatarRoaming {
   constructor({ now = Date.now, random = Math.random } = {}) {
@@ -10,10 +28,11 @@ export class AvatarRoaming {
   }
   sync(settings) {
     const enabled = settings.avatarRoaming === true;
+    const monitors = settings.avatarRoamMonitors ?? COMPANION_DEFAULTS.avatarRoamMonitors;
     const seconds =
       settings.avatarRoamIntervalSeconds ?? COMPANION_DEFAULTS.avatarRoamIntervalSeconds;
-    if (enabled !== this.enabled || seconds !== this.seconds) {
-      Object.assign(this, { enabled, seconds });
+    if (enabled !== this.enabled || seconds !== this.seconds || monitors !== this.monitors) {
+      Object.assign(this, { enabled, seconds, monitors });
       this.revision++;
       this.nextAt = enabled ? this.now() + this.delay() : Infinity;
     }

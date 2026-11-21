@@ -14,8 +14,12 @@ publication timestamps. Drafts, older versions and releases without a verified a
 are ignored. Current public releases start at **v1.0.0**. Legacy Preview tags remain
 readable for upgrade compatibility. Turning the checkbox off never downgrades an installed version.
 
-The stable update source is [CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases). With experimental updates enabled, Capri also checks for prereleases in the private [CapriChooms/Capri](https://github.com/CapriChooms/Capri/releases) repository if a GitHub credential is available. The newest eligible version is offered, with the public repository preferred when the versions match. Downloads use the selected repository's release API and approved GitHub asset
-hosts. GitHub's asset size and SHA-256 digest are required. Extracted source files are
+The primary stable update source is [CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases),
+with [GitLab](https://gitlab.com/capricore1/CapriCore/-/releases) available as a fallback.
+With experimental updates enabled, Capri also checks for prereleases in the private
+[CapriChooms/Capri](https://github.com/CapriChooms/Capri/releases) repository if a GitHub credential is available.
+The newest eligible version is offered, with the public repository preferred when the versions match.
+Downloads use approved hosts and require the published asset size and SHA-256 digest. Extracted source files are
 checked against SOURCE_MANIFEST.json, and config/release.json must match the release tag.
 This is transport and integrity verification, not a publisher code signature. Current
 Windows installers are unsigned.
@@ -106,9 +110,26 @@ private data. Do not delete backups or the installation while recovery is pendin
 Before building a release, update config/release.json to the intended unique tag and
 match its base version to package.json. Upload the generated Capri-<version>-source.zip
 and CapriSetup-<version>.exe to that tag, and mark experimental builds as prereleases.
-Source ZIPs must include SOURCE_MANIFEST.json. Assets without a GitHub SHA-256 digest
-are not offered. Publish complete release assets together; never replace an existing
+Reserve each experimental suffix for one GitHub release. Local test builds for that
+release reuse the same suffix across rebuilds.
+Source ZIPs must include SOURCE_MANIFEST.json. GitHub assets require a SHA-256 digest.
+Publish complete release assets together; never replace an existing
 tag with different code. The source/update payload excludes private data and credentials.
+
+GitLab is the fallback for public stable updates at
+[capricore1/CapriCore](https://gitlab.com/capricore1/CapriCore/-/releases). Make the
+project and its package registry readable without login. For each mirrored stable
+Git tag, create a GitLab release with the same tag, and upload the original
+`Capri-<version>-source.zip` and `CapriSetup-<version>.exe` to a Generic Package
+named `capri` with version `<version>` (for example `1.1.2`). Add the package
+links to the release for browser downloads. Keep exactly one copy of each file in
+the package version.
+
+Capri checks this mirror when GitHub's stable release lookup fails. If only the
+GitHub download fails, the mirror file must match the size and SHA-256 already
+reported by GitHub. For releases discovered through GitLab, the package registry
+provides both fields. Experimental releases use private GitHub access. Check the
+mirror in a signed-out browser after publishing.
 
 Qualification: updater unit tests cover semantic/channel selection, resumed downloads,
 credential isolation, payload tampering, preservation, rollback and interrupted recovery.

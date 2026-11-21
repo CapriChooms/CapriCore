@@ -47,8 +47,21 @@ const entry = path.join(folder, 'entry.mjs');
 writeFileSync(
   entry,
   `
+import { Tray } from 'electron';
 const original = globalThis.fetch;
 globalThis.updateFixtureRequests = { checks: 0, downloads: 0 };
+globalThis.updateFixtureToasts = 0;
+Tray.prototype.displayBalloon = function (options) {
+  globalThis.updateFixtureToasts++;
+  globalThis.updateFixtureTray = this;
+  globalThis.updateFixtureToast = options;
+};
+Tray.prototype.removeBalloon = function () {};
+if (process.env.CAPRI_UPDATE_FIXTURE === 'polling') {
+  const schedule = globalThis.setInterval;
+  globalThis.setInterval = (callback, interval, ...args) =>
+    schedule(callback, interval === 30 * 60_000 ? 500 : interval, ...args);
+}
 globalThis.fetch = async (value, options = {}) => {
   const url = new URL(String(value));
   if (url.origin === 'https://api.github.com') {
@@ -60,7 +73,9 @@ globalThis.fetch = async (value, options = {}) => {
       if (process.env.CAPRI_UPDATE_FIXTURE === 'failure') throw Error('Synthetic network failure');
       if (process.env.CAPRI_UPDATE_FIXTURE === 'remove-pending')
         await new Promise((resolve) => { globalThis.finishUpdateFixtureRequest = resolve; });
-      return new Response(JSON.stringify(process.env.CAPRI_UPDATE_FIXTURE === 'current' ? [] : [${JSON.stringify(release)}]), { headers: { 'content-type': 'application/json' } });
+      const current = process.env.CAPRI_UPDATE_FIXTURE === 'current' ||
+        (process.env.CAPRI_UPDATE_FIXTURE === 'polling' && !globalThis.updateFixturePublished);
+      return new Response(JSON.stringify(current ? [] : [${JSON.stringify(release)}]), { headers: { 'content-type': 'application/json' } });
     }
     if (url.pathname.endsWith('/assets/123')) {
       globalThis.updateFixtureRequests.downloads++;
@@ -102,6 +117,10 @@ async function launch(scenario, enabled = true) {
     args: [entry, '--verification'],
     env,
     timeout: 30000,
+  });
+  application.process().stderr?.on('data', (chunk) => {
+    if (chunk.toString().includes('Could not show the update notice in the Windows tray'))
+      console.error(chunk.toString().trim());
   });
   const page = await application.firstWindow();
   page.on('pageerror', (error) => errors.push(error.message));
@@ -247,6 +266,88 @@ try {
   assert.equal(await page.locator('#update-notification').isVisible(), false);
   assert.equal((await page.evaluate(() => window.capri.updateStatus())).notification, null);
   checks.push('removing the token cancels an in-flight startup notice');
+
+  page = await launch('polling');
+  await application.evaluate(async () => {
+    const deadline = Date.now() + 5000;
+    while (!globalThis.updateFixtureRequests.checks) {
+      if (Date.now() > deadline) throw Error('Initial automatic check did not begin');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  });
+  assert.equal(await page.locator('#update-notification').isVisible(), false);
+  assert.equal((await page.evaluate(() => window.capri.updateStatus())).automatic, true);
+  await page.evaluate(() => window.capri.windowAction('focus-mode', true));
+  await application.evaluate(() => {
+    globalThis.updateFixturePublished = true;
+  });
+  await application.evaluate(async () => {
+    const deadline = Date.now() + 5000;
+    while (!globalThis.updateFixtureToasts) {
+      if (Date.now() > deadline) throw Error('Windows tray notification did not arrive');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  });
+  const notices = await application.evaluate(({ BrowserWindow }) => ({
+    toasts: globalThis.updateFixtureToasts,
+    tray: Boolean(globalThis.updateFixtureTray),
+    visible: BrowserWindow.getAllWindows()
+      .filter((item) => item.webContents.getURL().endsWith('/index.html'))
+      .map((item) => item.isVisible()),
+  }));
+  assert.deepEqual(notices, { toasts: 1, tray: true, visible: [false] });
+  assert.match(
+    await application.evaluate(() => globalThis.updateFixtureToast.content),
+    /Доступно новое обновление v99\.0\.0/,
+  );
+  const preferencesWindow = application.waitForEvent('window', {
+    predicate: (candidate) => candidate !== page,
+    timeout: 15000,
+  });
+  await application.evaluate(() => globalThis.updateFixtureTray.emit('balloon-click'));
+  const preferences = await preferencesWindow;
+  await preferences.waitForURL('capri://desktop/settings.html');
+  await page.locator('#update-notification').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#update-notification').textContent(), /v99\.0\.0/);
+  assert.equal((await requests()).downloads, 0);
+  checks.push(
+    'a release published during the same session shows a banner and requests a Windows toast while hidden',
+  );
+  const automatic = preferences.locator('#updates-automatic');
+  await automatic.waitFor({ state: 'visible' });
+  assert.equal(await automatic.isChecked(), true);
+  assert.match(
+    await preferences.locator('label:has(#updates-automatic)').textContent(),
+    /Автоматически проверять наличие обновлений/,
+  );
+  await automatic.uncheck();
+  // An automatic status event must not restore an unsaved checkbox.
+  await page.evaluate(() => window.capri.remindUpdateLater());
+  await page.locator('#update-notification').waitFor({ state: 'hidden' });
+  assert.equal(await automatic.isChecked(), false);
+  await preferences.locator('#settings-window-close').click();
+  await preferences.locator('#settings-apply').click();
+  await page.evaluate(async () => {
+    const deadline = Date.now() + 5000;
+    while ((await window.capri.updateStatus()).automatic) {
+      if (Date.now() > deadline) throw Error('Automatic update setting was not saved');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  });
+  const pausedCount = (await requests()).checks;
+  await page.waitForTimeout(1200);
+  assert.equal((await requests()).checks, pausedCount);
+  await page.evaluate(() => window.capri.checkUpdates());
+  assert.equal((await requests()).checks, pausedCount + 1);
+  checks.push(
+    'the localized Updates checkbox disables polling after Save while manual checks still run',
+  );
+
+  page = await launch('available');
+  assert.equal((await page.evaluate(() => window.capri.updateStatus())).automatic, false);
+  assert.deepEqual(await requests(), { checks: 0, downloads: 0 });
+  assert.equal(await page.locator('#update-notification').isVisible(), false);
+  checks.push('the saved opt-out also disables the next startup check');
   assert.deepEqual(errors, []);
   const report = {
     passed: true,

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   PresenceModel,
   SIGNAL_STATES,
-  shardPoints,
   signalRandom,
   interferenceFrame,
   interfaceFloat,
@@ -117,18 +116,10 @@ test('hidden sprite never intercepts desktop clicks and visibility is validated'
   );
 });
 
-test('procedural shards and seeded interference are finite and repeatable', () => {
+test('seeded interference is repeatable', () => {
   const a = signalRandom(42),
     b = signalRandom(42);
   assert.deepEqual(Array.from({ length: 20 }, a), Array.from({ length: 20 }, b));
-  for (const time of [0, 0.1, 1000])
-    for (let i = 0; i < 7; i++) {
-      assert.ok(
-        shardPoints(i, time, 1)
-          .flat()
-          .every((value) => Number.isFinite(value) && Math.abs(value) < 60),
-      );
-    }
 });
 
 test('speech starts and each new audio segment trigger a burst without retriggering an ongoing segment', () => {

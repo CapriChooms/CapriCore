@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { availableParallelism } from 'node:os';
-import { readdirSync } from 'node:fs';
+import { availableParallelism, tmpdir } from 'node:os';
+import { mkdtempDisposableSync, readdirSync, realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 import { root, nodePath } from '../../packages/runtime/src/index.mjs';
 // Artwork qualification is deliberately separate from device/model-free unit tests.
 const optional = new Set(['desktop-avatar.test.mjs', 'desktop-animation.test.mjs']);
@@ -22,13 +23,15 @@ const batches = [
   [files.filter((file) => !exclusive.has(file)), Math.min(4, availableParallelism())],
   [files.filter((file) => exclusive.has(file)), 1],
 ];
+using scratch = mkdtempDisposableSync(path.join(realpathSync.native(tmpdir()), 'capri-test-run-'));
+const env = { ...process.env, TEMP: scratch.path, TMP: scratch.path, TMPDIR: scratch.path };
 let status = 0;
 for (const [batch, concurrency] of batches) {
   if (!batch.length) continue;
   const result = spawnSync(
     nodePath,
     ['--test', '--test-concurrency=' + concurrency, ...batch, ...process.argv.slice(2)],
-    { cwd: root, stdio: 'inherit', windowsHide: true },
+    { cwd: root, env, stdio: 'inherit', windowsHide: true },
   );
   if (result.error) throw result.error;
   status ||= result.status ?? 1;

@@ -84,11 +84,25 @@ export const SKILL_SETTINGS = Object.freeze(
       'M5 2h10v16H5zm2 3h6v3H7zm0 6h1m4 0h1m-6 3h1m4 0h1',
     ],
     [
+      'capri.chess',
+      'chess',
+      'Chess',
+      'Analyze chess positions with Stockfish.',
+      'M5 16h10m-9-2h8M7 13c3-2 4-4 3-6L7 9 5 7l5-5 4 3 1 8',
+    ],
+    [
       'capri.spotify',
       'spotify',
       'Spotify',
       'Find tracks, control playback and change Spotify volume.',
       'M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0ZM6 8c3-1 5 0 8 1m-8 1c2-1 5 0 7 1m-6 1c2 0 3 0 5 1',
+    ],
+    [
+      'capri.youtube-music',
+      'youtube-music',
+      'YouTube Music',
+      'Find tracks, control playback and change YouTube Music volume.',
+      'M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0ZM8 6.5l5 3.5-5 3.5z',
     ],
     [
       'capri.music',
@@ -224,7 +238,7 @@ const russianSkills = {
   'capri.web-search': ['Поиск в интернете', 'Ищет актуальную информацию и показывает источники.'],
   'capri.owner-memory': [
     'Память диалогов',
-    'Сохраняет факты по твоей просьбе и вспоминает их в следующих разговорах.',
+    'Capri запоминает факты по твоей просьбе и вспоминает их в следующих разговорах.',
   ],
   'capri.attachment-viewer': [
     'Вложения',
@@ -240,7 +254,12 @@ const russianSkills = {
     'Открывает разрешённые приложения по названию и работает с ними.',
   ],
   'capri.calculator': ['Калькулятор', 'Проверяет арифметические и научные вычисления.'],
+  'capri.chess': ['Шахматы', 'Анализирует шахматные позиции с помощью Stockfish.'],
   'capri.spotify': ['Spotify', 'Находит треки, управляет воспроизведением и громкостью Spotify.'],
+  'capri.youtube-music': [
+    'YouTube Music',
+    'Находит треки, управляет воспроизведением и громкостью YouTube Music.',
+  ],
   'capri.music': [
     'Прослушивание музыки',
     'Распознаёт музыку в системном звуке и анимирует Capri в такт.',
@@ -290,6 +309,69 @@ export const SKILL_TEXT_RU = Object.freeze({
     ]),
   ),
   Skills: 'Навыки',
+  'Capri works directly with one approved project. Full computer control is not required. Files stay local unless your selected model is an external provider.':
+    'Капри работает с выбранным проектом. Файлы обрабатываются локально. При выборе облачной модели содержимое, необходимое для задачи, отправляется её провайдеру.',
+  'Project folder': 'Папка проекта',
+  'Choose a project folder': 'Выберите папку проекта',
+  'Choose project folder': 'Выбрать папку проекта',
+  'Revoke project access': 'Отозвать доступ к проекту',
+  Editor: 'Редактор',
+  'Editor integration': 'Интеграция с редактором',
+  'Select the editor executable': 'Выберите исполняемый файл редактора',
+  'Choose editor': 'Выбрать редактор',
+  'Find editors': 'Найти редакторы',
+  'Open project in editor': 'Открыть проект в редакторе',
+  'Open file in editor': 'Открыть файл в редакторе',
+  'Project opened in the editor.': 'Проект открыт в редакторе.',
+  'Files open at the requested line through the editor’s native CLI. Save editor buffers before asking Capri to edit them. Capri refuses stale file hashes instead of overwriting newer disk changes.':
+    'Файлы открываются на нужной строке средствами редактора. Сохраняйте изменения в редакторе перед правками через Капри. Если файл изменится после чтения, Капри предложит прочитать его снова.',
+  'Use live documents and diagnostics (VS Code-compatible editors)':
+    'Читать открытые файлы и диагностику в редакторах на базе VS Code',
+  'Install editor bridge': 'Установить расширение для редактора',
+  'Check editor connection': 'Проверить подключение к редактору',
+  'Editor bridge connected.': 'Редактор подключён.',
+  'Waiting for the editor bridge.': 'Ожидаем подключение редактора.',
+  'Save project access first, then install the bridge and reload your editor. It connects only to a trusted workspace on this PC. Unsaved edits are protected.':
+    'Сохраните доступ к проекту, установите расширение и перезапустите редактор. Расширение подключается к доверенным проектам на этом компьютере и защищает несохранённые правки.',
+  'No known editor found. Choose its executable manually.':
+    'Редакторы не найдены. Выберите исполняемый файл вручную.',
+  'Editor bridge installed. Reload the editor and open your trusted project.':
+    'Расширение установлено. Перезапустите редактор и откройте доверенный проект.',
+  'Project activity': 'Активность в проекте',
+  'Latest coding step': 'Последний шаг',
+  'Monitoring project files.': 'Отслеживание файлов проекта активно.',
+  'Project monitoring is off.': 'Отслеживание файлов проекта выключено.',
+  Changed: 'Изменён',
+  Removed: 'Удалён',
+  'Review changes': 'Просмотр изменений',
+  'Review changes before writing': 'Просматривать изменения перед записью',
+  'Save project access to apply this preference. Review recent diffs here.':
+    'Сохраните доступ к проекту, чтобы применить этот параметр. Здесь можно просмотреть недавние правки.',
+  'No code changes yet.': 'Изменений кода пока нет.',
+  'Change set': 'Набор изменений',
+  'File diff': 'Изменения в файле',
+  'The preview is shortened.': 'Предпросмотр сокращён.',
+  'Pending review': 'Ожидает проверки',
+  Applied: 'Применён',
+  Discarded: 'Отклонён',
+  'Partially applied': 'Частично применён',
+  'Changes approved.': 'Изменения одобрены.',
+  'Changes discarded.': 'Изменения отклонены.',
+  'Approved build and test tasks': 'Разрешённые команды сборки и тестирования',
+  'A task runs your project code with your Windows account. Approve only trusted projects. The model cannot change these commands or start a shell.':
+    'Команды выполняют код проекта от имени вашего пользователя Windows. Разрешайте запуск для доверенных проектов. Модель не может изменить команды или запустить оболочку.',
+  'Task name': 'Название команды',
+  'Unit tests': 'Модульные тесты',
+  'Choose node.exe, dotnet.exe or another build tool':
+    'Выберите node.exe, dotnet.exe или другое средство сборки',
+  'Choose task executable': 'Выбрать исполняемый файл команды',
+  'Arguments (JSON array)': 'Аргументы (массив JSON)',
+  'Add approved task': 'Добавить разрешённую команду',
+  'Save project access': 'Сохранить доступ к проекту',
+  'Enable coding mode': 'Включить режим кодинга',
+  'Coding mode: On': 'Режим кодинга включён',
+  'Choose and save a project folder to enable coding mode.':
+    'Выберите папку проекта и сохраните доступ, чтобы включить режим кодинга.',
   'The model reached its reply limit. Ask for a shorter answer or try another model.':
     'Модель исчерпала лимит ответа. Попросите ответить короче или выберите другую модель.',
   'Hides the reply after playback, or after a delay when voice is off.':
@@ -413,6 +495,7 @@ export function skillPreferences(value) {
         ...(id === 'capri.reasoning' ? { effort: reasoningEffort(value?.[id]?.effort) } : {}),
         ...(id === 'capri.web-search' ? { search } : {}),
         ...(id === 'capri.calculator' ? { showWindow: value?.[id]?.showWindow === true } : {}),
+        ...(id === 'capri.youtube-music' ? { preferred: value?.[id]?.preferred === true } : {}),
         ...(id === 'capri.owner-memory' ? { automatic: value?.[id]?.automatic === true } : {}),
       },
     ]),

@@ -1,4 +1,4 @@
-export const MICROPHONE_GAIN = Object.freeze({ min: 0, max: 200, default: 100 });
+export const MICROPHONE_GAIN = Object.freeze({ min: 0, max: 800, default: 100 });
 export const SPEECH_DEFAULTS = Object.freeze({
   trailingSilenceSeconds: 1,
   microphoneGain: MICROPHONE_GAIN.default,

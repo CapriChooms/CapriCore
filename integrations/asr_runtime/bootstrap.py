@@ -10,4 +10,6 @@ if __name__ == '__main__':
     root = Path(__file__).resolve().parents[2]
     packages = Path(sys.executable).parent.parent / 'Lib' / 'site-packages'
     sys.path.extend((str(root), str(packages)))
-    runpy.run_module('integrations.asr_runtime.worker', run_name='__main__')
+    module = ('integrations.voice_training.review_recordings' if '--transcribe-recordings' in sys.argv
+              else 'integrations.asr_runtime.worker')
+    runpy.run_module(module, run_name='__main__')

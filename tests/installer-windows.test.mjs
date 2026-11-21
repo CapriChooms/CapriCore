@@ -4,7 +4,6 @@ import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   mkdirSync,
-  mkdtempSync,
   writeFileSync,
   readFileSync,
   existsSync,
@@ -12,15 +11,15 @@ import {
   symlinkSync,
   copyFileSync,
   linkSync,
+  utimesSync,
 } from 'node:fs';
 import path from 'node:path';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { writeJsonAtomic } from '../packages/runtime/src/atomic-json.mjs';
 import { estimateInstallStorage } from '../packages/installer/src/storage-estimate.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 const windows = process.platform === 'win32';
-const parent = path.join(root, '.runtime/installer-windows-unit');
-mkdirSync(parent, { recursive: true });
-const folder = () => mkdtempSync(path.join(parent, 'case-'));
+const folder = temporaryFolders('capri-installer-windows-unit-');
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const ps = (file, args = []) =>
   spawnSync(
@@ -304,6 +303,57 @@ function uninstallFixture() {
   writeFileSync(path.join(target, 'data/history.txt'), 'private canary');
   return target;
 }
+
+test(
+  'uninstall blocks a live setup and ignores a stale lock whose PID was reused',
+  { skip: !windows },
+  () => {
+    const target = uninstallFixture();
+    const lock = path.join(target, '.runtime/installer/install.lock.json');
+    writeJsonAtomic(lock, { pid: process.pid, id: randomUUID() });
+    const run = () =>
+      ps('packages/installer/windows/uninstall.ps1', ['-InstallRoot', target, '-Quiet']);
+    const blocked = run();
+    assert.equal(blocked.status, 1, blocked.stderr);
+    assert.match(blocked.stderr, /Finish or cancel the installation/);
+    assert.equal(existsSync(path.join(target, 'apps/example.mjs')), true);
+    const previousProcess = new Date('2020-01-01T00:00:00Z');
+    utimesSync(lock, previousProcess, previousProcess);
+    const removed = run();
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.equal(existsSync(path.join(target, 'apps/example.mjs')), false);
+    assert.equal(readFileSync(path.join(target, 'data/history.txt'), 'utf8'), 'private canary');
+  },
+);
+
+test(
+  'a terminated ONNX import exits as an unavailable optional classifier',
+  { skip: !windows },
+  () => {
+    const target = folder();
+    const setup = path.join(target, 'tools/setup');
+    mkdirSync(setup, { recursive: true });
+    const installer = path.join(setup, 'setup-request-router.ps1');
+    copyFileSync(path.join(root, 'tools/setup/setup-request-router.ps1'), installer);
+    writeFileSync(
+      path.join(setup, 'python-runtime.ps1'),
+      `function Get-CapriPythonRuntime($ProjectRoot) {
+  @{ Uv='fixture'; Python=(Join-Path $ProjectRoot 'mock-python.cmd') }
+}
+function Ensure-CapriVirtualEnvironment($ProjectRoot,$Name,$Runtime) { $Runtime.Python }
+`,
+    );
+    writeFileSync(
+      path.join(target, 'mock-python.cmd'),
+      '@echo off\r\nif "%~1"=="-c" exit /b 3\r\necho %~1\r\nexit /b 0\r\n',
+    );
+    const result = ps(installer);
+    assert.equal(result.status, 22, result.stderr || result.stdout);
+    assert.match(result.stdout, /CAPRI_ROUTER_NATIVE_LIBRARY_UNAVAILABLE exit=3/);
+    assert.doesNotMatch(result.stdout, /provision-request-router/);
+  },
+);
+
 test(
   'uninstall measures allocated bytes and excludes hard links retained elsewhere',
   { skip: !windows },
@@ -358,6 +408,74 @@ test(
     );
     assert.equal(existsSync(path.join(target, 'apps/example.mjs')), false);
     assert.equal(existsSync(path.join(target, '.capri-install.json')), false);
+  },
+);
+
+test(
+  'uninstall uses the active camera host and falls back safely to the legacy host',
+  { skip: !windows },
+  () => {
+    const fixture = folder();
+    const script = path.join(fixture, 'compile-camera-cleanup-mock.ps1');
+    const executable = path.join(fixture, 'capri-camera-host.exe');
+    writeFileSync(
+      script,
+      `param([string]$OutputFile)
+$ErrorActionPreference='Stop'
+Add-Type -OutputType ConsoleApplication -OutputAssembly $OutputFile -TypeDefinition @'
+using System.IO;
+public static class CameraCleanupFixture {
+    public static int Main(string[] args) {
+        if (args.Length != 1 || args[0] != "--cleanup") return 2;
+        var bundle = Path.GetDirectoryName(typeof(CameraCleanupFixture).Assembly.Location);
+        for (var directory = new DirectoryInfo(bundle); directory != null; directory = directory.Parent) {
+            var data = Path.Combine(directory.FullName, "data");
+            if (Directory.Exists(data)) {
+                File.AppendAllText(Path.Combine(data, "camera-cleanup.log"), Path.GetFileName(bundle));
+                return 0;
+            }
+        }
+        return 3;
+    }
+}
+'@
+`,
+    );
+    const compiled = ps(script, [executable]);
+    assert.equal(compiled.status, 0, compiled.stderr);
+    const bundleId = 'a'.repeat(32);
+    for (const kind of ['current', 'legacy', 'invalid receipt', 'linked bundle']) {
+      const target = uninstallFixture();
+      const directory = path.join(target, '.runtime/capri-camera');
+      const bundle = path.join(directory, 'bundles', bundleId);
+      mkdirSync(path.dirname(bundle), { recursive: true });
+      copyFileSync(executable, path.join(directory, path.basename(executable)));
+      if (kind !== 'legacy') {
+        if (kind === 'linked bundle') symlinkSync(fixture, bundle, 'junction');
+        else {
+          mkdirSync(bundle);
+          copyFileSync(executable, path.join(bundle, path.basename(executable)));
+        }
+        writeJsonAtomic(path.join(directory, 'active.json'), {
+          schemaVersion: 1,
+          bundleId,
+          ...(kind === 'invalid receipt' && { executable: 'arbitrary.exe' }),
+        });
+      }
+      const removed = ps('packages/installer/windows/uninstall.ps1', [
+        '-InstallRoot',
+        target,
+        '-Quiet',
+      ]);
+      assert.equal(removed.status, 0, `${kind}: ${removed.stderr}`);
+      assert.equal(
+        readFileSync(path.join(target, 'data/camera-cleanup.log'), 'utf8'),
+        kind === 'current' ? bundleId : 'capri-camera',
+        kind,
+      );
+      assert.equal(existsSync(directory), false);
+      assert.equal(existsSync(executable), true);
+    }
   },
 );
 
@@ -480,7 +598,7 @@ test(
   },
 );
 test(
-  'a link in a manifest file parent prevents deletion of earlier source targets',
+  'a linked source is omitted from estimates and only blocks application removal',
   { skip: !windows },
   () => {
     const target = uninstallFixture(),
@@ -493,6 +611,22 @@ test(
         { path: 'linked-source/keep.txt', sha256: hash('outside canary') },
       ],
     });
+    const model = path.join(target, 'data/models/model.bin');
+    mkdirSync(path.dirname(model), { recursive: true });
+    writeFileSync(model, 'local model canary');
+    const uninstaller = 'packages/installer/windows/uninstall.ps1';
+    const measured = ps(uninstaller, ['-InstallRoot', target, '-Quiet', '-MeasureOnly']);
+    assert.equal(measured.status, 0, measured.stderr);
+    assert.equal(JSON.parse(measured.stdout).bytes.length, 8);
+    const removeModels = path.join(outside, 'remove-models.ps1');
+    writeFileSync(
+      removeModels,
+      `param($Uninstaller,$Root)\n& $Uninstaller -InstallRoot $Root -Quiet -RemoveApplication:$false -DeleteModels\nif(-not $?){exit 1}\n`,
+    );
+    const removed = ps(removeModels, [path.join(root, uninstaller), target]);
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.equal(existsSync(model), false);
+    assert.equal(existsSync(path.join(target, 'apps/example.mjs')), true);
     const result = ps('packages/installer/windows/uninstall.ps1', [
       '-InstallRoot',
       target,
@@ -538,6 +672,45 @@ test(
     assert.equal(readFileSync(path.join(target, 'apps/example.mjs'), 'utf8'), 'original code');
     assert.equal(readFileSync(path.join(target, 'data/history.txt'), 'utf8'), 'private canary');
     assert.deepEqual(readFileSync(weights), Buffer.alloc(1024 ** 2, 7));
+  },
+);
+
+test(
+  'linked voice data partitions allow uninstall without reading or deleting their targets',
+  { skip: !windows },
+  () => {
+    const uninstaller = 'packages/installer/windows/uninstall.ps1';
+    for (const relative of [
+      'data/speech',
+      'data/voices',
+      'data/voices/capri',
+      'data/voices/capri/en',
+      'data/voices/capri/en/exports',
+    ]) {
+      const target = uninstallFixture();
+      const outside = folder();
+      const link = path.join(target, relative);
+      const sentinel = path.join(outside, 'keep.txt');
+      writeFileSync(sentinel, 'outside voice data');
+      mkdirSync(path.dirname(link), { recursive: true });
+      symlinkSync(outside, link, 'junction');
+      const args = ['-InstallRoot', target, '-Quiet'];
+      const measured = ps(uninstaller, [...args, '-MeasureOnly']);
+      assert.equal(measured.status, 0, `${relative}: ${measured.stderr}`);
+      const partial = ps(uninstaller, args);
+      assert.equal(partial.status, 0, `${relative}: ${partial.stderr}`);
+      assert.equal(lstatSync(link).isSymbolicLink(), true);
+      assert.equal(readFileSync(sentinel, 'utf8'), 'outside voice data');
+    }
+    const target = uninstallFixture();
+    const outside = folder();
+    const sentinel = path.join(outside, 'keep.txt');
+    writeFileSync(sentinel, 'outside voice data');
+    symlinkSync(outside, path.join(target, 'data/speech'), 'junction');
+    const complete = ps(uninstaller, ['-InstallRoot', target, '-Quiet', '-DeleteData']);
+    assert.equal(complete.status, 0, complete.stderr);
+    assert.equal(existsSync(path.join(target, 'data')), false);
+    assert.equal(readFileSync(sentinel, 'utf8'), 'outside voice data');
   },
 );
 
@@ -736,10 +909,22 @@ Add-Type -Path (Join-Path $Recovery 'shell-link.cs')
       foreignTarget,
     ]);
     assert.equal(prepared.status, 0, prepared.stderr);
+    const redirectedDirectory = folder();
+    const redirectedShortcut = path.join(redirectedDirectory, 'Capri redirected.lnk');
+    copyFileSync(ownedLink, redirectedShortcut);
+    const redirect = path.join(recovery, 'linked-desktop');
+    symlinkSync(redirectedDirectory, redirect, 'junction');
+    const invalidShortcut = path.join(recovery, 'Invalid Capri shortcut.lnk');
+    writeFileSync(invalidShortcut, 'invalid shortcut canary');
     const identity = JSON.parse(readFileSync(path.join(target, '.capri-install.json'), 'utf8'));
     writeJsonAtomic(path.join(recovery, 'registration.json'), {
       registry: 'HKCU:\\Software\\CapriInstallerTests\\' + identity.installId,
-      shortcuts: [ownedLink, foreignLink],
+      shortcuts: [
+        ownedLink,
+        foreignLink,
+        path.join(redirect, path.basename(redirectedShortcut)),
+        invalidShortcut,
+      ],
       installId: identity.installId,
     });
     // Remove metadata as if an earlier uninstall had already removed those source/cache files.
@@ -760,7 +945,67 @@ Add-Type -Path (Join-Path $Recovery 'shell-link.cs')
     assert.equal(readFileSync(path.join(target, 'data/history.txt'), 'utf8'), 'private canary');
     assert.equal(existsSync(ownedLink), false);
     assert.equal(existsSync(foreignLink), true);
+    assert.equal(existsSync(redirectedShortcut), true);
+    assert.equal(readFileSync(invalidShortcut, 'utf8'), 'invalid shortcut canary');
     assert.equal(readFileSync(foreignTarget, 'utf8'), 'foreign target canary');
+  },
+);
+
+test(
+  'a bound recovery launcher remains usable for a second removal without an in-folder launcher',
+  { skip: !windows },
+  () => {
+    const target = uninstallFixture();
+    const recovery = path.join(target, 'verification', 'recovery');
+    const launcher = path.join(recovery, 'uninstall.exe');
+    const identityFile = path.join(target, '.capri-install.json');
+    const sourceReceipt = path.join(target, '.runtime/installer/source-files.json');
+    const registrationFile = path.join(target, '.runtime/installer/registration.json');
+    const identity = JSON.parse(readFileSync(identityFile, 'utf8'));
+    mkdirSync(recovery, { recursive: true });
+    writeFileSync(launcher, 'recovery launcher canary');
+    for (const file of ['common.ps1', 'uninstall.ps1'])
+      copyFileSync(path.join(root, 'packages/installer/windows', file), path.join(recovery, file));
+    copyFileSync(sourceReceipt, path.join(recovery, 'source-files.json'));
+    const registration = {
+      registry: 'HKCU:\\Software\\CapriInstallerTests\\' + identity.installId,
+      root: target,
+      recovery,
+      installId: identity.installId,
+      shortcuts: [],
+    };
+    writeJsonAtomic(registrationFile, registration);
+    writeJsonAtomic(path.join(recovery, 'registration.json'), registration);
+
+    const profile = folder();
+    const wrapper = path.join(profile, 'remove.ps1');
+    writeFileSync(
+      wrapper,
+      `param($Uninstaller,$Root,[switch]$Complete)
+$env:LOCALAPPDATA=$PSScriptRoot
+$env:APPDATA=$PSScriptRoot
+& $Uninstaller -InstallRoot $Root -Quiet -DeleteData:$Complete
+if(-not $?){exit 1}
+`,
+    );
+    const run = (complete) =>
+      ps(wrapper, [
+        path.join(recovery, 'uninstall.ps1'),
+        target,
+        ...(complete ? ['-Complete'] : []),
+      ]);
+    const partial = run(false);
+    assert.equal(partial.status, 0, partial.stderr);
+    assert.equal(readFileSync(launcher, 'utf8'), 'recovery launcher canary');
+    assert.equal(existsSync(identityFile), true);
+    assert.equal(existsSync(registrationFile), false);
+    assert.equal(readFileSync(path.join(target, 'data/history.txt'), 'utf8'), 'private canary');
+
+    const complete = run(true);
+    assert.equal(complete.status, 0, complete.stderr);
+    assert.equal(existsSync(launcher), false);
+    assert.equal(existsSync(identityFile), false);
+    assert.equal(existsSync(path.join(target, 'data')), false);
   },
 );
 

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateCompanionSettings } from '../apps/desktop/companion-settings.mjs';
+import { AvatarDetach } from '../apps/desktop/main/avatar-detach.mjs';
 import { dragLightningGeometry } from '../apps/desktop/renderer/avatar-drag-tether.mjs';
 
 const command = {
@@ -32,7 +33,7 @@ test('adjacent monitors share the same seeded geometry and reduced motion stays 
     5512,
     false,
   );
-  for (const key of ['bolt', 'branches', 'sparks', 'embers']) {
+  for (const key of ['bolt', 'branches', 'sparks', 'embers', 'faintEmbers']) {
     const shifted = original[key].replace(
       /([-\d.]+),([-\d.]+)/g,
       (_point, x, y) => `${(Number(x) - 800).toFixed(1)},${(Number(y) + 300).toFixed(1)}`,
@@ -42,6 +43,59 @@ test('adjacent monitors share the same seeded geometry and reduced motion stays 
   const reduced = dragLightningGeometry(command, 5512, true);
   assert.deepEqual(reduced, dragLightningGeometry(command, 5900, true));
   assert.ok(reduced.sparkCount < original.sparkCount);
+});
+
+test('Chess shards fly to both sides of the tether with independent amount and travel controls', () => {
+  const horizontal = { ...command, from: { x: 10, y: 100 }, to: { x: 610, y: 100 }, chaos: 0 };
+  const sample = (amount, travel) =>
+    dragLightningGeometry(
+      { ...horizontal, effects: { teleportSparkAmount: amount, teleportSparkTravel: travel } },
+      5512,
+      false,
+    );
+  const noSparks = sample(0, 100);
+  const fixedSparks = sample(100, 0);
+  const spreadSparks = sample(100, 100);
+  assert.equal(noSparks.bolt, spreadSparks.bolt);
+  assert.equal(noSparks.sparkCount, 0);
+  assert.equal(noSparks.embers + noSparks.faintEmbers + noSparks.sparks, '');
+  assert.equal(fixedSparks.sparkCount, spreadSparks.sparkCount);
+  assert.ok(spreadSparks.sparkCount <= 72);
+  assert.match(spreadSparks.sparks, /Z/);
+  const coordinates = ({ embers, faintEmbers }) =>
+    [...(embers + faintEmbers).matchAll(/([-\d.]+),([-\d.]+)/g)].map((match) => Number(match[2]));
+  assert.ok(Math.min(...coordinates(spreadSparks)) < Math.min(...coordinates(fixedSparks)) - 10);
+  assert.ok(Math.max(...coordinates(spreadSparks)) > Math.max(...coordinates(fixedSparks)) + 10);
+});
+
+test('the attached tether forwards the saved lightning style to the desktop overlay', () => {
+  const settings = validateCompanionSettings({
+    avatarDragTether: true,
+    avatarDragTetherIntensity: 92,
+    avatarDragTetherChaos: 37,
+    teleportColor: '#80fcff',
+    teleportThickness: 175,
+    teleportGlow: 12,
+    teleportSparkAmount: 23,
+    teleportSparkTravel: 100,
+  });
+  let command;
+  AvatarDetach.prototype.trackAttachedTether.call(
+    {
+      phase: 'attached',
+      getEffects: () => settings,
+      drawDesktopTether: (value) => (command = value),
+    },
+    { point: { x: 20, y: 30 }, at: 200 },
+    { x: 370, y: 152 },
+    { x: 0, y: 0, width: 300, height: 500 },
+    500,
+  );
+  assert.equal(command.intensity, 92);
+  assert.equal(command.chaos, 37);
+  for (const key of ['Color', 'Thickness', 'Glow', 'SparkAmount', 'SparkTravel']) {
+    assert.equal(command.effects[`teleport${key}`], settings[`teleport${key}`]);
+  }
 });
 
 test('stored older settings acquire a 30-pixel dead zone and both new controls are validated', () => {

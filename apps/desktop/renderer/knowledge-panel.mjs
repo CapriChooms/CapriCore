@@ -7,12 +7,25 @@ export class KnowledgePanel {
     this.panel.id = 'knowledge-panel';
     this.panel.className = 'preferences-panel';
     this.panel.hidden = true;
-    this.panel.innerHTML =
-      '<h2>Brain and private memory</h2><div class="preferences-content"><div class="settings-card"><h3>Local Brain folder</h3><p>Drop TXT, Markdown, Word (DOCX), ODT or text PDF documents into Brain. Capri retrieves relevant excerpts locally. Scanned PDFs need text recognition first.</p><label><input id="brain-enabled" type="checkbox">Use local knowledge</label><label><input id="brain-api" type="checkbox">Allow relevant Brain excerpts to be sent to an external API</label><div class="settings-actions"><button id="brain-folder" type="button">Open Brain folder</button><button id="brain-refresh" type="button">Refresh index</button></div><p id="brain-status" role="status"></p><label for="brain-query">Test knowledge search</label><input id="brain-query" type="search" maxlength="500"><button id="brain-search" type="button">Search Brain</button><div id="brain-results" data-untranslated></div></div><div id="private-memory-controls"></div></div>';
+    this.panel.innerHTML = `
+      <h2>Brain and private memory</h2>
+      <div class="preferences-content">
+        <section class="settings-card">
+          <h3>Local Brain folder</h3>
+          <label><input id="brain-enabled" type="checkbox">Use local knowledge</label>
+          <label><input id="brain-api" type="checkbox">Allow relevant Brain excerpts to be sent to an external API</label>
+          <div class="settings-actions"><button id="brain-folder" type="button">Open Brain folder</button><button id="brain-refresh" type="button">Refresh index</button></div>
+          <p id="brain-status" role="status"></p>
+        </section>
+        <section class="settings-card">
+          <label for="brain-query">Test knowledge search</label><input id="brain-query" type="search" maxlength="500">
+          <div class="settings-actions"><button id="brain-search" type="button">Search Brain</button></div>
+          <div id="brain-results" data-untranslated></div>
+        </section>
+        <div id="private-memory-controls"></div>
+      </div>`;
     document.getElementById('companion').append(this.panel);
     this.panel.dataset.panelCut = '12';
-    for (const paragraph of this.panel.querySelectorAll('.settings-card > p:not([id])'))
-      paragraph.classList.add('settings-help');
     this.privateMemory = new PrivateMemoryPanel({
       element: this.panel.querySelector('#private-memory-controls'),
       api,

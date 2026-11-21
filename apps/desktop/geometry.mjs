@@ -21,6 +21,30 @@ export function placeInWorkArea(saved, workArea, size, margin = 16) {
   };
 }
 
+export const WINDOW_RESIZE_EDGES = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+
+export function resizeWindowBounds(bounds, edge, movement, workArea, minimum) {
+  const start = placeInWorkArea(bounds, workArea, bounds);
+  const minWidth = Math.min(minimum.width, start.width);
+  const minHeight = Math.min(minimum.height, start.height);
+  let { x, y, width, height } = start;
+  const dx = Math.round(movement.x);
+  const dy = Math.round(movement.y);
+  if (edge.includes('w')) {
+    x = Math.max(workArea.x, Math.min(start.x + dx, start.x + start.width - minWidth));
+    width = start.x + start.width - x;
+  } else if (edge.includes('e')) {
+    width = Math.max(minWidth, Math.min(start.width + dx, workArea.x + workArea.width - x));
+  }
+  if (edge.includes('n')) {
+    y = Math.max(workArea.y, Math.min(start.y + dy, start.y + start.height - minHeight));
+    height = start.y + start.height - y;
+  } else if (edge.includes('s')) {
+    height = Math.max(minHeight, Math.min(start.height + dy, workArea.y + workArea.height - y));
+  }
+  return { x, y, width, height };
+}
+
 export function validWindowFootprint(footprint, bounds) {
   return (
     footprint &&
@@ -122,7 +146,7 @@ export function spritePressKind(point, rect, { alpha, imageSize, poseId }, headp
 }
 
 export function validateRegions(value, bounds) {
-  if (!value || !Array.isArray(value.controls) || value.controls.length > 32)
+  if (!value || !Array.isArray(value.controls) || value.controls.length > 48)
     throw new Error('Invalid hit regions');
   const rect = (item) => {
     if (!item || !['x', 'y', 'width', 'height'].every((key) => Number.isFinite(item[key])))
@@ -165,6 +189,14 @@ export function validateRegions(value, bounds) {
     sprite.lens = { ...rect(lens), curve: lens.curve };
   }
   const regions = { controls: value.controls.map(rect), sprite };
+  if (value.replyCollapsed !== undefined) {
+    if (typeof value.replyCollapsed !== 'boolean') throw new Error('Invalid reply window state');
+    regions.replyCollapsed = value.replyCollapsed;
+  }
+  if (value.replyMotion !== undefined) {
+    if (typeof value.replyMotion !== 'boolean') throw new Error('Invalid reply motion preference');
+    regions.replyMotion = value.replyMotion;
+  }
   if (value.footprint !== undefined) {
     const footprint = rect(value.footprint);
     // CSS and native content dimensions can differ by one pixel on fractional DPI.

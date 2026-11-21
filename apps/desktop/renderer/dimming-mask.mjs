@@ -1,53 +1,126 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// A separable Gaussian feather, sampled only when size or settings change.
-function erf(value) {
-  const sign = value < 0 ? -1 : 1,
-    x = Math.abs(value),
-    t = 1 / (1 + 0.3275911 * x);
-  return (
-    sign *
-    (1 -
-      ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
-        t *
-        Math.exp(-x * x))
-  );
+import { dimmingFeatherWidth } from './dimming-settings.mjs';
+
+const surfaces = [
+  '#capri-header-version, #inference-label, #context-hud, #compact-status',
+  '#handle .window-actions button, #quick-actions button',
+  '#portrait-panel, .portrait-status, #subtitle-frame, .reply-tail, .composer',
+  '#process-graphs-hud .process-graph, #memory-hud .memory-gauge, #monitor-display',
+  '#microphone-preview, #reconnect, #computer-control-stop',
+  '#history-panel, #inference-picker, #voice-volume-menu, #stopwatch-controls',
+  '#startup-progress, #attachment-drafts, #call-audio-dock',
+  '#wild-tab-notice, #thinking-progress, #update-notification, .resource-warning',
+  '.preferences-panel, #dimming-panel, #notice, #clip-result, #time-alert, #action-approval',
+].join(', ');
+const scrollSurfaces =
+  '.dock-notifications, #process-graphs-hud, #memory-hud, #reply-slot[data-resizing]';
+const snap = (value) => Math.round(value * 64) / 64;
+
+export function featherForSurface(softness, { width, height }) {
+  // Small controls keep a fully shaded center even at the maximum global setting.
+  return Math.min(dimmingFeatherWidth(softness), Math.min(width, height) / 4);
 }
-const low = erf(-3),
-  span = erf(3) - low;
-export function feather(distance, radius) {
-  if (radius <= 0) return 1;
-  if (distance <= 0) return 0;
-  if (distance >= radius) return 1;
-  return Math.max(0, Math.min(1, (erf((distance / radius) * 6 - 3) - low) / span));
-}
-export function dimmingPixels(width, height, softness, maxSize = 1024) {
-  const scale = Math.min(1, maxSize / Math.max(width, height, 1));
-  const w = Math.max(1, Math.round(width * scale)),
-    h = Math.max(1, Math.round(height * scale));
-  const radius = Math.min(Math.max(0, softness), width / 2, height / 2);
-  const data = new Uint8ClampedArray(w * h * 4);
-  const xs = Array.from({ length: w }, (_, i) => feather(Math.min(i, w - 1 - i) / scale, radius));
-  for (let y = 0; y < h; y++) {
-    const alpha = feather(Math.min(y, h - 1 - y) / scale, radius);
-    for (let x = 0; x < w; x++) data[(y * w + x) * 4 + 3] = Math.round(255 * alpha * xs[x]);
-  }
-  return { width: w, height: h, data };
-}
+
 export class DimmingMask {
-  constructor(element) {
-    this.canvas = element.ownerDocument.createElement('canvas');
-    this.canvas.setAttribute('aria-hidden', 'true');
-    element.append(this.canvas);
+  constructor(layer) {
+    this.layer = layer;
+    this.root = layer.parentElement;
+    this.planes = new Map();
   }
-  draw(width, height, softness) {
-    const key = [Math.round(width), Math.round(height), softness].join(':');
-    if (key === this.key) return;
-    this.key = key;
-    const pixels = dimmingPixels(width, height, softness);
-    this.canvas.width = pixels.width;
-    this.canvas.height = pixels.height;
-    const context = this.canvas.getContext('2d');
-    if (!context) return;
-    context.putImageData(new ImageData(pixels.data, pixels.width, pixels.height), 0, 0);
+
+  configure({ enabled, level, softness }) {
+    this.active = enabled && level > 0;
+    this.softness = softness;
+    this.layer.style.setProperty('--shade-strength', String(this.active ? level / 100 : 0));
+  }
+
+  draw(bounds, origin) {
+    if (!this.active) return;
+    const visible = new Map();
+    const scrollBounds = new Map();
+    for (const host of this.root.querySelectorAll(surfaces)) {
+      const rect = host.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      const style = getComputedStyle(host);
+      if (style.visibility !== 'visible' || Number(style.opacity) === 0) continue;
+
+      let inset = 'none';
+      const scroller = host.closest(scrollSurfaces);
+      if (scroller && scroller !== host) {
+        if (!scrollBounds.has(scroller)) {
+          const overflow = getComputedStyle(scroller).overflow;
+          scrollBounds.set(
+            scroller,
+            overflow === 'visible' ? null : scroller.getBoundingClientRect(),
+          );
+        }
+        const clip = scrollBounds.get(scroller);
+        if (clip) {
+          if (
+            rect.right <= clip.left ||
+            rect.left >= clip.right ||
+            rect.bottom <= clip.top ||
+            rect.top >= clip.bottom
+          )
+            continue;
+          const edges = [
+            clip.top - rect.top,
+            rect.right - clip.right,
+            rect.bottom - clip.bottom,
+            clip.left - rect.left,
+          ];
+          if (edges.some((edge) => edge > 0))
+            inset = 'inset(' + edges.map((edge) => Math.max(0, snap(edge)) + 'px').join(' ') + ')';
+        }
+      }
+
+      const box = [
+        rect.x - origin.x - bounds.x,
+        rect.y - origin.y - bounds.y,
+        rect.width,
+        rect.height,
+      ].map(snap);
+      visible.set(host, {
+        box,
+        inset,
+        clipPath: style.clipPath,
+        borderRadius: style.borderRadius,
+        opacity: style.opacity,
+        feather: featherForSurface(this.softness, rect),
+      });
+    }
+
+    // Collect layouts first so updating the planes cannot force a layout between reads.
+    for (const [host, { box, inset, clipPath, borderRadius, opacity, feather }] of visible) {
+      let plane = this.planes.get(host);
+      if (!plane) {
+        const element = this.layer.ownerDocument.createElement('div');
+        const surface = this.layer.ownerDocument.createElement('div');
+        const fill = this.layer.ownerDocument.createElement('div');
+        element.className = 'dimming-plane';
+        surface.className = 'dimming-surface';
+        fill.className = 'dimming-fill';
+        surface.append(fill);
+        element.append(surface);
+        this.layer.append(element);
+        plane = { element, surface };
+        this.planes.set(host, plane);
+      }
+      const signature = [...box, inset, clipPath, borderRadius, opacity, feather].join('|');
+      if (signature === plane.signature) continue;
+      plane.signature = signature;
+      const [left, top, width, height] = box.map((value) => value + 'px');
+      Object.assign(plane.element.style, { left, top, width, height, clipPath: inset, opacity });
+      Object.assign(plane.surface.style, { clipPath, borderRadius });
+      plane.surface.style.setProperty('--shade-shape', clipPath);
+      plane.surface.style.setProperty('--shade-inset', snap(feather * 0.65) + 'px');
+      plane.surface.style.setProperty('--shade-blur', snap(feather * 0.32) + 'px');
+      plane.surface.toggleAttribute('data-feathered', feather > 0);
+    }
+    for (const [host, plane] of this.planes) {
+      if (visible.has(host)) continue;
+      plane.element.remove();
+      this.planes.delete(host);
+    }
   }
 }

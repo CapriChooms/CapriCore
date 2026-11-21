@@ -92,6 +92,25 @@ async function registryResponse(
         headers: { 'accept-encoding': 'identity', ...headers },
         signal: AbortSignal.any([combined, connection.signal]),
       });
+    } catch (error) {
+      signal?.throwIfAborted();
+      const code = error?.cause?.code ?? error?.code;
+      const reason =
+        connection.signal.aborted ||
+        combined.aborted ||
+        ['ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT'].includes(code)
+          ? 'connection timed out'
+          : ['ENOTFOUND', 'EAI_AGAIN'].includes(code)
+            ? 'address could not be resolved (DNS)'
+            : [
+                  'CERT_HAS_EXPIRED',
+                  'DEPTH_ZERO_SELF_SIGNED_CERT',
+                  'ERR_TLS_CERT_ALTNAME_INVALID',
+                  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+                ].includes(code)
+              ? 'TLS certificate verification failed'
+              : 'connection failed';
+      throw new Error(`Model registry ${reason}. Check your network and retry to resume.`);
     } finally {
       clearTimeout(timer);
     }

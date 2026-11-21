@@ -11,7 +11,62 @@ export function isSettingsWindowTitle(title, localizedTitles = []) {
   );
 }
 
-/** The avatar's own movement commands run before desktop tools or inference. */
+const performanceCommands = [
+  [
+    'hang-next',
+    /^(?:do|show(?: me)?|perform) (?:a|another) hanging trick$|^(?:покажи|сделай) трюк на весу$/iu,
+  ],
+  [
+    'hang-pullup',
+    /^(?:(?:do|perform) a (?:hanging )?(?:pull[ -]?up|chin[ -]?up)|pull yourself up|подтянись|сделай подтягивание)$/iu,
+  ],
+  [
+    'hang-catch',
+    /^(?:catch|toss and catch) (?:a|the|that) (?:data )?chip$|^(?:поймай|подбрось и поймай) чип$/iu,
+  ],
+  [
+    'hang-wrist-scan',
+    /^(?:use|open|check) (?:your|the) wrist scanner$|^(?:проверь|включи|покажи) (?:наручный )?сканер(?: на запястье)?$/iu,
+  ],
+  [
+    'ledge-keytar',
+    /^(?:play (?:a keytar (?:riff|solo)|(?:the |your )?keytar)|сыграй на кейтаре)$/iu,
+  ],
+  [
+    'lean',
+    /^(?:lean (?:on|against) (?:the |this )?(?:(?:active|current) )?window(?: edge)?|обопрись на (?:край )?окн[оа])$/iu,
+  ],
+  [
+    'peek',
+    /^(?:peek (?:over|around|under|from behind) (?:the |this )?(?:window|window edge)|выгляни из-за края окна)$/iu,
+  ],
+  [
+    'read',
+    /^(?:mime reading|pretend to read) (?:the )?(?:search|address) (?:bar|box|field)$|^сделай вид,? что читаешь строку поиска$/iu,
+  ],
+  [
+    'tap',
+    /^(?:mime tapping|pretend to tap) (?:on )?(?:the )?(?:search|address) (?:bar|box|field)$|^сделай вид,? что постукиваешь по строке поиска$/iu,
+  ],
+  [
+    'search',
+    /^(?:mime (?:searching|typing)|pretend to (?:search|type)) (?:in|on|using) (?:the )?(?:search|address) (?:bar|box|field)$|^изобрази поиск в строке поиска$/iu,
+  ],
+  [
+    'field-lean',
+    /^(?:lean (?:on|against) (?:the )?(?:search|address) (?:bar|box|field)|обопрись на строку поиска)$/iu,
+  ],
+  [
+    'field-perch',
+    /^(?:(?:sit|perch) on (?:the )?(?:search|address) (?:bar|box|field)|сядь на строку поиска)$/iu,
+  ],
+  [
+    'present',
+    /^(?:(?:present|point to) (?:the )?(?:search|address) (?:bar|box|field)|покажи жестом на строку поиска)$/iu,
+  ],
+];
+
+/** The avatar's own movement and gesture commands run before desktop tools or inference. */
 export function desktopAvatarCommand(text) {
   const command = text
     .normalize('NFKC')
@@ -21,6 +76,21 @@ export function desktopAvatarCommand(text) {
     .replace(/^(?:please\s+|пожалуйста[,\s]+)/iu, '')
     .replace(/(?:,?\s+please|,?\s+пожалуйста)$/iu, '')
     .trim();
+  if (
+    /^(?:(?:can|could|would) you )?(?:wave(?: at me| hello| to me)?|give me a wave)$/iu.test(
+      command,
+    ) ||
+    /^(?:помаши|махни|(?:можешь|могла бы) помахать)(?: мне(?: рукой)?| рукой(?: мне)?)?$/iu.test(
+      command,
+    ) ||
+    /^(?:fais-moi (?:signe|coucou)(?: de la main)?|fais coucou|saluda con la mano|acena(?: para mim)?|winke?(?: mir)?(?: zu)?)$/iu.test(
+      command,
+    )
+  )
+    return { action: 'wave' };
+  const act = command.replace(/^(?:can|could|would) you (?:please )?/iu, '');
+  const performance = performanceCommands.find(([, pattern]) => pattern.test(act));
+  if (performance) return { action: 'performance', performance: performance[0] };
   if (
     /^(?:return|go back|come back|teleport back) (?:(?:to|into) (?:your|the) (?:frame|window)|home)$/iu.test(
       command,

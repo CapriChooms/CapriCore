@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { _electron } from 'playwright-core';
 import { settingsView } from './settings-view.mjs';
 
@@ -35,14 +36,17 @@ const env = {
   CAPRI_DESKTOP_VERIFICATION_WAKE: '0',
 };
 delete env.ELECTRON_RUN_AS_NODE;
-let application;
-try {
-  application = await _electron.launch({
+const desktopEntry = path.join(root, 'apps/desktop/main.mjs');
+const launch = (entry = desktopEntry) =>
+  _electron.launch({
     executablePath: createRequire(import.meta.url)('electron'),
-    args: [path.join(root, 'apps/desktop/main.mjs'), '--verification'],
+    args: [entry, '--verification'],
     env,
     timeout: 60000,
   });
+let application;
+try {
+  application = await launch();
   application.on('window', (page) =>
     page.on('pageerror', (error) => report.errors.push(error.message)),
   );
@@ -144,20 +148,24 @@ try {
   );
   await owner.setViewportSize({ width: 480, height: 660 });
   const settings = await settingsView(application, 'music');
+  const master = settings.locator('input[data-skill="capri.music"]');
+  assert.equal(await master.isChecked(), false);
   assert.equal((await settings.evaluate(() => window.capri.musicStatus())).phase, 'off');
-  await application.evaluate(({ ipcMain, session }) => {
+  function installMusicSink({ ipcMain, session }, testStartup = false) {
     const state = (globalThis.musicIntegrationFixture = {
       packets: [],
       starts: 0,
       stops: 0,
       osRequests: 0,
+      displayGestures: [],
     });
-    session.defaultSession.setPermissionRequestHandler((_w, _p, respond) => {
+    session.defaultSession.setPermissionRequestHandler((_w, permission, respond) => {
       state.osRequests++;
-      respond(false);
+      respond(testStartup && permission === 'display-capture');
     });
-    session.defaultSession.setDisplayMediaRequestHandler((_r, respond) => {
+    session.defaultSession.setDisplayMediaRequestHandler((request, respond) => {
       state.osRequests++;
+      state.displayGestures.push(request.userGesture);
       respond({});
     });
     const handle = (name, callback) => {
@@ -190,8 +198,8 @@ try {
       state.stops++;
       return true;
     });
-  });
-  await owner.evaluate(() => {
+  }
+  function installSyntheticSource(testStartup = false) {
     let source, context;
     window.musicSyntheticFixture = {
       requests: 0,
@@ -202,8 +210,11 @@ try {
         await context?.close();
       },
     };
-    navigator.mediaDevices.getDisplayMedia = async () => {
+    const requestDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getDisplayMedia = async (constraints) => {
       window.musicSyntheticFixture.requests++;
+      // Verify Chromium's startup gesture, with a host handler that supplies no real sources.
+      if (testStartup) await requestDisplayMedia(constraints).catch(() => {});
       context = new AudioContext({ sampleRate: 48000, sinkId: { type: 'none' } });
       await context.resume();
       source = context.createOscillator();
@@ -221,8 +232,10 @@ try {
       window.musicSyntheticFixture.track = sink.stream.getAudioTracks()[0];
       return sink.stream;
     };
-  });
-  await settings.locator('#music-listening-enabled').check();
+  }
+  await application.evaluate(installMusicSink);
+  await owner.evaluate(installSyntheticSource);
+  await master.check();
   await application.evaluate(async () => {
     const until = Date.now() + 12000;
     while (globalThis.musicIntegrationFixture.packets.length < 3 && Date.now() < until)
@@ -235,18 +248,7 @@ try {
   assert(stream.packets.every((packet) => packet.bytes === 32000));
   assert(stream.packets.slice(1).every((packet) => packet.rms > 0.15 && packet.rms < 0.2));
   assert.equal(await owner.evaluate(() => window.musicSyntheticFixture.requests), 1);
-  await settings.evaluate(() => window.capri.musicCommand('stop'));
-  // The real host service has no synthetic worker session, so replay only its
-  // documented session-revocation event after exercising the actual Stop IPC.
-  await application.evaluate(({ BrowserWindow }) => {
-    for (const window of BrowserWindow.getAllWindows())
-      window.webContents.send('capri:event', {
-        type: 'music.status',
-        phase: 'off',
-        enabled: false,
-        stoppedSessionId: 'synthetic-integrated',
-      });
-  });
+  await master.uncheck();
   await owner.waitForFunction(() => window.musicSyntheticFixture.track.readyState === 'ended');
   await owner.evaluate(() => window.musicSyntheticFixture.close());
   const after = await owner.evaluate(() => window.capri.bootstrap());
@@ -256,6 +258,65 @@ try {
   assert.deepEqual(report.errors, []);
   report.checks.push(
     'actual Settings-to-companion command bridge streams exact synthetic PCM through real AudioWorklet, stops cleanly and leaves microphone off',
+  );
+  await master.check();
+  await owner.waitForFunction(() => window.musicSyntheticFixture.requests === 2);
+  await application.close();
+  application = null;
+
+  const restartEntry = path.join(folder, 'restart.mjs');
+  writeFileSync(
+    restartEntry,
+    `import { app, ipcMain, session } from 'electron';
+const installMusicSink = ${installMusicSink.toString()};
+app.on('browser-window-created', (_event, window) => {
+  const contents = window.webContents;
+  const execute = contents.executeJavaScript.bind(contents);
+  contents.executeJavaScript = async (source, gesture) => {
+    if (source === 'window.capriStartMusicListening()' && !globalThis.musicIntegrationFixture) {
+      installMusicSink({ ipcMain, session }, true);
+      await execute(${JSON.stringify(`(${installSyntheticSource.toString()})(true)`)}, false);
+    }
+    return execute(source, gesture);
+  };
+});
+await import(${JSON.stringify(pathToFileURL(desktopEntry).href)});
+`,
+  );
+  application = await launch(restartEntry);
+  const restarted = await application.firstWindow();
+  restarted.on('pageerror', (error) => report.errors.push(error.message));
+  await restarted.waitForFunction(
+    () => window.musicSyntheticFixture?.track?.readyState === 'live',
+    null,
+    { timeout: 15000 },
+  );
+  const restartedState = await restarted.evaluate(() => window.capri.bootstrap());
+  assert.equal(restartedState.skills['capri.music'].enabled, true);
+  assert.equal(restartedState.microphone.status, 'off');
+  const startupCapture = await application.evaluate(() => globalThis.musicIntegrationFixture);
+  assert.equal(startupCapture.starts, 1);
+  assert.deepEqual(startupCapture.displayGestures, [true]);
+  const restartedSettings = await settingsView(application, 'music');
+  await restartedSettings.locator('input[data-skill="capri.music"]').uncheck();
+  await restarted.waitForFunction(() => window.musicSyntheticFixture.track.readyState === 'ended');
+  await application.close();
+  application = null;
+
+  application = await launch(restartEntry);
+  const disabledRestart = await application.firstWindow();
+  await disabledRestart.waitForFunction(() => document.body.dataset.phase === 'ready');
+  assert.equal(
+    (await disabledRestart.evaluate(() => window.capri.bootstrap())).skills['capri.music'].enabled,
+    false,
+  );
+  assert.equal(
+    await application.evaluate(() => Boolean(globalThis.musicIntegrationFixture)),
+    false,
+  );
+  assert.deepEqual(report.errors, []);
+  report.checks.push(
+    'on survives a full quit and resumes once with a Chromium gesture; off survives another full restart',
   );
   report.passed = true;
 } catch (error) {

@@ -7,37 +7,45 @@ export function ggufMetadata(file) {
   const fd = openSync(file, 'r');
   try {
     const size = Math.min(fstatSync(fd).size, 48 * 1024 ** 2);
-    let buffer = Buffer.alloc(Math.min(size, 128 * 1024));
-    let filled = readSync(fd, buffer, 0, buffer.length, 0);
+    const buffer = Buffer.allocUnsafe(Math.min(size, 128 * 1024));
+    let windowStart = 0;
+    let windowEnd = 0;
     let offset = 0;
     const take = (length) => {
       const end = offset + length;
       if (!Number.isSafeInteger(end) || end > size) throw new Error('Invalid GGUF metadata.');
-      if (end > filled) {
-        const expanded = Buffer.alloc(Math.min(size, Math.max(end, buffer.length * 2)));
-        buffer.copy(expanded, 0, 0, filled);
-        filled += readSync(fd, expanded, filled, expanded.length - filled, filled);
-        buffer = expanded;
-      }
-      if (end > filled) throw new Error('Incomplete GGUF metadata.');
       const start = offset;
       offset = end;
       return start;
     };
-    const u32 = () => {
-      const index = take(4);
-      return buffer.readUInt32LE(index);
+    const inWindow = (start, length) => {
+      if (start < windowStart || start + length > windowEnd) {
+        windowStart = start;
+        windowEnd = start + readSync(fd, buffer, 0, Math.min(buffer.length, size - start), start);
+        if (start + length > windowEnd) throw new Error('Incomplete GGUF metadata.');
+      }
+      return start - windowStart;
     };
+    const uint32At = (start) => buffer.readUInt32LE(inWindow(start, 4));
+    const uint64At = (start) => Number(buffer.readBigUInt64LE(inWindow(start, 8)));
+    const u32 = () => uint32At(take(4));
     const u64 = () => {
-      const index = take(8);
-      const value = Number(buffer.readBigUInt64LE(index));
+      const value = uint64At(take(8));
       if (!Number.isSafeInteger(value)) throw new Error('Invalid GGUF metadata count.');
       return value;
     };
     const string = (read) => {
       const length = u64();
       const start = take(length);
-      if (read) return buffer.toString('utf8', start, start + length);
+      if (!read) return;
+      if (length > buffer.length) {
+        const data = Buffer.allocUnsafe(length);
+        if (readSync(fd, data, 0, length, start) !== length)
+          throw new Error('Incomplete GGUF metadata.');
+        return data.toString('utf8');
+      }
+      const index = inWindow(start, length);
+      return buffer.toString('utf8', index, index + length);
     };
     const widths = [1, 1, 2, 2, 4, 4, 4, 1, 0, 0, 8, 8, 8];
     const value = (type, read) => {
@@ -54,11 +62,11 @@ export function ggufMetadata(file) {
       const width = widths[type];
       if (!width) throw new Error('Invalid GGUF value.');
       const index = take(width);
-      if (read && type === 4) return buffer.readUInt32LE(index);
-      if (read && type === 10) return Number(buffer.readBigUInt64LE(index));
+      if (read && type === 4) return uint32At(index);
+      if (read && type === 10) return uint64At(index);
     };
-    take(4);
-    if (buffer.toString('ascii', 0, 4) !== 'GGUF' || ![2, 3].includes(u32()))
+    const magic = inWindow(take(4), 4);
+    if (buffer.toString('ascii', magic, magic + 4) !== 'GGUF' || ![2, 3].includes(u32()))
       throw new Error('Unsupported GGUF header.');
     u64();
     const count = u64();

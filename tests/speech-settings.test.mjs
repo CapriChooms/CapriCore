@@ -23,7 +23,7 @@ test('speech pause is bounded and persists independently of microphone selection
   const prefs = new Preferences(file, SPEECH_DEFAULTS, validateSpeechSettings);
   assert.equal(prefs.value.trailingSilenceSeconds, 1);
   assert.equal(prefs.set({ trailingSilenceSeconds: 2.7 }).microphoneGain, 100);
-  for (const gain of [0, 100, 165, 200]) {
+  for (const gain of [0, 100, 165, 200, 320, 800]) {
     const settings = { trailingSilenceSeconds: 2.7, microphoneGain: gain };
     prefs.set(settings);
     assert.deepEqual(
@@ -31,7 +31,7 @@ test('speech pause is bounded and persists independently of microphone selection
       settings,
     );
   }
-  for (const gain of [-1, 201, 1.5, Infinity, '100', null])
+  for (const gain of [-1, 801, 1.5, Infinity, '100', null])
     assert.throws(() =>
       validateSpeechSettings({ trailingSilenceSeconds: 1, microphoneGain: gain }),
     );

@@ -33,6 +33,7 @@ export const SETTINGS_GROUPS = Object.freeze([
     sections: [
       ['general', 'General', 'general-panel'],
       ['languages', 'Languages', 'language-panel'],
+      ['audio', 'Audio', 'audio-routing-panel'],
       ['personality', 'Conversation and personality', 'companion-settings'],
       ['appearance', 'Appearance and animations', 'companion-settings'],
       ['window', 'Window', 'companion-settings'],

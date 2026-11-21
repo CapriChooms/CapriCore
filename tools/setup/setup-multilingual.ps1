@@ -12,6 +12,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not install multilingual Parakeet' }
 if ($LASTEXITCODE -ne 0) { throw 'Could not install multilingual recognition models' }
 & (Join-Path $PSScriptRoot 'setup-voice-training.ps1') -DependenciesOnly
 if ($LASTEXITCODE -ne 0) { throw 'Could not install voice dependencies' }
-& '.runtime/voice-training-venv/Scripts/python.exe' 'tools/setup/provision-multilingual.py' --component tts --language $Language
+& (Join-Path $PSScriptRoot 'setup-multilingual-voice.ps1') -Language $Language
 if ($LASTEXITCODE -ne 0) { throw 'Could not install multilingual speech models' }
 Write-Host 'Voice dependencies and multilingual models are installed. Open Capri > Languages to select and enable the voice. For automatic profile installation use Install and enable in Languages.'

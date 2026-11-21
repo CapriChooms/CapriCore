@@ -44,6 +44,8 @@ export function settingsHelpBounds(owner, areas, anchor, height) {
 }
 
 const settingsHelpUrl = 'capri://desktop/settings-help.html';
+const rendererRecoveryCooldownMs = 30000;
+const rendererRecoveryTimeoutMs = 25000;
 /** One lazy, sandboxed settings surface; models and capture stay with the owner. */
 export class SettingsWindow {
   constructor({
@@ -86,6 +88,7 @@ export class SettingsWindow {
     this.pendingEvents = new Map();
     this.helpRevision = 0;
     this.presentationRevision = 0;
+    this.nextRendererRecovery = -Infinity;
     owner.on('move', () => this.reposition());
     owner.on('resize', () => this.reposition());
     owner.on('hide', () => this.hide());
@@ -267,6 +270,7 @@ export class SettingsWindow {
       }
       return;
     }
+    if (this.contentReady) clearTimeout(this.recoveryTimeout);
     view.webContents.setBackgroundThrottling(false);
     view.setOpacity(1);
     view.setIgnoreMouseEvents(false);
@@ -321,9 +325,10 @@ export class SettingsWindow {
       }
     }
   }
-  async open(section = null, focus = null) {
+  async open(section = null, focus = null, { recovering = false } = {}) {
     if (this.quitting()) return;
     clearTimeout(this.idleCloseTimer);
+    clearTimeout(this.recoveryTimer);
     this.requested = true;
     this.section = section;
     this.focusTarget =
@@ -452,22 +457,33 @@ export class SettingsWindow {
       });
       this.view.webContents.on('render-process-gone', (_e, details) => {
         if (this.window !== view || this.quitting()) return;
-        const requested = this.requested;
-        this.onError('Settings renderer stopped: ' + details.reason);
-        this.destroy();
-        if (requested) this.onRendererLost();
+        this.rendererStopped(view, details);
       });
       this.view.webContents.on('console-message', (details) => {
         if (details.level === 'error' || details.level >= 3)
           this.onError(String(details.message).slice(0, 2000));
       });
+      if (recovering) {
+        this.recoveryTimeout = setTimeout(() => {
+          if (this.window !== view || !this.requested || this.quitting()) return;
+          this.onError('Restored Settings did not finish drawing');
+          this.destroy();
+          this.onRendererLost();
+        }, rendererRecoveryTimeoutMs);
+        this.recoveryTimeout.unref?.();
+      }
       try {
         await view.loadURL(this.url);
         if (this.window !== view) return;
       } catch (error) {
         if (this.window !== view || this.quitting()) return;
+        const requested = this.requested;
         this.onError('Settings failed to load: ' + error.message);
         this.destroy();
+        if (recovering) {
+          if (requested) this.onRendererLost();
+          return;
+        }
         throw error;
       }
     }
@@ -477,6 +493,33 @@ export class SettingsWindow {
       this.navigate();
     }
     this.present();
+  }
+  rendererStopped(view, { reason, exitCode }) {
+    const requested = this.requested;
+    const section = this.contentReady ? null : this.section;
+    const focus = this.contentReady ? null : this.focusTarget;
+    const now = performance.now();
+    this.onError(`Settings renderer stopped: ${reason} (exit code ${exitCode ?? 'unknown'})`);
+    this.rememberPlacement(view);
+    this.destroy();
+    if (!requested) return;
+    if (now < this.nextRendererRecovery) {
+      this.onRendererLost();
+      return;
+    }
+    this.nextRendererRecovery = now + rendererRecoveryCooldownMs;
+    // Let Chromium finish tearing down the old process. Closing or minimizing
+    // the companion cancels the retry via hide() or clear().
+    this.recoveryTimer = setTimeout(() => {
+      if (this.quitting()) return;
+      // Once drawn, the renderer already persists the last section and scroll positions.
+      void this.open(section, focus, { recovering: true }).catch((error) => {
+        this.onError('Could not restore Settings: ' + error.message);
+        this.destroy();
+        this.onRendererLost();
+      });
+    }, 150);
+    this.recoveryTimer.unref?.();
   }
   loaded() {
     if (!this.window || this.quitting()) return;
@@ -515,6 +558,8 @@ export class SettingsWindow {
     }
   }
   hide({ releaseWhenIdle = false } = {}) {
+    clearTimeout(this.recoveryTimer);
+    clearTimeout(this.recoveryTimeout);
     this.presentationRevision++;
     this.surfacePending = null;
     this.requested = false;
@@ -526,14 +571,17 @@ export class SettingsWindow {
       clearTimeout(this.idleCloseTimer);
       this.idleCloseTimer = setTimeout(() => {
         if (this.requested || this.window !== view || view.isVisible()) return;
-        this.idlePlacement = {
-          docked: this.docked,
-          ...(!this.docked && { bounds: view.getBounds() }),
-        };
+        this.rememberPlacement(view);
         this.destroy();
       }, this.idleCloseMs);
       this.idleCloseTimer.unref?.();
     }
+  }
+  rememberPlacement(view) {
+    this.idlePlacement = {
+      docked: this.docked,
+      ...(!this.docked && { bounds: view.getBounds() }),
+    };
   }
   destroy() {
     const view = this.window;
@@ -542,6 +590,8 @@ export class SettingsWindow {
   }
   clear() {
     clearTimeout(this.idleCloseTimer);
+    clearTimeout(this.recoveryTimer);
+    clearTimeout(this.recoveryTimeout);
     this.presentationRevision++;
     this.hideHelp(false, true);
     this.helpWindow?.destroy();

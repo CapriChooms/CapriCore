@@ -1,14 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import {
@@ -20,13 +13,14 @@ import {
   requireCapriAvatar,
 } from '../apps/desktop/avatar-catalog.mjs';
 import { createDesktopResources } from '../apps/desktop/main/resources.mjs';
+import { hangingCelAssetNames } from '../apps/desktop/renderer/hanging-cels.mjs';
 import { resourceResponse } from '../apps/desktop/main/protocol.mjs';
 import { musicArtworkSourceFiles } from '../apps/desktop/music-artwork.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 
-const parent = path.join(root, '.runtime/avatar-installation-unit');
-mkdirSync(parent, { recursive: true });
+const temporaryFolder = temporaryFolders('capri-avatar-installation-unit-');
 function fixture(withCapri = false) {
-  const folder = mkdtempSync(path.join(parent, 'case-'));
+  const folder = temporaryFolder();
   const copy = (name) => {
     mkdirSync(path.dirname(path.join(folder, name)), { recursive: true });
     copyFileSync(path.join(root, name), path.join(folder, name));
@@ -95,6 +89,29 @@ test('installed Capri serves the active portrait and reviewed pose PNGs', async 
     Buffer.from(await headpat.arrayBuffer()),
     readFileSync(path.join(root, 'assets/default/capri-headpat.png')),
   );
+  const wave = await resourceResponse(
+    { url: 'capri://desktop/capri-wave.webp', method: 'GET' },
+    resources,
+  );
+  assert.equal(wave.status, 200);
+  assert.equal(wave.headers.get('content-type'), 'image/webp');
+  const header = Buffer.from(await wave.arrayBuffer());
+  assert.equal(header.toString('ascii', 0, 4), 'RIFF');
+  assert.equal(header.toString('ascii', 8, 12), 'WEBP');
+  assert.equal(hangingCelAssetNames.length, 7);
+  for (const name of hangingCelAssetNames) {
+    const relative = '/hanging-cels/' + name + '.webp';
+    const sheet = await resourceResponse(
+      { url: 'capri://desktop' + relative, method: 'GET' },
+      resources,
+    );
+    assert.equal(sheet.status, 200, name);
+    assert.equal(sheet.headers.get('content-type'), 'image/webp');
+    assert.deepEqual(
+      Buffer.from(await sheet.arrayBuffer()),
+      readFileSync(resources.get(relative).file),
+    );
+  }
 });
 
 test('a missing character catalog is explicitly diagnosed and installing the pack restores Capri', () => {

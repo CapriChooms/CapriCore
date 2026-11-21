@@ -40,7 +40,7 @@ function Open-CapriSession([string]$Folder) {
     foreach($property in $request.PSObject.Properties){$options[$property.Name]=$property.Value}
     $script:eventsCursor=New-Object Capri.Setup.EventCursor((Join-Path $Folder 'events.jsonl'))
     $script:worker=$null
-    $script:page=6
+    $script:page='progress'
     $script:result=$null;$script:failure='';$script:recovered=$true
     $script:uiDiagnostics.Session=$Folder
     $script:uiDiagnostics.Owner=$script:uiLease

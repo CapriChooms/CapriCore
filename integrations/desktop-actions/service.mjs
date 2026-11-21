@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { constants, setPriority } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { APPLICATION_DEFAULTS, validateApplications } from './settings.mjs';
 import { ensureDesktopActions } from './provision.mjs';
@@ -102,11 +103,16 @@ export function applicationBridgeExecutable(root) {
 }
 
 /** One short-lived owned helper per call, with private stdio and bounded runtime. */
-export function callApplicationBridge(root, command, { signal, stillAllowed = () => true } = {}) {
+export function callApplicationBridge(
+  root,
+  command,
+  { signal, stillAllowed = () => true, onMovePressed } = {},
+) {
   signal?.throwIfAborted();
   if (!stillAllowed()) throw new Error('Application permission is disabled');
   const executable = applicationBridgeExecutable(root);
   return new Promise((resolve, reject) => {
+    const cancellableChessMove = command.action === 'chess_move';
     const windows = process.env.SystemRoot ?? 'C:\\Windows';
     const child = spawn(executable, [], {
       windowsHide: true,
@@ -119,9 +125,17 @@ export function callApplicationBridge(root, command, { signal, stillAllowed = ()
         TMP: path.join(root, '.runtime/tmp'),
       },
     });
+    if (command.action === 'chess_view' && child.pid) {
+      try {
+        setPriority(child.pid, constants.priority.PRIORITY_BELOW_NORMAL);
+      } catch {
+        // The helper can exit before its priority is set.
+      }
+    }
     let output = '',
       errorOutput = '',
-      settled = false;
+      settled = false,
+      movePressed = false;
     const finish = (error, value) => {
       if (settled) return;
       settled = true;
@@ -137,9 +151,13 @@ export function callApplicationBridge(root, command, { signal, stillAllowed = ()
           reject(error);
         };
         child.once('close', terminated);
-        terminationTimer = setTimeout(terminated, 2000);
+        terminationTimer = setTimeout(() => {
+          if (cancellableChessMove) child.kill();
+          terminated();
+        }, 2000);
         terminationTimer.unref?.();
-        child.kill();
+        if (cancellableChessMove) child.stdin.end('stop\n');
+        else child.kill();
         if (child.exitCode !== null || child.signalCode !== null) terminated();
       } else resolve(value);
     };
@@ -169,7 +187,19 @@ export function callApplicationBridge(root, command, { signal, stillAllowed = ()
     });
     child.stderr.on('data', (chunk) => {
       errorOutput += chunk.toString('utf8');
-      if (errorOutput.length > 8192) finish(new Error('Application diagnostic exceeds limit'));
+      if (errorOutput.length > 8192) {
+        finish(new Error('Application diagnostic exceeds limit'));
+        return;
+      }
+      if (
+        !settled &&
+        !movePressed &&
+        cancellableChessMove &&
+        /^chess_move_pressed\r?\n/m.test(errorOutput)
+      ) {
+        movePressed = true;
+        onMovePressed?.();
+      }
     });
     child.on('error', (error) => finish(error));
     child.on('close', () => {
@@ -187,6 +217,7 @@ export function callApplicationBridge(root, command, { signal, stillAllowed = ()
         finish(error);
       }
     });
+    child.stdin.on('error', (error) => finish(error));
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) {
       abort();
@@ -196,8 +227,9 @@ export function callApplicationBridge(root, command, { signal, stillAllowed = ()
       finish(new Error('Application permission is disabled'));
       return;
     }
-    child.stdin.on('error', (error) => finish(error));
-    child.stdin.end(JSON.stringify(command) + '\n');
+    const request = JSON.stringify(command) + '\n';
+    if (cancellableChessMove) child.stdin.write(request);
+    else child.stdin.end(request);
   });
 }
 
@@ -296,13 +328,14 @@ export class ApplicationService {
                 app: 'calculator',
                 buttons: nativeInput,
                 expected: calculation.result,
+                angleUnit: command.angleUnit ?? 'deg',
               },
               { signal, stillAllowed },
             ).catch(() => {
               signal?.throwIfAborted();
-              return { ok: false };
+              return { ok: false, reason: 'windows_calculator_failed' };
             })
-          : { ok: false };
+          : { ok: false, reason: 'unsupported_expression' };
         result = {
           ...result,
           display: displayed,

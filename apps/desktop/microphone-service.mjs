@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { WakePhraseGate } from './wake-phrase.mjs';
+import { findWakePhrase, WakePhraseGate } from './wake-phrase.mjs';
 import { MAX_SPEECH_SENTENCE } from './renderer/speech-text.mjs';
 import { validateSpeechSettings, SPEECH_DEFAULTS } from './renderer/speech-settings.mjs';
 import { LANGUAGE_PACKS } from './renderer/language-settings.mjs';
@@ -66,8 +66,16 @@ export class EchoGuard {
 
 /** Session generations prevent late PCM/results from reviving a stopped mic. */
 export class MicrophoneService {
-  constructor({ worker, config, emit, interrupt, submit, now = () => performance.now() }) {
-    Object.assign(this, { worker, config, emit, interrupt, submit, now });
+  constructor({
+    worker,
+    config,
+    emit,
+    interrupt,
+    submit,
+    conversationMode = false,
+    now = () => performance.now(),
+  }) {
+    Object.assign(this, { worker, config, emit, interrupt, submit, conversationMode, now });
     this.echoOptions = {
       now,
       tailMs: Math.max(
@@ -121,13 +129,41 @@ export class MicrophoneService {
       recognitionPhase: this.capture?.recognitionPhase ?? 'idle',
       systemAudioReview: Boolean(this.capture?.systemAudioReview),
       systemAudioWake: Boolean(this.capture?.systemAudioWake),
-      ...(this.capture?.systemAudioReview && !this.capture.systemAudioWake
+      ...(this.capture?.conversationMode ||
+      (this.capture?.systemAudioReview && !this.capture.systemAudioWake)
         ? { wakeState: 'disabled', wakePhrase: null }
         : (this.capture?.wake.snapshot() ?? {
             wakeState: this.config.wakeWord?.enabled ? 'waiting' : 'disabled',
             wakePhrase: this.config.wakeWord?.enabled ? 'Capri / Hey, Capri' : null,
           })),
     };
+  }
+  setConversationMode(enabled) {
+    if (this.conversationMode === enabled) return false;
+    this.conversationMode = enabled;
+    const capture = this.capture;
+    if (!capture || capture.systemAudioReview) return true;
+    capture.inputGeneration++;
+    capture.discardedThrough = Math.max(capture.discardedThrough, capture.latestUtterance);
+    capture.conversationMode = enabled;
+    capture.followUps = 0;
+    capture.wake.close();
+    capture.wake.enabled = !enabled && this.config.wakeWord?.enabled === true;
+    if (capture.wake.enabled) capture.wake.rearm(capture.latestUtterance, 'conversation-mode');
+    else {
+      capture.wake.state = 'disabled';
+      this.worker.send({ type: 'attention', sessionId: capture.id, active: true }).catch(() => {});
+      this.publish();
+    }
+    this.emit({
+      type: 'microphone.partial',
+      sessionId: capture.id,
+      text: '',
+      final: false,
+      utterance: capture.latestUtterance,
+      autoSend: canAutoSend(this.config, capture),
+    });
+    return true;
   }
   diagnostics() {
     const rows = this.recognitionTimings;
@@ -167,7 +203,7 @@ export class MicrophoneService {
     capture.recognitionPhase = 'idle';
     capture.followUps = 0;
     capture.wake.rearm(event.utterance, 'utterance-limit');
-    if (capture.systemAudioReview && !capture.systemAudioWake)
+    if (capture.conversationMode || (capture.systemAudioReview && !capture.systemAudioWake))
       this.worker
         .send({ type: 'attention', sessionId: capture.id, active: true })
         .catch((error) => {
@@ -218,49 +254,56 @@ export class MicrophoneService {
       discardedThrough: -1,
       recognitionPhase: 'idle',
       inputGeneration: 0,
+      conversationMode: this.conversationMode,
     };
-    capture.wake = new WakePhraseGate(this.config.wakeWord, {
-      onWake: (event) => {
-        if (this.capture !== capture) return;
-        capture.followUps = 0;
-        this.worker
-          .send({
-            type: 'attention',
-            sessionId: id,
-            active: true,
-            ...(Number.isSafeInteger(event.wakeEndSample)
-              ? { wakeEndSample: event.wakeEndSample, utterance: event.utterance }
-              : {}),
-          })
-          .catch(() => {});
-        this.publish();
-        this.emit({ type: 'microphone.wake', sessionId: id, utterance: event.utterance });
-        if (
-          !capture.systemAudioReview &&
-          this.config.bargeIn &&
-          !capture.interrupted.has(event.utterance)
-        ) {
-          capture.interrupted.add(event.utterance);
-          this.interrupt();
-          this.emit({ type: 'microphone.interrupt' });
-        }
+    capture.wake = new WakePhraseGate(
+      {
+        ...this.config.wakeWord,
+        ...(capture.conversationMode ? { enabled: false } : {}),
       },
-      onReady: (event) => this.transcript(event),
-      onSleep: (reason) => {
-        if (this.capture !== capture) return;
-        this.worker.send({ type: 'attention', sessionId: id, active: false }).catch(() => {});
-        this.publish();
-        if (reason === 'timeout')
-          this.emit({
-            type: 'microphone.partial',
-            sessionId: id,
-            text: '',
-            final: false,
-            utterance: capture.latestUtterance,
-            autoSend: canAutoSend(this.config, capture),
-          });
+      {
+        onWake: (event) => {
+          if (this.capture !== capture) return;
+          capture.followUps = 0;
+          this.worker
+            .send({
+              type: 'attention',
+              sessionId: id,
+              active: true,
+              ...(Number.isSafeInteger(event.wakeEndSample)
+                ? { wakeEndSample: event.wakeEndSample, utterance: event.utterance }
+                : {}),
+            })
+            .catch(() => {});
+          this.publish();
+          this.emit({ type: 'microphone.wake', sessionId: id, utterance: event.utterance });
+          if (
+            !capture.systemAudioReview &&
+            this.config.bargeIn &&
+            !capture.interrupted.has(event.utterance)
+          ) {
+            capture.interrupted.add(event.utterance);
+            this.interrupt();
+            this.emit({ type: 'microphone.interrupt' });
+          }
+        },
+        onReady: (event) => this.transcript(event),
+        onSleep: (reason) => {
+          if (this.capture !== capture) return;
+          this.worker.send({ type: 'attention', sessionId: id, active: false }).catch(() => {});
+          this.publish();
+          if (reason === 'timeout')
+            this.emit({
+              type: 'microphone.partial',
+              sessionId: id,
+              text: '',
+              final: false,
+              utterance: capture.latestUtterance,
+              autoSend: canAutoSend(this.config, capture),
+            });
+        },
       },
-    });
+    );
     this.capture = capture;
     this.status = 'starting';
     this.publish();
@@ -268,7 +311,7 @@ export class MicrophoneService {
       await this.worker.send({
         type: 'start',
         sessionId: id,
-        attention: !this.config.wakeWord?.enabled,
+        attention: !capture.wake.enabled,
         trailingSilenceSeconds:
           this.config.trailingSilenceSeconds ?? SPEECH_DEFAULTS.trailingSilenceSeconds,
       });
@@ -294,6 +337,7 @@ export class MicrophoneService {
     // Keep the mixed-input policy for its late recognition tail. Changing
     // that policy also revokes submissions queued under the previous mode.
     capture.inputGeneration++;
+    capture.conversationMode = false;
     capture.systemAudioReview = true;
     capture.systemAudioWake = wake === true;
     capture.followUps = 0;
@@ -471,9 +515,18 @@ export class MicrophoneService {
     }
     text = attention.text;
     if (event.wakeOnly) return;
+    const address = capture.conversationMode && findWakePhrase(text);
+    const addressed = address?.exact && !text.slice(0, address.start).trim();
+    const handsFree = capture.conversationMode && !addressed;
+    if (addressed) text = address.body;
+    const stoppingSpeech =
+      /^(stop|stop capri|stop talking|be quiet|quiet capri|стоп|хватит|замолчи)$/iu.test(
+        commandText(text),
+      );
     if (
       !capture.systemAudioReview &&
       this.config.bargeIn &&
+      (!handsFree || stoppingSpeech) &&
       !echo &&
       interruption(text) &&
       !capture.interrupted.has(event.utterance)
@@ -489,14 +542,15 @@ export class MicrophoneService {
     while (capture.interrupted.size > 64)
       capture.interrupted.delete(capture.interrupted.values().next().value);
     if (echo) return;
-    this.emit({
-      type: 'microphone.partial',
-      sessionId: capture.id,
-      text,
-      final: true,
-      utterance: event.utterance,
-      autoSend: canAutoSend(this.config, capture),
-    });
+    if (!handsFree || !canAutoSend(this.config, capture))
+      this.emit({
+        type: 'microphone.partial',
+        sessionId: capture.id,
+        text,
+        final: true,
+        utterance: event.utterance,
+        autoSend: canAutoSend(this.config, capture),
+      });
     if (!text) return;
     if (capture.systemAudioReview) {
       capture.wake.rearm(event.utterance);
@@ -508,9 +562,7 @@ export class MicrophoneService {
         this.emit({ type: 'microphone.stop-request' });
         return;
       }
-      if (
-        /^(stop|stop capri|stop talking|be quiet|quiet capri|стоп|хватит|замолчи)$/i.test(local)
-      ) {
+      if (stoppingSpeech) {
         capture.wake.rearm(event.utterance);
         this.emit({ type: 'microphone.sent', localCommand: true });
         return;
@@ -519,6 +571,7 @@ export class MicrophoneService {
     }
     if (!canAutoSend(this.config, capture)) return;
     capture.followUps = 0;
+    if (handsFree) capture.latestHandsFreeUtterance = event.utterance;
     const inputGeneration = capture.inputGeneration;
     const current = () =>
       this.capture === capture &&
@@ -527,8 +580,9 @@ export class MicrophoneService {
     this.tail = this.tail
       .catch(() => {})
       .then(async () => {
-        if (!current()) return;
-        await this.submit({ id: randomUUID(), text }, current);
+        if (!current() || (handsFree && capture.latestHandsFreeUtterance !== event.utterance))
+          return;
+        await this.submit({ id: randomUUID(), text }, current, { handsFree });
         if (current()) this.emit({ type: 'microphone.sent', utterance: event.utterance });
       })
       .catch(() => {
@@ -550,6 +604,7 @@ export class MicrophoneService {
       capture.id !== sessionId ||
       this.status !== 'listening' ||
       capture.systemAudioReview ||
+      capture.conversationMode ||
       (capture.followUps ?? 0) >= 3 ||
       !capture.wake.continueListening(milliseconds)
     )

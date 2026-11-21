@@ -137,6 +137,33 @@ try {
         .find((item) => item.webContents.getURL().endsWith('/index.html'))
         .webContents.send('capri:event', value);
     }, event);
+  const pulse = () =>
+    badge.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        animation: style.animationName,
+        accent: style.getPropertyValue('--toolbar-pulse-color').trim(),
+      };
+    });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  assert.equal((await pulse()).animation, 'none');
+  await emit({ type: 'backend', phase: 'offline', message: 'Disconnected' });
+  await page.locator('body[data-phase="offline"]').waitFor();
+  const disconnected = await pulse();
+  assert.equal(disconnected.animation, 'support-glow');
+  assert.ok(disconnected.accent);
+  await open();
+  assert.equal((await pulse()).animation, 'none');
+  await page.keyboard.press('Escape');
+  assert.equal((await pulse()).animation, 'support-glow');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.deepEqual(await pulse(), { animation: 'none', accent: disconnected.accent });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await emit({ type: 'backend', phase: 'ready', message: 'Ready' });
+  await page.locator('body[data-phase="ready"]').waitFor();
+  assert.deepEqual(await pulse(), { animation: 'none', accent: '' });
+  report.offlinePulse = true;
+
   await open();
   const busyNotice = menu.locator('.inference-picker-notice');
   assert.equal(await busyNotice.isVisible(), false);

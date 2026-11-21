@@ -77,6 +77,40 @@ test('generic music resumes a queue, none remains conversation, invalid or unfin
   );
 });
 
+test('YouTube Music planning separates generic start from resume and validates arguments', async () => {
+  let plan;
+  const planner = spotifyPlanner({
+    url: 'http://127.0.0.1:11434',
+    player: 'YouTube Music',
+    fetchImpl: async (_url, { body }) => {
+      const prompt = JSON.parse(body).messages[0].content;
+      assert.match(prompt, /concerning YouTube Music/);
+      assert.match(prompt, /generic request to play music with no name means start/i);
+      assert.match(prompt, /For system volume return none/);
+      return packet(plan);
+    },
+  });
+  for (plan of [
+    { action: 'search', query: 'C418' },
+    { action: 'status' },
+    { action: 'start' },
+    { action: 'resume' },
+    { action: 'volume', value: 50 },
+    { action: 'volume', delta: 10 },
+  ]) {
+    assert.deepEqual(await planner('YouTube Music request'), plan);
+  }
+  for (plan of [
+    { action: 'search', query: 'C418', url: 'https://example.test' },
+    { action: 'start', query: 'Invented track' },
+    { action: 'volume', value: 50, delta: 10 },
+  ]) {
+    await assert.rejects(planner('YouTube Music request'), {
+      code: 'CAPRI_YOUTUBE_MUSIC_PLAN_INVALID',
+    });
+  }
+});
+
 test('Spotify planning keeps safe error codes and HTTP status without echoing provider text; aborts stay cancelled', async () => {
   const secret = 'PRIVATE-PROVIDER-BODY-AND-REQUEST';
   const planner = spotifyPlanner({

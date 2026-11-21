@@ -47,10 +47,14 @@ const metadata = [
   'qwen-tts-upstream.json',
   'qwen-ru-voice.json',
   'qwen-download-sizes.json',
+  'voice-model-download.json',
+  'voice-training.json',
+  'llama-models.json',
 ];
 const required = new Set([
   ...metadata.map((name) => 'config/' + name),
   'package.json',
+  'package-lock.json',
   'assets/default/app.ico',
   'apps/shared/languages.json',
   'packages/runtime/src/hardware/model-language-benchmark.json',
@@ -125,12 +129,26 @@ foreach($language in @('en','ru')){
     $script:page=3;Render-CapriPage;[Windows.Forms.Application]::DoEvents()
     if((Selected-Capri 'profile') -ne $script:amdFixture.profile){throw 'The selected model was changed by recommendations.'}
     Update-CapriMemoryBudgetView
-    if($hardware.selectedGpu.name -ne 'AMD Radeon RX 9060 XT'){throw 'The discrete AMD adapter was not selected.'}
+    $expectedGpu=@($script:amdFixture.gpus|Where-Object{$_.vendor -eq 'amd' -and $_.memoryKind -eq 'dedicated'})[0]
+    $expectedFree=if($null -ne $expectedGpu.freeVramMiB){[double]$expectedGpu.freeVramMiB/1024}else{$null}
+    if($hardware.selectedGpu.name -ne $expectedGpu.name){throw 'The discrete AMD adapter was not selected.'}
     if($hardware.ramGiB -ne $script:amdFixture.ramGiB -or $hardware.vramGiB -ne $script:amdFixture.expectedVramGiB){throw 'Hardware totals are incorrect or GPU memory was summed.'}
     if($script:memoryBudget.mode -ne 'gpu'){throw 'A confirmed dedicated AMD GPU was treated as CPU-only.'}
-    if($null -ne $hardware.availableVramGiB -or $null -ne $script:memoryBudget.vram.available -or $null -ne $script:memoryBudget.vram.remaining){throw 'Unknown free AMD VRAM was fabricated.'}
-    if(-not $script:fields.modelHardware.Text.Contains('AMD Radeon RX 9060 XT') -or -not $script:fields.modelHardware.Text.Contains(([string]$script:amdFixture.expectedVramGiB)+' GiB')){throw 'The actual hardware label omits AMD or its dedicated VRAM.'}
-    if(-not $budgetRows.vram.detail.Text.Contains((Text-Capri 'unknown'))){throw 'The actual UI does not mark unavailable VRAM telemetry as unknown.'}
+    if($expectedFree -ne $hardware.availableVramGiB -or $expectedFree -ne $script:memoryBudget.vram.available){throw 'The reported free AMD VRAM does not match the selected adapter.'}
+    if(-not $script:fields.modelHardware.Text.Contains($expectedGpu.name) -or -not $script:fields.modelHardware.Text.Contains(([string]$script:amdFixture.expectedVramGiB)+' GiB')){throw 'The actual hardware label omits AMD or its dedicated VRAM.'}
+    $hasUnknown=$budgetRows.vram.detail.Text.Contains((Text-Capri 'unknown'))
+    if($null -eq $expectedFree){
+        if(-not $hasUnknown -or $null -ne $script:memoryBudget.vram.remaining){throw 'The UI does not mark unavailable VRAM telemetry as unknown.'}
+    }else{
+        if($hasUnknown -or $script:memoryBudget.vram.remaining.Count -ne 2 -or -not $budgetRows.vram.detail.Text.Contains($expectedFree.ToString('0.0')+' GiB')){throw 'The UI does not show estimated free and remaining VRAM.'}
+        $savedFree=$expectedGpu.freeVramMiB
+        $expectedGpu.freeVramMiB=$null
+        $budgetRefresh.PerformClick()
+        if($null -ne $script:memoryBudget.vram.available -or -not $budgetRows.vram.detail.Text.Contains((Text-Capri 'unknown'))){throw 'Refresh retained stale VRAM.'}
+        $expectedGpu.freeVramMiB=$savedFree
+        $budgetRefresh.PerformClick()
+        if($expectedFree -ne $script:memoryBudget.vram.available -or $budgetRows.vram.detail.Text.Contains((Text-Capri 'unknown'))){throw 'Refresh did not restore available VRAM.'}
+    }
     $selected=@($manifest.profiles|Where-Object{$_.id -eq $options.profile})[0]
     $required=Get-CapriRequiredRam $selected $hardware $memoryEstimates
     if(-not(Test-CapriProfileRam $hardware.ramGiB $required)){throw 'The selected GPU-compatible model was rejected using its CPU RAM requirement.'}
@@ -143,7 +161,8 @@ foreach($language in @('en','ru')){
     if($script:amdFixture.qualityFits -and $qualityRequired -ne $memoryEstimates.models.quality.gpuSystemRamGiB){throw 'Quality did not use gpuSystemRamGiB.'}
     if(-not $script:amdFixture.qualityFits -and $qualityRequired -ne $quality.ramGiB){throw 'Insufficient VRAM incorrectly bypassed the CPU RAM requirement.'}
     $qualityFootprint=$memoryEstimates.base.vram[1]+$memoryEstimates.models.quality.vram[1]
-    if($qualityBudget.offload -ne ($qualityFootprint -gt $hardware.vramGiB)){throw 'Partial offload must follow the calibrated footprint, not the larger profile recommendation.'}
+    $offloadLimit=if($null -ne $expectedFree){$expectedFree}else{$hardware.vramGiB}
+    if($qualityBudget.offload -ne ($qualityFootprint -gt $offloadLimit)){throw 'Partial offload must follow the calibrated footprint and available memory.'}
     $choice=[string]$script:fields.profile.SelectedItem
     if(-not $choice.Contains(('RAM '+$required+'+ GiB'))){throw 'The model list shows the wrong host RAM requirement.'}
     $legacyHardware=@{ramGiB=$hardware.ramGiB;availableRamGiB=$hardware.availableRamGiB;gpu=$hardware.gpu;vramGiB=0;availableVramGiB=$null}
@@ -155,7 +174,7 @@ foreach($language in @('en','ru')){
     $next.PerformClick();[Windows.Forms.Application]::DoEvents()
     if($script:page -ne 4){throw 'Native Next did not advance to components.'}
     $record.nextAfter=$script:page
-    if($script:memoryBudget.mode -ne 'gpu' -or $null -ne $script:memoryBudget.vram.available){throw 'Component selection lost the AMD memory budget.'}
+    if($script:memoryBudget.mode -ne 'gpu' -or $expectedFree -ne $script:memoryBudget.vram.available){throw 'Component selection lost the AMD memory budget.'}
     Save-AmdFixtureWindow (Join-Path $check ($language+'-components.png'))
     $results.Add($record)
 }
@@ -183,6 +202,16 @@ const amd = (vramMiB) => ({
   luid: 'fixture-amd',
 });
 const cases = [
+  {
+    id: 'rx6600xt-8gb-available',
+    ramGiB: 15.9,
+    availableRamGiB: 9.8,
+    profile: 'desktop',
+    expectedVramGiB: 8,
+    expectedFreeVramGiB: 6.5,
+    qualityFits: false,
+    gpus: [{ ...amd(8192), name: 'AMD Radeon RX 6600 XT', freeVramMiB: 6656 }],
+  },
   {
     id: 'rx9060xt-8gb',
     ramGiB: 16,
@@ -268,8 +297,9 @@ for (const item of cases) {
     assert.equal(value.hardware.vramGiB, item.expectedVramGiB);
     assert.equal(value.budget.mode, 'gpu');
     assert.equal(value.budget.vram.total, item.expectedVramGiB);
-    assert.equal(value.budget.vram.available, null);
-    assert.equal(value.budget.vram.remaining, null);
+    assert.equal(value.budget.vram.available, item.expectedFreeVramGiB ?? null);
+    if (item.expectedFreeVramGiB == null) assert.equal(value.budget.vram.remaining, null);
+    else assert.equal(value.budget.vram.remaining.length, 2);
     assert.equal(value.nextBefore, 3);
     assert.equal(value.nextAfter, 4);
     assert.equal(value.qualityFits, item.qualityFits);

@@ -155,7 +155,7 @@ export class InterfaceLanguage {
       document.title = this.text('Capri Settings');
     const roots = [
       ...document.querySelectorAll(
-        '#handle,#quick-actions,#portrait-panel,#presence-core,.dock-telemetry,#call-audio-dock,.composer label[for="message"],#wake-feedback,#reconnect,#notice,#clip-result,#action-approval,#time-alert,#computer-control-stop,#history-panel .history-heading,#history-empty,#dimming-panel,.preferences-panel,#welcome,#subtitle-controls,.packet-title,#settings-header,#confirmation-dialog,#stopwatch-controls',
+        '#handle,#quick-actions,#portrait-panel,.dock-telemetry,#call-audio-dock,.composer label[for="message"],#wake-feedback,#reconnect,#notice,#wild-tab-notice,#clip-result,#action-approval,#time-alert,#computer-control-stop,#history-panel .history-heading,#history-empty,#dimming-panel,.preferences-panel,#welcome,#subtitle-controls,.packet-title,#settings-header,#confirmation-dialog,#stopwatch-controls',
       ),
     ];
     for (const root of roots) {

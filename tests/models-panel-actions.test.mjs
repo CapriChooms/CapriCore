@@ -94,6 +94,28 @@ test('a missing configured model can be repaired while an installed active model
   assert.equal(panel.get('local').disabled, true);
 });
 
+test('the configured model can finish local setup without taking the API-only shortcut', async () => {
+  const { panel, calls } = fixture({ active: true, installed: true, upstreamInstalled: true });
+  panel.value.modelSetupRequired = true;
+  panel.value.remoteActive = false;
+  panel.value.inventoryUnavailable = false;
+  panel.setupRequired = false;
+  panel.details();
+  assert.equal(panel.get('local').disabled, false);
+  assert.equal(panel.get('prepare').disabled, false);
+  assert.equal(await panel.useLocalModel(), true);
+  assert.deepEqual(calls, [['prepare', 'minimal'], ['apply']]);
+});
+
+test('returning from an API also requires preparation when local setup is pending', async () => {
+  const { panel, calls } = fixture({ installed: true, upstreamInstalled: true });
+  panel.value.modelSetupRequired = true;
+  panel.value.inventoryUnavailable = false;
+  panel.details();
+  assert.equal(await panel.useLocalModel(), true);
+  assert.deepEqual(calls, [['prepare', 'minimal'], ['apply']]);
+});
+
 test('insufficient RAM and an active model operation remain explicit selection blockers', () => {
   const { panel } = fixture({ supported: false });
   panel.details();

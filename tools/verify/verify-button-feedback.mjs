@@ -7,7 +7,7 @@ import path from 'node:path';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { COMPANION_DEFAULTS } from '../../apps/desktop/companion-settings.mjs';
-import { saveSettings, settingsView } from './settings-view.mjs';
+import { settingsView } from './settings-view.mjs';
 
 const parent = path.join(root, '.runtime/desktop-verification');
 mkdirSync(parent, { recursive: true });
@@ -21,7 +21,7 @@ writeFileSync(
       ...COMPANION_DEFAULTS,
       buttonFeedback: false,
       floatEnabled: false,
-      glitchEnabled: false,
+      glitchEnabled: true,
     },
   }),
 );
@@ -33,6 +33,8 @@ const server = createServer((_req, res) => {
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const env = {
   ...process.env,
+  TEMP: folder,
+  TMP: folder,
   CAPRI_DESKTOP_VERIFICATION_DIR: folder,
   CAPRI_DESKTOP_VERIFICATION_PORT: String(server.address().port),
   CAPRI_DESKTOP_VERIFICATION_SKIP_START: '1',
@@ -58,21 +60,18 @@ try {
   const owner = await application.firstWindow();
   await owner.waitForFunction(() => document.body.dataset.phase === 'ready');
   const settings = await settingsView(application, 'appearance');
-  const preview = settings.locator('#feedback-preview');
-  const toggle = settings.locator('#companion-button-feedback');
-  assert.equal(await toggle.isChecked(), false);
-  await toggle.check();
+  const preview = settings.locator('#glitch-preview');
+  assert.equal(await settings.locator('#companion-button-feedback, #feedback-preview').count(), 0);
   await preview.click();
+  assert.equal(await active(preview), 1, 'Legacy opt-outs do not disable the feedback');
   assert.equal(
-    await active(preview),
-    1,
-    'Preview must use the checkbox draft, not the saved setting',
-  );
-  assert.equal(
-    (await settings.evaluate(() => window.capri.bootstrap())).companion.buttonFeedback,
+    Object.hasOwn(
+      (await settings.evaluate(() => window.capri.bootstrap())).companion,
+      'buttonFeedback',
+    ),
     false,
   );
-  record('Preview works before Apply without changing the saved preference');
+  record('The obsolete setting is gone and its saved off value is ignored');
   const colors = await preview.evaluate((el) => {
     const a = el.getAnimations().find((a) => a.id === 'capri-button-feedback');
     a.pause();
@@ -92,10 +91,6 @@ try {
   assert.match(colors.shadow, /inset/);
   await settings.screenshot({ path: path.join(folder, 'feedback-preview.png') });
   await preview.evaluate((el) => el.getAnimations().forEach((a) => a.cancel()));
-  await saveSettings(settings);
-  await settings.waitForFunction(
-    async () => (await window.capri.bootstrap()).companion.buttonFeedback,
-  );
   await preview.click();
   await preview.click();
   assert.equal(await active(preview), 1, 'Rapid clicks replace, rather than stack, the impulse');
@@ -103,30 +98,13 @@ try {
   await settings.keyboard.press('Enter');
   assert.equal(await active(preview), 1);
   await settings.waitForFunction(
-    () => !document.querySelector('#feedback-preview.button-acknowledged'),
+    () => !document.querySelector('#glitch-preview.button-acknowledged'),
   );
   record('Mouse and keyboard clicks produce a visible impulse that cleans up');
   const toolbar = owner.locator('#settings-open');
   await toolbar.click();
-  assert.equal(await active(toolbar), 1, 'The main toolbar uses the same saved preference');
+  assert.equal(await active(toolbar), 1, 'Feedback also applies on the main toolbar');
   await settingsView(application, 'appearance');
-  await settings.evaluate(async () => {
-    const snapshot = await window.capri.bootstrap();
-    await window.capri.setCompanionSettings(
-      { ...snapshot.companion, buttonFeedback: false },
-      snapshot.settingsVersions.companion,
-    );
-  });
-  await settings.waitForFunction(
-    () => !document.getElementById('companion-button-feedback').checked,
-  );
-  await preview.click();
-  assert.equal(await active(preview), 0);
-  await toolbar.click();
-  assert.equal(await active(toolbar), 0);
-  record('External preference changes disable feedback in both windows');
-  await settingsView(application, 'appearance');
-  await toggle.check();
   await settings.emulateMedia({ reducedMotion: 'reduce' });
   await preview.click();
   const reduced = await preview.evaluate((el) => {
@@ -136,7 +114,7 @@ try {
   assert.equal(reduced.frames[0].backgroundColor, reduced.frames.at(-1).backgroundColor);
   assert.ok(reduced.duration <= 250);
   await settings.waitForFunction(
-    () => !document.querySelector('#feedback-preview.button-acknowledged'),
+    () => !document.querySelector('#glitch-preview.button-acknowledged'),
   );
   await preview.evaluate((el) => el.click());
   assert.equal(await active(preview), 0, 'Programmatic actions must not impersonate a user click');

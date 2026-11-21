@@ -1,10 +1,17 @@
 /** Small local models need a recent tail that fits alongside tools/persona. */
 export const MIN_COMPANION_CONTEXT = 32768;
-export const CONTEXT_CHOICES = Object.freeze([32768, 65536, 131072, 262144]);
+export const EXPERIMENTAL_COMPANION_CONTEXT = 16384;
+export const CONTEXT_CHOICES = Object.freeze([
+  EXPERIMENTAL_COMPANION_CONTEXT,
+  MIN_COMPANION_CONTEXT,
+  65536,
+  131072,
+  262144,
+]);
 
 export function contextChoicesFor(config = {}) {
   const choices = /^capri-hf-[a-f0-9]{24}:latest$/.test(config.model ?? '')
-    ? [8192, 16384, ...CONTEXT_CHOICES]
+    ? [8192, ...CONTEXT_CHOICES]
     : CONTEXT_CHOICES;
   return choices.filter((value) => value <= (config.modelContextLimit ?? 262144));
 }
@@ -34,8 +41,9 @@ export function localTurnOutputBudget(model, { agentId, thinkingLevel } = {}) {
     positiveTokens(model.contextWindow) ?? Infinity,
     positiveTokens(model.params?.num_ctx) ?? Infinity,
   );
+  const thinkingBudget = contextTokens === EXPERIMENTAL_COMPANION_CONTEXT ? 4096 : 8192;
   return Math.min(
-    thinking ? 8192 : 2048,
+    thinking ? thinkingBudget : 2048,
     maximum,
     positiveTokens(model.params?.num_predict) ?? Infinity,
     Math.max(1, Math.floor(contextTokens / 2)),
@@ -50,17 +58,20 @@ export function modelForLocalTurn(model, options) {
     : model;
 }
 
-/** Upgrade only Capri's inference window; keep plugins, credentials and history. */
-export function ensureManagedContext(config, model, contextTokens) {
+/** Migrate old managed windows unless the owner explicitly selected the 16K experiment. */
+export function ensureManagedContext(config, model, contextTokens, experimentalContext = false) {
   if (!isManagedCapriModel(model)) return false;
   const entry = config.models?.providers?.ollama?.models?.find((item) => item.id === model);
   if (!entry) return false;
-  const target = Math.max(
-    MIN_COMPANION_CONTEXT,
-    contextTokens,
-    entry.contextTokens ?? 0,
-    entry.params?.num_ctx ?? 0,
-  );
+  const target =
+    experimentalContext && contextTokens === EXPERIMENTAL_COMPANION_CONTEXT
+      ? contextTokens
+      : Math.max(
+          MIN_COMPANION_CONTEXT,
+          contextTokens,
+          entry.contextTokens ?? 0,
+          entry.params?.num_ctx ?? 0,
+        );
   const before = JSON.stringify([entry, config.agents]);
   entry.contextWindow = entry.contextTokens = target;
   entry.params = { ...entry.params, num_ctx: target };
@@ -79,7 +90,10 @@ export function localContextPolicy(contextTokens) {
     // Bound replay before it approaches the model's hard limit. This is the
     // active transcript only (not tools/personality); native compaction keeps
     // the original transcript and replaces replay with a summary + recent tail.
-    maxActiveTranscriptBytes: Math.max(24576, Math.floor(contextTokens * 0.75)),
+    maxActiveTranscriptBytes:
+      contextTokens === EXPERIMENTAL_COMPANION_CONTEXT
+        ? 12288
+        : Math.max(24576, Math.floor(contextTokens * 0.75)),
     thinkingLevel: 'off',
     timeoutSeconds: 10,
     qualityGuard: { enabled: true, maxRetries: 0 },

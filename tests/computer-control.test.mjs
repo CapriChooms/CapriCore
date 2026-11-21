@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ComputerControl } from '../apps/desktop/computer-control.mjs';
 import { computerVision } from '../apps/desktop/computer-vision.mjs';
+import { cyberpunkLauncherTarget } from '../apps/desktop/steam-game-launch.mjs';
 
 function fixture() {
   const state = { allowed: true, turn: 'owner-1', visible: false, registered: false, calls: [] };
@@ -173,6 +174,38 @@ test('the last allowed action can be verified without permitting another input',
       /computer action limit/,
     );
     assert.equal(state.calls.filter(({ action }) => action === 'computer_click').length, 1);
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a screenshot with mismatched monitor bounds cannot override current Windows targets', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action === 'computer_state')
+      result.displayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
+    return result;
+  };
+  control.capture = async () => ({
+    bounds: { x: 0, y: 0, width: 1919, height: 1080 },
+    width: 1280,
+    height: 720,
+  });
+  control.describe = async () => ({
+    summary: 'A screenshot with a misplaced button.',
+    targets: [{ label: 'Old button', x: 200, y: 200 }],
+  });
+  await control.begin('Check current controls');
+  try {
+    const view = await control.execute({ action: 'observe', vision: true });
+    assert.equal(view.screenAvailable, false);
+    assert.equal(view.visionStatus, 'unavailable');
+    assert.deepEqual(
+      view.targets.map(({ untrustedLabel }) => untrustedLabel),
+      ['Draft'],
+    );
   } finally {
     await control.stop();
   }
@@ -732,13 +765,21 @@ test('Escape aborts held input, releases injected keys and cannot be undone by t
 
 test('stale targets, unsupported keys and revoked permission cannot inject input', async () => {
   const f = fixture();
+  let now = 0;
+  f.control.now = () => now;
   await f.control.begin('Test fixture');
   const old = await f.control.execute({ action: 'observe' });
-  const fresh = await f.control.execute({ action: 'observe' });
+  let fresh = await f.control.execute({ action: 'observe' });
   await assert.rejects(
     f.control.execute({ action: 'click', targetId: old.targets[0].targetId }),
     /actual targetId/,
   );
+  now += 31000;
+  await assert.rejects(
+    f.control.execute({ action: 'click', targetId: fresh.targets[0].targetId }),
+    { code: 'COMPUTER_OBSERVATION_CHANGED', inputPerformed: false },
+  );
+  fresh = await f.control.execute({ action: 'observe' });
   for (const keys of [['ESCAPE'], ['A', 'A'], ['COMMAND'], ['CTRL', 'SHIFT', 'ALT', 'WIN', 'A']])
     await assert.rejects(
       f.control.execute({ action: 'press_keys', observationId: fresh.observationId, keys }),
@@ -756,7 +797,7 @@ test('stale targets, unsupported keys and revoked permission cannot inject input
   assert.equal(f.state.visible, false);
 });
 
-test('computer vision is tool-free and rejects generated actions or out-of-frame click targets', async () => {
+test('computer vision rejects generated actions and drops bad points without losing the scene', async () => {
   let packet = {
     done: true,
     message: {
@@ -783,14 +824,211 @@ test('computer vision is tool-free and rejects generated actions or out-of-frame
   delete packet.message.tool_calls;
   packet.message.content = JSON.stringify({
     summary: 'Fixture.',
-    targets: [{ label: 'outside', x: 10, y: 1, role: 'button' }],
+    targets: [
+      { label: 'outside', x: 10, y: 1, role: 'button' },
+      { label: 'A heading', x: 5, y: 1, role: 'heading' },
+      { label: 'A field', x: 5, y: 5, role: 'field' },
+    ],
   });
-  await assert.rejects(infer(args), /Invalid screen targets/);
+  assert.deepEqual(await infer(args), {
+    summary: 'Fixture.',
+    targets: [{ label: 'A field', x: 5, y: 5, role: 'field' }],
+  });
   packet.message.content = JSON.stringify({
     summary: 'Fixture.',
-    targets: [{ label: 'A heading', x: 5, y: 1, role: 'heading' }],
+    targets: null,
   });
   await assert.rejects(infer(args), /Invalid screen targets/);
+});
+
+test('Steam screenshot analysis keeps main-pane evidence separate from the requested Library row', async () => {
+  const steamLibrary = { page: 'game', gameTitle: 'Alchemy Factory', launchState: 'ready' };
+  const targets = [
+    { label: 'Cyberpunk 2077', x: 5, y: 5, role: 'item', steamRole: 'game_row' },
+    { label: 'Play', x: 7, y: 2, role: 'link', steamRole: 'play' },
+  ];
+  const infer = computerVision({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const body = JSON.parse(request.body);
+      assert(body.format.required.includes('steamLibrary'));
+      assert.match(body.messages[0].content, /large main Library details pane/);
+      assert.deepEqual(body.tools, []);
+      return new Response(
+        JSON.stringify({
+          done: true,
+          message: { content: JSON.stringify({ summary: 'Steam Library', targets, steamLibrary }) },
+        }),
+      );
+    },
+  });
+  const observed = await infer({
+    png: Buffer.from('full monitor fixture'),
+    width: 10,
+    height: 10,
+    goal: 'Open Steam and find Cyberpunk 2077',
+    steamGame: 'Cyberpunk 2077',
+  });
+  assert.deepEqual(observed.steamLibrary, steamLibrary);
+  assert.equal(observed.targets[0].steamRole, 'game_row');
+  assert.equal(observed.targets[1].steamRole, undefined);
+});
+
+test('Steam pointer grounding uses the recognized row instead of the model’s inaccurate point', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    return command.action === 'computer_state'
+      ? {
+          ...result,
+          executable: 'C:\\Steam\\steamwebhelper.exe',
+          x: 1000,
+          y: 200,
+          width: 200,
+          height: 100,
+        }
+      : result;
+  };
+  const fullSize = Buffer.from('full-size screen');
+  const capture = control.capture;
+  control.capture = async (options) => ({
+    ...(await capture(options)),
+    ocrPng: fullSize,
+    ocrWidth: 200,
+    ocrHeight: 100,
+  });
+  const row = (number, y) => [
+    { text: 'cybermmk', x: 12, y, width: 10, height: 4 },
+    { text: number, x: 24, y, width: 8, height: 4 },
+  ];
+  let lines = [row('2088', 28), row('2077', 38)];
+  control.readSteamText = async (png) => {
+    assert.equal(png, fullSize);
+    return lines;
+  };
+  control.describe = async ({ steamGame }) => {
+    assert.equal(steamGame, 'Cyberpunk 2077');
+    return {
+      summary: 'The game is in the list.',
+      steamLibrary: { page: 'library', gameTitle: '', launchState: 'unavailable' },
+      targets: [{ label: steamGame, x: 8, y: 60, role: 'item', steamRole: 'game_row' }],
+    };
+  };
+  await control.begin('Найди сайберпанк 2077 в Steam');
+  control.session.steamGame = { name: 'Cyberpunk 2077', play: false };
+  try {
+    const view = await control.execute({ action: 'observe' });
+    const target = view.targets.find(({ steamRole }) => steamRole === 'game_row');
+    assert.equal(view.window.applicationKind, 'steam');
+    await control.execute({
+      action: 'click',
+      targetId: target.targetId,
+      observationId: view.observationId,
+    });
+    const actual = state.calls.find(({ action }) => action === 'computer_click');
+    assert.deepEqual([actual.x, actual.y], [1018, 240]);
+
+    lines.push(row('2077', 51));
+    const ambiguous = await control.execute({ action: 'observe' });
+    assert(!ambiguous.targets.some(({ steamRole }) => steamRole === 'game_row'));
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a verified Steam game keeps its visible Play target when the model omits its coordinates', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    return command.action === 'computer_state'
+      ? {
+          ...result,
+          executable: 'C:\\Steam\\steamwebhelper.exe',
+          x: 1000,
+          y: 200,
+          width: 200,
+          height: 100,
+        }
+      : result;
+  };
+  let gameTitle = 'Cyberpunk 2077';
+  control.describe = async () => ({
+    summary: 'The game page is open.',
+    steamLibrary: { page: 'game', gameTitle, launchState: 'ready' },
+    targets: [],
+  });
+  control.readSteamText = async () => [[{ text: 'Играть', x: 45, y: 40, width: 6, height: 10 }]];
+  await control.begin('Open Cyberpunk from Steam, then launch the game');
+  try {
+    const verified = await control.execute({ action: 'observe' });
+    assert(verified.targets.some((target) => target.steamRole === 'play'));
+    gameTitle = 'Alchemy Factory';
+    const other = await control.execute({ action: 'observe' });
+    assert(!other.targets.some((target) => target.steamRole === 'play'));
+  } finally {
+    await control.stop();
+  }
+});
+
+test('the REDlauncher Play caption becomes actionable when OCR matches its Windows bounds', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  const executable = 'C:\\Programs\\CD Projekt Red\\REDlauncher\\REDlauncher.exe';
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action !== 'computer_state') return result;
+    return {
+      ...result,
+      executable,
+      x: 1000,
+      y: 200,
+      width: 200,
+      height: 100,
+      untrustedControls: [
+        {
+          id: 'heading',
+          untrustedName: 'Cyberpunk 2077',
+          type: 'ControlType.Text',
+          clickKind: 'text',
+        },
+        {
+          id: 'caption',
+          untrustedName: 'Играть',
+          type: 'ControlType.Text',
+          clickKind: 'candidate',
+          x: 1040,
+          y: 239,
+          captionBounds: { x: 1030, y: 230, width: 34, height: 20 },
+        },
+      ],
+    };
+  };
+  let x = 17;
+  control.readSteamText = async () => [[{ text: 'Играть', x, y: 34, width: 6, height: 10 }]];
+  control.describe = async () => {
+    throw Error('Vision backend timed out');
+  };
+  await control.begin('Open Cyberpunk from Steam, then launch the game');
+  try {
+    const view = await control.execute({ action: 'observe' });
+    const button = cyberpunkLauncherTarget(view, { executable });
+    assert.equal(view.screenAvailable, true);
+    assert.equal(button.clickKind, 'visual-caption');
+    assert.equal(button.visualConfirmed, true);
+
+    x = 65;
+    const unmatched = await control.execute({ action: 'observe' });
+    assert.equal(unmatched.screenAvailable, false);
+    assert.equal(
+      unmatched.targets.find((item) => item.untrustedLabel === 'Играть').clickKind,
+      'candidate',
+    );
+  } finally {
+    await control.stop();
+  }
 });
 
 test('a text-only provider falls back to Windows controls without capturing the display', async () => {
@@ -835,6 +1073,82 @@ test('a visually confirmed button keeps its native identity for the final hit te
       state.calls.find(({ action }) => action === 'computer_click').controlId,
       'native-button',
     );
+  } finally {
+    await control.stop();
+  }
+});
+
+test('visual search targets near a named edit or inside a translated edit use its Windows identity', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  const windowBounds = { x: 1000, y: 200, width: 200, height: 100 };
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action !== 'computer_state') return result;
+    return {
+      ...result,
+      ...windowBounds,
+      untrustedControls: [
+        {
+          id: 'store-search',
+          untrustedName: 'Поиск по магазину',
+          type: 'ControlType.Edit',
+          x: 1100,
+          y: 240,
+          editable: true,
+          bounds: { x: 1040, y: 232, width: 120, height: 16 },
+        },
+        {
+          id: 'address',
+          untrustedName: 'Адрес',
+          type: 'ControlType.Edit',
+          browserAddress: true,
+          x: 1100,
+          y: 214,
+          editable: true,
+          bounds: { x: 1040, y: 206, width: 120, height: 16 },
+        },
+        {
+          id: 'search-button',
+          untrustedName: 'Поиск',
+          type: 'ControlType.Button',
+          clickKind: 'control',
+          x: 1172,
+          y: 240,
+          bounds: { x: 1160, y: 232, width: 24, height: 16 },
+        },
+      ],
+    };
+  };
+  await control.begin('Use the fixture store search');
+  try {
+    for (const point of [
+      { label: 'Поиск по магазину', x: 83, y: 40 },
+      { label: 'Store search', x: 40, y: 40 },
+    ]) {
+      control.describe = async () => ({ summary: 'Store', targets: [{ ...point, role: 'field' }] });
+      const view = await control.execute({ action: 'observe' });
+      assert.equal(view.targets.filter((target) => target.source === 'vision').length, 0);
+      const field = view.targets.find((target) => target.visualConfirmed);
+      assert.equal(field.untrustedLabel, 'Поиск по магазину');
+      await control.execute({ action: 'click', targetId: field.targetId });
+      assert.equal(
+        state.calls.findLast(({ action }) => action === 'computer_click').controlId,
+        'store-search',
+      );
+    }
+    control.describe = async () => ({
+      summary: 'Store',
+      targets: [{ label: 'Store search', x: 40, y: 14, role: 'field' }],
+    });
+    const view = await control.execute({ action: 'observe' });
+    const field = view.targets.find((target) => target.source === 'vision');
+    assert.ok(field);
+    await control.execute({ action: 'click', targetId: field.targetId });
+    const visualClick = state.calls.findLast(({ action }) => action === 'computer_click');
+    assert.equal(visualClick.controlId, undefined);
+    assert.deepEqual(visualClick.observedWindowBounds, windowBounds);
+    assert.equal(visualClick.visualField, true);
   } finally {
     await control.stop();
   }

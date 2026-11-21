@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, realpathSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { writeJsonAtomic } from '../../apps/desktop/storage.mjs';
+import { writeJsonAtomic } from '../../packages/runtime/src/atomic-json.mjs';
 
 export const INSTALLATION_SCOPE_ID = 'ca9f1000-0000-4000-8000-000000000001';
 

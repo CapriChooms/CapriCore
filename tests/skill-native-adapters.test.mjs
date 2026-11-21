@@ -117,7 +117,7 @@ test('coding skill owns project-dependent mode and limits bridge installation to
   call('save', { workspace: 'project', editor: { kind: 'vscode' } }, 'settings');
   assert.deepEqual(call('mode', true, 'companion'), { enabled: true });
   assert.equal(call('status', undefined, 'settings').enabled, true);
-  assert.equal(call('run', 'Review changes', 'chat').summary, 'Review changes');
+  assert.equal((await call('run', 'Review changes', 'chat')).summary, 'Review changes');
   const firstInstall = call('installBridge', undefined, 'settings');
   await assert.rejects(call('installBridge', undefined, 'settings'), /already running/);
   installed.resolve();

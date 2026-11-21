@@ -23,7 +23,7 @@ app.whenReady().then(async()=>{
   const url=new URL(request.url);
   if(url.pathname==='/quality.html')return new Response('<!doctype html><meta charset="utf-8"><title>Offline call audio verification</title>',{headers:{'content-type':'text/html','content-security-policy':"default-src 'none'; script-src 'self'; connect-src 'none'"}});
   const name=url.pathname.slice(1);
-  if(!['voice-player.mjs','voice-effects.mjs','voice-effects-settings.mjs','voice-volume.mjs','call-audio-settings.mjs','call-audio-route.mjs','call-microphone.mjs'].includes(name))return new Response('',{status:404});
+  if(!['voice-player.mjs','voice-effects.mjs','voice-effects-settings.mjs','voice-volume.mjs','call-audio-settings.mjs','call-audio-route.mjs','call-microphone.mjs','speech-settings.mjs','local-audio-output.mjs'].includes(name))return new Response('',{status:404});
   return new Response(fs.readFileSync(path.join(${JSON.stringify(root)},'apps/desktop/renderer',name)),{headers:{'content-type':'text/javascript'}});
  });
  const window=new BrowserWindow({show:false,webPreferences:{contextIsolation:true,sandbox:true,nodeIntegration:false,backgroundThrottling:false}});
@@ -226,17 +226,13 @@ try {
         await player.enableCallOutput(sink, mic);
         await player.unlock();
         player.begin('quality-tone', { call: !privatePreview });
-        const pcm = tone(24000, [[1230, 0.08]]),
-          bytes = new Uint8Array(pcm.buffer);
-        let encoded = '';
-        for (let i = 0; i < bytes.length; i += 16000)
-          encoded += String.fromCharCode(...bytes.subarray(i, i + 16000));
+        const pcm = tone(24000, [[1230, 0.08]]);
         player.accept({
           turnId: 'quality-tone',
           text: 'Synthetic tone only',
           sequence: 0,
           sampleRate: 24000,
-          pcm: btoa(encoded),
+          pcm: new Uint8Array(pcm.buffer),
         });
         for (let i = 0; i < 20 && !started.length; i++) await Promise.resolve();
         if (!started.length) throw Error('VoicePlayer did not schedule native TTS.');

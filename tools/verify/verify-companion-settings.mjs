@@ -478,17 +478,48 @@ try {
   );
   await page.waitForFunction(() => document.documentElement.lang === 'en');
   page = await settingsView(application, 'appearance');
-  await page.locator('#companion-button-feedback').uncheck();
+  const palette = page.locator('#theme-preset');
+  const originalTheme = await palette.inputValue();
+  const swatchColors = () =>
+    page.locator('[data-companion-group="Interface theme"]').evaluate((card) => {
+      const probe = document.createElement('i');
+      card.append(probe);
+      const resolveColor = (token) => {
+        probe.style.backgroundColor = `var(${token})`;
+        return getComputedStyle(probe).backgroundColor;
+      };
+      const actual = [...card.querySelectorAll('[data-theme-swatch]')].map(
+        (swatch) => getComputedStyle(swatch).backgroundColor,
+      );
+      const expected = [
+        resolveColor('--settings-frame-ink'),
+        resolveColor('--settings-panel-surface'),
+        getComputedStyle(card).backgroundColor,
+      ];
+      probe.remove();
+      return { actual, expected };
+    });
+  let previousSwatches;
+  for (const preset of ['capri', 'cyberpunk-2077', 'custom']) {
+    await palette.selectOption(preset);
+    await page.waitForFunction(
+      (name) => document.documentElement.dataset.interfaceTheme === name,
+      preset,
+    );
+    const { actual, expected } = await swatchColors();
+    assert.deepEqual(actual, expected, preset);
+    if (previousSwatches) assert.notDeepEqual(actual, previousSwatches, preset);
+    previousSwatches = actual;
+  }
+  await palette.selectOption(originalTheme);
+  assert.equal(await page.locator('#companion-button-feedback').count(), 0);
   await saveSettings(page);
   await page.waitForTimeout(450);
   assert.equal(
-    (await page.evaluate(() => window.capri.bootstrap())).companion.buttonFeedback,
-    false,
-  );
-  assert.equal(
-    await page
-      .locator('#settings-apply')
-      .evaluate((el) => el.classList.contains('button-acknowledged')),
+    Object.hasOwn(
+      (await page.evaluate(() => window.capri.bootstrap())).companion,
+      'buttonFeedback',
+    ),
     false,
   );
   assert.equal(await owner.locator('#subtitle-pause').count(), 0);
@@ -516,6 +547,7 @@ try {
         'language panel width',
         'unsaved changes stay/discard/apply',
         'button feedback preference',
+        'the palette previews the active frame, background and card colors',
         'Google Gemini preset and copied quoted/long auth keys through isolated encrypted IPC',
         'oversized and multiline key paste rejected before browser mutation or IPC',
         'key validation retains invalid drafts and distinguishes model HTTP 404',

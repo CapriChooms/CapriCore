@@ -31,8 +31,14 @@ class ComputerControlFixture {
       cover.Click+=(s,e)=>Record("cover-click");
       var rename=new Button{Left=495,Top=240,Width=180,Height=45,Text="Changes after click"};
       rename.Click+=(s,e)=>{Record("rename-click");rename.Text="Different action";};
-      form.Controls.AddRange(new Control[]{moving,hidden,cover,rename});
+      var search=new TextBox{Left=495,Top=25,Width=250,AccessibleName="Store search"};
+      search.MouseEnter+=(s,e)=>{if(search.Top==25){search.Top=56;Record("search-relocated");}};
+      search.TextChanged+=(s,e)=>Record("search:"+search.Text);
+      var centerCover=new Button{Left=590,Top=23,Width=85,Height=24,Text="Search cover"};
+      centerCover.Click+=(s,e)=>Record("search-cover-click");
+      form.Controls.AddRange(new Control[]{moving,hidden,cover,rename,search,centerCover});
       cover.BringToFront();
+      centerCover.BringToFront();
     }
     clip.MouseDown+=(s,e)=>{if(e.Button==MouseButtons.Left){Record("drag-ctrl:"+((Control.ModifierKeys&Keys.Control)!=0));clip.DoDragDrop("Capri test clip",DragDropEffects.Copy);}};
     timeline.DragEnter+=(s,e)=>{if(e.Data.GetDataPresent(DataFormats.Text))e.Effect=DragDropEffects.Copy;};

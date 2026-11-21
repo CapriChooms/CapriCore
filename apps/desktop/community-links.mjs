@@ -2,11 +2,16 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+export const BOOSTY_DONATION_URL = 'https://boosty.to/overyx/donate';
+export const LAVA_DONATION_URL = 'https://app.lava.top/overyx?donate=open';
+
 // Renderer requests identifiers, never arbitrary URLs. Presence and Support use
 // the same destinations so replacing an invite cannot leave an old RPC button.
 export const COMMUNITY_LINKS = Object.freeze({
   boosty: 'https://boosty.to/overyx',
+  'boosty-donate': BOOSTY_DONATION_URL,
   lava: 'https://app.lava.top/overyx',
+  'lava-donate': LAVA_DONATION_URL,
   tiktok: 'https://www.tiktok.com/@overyx2',
   youtube: 'https://www.youtube.com/@CapriChoom',
   discord: 'https://discord.gg/capricore',
@@ -15,6 +20,7 @@ export const COMMUNITY_LINKS = Object.freeze({
   faq: 'https://capri-core.com/#faq',
   releases: 'https://github.com/CapriChooms/CapriCore/releases/latest',
   issues: 'https://github.com/CapriChooms/CapriCore/issues/new/choose',
+  'issue-list': 'https://github.com/CapriChooms/CapriCore/issues',
 });
 
 export function loadCommunityLinks(root) {
@@ -24,7 +30,7 @@ export function loadCommunityLinks(root) {
     const links = Object.fromEntries(
       Object.entries(COMMUNITY_LINKS).map(([id, fallback]) => [
         id,
-        Object.hasOwn(value, id) ? value[id] : fallback,
+        !id.endsWith('-donate') && Object.hasOwn(value, id) ? value[id] : fallback,
       ]),
     );
     for (const [id, destination] of Object.entries(links)) {
@@ -42,7 +48,7 @@ export function loadCommunityLinks(root) {
       if (id === 'discord' && url.pathname.replace(/\/$/u, '') === '/ETMtqsGaZN')
         links[id] = COMMUNITY_LINKS.discord;
       if (
-        ['github', 'issues', 'releases'].includes(id) &&
+        ['github', 'issues', 'issue-list', 'releases'].includes(id) &&
         /^\/CapriChooms\/Capri(?:\/|$)/u.test(url.pathname)
       )
         links[id] = COMMUNITY_LINKS[id];

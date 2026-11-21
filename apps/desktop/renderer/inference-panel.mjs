@@ -65,32 +65,11 @@ export class InferencePanel {
     this.skipLocalModelOnApi = true;
     this.startupRevision = 0;
     this.panel.innerHTML = `<h2>API connections</h2><div class="preferences-content">
-      <p class="settings-help" data-inline-help>Optional alternative to the local language model. Your messages, personality, relevant memory and tool results are sent to your chosen provider. Screen images are sent only when you enable vision and use screen features. Provider charges and privacy terms apply. Speech recognition remains local. Voice stays local unless you enable Voice API separately.</p>
-      <div class="settings-card">
-      <label><input id="api-skip-local-model" type="checkbox" checked> Skip local language model when using an API</label>
-      <p class="settings-help">Recommended for API users. Frees the local language model at startup and skips its warmup. Local mode, voice and speech recognition keep their own settings.</p>
-      <p id="api-startup-status" role="status"></p>
-      </div>
-      <div class="settings-card">
-      <div class="api-current"><span>Current model</span><strong id="api-mode" data-untranslated></strong></div>
-      <h3>Saved API connections</h3>
-      <p class="settings-help">A connection test sends a short sample message without conversation history. Provider charges may apply.</p>
-      <div class="settings-actions"><button id="api-test-all" type="button" disabled>Test all connections</button></div>
-      <div id="api-connections"></div>
-      </div>
       <div class="settings-card">
       <button id="api-add" type="button" aria-controls="api-form" aria-expanded="false">Add an API connection</button>
       <p id="api-status" role="status"></p>
       <div id="api-form" hidden>
       <h3 class="api-edit-heading"><span id="api-form-title">Add an API connection</span><span id="api-editing-name" data-untranslated></span></h3>
-      <details class="api-setup-guide" id="api-guide" open>
-        <summary>How to connect an API</summary>
-        <ol>
-          <li>Use the API base URL from the provider, not its website address.</li>
-          <li>Copy the exact model ID from the provider's model list.</li>
-          <li>Create an API key in your provider account and paste it here. Keep it private.</li>
-        </ol>
-      </details>
       <label for="api-name">Connection name (optional)</label><input id="api-name" type="text" maxlength="64" autocomplete="off" data-untranslated disabled>
       <label for="api-provider">API provider</label><select id="api-provider" disabled>
         <option value="openai" data-untranslated>OpenAI</option>
@@ -113,7 +92,20 @@ export class InferencePanel {
       <label for="api-context">Provider context limit (tokens)</label><input id="api-context" type="number" min="32768" max="262144" step="1024" data-untranslated disabled>
       <p class="settings-help">Image support is required for screen questions. Set the same context limit as the server. Leave tool calls off for chat-only models.</p>
       <div class="settings-actions"><button id="api-save" type="button" disabled>Save connection</button><button id="api-cancel" type="button">Cancel</button></div>
-      </div></div></div>`;
+      </div></div>
+      <div class="settings-card">
+      <h3>Saved API connections</h3>
+      <p class="settings-help">A connection test sends a short sample message without conversation history. Provider charges may apply.</p>
+      <div class="settings-actions"><button id="api-test-all" type="button" disabled>Test all connections</button></div>
+      <div id="api-connections"></div>
+      </div>
+      <div class="settings-card">
+      <div class="api-current"><span>Current model</span><strong id="api-mode" data-untranslated></strong></div>
+      <p class="settings-help" data-inline-help>Optional alternative to the local language model. Your messages, personality, relevant memory and tool results are sent to your chosen provider. Screen images are sent only when you enable vision and use screen features. Provider charges and privacy terms apply. Speech recognition remains local. Voice stays local unless you enable Voice API separately.</p>
+      <label><input id="api-skip-local-model" type="checkbox" checked> Skip local language model when using an API</label>
+      <p class="settings-help">Recommended for API users. Frees the local language model at startup and skips its warmup. Local mode, voice and speech recognition keep their own settings.</p>
+      <p id="api-startup-status" role="status"></p>
+      </div></div>`;
     document.getElementById('companion').append(this.panel);
     this.get = (id) => this.panel.querySelector('#api-' + id);
     this.ai = new DesktopAiPanel({
@@ -476,7 +468,6 @@ export class InferencePanel {
     this.get('url').value = PROVIDER_URLS.get('openrouter');
     this.get('model').value = '';
     this.get('context').value = 32768;
-    this.get('guide').open = true;
     this.get('tools').checked = true;
     this.get('vision').checked = false;
     this.clear();
@@ -501,7 +492,6 @@ export class InferencePanel {
     this.get('editing-name').textContent =
       profile.name || providerDisplayName(new URL(profile.baseUrl).hostname);
     this.get('save').textContent = this.ui.text('Save changes');
-    this.get('guide').open = false;
     this.setFormOpen(true);
     this.get('form').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     this.get('name').focus({ preventScroll: true });

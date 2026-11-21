@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -37,6 +36,51 @@ namespace Capri.Setup {
         public ulong DedicatedUsageBytes;
     }
 
+    internal static class GpuPerformanceCounters {
+        internal const string DedicatedUsagePath = @"\GPU Adapter Memory(*)\Dedicated Usage";
+        const uint MoreData = 0x800007D2;
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct RawItem {
+            public IntPtr Name;
+            public uint Status, TimeLow, TimeHigh;
+            public long Value, SecondValue;
+            public uint Count;
+        }
+
+        [DllImport("pdh.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+        internal static extern uint PdhOpenQueryW(string source, IntPtr data, out IntPtr query);
+        [DllImport("pdh.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+        internal static extern uint PdhAddEnglishCounterW(IntPtr query, string path, IntPtr data, out IntPtr counter);
+        [DllImport("pdh.dll")] internal static extern uint PdhCollectQueryData(IntPtr query);
+        [DllImport("pdh.dll")] internal static extern uint PdhCloseQuery(IntPtr query);
+        [DllImport("pdh.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+        static extern uint PdhGetRawCounterArrayW(IntPtr counter, ref uint size, out uint count, IntPtr items);
+
+        internal static GpuMemoryCounter[] ReadDedicatedUsage(IntPtr counter) {
+            if (counter == IntPtr.Zero) return null;
+            uint size = 0, count;
+            uint status = PdhGetRawCounterArrayW(counter, ref size, out count, IntPtr.Zero);
+            if (status == 0 && count == 0) return new GpuMemoryCounter[0];
+            if (status != MoreData || size == 0 || size > 4 * 1024 * 1024) return null;
+            IntPtr buffer = Marshal.AllocHGlobal((int)size);
+            try {
+                if (PdhGetRawCounterArrayW(counter, ref size, out count, buffer) != 0) return null;
+                int stride = Marshal.SizeOf(typeof(RawItem));
+                if (count > 8192 || count > size / stride) return null;
+                var result = new List<GpuMemoryCounter>();
+                for (int i = 0; i < count; i++) {
+                    var item = (RawItem)Marshal.PtrToStructure(IntPtr.Add(buffer, i * stride), typeof(RawItem));
+                    if (item.Status > 1 || item.Value < 0) continue;
+                    string name = Marshal.PtrToStringUni(item.Name);
+                    if (!GpuInventory.IsAdapterMemoryInstance(name)) continue;
+                    result.Add(new GpuMemoryCounter { Instance = name, DedicatedUsageBytes = (ulong)item.Value });
+                }
+                return result.ToArray();
+            } finally { Marshal.FreeHGlobal(buffer); }
+        }
+    }
+
     public static class GpuInventory {
         const int NotFound = unchecked((int)0x887A0002);
         const double MiB = 1048576.0;
@@ -47,6 +91,10 @@ namespace Capri.Setup {
         static readonly Regex CounterInstance = new Regex(
             @"^luid_0x([0-9a-f]{8})_0x([0-9a-f]{8})_phys_([0-9]+)$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        internal static bool IsAdapterMemoryInstance(string name) {
+            return name != null && name.Length <= 256 && CounterInstance.IsMatch(name);
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         struct Luid { public uint Low; public uint High; }
@@ -157,25 +205,17 @@ namespace Capri.Setup {
         }
 
         static GpuMemoryCounter[] DedicatedCounters() {
+            IntPtr query = IntPtr.Zero;
             try {
-                // Adapter-wide WDDM values, never GPU Process Memory or DXGI's
-                // process residency budget (QueryVideoMemoryInfo is NOT free VRAM).
-                // https://learn.microsoft.com/windows/win32/api/dxgi1_4/nf-dxgi1_4-idxgiadapter3-queryvideomemoryinfo
-                var category = new PerformanceCounterCategory("GPU Adapter Memory");
-                var values = category.ReadCategory();
-                if (!values.Contains("Dedicated Usage")) return new GpuMemoryCounter[0];
-                var usage = values["Dedicated Usage"];
-                var result = new List<GpuMemoryCounter>();
-                foreach (string instance in usage.Keys) {
-                    var sample = usage[instance];
-                    if (!CounterInstance.IsMatch(instance) || sample.RawValue < 0 ||
-                        sample.Sample.CounterType != PerformanceCounterType.NumberOfItems64) continue;
-                    result.Add(new GpuMemoryCounter {
-                        Instance = instance, DedicatedUsageBytes = (ulong)sample.RawValue
-                    });
-                }
-                return result.ToArray();
-            } catch { return new GpuMemoryCounter[0]; }
+                // Sample only the adapter-wide WDDM counter. PDH maps its English
+                // name on localized systems without a managed category scan.
+                IntPtr counter;
+                if (GpuPerformanceCounters.PdhOpenQueryW(null, IntPtr.Zero, out query) != 0 ||
+                    GpuPerformanceCounters.PdhAddEnglishCounterW(query, GpuPerformanceCounters.DedicatedUsagePath,
+                        IntPtr.Zero, out counter) != 0 || GpuPerformanceCounters.PdhCollectQueryData(query) != 0)
+                    return null;
+                return GpuPerformanceCounters.ReadDedicatedUsage(counter);
+            } finally { if (query != IntPtr.Zero) GpuPerformanceCounters.PdhCloseQuery(query); }
         }
 
         public static GpuHardware[] FromFacts(GpuAdapterFacts[] facts, GpuMemoryCounter[] counters) {
@@ -228,11 +268,10 @@ namespace Capri.Setup {
             }
             // A slow provider can outlive this wait, but subsequent refreshes
             // reuse that same query instead of accumulating blocked threads.
-            try { return counters.Wait(400) ? counters.Result : null; }
+            try { return counters.Wait(1000) ? counters.Result : null; }
             catch { return null; }
         }
-        // Persistent runtime collectors already own English PDH counters. Avoid
-        // loading PerformanceCounterCategory a second time just for DXGI facts.
+        // The persistent runtime already owns a PDH query. Return only DXGI facts.
         public static GpuHardware[] ReadAdaptersOnly() {
             return FromFacts(NativeAdapters(), null);
         }

@@ -183,6 +183,40 @@ try {
     click('Changes after click', 2),
     (error) => error.inputPerformed !== false && /second click was skipped/i.test(error.message),
   );
+  const search = state.untrustedControls.find(
+    (c) => c.editable && c.untrustedName === 'Store search',
+  );
+  assert.ok(search);
+  const centerClick = {
+    ...target,
+    action: 'computer_click',
+    x: search.x,
+    y: search.y,
+    button: 'left',
+  };
+  await assert.rejects(callApplicationBridge(root, { ...centerClick, visualField: true }), {
+    code: 'COMPUTER_TARGET_NOT_CLICKABLE',
+    inputPerformed: false,
+  });
+  await assert.rejects(
+    callApplicationBridge(root, {
+      ...centerClick,
+      observedWindowBounds: {
+        x: state.x - 4,
+        y: state.y,
+        width: state.width,
+        height: state.height,
+      },
+    }),
+    { code: 'COMPUTER_OBSERVATION_CHANGED', inputPerformed: false },
+  );
+  await callApplicationBridge(root, {
+    ...target,
+    action: 'computer_type',
+    controlId: search.id,
+    text: 'Physics puzzle',
+    mode: 'replace',
+  });
   await delay(150);
   const events = readFileSync(log, 'utf8');
   for (const text of ['text:Capri input verified', 'down:A', 'up:A', 'down:W', 'up:W', 'click'])
@@ -190,6 +224,9 @@ try {
   assert.equal((events.match(/^relocated-click$/gm) ?? []).length, 1);
   assert.equal((events.match(/^rename-click$/gm) ?? []).length, 1);
   assert.doesNotMatch(events, /^cover(?:ed)?-click$/m);
+  assert.match(events, /^search-relocated$/m);
+  assert.match(events, /^search:Physics puzzle$/m);
+  assert.doesNotMatch(events, /^search-cover-click$/m);
   report.checks = [
     'UI Automation text entry',
     'Ctrl+A chord',
@@ -197,6 +234,8 @@ try {
     'physical-coordinate mouse click',
     'native accessibility distinguishes an actual button from a plain label',
     'a control that moves on hover is found and clicked once',
+    'a partly covered search field uses a verified exposed point and receives the text',
+    'raw visual clicks reject a neighboring button and stale window geometry',
     'covered controls and changed second clicks stay blocked',
     'native target hover without click',
     'foreground/PID fencing',

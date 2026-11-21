@@ -1,3 +1,4 @@
+import { addAbortListener } from 'node:events';
 import { screenChanged, screenDifference, validScreenSample } from './renderer/screen-change.mjs';
 import { plainDialogueText } from '../../packages/runtime/src/text.mjs';
 
@@ -6,6 +7,9 @@ export const SCREEN_VISION_REQUIRED =
 export const MODEL_IMAGES_UNSUPPORTED_MESSAGE =
   'The active model cannot read images or video frames.';
 const foregroundEvidenceLimit = 8000;
+const followFreshnessMs = 25000;
+const playbackReadTimeoutMs = 1000;
+const followWindowId = /^window:([1-9][0-9]{0,19}):[0-9]+$/u;
 export const isModelImagesUnsupported = (error) => error?.code === 'MODEL_IMAGES_UNSUPPORTED';
 export function modelImagesUnsupportedError() {
   return Object.assign(new Error(MODEL_IMAGES_UNSUPPORTED_MESSAGE), {
@@ -72,10 +76,37 @@ export function observationOptions(value = {}) {
   return { intervalMs: value.intervalMs ?? 30000, durationMs: value.durationMs ?? 600000 };
 }
 
+function playbackEvidence(value) {
+  if (typeof value?.title !== 'string' || value.title.length > 300) return undefined;
+  const title = plainDialogueText(value.title.replace(/[\x00-\x1f\x7f]/gu, ' ')).trim();
+  if (!title) return undefined;
+  const durationMs =
+    Number.isSafeInteger(value.durationMs) && value.durationMs > 0 ? value.durationMs : undefined;
+  const positionMs =
+    Number.isSafeInteger(value.positionMs) &&
+    value.positionMs >= 0 &&
+    (durationMs === undefined || value.positionMs <= durationMs)
+      ? value.positionMs
+      : undefined;
+  return {
+    title,
+    ...(positionMs !== undefined && { positionMs }),
+    ...(durationMs !== undefined && { durationMs }),
+  };
+}
+
 /** One selected-source lease. Frames and summaries are transient; foreground work always wins. */
 export class ScreenObservation {
-  constructor({ infer, state, onChange = () => {}, now = () => Date.now() }) {
-    Object.assign(this, { infer, state, onChange, now });
+  constructor({
+    infer,
+    state,
+    onChange = () => {},
+    onAnalysis = () => {},
+    now = () => Date.now(),
+    followSource = () => null,
+    readPlayback = () => null,
+  }) {
+    Object.assign(this, { infer, state, onChange, onAnalysis, now, followSource, readPlayback });
     this.session = null;
     this.blockedUntil = 0;
   }
@@ -90,6 +121,8 @@ export class ScreenObservation {
       sequence: -1,
       latest: null,
       changed: true,
+      scene: 0,
+      followEpoch: 0,
     };
     this.publish();
   }
@@ -140,6 +173,7 @@ export class ScreenObservation {
     s.warning = MODEL_IMAGES_UNSUPPORTED_MESSAGE;
     s.error = null;
     s.latest = null;
+    s.followLatest = null;
     s.analysedSignature = null;
     s.changed = true;
   }
@@ -147,6 +181,44 @@ export class ScreenObservation {
     if (!this.session || id !== this.session.id || this.now() >= this.session.expiresAt)
       throw new Error('Screen observation is no longer active');
     return this.session;
+  }
+  followedWindow(s) {
+    if (s.source.kind !== 'window') return null;
+    const nativeId = this.followSource(s.id);
+    const windowId = typeof nativeId === 'string' && followWindowId.exec(nativeId)?.[1];
+    return windowId ? { nativeId, windowId } : null;
+  }
+  async playbackForFrame(nativeId, capturedAt, signal) {
+    const bounded = AbortSignal.any([signal, AbortSignal.timeout(playbackReadTimeoutMs)]);
+    const aborted = Promise.withResolvers();
+    using listener = addAbortListener(bounded, () => aborted.resolve(null));
+    try {
+      bounded.throwIfAborted();
+      const value = await Promise.race([
+        this.readPlayback(nativeId, { capturedAt, signal: bounded }),
+        aborted.promise,
+      ]);
+      return bounded.aborted ? undefined : playbackEvidence(value);
+    } catch {
+      return undefined;
+    }
+  }
+  invalidateFollow() {
+    const s = this.session;
+    if (!s) return;
+    s.followEpoch++;
+    const changed = Boolean(s.followRead || s.latestWasFollow);
+    if (s.followRead) {
+      s.followRead.abort();
+      s.controller?.abort();
+    }
+    if (s.latestWasFollow) {
+      s.latest = null;
+      s.latestWasFollow = false;
+      s.changed = true;
+    }
+    s.followLatest = null;
+    if (changed) this.publish();
   }
   sample({ captureId, signature }) {
     const s = this.current(captureId);
@@ -173,23 +245,68 @@ export class ScreenObservation {
     if (!this.frameDue(s)) return { accepted: false };
     const controller = new AbortController(),
       capturedAt = this.now();
+    const followed = this.followedWindow(s),
+      followEpoch = s.followEpoch,
+      followRead = followed ? new AbortController() : null;
+    s.followRead = followRead;
     s.controller = controller;
     s.lastAttempt = capturedAt;
     s.error = null;
     this.publish();
     try {
-      const text = plainDialogueText(
-        await this.infer({
+      this.onAnalysis();
+      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]);
+      const [result, playback] = await Promise.all([
+        this.infer({
           png,
           source: { ...s.source, capturedAt },
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]),
+          signal,
+          follow: Boolean(followed),
         }),
-      ).trim();
+        followed &&
+          this.playbackForFrame(
+            followed.nativeId,
+            capturedAt,
+            AbortSignal.any([signal, followRead.signal]),
+          ),
+      ]);
       controller.signal.throwIfAborted();
       if (this.session !== s || !this.available()) return { accepted: false };
+      if (
+        followed &&
+        (s.followEpoch !== followEpoch || this.followedWindow(s)?.nativeId !== followed.nativeId)
+      )
+        return { accepted: false };
+      const text = plainDialogueText(followed ? result?.summary : result).trim();
       if (!text || text.length > 1200) throw new Error('Invalid visual summary');
-      s.latest = { summary: text, ...s.source, capturedAt };
+      const kind = followed && result?.kind;
+      const followLatest = kind === 'video' || kind === 'game';
+      const earlierView =
+        kind === 'game' &&
+        s.followLatest?.kind === 'game' &&
+        s.followLatest.nativeId === followed.nativeId &&
+        s.latest &&
+        capturedAt - s.latest.capturedAt <= followFreshnessMs &&
+        s.latest.summary !== text
+          ? s.latest.summary
+          : null;
       s.analysedSignature = Uint8Array.from(signature);
+      if (followLatest || screenChanged(s.sceneSignature, signature, 0.1)) {
+        s.scene++;
+        s.sceneSignature = s.analysedSignature;
+      }
+      s.latest = { summary: text, ...s.source, capturedAt };
+      s.background = true;
+      s.latestWasFollow = followLatest;
+      s.followLatest = followLatest
+        ? {
+            nativeId: followed.nativeId,
+            kind,
+            windowId: followed.windowId,
+            ...(kind === 'video' && playback && { playback }),
+            ...(earlierView && { earlierView }),
+          }
+        : null;
       s.changed = screenChanged(signature, s.signature);
       return { accepted: true };
     } catch (error) {
@@ -204,6 +321,7 @@ export class ScreenObservation {
       return { accepted: false };
     } finally {
       if (s.controller === controller) s.controller = null;
+      if (s.followRead === followRead) s.followRead = null;
       if (this.session === s) this.publish();
     }
   }
@@ -220,6 +338,24 @@ export class ScreenObservation {
       observation: latest && ageMs <= 90000 ? latest : null,
     };
   }
+  commentEvidence() {
+    const s = this.session;
+    if (!s?.background || !s.latest || s.foreground) return null;
+    const { summary, capturedAt } = s.latest;
+    if (s.latestWasFollow) {
+      if (!s.followLatest) return null;
+      const { nativeId, ...follow } = s.followLatest;
+      const expiresAt = Math.min(s.expiresAt, capturedAt + followFreshnessMs);
+      return expiresAt > this.now() && this.followedWindow(s)?.nativeId === nativeId
+        ? { captureId: s.id, scene: s.scene, summary, capturedAt, expiresAt, follow }
+        : null;
+    }
+    if (s.changed) return null;
+    const expiresAt = Math.min(s.expiresAt, capturedAt + 45000);
+    return expiresAt > this.now()
+      ? { captureId: s.id, scene: s.scene, summary, capturedAt, expiresAt }
+      : null;
+  }
   async foreground({ captureId, png, signal, question }) {
     const s = this.current(captureId);
     if (s.imagesUnsupported) throw modelImagesUnsupportedError();
@@ -227,13 +363,18 @@ export class ScreenObservation {
     s.foreground?.abort();
     const controller = new AbortController();
     s.foreground = controller;
+    s.background = false;
     s.latest = null;
+    s.followLatest = null;
+    s.latestWasFollow = false;
     s.changed = true;
     const capturedAt = this.now();
     this.publish();
     try {
       // The first large image can initialize the vision projector even after text is warm.
       const combined = AbortSignal.any([signal, controller.signal, AbortSignal.timeout(90000)]);
+      combined.throwIfAborted();
+      this.onAnalysis();
       const summary = (
         await this.infer({
           png,

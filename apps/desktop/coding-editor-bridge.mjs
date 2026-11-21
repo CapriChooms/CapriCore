@@ -14,7 +14,7 @@ export class CodingEditorBridge {
   endpoint(workspace) {
     if (!this.directory || !existsSync(this.directory)) return null;
     assertPrivatePath(this.directory);
-    const canonical = realpathSync(workspace).toLowerCase();
+    const canonical = realpathSync.native(workspace).toLowerCase();
     const matches = [];
     for (const name of readdirSync(this.directory)
       .filter((name) => /^\d+-[a-f0-9]{12}\.json$/.test(name))
@@ -35,7 +35,7 @@ export class CodingEditorBridge {
           row.port > 65535 ||
           !/^[a-f0-9]{64}$/.test(row.token) ||
           !Array.isArray(row.workspaces) ||
-          !row.workspaces.some((folder) => realpathSync(folder).toLowerCase() === canonical)
+          !row.workspaces.some((folder) => realpathSync.native(folder).toLowerCase() === canonical)
         )
           continue;
         process.kill(row.pid, 0);

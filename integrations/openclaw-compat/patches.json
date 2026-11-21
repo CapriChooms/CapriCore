@@ -1021,6 +1021,17 @@
           ]
         }
       ]
+    },
+    {
+      "file": "dist/tools-Cu6iE4iE.mjs",
+      "beforeSha256": "4e8f04e5d17d1650c7caf68adb3d2bb3277da4f00d8f5d1b8170d19214c46e3e",
+      "afterSha256": "54078fbc748c0ad8cac7bd36ef534967bd9b652fbd489866ce4f4280f3ebd7b7",
+      "edits": [
+        {
+          "before": "\t\t\t\t\t\tconst metadata = composeMemoryCorpusMetadata(attempts, [\n\t\t\t\t\t\t\t...memoryValue?.automaticRebuildWarning ? [memoryValue.automaticRebuildWarning] : [],",
+          "after": "\t\t\t\t\t\t// A successful, fresh search can complete an automatic index rebuild.\n\t\t\t\t\t\t// Only report rebuild guidance while retrieval is still degraded.\n\t\t\t\t\t\tconst rebuildWarning = memory?.outcome === \"ok\" && !staleness ? void 0 : memoryValue?.automaticRebuildWarning;\n\t\t\t\t\t\tconst metadata = composeMemoryCorpusMetadata(attempts, [\n\t\t\t\t\t\t\t...rebuildWarning ? [rebuildWarning] : [],"
+        }
+      ]
     }
   ]
 }

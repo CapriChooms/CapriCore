@@ -26,6 +26,11 @@ const englishFact = /^(?:my|our)\s+(.+?)\s+(?:is|are|was|were)\s+(.+)$/iu;
 const russianFact = /^мо(?:й|я|ё|е|и)\s+(.+?)\s*[:—–-]\s*(.+)$/iu;
 const portugueseFact =
   /^(?:(?:o|a|os|as)\s+)?(?:meu|minha|meus|minhas|nosso|nossa|nossos|nossas)\s+(.+?)\s+(?:é|são|era|eram)\s+(.+)$/iu;
+const statedPreference = /^(?:eu prefiro|i prefer|я предпочитаю)\s+(.+)$/iu;
+const preferenceQuestion =
+  /^(?:o que (?:eu )?prefiro|qual (?:é )?(?:a )?minha prefer[eê]ncia|what do i prefer|what(?: is|'s) my preference|что я предпочитаю|какое у меня предпочтение)$/iu;
+const memoryOverviewQuestion =
+  /^(?:what (?:did i ask you to remember|did you save about me|do you remember about me)|o que (?:eu pedi (?:para|pra) voc[eê] lembrar|voc[eê] (?:lembra|guardou|salvou) sobre mim|voc[eê] tem salvo na mem[oó]ria)|что (?:я просил(?:а)? тебя запомнить|ты (?:запомнила|сохранила|помнишь) обо мне))$/iu;
 const fileSubject =
   /(?:^|[^\p{L}\p{N}_])(?:files?|folders?|documents?|workbooks?|spreadsheets?|reports?|scripts?|screenshots?|images?|pictures?|videos?|recordings?|screens?|cameras?|microphones?|logs?|applications?|apps?|programs?|notes?|drafts?|projects?|work|homework|progress|sessions?|tabs?|pages?|windows?|bookmarks?|selections?|clipboard|browsers?|views?|text|content|messages?|chats?|conversations?|arquivos?|ficheiros?|pastas?|documentos?|planilhas?|relat[oó]rios?|imagens?|v[ií]deos?|grava[cç][oõ]es|telas?|c[aâ]meras?|microfones?|aplicativos?|programas?|rascunhos?|projetos?|trabalho|tarefas?|sess[oõ]es|abas?|guias?|p[aá]ginas?|janelas?|favoritos?|marcadores?|sele[cç][aã]o|sele[cç][oõ]es|[aá]rea de transfer[eê]ncia|navegadores?|visualiza[cç][aã]o|textos?|conte[uú]do|mensagens?|conversas?)(?=$|[^\p{L}\p{N}_])|[\\/:]/iu;
 const sensitive =
@@ -40,6 +45,54 @@ const withoutCourtesy = (value) =>
     .trim();
 const redundantSave =
   /(?:,\s*(?:and\s+)?|\s+and\s+)(?:(?:please|kindly)\s+)?(?:(?:write|note|jot)\s+(?:it|that)\s+down|(?:save|store|record|remember)\s+(?:it|that)(?:\s+(?:in|to)\s+(?:(?:your|long-term|long term)\s+)?(?:memory|notes))?)$|(?:,\s*(?:e\s+)?|\s+e\s+)(?:anote(?:\s+isso)?|(?:guarde|salve|registre)\s+isso(?:\s+(?:na|em sua)\s+mem[oó]ria)?)$/iu;
+const nameRequests = [
+  [
+    /^(?:remember|save|store|record|(?:write|note|jot)\s+down)\s+(?:that\s+)?my name(?:(?:\s*[.:,;?—–-]\s*|\s+as\s+|\r?\n\s*)(.*)|\s+(\S+))?$/iu,
+    /^(?:my name is|it(?:'|’)s|it is)\s+/iu,
+    'My name is ',
+  ],
+  [
+    /^(?:пожалуйста[,\s]+)?(?:запомни|сохрани|запиши)(?:те)?\s+мо[её] имя(?:(?:\s*[.:,;?—–-]\s*|\s+как\s+|\r?\n\s*)(.*)|\s+(\S+))?$/iu,
+    /^(?:меня зовут|это)\s+/iu,
+    'Моё имя: ',
+  ],
+  [
+    /^(?:lembre(?:-se)?|lembrar(?:-se)?|guarde|salve|anote|registre)\s+(?:(?:de|do|o)\s+)?meu nome(?:(?:\s*[.:,;?—–-]\s*|\s+como\s+|\r?\n\s*)(.*)|\s+(\S+))?$/iu,
+    /^(?:meu nome é|me chamo|é)\s+/iu,
+    'Meu nome é ',
+  ],
+];
+const nameValue =
+  /^[\p{L}\p{N}_][\p{L}\p{M}\p{N}_.’'\-]*(?:\p{Zs}+[\p{L}\p{N}][\p{L}\p{M}\p{N}_.’'\-]*){0,5}$/u;
+const nameQuestion =
+  /^(?:как меня зовут|какое у меня имя|как тебе меня называть|como (?:eu )?me chamo)$/iu;
+const nameAction =
+  /^(?:open|launch|start|stop|send|save|write|type|click|download|delete|install|run|play|pause|close|открой|запусти|закрой|напиши|отправь|нажми|abra|inicie|feche|envie|digite|clique|toque)\s/iu;
+const nameFiller =
+  /^(?:is|are|was|were|as|please|kindly|now|later|too|again|capri|пожалуйста|сейчас|потом|тоже|капри|agora|depois|é)$/iu;
+
+function requestedOwnerName(text) {
+  for (const [pattern, preamble, statement] of nameRequests) {
+    const match = pattern.exec(text);
+    if (!match) continue;
+    const name = (match[1] ?? match[2] ?? '')
+      .replace(preamble, '')
+      .replace(/^(?:"([^"]+)"|“([^”]+)”|«([^»]+)»)$/u, '$1$2$3')
+      .trim();
+    if (!name || (match[2] && nameFiller.test(name))) return { missingName: true };
+    if (sensitive.test(name)) return { refused: true };
+    // A second command or sentence is not the value of the owner's name.
+    if (
+      !nameValue.test(name) ||
+      name.length > 100 ||
+      /\p{L}{2,}\.\s/u.test(name) ||
+      nameAction.test(name) ||
+      compound.test(name)
+    )
+      return null;
+    return { note: statement + name, named: true };
+  }
+}
 
 function suppliedFact(value, asValue = false) {
   if (englishFact.test(value) || russianFact.test(value) || portugueseFact.test(value))
@@ -65,6 +118,8 @@ export function ownerNoteRequest(value) {
       /^(?:por\s+favor[,\s]+)?(?:(?:voc[eê]\s+)?(?:pode|poderia)\s+(?:por\s+favor[,\s]+)?)?/iu,
       '',
     );
+  const name = requestedOwnerName(withoutCourtesy(text));
+  if (name !== undefined) return name;
   const explicit =
     /^remember\s*(?:that\s+|:\s*)(.+)$/iu.exec(text) ??
     /^(?:пожалуйста[, ]+)?запомни(?:те)?(?:,?\s+что\s+|\s*:\s*|[, ]+)(.+)$/iu.exec(text) ??
@@ -94,12 +149,14 @@ export function ownerNoteRequest(value) {
   return { note };
 }
 
-const subjectKey = (value) =>
-  value
+const subjectKey = (value) => {
+  const key = value
     .normalize('NFKC')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim();
+  return key === 'имя' || key === 'nome' ? 'name' : key;
+};
 const recallSubject = (value) =>
   /^(?:what(?: is| was|'s)|do you remember|can you recall|tell me)\s+(?:my|our)\s+(.+?)(?:\s+(?:is|was))?[?.!]*$/iu.exec(
     value,
@@ -108,7 +165,7 @@ const recallSubject = (value) =>
     value,
   )?.[1] ??
   /^(?:како[йея]|какая|какие|какого цвета)\s+(?:мо[йяёи]|мое)\s+(.+?)[?.!]*$/iu.exec(value)?.[1] ??
-  /^(?:qual|quais)\s+(?:é|são|era|eram)\s+(?:(?:o|a|os|as)\s+)?(?:meu|minha|meus|minhas|nosso|nossa|nossos|nossas)\s+(.+?)[?.!]*$/iu.exec(
+  /^(?:(?:voc[eê]\s+)?(?:se\s+)?lembra\s+(?:de\s+)?)?(?:qual|quais)\s+(?:(?:é|são|era|eram)\s+)?(?:(?:o|a|os|as)\s+)?(?:meu|minha|meus|minhas|nosso|nossa|nossos|nossas)\s+(.+?)[?.!]*$/iu.exec(
     value,
   )?.[1];
 
@@ -311,19 +368,32 @@ export function saveOwnerNote(workspace, note) {
 
 /** Read back a matching simple owner fact without a model or a stale index. */
 export function recallOwnerNote(workspace, value) {
-  const subject = recallSubject(withoutCourtesy(prompt(value)));
-  if (!subject || sensitive.test(subject)) return null;
-  const key = subjectKey(subject);
-  if (!key || key.length > 120) return null;
+  const question = withoutCourtesy(prompt(value));
+  const asksPreference = preferenceQuestion.test(question);
+  const asksOverview = memoryOverviewQuestion.test(question);
+  const key = nameQuestion.test(question) ? 'name' : subjectKey(recallSubject(question) ?? '');
+  if ((!asksPreference && !asksOverview && !key) || key.length > 120 || sensitive.test(question))
+    return null;
   let fd;
   try {
     fd = openNoteFile(workspace, false);
+    const notes = records(readFileSync(fd, 'utf8'));
+    if (asksOverview) {
+      const recent = [...new Set(notes.toReversed())].slice(0, 8);
+      return recent.length ? recent.map((note) => `• ${note}`).join('\n') : null;
+    }
     const facts = new Map();
-    for (const note of records(readFileSync(fd, 'utf8'))) {
+    const preferences = new Set();
+    for (const note of notes) {
       const match = englishFact.exec(note) ?? russianFact.exec(note) ?? portugueseFact.exec(note);
       if (match) facts.set(subjectKey(match[1]), match[2]);
+      else if (asksPreference) {
+        const preference = statedPreference.exec(note)?.[1];
+        if (preference) preferences.add(preference);
+      }
     }
-    if (facts.has(key)) return facts.get(key);
+    if (key && facts.has(key)) return facts.get(key);
+    if (asksPreference) return preferences.size === 1 ? preferences.values().next().value : null;
     const matches = [...facts].filter(([subject]) => subject.endsWith(' ' + key));
     return matches.length === 1 ? matches[0][1] : null;
   } catch {

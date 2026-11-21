@@ -2,13 +2,29 @@
 import { cyberpunkSteamLaunch } from './steam-game-launch.mjs';
 import { edgerunnersTeaserRequest } from './edgerunners-teaser.mjs';
 import { callTaskRequest } from './call-computer-task.mjs';
+import { youtubeHomeDestination } from './browser-search-state.mjs';
+import { steamGameCommand } from './steam-task-state.mjs';
 
 // Fast paths for common requests. Ambiguous and other-language requests can use
 // the desktop intent classifier without starting an ordinary chat turn.
 const russianMode = String.raw`(?:режим\s+)?полн(?:ого|ое|ый|ом|ым)\s+(?:управлени[ея]|доступ[а]?)\s+(?:ко?\s+)?(?:(?:всему|моим|моему|моего|всего)\s+)*(?:компьютер(?:ом|у|а)?|пк)`;
 const englishMode = String.raw`(?:full\s+(?:computer|pc|desktop)\s+(?:control|access)|full\s+(?:control|access)\s+(?:of|to|over)\s+(?:(?:my|the|this|entire|whole)\s+)*(?:computer|pc|desktop)|computer\s+control)(?:\s+mode)?`;
 const mode = String.raw`(?:${russianMode}|${englishMode})`;
-const prefix = /^(?:(?:hey\s+)?capri|капри)[,\s:]+/iu;
+const prefix = /^(?:(?:hi|hey|hello|привет)[,\s]+)?(?:capr[ie]|капри)[,.!\s:]+/iu;
+const accessStatusQuestions = [
+  new RegExp(
+    String.raw`^(?:(?:do you (?:currently )?have|have you got) (?:${englishMode})|is (?:the )?${englishMode}(?: (?:enabled|active|on))?)[.?]*$`,
+    'iu',
+  ),
+  /^(?:(?:voc[eê] |tu )?(?:tem|tens|est[aá] com)|(?:me (?:diz|diga)|pode me dizer) se (?:voc[eê] )?tem) acesso (?:total|completo) (?:ao(?: meu| seu)?|à(?: minha| sua)?) (?:computador|pc|m[aá]quina)[.?]*$/iu,
+  /^(?:у тебя (?:сейчас )?есть полный доступ|есть ли у тебя (?:сейчас )?полный доступ) к (?:(?:моему|этому) )?(?:компьютеру|пк)[.?]*$/iu,
+];
+
+export function computerAccessStatusQuestion(text) {
+  const request = text.normalize('NFKC').trim().replace(prefix, '').replace(/\s+/gu, ' ');
+  return accessStatusQuestions.some((pattern) => pattern.test(request));
+}
+
 const polite =
   /^(?:(?:please|пожалуйста)[,\s]+|(?:can|could|would)\s+you\s+(?:please\s+)?|(?:можешь|можете)\s+(?:пожалуйста\s+)?)/iu;
 const enable = new RegExp(
@@ -30,6 +46,12 @@ const trailing = new RegExp(
 const action =
   /^(?:open|launch|start|find|search|type|write|click|move|create|copy|delete|play|calculate|открой|запусти|найди|поищи|введи|напиши|нажми|перемести|создай|скопируй|удали|включи|посчитай)(?=\s)/iu;
 const mention = new RegExp(String.raw`(?:^|\s)${mode}(?=$|[\s,.:;!?])`, 'iu');
+const spanishMode = String.raw`(?:control|acceso) (?:total|completo) (?:del?|al?|sobre) (?:(?:el|la|mi|tu) )?(?:ordenador|computadora?|equipo|pc)`;
+const settingId = String.raw`(?:fullComputerAccess?|"fullComputerAccess?"|“fullComputerAccess?”|«fullComputerAccess?»)`;
+const spanishModeChange = new RegExp(
+  String.raw`^[¿¡]?\s*(?:por favor[,\s]+)?(?:(?:puedes|podr[ií]as)\s+)?(?:(?<enable>activ(?:a|ar)|habilit(?:a|ar)|enciende|encender)|desactiv(?:a|ar)|deshabilit(?:a|ar)|apaga|apagar|revoc(?:a|ar))\s+(?:el\s+)?(?:${spanishMode}|${settingId})(?:\s+para (?:empezar|comenzar))?(?:,?\s+por favor)?[.!?\s]*$`,
+  'iu',
+);
 const accessTask =
   /(?:^|[\s,])(?:use|using|with)\s+(?:uh\s+)?(?:(?:my|your|the)\s+)?computer\s+access(?=\s|[.!?,]|$)/iu;
 const taskCommand =
@@ -39,6 +61,8 @@ const requestText = (text) =>
     .normalize('NFKC')
     .trim()
     .replace(prefix, '')
+    .replace(/^(?:hi|hey|hello|привет|здравствуй)[,!.]\s+/iu, '')
+    .replace(/^(?:короче|так вот|so|okay)[,:]\s+/iu, '')
     .replace(polite, '')
     .replace(/^(?:i\s+(?:want|need|would\s+like)\s+you\s+to\s+|я\s+(?:хочу|прошу)\s+)/iu, '')
     .replace(/^(?:uh|um|please|пожалуйста)\s+/iu, '');
@@ -52,11 +76,21 @@ export const rejectsDesktopAction = (text) =>
   );
 
 const recoveredMode =
-  /^(?:useful\s+(?:computer|pc|desktop)\s+(?:access|control)|use\s+my\s+(?:computer|pc|desktop)\s+via\s+full\s+access|используй\s+мой\s+(?:компьютер|пк)(?=\s*[,.:;]|\s+и\s))(?=\s|[,.:;!?]|$)/iu;
+  /^(?:useful\s+(?:computer|pc|desktop)\s+(?:access|control)|use\s+my\s+(?:computer|pc|desktop)\s+via\s+full\s+access|используй\s+(?:(?:мой|этот)\s+)?(?:компьютер|пк)(?=\s*[,.:;]|\s+и\s))(?=\s|[,.:;!?]|$)/iu;
+const personalComputer =
+  /^(?:use\s+(?:my|the|this)\s+(?:computer|pc|desktop)(?:\s+to\s+|\s*[,;:]\s*)|(?:используй|использовать)\s+(?:мой|этот)\s+(?:компьютер|пк)\s*,?\s*чтобы\s+)/iu;
+const personalComputerCommand = (request) => {
+  const match = personalComputer.exec(request);
+  if (!match) return null;
+  const task = request.slice(match[0].length);
+  return action.test(task) || /^(?:открыть|запустить|найти|ввести|нажать)\s+\S/iu.test(task)
+    ? task
+    : null;
+};
 const launchPrefix =
-  /^(?:open|launch|start|открой|запусти|abre|abrir|inicia|iniciar|lanza|lanzar|ouvre|ouvrez|ouvrir|lance|lancez|lancer|démarre|démarrez|démarrer)\s+/iu;
+  /^(?:open|launch|start|открой|открыть|запусти|запустить|abre|abrir|inicia|iniciar|lanza|lanzar|ouvre|ouvrez|ouvrir|lance|lancez|lancer|démarre|démarrez|démarrer)\s+/iu;
 const chainSeparator =
-  /(?:[,.;:]\s*(?:(?:then|потом|затем|puis|ensuite)\s+)?|\s+(?:and\s+(?:then\s+)?|then\s+|потом\s+|затем\s+|и\s+|et\s+(?:(?:puis|ensuite)\s+)?|puis\s+|ensuite\s+))(?=(?:go\s+to|switch\s+to|click|open|launch|search|find|google|type|write|press|show|play|do|close|quit|перейди|переключись|открой|нажми|найди|напиши|введи|запусти|закрой|va|ouvre|ouvrez|lance|lancez|clique|cliquez|cherche|recherche|tape|écris|ferme|quitte)(?:\s|$))/iu;
+  /(?:[,.;:!?]\s*(?:(?:then|потом|затем|puis|ensuite)\s+)?|\s+(?:and\s+(?:then\s+)?|then\s+|потом\s+|затем\s+|и\s+|et\s+(?:(?:puis|ensuite)\s+)?|puis\s+|ensuite\s+))(?=(?:go\s+to|switch\s+to|click|open|launch|search|find|google|type|write|press|show|play|do|close|quit|перейди|переключись|открой|нажми|найди|напиши|введи|запусти|закрой|va|ouvre|ouvrez|lance|lancez|clique|cliquez|cherche|recherche|tape|écris|ferme|quitte)(?:\s|$))/iu;
 const section = String.raw`(?:library|settings|preferences|downloads|history|inbox|biblioth[eè]que|param[eè]tres|pr[eé]f[eé]rences|t[eé]l[eé]chargements|historique|библиотек[ау]|настройки|загрузки|истори[яю]|входящие)`;
 const sectionFirst = new RegExp(
   String.raw`^(?:(?:the|my|la|les|ma|mes|мою)\s+)?(${section})\s+(?:(?:in|of|dans|de|в)\s+)?(.+)$`,
@@ -70,16 +104,40 @@ const clientName = (name) =>
     '',
   );
 
-export function ownerAppLaunch(text) {
+export function computerTaskCommand(text) {
   const request = requestText(text).replace(
     /^(?:(?:por\s+favor|s['’]il (?:te|vous) plaît)[,\s]+|(?:puedes|podrías|peux-tu|pourrais-tu|pouvez-vous)\s+)/iu,
     '',
   );
-  const access = enable.exec(request) ?? using.exec(request) ?? recoveredMode.exec(request);
-  const command = (access ? request.slice(access[0].length) : request)
+  const access = enable.exec(request) ?? using.exec(request);
+  const command = access
+    ? request.slice(access[0].length)
+    : (personalComputerCommand(request) ?? request.replace(recoveredMode, ''));
+  return command
     .replace(/^[,.:;\s]+/u, '')
     .replace(/^(?:and|to|и)\s+/iu, '')
     .replace(trailing, '');
+}
+
+/** Keep desktop tools available for indirect owner requests, even after a classifier miss. */
+export function computerModelCandidate(text) {
+  const unquoted = computerTaskCommand(text).replace(/"[^"\n]*"|“[^”\n]*”|«[^»\n]*»/gu, '');
+  const desktopMention =
+    /\b(?:steam|discord|window|taskbar|browser|desktop|computer|app)\b|стим|дискорд|окн[оае]|панел\p{L}* задач|браузер|компьютер|рабочи\p{L}* стол|приложени/iu;
+  const ownerRequest =
+    /^(?:i (?:need|want|would like)|open|start|play|show|put|make|use|help|открой|покажи|сделай|нужн[оа]|мне нужн[оа]|я хочу)\s|\b(?:can you|could you|would you|for me|take care of)\b|(?:^|\s)(?:можешь|пожалуйста)(?:\s|$)/iu;
+  return (
+    !rejectsDesktopAction(text) &&
+    (/^(?:click|drag|minimi[sz]e|maximi[sz]e|bring up|switch to|launch|кликни|нажми|перетащи|сверни|разверни|переключись|запусти)\s/iu.test(
+      unquoted,
+    ) ||
+      (desktopMention.test(unquoted) && ownerRequest.test(unquoted)))
+  );
+}
+
+export function ownerAppLaunch(text) {
+  const command = computerTaskCommand(text);
+  if (steamGameCommand(command)) return { name: 'Steam', single: false };
   if (!launchPrefix.test(command) || computerAppReference(command)) return null;
   const remainder = command.replace(launchPrefix, '');
   const separator = remainder.search(chainSeparator);
@@ -106,7 +164,27 @@ export function ownerAppLaunch(text) {
       literalName,
       ...(separator < 0 && { sectionOnly: true }),
     };
+  const appWithoutType = name.replace(/\s+(?:app(?:lication)?|window)$/iu, '');
+  if (appWithoutType !== name && appName.test(appWithoutType))
+    return { name: appWithoutType, single: separator < 0, literalName: name };
   return { name, single: separator < 0 };
+}
+
+/** Resolve an app substitution only after an explicit, single-app launch. */
+export function ownerAppLaunchFollowUp(text, previous) {
+  if (!previous || !ownerAppLaunch(previous)?.single) return null;
+  const name =
+    /^(?:(?:o+k+a*y*|never\s*mind)[,.!\s]+)*(?:and\s+)?(?:what|how)\s+about\s+(.+?)[?!.\s]*$/iu.exec(
+      requestText(text),
+    )?.[1];
+  if (
+    !name ||
+    !appName.test(name) ||
+    !/[\p{Lu}\p{N}]/u.test(name) ||
+    /\b(?:and|then|instead|before|after|to)\b/iu.test(name)
+  )
+    return null;
+  return 'Open ' + name;
 }
 
 export const computerTaskFollowUp = (text) =>
@@ -205,7 +283,21 @@ export function dedicatedMusicContext(text) {
 }
 
 /** Music playback is a dedicated skill, not an implicit request for a GUI session. */
+export function windowsMediaPlayerTask(text) {
+  const command = computerTaskCommand(text).replace(/"[^"\n]*"|“[^”\n]*”|«[^»\n]*»/gu, 'track');
+  if (/\b(?:spotify|youtube)\b|спотифа[йе]|ютуб/iu.test(command)) return false;
+  return (
+    /^(?:play|pause|resume|stop|skip|shuffle|put\s+on)\s+[^.!?;\n]{0,150}\b(?:from|in|on)\s+(?:(?:my|the)\s+)?(?:windows(?:['’]s?)?\s+)?media\s+player[.!\s]*$/iu.test(
+      command,
+    ) ||
+    /^(?:включи|поставь|воспроизведи|приостанови|продолжи|останови|переключи)\s+[^.!?;\n]{0,150}\s+в\s+(?:проигрывателе\s+windows|media\s+player)[.!\s]*$/iu.test(
+      command,
+    )
+  );
+}
+
 export function dedicatedMusicRequest(text) {
+  if (windowsMediaPlayerTask(text)) return false;
   const value = musicRequestScope(text);
   if (value === null) return false;
   const request = requestText(value)
@@ -215,6 +307,16 @@ export function dedicatedMusicRequest(text) {
   // A topic or a quoted song title is not an instruction. Unrecognized wording
   // stays on the general model path rather than being promoted to an action.
   if (/^(?:do\s+not|don['’]t|not|never|не)(?=\s)/iu.test(request)) return false;
+  const frenchSpotify = request.replace(/^(?:peux-tu|pourrais-tu)\s+/iu, '');
+  if (
+    /^(?:(?:mets?|joue|lance|cherche|recherche|reprends?|relance|arrête|jouer|lancer|chercher|mettre|reprendre)\s+[^;\r\n]{1,180}\s+sur\s+spotify|(?:mets?|mettre)\s+spotify\s+en\s+pause)$/iu.test(
+      frenchSpotify,
+    ) &&
+    !/\b(?:et|puis)\s+(?:ouvre|lance|clique|appuie|crée|écris|ferme|change|joue)\b/iu.test(
+      frenchSpotify,
+    )
+  )
+    return true;
   if (
     /^(?:play|pause|stop|next|previous|repeat|shuffle|volume)\s+(?:is|means|was|are|were)\b/iu.test(
       request,
@@ -333,7 +435,9 @@ function authorizedSequence(value) {
 
 export function computerModeRequest(text, { fullComputerAccess = false } = {}) {
   if (callTaskRequest(text)) return { enabled: true, run: true };
-  const value = String(text).normalize('NFKC').trim().replace(prefix, '').replace(polite, '');
+  const value = requestText(text);
+  const spanish = spanishModeChange.exec(value);
+  if (spanish) return { enabled: Boolean(spanish.groups.enable), run: false };
   const off = disable.exec(value);
   if (off && !value.slice(off[0].length).replace(/[\s.!?,;:]/g, ''))
     return { enabled: false, run: false };
@@ -345,6 +449,7 @@ export function computerModeRequest(text, { fullComputerAccess = false } = {}) {
       .trim();
     return { enabled: true, run: Boolean(remaining) };
   }
+  if (personalComputerCommand(value)) return { enabled: true, run: true };
   // Common voice transcription of "use full"; require an actual task after it.
   const recovered = recoveredMode.exec(value);
   if (recovered) {
@@ -356,10 +461,12 @@ export function computerModeRequest(text, { fullComputerAccess = false } = {}) {
       return { enabled: true, run: true };
   }
   if (action.test(value) && trailing.test(value)) return { enabled: true, run: true };
+  if (fullComputerAccess && windowsMediaPlayerTask(value)) return { enabled: true, run: true };
   // "Open Spotify and turn on music" can look like one application name to
   // the permissive app launcher. Keep playback on its dedicated permission.
   if (dedicatedMusicRequest(value)) return null;
   if (fullComputerAccess) {
+    if (youtubeHomeDestination(computerTaskCommand(value))) return { enabled: true, run: true };
     if (authorizedDiscordCommand(text)) return { enabled: true, run: true };
     if (exactClickLabel(text)) return { enabled: true, run: true };
     if (cyberpunkSteamLaunch(value) || edgerunnersTeaserRequest(value))

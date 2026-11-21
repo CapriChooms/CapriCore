@@ -18,6 +18,8 @@ import { pullModel } from '../../packages/runtime/src/providers/pull-model.mjs';
 import { ensureNativeLanguageModel } from '../../packages/runtime/src/providers/native-model.mjs';
 import { verifyImportedChat } from '../../packages/runtime/src/providers/model-residency.mjs';
 import { startLlama } from '../../packages/runtime/src/providers/services.mjs';
+import { LlamaModelStore } from '../../packages/runtime/src/providers/llama-model-store.mjs';
+import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { request } from '../../packages/runtime/src/http.mjs';
 import estimates from '../../config/qwen-download-sizes.json' with { type: 'json' };
 import { contextChoicesFor } from '../../packages/runtime/src/config/context-policy.mjs';
@@ -32,7 +34,10 @@ export class ModelService {
     config,
     emit = () => {},
     hardware = probeHardware,
-    inventory = () => request(`${rt.ollamaUrl}/api/tags`),
+    inventory = () =>
+      config.modelSetupRequired
+        ? { models: new LlamaModelStore(root).list() }
+        : request(`${rt.ollamaUrl}/api/tags`),
     ensure = () => startLlama(rt),
     pull = pullModel,
     native = ensureNativeLanguageModel,
@@ -62,6 +67,7 @@ export class ModelService {
     this.value = {
       phase: 'idle',
       current: config.model,
+      modelSetupRequired: config.modelSetupRequired === true,
       remoteActive: Boolean(rt.remote?.enabled || rt.remote?.setupRequired),
       contextTokens: config.contextTokens,
       contextChoices: contextChoicesFor(config),
@@ -95,7 +101,9 @@ export class ModelService {
     const recommendation = recommendProfile(this.device);
     this.languageRecommendations ??= Object.fromEntries(
       languages.flatMap(({ id, modelLanguage }) => {
-        const profiles = recommendModelsForLanguage(id, this.device, modelLanguage);
+        const profiles = recommendModelsForLanguage(id, this.device, {
+          baseLanguage: modelLanguage,
+        });
         return profiles.length ? [[id, profiles]] : [];
       }),
     );
@@ -132,7 +140,8 @@ export class ModelService {
           sizeBytes: actualSize ?? profile.sizeBytes ?? estimates.models[profile.model],
           sizeEstimated: actualSize === null,
           configured: this.config.model === profile.alias,
-          active: !remoteActive && this.config.model === profile.alias,
+          active:
+            !remoteActive && !this.config.modelSetupRequired && this.config.model === profile.alias,
         };
       }),
     };

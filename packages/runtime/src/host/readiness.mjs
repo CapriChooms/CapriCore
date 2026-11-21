@@ -13,11 +13,11 @@ export async function waitForOwnedService(
     ownershipInterval = 5000,
     signal,
     getProcess = managedProcess,
+    expected = getProcess(name),
     now = Date.now,
     pause = (ms) => delay(ms, undefined, { signal }),
   } = {},
 ) {
-  const expected = getProcess(name);
   const exited = () =>
     Object.assign(
       new Error(`${label} stopped during startup. Check its local logs and reconnect.`),
@@ -37,6 +37,7 @@ export async function waitForOwnedService(
     }
     try {
       const ready = await check();
+      signal?.throwIfAborted();
       if (ready) return ready;
     } catch (error) {
       signal?.throwIfAborted();

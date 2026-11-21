@@ -201,12 +201,15 @@ export async function installSpeechComponents(
       noLinks(executable);
       noLinks(stamp);
       try {
+        const receipt = readJson(stamp);
         if (
-          readJson(stamp).sha256 === spec.sha256 &&
-          readJson(stamp).executableSha256 === (await fileHash(executable))
+          receipt.sha256 === spec.sha256 &&
+          receipt.executableSha256 === (await fileHash(executable, signal))
         )
           return;
-      } catch {}
+      } catch {
+        signal?.throwIfAborted();
+      }
       const archive = await download(spec, path.join(cache, 'downloads'), {
         signal,
         progress: (progress) => report({ progress }),
@@ -224,7 +227,7 @@ export async function installSpeechComponents(
       writeJsonAtomic(stamp, {
         sha256: spec.sha256,
         version: spec.version,
-        executableSha256: await fileHash(executable),
+        executableSha256: await fileHash(executable, signal),
       });
     };
     await step('python', () => runtime('uv', '.runtime/uv/uv.exe'));

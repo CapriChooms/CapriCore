@@ -81,6 +81,12 @@ test('all hardware profiles fit the full companion prompt and old managed settin
     validateCoreSettings({ ...base, model: 'capri-qwen3.5:2b', contextTokens: 8192 }).contextTokens,
     32768,
   );
+  assert.equal(validateCoreSettings({ ...base, contextTokens: 16384 }).contextTokens, 32768);
+  assert.equal(
+    validateCoreSettings({ ...base, contextTokens: 16384, experimentalContext: true })
+      .contextTokens,
+    16384,
+  );
   assert.equal(
     validateCoreSettings({ ...base, model: 'custom-model', contextTokens: 8192 }).contextTokens,
     8192,
@@ -119,6 +125,13 @@ test('context migration preserves custom inference options, permissions, memory 
   model.contextWindow = model.contextTokens = model.params.num_ctx = 32768;
   ensureManagedContext(config, 'capri-qwen3.5:2b', 16384);
   assert.equal(model.params.num_ctx, 32768);
+  assert.equal(ensureManagedContext(config, model.id, 16384, true), true);
+  assert.deepEqual(
+    [model.contextWindow, model.contextTokens, model.params.num_ctx],
+    [16384, 16384, 16384],
+  );
+  assert.equal(config.agents.defaults.compaction.maxActiveTranscriptBytes, 12288);
+  assert.equal(ensureManagedContext(config, model.id, 16384, true), false);
   assert.equal(ensureManagedContext(config, 'another-model', 16384), false);
 });
 

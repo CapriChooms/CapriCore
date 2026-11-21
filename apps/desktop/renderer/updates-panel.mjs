@@ -25,17 +25,26 @@ export class UpdatesPanel {
     this.panel.innerHTML = `
       <div class="settings-heading"><h2>Updates</h2><button type="button" id="updates-close" aria-label="Close settings">×</button></div>
       <div class="preferences-content">
-        <p class="update-version"><span>Installed version</span><strong id="updates-current" data-untranslated></strong></p>
-        <label class="update-channel"><input id="updates-experimental" type="checkbox">Include experimental updates</label>
-        <p class="settings-help">Experimental builds in the private repository are available to Lava.top subscribers with GitHub access.</p>
-        <div class="settings-actions"><button type="button" id="updates-lava">View Lava.top subscription</button></div>
-        <p class="settings-help">Experimental versions may contain unfinished features and bugs. Stable updates are selected by default.</p>
-        <div class="update-status-card" role="status" aria-live="polite"><p id="updates-status"></p><strong id="updates-release" data-untranslated></strong><progress id="updates-progress" max="100" hidden></progress><p id="updates-transfer" data-untranslated></p><p id="updates-error"></p></div>
-        <div class="settings-actions"><button type="button" id="updates-check">Check for updates</button><button type="button" id="updates-download" hidden>Download update</button><button type="button" id="updates-cancel" hidden>Cancel download</button></div>
-        <div class="settings-actions"><button type="button" id="updates-install" class="update-install" hidden>Restart and update</button></div>
-        <p class="settings-help" id="updates-preserve">Your history, memory, models and personal settings are kept. Capri restarts only when you choose to install.</p>
-        <p class="settings-help" id="updates-source" hidden>This is a development checkout. The downloaded installer creates or updates a separate managed installation.</p>
-        <p class="settings-help" id="updates-full" hidden>The full installer will open; select your current installation folder to keep your data.</p>
+        <section class="settings-card" aria-labelledby="updates-installed-title">
+          <div class="update-version"><h3 id="updates-installed-title">Installed version</h3><strong id="updates-current" data-untranslated></strong></div>
+          <div class="update-status" role="status" aria-live="polite"><p id="updates-status"></p><strong id="updates-release" data-untranslated></strong><progress id="updates-progress" max="100" hidden></progress><p id="updates-transfer" data-untranslated></p><p id="updates-error"></p></div>
+          <label class="update-channel"><input id="updates-automatic" type="checkbox" checked>Automatically check for updates</label>
+          <div class="settings-actions"><button type="button" id="updates-check">Check for updates</button><button type="button" id="updates-download" hidden>Download update</button><button type="button" id="updates-cancel" hidden>Cancel download</button></div>
+          <div class="settings-actions"><button type="button" id="updates-install" class="update-install" hidden>Restart and update</button></div>
+          <p class="settings-help" id="updates-preserve">Your history, memory, models and personal settings are kept. Capri restarts only when you choose to install.</p>
+          <p class="settings-help" id="updates-source" hidden>This is a development checkout. The downloaded installer creates or updates a separate managed installation.</p>
+          <p class="settings-help" id="updates-full" hidden>The full installer will open; select your current installation folder to keep your data.</p>
+          <p class="settings-help">Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.</p>
+        </section>
+        <section class="settings-card">
+          <label class="update-channel"><input id="updates-experimental" type="checkbox">Include experimental updates</label>
+          <p class="settings-help">Experimental builds in the private repository are available to Lava.top subscribers with GitHub access.</p>
+          <div class="settings-actions">
+            <button type="button" id="updates-lava" data-untranslated>Lava.top</button>
+            <button type="button" id="updates-boosty" data-untranslated>Boosty</button>
+          </div>
+          <p class="settings-help">Experimental versions may contain unfinished features and bugs. Stable updates are selected by default.</p>
+        </section>
         <section class="settings-card">
           <h3>Release history</h3>
           <button id="updates-versions" type="button">Load versions</button>
@@ -47,7 +56,7 @@ export class UpdatesPanel {
             <button id="updates-release-page" type="button" hidden>Open on GitHub</button>
           </div>
         </section>
-        <section class="github-access-card">
+        <section class="settings-card github-access-card">
           <h3 data-untranslated>GitHub</h3><p class="settings-help">Public updates do not require a GitHub account or token.</p><p id="updates-access-status" class="settings-help" role="status"></p>
           <details id="updates-access-details"><summary><span>Connect GitHub for private updates</span> <code data-untranslated>CapriChooms/Capri</code></summary>
             <label for="updates-token">GitHub access token</label><input id="updates-token" type="password" maxlength="255" autocomplete="new-password" spellcheck="false" dir="ltr" data-untranslated placeholder="ghp_… / github_pat_…">
@@ -61,12 +70,13 @@ export class UpdatesPanel {
             <p class="settings-help">The token is encrypted for your Windows account and stays on this PC. Capri uses it only to read releases and download files. Never send your token in a bug report.</p>
           </details>
         </section>
-        <p class="settings-help">Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.</p>
       </div>`;
     document.getElementById('companion').append(this.panel);
     this.get = (id) => this.panel.querySelector('#updates-' + id);
     this.get('lava').onclick = () =>
       api.communityLink('lava').catch((error) => onError(error.message));
+    this.get('boosty').onclick = () =>
+      api.communityLink('boosty').catch((error) => onError(error.message));
     let history = [];
     const selectedVersion = () => history.find(({ id }) => id === this.get('version').value);
     const showVersion = () => {
@@ -81,7 +91,7 @@ export class UpdatesPanel {
       const load = this.get('versions');
       load.disabled = true;
       try {
-        const result = await api.updateVersions(this.channel().experimental);
+        const result = await api.updateVersions(this.get('experimental').checked);
         history = result.releases;
         this.get('version').replaceChildren(
           ...history.map(({ id, tag, experimental }) => {
@@ -127,7 +137,7 @@ export class UpdatesPanel {
       try {
         this.showAccess(await api.connectGitHub(this.get('token').value));
         this.get('access-details').open = false;
-        this.show(await api.checkUpdates(this.channel()));
+        this.show(await api.checkUpdates(this.settings()));
       } catch (error) {
         this.get('access-status').textContent = this.ui.text(error.message);
         this.get('access-status').scrollIntoView({ block: 'nearest' });
@@ -150,20 +160,21 @@ export class UpdatesPanel {
         this.syncAccessControls();
       }
     };
-    this.get('experimental').onchange = async () => {
+    const changeSetting = async () => {
       if (this.deferDrafts) {
         this.show(this.value);
         return;
       }
       try {
-        await this.saveChannel();
+        await this.saveSettings();
       } catch (error) {
-        this.show(this.value);
+        this.show(this.value, { resetSettings: true });
         onError(error.message);
       }
     };
+    for (const id of ['automatic', 'experimental']) this.get(id).onchange = changeSetting;
     for (const [id, work] of [
-      ['check', () => api.checkUpdates(this.channel())],
+      ['check', () => api.checkUpdates(this.settings())],
       ['download', () => api.downloadUpdate()],
       ['cancel', () => api.cancelUpdate()],
       ['install', () => api.installUpdate()],
@@ -180,27 +191,29 @@ export class UpdatesPanel {
         }
       };
   }
-  channel() {
-    return { experimental: this.get('experimental').checked };
+  settings() {
+    return {
+      experimental: this.get('experimental').checked,
+      automatic: this.get('automatic').checked,
+    };
   }
-  async saveChannel() {
-    this.show(await this.api.setUpdateSettings(this.channel()), { resetChannel: true });
+  async saveSettings() {
+    this.show(await this.api.setUpdateSettings(this.settings()), { resetSettings: true });
   }
-  show(value, { resetChannel = false } = {}) {
+  show(value, { resetSettings = false } = {}) {
     if (!value) return;
-    const pending =
-      this.deferDrafts &&
-      !resetChannel &&
-      this.value &&
-      this.channel().experimental !== this.value.experimental;
+    for (const id of ['automatic', 'experimental']) {
+      const input = this.get(id);
+      const pending =
+        this.deferDrafts && !resetSettings && this.value && input.checked !== this.value[id];
+      if (!pending) input.checked = value[id];
+    }
     this.value = value;
     const busy = ['checking', 'downloading', 'verifying', 'installing'].includes(value.phase);
     this.get('current').textContent = value.current;
-    if (!pending) this.get('experimental').checked = value.experimental;
     const currentChannel =
       value.checkedExperimental === undefined ||
-      value.checkedExperimental === this.channel().experimental;
-    this.get('experimental').disabled = busy;
+      value.checkedExperimental === this.get('experimental').checked;
     this.get('status').textContent = this.ui.text(
       ((currentChannel || busy) && messages[value.phase]) || messages.idle,
     );
@@ -268,6 +281,7 @@ export class UpdatesPanel {
     );
     for (const id of [
       'check',
+      'automatic',
       'experimental',
       'download',
       'install',

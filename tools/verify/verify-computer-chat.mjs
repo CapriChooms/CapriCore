@@ -13,6 +13,17 @@ import { root } from '../../packages/runtime/src/host/paths.mjs';
 const parent = path.join(root, '.runtime/desktop-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'computer-chat-'));
+mkdirSync(path.join(folder, 'desktop'));
+writeFileSync(
+  path.join(folder, 'desktop', 'skills.json'),
+  JSON.stringify({
+    schemaVersion: 1,
+    settings: {
+      'capri.applications': { enabled: true, showButton: false },
+      'capri.computer': { enabled: true, showButton: false },
+    },
+  }),
+);
 const report = { checks: [], errors: [], modelRequests: 0 };
 const server = createServer((req, res) => {
   if (req.method === 'POST') report.modelRequests++;
@@ -101,7 +112,18 @@ try {
   report.checks.push(
     'Mixed Spotify/math task requests full control; declining runs neither narrow skill nor executor',
   );
-  const id = await send('Use full computer control to open Chrome.');
+  await send(
+    'Can you use my computer to open Steam? Then find Cyberpunk 2077, open it and uh press play button.',
+  );
+  await dialog.waitFor();
+  await dialog.locator('[data-choice="cancel"]').click();
+  await finished();
+  assert.equal(
+    await page.evaluate(() => window.capri.computerAccessStatus().then((s) => s.enabled)),
+    false,
+  );
+  report.checks.push('The complete spoken Steam request reaches the host permission dialog');
+  const id = await send('Capre use full computer access and open YouTube.');
   await dialog.waitFor();
   await page.evaluate((id) => window.capri.cancel(id), id);
   await finished();

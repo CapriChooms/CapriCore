@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
@@ -14,6 +14,7 @@ import {
   npmNetworkFailure,
 } from '../packages/installer/src/npm-install.mjs';
 import { runCommand } from '../packages/installer/src/commands.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 
 const failure = (code, warning = '') =>
   Object.assign(new Error('Component exited 1'), {
@@ -157,14 +158,13 @@ const npmNode = [
   nodePath,
   path.join(root, '.runtime', `node-v${settings.nodeVersion}-win-x64/node.exe`),
 ].find((exe) => exe && existsSync(path.join(path.dirname(exe), 'node_modules/npm/bin/npm-cli.js')));
+const temporaryFolder = temporaryFolders('capri-npm-network-unit-');
 
 test(
   'real npm recovers from a mid-body reset, verifies the package, then installs offline from its cache',
   { skip: !npmNode },
   async () => {
-    const parent = path.join(root, '.runtime/npm-network-unit');
-    mkdirSync(parent, { recursive: true });
-    const folder = mkdtempSync(path.join(parent, 'case-'));
+    const folder = temporaryFolder();
     const packageJson = {
       name: 'capri-network-fixture',
       version: '1.0.0',

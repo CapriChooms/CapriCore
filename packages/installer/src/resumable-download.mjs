@@ -30,6 +30,7 @@ const transientNetwork = new Set([
   'UND_ERR_HEADERS_TIMEOUT',
   'UND_ERR_BODY_TIMEOUT',
 ]);
+export const hashReadBuffer = 256 * 1024;
 export function partialFile(final, source, index) {
   // Keep legacy primary partials; mirrors never append to another origin's bytes.
   return index === 0
@@ -117,7 +118,7 @@ export async function resumableArtifact(
   if (
     existsSync(final) &&
     statSync(final).size === spec.bytes &&
-    (await fileHash(final)) === spec.sha256
+    (await fileHash(final, signal)) === spec.sha256
   )
     return final;
   if (existsSync(final)) unlinkSync(final);
@@ -125,7 +126,7 @@ export async function resumableArtifact(
     if (
       existsSync(partial) &&
       statSync(partial).size === spec.bytes &&
-      (await fileHash(partial)) === spec.sha256
+      (await fileHash(partial, signal)) === spec.sha256
     ) {
       renameSync(partial, final);
       return final;
@@ -174,7 +175,10 @@ export async function resumableArtifact(
         throw new Error('Dependency size differs from the pinned manifest');
       const hash = createHash('sha256');
       if (offset)
-        for await (const chunk of createReadStream(partial)) {
+        for await (const chunk of createReadStream(partial, {
+          highWaterMark: hashReadBuffer,
+          signal,
+        })) {
           signal?.throwIfAborted();
           hash.update(chunk);
         }

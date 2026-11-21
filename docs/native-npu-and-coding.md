@@ -14,7 +14,9 @@ Hardware and OS support depends on each vendor’s runtime and driver. An Intel 
 
 ## Work on a project without screen control
 
-Open **Settings → Coding mode**, choose one project folder, and save access. Use **Find editors** or choose an installed executable. Use the Coding mode button in the main composer, or enable it in Settings. Capri can list, search, read, and edit project text files, and open a specific file/line in the selected editor. Its scope stays within the approved project and excludes common credential files, links and the Capri installation. For remote models, relevant source text is sent to the chosen provider.
+Open **Settings → Coding mode**, choose a project folder and editor, then save project access. **Open project in editor** opens the saved folder. Click **Enable coding mode** before sending a task. Capri can search file names and source text, read selected line ranges, replace an exact block, create new files, and open a file at a specific line. The activity list tracks saves, additions and removals inside the project. It skips common credential paths, generated directories and ignored files. An external model receives relevant project text when you use it for a coding task.
+
+Capri can apply related edits together and report the affected files and test results. **Review changes** shows added and removed lines for each recent batch during the session. Turn on **Review changes before writing** and save project access to review each proposed batch first. Capri checks the files again after approval. If the editor saved a newer version, Capri asks the model to read it again.
 
 The editor adapters use native commands for VS Code, Cursor, Windsurf, VSCodium, JetBrains IDEs, Visual Studio, Sublime Text, Notepad++, Neovim GUI and Emacs client. For VS Code-compatible editors, you can also enable and install the optional bridge to use live document versions and diagnostics. Open the exact approved folder as a trusted workspace. The bridge rejects unsaved edits and stale document versions. For CLI-only editors, save editor buffers before asking Capri to change files on disk.
 

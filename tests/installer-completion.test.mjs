@@ -7,7 +7,7 @@ import path from 'node:path';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 
 test(
-  'native installer notifies once after confirmed success, never on failure/cancel/nonzero worker exit',
+  'native installer restores and notifies once after confirmed success, never on failure/cancel/nonzero worker exit',
   { skip: process.platform !== 'win32' },
   () => {
     const parent = path.join(root, '.runtime/installer-completion');
@@ -36,12 +36,12 @@ test(
     assert.equal(report.passed, true);
     assert.equal(report.desktopAlertsSent, false);
     assert.deepEqual(
-      report.checks.map((item) => [item.case, item.notifications, item.finishPage]),
+      report.checks.map((item) => [item.case, item.notifications, item.finishPage, item.restored]),
       [
-        ['complete', 1, 7],
-        ['failed', 0, 7],
-        ['cancelled', 0, 7],
-        ['complete-then-failed', 0, 7],
+        ['complete', 1, 'finish', true],
+        ['failed', 0, 'finish', false],
+        ['cancelled', 0, 'finish', false],
+        ['complete-then-failed', 0, 'finish', false],
       ],
     );
     assert.equal(

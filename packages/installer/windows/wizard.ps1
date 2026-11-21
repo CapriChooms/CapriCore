@@ -64,7 +64,6 @@ try {
     }
     throw
 }finally{
-    if(Get-Command Clear-CapriCompletionNotice -ErrorAction SilentlyContinue){Clear-CapriCompletionNotice}
     if($script:session -and $script:uiLease -and $script:uiLease.IsOwner() -and (Test-CapriWorker $script:session)){
         [Capri.Setup.SessionIO]::Pause($script:session,'ui-ended-with-active-worker')
     }

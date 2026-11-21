@@ -113,15 +113,13 @@ function Read-CapriInstallProgress([bool]$Paused) {
     }
     if($logBatch.Count){
         $progress.lastLog=$now
-        $script:fields.log.AppendText(($logBatch -join "`r`n")+"`r`n")
-        if($script:fields.log.TextLength -gt 20000){$script:fields.log.Text=$script:fields.log.Text.Substring($script:fields.log.TextLength-16000)}
-        $script:fields.log.SelectionStart=$script:fields.log.TextLength
-        $script:fields.log.ScrollToCaret()
+        $script:fields.log.AppendLog(($logBatch -join "`r`n")+"`r`n")
     }
     $script:fields.stage.Text=if($progress.step){
         (Get-CapriInstallStage $progress.step)+$(if($progress.activity){"`r`n"+$progress.activity})
     }else{Text-Capri 'working'}
     $script:fields.progress.Value=$progress.value
+    $script:fields.progress.AnimateProgress=(-not $Paused -and -not $progress.complete -and -not $script:failure)
     $script:fields.progressText.Text=Format-CapriInstallProgress
     if($previousStage -ne $script:fields.stage.Text -or ($previousText -split "`n").Count -ne ($script:fields.progressText.Text -split "`n").Count){Fit-CapriPage}
 }

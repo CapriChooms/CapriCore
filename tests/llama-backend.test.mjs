@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { availableParallelism, tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
@@ -12,6 +12,7 @@ import {
 } from '../packages/runtime/src/providers/llama-bridge.mjs';
 import { LlamaModelStore } from '../packages/runtime/src/providers/llama-model-store.mjs';
 import { LlamaWorkers } from '../packages/runtime/src/providers/llama-workers.mjs';
+import { ggufMetadata } from '../packages/runtime/src/providers/gguf-metadata.mjs';
 import { ensureLanguageModelReady } from '../packages/runtime/src/providers/model-residency.mjs';
 import {
   migrateLanguageDevice,
@@ -33,6 +34,64 @@ const post = (url, value, headers = {}) =>
     headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(value),
   });
+
+test('GGUF finds selected fields after skipped arrays and across read windows', (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'capri-gguf-metadata-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const file = path.join(root, 'fixture.gguf');
+  const u32 = (value) => {
+    const bytes = Buffer.alloc(4);
+    bytes.writeUInt32LE(value);
+    return bytes;
+  };
+  const u64 = (value) => {
+    const bytes = Buffer.alloc(8);
+    bytes.writeBigUInt64LE(BigInt(value));
+    return bytes;
+  };
+  const string = (text) => {
+    const data = Buffer.from(text);
+    return Buffer.concat([u64(data.length), data]);
+  };
+  const text = 'template content\n'.repeat(10_000);
+  const metadata = Buffer.concat([
+    Buffer.from('GGUF'),
+    u32(3),
+    u64(0),
+    u64(5),
+    string('irrelevant.weights'),
+    u32(9),
+    u32(6),
+    u64(131_073),
+    Buffer.alloc(131_073 * 4),
+    string('irrelevant.tokens'),
+    u32(9),
+    u32(8),
+    u64(2),
+    string('test'.repeat(40_000)),
+    string(''),
+    string('general.architecture'),
+    u32(8),
+    string('fixture'),
+    string('fixture.context_length'),
+    u32(4),
+    u32(32_768),
+    string('tokenizer.chat_template'),
+    u32(8),
+    string(text),
+  ]);
+  writeFileSync(file, metadata);
+  assert.deepEqual(
+    { ...ggufMetadata(file) },
+    {
+      'general.architecture': 'fixture',
+      'fixture.context_length': 32_768,
+      'tokenizer.chat_template': text,
+    },
+  );
+  writeFileSync(file, metadata.subarray(0, metadata.length - 1));
+  assert.throws(() => ggufMetadata(file), /Invalid GGUF metadata/);
+});
 
 test('Ollama cache aliases are read in place and unsupported Ministral weights are excluded', async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), 'capri-llama-test-'));
@@ -62,6 +121,28 @@ test('Ollama cache aliases are read in place and unsupported Ministral weights a
   });
   assert.ok(store.list().some((item) => item.name === 'capri-qwen3.5:2b'));
   assert.throws(() => store.get('../private'), /Invalid local model name/);
+});
+
+test('a Qwen registry outage preserves the DNS diagnosis after all four retries', async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'capri-registry-dns-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const store = new LlamaModelStore(root);
+  let attempts = 0;
+  await assert.rejects(
+    store.pull('qwen3.5:9b', {
+      fetchImpl: async () => {
+        attempts++;
+        throw new Error('private upstream URL', { cause: { code: 'ENOTFOUND' } });
+      },
+    }),
+    (error) => {
+      assert.match(error.message, /Model registry address could not be resolved \(DNS\)/);
+      assert.doesNotMatch(error.message, /private upstream URL/);
+      return true;
+    },
+  );
+  assert.equal(attempts, 4);
+  assert.deepEqual(store.list(), []);
 });
 
 test('an Ollama v2 Capri model alias reuses local GGUF files after switching engines', async (t) => {
@@ -172,6 +253,92 @@ test('stalled Vulkan startup allows Automatic to reach CPU and preserves an expl
   assert.deepEqual(attempts, ['auto', 'stop', 'cpu', 'Vulkan1', 'stop']);
 });
 
+test('a larger resident context is reused without a synthetic warmup request', async () => {
+  const model = 'local:latest';
+  const result = await ensureLanguageModelReady(
+    {
+      url: 'http://127.0.0.1:1',
+      model,
+      contextTokens: 32768,
+      acceleration: 'cpu',
+    },
+    {
+      requestImpl: async (url) => {
+        assert.match(url, /\/api\/ps$/);
+        return { models: [{ name: model, context_length: 65536, size: 123, size_vram: 0 }] };
+      },
+    },
+  );
+  assert.deepEqual(result, {
+    cold: false,
+    residentBytes: 123,
+    residentGpuBytes: 0,
+    residentContextTokens: 65536,
+  });
+});
+
+test('a rejected GPU request leaves the resident CPU runner eligible for idle unload', async (t) => {
+  const workers = new LlamaWorkers({
+    root: tmpdir(),
+    config: { contextTokens: 32768, keepAlive: 1 },
+    device: 'unavailable',
+  });
+  t.after(() => workers.close());
+  let stopped;
+  const unloaded = new Promise((resolve) => {
+    stopped = resolve;
+  });
+  workers.open = async (model, _role, options) => ({
+    model,
+    ...options,
+    process: { alive: () => true, stop: async () => stopped(true) },
+    dispose() {},
+  });
+  const model = { name: 'local:latest' };
+  const signal = AbortSignal.timeout(3000);
+  await workers.use(model, 'chat', { options: { num_gpu: 0 } }, signal, () => {});
+  await assert.rejects(
+    workers.use(model, 'chat', {}, signal, () => {}),
+    { code: 'CAPRI_LLAMA_GPU_UNAVAILABLE' },
+  );
+  assert.ok(
+    await Promise.race([unloaded, new Promise((resolve) => setTimeout(resolve, 1400, false))]),
+  );
+  await workers.enqueue('chat', () => {});
+  assert.equal(workers.list().length, 0);
+});
+
+test(
+  'a runner reloads only when its effective CPU thread allocation changes',
+  { skip: availableParallelism() < 2 },
+  async (t) => {
+    const workers = new LlamaWorkers({
+      root: tmpdir(),
+      config: { contextTokens: 32768, keepAlive: -1, cpuThreads: 2 },
+    });
+    t.after(() => workers.close());
+    const allocations = [];
+    workers.open = async (model, _role, options) => {
+      allocations.push(options.threads);
+      return {
+        model,
+        ...options,
+        process: { alive: () => true, stop: async () => {} },
+        dispose() {},
+      };
+    };
+    const model = { name: 'local:latest' };
+    const signal = AbortSignal.timeout(3000);
+    const use = (options) =>
+      workers.use(model, 'chat', { options }, signal, ({ threads }) => threads);
+    assert.equal(await use({ num_thread: 1 }), 1);
+    assert.equal(await use({ num_thread: 1 }), 1);
+    assert.equal(await use({}), 2);
+    assert.equal(await use({ num_thread: 2 }), 2);
+    assert.deepEqual(allocations, [1, 2]);
+  },
+);
+
 test('llama.cpp receives local image data and stable tool IDs without network image URLs', () => {
   const config = { reasoningBudget: 64 };
   const model = { name: 'local' };
@@ -188,6 +355,21 @@ test('llama.cpp receives local image data and stable tool IDs without network im
   assert.equal(payload.messages[0].tool_calls[0].id, payload.messages[1].tool_call_id);
   assert.equal(payload.messages[0].tool_calls[0].function.arguments, '{"count":1}');
   assert.match(payload.messages[2].content[1].image_url.url, /^data:image\/jpeg;base64,/);
+  const openAiImage = llamaChatBody(
+    {
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'image_url', image_url: { url: '/9j/AQ==', detail: 'high' } }],
+        },
+      ],
+    },
+    { config, model, legacy: false },
+  );
+  assert.deepEqual(openAiImage.messages[0].content[0].image_url, {
+    url: 'data:image/jpeg;base64,/9j/AQ==',
+    detail: 'high',
+  });
   assert.equal(payload.reasoning_budget, 64);
   assert.equal(payload.max_tokens, 128);
   assert.equal(

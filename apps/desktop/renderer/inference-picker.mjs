@@ -44,6 +44,7 @@ export class InferencePicker {
     Object.assign(this, { button, api, ui, onError, onLayout, isBusy });
     this.request = 0;
     this.selecting = false;
+    this.previewing = false;
     this.menu = document.createElement('section');
     this.menu.id = 'inference-picker';
     this.menu.hidden = true;
@@ -62,16 +63,25 @@ export class InferencePicker {
       void this.open(event.key === 'ArrowUp');
     });
     document.addEventListener('pointerdown', (event) => {
-      if (!this.menu.hidden && !this.menu.contains(event.target) && !button.contains(event.target))
+      if (
+        !this.previewing &&
+        !this.menu.hidden &&
+        !this.menu.contains(event.target) &&
+        !button.contains(event.target)
+      )
         this.close(false);
     });
     document.addEventListener('keydown', (event) => this.key(event), true);
     window.addEventListener('resize', () => this.position());
-    window.addEventListener('blur', () => this.close(false));
+    window.addEventListener('blur', () => {
+      if (!this.previewing) this.close(false);
+    });
   }
 
-  async open(last = false) {
+  async open(last = false, { preview = false } = {}) {
     if (this.selecting) return;
+    this.previewing = preview;
+    this.menu.inert = preview;
     const request = ++this.request;
     this.value = null;
     this.menu.replaceChildren();
@@ -87,6 +97,7 @@ export class InferencePicker {
       if (request !== this.request || this.menu.hidden) return;
       this.value = value;
       this.render();
+      if (preview) return;
       const items = this.items();
       (last
         ? items.at(-1)
@@ -94,8 +105,8 @@ export class InferencePicker {
       )?.focus({ preventScroll: true });
     } catch (error) {
       if (request !== this.request) return;
-      this.close();
-      this.onError(error.message);
+      this.close(!preview);
+      if (!preview) this.onError(error.message);
     }
   }
 
@@ -149,7 +160,7 @@ export class InferencePicker {
       button.onclick = () => this.select(choice);
       this.menu.append(button);
     }
-    if (this.value.localLoad) {
+    if (this.value.localLoad && !this.previewing) {
       this.loadControls = new LocalLoadControls({
         api: this.api,
         ui: this.ui,
@@ -181,7 +192,7 @@ export class InferencePicker {
   }
 
   async select(choice) {
-    if (this.selecting || this.isBusy() || !choice.available) return;
+    if (this.previewing || this.selecting || this.isBusy() || !choice.available) return;
     if (choice.active) return this.close();
     this.selecting = true;
     const request = this.request;
@@ -239,7 +250,7 @@ export class InferencePicker {
   }
 
   key(event) {
-    if (this.menu.hidden) return;
+    if (this.menu.hidden || this.previewing) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -293,6 +304,8 @@ export class InferencePicker {
     ++this.request;
     const visible = !this.menu.hidden;
     this.menu.hidden = true;
+    this.previewing = false;
+    this.menu.inert = false;
     this.button.setAttribute('aria-expanded', 'false');
     if (visible && focus) this.button.focus({ preventScroll: true });
     if (visible) this.onLayout();

@@ -59,7 +59,7 @@ export function skillToolbar({ ui, openSettings, onLayout, inputMic }) {
     button.addEventListener(
       'click',
       (event) => {
-        if (state[skill.id]?.enabled) return;
+        if (state[skill.id]?.enabled || skill.id === 'capri.music') return;
         event.preventDefault();
         event.stopImmediatePropagation();
         openSettings(skill.section);

@@ -131,15 +131,27 @@ test('teleport effect preferences upgrade old settings and validate their bounds
   const upgraded = validateCompanionSettings({ wakeSound: 'off', glitchStrength: 37 });
   assert.equal(upgraded.wakeSound, 'off');
   assert.equal(upgraded.glitchStrength, 37);
-  assert.equal(upgraded.teleportIntensity, 75);
-  assert.equal(upgraded.teleportJaggedness, 78);
-  assert.equal(upgraded.teleportBranches, 75);
+  assert.equal(upgraded.teleportIntensity, 30);
+  assert.equal(upgraded.teleportJaggedness, 70);
+  assert.equal(upgraded.teleportBranches, 88);
   assert.equal(upgraded.teleportReducedFlash, false);
+  assert.equal(upgraded.teleportColor, '#ff0033');
+  assert.equal(upgraded.teleportThickness, 100);
+  assert.equal(upgraded.teleportGlow, 0);
+  assert.equal(upgraded.teleportSparkAmount, 50);
+  assert.equal(upgraded.teleportSparkTravel, 50);
+  assert.equal(upgraded.teleportSound, 'spark');
   const custom = {
     teleportIntensity: 0,
     teleportJaggedness: 100,
     teleportBranches: 30,
     teleportReducedFlash: true,
+    teleportColor: '#7ddaff',
+    teleportThickness: 200,
+    teleportGlow: 45,
+    teleportSparkAmount: 0,
+    teleportSparkTravel: 100,
+    teleportSound: 'thunder',
   };
   assert.deepEqual(validateCompanionSettings(custom), { ...COMPANION_DEFAULTS, ...custom });
   for (const invalid of [
@@ -148,6 +160,13 @@ test('teleport effect preferences upgrade old settings and validate their bounds
     { teleportBranches: 1.5 },
     { teleportBranches: '10' },
     { teleportReducedFlash: 'true' },
+    { teleportColor: '#abc' },
+    { teleportColor: 'transparent' },
+    { teleportThickness: 9 },
+    { teleportThickness: 201 },
+    { teleportGlow: 101 },
+    { teleportSparkAmount: '65' },
+    { teleportSparkTravel: -1 },
   ])
     assert.throws(() => validateCompanionSettings(invalid), /Invalid companion settings/);
 });
@@ -327,9 +346,10 @@ test('startup reports measured stages and saves only bounded timing data', () =>
 
 test('startup countdown follows the running stage and becomes indeterminate if it overruns', () => {
   const elements = {
-    p: {},
+    '.startup-summary': {},
     '.startup-eta': {},
     progress: {
+      setAttribute() {},
       removeAttribute(name) {
         delete this[name];
       },

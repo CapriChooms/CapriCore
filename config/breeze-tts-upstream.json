@@ -1,0 +1,21 @@
+{
+  "version": "0.1.7",
+  "runtime": {
+    "directory": "breeze-tts-2-v0.1.7-windows-x64-vulkan",
+    "url": "https://github.com/HoppouAI/Breeze-TTS-2.cpp/releases/download/v0.1.7/breeze-tts-2-v0.1.7-windows-x64-vulkan.zip",
+    "bytes": 72930161,
+    "sha256": "63fb117e5c6b04e33ac513d6ca80c621d01bdbdebcf7a8486f872d181ae3c88f",
+    "executableSha256": "482018a9b5b044ddbd46faa89222a0f8f962b4d0666cd6d59b82fad583abab50",
+    "files": {
+      "breeze-cli.exe": 59535730,
+      "LICENSE": 11541,
+      "THIRD_PARTY_NOTICES.txt": 28356
+    }
+  },
+  "model": {
+    "path": "breeze-tts-2-q4_k.gguf",
+    "url": "https://huggingface.co/HoppouAI/Breeze-TTS-2.cpp/resolve/e4fae6493ffb8bbeacc402d1b36f18dfa18fc8d5/breeze-tts-2-q4_k.gguf?download=true",
+    "bytes": 2538909376,
+    "sha256": "483418fbbb438f5f1c08dbe2b017e42db0f1d126765cd3f772d8622a30a4915c"
+  }
+}

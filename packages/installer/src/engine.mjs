@@ -23,6 +23,11 @@ import voiceCatalog from '../../../config/tts-catalog.json' with { type: 'json' 
 import { apiSettings } from '../../../apps/desktop/inference-api.mjs';
 import { writeJsonAtomic } from '../../runtime/src/atomic-json.mjs';
 import { probeHardware } from '../../runtime/src/hardware/probe.mjs';
+import {
+  deviceSettingsFile,
+  readModelDevices,
+  saveModelDevices,
+} from '../../runtime/src/model-device-settings.mjs';
 import { fetchArtifact, fileHash } from './download.mjs';
 import { runCommand } from './commands.mjs';
 import { installNpmDependencies } from './npm-install.mjs';
@@ -33,6 +38,7 @@ import {
   diskFree,
   assertDiskSpace,
   identityFile,
+  installerLanguageHardware,
   planFingerprint,
   noLinks,
 } from './policy.mjs';
@@ -51,6 +57,7 @@ import { waitWhilePaused } from './pause.mjs';
 import { llamaBundleReady, LLAMA_VULKAN_FILES } from '../../runtime/src/host/llama-bundle.mjs';
 import { electronBundleReady } from '../../runtime/src/host/electron-bundle.mjs';
 import { applyInstallerModelSelection } from './model-selection.mjs';
+import { prepareBundledCamera } from './camera-package.mjs';
 
 export async function install(
   request,
@@ -77,7 +84,9 @@ export async function install(
     hardware,
   });
   let restoreModelSelection;
+  let restoreModelDevices;
   let restoreLanguages;
+  let restoreCameraBundle;
   const russianQwen = plan.voiceMode === 'qwen-ru';
   const qwen = plan.voiceMode === 'qwen' || russianQwen;
   const needsVoice = Boolean(plan.voicePack || qwen);
@@ -369,7 +378,7 @@ export async function install(
       if (
         receipt?.sha256 !== spec.sha256 ||
         !verified(executable) ||
-        receipt.executableSha256 !== (await fileHash(executable))
+        receipt.executableSha256 !== (await fileHash(executable, signal))
       )
         return false;
       if (name === 'llama') {
@@ -377,7 +386,8 @@ export async function install(
           signal?.throwIfAborted();
           if (
             !/^[a-f0-9]{64}$/.test(receipt.files?.[file] ?? '') ||
-            receipt.files[file] !== (await fileHash(path.join(path.dirname(executable), file)))
+            receipt.files[file] !==
+              (await fileHash(path.join(path.dirname(executable), file), signal))
           )
             return false;
         }
@@ -454,12 +464,12 @@ export async function install(
       const candidate = staged ? path.join(staged, path.basename(executable)) : executable;
       if (!verified(candidate))
         throw new Error(name + ' runtime is incomplete. Retry Setup to repair the download.');
-      const executableSha256 = await fileHash(candidate);
+      const executableSha256 = await fileHash(candidate, signal);
       if (staged) {
         const files = {};
         for (const file of LLAMA_VULKAN_FILES) {
           signal?.throwIfAborted();
-          files[file] = await fileHash(path.join(staged, file));
+          files[file] = await fileHash(path.join(staged, file), signal);
         }
         const backup = path.join(cache, 'backups', 'llama-' + randomUUID());
         noLinks(backup);
@@ -507,8 +517,10 @@ export async function install(
       }
     }
     emit({ type: 'stage-plan', stages });
+    let activateCameraBundle;
     await step('source', async () => {
       activity('checkSource');
+      activateCameraBundle = await prepareBundledCamera(sourceRoot, root, signal);
       requireCapriAvatar(sourceRoot, { source: true });
       const files = sourceFiles(sourceRoot).map((name) => {
         const file = path.join(sourceRoot, name),
@@ -611,6 +623,11 @@ export async function install(
     await step('ollama', () => runtime('llama', llamaExecutable));
     env.CAPRI_LLAMA_PATH = llamaExecutable;
     await step('configuration', async () => {
+      if (plan.languageDevice) {
+        const { language, voice } = readModelDevices(root);
+        if (language !== plan.languageDevice || !existsSync(deviceSettingsFile(root)))
+          restoreModelDevices = saveModelDevices(root, { language: plan.languageDevice, voice });
+      }
       if (!existsSync(path.join(root, 'config/core.local.json'))) {
         const reserved = new Set(),
           base = readJson(path.join(root, 'config/core.json'));
@@ -628,7 +645,12 @@ export async function install(
         voice.port = await findFreePort(voice.port, reserved);
         writeJsonAtomic(path.join(root, 'config/companion-voice.json'), voice);
       }
-      restoreModelSelection = applyInstallerModelSelection({ root, plan, hardware });
+      if (plan.inferenceMode === 'local' && !plan.modelSetupRequired)
+        restoreModelSelection = applyInstallerModelSelection({
+          root,
+          plan,
+          hardware: installerLanguageHardware(root, hardware, plan.languageDevice),
+        });
       const router = readJson(path.join(root, 'config/request-router.json'));
       router.enabled = plan.router;
       writeJsonAtomic(path.join(root, 'config/request-router.json'), router);
@@ -828,6 +850,7 @@ export async function install(
         if (savedLanguages) writeJsonAtomic(languageFile, savedLanguages);
         else unlinkSync(languageFile);
       };
+      restoreCameraBundle = activateCameraBundle?.();
     });
     journal.status = 'complete';
     save();
@@ -845,7 +868,9 @@ export async function install(
   } catch (error) {
     // A failed download must leave the user's previous model usable. All stages
     // rerun on retry, so restoring these settings cannot skip the next switch.
+    restoreCameraBundle?.();
     restoreModelSelection?.();
+    restoreModelDevices?.();
     restoreLanguages?.();
     journal.status = signal?.aborted ? 'cancelled' : 'failed';
     save();

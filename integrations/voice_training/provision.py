@@ -70,11 +70,9 @@ def download_model(config, *, root=ROOT, download=download_verified):
     return files
 
 
-def verify_model_metadata(config):
+def verify_source():
     import importlib.metadata
 
-    folder = config["modelPath"]
-    receipt = json.loads((folder / "model-receipt.json").read_text(encoding="utf-8"))
     upstream = json.loads(
         (ROOT / "config/voice-upstream.json").read_text(encoding="utf-8")
     )
@@ -86,6 +84,13 @@ def verify_model_metadata(config):
         raise ValueError(
             "Installed source is not pinned correctly; run setup-voice-training.cmd"
         )
+    return upstream
+
+
+def verify_model_metadata(config):
+    folder = config["modelPath"]
+    receipt = json.loads((folder / "model-receipt.json").read_text(encoding="utf-8"))
+    upstream = verify_source()
     if receipt["upstream"] != upstream or set(receipt["files"]) != set(
         upstream["model"]["files"]
     ):

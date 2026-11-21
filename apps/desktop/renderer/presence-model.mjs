@@ -34,6 +34,7 @@ export class PresenceModel {
     this.lastActivity = now();
     this.burstAt = -Infinity;
     this.autonomous = false;
+    this.guiding = false;
     this.voiceAttentionUntil = -Infinity;
     this.expandOnReply = true;
   }
@@ -79,7 +80,7 @@ export class PresenceModel {
     this.hasText = false;
     this.speaking = false;
     this.voiceBusy = false;
-    if (!this.pinned && !this.autonomous && this.now() > this.voiceAttentionUntil)
+    if (!this.pinned && !this.autonomous && !this.guiding && this.now() > this.voiceAttentionUntil)
       this.expanded = false;
     this.voiceAttentionUntil = -Infinity;
     this.touch();
@@ -112,6 +113,7 @@ export class PresenceModel {
     if (
       this.expanded &&
       !this.autonomous &&
+      !this.guiding &&
       !this.pinned &&
       !this.sleeping &&
       !this.turnId &&
@@ -185,7 +187,6 @@ export function interferenceFrame(
     ambient: ambient > 0,
   };
 }
-
 export function interfaceFloat(now, { amplitude = 2.45, periodSeconds = 11 } = {}) {
   const phase = (now / (periodSeconds * 1000)) * 2 * Math.PI;
   return amplitude * (Math.sin(phase) * 0.75 + Math.sin(phase * 0.53 + 1.4) * 0.25);
@@ -197,17 +198,4 @@ export function signalRandom(seed) {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
     return state / 4294967296;
   };
-}
-
-/** Unequal faceted shards around Capri's eye, generated as polygons. */
-export function shardPoints(index, time, activity = 0) {
-  const angle = (index * Math.PI * 2) / 7 + time * (0.12 + activity * 0.38);
-  const reach = 27 + Math.sin(time * 1.4 + index * 2) * 2 + activity * 4;
-  const length = [19, 11, 23, 15, 12, 20, 14][index % 7];
-  const point = (r, a) => [Math.cos(a) * r, Math.sin(a) * r];
-  return [
-    point(reach, angle - 0.18),
-    point(reach + length, angle + 0.05),
-    point(reach + 4, angle + 0.18),
-  ];
 }

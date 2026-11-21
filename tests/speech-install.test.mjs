@@ -503,6 +503,9 @@ test('speech progress reconnects, cancellation stops the owned task, and retry c
     root: folder,
     node: process.execPath,
     emit: (event) => events.push(event),
+    before: async (_signal, selection) => {
+      assert.equal(selection.recognition, 'off');
+    },
     ready: async () => {
       prepared++;
     },
@@ -518,6 +521,8 @@ test('speech progress reconnects, cancellation stops the owned task, and retry c
   service.start({ speech: 'ru', recognition: 'off' });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(service.snapshot().phase, 'installing');
+  assert.equal(service.busy('speech'), true);
+  assert.equal(service.busy('recognition'), false);
   assert.equal(service.snapshot().progress.received, 10);
   assert.throws(() => service.start({ speech: 'en', recognition: 'off' }), /already running/);
   await service.close();
@@ -537,6 +542,19 @@ test('speech progress reconnects, cancellation stops the owned task, and retry c
     new SpeechInstallService({ root: folder, node: process.execPath }).snapshot().phase,
     'interrupted',
   );
+});
+
+test('recognition repair still holds the microphone until the installer settles', async () => {
+  const service = new SpeechInstallService({
+    root: fixture(),
+    node: process.execPath,
+    install: async () => {},
+  });
+  service.start({ speech: 'off', recognition: 'vi' });
+  assert.equal(service.busy('recognition'), true);
+  assert.equal(service.busy('speech'), false);
+  await service.task;
+  assert.equal(service.busy('recognition'), false);
 });
 
 test('voice download status shows the safe current filename and its aggregate percentage', async () => {

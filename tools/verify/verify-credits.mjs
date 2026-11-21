@@ -51,10 +51,111 @@ try {
     .locator('[data-section]')
     .evaluateAll((nodes) => nodes.map((node) => node.dataset.section));
   assert.equal(sections.indexOf('credits'), sections.indexOf('support') + 1);
+  await settings.evaluate(() => {
+    const originalFetch = window.fetch.bind(window);
+    const fillText = CanvasRenderingContext2D.prototype.fillText;
+    const drawImage = CanvasRenderingContext2D.prototype.drawImage;
+    let release;
+    const rosterGate = new Promise((resolve) => (release = resolve));
+    window.releaseCreditsRoster = () => {
+      window.fetch = originalFetch;
+      CanvasRenderingContext2D.prototype.fillText = fillText;
+      CanvasRenderingContext2D.prototype.drawImage = drawImage;
+      release();
+    };
+    window.fetch = async (source, options) => {
+      if (typeof source === 'string' && source.endsWith('hall-of-fame.json')) {
+        window.creditsRosterPending = true;
+        await rosterGate;
+        window.creditsRosterPending = false;
+      }
+      return originalFetch(source, options);
+    };
+    window.creditsRasterizedNames = [];
+    window.creditsSheetDraws = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (name, ...args) {
+      window.creditsRasterizedNames.push(name);
+      return fillText.call(this, name, ...args);
+    };
+    CanvasRenderingContext2D.prototype.drawImage = function (...args) {
+      if (this.canvas.matches('canvas.credits-ray-sheet')) window.creditsSheetDraws++;
+      return drawImage.apply(this, args);
+    };
+  });
+  await settings.emulateMedia({ reducedMotion: 'no-preference' });
   await settings.locator('[data-section="credits"]').click();
   const panel = settings.locator('#credits-panel');
   await panel.waitFor();
+  await settings.waitForFunction(
+    () =>
+      window.creditsRosterPending === true &&
+      document.getElementById('companion').getAttribute('aria-busy') === 'false',
+    undefined,
+    { timeout: 5000 },
+  );
+  const teamRays = panel.locator('.credits-god-rays > canvas.credits-ray-sheet');
+  assert.equal(await teamRays.count(), roster.team.length);
+  await settings.waitForFunction(() => {
+    const canvases = [...document.querySelectorAll('canvas.credits-ray-sheet')];
+    return canvases.length > 0 && canvases.every((canvas) => canvas.width > 1 && canvas.height > 1);
+  });
+  const painted = await teamRays.evaluateAll((canvases) => {
+    window.creditsOpeningCanvases = canvases;
+    return canvases.map((canvas) => {
+      const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+      const hasRays = data.some((channel, index) => index % 4 === 3 && channel > 10);
+      return {
+        hasRays,
+        pointerEvents: getComputedStyle(canvas.parentElement).pointerEvents,
+        cssAnimations: canvas.getAnimations().length,
+      };
+    });
+  });
+  assert(
+    painted.every(
+      ({ hasRays, pointerEvents, cssAnimations }) =>
+        hasRays && pointerEvents === 'none' && !cssAnimations,
+    ),
+  );
+  assert.equal(
+    await panel.locator('.credits-god-rays[aria-hidden="true"]').count(),
+    roster.team.length,
+  );
+  await settings.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  const rasterizedNames = () => settings.evaluate(() => window.creditsRasterizedNames);
+  const initialMasks = await rasterizedNames();
+  for (const { name } of roster.team)
+    assert(initialMasks.includes(name), `Missing nickname in projection mask: ${name}`);
+  const { initialDraws, initialProjection } = await teamRays.first().evaluate((canvas) => ({
+    initialDraws: window.creditsSheetDraws,
+    initialProjection: canvas.toDataURL(),
+  }));
+  assert(initialDraws > 0, 'Composed ray textures are written to the visible sheets');
+  await settings.waitForFunction(
+    ({ initialDraws, initialProjection }) =>
+      window.creditsSheetDraws > initialDraws &&
+      document.querySelector('canvas.credits-ray-sheet').toDataURL() !== initialProjection,
+    { initialDraws, initialProjection },
+    { polling: 80, timeout: 3000 },
+  );
+  assert.deepEqual(
+    await rasterizedNames(),
+    initialMasks,
+    'Animation reuses the rasterized letters',
+  );
+  await settings.evaluate(() => window.releaseCreditsRoster());
   await panel.getByText(roster.supporters[0], { exact: true }).waitFor();
+  assert.equal(
+    await teamRays.evaluateAll((canvases) =>
+      canvases.every((canvas, index) => canvas === window.creditsOpeningCanvases[index]),
+    ),
+    true,
+    'The supporter registry updates without rebuilding or restarting team rays',
+  );
+  report.checks.push('Team rays paint before the pending roster, using cached nickname glyphs');
   const text = await panel.textContent();
   for (const person of [...roster.team.map(({ name }) => name), ...roster.supporters])
     assert(text.includes(person), 'Missing credit: ' + person);

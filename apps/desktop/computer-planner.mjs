@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { LOCAL_RUNNER_POLICY } from '../../packages/runtime/src/providers/runner-policy.mjs';
+import { EXPERIMENTAL_COMPANION_CONTEXT } from '../../packages/runtime/src/config/context-policy.mjs';
 import { REASONING_BUDGETS } from '../../packages/skills/src/settings-catalog.mjs';
 import { canClickTarget, hasVisualEvidence } from './computer-click-target.mjs';
 import {
@@ -467,6 +468,13 @@ export function computerActionSchema(view, evidence) {
   };
   const anyOf = [];
   for (const [action, names] of Object.entries(argumentsByAction)) {
+    if (view.steamMustAdvance && action !== 'click') continue;
+    if (
+      view.steamTaskPending &&
+      !['click', 'enter_text', 'observe', 'wait', 'ask_user'].includes(action) &&
+      !(action === 'launch' && view.allowSteamLaunch)
+    )
+      continue;
     if (
       view.webAllowed === false &&
       ['open_url', 'browser_search', 'browser_input'].includes(action)
@@ -575,6 +583,7 @@ export function computerActionSchema(view, evidence) {
                   ...fields.query,
                   minLength: 1,
                   pattern: '^[^:/\\\\\\r\\n]+$',
+                  ...(view.steamTaskPending && action === 'launch' && { enum: ['Steam'] }),
                   ...(['open_url', 'browser_search'].includes(action)
                     ? {
                         enum: ['Google Chrome', 'Microsoft Edge'],
@@ -802,7 +811,7 @@ export function computerIntentClassifier({
 }
 
 export function plannerContextState(state, view, contextTokens = 32768) {
-  if (contextTokens > 12288) return { ...state, currentObservation: view };
+  if (contextTokens > EXPERIMENTAL_COMPANION_CONTEXT) return { ...state, currentObservation: view };
   const recent = state.actualSteps ?? [],
     keep = 6;
   const compact = (step) =>
@@ -827,6 +836,7 @@ export function plannerContextState(state, view, contextTokens = 32768) {
 export function computerPlanner({ url, model, params = {}, modelCapabilities, fetchImpl = fetch }) {
   const endpoint = inferenceEndpoint(url);
   let preferJsonFormat = false;
+  let preferPromptFormat = false;
   async function requestPlan(
     { format, messages, numPredict, review = false, planningEffort, targetIds },
     signal,
@@ -845,9 +855,7 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
       ...LOCAL_RUNNER_POLICY,
       ...(canThink && { think }),
       ...(think && { reasoning_effort: planningEffort }),
-      options: { ...params, num_predict: budget, temperature: 0 },
       tools: [],
-      format,
       messages,
     };
     const request = {
@@ -856,45 +864,46 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
       signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(35000)]),
       headers: { 'content-type': 'application/json' },
     };
+    // Completion reviews use plain JSON syntax and still require exact evidence locally.
+    let mode = preferPromptFormat ? 'prompt' : review || preferJsonFormat ? 'json' : 'schema';
+    let rejectedFormat = false;
+    let predict = budget;
     for (let attempt = 0; attempt < 2; attempt++) {
       signal?.throwIfAborted();
-      // Grammar-constrained completion reviews biased smaller models toward
-      // "incomplete" even with the source visible. Validate both verdict shapes
-      // and the exact evidence in the host regardless of the wire format.
-      const usedJsonFormat = review || preferJsonFormat;
+      const replyMessages =
+        mode !== 'schema' && targetIds && !review
+          ? [
+              { ...messages[0], content: messages[0].content + '\n' + plannerJsonHint(format) },
+              ...messages.slice(1),
+            ]
+          : messages;
       const response = await fetchImpl(endpoint, {
         ...request,
-        body: JSON.stringify(
-          usedJsonFormat
-            ? {
-                ...body,
-                format: 'json',
-                messages: review
-                  ? messages
-                  : [
-                      {
-                        ...messages[0],
-                        content: messages[0].content + '\n' + plannerJsonHint(format),
-                      },
-                      ...messages.slice(1),
-                    ],
-              }
-            : body,
-        ),
+        body: JSON.stringify({
+          ...body,
+          options: { ...params, num_predict: predict, temperature: 0 },
+          format: mode === 'schema' ? format : mode === 'json' ? 'json' : undefined,
+          messages: replyMessages,
+        }),
       });
       if (response.ok) {
         const raw = await response.text();
-        if (raw.length > 65536) throw new Error('Computer planning exceeded its output limit.');
         let result;
+        let truncated = false;
         try {
-          result = computerJson(JSON.parse(raw));
+          if (raw.length <= 65536) {
+            const packet = JSON.parse(raw);
+            truncated = packet?.done_reason === 'length';
+            result = computerJson(packet);
+          }
         } catch {
-          throw Object.assign(new Error('Invalid computer plan JSON.'), {
-            code: 'COMPUTER_PLAN_JSON',
-          });
+          /* Check for a valid completion below. */
         }
         normalizePlannerReply(result, targetIds);
-        if (matchesPlannerSchema(result, format)) return result;
+        if (matchesPlannerSchema(result, format)) {
+          if (rejectedFormat && mode === 'prompt') preferPromptFormat = true;
+          return result;
+        }
         if (
           !review &&
           targetIds &&
@@ -911,16 +920,37 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
             (entry) => entry.properties?.action && entry.properties.action.const === action.action,
           );
           const actionSchema = decisionSchemaWithoutPlanMetadata(branch);
-          if (actionSchema && matchesPlannerSchema(action, actionSchema)) return result;
+          if (actionSchema && matchesPlannerSchema(action, actionSchema)) {
+            if (rejectedFormat && mode === 'prompt') preferPromptFormat = true;
+            return result;
+          }
         }
-        throw Object.assign(new Error('Invalid computer plan.'), { code: 'COMPUTER_PLAN_SCHEMA' });
+        if (!attempt) {
+          // Retry only a read-only request. A looser wire format still has the same host schema.
+          mode = mode === 'schema' ? 'json' : 'prompt';
+          if (truncated) predict = Math.min(3200, budget * 2);
+          continue;
+        }
+        throw Object.assign(new Error('Invalid computer plan.'), {
+          code: result === undefined ? 'COMPUTER_PLAN_JSON' : 'COMPUTER_PLAN_SCHEMA',
+        });
       }
       // A rejected native schema dispatches no input. JSON fallback still passes host validation.
-      if (!usedJsonFormat && (await nativePlannerFormatError(response))) {
+      if (!attempt && mode === 'schema' && (await nativePlannerFormatError(response))) {
         preferJsonFormat = true;
+        mode = 'json';
         continue;
       }
-      throw new Error('Computer planning HTTP ' + response.status);
+      await response.body?.cancel().catch(() => {});
+      if (!attempt && mode !== 'prompt' && [400, 415, 422].includes(response.status)) {
+        mode = 'prompt';
+        rejectedFormat = true;
+        continue;
+      }
+      throw Object.assign(new Error('Computer planning HTTP ' + response.status), {
+        code: 'COMPUTER_PLAN_HTTP',
+        httpStatus: response.status,
+      });
     }
     throw new Error('Computer planning did not return a result.');
   }
@@ -933,7 +963,9 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
     const expectedControl = state.expectedControl?.toLocaleLowerCase();
     const contextTokens = Number.isInteger(params.num_ctx) ? params.num_ctx : 32768;
     const targetBudget =
-      contextTokens <= 12288 ? Math.max(2400, Math.min(7000, (contextTokens - 4096) * 1.3)) : 12000;
+      contextTokens <= EXPERIMENTAL_COMPANION_CONTEXT
+        ? Math.max(2400, Math.min(7000, (contextTokens - 4096) * 1.3))
+        : 12000;
     const topics = [
       ...new Set(
         [
@@ -945,6 +977,7 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
       const text = String(target.untrustedLabel ?? '').toLowerCase();
       return topics.reduce((score, topic) => score + Number(text.includes(topic)), 0);
     };
+    const steamTargetIds = state.steamTaskTargets && new Set(state.steamTaskTargets);
     const rank = (target) => {
       const expected =
         expectedControl && target.untrustedLabel?.toLocaleLowerCase() === expectedControl;
@@ -959,6 +992,11 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
     };
     const view = {
       ...observation,
+      ...(steamTargetIds && {
+        steamTaskPending: true,
+        allowSteamLaunch: state.allowSteamLaunch === true,
+        steamMustAdvance: state.steamMustAdvance === true,
+      }),
       webAllowed: state.webAllowed,
       discordTaskAllowed: state.discordTaskAllowed === true,
       pageSearchRequired: requiresPageSearch(state.originalOwnerGoal),
@@ -968,6 +1006,7 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
           (t) =>
             !t.browserDocumentAddress &&
             !t.duplicateCaption &&
+            (!steamTargetIds || steamTargetIds.has(t.targetId)) &&
             (t.editable || t.untrustedLabel || t.untrustedValue),
         )
         .toSorted((a, b) =>
@@ -993,6 +1032,7 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
             ...(target.actionRole
               ? { actionRole: target.actionRole.replace(/^ControlType\./, '') }
               : {}),
+            ...(target.steamRole ? { steamRole: target.steamRole } : {}),
             ...(['text', 'candidate', 'visual-caption'].includes(target.clickKind)
               ? { clickKind: target.clickKind }
               : {}),
@@ -1101,6 +1141,7 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
             '',
             observation?.window?.untrustedTitle,
             view.scene,
+            view.steamLibrary?.gameTitle,
             view.application?.summary,
             view.application?.timeline?.name,
             ...view.targets.flatMap((t) => [
@@ -1116,7 +1157,8 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
       (entry) => entry.id !== state.taskPlan.outcomeId,
     );
     const goalText = 'ORIGINAL OWNER GOAL:\n' + state.originalOwnerGoal;
-    const decisionContext = plannerContextState(state, view, contextTokens);
+    const { steamTaskTargets, allowSteamLaunch, steamMustAdvance, ...decisionState } = state;
+    const decisionContext = plannerContextState(decisionState, view, contextTokens);
     const reviewContext = review
       ? goalText +
         '\n\nLIVE OBSERVATION AFTER THE ACTIONS (the latest evidence):\n' +
@@ -1124,6 +1166,7 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
           window: view.window,
           browserPage: view.browserPage,
           scene: view.scene,
+          steamLibrary: view.steamLibrary,
           application: view.application,
           controls: view.targets.map(
             ({ targetId, untrustedLabel, untrustedValue, position, ...control }) => ({
@@ -1196,17 +1239,19 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
                 (review
                   ? ''
                   : '\nChoose the NEXT MISSING action with its actual arguments. Do not repeat verified actions. Use a visible targetId to click or move_pointer. Use observe if the needed control is absent. browser_search needs the browser name in query and search terms in text. press_keys cannot type arbitrary text. Do not press Enter unless the goal requests submitting/searching/navigation.') +
-                (!review && state.taskPlan
-                  ? !state.taskPlan.revision
-                    ? '\nOUTPUT REQUIREMENT: Include a nonempty plan of observable checkpoints alongside this first action.'
-                    : pendingProofs?.length
-                      ? '\nOUTPUT REQUIREMENT: Before finish, include verifiedCheckpoints with exact CURRENT evidence for the completed pending IDs: ' +
-                        pendingProofs.map((entry) => entry.id).join(', ') +
-                        '. The final owner outcome is reserved for independent review. Revise the remaining approach only when necessary.'
-                      : state.taskPlan.outcomeId
-                        ? '\nOnly the final outcome remains. Attempt finish only when you can provide the requested result, with exact current evidence. Otherwise continue with the next missing action.'
-                        : ''
-                  : '') +
+                (view.steamTaskPending
+                  ? '\nThe Steam launch or selection is still pending. Use the current verified control to make the next requested step, or wait if it genuinely is not usable.'
+                  : !review && state.taskPlan
+                    ? !state.taskPlan.revision
+                      ? '\nOUTPUT REQUIREMENT: Include a nonempty plan of observable checkpoints alongside this first action.'
+                      : pendingProofs?.length
+                        ? '\nOUTPUT REQUIREMENT: Before finish, include verifiedCheckpoints with exact CURRENT evidence for the completed pending IDs: ' +
+                          pendingProofs.map((entry) => entry.id).join(', ') +
+                          '. The final owner outcome is reserved for independent review. Revise the remaining approach only when necessary.'
+                        : state.taskPlan.outcomeId
+                          ? '\nOnly the final outcome remains. Attempt finish only when you can provide the requested result, with exact current evidence. Otherwise continue with the next missing action.'
+                          : ''
+                    : '') +
                 (state.correction ? '\nHOST FEEDBACK: ' + state.correction : ''),
           },
         ],

@@ -2,7 +2,15 @@ import { VoiceEffects } from './voice-effects.mjs';
 import { VOICE_EFFECT_DEFAULTS, validateVoiceEffects } from './voice-effects-settings.mjs';
 import { CALL_VOICE_VOLUME_DEFAULT, validateCallVoiceVolume } from './call-audio-settings.mjs';
 import { isVerifiedSeparateCallCable } from './call-audio-route.mjs';
+import { MICROPHONE_GAIN, validateMicrophoneGain } from './speech-settings.mjs';
 import { VOICE_VOLUME_DEFAULT, validateVoiceVolume } from './voice-volume.mjs';
+import {
+  audioOutputDevice,
+  bindAudioOutput,
+  createAudioOutputContext,
+  matchesAudioOutput,
+  selectedAudioOutputError,
+} from './local-audio-output.mjs';
 
 const validCallOutput = (id) =>
   typeof id === 'string' &&
@@ -12,6 +20,7 @@ const validCallOutput = (id) =>
   !['default', 'communications'].includes(id);
 const unavailableCallMicrophone =
   'The selected microphone is unavailable. Choose a device in Menu → Microphone input.';
+const speakerReadyTimeoutMs = 3000;
 
 /** Float32 PCM stays in memory; generation and playback have separate lifetimes. */
 export class VoicePlayer {
@@ -19,7 +28,7 @@ export class VoicePlayer {
     onState,
     onError,
     onPlayback = () => {},
-    contextFactory = () => new AudioContext(),
+    contextFactory = createAudioOutputContext,
     callContextFactory = (deviceId) =>
       new AudioContext({ latencyHint: 'interactive', sinkId: deviceId }),
     enumerateCallOutputs = async () =>
@@ -28,6 +37,7 @@ export class VoicePlayer {
       ),
     onCallOutputState = () => {},
     mediaDevices = globalThis.navigator?.mediaDevices,
+    enumerateSpeakerOutputs = () => mediaDevices?.enumerateDevices?.(),
   }) {
     Object.assign(this, {
       onState,
@@ -38,11 +48,14 @@ export class VoicePlayer {
       enumerateCallOutputs,
       onCallOutputState,
       mediaDevices,
+      enumerateSpeakerOutputs,
     });
     this.speakers = {};
+    this.speakerDevice = '';
     this.output = this.speakers;
     this.callOutput = null;
     this.callVoiceVolume = CALL_VOICE_VOLUME_DEFAULT;
+    this.microphoneGain = MICROPHONE_GAIN.default;
     this.speakerVolume = VOICE_VOLUME_DEFAULT;
     this.turnId = null;
     this.queue = [];
@@ -60,8 +73,188 @@ export class VoicePlayer {
   }
 
   async unlock() {
-    this.speakers.context ??= this.contextFactory();
-    await this.unlockOutput(this.speakers);
+    while (true) {
+      const context = this.context ?? this.openSpeakerContext();
+      const deviceId = this.speakerDevice;
+      await (this.speakerRoute?.promise ?? this.routeSpeakerOutput());
+      if (!this.context && this.speakerDevice === deviceId) throw selectedAudioOutputError();
+      if (context !== this.context || this.speakerRoute || this.speakerDevice !== deviceId)
+        continue;
+      try {
+        await this.unlockOutput(this.speakers);
+      } catch (error) {
+        if (this.speakerRoute || this.speakerDevice !== deviceId) continue;
+        if (deviceId && this.context === context) this.releaseSpeakerContext(context, false);
+        throw error;
+      }
+      if (
+        context === this.context &&
+        !this.speakerRoute &&
+        matchesAudioOutput(context, this.speakerDevice)
+      )
+        return;
+    }
+  }
+
+  async setSpeakerDevice(value = '') {
+    this.speakerDevice = audioOutputDevice(value);
+    if (this.speakerDevice === this.callOutput?.deviceId) this.stopMirrors();
+    if (this.context) await this.routeSpeakerOutput();
+  }
+
+  connectSpeakers(connected) {
+    const output = this.speakers;
+    if (!output.voiceGain || Boolean(output.connected) === connected) return;
+    if (connected) output.voiceGain.connect(output.context.destination);
+    else output.voiceGain.disconnect(output.context.destination);
+    output.connected = connected;
+  }
+
+  routeSpeakerOutput() {
+    const deviceId = this.speakerDevice;
+    const previous = this.speakerRoute;
+    if (previous?.deviceId === deviceId) return previous.promise;
+    if (
+      !previous &&
+      this.speakers.verifiedDevice === deviceId &&
+      matchesAudioOutput(this.context, deviceId)
+    ) {
+      this.connectSpeakers(!this.speakers.deviceProbe);
+      return;
+    }
+    // Changing the sink is asynchronous. Keep local replies and call monitors
+    // disconnected until Chromium confirms the latest exact route.
+    this.connectSpeakers(false);
+    const route = { deviceId };
+    this.speakers.deviceProbe = null;
+    this.speakerRoute = route;
+    route.promise = Promise.resolve(previous?.promise)
+      .catch(() => {})
+      .then(async () => {
+        if (this.speakerRoute !== route || !this.context) return;
+        // A constructor option is reflected in sinkId before Chromium opens the
+        // device. An old saved ID must not start a silent playback turn.
+        if (deviceId) {
+          let devices;
+          try {
+            devices = await this.enumerateSpeakerOutputs();
+          } catch {
+            // A failed inventory query cannot establish whether a sink vanished.
+          }
+          if (this.speakerRoute !== route || !this.context) return;
+          if (
+            Array.isArray(devices) &&
+            !devices.some((device) => device.kind === 'audiooutput' && device.deviceId === deviceId)
+          ) {
+            this.releaseSpeakerContext(this.context, Boolean(this.playing));
+            throw selectedAudioOutputError();
+          }
+        }
+        const context = this.context;
+        try {
+          await bindAudioOutput(context, deviceId);
+        } catch (error) {
+          if (this.speakerRoute !== route || this.context !== context) return;
+          // Some devices need their own clock. Reopening a sink after an
+          // unsuccessful live switch lets the browser negotiate that format.
+          this.releaseSpeakerContext(context, Boolean(this.playing));
+          try {
+            await bindAudioOutput(this.openSpeakerContext(), deviceId);
+          } catch {
+            if (this.speakerRoute === route && this.context)
+              this.releaseSpeakerContext(this.context, Boolean(this.playing));
+            throw error;
+          }
+        }
+        if (this.speakerRoute === route && this.context) {
+          this.speakers.verifiedDevice = deviceId;
+          this.connectSpeakers(true);
+        }
+      })
+      .finally(() => {
+        if (this.speakerRoute === route) this.speakerRoute = null;
+      });
+    return route.promise;
+  }
+
+  openSpeakerContext() {
+    const output = this.speakers;
+    const context = (output.context = this.contextFactory(this.speakerDevice));
+    const lost = () => {
+      if (context !== this.context) return;
+      const report = this.output === output && Boolean(this.turnId);
+      this.releaseSpeakerContext(context);
+      if (report) this.onError(selectedAudioOutputError());
+    };
+    output.renderError = () => lost();
+    output.sinkChange = () => {
+      if (
+        context.state === 'closed' ||
+        (!this.speakerRoute && !matchesAudioOutput(context, this.speakerDevice))
+      )
+        lost();
+    };
+    output.deviceChange = async () => {
+      const deviceId = this.speakerDevice;
+      if (!deviceId || this.speakerRoute) return;
+      const probe = (output.deviceProbe = {});
+      this.connectSpeakers(false);
+      try {
+        const devices = await this.enumerateSpeakerOutputs();
+        if (
+          Array.isArray(devices) &&
+          output.deviceProbe === probe &&
+          deviceId === this.speakerDevice &&
+          !this.speakerRoute &&
+          !devices.some((device) => device.kind === 'audiooutput' && device.deviceId === deviceId)
+        )
+          lost();
+      } catch {
+        // A failed inventory refresh cannot establish whether a sink was removed.
+      } finally {
+        if (this.context === context && output.deviceProbe === probe) {
+          output.deviceProbe = null;
+          if (
+            !this.speakerRoute &&
+            output.verifiedDevice === this.speakerDevice &&
+            matchesAudioOutput(context, this.speakerDevice)
+          )
+            this.connectSpeakers(true);
+        }
+      }
+    };
+    context.addEventListener?.('sinkchange', output.sinkChange);
+    context.addEventListener?.('statechange', output.sinkChange);
+    context.addEventListener?.('error', output.renderError);
+    this.mediaDevices?.addEventListener?.('devicechange', output.deviceChange);
+    return context;
+  }
+
+  releaseSpeakerContext(context, stopTurn = true) {
+    const output = this.speakers;
+    this.connectSpeakers(false);
+    if (stopTurn && this.output === output && this.turnId) this.stop({ resetEffects: false });
+    else this.stopMirrors();
+    context.removeEventListener?.('sinkchange', output.sinkChange);
+    context.removeEventListener?.('statechange', output.sinkChange);
+    context.removeEventListener?.('error', output.renderError);
+    this.mediaDevices?.removeEventListener?.('devicechange', output.deviceChange);
+    output.effects?.destroy();
+    output.analyser?.disconnect();
+    Object.assign(output, {
+      context: null,
+      voiceGain: null,
+      analyser: null,
+      meter: null,
+      effects: null,
+      connected: false,
+      verifiedDevice: null,
+      sinkChange: null,
+      renderError: null,
+      deviceChange: null,
+      deviceProbe: null,
+    });
+    if (context.state !== 'closed') void context.close?.().catch(() => {});
   }
 
   async unlockOutput(output) {
@@ -70,7 +263,14 @@ export class VoicePlayer {
       output.voiceGain = context.createGain();
       output.voiceGain.gain.value =
         (output === this.speakers ? this.speakerVolume : this.callVoiceVolume) / 100;
-      output.voiceGain.connect(output.mixer ?? context.destination);
+      if (output === this.speakers)
+        this.connectSpeakers(
+          !this.speakerRoute &&
+            !output.deviceProbe &&
+            output.verifiedDevice === this.speakerDevice &&
+            matchesAudioOutput(context, this.speakerDevice),
+        );
+      else output.voiceGain.connect(output.mixer ?? context.destination);
     }
     const destination = output.voiceGain ?? output.mixer ?? context.destination;
     if (!output.analyser && context.createAnalyser) {
@@ -81,7 +281,22 @@ export class VoicePlayer {
       output.analyser = analyser;
       output.meter = new Float32Array(analyser.fftSize);
     }
-    if (context.state === 'suspended') await context.resume();
+    if (output === this.speakers && this.speakerDevice && context.state !== 'running') {
+      let timeout;
+      try {
+        await Promise.race([
+          context.resume(),
+          new Promise((_, reject) => {
+            timeout = setTimeout(() => reject(selectedAudioOutputError()), speakerReadyTimeoutMs);
+          }),
+        ]);
+        if (context.state !== 'running') throw selectedAudioOutputError();
+      } catch (error) {
+        throw error?.code === 'CAPRI_SPEAKER_OUTPUT' ? error : selectedAudioOutputError(error);
+      } finally {
+        clearTimeout(timeout);
+      }
+    } else if (context.state === 'suspended') await context.resume();
     if (!output.effects && context.createGain && context.state !== 'closed') {
       output.effects = new VoiceEffects(context, output.analyser ?? destination);
       output.effects.configure(
@@ -106,6 +321,15 @@ export class VoicePlayer {
   setCallVoiceVolume(value = CALL_VOICE_VOLUME_DEFAULT) {
     this.callVoiceVolume = validateCallVoiceVolume(value);
     this.applyVolume(this.callOutput, this.callVoiceVolume);
+  }
+
+  setMicrophoneGain(value = MICROPHONE_GAIN.default) {
+    const gain = validateMicrophoneGain(value);
+    if (gain === this.microphoneGain) return;
+    this.microphoneGain = gain;
+    const output = this.callOutput;
+    if (output?.micGain && output.context.state !== 'closed')
+      output.micGain.gain.setTargetAtTime(gain / 100, output.context.currentTime, 0.015);
   }
 
   setSpeakerVolume(value = VOICE_VOLUME_DEFAULT) {
@@ -208,7 +432,10 @@ export class VoicePlayer {
         mixer.release.value = 0.06;
         mixer.connect(context.destination);
         output.microphone = context.createMediaStreamSource(microphone);
-        output.microphone.connect(mixer);
+        output.micGain = context.createGain();
+        output.micGain.gain.value = this.microphoneGain / 100;
+        output.microphone.connect(output.micGain);
+        output.micGain.connect(mixer);
         output.micEnded = () => this.loseCallOutput(output);
         micTrack.addEventListener('ended', output.micEnded, { once: true });
         if (micTrack.readyState !== 'live') throw new Error(unavailableCallMicrophone);
@@ -267,6 +494,7 @@ export class VoicePlayer {
     }
     if (output.micEnded) output.micTrack.removeEventListener('ended', output.micEnded);
     output.microphone?.disconnect();
+    output.micGain?.disconnect();
     output.mixer?.disconnect();
     output.voiceGain?.disconnect();
     output.effects?.destroy();
@@ -358,16 +586,7 @@ export class VoicePlayer {
     if (resetEffects) this.output?.effects?.reset();
     if (this.output !== this.speakers) this.speakers.effects?.reset();
     this.clearTurnEffects();
-    for (const mirror of this.mirrorSources) {
-      mirror.onended = null;
-      try {
-        mirror.stop();
-      } catch {
-        /* Already ended. */
-      }
-      mirror.disconnect();
-    }
-    this.mirrorSources.clear();
+    this.stopMirrors();
     if (this.source) {
       this.source.onended = null;
       try {
@@ -382,6 +601,18 @@ export class VoicePlayer {
     this.output = this.speakers;
     if (turnId) this.onPlayback({ type: 'stopped', turnId });
     this.onState({ busy: false });
+  }
+  stopMirrors() {
+    for (const mirror of this.mirrorSources) {
+      mirror.onended = null;
+      try {
+        mirror.stop();
+      } catch {
+        /* Already ended. */
+      }
+      mirror.disconnect();
+    }
+    this.mirrorSources.clear();
   }
   finish(turnId) {
     if (turnId === this.turnId) {
@@ -474,7 +705,13 @@ export class VoicePlayer {
       this.source = source;
       effects?.speaking(true);
       const leadTime = useCallOutput ? 0.01 : 0;
-      if (useCallOutput && this.speakers.context?.state === 'running') {
+      if (
+        useCallOutput &&
+        this.speakers.context?.state === 'running' &&
+        this.speakerDevice !== output.deviceId &&
+        !this.speakerRoute &&
+        matchesAudioOutput(this.speakers.context, this.speakerDevice)
+      ) {
         const speakers = this.speakers.context;
         const mirror = speakers.createBufferSource();
         this.mirrorSources.add(mirror);

@@ -3,12 +3,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
-import { readFileSync, statSync, mkdirSync, mkdtempSync, copyFileSync, existsSync } from 'node:fs';
+import { readFileSync, statSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { applicationId } from '../packages/runtime/src/host/desktop-identity.mjs';
 import { root } from '../packages/runtime/src/host/paths.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
+
+const folder = temporaryFolders('capri-desktop-identity-unit-');
 
 test('Windows application identity is stable per installation, independent of letter case', () => {
   assert.equal(applicationId(root), applicationId(root.toUpperCase()));
@@ -21,9 +24,7 @@ test(
   { skip: process.platform !== 'win32' },
   async () => {
     // Never rebuild the owner's running desktop or its identity receipt.
-    const parent = path.join(root, '.runtime/desktop-identity-unit');
-    mkdirSync(parent, { recursive: true });
-    const fixture = mkdtempSync(path.join(parent, 'fixture-'));
+    const fixture = folder();
     for (const name of [
       'package.json',
       'assets/default/app.ico',

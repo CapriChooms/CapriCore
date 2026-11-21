@@ -12,6 +12,7 @@ import {
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
 import { root, paths } from '../packages/runtime/src/host/paths.mjs';
 import { nodePath } from '../packages/runtime/src/host/executables.mjs';
 import { runtime, initialize } from '../packages/runtime/src/context.mjs';
@@ -21,6 +22,93 @@ import {
   processStartedAt,
   stopProcess,
 } from '../packages/runtime/src/host/processes.mjs';
+
+test(
+  'Windows process ownership can be verified and released when PowerShell is missing from PATH',
+  { skip: process.platform !== 'win32' },
+  async (t) => {
+    const name = 'shutdown-path-' + randomUUID();
+    const savedPath = process.env.PATH;
+    t.after(async () => {
+      await stopProcess(name);
+      for (const stream of ['stdout', 'stderr']) {
+        const file = path.join(paths.logs, name + '.' + stream + '.log');
+        if (existsSync(file)) unlinkSync(file);
+      }
+    });
+    try {
+      process.env.PATH = path.dirname(process.execPath);
+      const marker = await launch(
+        name,
+        process.execPath,
+        ['-e', 'setTimeout(() => {}, 5000)'],
+        null,
+        {
+          cleanEnv: true,
+          env: process.env,
+        },
+      );
+      assert.match(marker.startedAt, /^\d+$/);
+      assert.equal(processStartedAt(marker.pid), marker.startedAt);
+      await stopProcess(name);
+      assert.equal(existsSync(markerPath(name)), false);
+    } finally {
+      if (savedPath === undefined) delete process.env.PATH;
+      else process.env.PATH = savedPath;
+    }
+  },
+);
+
+test('a transient start-time lookup failure is retried before writing an ownership marker', async (t) => {
+  const name = 'shutdown-retry-' + randomUUID();
+  let probes = 0;
+  const marker = await launch(name, process.execPath, ['-e', 'setTimeout(() => {}, 5000)'], null, {
+    cleanEnv: true,
+    env: process.env,
+    probeStartedAt(pid) {
+      return ++probes === 1 ? null : processStartedAt(pid);
+    },
+  });
+  t.after(() => stopProcess(name));
+  assert.equal(probes, 2);
+  assert.equal(processStartedAt(marker.pid), marker.startedAt);
+});
+
+test('startup failure distinguishes a child exit code from inability to identify a running service', async () => {
+  const exited = 'shutdown-exited-' + randomUUID();
+  await assert.rejects(
+    launch(exited, process.execPath, ['-e', 'process.exit(23)'], null, {
+      cleanEnv: true,
+      env: process.env,
+      probeStartedAt() {
+        // The real child can exit while the synchronous Windows lookup is pending.
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 750);
+        return null;
+      },
+    }),
+    { code: 'CAPRI_SERVICE_EXITED', exitCode: 23, message: /exit code 23/ },
+  );
+  assert.equal(existsSync(markerPath(exited)), false);
+
+  const unidentified = 'shutdown-unverified-' + randomUUID();
+  const stopped = Promise.withResolvers();
+  await assert.rejects(
+    launch(unidentified, process.execPath, ['-e', 'setTimeout(() => {}, 5000)'], null, {
+      cleanEnv: true,
+      env: process.env,
+      onExit: stopped.resolve,
+      probeStartedAt: () => null,
+    }),
+    { code: 'CAPRI_SERVICE_IDENTITY_UNAVAILABLE', message: /Could not verify/ },
+  );
+  assert.notEqual(
+    await Promise.race([stopped.promise, delay(4000, 'still running', { ref: false })]),
+    'still running',
+  );
+  assert.equal(existsSync(markerPath(unidentified)), false);
+  const diagnostic = readFileSync(path.join(paths.logs, unidentified + '.stderr.log'), 'utf8');
+  assert.match(diagnostic, /"code":"CAPRI_SERVICE_IDENTITY_UNAVAILABLE"/);
+});
 
 test('managed shutdown waits for the lifeline drain and removes its own marker', async (t) => {
   const base = path.join(paths.cache, 'shutdown-test');

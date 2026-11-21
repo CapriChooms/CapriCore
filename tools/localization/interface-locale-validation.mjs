@@ -12,6 +12,7 @@ export const protectedWords = [
   'Live2D',
 ];
 export const placeholders = (value) => value.match(/\{[a-zA-Z]\w*\}/g) ?? [];
+const placeholderCandidates = (value) => value.match(/\{[\p{L}\p{M}\p{N}_ -]+\}/gu) ?? [];
 // Numeric settings may use native digits and decimal punctuation, but keep their values.
 const digitZeros = [
   0x30, 0x660, 0x6f0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xe50, 0xed0,
@@ -39,10 +40,19 @@ export function validateTranslation(original, translated) {
   if (original.length > 120 && translated.length < original.length * 0.2)
     throw new Error('Truncated help text');
   const slots = placeholders(original),
-    translatedSlots = translated.match(/\{[\p{L}\p{N}_ -]{1,40}\}/gu) ?? [];
-  if (slots.length === 1 && !translated.includes(slots[0]) && translatedSlots.length === 1)
+    sourceCandidates = placeholderCandidates(original),
+    translatedSlots = placeholderCandidates(translated);
+  if (
+    slots.length === 1 &&
+    sourceCandidates.length === 1 &&
+    !translated.includes(slots[0]) &&
+    translatedSlots.length === 1
+  )
     translated = translated.replace(translatedSlots[0], slots[0]);
-  if (JSON.stringify(slots.sort()) !== JSON.stringify(placeholders(translated).sort()))
+  if (
+    JSON.stringify(sourceCandidates.sort()) !==
+    JSON.stringify(placeholderCandidates(translated).sort())
+  )
     throw new Error('Changed placeholders');
   for (const word of protectedWords)
     if (

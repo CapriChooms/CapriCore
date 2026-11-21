@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Destination,
     [Parameter(Mandatory=$true)][string]$Version,
     [string]$VoicePack,
+    [string]$CameraPack,
     [string]$SignTool,
     [string]$SigningThumbprint,
     [uri]$TimestampUrl
@@ -45,9 +46,33 @@ if($VoicePack){
     $voiceChecksum=Get-CapriHash $voicePayload
     $voiceResource=@('/resource:'+$voicePayload+',CapriVoicePayload')
 }
+$cameraChecksum=''
+$cameraResource=@()
+if($CameraPack){
+    $CameraPack=[IO.Path]::GetFullPath($CameraPack)
+    if(-not $CameraPack.StartsWith($releaseRoot,[StringComparison]::OrdinalIgnoreCase)){throw 'Camera build input must stay in release.'}
+    Assert-CapriNoLinks $CameraPack
+    $expected=@('capri-camera-host.exe','capri-camera-x64.dll','capri-camera-x86.dll','THIRD-PARTY-LICENSES.txt')
+    if(@(Get-ChildItem -LiteralPath $CameraPack -Force).Count -ne $expected.Count){throw 'Unexpected files in the camera payload.'}
+    foreach($name in $expected){
+        $file=Join-Path $CameraPack $name
+        Assert-CapriNoLinks $file
+        if(-not (Test-Path -LiteralPath $file -PathType Leaf)){throw 'The camera payload is incomplete.'}
+        if($sign -and $name -match '\.(exe|dll)$'){
+            & $SignTool sign /s My /sha1 $SigningThumbprint /fd SHA256 /tr $TimestampUrl.AbsoluteUri /td SHA256 $file
+            if($LASTEXITCODE -ne 0){throw 'Camera component signing failed.'}
+            & $SignTool verify /pa /all /tw $file
+            if($LASTEXITCODE -ne 0){throw 'Camera component signature verification failed.'}
+        }
+    }
+    $cameraPayload=Join-Path $Destination 'camera.zip'
+    [IO.Compression.ZipFile]::CreateFromDirectory($CameraPack,$cameraPayload,[IO.Compression.CompressionLevel]::Optimal,$false)
+    $cameraChecksum=(Get-CapriHash $cameraPayload)
+    $cameraResource=@('/resource:'+$cameraPayload+',CapriCameraPayload')
+}
 $generated=Join-Path $Destination 'PayloadInfo.cs'
 $assemblyVersion=$Version+'.0'
-[IO.File]::WriteAllText($generated,('[assembly:System.Reflection.AssemblyTitle("Capri Setup")]'+[Environment]::NewLine+'[assembly:System.Reflection.AssemblyVersion("'+$assemblyVersion+'")]'+[Environment]::NewLine+'internal static class CapriPayloadInfo { internal const string Sha256="'+$checksum+'"; internal const string VoiceSha256="'+$voiceChecksum+'"; }'))
+[IO.File]::WriteAllText($generated,('[assembly:System.Reflection.AssemblyTitle("Capri Setup")]'+[Environment]::NewLine+'[assembly:System.Reflection.AssemblyVersion("'+$assemblyVersion+'")]'+[Environment]::NewLine+'internal static class CapriPayloadInfo { internal const string Sha256="'+$checksum+'"; internal const string VoiceSha256="'+$voiceChecksum+'"; internal const string CameraSha256="'+$cameraChecksum+'"; }'))
 $icon=Join-Path $Destination 'setup.ico'
 # Preserve every size from the reviewed application icon, including small taskbar
 # and Explorer variants, instead of rasterizing the old fallback avatar.
@@ -61,7 +86,7 @@ if ($sign) {
     [IO.Directory]::CreateDirectory($staging) | Out-Null
     $buildExe = Join-Path $staging ([IO.Path]::GetFileName($exe))
 }
-& $csc /nologo /target:winexe /platform:x64 /optimize+ ('/out:'+$buildExe) ('/win32icon:'+$icon) ('/win32manifest:'+(Join-Path $capriBuildRoot 'packages/installer/windows/launcher.manifest')) ('/resource:'+$payload+',CapriPayload') ('/resource:'+(Join-Path $Source 'config/installer-text.json')+',CapriSetupTranslations') @voiceResource /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll (Join-Path $capriBuildRoot 'packages/installer/windows/launcher.cs') (Join-Path $capriBuildRoot 'packages/installer/windows/setup-localization.cs') $generated
+& $csc /nologo /target:winexe /platform:x64 /optimize+ ('/out:'+$buildExe) ('/win32icon:'+$icon) ('/win32manifest:'+(Join-Path $capriBuildRoot 'packages/installer/windows/launcher.manifest')) ('/resource:'+$payload+',CapriPayload') ('/resource:'+(Join-Path $Source 'config/installer-text.json')+',CapriSetupTranslations') @voiceResource @cameraResource /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll (Join-Path $capriBuildRoot 'packages/installer/windows/launcher.cs') (Join-Path $capriBuildRoot 'packages/installer/windows/setup-localization.cs') $generated
 if($LASTEXITCODE -ne 0){throw 'Installer launcher compilation failed.'}
 if ($sign) {
     & $SignTool sign /s My /sha1 $SigningThumbprint /fd SHA256 /tr $TimestampUrl.AbsoluteUri /td SHA256 $buildExe

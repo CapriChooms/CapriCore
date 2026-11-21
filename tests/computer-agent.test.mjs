@@ -5,6 +5,7 @@ import { ComputerAgent } from '../apps/desktop/computer-agent.mjs';
 import { computerPlanner, computerActionSchema } from '../apps/desktop/computer-planner.mjs';
 import { ChatService } from '../apps/desktop/chat-service.mjs';
 import { steamGameGoal, steamMilestones } from '../apps/desktop/steam-task-state.mjs';
+import { matchSteamTitle } from '../apps/desktop/steam-library.mjs';
 import { cyberpunkSteamLaunch, steamGameLauncher } from '../apps/desktop/steam-game-launch.mjs';
 import { computerModeRequest, ownerAppLaunch } from '../apps/desktop/computer-mode-request.mjs';
 import { edgerunnersPages, edgerunnersTeaserRequest } from '../apps/desktop/edgerunners-teaser.mjs';
@@ -18,12 +19,20 @@ import {
   browserSearchUrl,
   browserNavigationState,
   requiresPageSearch,
+  observedSteamStoreProduct,
 } from '../apps/desktop/browser-search-state.mjs';
 
 test('Cyberpunk launch verifies the game process and handles the separately observed REDlauncher', async () => {
   const reportedGoal =
     'Используй мой компьютер, открой приложение Steam и запусти Cyberpunk 2077 из библиотеки';
+  const steamPlayGoal = 'Open Steam, launch Cyberpunk 2077 and press "play"';
   assert.deepEqual(computerModeRequest(reportedGoal), { enabled: true, run: true });
+  assert.equal(cyberpunkSteamLaunch(reportedGoal), true);
+  assert.equal(cyberpunkSteamLaunch(steamPlayGoal), true);
+  assert.deepEqual(computerModeRequest(steamPlayGoal, { fullComputerAccess: true }), {
+    enabled: true,
+    run: true,
+  });
   assert.deepEqual(ownerAppLaunch(reportedGoal), { name: 'Steam', single: false });
   assert.deepEqual(
     ownerAppLaunch('Используй мой компьютер, открой приложение Paint и нажми Файл.'),
@@ -102,7 +111,9 @@ test('Cyberpunk launch verifies the game process and handles the separately obse
       plan: async () => assert.fail('The Steam handoff does not require an LLM'),
     });
     const result = await agent.run(
-      state === 'installed' ? reportedGoal : 'Use my computer and turn on Cyberpunk’s 2077 please.',
+      state === 'installed'
+        ? steamPlayGoal
+        : 'Use my computer and turn on Cyberpunk’s 2077 please.',
     );
     assert.equal(
       result.status,
@@ -175,7 +186,22 @@ test('page-search wording excludes the toolbar and preserves explicit negative a
   assert(requiresPageSearch('Type Capri into the search bar, then open Images.'));
   assert(requiresPageSearch('Use the page search field. Do not use the address bar.'));
   assert(requiresPageSearch('Введи Капри в поле поиска. Не используй адресную строку.'));
+  assert(requiresPageSearch('Click inside the store search input and type Portal 2.'));
+  assert(requiresPageSearch('Открой поиск по магазину и введи Portal 2.'));
   assert(!requiresPageSearch('Type Capri in the address bar.'));
+});
+
+test('Steam product evidence requires a loaded store address and the actual product window title', () => {
+  const view = {
+    window: { untrustedTitle: 'Portal 2 on Steam - Google Chrome' },
+    targets: [{ browserAddress: true, untrustedValue: 'store.steampowered.com/app/620/Portal_2/' }],
+  };
+  assert.equal(observedSteamStoreProduct(view), 'Portal 2');
+  view.targets[0].focused = true;
+  assert.equal(observedSteamStoreProduct(view), null);
+  view.targets[0].focused = false;
+  view.targets[0].untrustedValue = 'store.steampowered.com/search/?term=Portal+2';
+  assert.equal(observedSteamStoreProduct(view), null);
 });
 
 test('a pending page query cannot finish or send keys before a real search field contains text', () => {
@@ -681,39 +707,356 @@ test('completion prose without actual evidence never finishes a task', async () 
   assert(f.calls.every((c) => c.action === 'observe'));
 });
 
-test('a Steam chain cannot finish at the Library or play a game that was not selected', async () => {
-  const goal =
-    'open steam then go to my library go to cyberpunk twenty seventy seven and click play';
-  assert.deepEqual(steamGameGoal(goal), { name: 'cyberpunk 2077', play: true });
+const reportedSteamGoal =
+  'Can you use my computer to open Steam? Then find Cyberpunk 2077, open it and uh press play button.';
+const reportedSteamLaunch = 'Используй компьютер, открой стим, найди там киберпанк и запусти его';
+
+test('Steam Library evidence distinguishes the game in the sidebar from the game in its main pane', async () => {
+  assert.deepEqual(steamGameGoal(reportedSteamGoal), { name: 'Cyberpunk 2077', play: true });
+  assert.deepEqual(
+    steamGameGoal(
+      'open steam then go to my library go to cyberpunk twenty seventy seven and click play',
+    ),
+    { name: 'Cyberpunk 2077', play: true },
+  );
   const f = fixture(async () => ({
     action: 'finish',
     evidence: 'Owned test window',
     summary: 'Done',
   }));
-  assert.equal((await f.agent.run(goal)).ok, false);
+  assert.equal((await f.agent.run(reportedSteamGoal)).ok, false);
   assert(f.calls.every((call) => call.action === 'observe'));
 
+  const goal = steamGameGoal(reportedSteamGoal);
   const view = {
-    window: { windowId: '42' },
+    window: { windowId: '42', applicationKind: 'steam' },
+    steamLibrary: { page: 'game', gameTitle: 'Alchemy Factory', launchState: 'ready' },
     targets: [
-      { targetId: 'game', role: 'ControlType.ListItem', untrustedLabel: 'Cyberpunk 2077' },
-      { targetId: 'play', role: 'ControlType.Button', untrustedLabel: 'Играть' },
+      {
+        targetId: 'game',
+        steamRole: 'game_row',
+        role: 'ControlType.ListItem',
+        untrustedLabel: 'Cyberpunk 2077',
+      },
+      { targetId: 'play', steamRole: 'play', role: 'ControlType.Button', untrustedLabel: 'Играть' },
     ],
   };
   const launch = { ok: true, action: 'launch', query: 'steam', windowId: '42' };
-  const wrong = { ok: true, action: 'click', target: 'Another game', windowId: '42' };
-  const correct = { ...wrong, target: 'Cyberpunk 2077' };
-  assert.equal(steamMilestones(steamGameGoal(goal), view, [launch, wrong]).gamePage, false);
-  assert.equal(steamMilestones(steamGameGoal(goal), view, [launch, wrong]).gameTarget, 'game');
-  const selected = steamMilestones(steamGameGoal(goal), view, [launch, correct]);
-  assert.equal(selected.gamePage, true);
-  assert.match(selected.remaining, /has not been clicked/);
-  const played = steamMilestones(steamGameGoal(goal), view, [
-    launch,
-    correct,
-    { ...correct, target: 'Играть' },
-  ]);
-  assert.equal(played.remaining, null);
+  const click = { ok: true, action: 'click', target: 'Cyberpunk 2077', windowId: '42' };
+  const wrongPage = steamMilestones(goal, view, [launch, click]);
+  assert.equal(wrongPage.gamePage, false);
+  assert.equal(wrongPage.playTarget, null);
+  assert.equal(wrongPage.gameTarget, 'game');
+  const matchingView = {
+    ...view,
+    steamLibrary: { ...view.steamLibrary, gameTitle: 'Cyberpunk 2077' },
+  };
+  assert.equal(steamMilestones(goal, matchingView, [launch, click]).playTarget, 'play');
+  const history = [launch, click, { ...click, target: 'Играть', steamPlay: true }];
+  const played = steamMilestones(goal, matchingView, history);
+  assert.equal(played.playTarget, null);
+  assert.match(played.remaining, /already requested/);
+  matchingView.steamLibrary.launchState = 'running';
+  assert.equal(steamMilestones(goal, matchingView, history).remaining, null);
+});
+
+test('the reported Steam launch resolves Steam, visually selects Cyberpunk and verifies its launcher', async () => {
+  assert.deepEqual(steamGameGoal(reportedSteamLaunch), { name: 'Cyberpunk 2077', play: true });
+  assert.deepEqual(steamGameGoal('open cyberpunk from steam, then launch the game'), {
+    name: 'Cyberpunk 2077',
+    play: true,
+  });
+  assert.equal(steamGameGoal('open Cyberpunk from Steam, then open Discord'), null);
+  assert.equal(steamGameGoal('do not open Cyberpunk from Steam'), null);
+  assert.deepEqual(steamGameGoal('Open Portal 2 from Steam and launch it.'), {
+    name: 'Portal 2',
+    play: true,
+  });
+  assert.equal(cyberpunkSteamLaunch(reportedSteamLaunch), false);
+
+  let screen = 'desktop';
+  const actions = [];
+  const f = fixture(async (context) => {
+    assert.equal(context.originalOwnerGoal, reportedSteamLaunch);
+    const view = context.currentObservation;
+    assert.notEqual(screen, 'desktop', 'Planning must start in the requested app.');
+    assert.equal(view.screenAvailable, true);
+    const planned = { library: 'Cyberpunk 2077', game: 'Играть', launcher: 'Play' }[screen];
+    const target = view.targets.find((item) => item.untrustedLabel === planned);
+    if (screen === 'launcher')
+      assert.deepEqual(
+        view.targets.map((item) => item.untrustedLabel),
+        ['Play'],
+      );
+    assert(target, planned);
+    return { action: 'click', targetId: target.targetId, summary: planned };
+  });
+  f.agent.plan.outline = async () =>
+    assert.fail('The Steam launch must not wait for a generic outline.');
+  f.agent.applications.findApplications = async (name) => {
+    assert.equal(name, 'Steam');
+    return [{ name: 'Steam', id: 'steam' }];
+  };
+  f.agent.applications.execute = async (_id, input) => {
+    assert.deepEqual(input, { action: 'launch', appId: 'steam' });
+    actions.push('Steam');
+    screen = 'library';
+    return { ok: true, focused: true, windowVerified: true, windowId: '42' };
+  };
+  f.agent.launchSteamGame = steamGameLauncher({
+    readState: async () => 'installed',
+    isRunning: async () => screen === 'running',
+    openExternal: async () => assert.fail('Steam Play must not be dispatched twice'),
+  });
+  let revision = 0;
+  let current;
+  let blockedObservation;
+  f.control.execute = async (input) => {
+    if (input.action === 'observe') {
+      assert.notEqual(
+        screen,
+        'desktop',
+        'A failed attempt to focus the window behind Capri must not block opening Steam.',
+      );
+      const steam = ['library', 'game'].includes(screen);
+      const launcher = screen === 'launcher';
+      const windowId = steam ? '42' : launcher ? '43' : '1';
+      f.control.session.target = launcher
+        ? { windowId, executable: 'C:\\Programs\\CD Projekt Red\\REDlauncher\\REDlauncher.exe' }
+        : { windowId };
+      assert.equal(input.vision, !launcher || Boolean(input.visualWindow));
+      const targets = (
+        screen === 'library'
+          ? [{ untrustedLabel: 'Cyberpunk 2077', steamRole: 'game_row' }]
+          : screen === 'game'
+            ? [{ untrustedLabel: 'Играть', steamRole: 'play' }]
+            : launcher
+              ? [
+                  { untrustedLabel: 'Cyberpunk 2077' },
+                  { untrustedLabel: 'Play', actionRole: 'button' },
+                ]
+              : []
+      ).map((item, index) => ({ ...item, targetId: `${screen}-${index}`, source: 'vision' }));
+      current = {
+        observationId: String(++revision),
+        window: { windowId, ...(steam && { applicationKind: 'steam' }) },
+        targets,
+        screenAvailable: input.vision,
+        ...(steam && {
+          steamLibrary: {
+            page: 'game',
+            gameTitle: screen === 'library' ? 'Alchemy Factory' : 'Cyberpunk 2077',
+            launchState: 'ready',
+          },
+        }),
+      };
+      return current;
+    }
+    assert.equal(input.action, 'click');
+    assert.equal(input.observationId, current.observationId);
+    if (screen === 'library' && !blockedObservation) {
+      blockedObservation = input.observationId;
+      throw Object.assign(Error('The pointer moved before the click. No click was sent.'), {
+        code: 'COMPUTER_INPUT_BUSY',
+        inputPerformed: false,
+      });
+    }
+    if (screen === 'library') assert.notEqual(input.observationId, blockedObservation);
+    actions.push(
+      current.targets.find((target) => target.targetId === input.targetId)?.untrustedLabel,
+    );
+    screen = { library: 'game', game: 'launcher', launcher: 'running' }[screen];
+    return { ok: true, windowId: current.window.windowId };
+  };
+  const result = await f.agent.run(reportedSteamLaunch);
+  assert.equal(result.verified, true, JSON.stringify(result));
+  assert.deepEqual(actions, ['Steam', 'Cyberpunk 2077', 'Играть', 'Play']);
+  assert(f.agent.diagnostics().actions.some(({ code }) => code === 'COMPUTER_INPUT_BUSY'));
+});
+
+test('the Steam task rejects unrelated tabs, games and repeat Play, then verifies a fresh result', async () => {
+  let page = 'other',
+    gameTitle = '',
+    launchState = 'unavailable',
+    revision = 0;
+  let startingFrames = 0,
+    reviewed = false;
+  const delivered = [];
+  const planned = [
+    'Library',
+    'Community',
+    'Alchemy Factory',
+    'Cyberpunk 2077',
+    'Play',
+    'Play',
+    'finish',
+    'observe',
+    'finish',
+  ];
+  const f = fixture(async (context, { review }) => {
+    if (review) {
+      reviewed = true;
+      return {
+        action: 'finish',
+        evidence: 'Running Cyberpunk 2077',
+        summary: 'Cyberpunk 2077 is running.',
+      };
+    }
+    const action = planned.shift();
+    if (action === 'finish')
+      return { action, evidence: 'Running Cyberpunk 2077', summary: 'Done.' };
+    if (action === 'observe') return { action, summary: 'Check the current Steam page' };
+    const item = context.currentObservation.targets.find(
+      (target) => target.untrustedLabel === action,
+    );
+    assert(item, action);
+    return { action: 'click', targetId: item.targetId, summary: action };
+  });
+  let currentTargets;
+  f.control.execute = async (args) => {
+    if (args.action === 'observe') {
+      assert.equal(args.vision, true);
+      if (launchState === 'starting' && ++startingFrames === 4) launchState = 'running';
+      const controls = [
+        ['Library', 'library'],
+        ['Community'],
+        ['Alchemy Factory', 'game_row'],
+        ['Cyberpunk 2077', 'game_row'],
+        ['Play', 'play'],
+      ];
+      currentTargets = controls.map(([untrustedLabel, steamRole], i) => ({
+        targetId: `${++revision}-${i}`,
+        untrustedLabel,
+        steamRole,
+        source: 'vision',
+      }));
+      return {
+        observationId: `${revision}`,
+        window: { windowId: '42', applicationKind: 'steam', untrustedTitle: 'Steam' },
+        targets: currentTargets,
+        screenAvailable: true,
+        steamLibrary: { page, gameTitle, launchState },
+        scene:
+          launchState === 'running'
+            ? 'Running Cyberpunk 2077'
+            : `${page} ${gameTitle} ${launchState}`,
+      };
+    }
+    const clicked = currentTargets.find(
+      (target) => target.targetId === args.targetId,
+    )?.untrustedLabel;
+    assert.equal(args.action, 'click');
+    delivered.push(clicked);
+    if (clicked === 'Library') {
+      page = 'game';
+      gameTitle = 'Alchemy Factory';
+      launchState = 'ready';
+    }
+    if (clicked === 'Cyberpunk 2077') gameTitle = 'Cyberpunk 2077';
+    if (clicked === 'Play') launchState = 'starting';
+    return { ok: true, windowId: '42' };
+  };
+  f.agent.maxDecisions = 12;
+  const result = await f.agent.run(reportedSteamGoal);
+  assert.equal(result.verified, true, JSON.stringify(result));
+  assert.deepEqual(delivered, ['Library', 'Cyberpunk 2077', 'Play']);
+  assert.equal(reviewed, true);
+  assert.deepEqual(planned, []);
+});
+
+async function assertSteamLaunch(goal, installedGame = null) {
+  const actions = [];
+  let state = 'before',
+    revision = 0;
+  const f = fixture(async ({ currentObservation: view }, { review }) => {
+    if (review || state === 'running')
+      return {
+        action: 'finish',
+        evidence: 'Alchemy Factory is running',
+        summary: 'Launched Alchemy Factory.',
+      };
+    return {
+      action: 'click',
+      targetId: view.targets.find(
+        (item) => item.steamRole === (state === 'library' ? 'game_row' : 'play'),
+      ).targetId,
+      summary: 'Continue',
+    };
+  });
+  f.agent.applications.findApplications = async (name) => {
+    assert.equal(name, 'Steam');
+    return [{ name: 'Steam', id: 'steam', executable: 'C:\\Steam\\steam.exe' }];
+  };
+  if (installedGame) {
+    f.agent.resolveSteamGame = async (executable, name) => {
+      assert.equal(executable, 'C:\\Steam\\steam.exe');
+      assert.equal(name, 'алхими фактори');
+      return installedGame;
+    };
+  }
+  f.agent.applications.execute = async (_id, payload) => {
+    assert.deepEqual(payload, { action: 'launch', appId: 'steam' });
+    actions.push('Steam');
+    state = 'library';
+    return { ok: true, focused: true, windowVerified: true, windowId: '42' };
+  };
+  f.control.execute = async (args) => {
+    assert.notEqual(state, 'before');
+    if (args.action === 'observe') {
+      assert.equal(args.vision, true);
+      assert.equal(f.control.session.steamGame.name, 'Alchemy Factory');
+      const observationId = String(++revision);
+      return {
+        observationId,
+        window: { windowId: '42', applicationKind: 'steam', untrustedTitle: 'Steam' },
+        screenAvailable: true,
+        steamLibrary: {
+          page: 'game',
+          gameTitle: state === 'library' ? 'Another game' : 'Alchemy Factory',
+          launchState: state === 'running' ? 'running' : 'ready',
+        },
+        scene: state === 'running' ? 'Alchemy Factory is running' : 'Steam Library',
+        targets: [
+          {
+            targetId: 'row-' + observationId,
+            steamRole: 'game_row',
+            untrustedLabel: 'Alchemy Factory',
+          },
+          { targetId: 'play-' + observationId, steamRole: 'play', untrustedLabel: 'Играть' },
+        ],
+      };
+    }
+    assert.equal(args.action, 'click');
+    assert.equal(args.targetId, (state === 'library' ? 'row-' : 'play-') + revision);
+    actions.push(state === 'library' ? 'Alchemy Factory' : 'Играть');
+    state = state === 'library' ? 'selected' : 'running';
+    return { ok: true, windowId: '42' };
+  };
+  const result = await f.agent.run(goal);
+  assert.equal(result.verified, true);
+  assert.deepEqual(actions, ['Steam', 'Alchemy Factory', 'Играть']);
+}
+
+test('a named game other than Cyberpunk is observed and launched inside Steam', async () => {
+  await assertSteamLaunch(
+    "Hi, Capri! Can you please use my PC, open Steam, launch Alchemy Factory for me? I'll be glad",
+  );
+});
+
+test('a Cyrillic game title uses a unique Steam library match for playing and verifying', async () => {
+  const game = { appId: '3669570', name: 'Alchemy Factory' };
+  assert.equal(matchSteamTitle('алхими фактори', [game]), game);
+  assert.equal(
+    matchSteamTitle('алхими фактори', [game, { appId: '42', name: 'Alchemy Factor' }]),
+    null,
+  );
+  assert.equal(matchSteamTitle('алхими фактори 2', [game]), null);
+  assert.equal(
+    matchSteamTitle('алхими фактори', [game, { appId: '42', name: 'Alchemy Factori' }]),
+    null,
+  );
+  assert.equal(matchSteamTitle('Alchemy Factori', [game]), null);
+  await assertSteamLaunch('Привет, используй пк и запусти алхими фактори из стима, пж', game);
 });
 
 test('an import cannot report success while its modal file picker is still open', async () => {
@@ -861,11 +1204,17 @@ test('planner selection binds readable labels to their exact current native targ
     model: 'fixture',
     fetchImpl: async (_url, request) => {
       const body = JSON.parse(request.body);
-      const click = body.format.anyOf.find((branch) => branch.properties.action.const === 'click');
-      assert.deepEqual(click.properties.targetId.enum, [
-        'Images [obs-ui-38]',
-        'Search by image [obs-ui-23]',
-      ]);
+      if (body.format === 'json') {
+        assert.match(body.messages[0].content, /Copy targetId and toTargetId exactly/);
+      } else {
+        const click = body.format.anyOf.find(
+          (branch) => branch.properties.action.const === 'click',
+        );
+        assert.deepEqual(click.properties.targetId.enum, [
+          'Images [obs-ui-38]',
+          'Search by image [obs-ui-23]',
+        ]);
+      }
       return Response.json({
         done: true,
         message: {
@@ -886,6 +1235,46 @@ test('planner selection binds readable labels to their exact current native targ
   assert.equal((await plan(state)).targetId, 'obs-ui-38');
   supplied = 'Images [obs-ui-23]';
   await assert.rejects(plan(state), /Invalid computer plan/);
+});
+
+test('a pending Steam launch exposes only verified input and observation actions to the planner', async () => {
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const { format, messages } = JSON.parse(request.body);
+      assert.deepEqual(
+        format.anyOf.map((entry) => entry.properties.action.const),
+        ['click'],
+      );
+      assert.deepEqual(format.anyOf[0].properties.targetId.enum, ['Играть [play]']);
+      assert.match(messages.at(-1).content, /Steam launch or selection is still pending/);
+      return Response.json({
+        done: true,
+        message: {
+          content: JSON.stringify({
+            action: 'click',
+            targetId: 'Играть [play]',
+            summary: 'Launch the verified title',
+          }),
+        },
+      });
+    },
+  });
+  const result = await plan({
+    originalOwnerGoal: reportedSteamLaunch,
+    language: 'ru',
+    steamTaskTargets: ['play'],
+    steamMustAdvance: true,
+    currentObservation: {
+      window: { applicationKind: 'steam' },
+      targets: [
+        { targetId: 'play', untrustedLabel: 'Играть', source: 'vision' },
+        { targetId: 'store', untrustedLabel: 'Store', source: 'vision' },
+      ],
+    },
+  });
+  assert.equal(result.targetId, 'play');
 });
 
 test('image search stages exclude unrelated login and source links before opening the actual thumbnail', () => {

@@ -5,7 +5,12 @@ import { selectModelChoice } from './model-catalog.mjs';
 import { loadCoreSettings } from '../config/settings.mjs';
 import { applyModelProfile } from '../context.mjs';
 import { writeJsonAtomic } from '../atomic-json.mjs';
-import { validateContextChoice, contextChoicesFor } from '../config/context-policy.mjs';
+import {
+  EXPERIMENTAL_COMPANION_CONTEXT,
+  MIN_COMPANION_CONTEXT,
+  validateContextChoice,
+  contextChoicesFor,
+} from '../config/context-policy.mjs';
 import { validateImportedProfile } from './imported-model.mjs';
 import { cpuExecutionProfile } from './cpu-execution.mjs';
 
@@ -27,11 +32,17 @@ export function profileOverrides(profile) {
 }
 
 export function modelProfileContext(current, profile) {
-  return (
-    contextChoicesFor({ model: profile.alias, modelContextLimit: profile.contextLimit })
-      .filter((tokens) => tokens <= Math.min(current.contextTokens, profile.contextLimit ?? 262144))
-      .at(-1) ?? 8192
-  );
+  const choices = contextChoicesFor({
+    model: profile.alias,
+    modelContextLimit: profile.contextLimit,
+  });
+  const available =
+    !current.experimentalContext &&
+    choices[0] === EXPERIMENTAL_COMPANION_CONTEXT &&
+    choices[1] === MIN_COMPANION_CONTEXT
+      ? choices.slice(1)
+      : choices;
+  return available.filter((tokens) => tokens <= current.contextTokens).at(-1) ?? available[0];
 }
 
 /** Called only after the owning core has stopped. Retains unrelated overrides and shared memory. */
@@ -46,13 +57,16 @@ export function saveModelProfile({
   const imported = importedProfiles.find((profile) => profile.id === id);
   const profile = imported ? validateImportedProfile(imported) : selectModelChoice(id, hardware);
   const current = loadCoreSettings(path.join(root, 'config'));
+  const contextTokens = modelProfileContext(current, profile);
   return {
     ...saveInferenceSettings({
       root,
       rt,
       overrides: {
         ...profileOverrides(profile),
-        contextTokens: modelProfileContext(current, profile),
+        contextTokens,
+        experimentalContext:
+          current.experimentalContext === true && contextTokens === EXPERIMENTAL_COMPANION_CONTEXT,
       },
       write,
     }),
@@ -62,9 +76,15 @@ export function saveModelProfile({
 
 export function saveContextWindow({ root, rt, contextTokens, write = writeJsonAtomic }) {
   validateContextChoice(contextTokens, loadCoreSettings(path.join(root, 'config')));
-  if (contextTokens > (loadCoreSettings(path.join(root, 'config')).modelContextLimit ?? 262144))
-    throw new Error('The selected model does not support this context size.');
-  return saveInferenceSettings({ root, rt, overrides: { contextTokens }, write });
+  return saveInferenceSettings({
+    root,
+    rt,
+    overrides: {
+      contextTokens,
+      experimentalContext: contextTokens === EXPERIMENTAL_COMPANION_CONTEXT,
+    },
+    write,
+  });
 }
 
 export function saveInferenceSettings({ root, rt, overrides, write = writeJsonAtomic }) {

@@ -52,6 +52,24 @@ try {
     result,
   );
   report.checks.push('completed calculation retry did not change Calculator');
+  for (const [expression, angleUnit, expected] of [
+    ['134^4 - sqrt(14) + ln(cos(24))', 'deg', '3.224179321679205e+8'],
+    ['cos(pi) + sin(pi/2)', 'rad', '0'],
+    ['tan(50)', 'grad', '1'],
+    ['cos(60)', 'deg', '0.5'],
+  ]) {
+    const scientific = await service.execute(`calculate-${angleUnit}-${expected}`, {
+      action: 'calculate',
+      app: 'calculator',
+      expression,
+      angleUnit,
+      showWindow: true,
+    });
+    assert.equal(scientific.displayResult, expected);
+    assert.equal(scientific.display.ok, true, `Calculator did not display ${expression}`);
+    assert.match(scientific.display.untrustedExpressionLabel, /=$/);
+  }
+  report.checks.push('verified nested scientific input and switched between all three angle units');
   if (!(await callApplicationBridge(root, { action: 'status', app: 'notepad' })).running) {
     writeFileSync(
       permissionsFile,

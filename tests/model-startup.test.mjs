@@ -5,7 +5,12 @@ import { existsSync, mkdtempSync, rmdirSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { responsiveness } from '../packages/runtime/src/hardware/responsiveness.mjs';
-import { consumeFirstLaunchPreload, startModelServices } from '../apps/desktop/model-startup.mjs';
+import {
+  consumeFirstLaunchPreload,
+  consumeMicrophoneRestart,
+  saveMicrophoneRestart,
+  startModelServices,
+} from '../apps/desktop/model-startup.mjs';
 
 test('first-launch warmup defaults on and an explicit opt-out is consumed once', (t) => {
   const state = mkdtempSync(path.join(tmpdir(), 'capri-first-launch-'));
@@ -21,6 +26,24 @@ test('first-launch warmup defaults on and an explicit opt-out is consumed once',
   assert.equal(consumeFirstLaunchPreload(state), true);
   writeFileSync(file, JSON.stringify({ schemaVersion: 1, preloadModels: 'false' }));
   assert.equal(consumeFirstLaunchPreload(state), true);
+});
+
+test('a microphone restart marker only resumes once, within two minutes', (t) => {
+  const state = mkdtempSync(path.join(tmpdir(), 'capri-microphone-restart-'));
+  const file = path.join(state, 'microphone-restart.json');
+  t.after(() => {
+    rmSync(file, { force: true });
+    rmdirSync(state);
+  });
+  assert.equal(consumeMicrophoneRestart(state, 1000), false);
+  saveMicrophoneRestart(state, 1000);
+  assert.equal(consumeMicrophoneRestart(state, 3000), true);
+  assert.equal(consumeMicrophoneRestart(state, 3000), false);
+  saveMicrophoneRestart(state, 1000);
+  assert.equal(consumeMicrophoneRestart(state, 122000), false);
+  assert.equal(existsSync(file), false);
+  saveMicrophoneRestart(state, 2000);
+  assert.equal(consumeMicrophoneRestart(state, 1000), false);
 });
 
 test('8/16 GiB PCs get bounded cold-start budgets while larger automatic setups keep fast deadlines', () => {

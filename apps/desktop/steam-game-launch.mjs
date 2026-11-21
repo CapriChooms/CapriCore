@@ -15,9 +15,11 @@ const direct = String.raw`(?:launch|start|open|play|turn on|запусти|от�
 const next = String.raw`(?:and(?: then)?|then|и|потом|затем)`;
 const openSteam = String.raw`(?:open|go to|launch|открой|перейди в)\s+(?:(?:the app|приложение|клиент)\s+)?${steam}(?:,\s*(?:${next}\s+)?|\s+${next}\s+)`;
 const fromLibrary = String.raw`(?:\s+(?:from (?:my |the )?library|из (?:моей )?библиотеки))?`;
-const selectAndPlay = String.raw`(?:go to (?:my |the )?library\s+(?:and |then )?)?(?:go to|select|find)\s+${title}\s+and\s+(?:click|press)\s+(?:play|launch)`;
+const playButton = String.raw`(?:click|press|нажми)\s+["'«“]?(?:play|launch|играть|запустить)["'»”]?`;
+const confirmPlay = String.raw`(?:,\s*(?:${next}\s+)?|\s+${next}\s+)${playButton}`;
+const selectAndPlay = String.raw`(?:go to (?:my |the )?library\s+(?:and |then )?)?(?:go to|select|find)\s+${title}${confirmPlay}`;
 const launchRequest = new RegExp(
-  String.raw`^(?:${direct}|${openSteam}(?:${direct}${fromLibrary}|${selectAndPlay}))$`,
+  String.raw`^(?:${direct}(?:${confirmPlay})?|${openSteam}(?:${direct}${fromLibrary}(?:${confirmPlay})?|${selectAndPlay}))$`,
   'iu',
 );
 
@@ -88,6 +90,11 @@ export function isCyberpunkLauncherWindow(identity) {
   return redLauncherPath.test(identity?.executable ?? '');
 }
 
+export const isCyberpunkPlayLabel = (value) =>
+  /^(?:Play|Играть|Jouer|Spielen|Jugar|Jogar|Gioca|Graj|プレイ|开始游戏|開始遊戲|플레이)$/iu.test(
+    value?.trim() ?? '',
+  );
+
 export function cyberpunkLauncherTarget(view, identity) {
   if (
     !isCyberpunkLauncherWindow(identity) ||
@@ -101,10 +108,10 @@ export function cyberpunkLauncherTarget(view, identity) {
       !target.surface &&
       !target.editable &&
       canClickTarget(target, { exact: !view.screenAvailable }) &&
-      /^(?:Play|Играть|Jouer|Spielen|Jugar|Jogar|Gioca|Graj|プレイ|开始游戏|開始遊戲|플레이)$/iu.test(
-        target.untrustedLabel?.trim() ?? '',
-      ),
+      isCyberpunkPlayLabel(target.untrustedLabel),
   );
+  const confirmed = buttons.filter((target) => target.visualConfirmed);
+  if (confirmed.length === 1) return confirmed[0];
   const visual = buttons.filter(hasVisualEvidence);
   const candidates = visual.length ? visual : buttons;
   return candidates.length === 1 ? candidates[0] : null;
@@ -156,13 +163,13 @@ export function steamGameLauncher({
   isRunning = cyberpunkProcessRunning,
   findLauncher = installedRedLauncher,
 }) {
-  return async ({ signal, assertAllowed, confirm }) => {
+  return async ({ signal, assertAllowed, confirm, playAlreadyRequested = false }) => {
     signal.throwIfAborted();
     const state = await readState(signal);
     signal.throwIfAborted();
     if (state !== 'installed' && state !== 'running') return state;
     if (await isRunning(signal)) return 'running';
-    if (state === 'installed') {
+    if (state === 'installed' && !playAlreadyRequested) {
       assertAllowed();
       try {
         await openExternal(cyberpunkUri);

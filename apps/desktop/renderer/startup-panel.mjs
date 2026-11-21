@@ -2,18 +2,25 @@
 export class StartupPanel {
   constructor(ui) {
     this.ui = ui;
-    this.panel = document.createElement('aside');
-    this.panel.id = 'startup-progress';
-    this.panel.dataset.hitRegion = '';
-    this.panel.setAttribute('role', 'status');
-    this.panel.innerHTML =
-      '<strong>CAPRI <small>pre-alpha</small></strong><p></p><progress max="100" value="0"></progress><small class="startup-eta"></small>';
-    document.getElementById('companion').append(this.panel);
-    this.timer = setInterval(() => this.render(), 500);
+    this.panel = document.getElementById('startup-progress');
+    this.toggle = this.panel.querySelector('button');
+    this.details = document.getElementById('startup-details');
+    this.toggle.addEventListener('click', () => this.setExpanded(this.details.hidden));
+  }
+  setExpanded(expanded) {
+    this.details.hidden = !expanded;
+    this.toggle.setAttribute('aria-expanded', String(expanded));
   }
   update(value) {
     this.value = value;
     this.render();
+    if (this.panel.hidden) {
+      clearInterval(this.timer);
+      this.timer = null;
+      this.setExpanded(false);
+    } else {
+      this.timer ??= setInterval(() => this.render(), 500);
+    }
   }
   render(now = Date.now()) {
     const value = this.value;
@@ -43,10 +50,13 @@ export class StartupPanel {
         overdue ||= elapsed >= stage.estimate;
       }
     }
-    this.panel.querySelector('p').textContent =
+    const summary = this.panel.querySelector('.startup-summary');
+    const status =
       running.map((s) => this.ui.text(names[s.id])).join(' · ') ||
       this.ui.text('Starting local core…');
+    if (summary.textContent !== status) summary.textContent = status;
     const progress = this.panel.querySelector('progress');
+    progress.setAttribute('aria-label', this.ui.text('Startup'));
     // A waiting stage has no running clock. Its full estimate would pin the
     // countdown while another stage runs, including after that stage overruns.
     const hasEstimate = running.length > 0 && !overdue;

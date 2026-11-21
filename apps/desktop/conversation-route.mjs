@@ -20,6 +20,23 @@ export function conversationOnly(text, routing) {
   );
 }
 
+/** A read-only review of code supplied in chat needs no desktop or file tools. */
+export function suppliedCodeReview(text) {
+  const value = text.trim();
+  const fence = /\r?\n\x60{3}[\w+-]*\r?\n[\s\S]+\r?\n\x60{3}$/u.exec(value);
+  const lead = (fence ? value.slice(0, fence.index) : value)
+    .trim()
+    .replace(/[.!?:]$/u, '')
+    .replace(/^(?:please|пожалуйста|por favor)[ ,]+/iu, '')
+    .trimEnd();
+  return [
+    /^(?:review|explain)\s+(?:this|the following)\s+(?:code|snippet)$/iu,
+    /^(?:проверь|разбери|объясни)\s+(?:этот|следующий)\s+код$/iu,
+    /^(?:revise|analise|explique)\s+(?:este|esse|o seguinte)\s+c[oó]digo$/iu,
+    /^(?:fa[cç]a\s+uma\s+)?revis[aã]o\s+(?:de|do)\s+c[oó]digo$/iu,
+  ].some((pattern) => pattern.test(lead));
+}
+
 /** A single factual question is safe to answer without action tools. Keep
  * indirect requests and messages with several clauses on the normal route. */
 export function factualQuestion(text) {

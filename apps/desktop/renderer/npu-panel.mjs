@@ -3,7 +3,7 @@ export class NpuPanel {
   constructor({ api, ui, host, onError }) {
     Object.assign(this, { api, ui, onError });
     this.panel = document.createElement('section');
-    this.panel.className = 'settings-card';
+    this.panel.className = 'settings-disclosure-content';
     this.panel.innerHTML = `<h3>Native NPU · Experimental</h3>
       <p class="settings-help">Run a converted language model directly on an NPU. No API server or cloud is used. Voice stays on its selected CPU/GPU. A compatible NPU, driver and vendor runtime are required.</p>
       <label>Native runtime<select data-npu="backend"><option value="openvino">Intel NPU · OpenVINO GenAI</option><option value="vitis">AMD NPU · Ryzen AI / ONNX GenAI</option><option value="qnn">Qualcomm NPU · QNN / ONNX GenAI</option></select></label>

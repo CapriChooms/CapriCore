@@ -541,20 +541,20 @@ try {
           });
         return {
           header: box('handle'),
-          core: box('presence-core'),
+          quick: box('quick-actions'),
+          status: box('compact-status'),
           dock: box('input-dock'),
-          symbol: document.querySelector('.core-symbol').getBoundingClientRect().height,
           buttons,
           width: innerWidth,
           height: innerHeight,
         };
       });
       assert.ok(
-        geometry.header.bottom + compactGap <= geometry.core.y,
+        geometry.header.bottom + compactGap <= geometry.quick.y,
         JSON.stringify({ width, height, busy, geometry }),
       );
       assert.ok(
-        geometry.core.bottom + compactGap <= geometry.dock.y,
+        geometry.quick.bottom + compactGap <= geometry.dock.y,
         JSON.stringify({ width, height, busy, geometry }),
       );
       assert.ok(
@@ -566,7 +566,7 @@ try {
           button.x >= 0 &&
             button.right <= width &&
             button.y >= 0 &&
-            button.bottom <= geometry.core.y,
+            button.bottom <= geometry.quick.y,
         );
       const composerVisible = await page.locator('.composer').evaluate((element) => {
         const r = element.getBoundingClientRect();
@@ -582,7 +582,8 @@ try {
         true,
         'Composer must remain visible without scrolling notifications',
       );
-      results.push({ width, height, notifications: busy, symbol: geometry.symbol });
+      assert.ok(geometry.status.width > 0 && geometry.status.x === geometry.quick.x);
+      results.push({ width, height, notifications: busy, status: geometry.status.width });
       await page.screenshot({
         path: path.join(folder, `core-${width}-${height}-${busy ? 'busy' : 'idle'}.png`),
       });

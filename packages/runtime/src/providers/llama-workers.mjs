@@ -2,6 +2,7 @@
 import { createServer } from 'node:net';
 import { randomBytes } from 'node:crypto';
 import { linkSync, mkdirSync, mkdtempSync, rmdirSync, unlinkSync } from 'node:fs';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 import { noLinks } from '../huggingface/artifacts.mjs';
@@ -48,6 +49,18 @@ function modelPaths(root, model) {
 
 const bounded = (value, fallback, min, max) =>
   Number.isInteger(value) && value >= min && value <= max ? value : fallback;
+const illegalInstruction = 'CAPRI_LLAMA_ILLEGAL_INSTRUCTION';
+
+async function workerFailure(error, worker, signal) {
+  signal.throwIfAborted();
+  const exitCode = error.exitCode ?? (await worker?.exitCode?.());
+  signal.throwIfAborted();
+  if (Number.isInteger(exitCode) && exitCode >>> 0 === 0xc000001d)
+    return Object.assign(new Error('The local engine stopped on an illegal CPU instruction.'), {
+      code: illegalInstruction,
+    });
+  return error;
+}
 
 export class LlamaWorkers {
   constructor({
@@ -58,6 +71,7 @@ export class LlamaWorkers {
     overheadMiB = 768,
     startupTimeoutMs = 160000,
     automaticGpuStartupTimeoutMs = 75000,
+    canRetryIllegalInstruction = false,
   }) {
     Object.assign(this, {
       root,
@@ -67,12 +81,14 @@ export class LlamaWorkers {
       overheadMiB,
       startupTimeoutMs,
       automaticGpuStartupTimeoutMs,
+      canRetryIllegalInstruction,
     });
     this.slots = {
       chat: { queue: Promise.resolve() },
       embedding: { queue: Promise.resolve() },
     };
     this.shutdown = new AbortController();
+    this.baselineModes = new Set();
   }
   enqueue(role, fn) {
     const slot = this.slots[role];
@@ -88,7 +104,7 @@ export class LlamaWorkers {
     slot.worker = undefined;
     worker.dispose();
   }
-  async open(model, role, options, signal, allowGpu) {
+  async open(model, role, options, signal, allowGpu, baseline = false) {
     const modelFiles = modelPaths(this.root, model);
     const port = await allocatePort().catch((error) => {
       modelFiles.dispose();
@@ -145,7 +161,7 @@ export class LlamaWorkers {
     let child;
     try {
       signal.throwIfAborted();
-      child = await this.start(role, args, { LLAMA_API_KEY: token });
+      child = await this.start(role, args, { LLAMA_API_KEY: token }, { allowGpu, baseline });
       // In Automatic mode leave time for a CPU attempt in the caller's normal
       // preparation window if a Vulkan driver stalls instead of exiting.
       const deadline = AbortSignal.timeout(
@@ -167,6 +183,7 @@ export class LlamaWorkers {
             model,
             process: child,
             allowGpu,
+            baseline,
             dispose: modelFiles.dispose,
           };
         if (!timeout.aborted)
@@ -179,58 +196,97 @@ export class LlamaWorkers {
         code: allowGpu ? 'CAPRI_LLAMA_GPU_LOAD_FAILED' : 'CAPRI_LLAMA_CPU_LOAD_FAILED',
       });
     } catch (error) {
-      await child?.stop();
-      modelFiles.dispose();
-      throw error;
+      try {
+        throw await workerFailure(error, child, signal);
+      } finally {
+        await child?.stop();
+        modelFiles.dispose();
+      }
     }
   }
-  options(model, supplied, role) {
+  async openCompatible(model, role, options, signal, allowGpu) {
+    const baseline = this.baselineModes.has(allowGpu);
+    try {
+      return await this.open(model, role, options, signal, allowGpu, baseline);
+    } catch (error) {
+      if (error.code !== illegalInstruction || baseline || !this.canRetryIllegalInstruction)
+        throw error;
+      this.baselineModes.add(allowGpu);
+      return this.open(model, role, options, signal, allowGpu, true);
+    }
+  }
+  options(supplied, role) {
     const minimum = role === 'embedding' ? 512 : 1024;
     const context =
       role === 'embedding'
         ? 8192
         : bounded(supplied.num_ctx, this.config.contextTokens, minimum, 262144);
-    const threads = bounded(supplied.num_thread, this.config.cpuThreads ?? 4, 1, 64);
+    const threads = Math.min(
+      bounded(supplied.num_thread, this.config.cpuThreads ?? 4, 1, 64),
+      availableParallelism(),
+    );
     const cpu =
       role === 'embedding' || this.config.acceleration === 'cpu' || supplied.num_gpu === 0;
     return { context, threads, cpu };
   }
-  async use(model, role, input, signal, work) {
+  async use(model, role, input, signal, work, canRetry = () => false) {
     const requestSignal = AbortSignal.any([signal, this.shutdown.signal]);
     return this.enqueue(role, async (slot) => {
       requestSignal.throwIfAborted();
-      clearTimeout(slot.timer);
-      slot.timer = undefined;
-      const options = this.options(model, input.options ?? {}, role);
+      const options = this.options(input.options ?? {}, role);
       if (!options.cpu && this.device === 'unavailable')
         throw Object.assign(
           new Error('The selected GPU is unavailable. Choose a device in Model devices.'),
           { status: 503, code: 'CAPRI_LLAMA_GPU_UNAVAILABLE' },
         );
+      clearTimeout(slot.timer);
+      slot.timer = undefined;
       let worker = slot.worker;
       if (
         !worker ||
         !worker.process.alive() ||
         worker.model.name !== model.name ||
         worker.context < options.context ||
+        worker.threads !== options.threads ||
         worker.cpu !== options.cpu
       ) {
         await this.stopSlot(slot);
         try {
-          worker = await this.open(model, role, options, requestSignal, !options.cpu);
+          worker = await this.openCompatible(model, role, options, requestSignal, !options.cpu);
         } catch (error) {
           requestSignal.throwIfAborted();
           if (options.cpu || this.device) throw error;
-          worker = await this.open(model, role, options, requestSignal, false);
+          worker = await this.openCompatible(model, role, options, requestSignal, false);
         }
         slot.worker = worker;
       }
       try {
-        return await work(worker, requestSignal);
+        try {
+          return await work(worker, requestSignal);
+        } catch (error) {
+          const failure = await workerFailure(error, worker.process, requestSignal);
+          if (
+            failure.code !== illegalInstruction ||
+            worker.baseline ||
+            !this.canRetryIllegalInstruction
+          )
+            throw failure;
+          this.baselineModes.add(worker.allowGpu);
+          const { allowGpu } = worker;
+          await this.stopSlot(slot);
+          if (!canRetry()) throw failure;
+          worker = await this.open(model, role, options, requestSignal, allowGpu, true);
+          slot.worker = worker;
+          try {
+            return await work(worker, requestSignal);
+          } catch (retryError) {
+            throw await workerFailure(retryError, worker.process, requestSignal);
+          }
+        }
       } finally {
         const keep = this.keepAlive(input.keep_alive);
         if (keep === 0) await this.stopSlot(slot);
-        else if (keep > 0 && !this.shutdown.signal.aborted) {
+        else if (slot.worker && keep > 0 && !this.shutdown.signal.aborted) {
           const timer = setTimeout(() => {
             void this.enqueue(role, (current) =>
               current.timer === timer && current.worker === worker

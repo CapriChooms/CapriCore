@@ -1,4 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import {
+  DEFAULT_RESOURCE_GRAPHS,
+  DEFAULT_RESOURCE_METERS,
+  MAX_RESOURCE_METRICS,
+  RESOURCE_METRICS,
+  RESOURCE_REFRESH_INTERVALS,
+  resourceMonitorDisplay,
+} from './resource-metrics.mjs';
+
 export function memoryDisplay(sample) {
   const valid = (item) =>
     item &&
@@ -48,10 +57,27 @@ export function contextDisplay(item) {
   };
 }
 
-const graphMetrics = ['CPU', 'GPU', 'RAM', 'VRAM'];
-const historyLength = 24;
+const maximumHistorySamples = 2048;
+const graphMillisecondsPerPixel = 1000;
 const GiB = 1024 ** 3;
-const GB = 1000 ** 3;
+const metricLabels = new Map(RESOURCE_METRICS.map(({ id, label }) => [id, label]));
+const deviceLabels = {
+  cpu: 'CPU',
+  gpu: 'GPU',
+  ram: 'RAM',
+  vram: 'VRAM',
+  cpuTemperature: 'CPU',
+  gpuTemperature: 'GPU',
+};
+const attributeId = (metric) =>
+  ['cpu', 'gpu', 'ram', 'vram'].includes(metric) ? deviceLabels[metric] : metric;
+const selection = (value, defaults) =>
+  Array.isArray(value)
+    ? [...new Set(value.filter((metric) => metricLabels.has(metric)))].slice(
+        0,
+        MAX_RESOURCE_METRICS,
+      )
+    : defaults;
 const usedPercent = (item) =>
   Number.isFinite(item?.usedBytes) &&
   item.usedBytes >= 0 &&
@@ -60,6 +86,24 @@ const usedPercent = (item) =>
   item.usedBytes <= item.totalBytes
     ? (100 * item.usedBytes) / item.totalBytes
     : null;
+
+function percentage(value, detail = {}) {
+  return { value, maximum: 100, unit: '%', ...detail };
+}
+
+function temperature(value, detail = {}) {
+  return { value, maximum: 100, unit: '°C', ...detail };
+}
+
+function memory(item) {
+  return percentage(usedPercent(item), {
+    id: item?.id,
+    name: item?.name,
+    secondary: item?.usedBytes == null ? null : item.usedBytes / GiB,
+    secondaryMaximum: item?.totalBytes == null ? null : item.totalBytes / GiB,
+    secondaryUnit: 'GiB',
+  });
+}
 
 function systemMetrics(sample) {
   const { ram, gpu: vram } = memoryDisplay(sample);
@@ -73,24 +117,33 @@ function systemMetrics(sample) {
       !best || (item[rankedBy] ?? -Infinity) > (best[rankedBy] ?? -Infinity) ? item : best,
     null,
   );
+  const gpuIdentity = { id: gpu?.id, name: gpu?.name };
+  const capriRam = sample?.processLoad?.ramBytes;
+  const capriVram = sample?.processLoad?.vramBytes;
+  const cpuTemperature = sample?.cpu?.temperatureCelsius;
   return {
-    CPU: { percent: sample?.cpu?.utilization, temperatureCelsius: sample?.cpu?.temperatureCelsius },
-    GPU: {
-      id: gpu?.id,
-      name: gpu?.name,
-      percent: gpu?.utilization,
-      temperatureCelsius: gpu?.temperatureCelsius,
+    cpu: percentage(sample?.cpu?.utilization, { secondary: cpuTemperature, secondaryUnit: '°C' }),
+    gpu: percentage(gpu?.utilization, {
+      ...gpuIdentity,
+      secondary: gpu?.temperatureCelsius,
+      secondaryUnit: '°C',
+    }),
+    ram: memory(ram),
+    vram: memory(capacity),
+    capriCpu: percentage(sample?.processLoad?.cpuPercent),
+    capriRam: {
+      value: capriRam == null ? null : capriRam / GiB,
+      maximum: ram?.totalBytes / GiB,
+      unit: 'GiB',
     },
-    RAM: ram ? { percent: usedPercent(ram), usedBytes: ram.usedBytes } : {},
-    VRAM: capacity
-      ? {
-          id: capacity.id,
-          name: capacity.name,
-          percent: usedPercent(capacity),
-          usedBytes: vram?.usedBytes ?? null,
-          totalBytes: capacity.totalBytes,
-        }
-      : {},
+    cpuTemperature: temperature(cpuTemperature),
+    gpuTemperature: temperature(gpu?.temperatureCelsius, gpuIdentity),
+    disk: memory(sample?.disk),
+    process: {
+      cpu: sample?.processLoad?.cpuPercent,
+      ram: capriRam == null ? null : capriRam / GiB,
+      vram: capriVram == null ? null : capriVram / GiB,
+    },
   };
 }
 
@@ -152,15 +205,17 @@ export class ResourceWarnings {
   }
 }
 
-export function sparkline(values, scale) {
+export function sparkline(values, scale, latestAt, width) {
+  const earliestAt = latestAt - width * graphMillisecondsPerPixel;
   let drawing = false;
   return values
-    .map((value, index) => {
+    .map(({ at, value }) => {
+      if (at < earliestAt || at > latestAt) return '';
       if (!Number.isFinite(value) || value < 0) {
         drawing = false;
         return '';
       }
-      const x = (68 * (historyLength - values.length + index)) / (historyLength - 1) + 1;
+      const x = 69 - (68 * (latestAt - at)) / (latestAt - earliestAt);
       const y = 15 - 14 * Math.min(1, value / scale);
       const command = drawing ? 'L' : 'M';
       drawing = true;
@@ -197,10 +252,16 @@ export class MemoryHUD {
       onError,
     });
     this.settings = { memoryMonitor: false, processGraphs: false, memoryIntervalSeconds: 3 };
+    this.display = { graphs: [], meters: [] };
     this.history = [];
     this.graphCards = new Map();
+    this.meters = new Map();
     this.warnings = new ResourceWarnings();
     this.warningRows = new Map();
+    this.graphResize = new ResizeObserver(() => {
+      if (this.display.graphs.length) this.drawGraphs();
+    });
+    this.graphResize.observe(graphs);
     toggle.onclick = (event) =>
       this.changeDisplay(event.target.closest('[data-monitor-menu]') ? 'menu' : 'toggle');
     toggle.oncontextmenu = (event) => {
@@ -214,25 +275,7 @@ export class MemoryHUD {
       }
     };
     graphs.setAttribute('role', 'group');
-    graphs.innerHTML = graphMetrics
-      .map(
-        (label) => `<div class="process-graph" data-metric="${label}" role="img">
-        <span class="process-graph-label"><span>${label}</span><strong>—</strong></span>
-        <span class="process-graph-reading">—</span>
-        <svg viewBox="0 0 70 16" preserveAspectRatio="none" aria-hidden="true"><path vector-effect="non-scaling-stroke"/></svg>
-      </div>`,
-      )
-      .join('');
-    for (const label of graphMetrics)
-      this.graphCards.set(label, graphs.querySelector(`[data-metric="${label}"]`));
-    element.innerHTML = ['RAM', 'VRAM']
-      .map(
-        (name) => `<div class="memory-gauge" data-memory="${name}">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="memory-track" cx="12" cy="12" r="9"/><circle class="memory-fill" cx="12" cy="12" r="9" pathLength="100"/></svg>
-      <span class="memory-label"><span>${name}</span><strong>—</strong><span class="memory-bar" aria-hidden="true"><i></i></span></span>
-      </div>`,
-      )
-      .join('');
+    element.setAttribute('role', 'group');
     this.contextButton.onclick = async () => {
       if (this.openingContext) return;
       this.openingContext = true;
@@ -246,6 +289,7 @@ export class MemoryHUD {
     };
     this.visibility = () => {
       if (document.hidden) {
+        if (this.history.length) this.recordReading(systemMetrics(null));
         this.sample = null;
         this.drawWarnings(null);
         clearTimeout(this.timer);
@@ -265,8 +309,10 @@ export class MemoryHUD {
     }
   }
   displayLabel() {
-    const active = this.settings.processGraphs;
-    const label = this.ui.text(active ? 'Collapse graphs' : 'Expand graphs');
+    const active = this.display.graphs.length > 0;
+    const label = this.ui.text(
+      active ? 'Collapse graphs' : this.active ? 'Expand graphs' : 'Show system resource graphs',
+    );
     const shortcut = this.ui.text('Use the arrow or press Down to choose a monitor style.');
     this.toggle.title = `${label} · ${shortcut}`;
     this.toggle.setAttribute('aria-label', label);
@@ -281,41 +327,88 @@ export class MemoryHUD {
   }
   configure(value) {
     const previous = this.settings;
+    const wasGraph = this.display.graphs.length > 0;
+    const wasMeter = this.display.meters.length > 0;
     this.settings = {
       memoryMonitor: value.memoryMonitor !== false,
       processGraphs: value.processGraphs !== false,
       memoryStyle: value.memoryStyle === 'bars' ? 'bars' : 'rings',
-      memoryIntervalSeconds: [3, 5, 10].includes(value.memoryIntervalSeconds)
+      graphMetrics: selection(value.graphMetrics, DEFAULT_RESOURCE_GRAPHS),
+      meterMetrics: selection(value.meterMetrics, DEFAULT_RESOURCE_METERS),
+      memoryIntervalSeconds: RESOURCE_REFRESH_INTERVALS.includes(value.memoryIntervalSeconds)
         ? value.memoryIntervalSeconds
         : 3,
     };
+    const changed = this.updateCards();
+    this.display = resourceMonitorDisplay(this.settings);
     if (!this.active) this.history = [];
-    this.element.hidden = !this.settings.memoryMonitor || this.settings.processGraphs;
+    this.element.hidden = !this.display.meters.length;
     this.contextButton.hidden = !this.active;
-    this.graphs.hidden = !this.settings.processGraphs;
+    this.graphs.hidden = !this.display.graphs.length;
     this.toggle.hidden = false;
     this.displayLabel();
     this.element.dataset.style = this.settings.memoryStyle;
     this.draw(this.sample);
-    if (this.settings.processGraphs) this.drawGraphs();
+    this.drawGraphs();
+    if (changed || this.element.hidden === wasMeter || this.graphs.hidden === wasGraph)
+      this.onLayout();
     if (!this.active) {
       clearTimeout(this.timer);
       this.timer = null;
       this.drawWarnings(null);
     } else if (
       !this.timer ||
+      changed ||
       previous.memoryIntervalSeconds !== this.settings.memoryIntervalSeconds
     ) {
       void this.poll();
     }
   }
   get active() {
-    return this.settings.memoryMonitor || this.settings.processGraphs;
+    return Boolean(this.display.meters.length || this.display.graphs.length);
   }
+
+  updateCards() {
+    const rebuild = (element, cards, ids, create) => {
+      if (Array.from(cards.keys()).join() === ids.join()) return false;
+      element.innerHTML = ids.map(create).join('');
+      element.style.setProperty('--resource-count', String(ids.length));
+      cards.clear();
+      for (const child of element.children) cards.set(child.dataset.resourceMetric, child);
+      return true;
+    };
+    const graphs = rebuild(
+      this.graphs,
+      this.graphCards,
+      this.settings.graphMetrics,
+      (
+        id,
+      ) => `<div class="process-graph" data-metric="${attributeId(id)}" data-resource-metric="${id}" role="img">
+        <span class="process-graph-label"><span></span><strong>—</strong></span>
+        <span class="process-graph-reading">—</span>
+        <div class="process-graph-plot"><svg viewBox="0 0 70 16" preserveAspectRatio="none" aria-hidden="true"><path vector-effect="non-scaling-stroke"/></svg></div>
+        <span class="process-graph-time" aria-hidden="true"><span></span><span></span></span>
+      </div>`,
+    );
+    const meters = rebuild(
+      this.element,
+      this.meters,
+      this.settings.meterMetrics,
+      (
+        id,
+      ) => `<div class="memory-gauge" data-memory="${attributeId(id)}" data-resource-metric="${id}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="memory-track" cx="12" cy="12" r="9"/><circle class="memory-fill" cx="12" cy="12" r="9" pathLength="100"/></svg>
+        <span class="memory-label"><span></span><strong>—</strong><span class="memory-bar" aria-hidden="true"><i></i></span></span>
+      </div>`,
+    );
+    return graphs || meters;
+  }
+
   async poll() {
     clearTimeout(this.timer);
     this.timer = null;
     if (this.destroyed || this.pending || !this.active || this.document.hidden) return;
+    const startedAt = performance.now();
     this.pending = true;
     try {
       this.sample = await this.api.memoryStatus();
@@ -324,64 +417,102 @@ export class MemoryHUD {
     } finally {
       this.pending = false;
       if (!this.destroyed && this.active && !this.document.hidden) {
-        this.draw(this.sample);
-        this.history.push(systemMetrics(this.sample));
-        if (this.history.length > historyLength) this.history.shift();
-        if (this.settings.processGraphs) this.drawGraphs();
+        const reading = systemMetrics(this.sample);
+        this.draw(this.sample, reading);
+        this.recordReading(reading);
+        if (this.display.graphs.length) this.drawGraphs(reading);
         this.drawWarnings(this.sample);
-        this.timer = setTimeout(() => this.poll(), this.settings.memoryIntervalSeconds * 1000);
+        const interval = this.settings.memoryIntervalSeconds * 1000;
+        const elapsed = performance.now() - startedAt;
+        this.timer = setTimeout(() => this.poll(), interval - (elapsed % interval));
       }
     }
   }
-  drawGraphs() {
-    this.graphs.setAttribute('aria-label', this.ui.text('System resource usage'));
-    const format = (value) => value.toLocaleString(this.ui.language, { maximumFractionDigits: 1 });
-    for (const label of graphMetrics) {
-      const item = this.graphCards.get(label);
-      const latest = this.history.at(-1)?.[label] ?? {};
-      const values = this.history.map((reading) =>
-        reading[label].id === latest.id ? reading[label].percent : null,
+  recordReading(reading) {
+    this.history.push({ at: performance.now(), reading });
+    if (this.history.length > maximumHistorySamples) this.history.shift();
+  }
+  resourceReading(id, reading) {
+    const format = (value, max = 1) =>
+      value.toLocaleString(this.ui.language, { maximumFractionDigits: max });
+    const label = this.ui.text(metricLabels.get(id));
+    const { value, unit, name, secondary, secondaryMaximum, secondaryUnit } = reading;
+    const available = Number.isFinite(value);
+    const text = available
+      ? format(value, unit === '%' ? 0 : 1) + (unit === '%' ? '%' : ' ' + unit)
+      : '—';
+    const secondaryText = secondaryUnit
+      ? (Number.isFinite(secondary) ? format(secondary) : '—') + ' ' + secondaryUnit
+      : '';
+    const completeSecondary = Number.isFinite(secondaryMaximum)
+      ? `${Number.isFinite(secondary) ? format(secondary) : '—'} / ${format(secondaryMaximum)} ${secondaryUnit}`
+      : secondaryText;
+    const title = [
+      label,
+      name,
+      available ? text : this.ui.text('Unavailable'),
+      completeSecondary,
+    ].filter(Boolean);
+    const cpuTemperatureMissing = id === 'cpuTemperature' && !available;
+    if (cpuTemperatureMissing)
+      title.push(
+        this.ui.text(
+          'CPU temperature is unavailable. LibreHardwareMonitor can provide it through its local server at 127.0.0.1:8085.',
+        ),
       );
-      const valid = Number.isFinite(latest.percent);
-      const value = valid ? format(Math.round(latest.percent)) + '%' : '—';
-      const temperature = label === 'CPU' || label === 'GPU';
-      const secondary = temperature
-        ? latest.temperatureCelsius
-        : Number.isFinite(latest.usedBytes)
-          ? latest.usedBytes / GB
-          : null;
-      const unit = temperature ? '°C' : 'GB';
-      const reading =
-        (Number.isFinite(secondary)
-          ? format(secondary)
-          : label === 'VRAM' && Number.isFinite(latest.totalBytes)
-            ? '— / ' + format(latest.totalBytes / GB)
-            : '—') +
-        ' ' +
-        unit;
-      const process = this.sample?.processLoad;
-      const capri = {
-        CPU: Number.isFinite(process?.cpuPercent) ? format(process.cpuPercent) + '%' : null,
-        RAM: Number.isFinite(process?.ramBytes) ? format(process.ramBytes / GiB) + ' GiB' : null,
-        VRAM: Number.isFinite(process?.vramBytes) ? format(process.vramBytes / GiB) + ' GiB' : null,
-      }[label];
-      const title = [
-        label,
-        latest.name,
-        valid ? value : this.ui.text('Unavailable'),
-        Number.isFinite(secondary) || (label === 'VRAM' && Number.isFinite(latest.totalBytes))
-          ? reading
-          : this.ui.text('Unavailable') + ' (' + unit + ')',
-        capri ? 'Capri ' + capri : null,
-      ]
-        .filter(Boolean)
-        .join(' · ');
-      item.dataset.available = String(valid);
-      item.querySelector('strong').textContent = value;
-      item.querySelector('.process-graph-reading').textContent = reading;
-      item.querySelector('path').setAttribute('d', sparkline(values, 100));
-      item.title = title;
-      item.setAttribute('aria-label', title);
+    return {
+      label,
+      available,
+      text,
+      secondaryText: cpuTemperatureMissing ? this.ui.text('Unavailable') : secondaryText,
+      title,
+    };
+  }
+  drawGraphs(latest = this.history.at(-1)?.reading ?? systemMetrics(this.sample)) {
+    this.graphs.setAttribute('aria-label', this.ui.text('System resource usage'));
+    const seconds = new Intl.NumberFormat(this.ui.language, {
+      style: 'unit',
+      unit: 'second',
+      unitDisplay: 'narrow',
+    });
+    const latestAt = this.history.at(-1)?.at ?? performance.now();
+    for (const [id, item] of this.graphCards) {
+      const reading = latest[id];
+      const { label, available, text, secondaryText, title } = this.resourceReading(id, reading);
+      const plot = item.querySelector('svg');
+      const width = Math.max(1, Math.round(plot.getBoundingClientRect().width));
+      const left = latestAt - width * graphMillisecondsPerPixel;
+      const values = this.history
+        .filter(({ at }) => at >= left)
+        .map(({ at, reading }) => ({
+          at,
+          value: reading[id].id === latest[id].id ? reading[id].value : null,
+        }));
+      const primary = item.querySelector('strong');
+      const name = item.querySelector('.process-graph-label span');
+      const secondary = item.querySelector('.process-graph-reading');
+      item.dataset.available = String(available);
+      item.toggleAttribute('data-single-reading', !secondaryText);
+      primary.textContent = text;
+      name.textContent = label;
+      secondary.textContent = secondaryText;
+      const axis = Number.isFinite(reading.maximum)
+        ? reading.maximum
+        : Math.max(1, ...values.map(({ value }) => value).filter(Number.isFinite));
+      plot.querySelector('path').setAttribute('d', sparkline(values, axis, latestAt, width));
+      const [oldest, current] = item.querySelector('.process-graph-time').children;
+      oldest.textContent = seconds.format(-(width * graphMillisecondsPerPixel) / 1000);
+      current.textContent = seconds.format(0);
+      if (Number.isFinite(latest.process[id])) {
+        const unit = id === 'cpu' ? '%' : ' GiB';
+        title.push(
+          'Capri ' +
+            latest.process[id].toLocaleString(this.ui.language, { maximumFractionDigits: 1 }) +
+            unit,
+        );
+      }
+      item.title = title.join(' · ');
+      item.setAttribute('aria-label', item.title);
     }
   }
   drawWarnings(sample) {
@@ -389,7 +520,8 @@ export class MemoryHUD {
     const active = new Set(
       [...this.warnings.readings.values()].map(({ warning }) => warning?.device),
     );
-    for (const [device, card] of this.graphCards) card.dataset.warning = String(active.has(device));
+    for (const [metric, card] of this.graphCards)
+      card.dataset.warning = String(active.has(deviceLabels[metric]));
     const current = new Set(warnings.map(({ device }) => device));
     let layoutChanged = false;
     for (const [device, item] of this.warningRows) {
@@ -468,35 +600,33 @@ export class MemoryHUD {
     this.warningList.hidden = !warnings.length;
     if (layoutChanged) this.onLayout();
   }
-  draw(sample) {
-    const { ram, gpu } = memoryDisplay(sample);
-    const capacity = gpu ?? dedicatedCapacity(sample);
-    const format = (bytes) =>
-      (bytes / 1024 ** 3).toLocaleString(this.ui.language, { maximumFractionDigits: 1 });
-    for (const [name, item] of [
-      ['RAM', ram],
-      ['VRAM', gpu],
-    ]) {
-      const el = this.element.querySelector(`[data-memory="${name}"]`);
-      const percent = item ? Math.round((item.usedBytes / item.totalBytes) * 100) : null;
-      const detail = item
-        ? `${name} · ${format(item.usedBytes)} / ${format(item.totalBytes)} GiB · ${percent}%${item.name ? ' · ' + item.name : ''}`
-        : name === 'VRAM' && capacity
-          ? `${name} · — / ${format(capacity.totalBytes)} GiB · ${this.ui.text('Unavailable')} · ${capacity.name ?? ''}`
-          : `${name} · ${this.ui.text('Unavailable')}`;
-      el.title = detail;
-      el.setAttribute('aria-label', detail);
-      el.setAttribute('role', item ? 'meter' : 'img');
+  draw(sample, latest = systemMetrics(sample)) {
+    for (const [id, el] of this.meters) {
+      const reading = latest[id];
+      const { label, available, text, title } = this.resourceReading(id, reading);
+      const measured = available && Number.isFinite(reading.maximum) && reading.maximum > 0;
+      const percent = measured
+        ? Math.max(0, Math.min(100, (100 * reading.value) / reading.maximum))
+        : null;
+      const isTemperature = reading.unit === '°C';
+      const rule = isTemperature ? warningRules[deviceLabels[id]] : null;
+      const high = rule ? reading.value >= rule.threshold : percent >= 90;
+      const medium = rule ? reading.value >= rule.recovery : percent >= 75;
+      el.title = title.join(' · ');
+      el.setAttribute('aria-label', el.title);
+      el.setAttribute('role', measured ? 'meter' : 'img');
       for (const [key, value] of Object.entries({
         'aria-valuemin': 0,
-        'aria-valuemax': 100,
-        'aria-valuenow': percent,
+        'aria-valuemax': reading.maximum,
+        'aria-valuenow': Math.max(0, Math.min(reading.value, reading.maximum)),
+        'aria-valuetext': text,
       }))
-        if (item) el.setAttribute(key, String(value));
+        if (measured) el.setAttribute(key, String(value));
         else el.removeAttribute(key);
       el.dataset.pressure =
-        percent === null ? 'unknown' : percent >= 90 ? 'high' : percent >= 75 ? 'medium' : 'normal';
-      el.querySelector('strong').textContent = percent === null ? '—' : percent + '%';
+        percent === null ? 'unknown' : high ? 'high' : medium ? 'medium' : 'normal';
+      el.querySelector('.memory-label > span').textContent = label;
+      el.querySelector('strong').textContent = text;
       el.style.setProperty('--memory-used', String(percent ?? 0));
     }
     const { used, total, percent } = contextDisplay(sample?.context);
@@ -510,12 +640,11 @@ export class MemoryHUD {
     this.contextButton.dataset.pressure =
       percent === null ? 'unknown' : percent >= 90 ? 'high' : percent >= 75 ? 'medium' : 'normal';
     this.contextButton.querySelector('strong').textContent = percent === null ? '—' : percent + '%';
-    this.element.title = this.ui.text(
-      'System-wide RAM and VRAM usage. The busiest GPU is shown. Missing driver data is unavailable.',
-    );
+    this.element.setAttribute('aria-label', this.ui.text('System resource usage'));
   }
   destroy() {
     this.destroyed = true;
+    this.graphResize.disconnect();
     clearTimeout(this.timer);
     this.warningList.replaceChildren();
     this.warningList.hidden = true;

@@ -19,6 +19,7 @@ import {
   httpFailure,
   canRetry,
   requestArtifact,
+  hashReadBuffer,
 } from './resumable-download.mjs';
 
 const hosts = new Set([
@@ -30,11 +31,12 @@ const hosts = new Set([
   'cdn.npmmirror.com',
   'gh-proxy.org',
 ]);
+const zigCompilerUrl = 'https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip';
 export function artifactUrl(value) {
   const url = new URL(value);
   if (
     url.protocol !== 'https:' ||
-    !hosts.has(url.hostname) ||
+    (!hosts.has(url.hostname) && url.href !== zigCompilerUrl) ||
     url.username ||
     url.password ||
     (url.port && url.port !== '443')
@@ -42,9 +44,16 @@ export function artifactUrl(value) {
     throw new Error('Unapproved dependency download URL');
   return url;
 }
-export async function fileHash(file) {
+export async function fileHash(file, signal) {
+  signal?.throwIfAborted();
   const hash = createHash('sha256');
-  for await (const chunk of createReadStream(file)) hash.update(chunk);
+  try {
+    for await (const chunk of createReadStream(file, { highWaterMark: hashReadBuffer, signal }))
+      hash.update(chunk);
+  } catch (error) {
+    signal?.throwIfAborted();
+    throw error;
+  }
   return hash.digest('hex');
 }
 function artifactSources(spec) {
@@ -98,7 +107,7 @@ export async function fetchArtifact(
   if (
     existsSync(final) &&
     statSync(final).size === spec.bytes &&
-    (await fileHash(final)) === spec.sha256
+    (await fileHash(final, signal)) === spec.sha256
   )
     return final;
   if (existsSync(final)) unlinkSync(final);

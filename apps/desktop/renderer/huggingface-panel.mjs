@@ -5,31 +5,36 @@ export class HuggingFacePanel {
   constructor({ api, ui, host, onError }) {
     Object.assign(this, { api, ui, onError });
     this.panel = document.createElement('section');
-    this.panel.className = 'settings-card';
+    this.panel.className = 'settings-stack';
     this.panel.innerHTML = `
-      <h3>Hugging Face</h3>
-      <label for="hf-query">Model name or repository</label>
-      <input id="hf-query" type="text" maxlength="160" placeholder="owner/model" autocomplete="off" data-untranslated>
-      <label for="hf-task">Model type</label>
-      <select id="hf-task"><option value="llm">Language models · GGUF</option><option value="tts">Voice models</option></select>
-      <div class="settings-actions"><button id="hf-search" type="button">Search</button><button id="hf-inspect" type="button">Open repository</button></div>
-      <div id="hf-results"></div>
-      <section id="hf-details" hidden>
-        <strong id="hf-repository" data-untranslated></strong><p id="hf-license"><span id="hf-license-name"></span><span id="hf-revision" data-untranslated></span></p>
-        <label for="hf-file">Model file / quantization</label><select id="hf-file" data-untranslated></select>
-        <label for="hf-projector">Vision projector</label><select id="hf-projector" data-untranslated></select>
-        <p id="hf-compatibility" class="settings-help"></p>
-        <button id="hf-voices" type="button" hidden>Voice models</button>
-        <div class="settings-actions"><button id="hf-plan" type="button">Check download size</button><button id="hf-install" type="button" disabled>Download and prepare</button></div>
-        <p id="hf-size"></p>
+      <section class="settings-card">
+        <h3>Hugging Face</h3>
+        <label for="hf-query">Model name or repository</label>
+        <input id="hf-query" type="text" maxlength="160" placeholder="owner/model" autocomplete="off" data-untranslated>
+        <label for="hf-task">Model type</label>
+        <select id="hf-task"><option value="llm">Language models · GGUF</option><option value="tts">Voice models</option></select>
+        <div class="settings-actions"><button id="hf-search" type="button">Search</button><button id="hf-inspect" type="button">Open repository</button></div>
+        <div id="hf-results"></div>
+        <section id="hf-details" hidden>
+          <strong id="hf-repository" data-untranslated></strong><p id="hf-license"><span id="hf-license-name"></span><span id="hf-revision" data-untranslated></span></p>
+          <label for="hf-file">Model file / quantization</label><select id="hf-file" data-untranslated></select>
+          <label for="hf-projector">Vision projector</label><select id="hf-projector" data-untranslated></select>
+          <p id="hf-compatibility" class="settings-help"></p>
+          <button id="hf-voices" type="button" hidden>Voice models</button>
+          <div class="settings-actions"><button id="hf-plan" type="button">Check download size</button><button id="hf-install" type="button" disabled>Download and prepare</button></div>
+          <p id="hf-size"></p>
+        </section>
+        <p role="status" aria-live="polite"><span id="hf-status"></span><span id="hf-progress-size" data-untranslated></span></p><progress id="hf-progress" max="100" hidden></progress>
+        <button id="hf-cancel" type="button" hidden>Cancel download</button>
+        <p class="settings-help">After preparation, choose the downloaded model above and apply it. Model capabilities are checked by the local runtime.</p>
       </section>
-      <p role="status" aria-live="polite"><span id="hf-status"></span><span id="hf-progress-size" data-untranslated></span></p><progress id="hf-progress" max="100" hidden></progress>
-      <button id="hf-cancel" type="button" hidden>Cancel download</button>
-      <p class="settings-help">After preparation, choose the downloaded model above and apply it. Model capabilities are checked by the local runtime.</p>
-      <h4>Installed Hugging Face models</h4><div id="hf-installed"></div>
-      <details><summary>Hugging Face access</summary><p class="settings-help">Public models work without a token. A read token can unlock private or approved gated models.</p>
-        <label for="hf-token">Hugging Face token</label><input id="hf-token" type="password" autocomplete="off" maxlength="512" data-untranslated>
-        <p id="hf-token-status"></p><div class="settings-actions"><button id="hf-save-token" type="button">Save token</button><button id="hf-remove-token" type="button">Remove token</button></div>
+      <section class="settings-card"><h3>Installed Hugging Face models</h3><div id="hf-installed"></div></section>
+      <details class="settings-disclosure"><summary>Hugging Face access</summary>
+        <div class="settings-disclosure-content">
+          <p class="settings-help">Public models work without a token. A read token can unlock private or approved gated models.</p>
+          <label for="hf-token">Hugging Face token</label><input id="hf-token" type="password" autocomplete="off" maxlength="512" data-untranslated>
+          <p id="hf-token-status"></p><div class="settings-actions"><button id="hf-save-token" type="button">Save token</button><button id="hf-remove-token" type="button">Remove token</button></div>
+        </div>
       </details>`;
     host.append(this.panel);
     this.get = (name) => this.panel.querySelector('#hf-' + name);

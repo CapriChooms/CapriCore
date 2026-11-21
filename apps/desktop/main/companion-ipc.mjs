@@ -18,6 +18,7 @@ import {
 import { writeFile, rename, unlink } from 'node:fs/promises';
 import { createDiagnosticReport, validateReport } from '../diagnostics/report.mjs';
 import { COMMUNITY_LINKS, loadCommunityLinks } from '../community-links.mjs';
+import { validateCompanionSettings } from '../companion-settings.mjs';
 export { COMMUNITY_LINKS } from '../community-links.mjs';
 import {
   readPersonality,
@@ -44,12 +45,19 @@ export function registerCompanionIpc(handle, deps) {
     if (!Object.hasOwn(COMMUNITY_LINKS, id)) throw new Error('Unknown community link');
     await shell.openExternal(links[id]);
   });
+  handle('capri:donation-open', (_value, { role }) =>
+    role === 'settings' ? deps.openDonation() : false,
+  );
   handle('capri:personality-get', () => ({
     text: readPersonality(rt.workspace),
     original: defaultPersonality(),
     communicationStyle: readCommunicationStyle(rt.workspace),
   }));
-  handle('capri:communication-style', (style) => saveCommunicationStyle(rt.workspace, style));
+  handle('capri:communication-style', (style) => {
+    const saved = saveCommunicationStyle(rt.workspace, style);
+    deps.onStyleChanged?.(saved);
+    return saved;
+  });
   handle('capri:personality-save', (value) => {
     deps.assertIdle();
     return savePersonality(rt.workspace, value);
@@ -74,9 +82,8 @@ export function registerCompanionIpc(handle, deps) {
     copyFileSync(source, file);
     return snapshot();
   });
-  const wakeVoice = () => {
+  const wakeVoice = (phrase = currentSettings().wakePhrase) => {
     const language = deps.wakeLanguage?.() ?? 'en';
-    const phrase = currentSettings().wakePhrase;
     const identity = deps.wakeIdentity?.() ?? 'default';
     const text = deps.translateWake?.(phrase, language) ?? phrase;
     const key = createHash('sha256')
@@ -99,8 +106,7 @@ export function registerCompanionIpc(handle, deps) {
       return false;
     }
   };
-  handle('capri:wake-audio', () => {
-    const selection = currentSettings().wakeSound === 'voice' ? wakeVoice() : null;
+  const readWakeAudio = (selection) => {
     const selected = selection?.file ?? file;
     if (selection && !voiceCacheReady(selected)) return null;
     if (!existsSync(selected) || statSync(selected).size > 4 * 1024 * 1024) return null;
@@ -110,9 +116,11 @@ export function registerCompanionIpc(handle, deps) {
       sampleRate: 24000,
       ...(selection ? { text: selection.text } : {}),
     };
-  });
-  const prepareWakeVoice = async () => {
-    const selected = wakeVoice();
+  };
+  handle('capri:wake-audio', () =>
+    readWakeAudio(currentSettings().wakeSound === 'voice' ? wakeVoice() : null),
+  );
+  const prepareWakeVoice = async (selected = wakeVoice()) => {
     if (voiceCacheReady(selected.file)) {
       emit({ type: 'wake.audio-ready' });
       return true;
@@ -157,12 +165,24 @@ export function registerCompanionIpc(handle, deps) {
       preparing = false;
     }
   };
-  handle('capri:wake-prepare', prepareWakeVoice);
+  handle('capri:wake-prepare', () => prepareWakeVoice());
+  handle('capri:wake-preview', async (value) => {
+    const { wakeSound, wakePhrase } = validateCompanionSettings({
+      wakeSound: value?.wakeSound,
+      wakePhrase: value?.wakePhrase,
+    });
+    if (wakeSound === 'file') return readWakeAudio(null);
+    if (wakeSound !== 'voice') return null;
+    const selected = wakeVoice(wakePhrase);
+    if (!voiceCacheReady(selected.file)) await prepareWakeVoice(selected);
+    return readWakeAudio(selected);
+  });
   snapshot.prepareWakeVoice = prepareWakeVoice;
   handle('capri:reset-context', () => deps.resetContext());
   handle('capri:reset-memory', () => deps.resetMemory());
-  const createReport = (input) =>
-    (deps.createReport ?? createDiagnosticReport)({
+  const createReport = async (input) => {
+    if (input.includeLogs) await deps.prepareDiagnosticLogs?.();
+    return (deps.createReport ?? createDiagnosticReport)({
       root: deps.diagnosticRoot ?? root,
       state,
       rt,
@@ -177,6 +197,7 @@ export function registerCompanionIpc(handle, deps) {
         : deps.voiceHealth,
       ...(deps.verification ? { installerDirectory: null } : {}),
     });
+  };
   handle('capri:bug-report-send', async (value, { role }) => {
     if (role !== 'settings' || deps.verification) throw new Error('Open Report a bug in Settings.');
     const input = validateReport(value);

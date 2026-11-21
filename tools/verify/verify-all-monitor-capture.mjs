@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /** Real capture consent and renderer flow using only generated screen content. */
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -19,6 +20,9 @@ writeFileSync(
   entry,
   `
 import { app, desktopCapturer, nativeImage, screen, session } from 'electron';
+import { ScreenFrameWorker } from ${JSON.stringify(
+    pathToFileURL(path.join(root, 'apps/desktop/screen-frame-worker.mjs')).href,
+  )};
 const width = 960, height = 540;
 const displays = [1171001, 1171002].map((id, index) => ({
   id, bounds: { x: index * width, y: 0, width, height }, scaleFactor: 1, rotation: 0,
@@ -35,19 +39,27 @@ const fixture = globalThis.monitorFixture = {
 };
 app.whenReady().then(() => {
   screen.getAllDisplays = () => displays;
+  screen.dipToScreenRect = (_window, bounds) => bounds;
+  ScreenFrameWorker.prototype.frame = async function ({ region, signal }) {
+    signal.throwIfAborted();
+    const index = displays.findIndex(({ bounds }) => bounds.x === region.x &&
+      bounds.y === region.y && bounds.width === region.width && bounds.height === region.height);
+    if (index < 0) throw new Error('Unexpected monitor region');
+    if (index === 0) fixture.reads++;
+    const [r, g, b] = fixture.colors[index];
+    const bitmap = nativeImage.createFromBitmap(Buffer.alloc(width * height * 4, Buffer.from([b, g, r, 255])), { width, height });
+    return { png: bitmap.toPNG() };
+  };
   desktopCapturer.getSources = async ({ types, thumbnailSize }) => {
     if (!types.includes('screen')) return [];
-    const pixels = thumbnailSize.width > 0 && thumbnailSize.height > 0;
-    if (pixels) fixture.reads++;
+    if (thumbnailSize.width || thumbnailSize.height)
+      throw new Error('Monitor enumeration must not request screenshots');
     return displays.map(({ id }, index) => {
-      const [r, g, b] = fixture.colors[index];
       return {
         id: 'screen:' + (index + 1) + ':0',
         name: 'Synthetic monitor ' + (index + 1),
         display_id: String(id),
-        thumbnail: pixels
-          ? nativeImage.createFromBitmap(Buffer.alloc(width * height * 4, Buffer.from([b, g, r, 255])), { width, height })
-          : nativeImage.createEmpty(),
+        thumbnail: nativeImage.createEmpty(),
       };
     }).reverse();
   };
@@ -272,11 +284,22 @@ try {
     (_electron, colors) => (globalThis.monitorFixture.colors = colors),
     freshColors,
   );
-  await companion.locator('#message').fill('What colors can you see now?');
-  await companion.locator('#message').press('Enter');
-  await companion.waitForSelector('.message[data-role="assistant"][data-status="complete"]', {
-    state: 'attached',
-  });
+  const turnId = randomUUID();
+  await companion.evaluate(
+    (id) => window.capri.send({ id, text: 'What colors can you see now?' }),
+    turnId,
+  );
+  await companion.waitForFunction(
+    async (id) =>
+      (await window.capri.bootstrap()).messages.some(
+        (message) =>
+          message.turnId === id &&
+          message.role === 'assistant' &&
+          message.status === 'complete' &&
+          message.text === 'I can see the two colors.',
+      ),
+    turnId,
+  );
   const foreground = analysisRequests.find((request) => request.options.num_predict > 192);
   assert.ok(foreground, 'An ordinary question should trigger a fresh mosaic');
   await checkAnalysis(foreground, freshColors, true);
@@ -301,8 +324,26 @@ try {
   await companion.waitForTimeout(2300);
   assert.equal(await application.evaluate(() => globalThis.monitorFixture.reads), reads);
 
+  const source = settings.locator('#screen-source');
+  const singleMonitor = source.locator('option').filter({ hasText: 'Synthetic monitor 1' });
+  await source.selectOption(await singleMonitor.getAttribute('value'));
+  const start = settings.locator('#screen-watch-start');
+  const stop = settings.locator('#screen-watch-stop');
+  await start.click();
+  await companion.waitForFunction(
+    async () => (await window.capri.bootstrap()).screenObservation.active,
+  );
+  await settings.waitForFunction(() => document.getElementById('screen-source').disabled);
+  assert.equal(await source.isDisabled(), true, 'Changing source requires stopping observation');
+  await stop.click();
+  await companion.waitForFunction(
+    async () => !(await window.capri.bootstrap()).screenObservation.active,
+  );
+  await settings.waitForFunction(() => !document.getElementById('screen-source').disabled);
+  await source.selectOption(token);
   await settings.locator('#screen-watch-start').click();
   await live.waitFor({ state: 'attached' });
+  assertMosaic(await live.evaluate(sampleMosaic), freshColors);
   await application.evaluate(() => globalThis.monitorFixture.removeSecondDisplay());
   await companion.waitForFunction(
     async () => !(await window.capri.bootstrap()).screenObservation.active,

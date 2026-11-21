@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="cyberpunk.css" />
     <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="guide.css" />
+    <link rel="stylesheet" href="chess-arrow-configurator.css" />
     <link rel="stylesheet" href="developer-panel.css" />
     <link rel="stylesheet" href="credits.css" />
     <script type="module" src="settings-loading.mjs"></script>
@@ -26,6 +28,18 @@
           <button id="settings-discard" type="button">Discard changes</button>
           <button id="settings-apply" type="button">Save changes</button>
         </div>
+        <button
+          id="settings-guide-open"
+          type="button"
+          aria-controls="capri-guide"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-label="Guide for this tab"
+          data-untranslated
+          disabled
+        >
+          ?
+        </button>
         <button id="settings-window-close" type="button" aria-label="Close settings">×</button>
       </div>
     </header>
@@ -107,15 +121,48 @@
           >
             <h2>Voice calls</h2>
             <div class="preferences-content">
+              <div class="settings-card" id="call-camera-card">
+                <label class="skill-display-control">
+                  <input
+                    id="call-camera-enabled"
+                    type="checkbox"
+                    role="switch"
+                    aria-describedby="call-camera-help"
+                  />
+                  <span>Camera</span>
+                </label>
+                <p id="call-camera-help">
+                  Select Capri Camera in Discord, Zoom or OBS to show Capri’s sprite.
+                </p>
+                <p id="call-camera-status" role="status" aria-live="polite"></p>
+                <div id="call-camera-background" hidden>
+                  <div class="settings-actions call-camera-background-actions">
+                    <label class="call-camera-color" for="call-camera-color">
+                      <input id="call-camera-color" type="color" />
+                      <span>Background color</span>
+                    </label>
+                    <input
+                      id="call-camera-image-file"
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      hidden
+                    />
+                    <button id="call-camera-image-pick" type="button">Background image…</button>
+                    <button id="call-camera-image-remove" type="button" hidden>Remove image</button>
+                    <button id="call-camera-background-reset" type="button">Reset</button>
+                  </div>
+                </div>
+                <figure id="call-camera-preview-panel" class="call-camera-preview" hidden>
+                  <figcaption id="call-camera-preview-label">Preview</figcaption>
+                  <canvas
+                    id="call-camera-preview"
+                    role="img"
+                    aria-labelledby="call-camera-preview-label"
+                  ></canvas>
+                </figure>
+              </div>
               <div class="settings-card call-setup-card">
                 <h3>Set up virtual microphone</h3>
-                <ol class="call-setup-steps">
-                  <li>Click Set up automatically to combine your microphone and Capri’s voice.</li>
-                  <li>
-                    In Discord, Zoom or your call app, select the virtual microphone shown below.
-                  </li>
-                  <li>Keep the call’s speakers set to your headphones or speakers.</li>
-                </ol>
                 <div id="call-setup-recording" class="call-setup-recording" hidden>
                   <span>Microphone to select in your call app</span>
                   <strong id="call-setup-recording-name" data-untranslated></strong>
@@ -144,6 +191,9 @@
                     </button>
                   </div>
                 </div>
+              </div>
+              <div class="settings-card">
+                <h3>Spoken replies</h3>
                 <label
                   ><input id="call-output-share-replies" type="checkbox" disabled /> Send replies to
                   call</label
@@ -180,21 +230,23 @@
                   and call.
                 </p>
               </div>
-              <details id="call-output-advanced" class="settings-card call-audio-advanced">
+              <details id="call-output-advanced" class="settings-disclosure">
                 <summary>Advanced: choose a cable manually</summary>
-                <p data-inline-help>
-                  Use this if you already have a different virtual audio cable.
-                </p>
-                <label for="call-output-device">Call output device</label>
-                <select id="call-output-device"></select>
-                <label
-                  ><input id="call-output-mix-mic" type="checkbox" checked /> Share my microphone
-                  with the call</label
-                >
-                <p id="call-output-status" role="status"></p>
-                <div class="settings-actions">
-                  <button id="call-output-refresh" type="button">Refresh devices</button>
-                  <button id="call-output-enable" type="button">Enable call output</button>
+                <div class="settings-disclosure-content">
+                  <p data-inline-help>
+                    Use this if you already have a different virtual audio cable.
+                  </p>
+                  <label for="call-output-device">Call output device</label>
+                  <select id="call-output-device"></select>
+                  <label
+                    ><input id="call-output-mix-mic" type="checkbox" checked /> Share my microphone
+                    with the call</label
+                  >
+                  <p id="call-output-status" role="status"></p>
+                  <div class="settings-actions">
+                    <button id="call-output-refresh" type="button">Refresh devices</button>
+                    <button id="call-output-enable" type="button">Enable call output</button>
+                  </div>
                 </div>
               </details>
               <div class="settings-card">
@@ -223,5 +275,48 @@
         </div>
       </main>
     </div>
+    <dialog
+      id="capri-guide"
+      class="settings-guide"
+      aria-labelledby="settings-guide-title"
+      aria-describedby="settings-guide-description"
+      data-untranslated
+    >
+      <div class="guide-window-drag" aria-hidden="true"></div>
+      <div class="guide-spotlight" aria-hidden="true" hidden>
+        <span class="guide-edge" data-edge="top"></span>
+        <span class="guide-edge" data-edge="right"></span>
+        <span class="guide-edge" data-edge="bottom"></span>
+        <span class="guide-edge" data-edge="left"></span>
+        <span class="guide-corners"></span>
+      </div>
+      <section class="guide-dialog">
+        <header class="guide-header">
+          <span class="guide-avatar" aria-hidden="true">
+            <img src="sprite.png" alt="" draggable="false" loading="lazy" />
+          </span>
+          <div class="guide-meta">
+            <span class="guide-kicker"></span>
+            <span class="guide-step"></span>
+            <h2 class="guide-title" id="settings-guide-title" tabindex="-1" autofocus></h2>
+          </div>
+          <button class="guide-faq-action guide-close" type="button" aria-keyshortcuts="Escape">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+          </button>
+        </header>
+        <div class="guide-description" id="settings-guide-description" tabindex="0"></div>
+        <div class="guide-progress" aria-hidden="true"></div>
+        <footer class="guide-actions">
+          <button id="settings-guide-back" type="button" aria-keyshortcuts="ArrowLeft"></button>
+          <button class="guide-skip" id="settings-guide-skip" type="button"></button>
+          <button
+            class="guide-primary"
+            id="settings-guide-next"
+            type="button"
+            aria-keyshortcuts="ArrowRight"
+          ></button>
+        </footer>
+      </section>
+    </dialog>
   </body>
 </html>

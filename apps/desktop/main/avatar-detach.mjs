@@ -2,6 +2,7 @@
 import { randomInt } from 'node:crypto';
 import { COMPANION_DEFAULTS } from '../companion-settings.mjs';
 import { pointInRect, spriteDragHit, spritePressKind } from '../geometry.mjs';
+import { teleportLightningSettings } from '../renderer/teleport-effects.mjs';
 
 const overlayUrl = 'capri://desktop/avatar-detach.html';
 const keys = ['x', 'y', 'width', 'height'];
@@ -132,7 +133,7 @@ function rebasePoint(point, fromArea, toArea) {
   };
 }
 
-function tetherCrosses(from, to, area) {
+function tetherCrosses(from, to, area, padding) {
   let enter = 0;
   let exit = 1;
   // Include the farthest bend plus red sparks when a neighboring display is close.
@@ -142,8 +143,8 @@ function tetherCrosses(from, to, area) {
   ]) {
     const start = from[axis];
     const delta = to[axis] - start;
-    const min = area[axis] - 55;
-    const max = area[axis] + area[size] + 55;
+    const min = area[axis] - padding;
+    const max = area[axis] + area[size] + padding;
     if (!delta) {
       if (start < min || start > max) return false;
       continue;
@@ -157,13 +158,15 @@ function tetherCrosses(from, to, area) {
   return true;
 }
 
-function tetherStyle({
-  avatarDragTether,
-  avatarDragTetherIntensity: intensity,
-  avatarDragTetherChaos: chaos = COMPANION_DEFAULTS.avatarDragTetherChaos,
-  avatarDragTetherDeadZone: deadZone = COMPANION_DEFAULTS.avatarDragTetherDeadZone,
-} = {}) {
-  return avatarDragTether && intensity > 0 ? { intensity, chaos, deadZone } : null;
+function tetherStyle(settings) {
+  const {
+    avatarDragTether,
+    avatarDragTetherIntensity: intensity,
+    avatarDragTetherChaos: chaos = COMPANION_DEFAULTS.avatarDragTetherChaos,
+  } = settings;
+  return avatarDragTether && intensity > 0
+    ? { intensity, chaos, effects: teleportLightningSettings(settings) }
+    : null;
 }
 
 function landing(area, content, origin, scale, anchor, seen) {
@@ -808,7 +811,7 @@ export class AvatarDetach {
     return true;
   }
 
-  reset() {
+  reset(retiring = []) {
     this.cancelPlacement();
     this.replyPlacement = null;
     this.stopPointer();
@@ -827,7 +830,11 @@ export class AvatarDetach {
     this.replySuppressedEdge = null;
     this.status = null;
     this.mouth = 'closed';
-    for (const overlay of overlays) if (overlay && !overlay.isDestroyed()) overlay.destroy();
+    for (const overlay of overlays) {
+      if (!overlay || overlay.isDestroyed()) continue;
+      if (retiring.includes(overlay)) this.retireOverlay(overlay);
+      else overlay.destroy();
+    }
     this.setPhase('attached');
   }
 
@@ -979,8 +986,7 @@ export class AvatarDetach {
     const command = {
       from: { x: press.x, y: press.y },
       to: { x, y },
-      intensity: style.intensity,
-      chaos: style.chaos,
+      ...style,
       seed: press.at >>> 0,
     };
     this.playReaction('setTether', command);
@@ -1012,8 +1018,7 @@ export class AvatarDetach {
       {
         from: press.point,
         to,
-        intensity: style.intensity,
-        chaos: style.chaos,
+        ...style,
         seed: press.tetherSeed,
       },
       area,
@@ -1023,11 +1028,13 @@ export class AvatarDetach {
   drawDesktopTether({ from, to, ...style }, area, displayId) {
     const desktopFrom = rebasePoint(from, area, { x: 0, y: 0 });
     const desktopTo = rebasePoint(to, area, { x: 0, y: 0 });
+    const padding = Math.max(55, 25 + (style.effects?.teleportSparkTravel ?? 0) * 0.63);
     const visible = this.screen
       .getAllDisplays()
       .filter(
         (display) =>
-          display.id !== displayId && tetherCrosses(desktopFrom, desktopTo, display.workArea),
+          display.id !== displayId &&
+          tetherCrosses(desktopFrom, desktopTo, display.workArea, padding),
       );
     for (const [id, view] of this.tetherViews) {
       if (!visible.some((display) => display.id === id)) this.closeTetherView(id, view);
@@ -1108,6 +1115,34 @@ export class AvatarDetach {
     const task = this.sendOverlay(this.overlay, reaction, details);
     task?.catch(() => {});
     return Boolean(task);
+  }
+
+  async playSurface(action, side, stillAllowed = () => true) {
+    const overlay = this.overlay;
+    const available = () =>
+      this.available &&
+      this.overlay === overlay &&
+      overlay &&
+      !overlay.isDestroyed() &&
+      overlay.isVisible() &&
+      !this.session?.reducedMotion &&
+      stillAllowed();
+    if (!available()) return false;
+    try {
+      // Releasing pointer input early during arrival does not finish the flight.
+      await withTimeout(this.sendOverlay(overlay, 'whenSettled'), this.timeoutMs);
+      if (!available()) return false;
+      const started = await withTimeout(
+        this.sendOverlay(overlay, 'playSurface', { action, side }),
+        this.timeoutMs,
+      );
+      if (started === true && available()) return true;
+      if (started === true && this.overlay === overlay) this.playReaction('stopSurface');
+      return false;
+    } catch {
+      if (this.overlay === overlay) this.playReaction('stopSurface');
+      return false;
+    }
   }
 
   sendOverlay(overlay, method, value) {
@@ -1513,7 +1548,9 @@ export class AvatarDetach {
         throw new Error('The teleport renderer could not complete the animation.');
       if (phase === 'returning') {
         if (destination.layout) this.onReturnPlacement(destination.layout);
-        this.reset();
+        this.reset(
+          effects?.teleportStyle === 'sandevistan' ? views.map(({ overlay }) => overlay) : [],
+        );
       } else {
         if (crossing) {
           this.overlay = target;

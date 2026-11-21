@@ -49,7 +49,7 @@ $recovery=Join-Path $env:LOCALAPPDATA ('Capri/Uninstall/'+$identity.installId)
 if($VerificationRoot){$recovery=Join-Path $VerificationRoot ('Uninstall/'+$identity.installId)}
 Assert-CapriNoLinks $recovery
 [IO.Directory]::CreateDirectory($recovery)|Out-Null
-foreach($name in @('uninstall.ps1','uninstall-window.cs','common.ps1','shell-link.cs','localization.ps1')){
+foreach($name in @('uninstall.ps1','uninstall-window.cs','cyberpunk-theme.cs','common.ps1','shell-link.cs','localization.ps1')){
     if($VerificationRoot -and -not (Test-Path -LiteralPath (Join-Path $PSScriptRoot $name))){continue}
     $destination=Join-Path $recovery $name
     Assert-CapriNoLinks $destination
@@ -85,18 +85,9 @@ foreach($choice in @(@{enabled=$DesktopShortcut;
     [Capri.Setup.Shortcuts]::Save($file,(Join-Path $root 'Capri.exe'),$root,(Get-CapriInstallerText $shellMessages $language 'shortcutDescription'));
     $links+=$file
 }
-New-Item -Path $registry -Force|Out-Null
 $uninstall='powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File '+(Quote-CapriArgument (Join-Path $recovery 'uninstall.ps1'))+' -InstallRoot '+(Quote-CapriArgument $root)
-$values=@{DisplayName='Capri';
-    DisplayVersion=$identity.version;
-    Publisher='Capri contributors';
-    InstallLocation=$root;
-    DisplayIcon=(Join-Path $root 'Capri.exe');
-    UninstallString=$(if($hasUninstallLauncher){Quote-CapriArgument $uninstallLauncher}else{$uninstall});
-    QuietUninstallString=$(if($hasUninstallLauncher){(Quote-CapriArgument $uninstallLauncher)+' --quiet'}else{$uninstall+' -Quiet'});
-    NoModify=1;
-    NoRepair=1}
-foreach($name in $values.Keys){New-ItemProperty -LiteralPath $registry -Name $name -Value $values[$name] -PropertyType $(if($values[$name] -is [int]){'DWord'}else{'String'}) -Force|Out-Null}
+$recoveryLauncher=Join-Path $recovery 'uninstall.exe'
+$ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $links=@($links|Select-Object -Unique)
 $registration=@{registry=$registry;
     root=$root;
@@ -161,21 +152,38 @@ if($hasUninstallLauncher){
     # Compile after the final receipts exist, so external recovery files have an
     # integrity anchor in the native launcher rather than trusting their own metadata.
     $bundleHashes=@{}
-    foreach($name in @('uninstall.ps1','uninstall-window.cs','common.ps1','shell-link.cs','localization.ps1','uninstaller-text.json','installer-config.json','source-files.json','registration.json','app.ico')){
+    foreach($name in @('uninstall.ps1','uninstall-window.cs','cyberpunk-theme.cs','common.ps1','shell-link.cs','localization.ps1','uninstaller-text.json','installer-config.json','source-files.json','registration.json','app.ico')){
         $file=Join-Path $recovery $name
         Assert-CapriNoLinks $file
         $bundleHashes[$name]=Get-CapriHash $file
     }
     $hashesJson=$bundleHashes|ConvertTo-Json -Compress
     $generatedUninstall=Join-Path $root '.runtime/installer/UninstallInfo.cs'
-    [IO.File]::WriteAllText($generatedUninstall,('internal static class CapriUninstallInfo {internal const string Recovery=@"'+$recovery.Replace('"','""')+'";internal const string BundleHashes=@"'+$hashesJson.Replace('"','""')+'";}'))
+    [IO.File]::WriteAllText($generatedUninstall,('internal static class CapriUninstallInfo {internal const string Recovery=@"'+$recovery.Replace('"','""')+'";internal const string InstallRoot=@"'+$root.Replace('"','""')+'";internal const string InstallId="'+$identity.installId+'";internal const string OwnerSid="'+$ownerSid+'";internal const string BundleHashes=@"'+$hashesJson.Replace('"','""')+'";}'))
     $pendingUninstall=Join-Path $root ('.runtime/installer/uninstall-'+[Guid]::NewGuid().ToString('N')+'.exe')
+    $pendingRecovery=Join-Path $recovery ('uninstall-'+[Guid]::NewGuid().ToString('N')+'.exe')
     Assert-CapriNoLinks $uninstallLauncher
+    Assert-CapriNoLinks $recoveryLauncher
     try {
-        & $csc /nologo /target:winexe /platform:x64 /optimize+ ('/win32icon:'+(Join-Path $root 'assets/default/app.ico')) ('/out:'+$pendingUninstall) /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll ('/resource:'+$uninstallCatalog+',CapriSetupTranslations') $launcherSource $localeSource (Join-Path $PSScriptRoot 'uninstall-window.cs') $generatedUninstall
+        & $csc /nologo /target:winexe /platform:x64 /optimize+ ('/win32icon:'+(Join-Path $root 'assets/default/app.ico')) ('/win32manifest:'+(Join-Path $PSScriptRoot 'launcher.manifest')) ('/out:'+$pendingUninstall) /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:Microsoft.CSharp.dll ('/resource:'+$uninstallCatalog+',CapriSetupTranslations') $launcherSource $localeSource (Join-Path $PSScriptRoot 'uninstall-window.cs') (Join-Path $PSScriptRoot 'cyberpunk-theme.cs') $generatedUninstall
         if($LASTEXITCODE -ne 0){throw 'Could not create the Capri uninstaller.'}
+        [IO.File]::Copy($pendingUninstall,$pendingRecovery)
         Move-Item -LiteralPath $pendingUninstall -Destination $uninstallLauncher -Force
+        Move-Item -LiteralPath $pendingRecovery -Destination $recoveryLauncher -Force
     } finally {
         if(Test-Path -LiteralPath $pendingUninstall){Remove-Item -LiteralPath $pendingUninstall -Force}
+        if(Test-Path -LiteralPath $pendingRecovery){Remove-Item -LiteralPath $pendingRecovery -Force}
     }
 }
+# Publish the Windows Apps commands only once both launcher copies are ready.
+New-Item -Path $registry -Force|Out-Null
+$values=@{DisplayName='Capri';
+    DisplayVersion=$identity.version;
+    Publisher='Capri contributors';
+    InstallLocation=$root;
+    DisplayIcon=(Join-Path $root 'Capri.exe');
+    UninstallString=$(if($hasUninstallLauncher){Quote-CapriArgument $recoveryLauncher}else{$uninstall});
+    QuietUninstallString=$(if($hasUninstallLauncher){(Quote-CapriArgument $recoveryLauncher)+' --quiet'}else{$uninstall+' -Quiet'});
+    NoModify=1;
+    NoRepair=1}
+foreach($name in $values.Keys){New-ItemProperty -LiteralPath $registry -Name $name -Value $values[$name] -PropertyType $(if($values[$name] -is [int]){'DWord'}else{'String'}) -Force|Out-Null}

@@ -16,6 +16,7 @@ import { diagnosticModelId } from '../../../packages/runtime/src/privacy-log.mjs
 const run = promisify(execFile),
   KB = 1024;
 const categories = ['voice', 'recognition', 'model', 'startup', 'interface', 'installer', 'other'];
+const chessLogs = new Set(['chess.jsonl', 'chess.jsonl.1']);
 export function validateReport(input) {
   if (typeof input === 'string') input = { description: input };
   if (!input || typeof input !== 'object' || Array.isArray(input))
@@ -383,7 +384,8 @@ export async function createDiagnosticReport({
         for (const item of list)
           if (
             item.isFile() &&
-            /\.(?:log|jsonl|txt)$/.test(item.name) &&
+            (/\.(?:log|jsonl|txt)$/.test(item.name) ||
+              (label === 'runtime' && chessLogs.has(item.name))) &&
             (/^llama-chat\.(stdout|stderr)\.log$/.test(item.name) ||
               !/history|transcript|memory|prompt|screenshot|recording|token|secret|verification|dataset|audition|chat|dialog/i.test(
                 item.name,
@@ -391,13 +393,19 @@ export async function createDiagnosticReport({
             eligible(item.name)
           ) {
             const info = await stat(path.join(base, item.name));
-            candidates.push({ name: item.name, modified: info.mtimeMs });
+            candidates.push({
+              name: item.name,
+              modified: info.mtimeMs,
+              pinned: label === 'runtime' && chessLogs.has(item.name),
+            });
           }
-        candidates.sort((a, b) => b.modified - a.modified);
+        candidates.sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.modified - a.modified);
         for (const item of candidates.slice(0, maximum)) {
           try {
             const data = await tail(base, item.name),
-              name = `logs/${label}-${inventory.length + 1}-${item.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+              name = item.pinned
+                ? `logs/${item.name}`
+                : `logs/${label}-${inventory.length + 1}-${item.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
             files.push({ name, bytes: Buffer.from(clean.log(data.text)) });
             inventory.push({
               file: name,

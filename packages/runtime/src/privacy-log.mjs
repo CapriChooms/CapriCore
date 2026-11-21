@@ -7,6 +7,7 @@ import { diagnosticModelId } from './technical-model-id.mjs';
 export { diagnosticModelId } from './technical-model-id.mjs';
 import { assertPrivatePath, writePrivateBytesAtomic } from './safe-file.mjs';
 import { responseTimingRecord } from './response-timing-schema.mjs';
+import { chessDiagnosticRecord } from './chess-diagnostic-schema.mjs';
 const ERROR_CODES = new Set([
   'ECONNREFUSED',
   'ECONNRESET',
@@ -43,7 +44,10 @@ const ERROR_CODES = new Set([
   'CAPRI_VOICE_INSTALL_FAILED',
   'CAPRI_ROUTER_NATIVE_LIBRARY_UNAVAILABLE',
   'CAPRI_LOCAL_LANGUAGE_MODEL_MISSING',
+  'CAPRI_LOCAL_MODEL_SETUP_REQUIRED',
   'CAPRI_MODEL_WARMUP_FAILED',
+  'CAPRI_SERVICE_IDENTITY_UNAVAILABLE',
+  'CAPRI_REPLY_REPETITION',
   'CUDA_OUT_OF_MEMORY',
   'CUDA_ARCH_UNSUPPORTED',
   'NATIVE_LIBRARY_LOAD_FAILED',
@@ -100,6 +104,8 @@ export function privateLogRecord(input, { service, stream, stage } = {}) {
   }
   const timing = responseTimingRecord(parsed);
   if (timing) return timing;
+  const chess = chessDiagnosticRecord(parsed);
+  if (chess) return chess;
   const record = { schemaVersion: 1 };
   if (
     typeof parsed?.time === 'string' &&

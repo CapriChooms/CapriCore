@@ -189,6 +189,24 @@ test('OAuth uses a real loopback callback and PKCE; only own encrypted account s
   assert(!browsers[1].searchParams.has('agent_name_hint'));
 });
 
+test('a declined OAuth callback tells the browser the sign-in failed without echoing provider details', async (t) => {
+  const page = Promise.withResolvers();
+  const { auth, requests } = fixture(t, {
+    browser: async (url) => {
+      const callback = new URL(url.searchParams.get('redirect_uri'));
+      callback.search = new URLSearchParams({
+        error: 'access_denied',
+        error_description: 'private provider details',
+        state: url.searchParams.get('state'),
+      });
+      page.resolve(await (await fetch(callback)).text());
+    },
+  });
+  await assert.rejects(auth.signIn(), { code: 'CAPRI_CHATGPT_CONSENT' });
+  assert.equal(await page.promise, 'ChatGPT sign-in did not complete. Return to Capri.');
+  assert.equal(requests.length, 0);
+});
+
 test('invalid state and duplicate callback values are rejected without consuming the real authorization', async (t) => {
   const { auth, browsers } = fixture(t, {
     browser: async (url) => {

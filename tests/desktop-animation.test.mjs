@@ -170,6 +170,31 @@ test('reviewed ground poses are available to idle animation and keep the origina
   }
 });
 
+test('Capri still looks around after a reply leaves her with a standing expression', () => {
+  const installed = requireCapriAvatar(root);
+  const artwork = installed.publicAnimation();
+  const director = new AnimationDirector({
+    choices: installed.publicSprites(),
+    frames: artwork.frames,
+    clips: artwork.clips,
+    settings: artwork.autonomy,
+    random: () => 0.55,
+  });
+  director.select('concerned', 1, 0);
+  for (let t = 0; t <= artwork.autonomy.firstActivityMs + 1500; t += 100)
+    director.tick(t, { expanded: true });
+  assert.equal(director.sequence?.id, 'looking-around');
+  assert.equal(
+    director.tick(artwork.autonomy.firstActivityMs + 1550, { expanded: true }).frameId,
+    'idle-look_left',
+  );
+  assert.equal(
+    director.tick(artwork.autonomy.firstActivityMs + 1600, { expanded: true, active: true })
+      .frameId,
+    'concerned',
+  );
+});
+
 test('speech visemes use their own clock and leave every body expression or reaction intact', () => {
   const director = create();
   const mouth = new AvatarVisemes();

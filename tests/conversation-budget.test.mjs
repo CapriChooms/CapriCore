@@ -79,6 +79,19 @@ test('a large existing conversation gets bounded prefill time even when Qwen is 
   );
 });
 
+test('CPU mode and very large context settings reserve prefill time without residency telemetry', () => {
+  assert.equal(conversationBudget({ ...base, acceleration: 'cpu' }).firstTextTimeoutMs, 120000);
+  assert.deepEqual(conversationBudget({ ...base, contextTokens: 262144 }), {
+    firstTextTimeoutMs: 60000,
+    promptTokens: 0,
+    source: 'default',
+  });
+  assert.equal(
+    conversationBudget({ ...base, contextTokens: 262144, timeoutMs: 45000 }).firstTextTimeoutMs,
+    45000,
+  );
+});
+
 test('small, foreign and invalid context metadata cannot change the ordinary deadline', () => {
   for (const value of [
     undefined,

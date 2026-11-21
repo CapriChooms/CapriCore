@@ -59,6 +59,7 @@ export class SettingsWindow {
     onBusy,
     onError,
     onRendererLost = () => {},
+    onRendererCrash = () => {},
     idleCloseMs = 60000,
   }) {
     Object.assign(this, {
@@ -72,6 +73,7 @@ export class SettingsWindow {
       onBusy,
       onError,
       onRendererLost,
+      onRendererCrash,
       idleCloseMs,
     });
     this.requested = false;
@@ -539,6 +541,7 @@ export class SettingsWindow {
     this.rememberPlacement(view);
     this.destroy();
     if (!requested) return;
+    this.onRendererCrash({ reason, exitCode });
     if (now < this.nextRendererRecovery) {
       this.onRendererLost();
       return;

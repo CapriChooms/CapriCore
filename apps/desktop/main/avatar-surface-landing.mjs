@@ -23,10 +23,13 @@ const roamingActions = [
   'field-perch',
   'window-perch',
   'present',
+  ...hangingCelActions,
+  ...seatedCelActions,
 ];
 const hangingBounds = hangingCelActions.map((action) => celBounds[action]);
 const hangingLeft = Math.min(...hangingBounds.map((box) => box.x));
 const hangingRight = Math.max(...hangingBounds.map((box) => box.x + box.width));
+const hangingTop = Math.min(...hangingBounds.map((box) => box.y));
 export function nextSurfaceActions(lastAction, random = Math.random) {
   const actions = roamingActions.filter((id) => id !== lastAction);
   const first = Math.floor(random() * actions.length);
@@ -79,7 +82,7 @@ export function surfaceLanding(target, action, { area, scale, canvas, frames }) 
     if (!['window-top', 'search-field', 'desktop-edge'].includes(kind)) return null;
     hangingClip = action;
   } else if (seatedCelActions.includes(action)) {
-    if (kind !== 'window-top' && kind !== 'search-field') return null;
+    if (!['window-top', 'search-field', 'desktop-edge'].includes(kind)) return null;
     seatedClip = action;
   } else {
     if (!Object.hasOwn(actions, action) || actions[action][0] !== kind) return null;
@@ -106,11 +109,18 @@ export function surfaceLanding(target, action, { area, scale, canvas, frames }) 
     const art = cel ?? frame.visibleBounds;
     const above = ((frame.anchor.y - art.y) * scale) / canvas.height;
     const below = ((art.y + art.height - frame.anchor.y) * scale) / canvas.height;
+    let y = candidate.y;
+    if (kind === 'desktop-edge') {
+      // Leave room for the raised hands at the top and the boots at the bottom.
+      y =
+        candidate.frameId === 'pose-ceiling'
+          ? area.y + Math.ceil(((frame.anchor.y - hangingTop) * scale) / canvas.height)
+          : area.y + area.height - Math.ceil(below);
+    }
     // At a maximized window's very top the first few pixels of the raised
     // knuckles may extend outside the work area. Keep the hand on its ledge.
     const tolerance = candidate.frameId === 'pose-ceiling' ? (cel ? 9 : 8) : 1;
-    if (candidate.y - above < area.y - tolerance || candidate.y + below > area.y + area.height + 1)
-      continue;
+    if (y - above < area.y - tolerance || y + below > area.y + area.height + 1) continue;
     const minX = area.x + ((frame.anchor.x - art.x) * scale) / canvas.width;
     const maxX =
       area.x + area.width - ((art.x + art.width - frame.anchor.x) * scale) / canvas.width;
@@ -139,7 +149,7 @@ export function surfaceLanding(target, action, { area, scale, canvas, frames }) 
       side: lookToward > contactX ? 'right' : 'left',
       targetId: target.id,
       windowId: target.windowId,
-      point: { x: Math.round(contactX), y: Math.round(candidate.y) },
+      point: { x: Math.round(contactX), y: Math.round(y) },
     };
   }
   return null;

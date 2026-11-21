@@ -137,7 +137,7 @@ test('call voice volume ramps existing output without restarting audio or changi
   assert.equal(player.callVoiceVolume, 100);
 });
 
-test('speaker volume ramps to silence independently of the call mix', () => {
+test('speaker volume ramps up to twice the level or down to silence independently of the call mix', () => {
   const player = new VoicePlayer({ onState() {}, onError: assert.fail });
   const ramps = [];
   player.speakers.context = { state: 'running', currentTime: 3 };
@@ -151,13 +151,15 @@ test('speaker volume ramps to silence independently of the call mix', () => {
     context: player.speakers.context,
     voiceGain: { gain: { cancelAndHoldAtTime: () => assert.fail('Call gain changed') } },
   };
-  for (const value of [42, 42, 0]) player.setSpeakerVolume(value);
+  for (const value of [42, 42, 150, 200, 0]) player.setSpeakerVolume(value);
   assert.deepEqual(ramps, [
     [0.42, 3.02],
+    [1.5, 3.02],
+    [2, 3.02],
     [0, 3.02],
   ]);
   assert.equal(player.callVoiceVolume, 50);
-  for (const value of [-1, 101, '50', null, NaN])
+  for (const value of [-1, 201, '50', null, NaN])
     assert.throws(() => player.setSpeakerVolume(value), /Invalid voice volume/);
 });
 

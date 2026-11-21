@@ -20,6 +20,22 @@ export function conversationOnly(text, routing) {
   );
 }
 
+/** Questions about the companion and follow-up instructions are requests for text. */
+export function companionDialogueQuestion(text) {
+  const value = text.normalize('NFKC').trim().replace(/\s+/gu, ' ');
+  return (
+    /^(?:(?:(?:hi|hey|hello),? )?(?:i['’]m|i am|my name is) [\p{L}][\p{L} '\-]{0,45}[.!] )?(?:who are you|what (?:can you do|do you do)|what can you help me with|can i (?:move|drag) you)[?!.]*$/iu.test(
+      value,
+    ) ||
+    /^(?:кто ты|что ты умеешь|чем ты можешь помочь|можно ли тебя (?:переместить|перетащить))[?!.]*$/iu.test(
+      value,
+    ) ||
+    /^(?:how (?:do i|can i) do (?:it|that)|как (?:мне )?это сделать)[?!.]*(?: (?:please )?tell me step by step[?!.]*)?$/iu.test(
+      value,
+    )
+  );
+}
+
 /** A read-only review of code supplied in chat needs no desktop or file tools. */
 export function suppliedCodeReview(text) {
   const value = text.trim();

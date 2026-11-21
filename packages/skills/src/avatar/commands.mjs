@@ -14,23 +14,27 @@ export function isSettingsWindowTitle(title, localizedTitles = []) {
 const performanceCommands = [
   [
     'hang-next',
-    /^(?:do|show(?: me)?|perform) (?:a|another) hanging trick$|^(?:покажи|сделай) трюк на весу$/iu,
+    /^(?:(?:do|show(?: me)?|perform) (?:a|another|one more) (?:hanging|ledge) trick|(?:покажи|сделай)(?: ещё| еще)? (?:один )?трюк на весу)$/iu,
   ],
   [
     'hang-pullup',
-    /^(?:(?:do|perform) a (?:hanging )?(?:pull[ -]?up|chin[ -]?up)|pull yourself up|подтянись|сделай подтягивание)$/iu,
+    /^(?:(?:(?:do|perform|try|show(?: me)?) )?(?:a |the |some |one |a few |another )?(?:hanging )?(?:pull[ -]?ups?|chin[ -]?ups?)(?: (?:animation|on the (?:ledge|edge|window)|while hanging))?|pull yourself up)$/iu,
+  ],
+  [
+    'hang-pullup',
+    /^(?:подтянись|подтянуться|(?:(?:сделай|сделать|покажи(?: мне)?|показать(?: мне)?) )?(?:(?:одно|несколько) )?подтягивани[еяй])(?: на (?:краю|перекладине))?$/iu,
   ],
   [
     'hang-catch',
-    /^(?:catch|toss and catch) (?:a|the|that) (?:data )?chip$|^(?:поймай|подбрось и поймай) чип$/iu,
+    /^(?:(?:catch|toss and catch|flip and catch) (?:(?:a|the|that|your) )?(?:data )?chip|(?:поймай|поймать|подбрось и поймай|подбросить и поймать) чип)$/iu,
   ],
   [
     'hang-wrist-scan',
-    /^(?:use|open|check) (?:your|the) wrist scanner$|^(?:проверь|включи|покажи) (?:наручный )?сканер(?: на запястье)?$/iu,
+    /^(?:(?:use|open|check|activate|show(?: me)?) (?:(?:your|the) )?wrist scanner|(?:проверь|проверить|включи|включить|покажи|показать) (?:наручный )?сканер(?: на запястье)?)$/iu,
   ],
   [
     'ledge-keytar',
-    /^(?:play (?:a keytar (?:riff|solo)|(?:the |your )?keytar)|сыграй на кейтаре)$/iu,
+    /^(?:play (?:(?:a|another) keytar (?:riff|solo)|(?:some |the |your )?keytar)|(?:сыграй|сыграть|поиграй|поиграть)(?: (?:риф|соло))? на (?:кейтаре|китаре))$/iu,
   ],
   [
     'lean',
@@ -70,10 +74,13 @@ const performanceCommands = [
 export function desktopAvatarCommand(text) {
   const command = text
     .normalize('NFKC')
+    .replace(/[\u2010-\u2014\u2212]/gu, '-')
+    .replace(/\s+/gu, ' ')
     .trim()
     .replace(/[.!?…]+$/u, '')
-    .replace(/^(?:capri|капри)[\s,:!]+/iu, '')
-    .replace(/^(?:please\s+|пожалуйста[,\s]+)/iu, '')
+    .replace(/^(?:(?:hey|hi|эй|привет)[\s,]+)?(?:capri|капри)[\s,:!]+/iu, '')
+    .replace(/,\s*(?:capri|капри)$/iu, '')
+    .replace(/^(?:please|пожалуйста)[,\s]+/iu, '')
     .replace(/(?:,?\s+please|,?\s+пожалуйста)$/iu, '')
     .trim();
   if (
@@ -88,7 +95,10 @@ export function desktopAvatarCommand(text) {
     )
   )
     return { action: 'wave' };
-  const act = command.replace(/^(?:can|could|would) you (?:please )?/iu, '');
+  const act = command.replace(
+    /^(?:(?:can|could|would|will) you[, ]+(?:please[, ]+)?|how about |(?:(?:ты )?можешь(?: ли ты)?|(?:не )?могла бы ты|давай)[, ]+(?:пожалуйста[, ]+)?)\s*/iu,
+    '',
+  );
   const performance = performanceCommands.find(([, pattern]) => pattern.test(act));
   if (performance) return { action: 'performance', performance: performance[0] };
   if (

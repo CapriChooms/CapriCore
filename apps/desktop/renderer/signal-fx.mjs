@@ -40,7 +40,10 @@ export class SignalFX {
     this.crt = new CRTScreen(
       document.getElementById('crt-screen'),
       sprite,
-      () => this.onMovement?.(),
+      () => {
+        this.invalidate();
+        this.onMovement?.();
+      },
       getSpriteImage,
     );
     this.motion = matchMedia('(prefers-reduced-motion: reduce)');

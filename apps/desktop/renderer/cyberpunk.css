@@ -562,24 +562,22 @@ body[data-phase='offline'] #inference-label:enabled:not([hidden], [aria-expanded
   letter-spacing: 0;
   color: var(--meter-ink);
 }
+#inference-info {
+  min-inline-size: 0;
+}
+#inference-track {
+  inline-size: max-content;
+}
 #inference-mode {
-  flex: 0 0 auto;
-  max-inline-size: 8ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-inline-end: 0.45em;
   color: var(--ui-accent, #8ef5ed);
   font-weight: 700;
 }
 #inference-label[data-mode='api'] #inference-mode {
   color: #f1dd8b;
 }
-#inference-detail,
-#inference-model {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 #inference-model::before {
-  content: '· ';
+  content: ' · ';
 }
 body[data-presence='core'] #inference-model {
   display: none;
@@ -1296,6 +1294,10 @@ footer {
   height: var(--reply-canvas-height, 100%);
   pointer-events: none;
   z-index: 2;
+  visibility: hidden;
+}
+body[data-crt='webgl'] #crt-screen {
+  visibility: visible;
 }
 #avatar-effect {
   position: absolute;
@@ -2785,7 +2787,8 @@ body:not(.settings-window) #companion-settings[data-tab='support'] {
 #quick-actions {
   flex-wrap: wrap;
 }
-#quick-actions > .toolbar-group {
+#quick-controls,
+#quick-actions .toolbar-group {
   display: contents;
 }
 #compact-status {
@@ -3636,7 +3639,6 @@ body:has(#history-panel:not([hidden])) #handle {
   grid-area: 1 / 1;
   height: auto;
   min-height: calc(var(--toolbar-button-size) + 2px);
-  flex-wrap: wrap;
 }
 body:has(#history-panel:not([hidden])) #quick-actions {
   grid-area: 2 / 1;
@@ -3800,18 +3802,6 @@ body[data-vertical-portrait] {
     grid-row: 1;
     min-height: calc(var(--toolbar-button-size) + 2px);
     height: auto;
-    flex-wrap: wrap;
-  }
-
-  #handle .identity {
-    flex-basis: max-content;
-    min-width: 0;
-  }
-
-  #handle .window-actions {
-    max-width: 100%;
-    flex-wrap: wrap;
-    margin-inline-start: auto;
   }
 
   #quick-actions {
@@ -4004,25 +3994,7 @@ body[data-horizontal-portrait] {
     max-width: 100%;
     min-height: calc(var(--toolbar-button-size) + 2px);
     height: auto;
-    flex-wrap: wrap;
     border: 0;
-  }
-
-  #handle .identity {
-    min-width: 0;
-    max-width: 100%;
-    flex: 1 1 max-content;
-  }
-
-  #inference-label {
-    max-width: min(240px, 45vw);
-  }
-
-  #handle .window-actions {
-    flex: 0 1 auto;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    margin-inline-start: auto;
   }
 
   #quick-actions {
@@ -4116,6 +4088,57 @@ body[data-horizontal-portrait] {
     align-self: end;
     justify-self: end;
     margin: 0;
+  }
+}
+
+body[data-presence='portrait'] {
+  #handle .identity {
+    gap: 4px;
+  }
+
+  #inference-label {
+    max-inline-size: 12rem;
+  }
+
+  #quick-actions {
+    flex-wrap: nowrap;
+    align-items: start;
+  }
+
+  #quick-controls {
+    display: flex;
+    min-inline-size: 0;
+    align-items: center;
+    justify-content: safe flex-end;
+    gap: var(--toolbar-gap);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ui-line, #3d8790) transparent;
+  }
+
+  #quick-actions .settings-actions-group {
+    display: flex;
+    flex: none;
+  }
+}
+
+@media (max-width: 425px) {
+  body[data-presence='portrait'] {
+    --toolbar-button-size: 24px;
+    --toolbar-gap: 3px;
+  }
+}
+
+@media (max-width: 360px) {
+  body[data-presence='portrait'] {
+    --toolbar-button-size: 21px;
+    --toolbar-gap: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #inference-track {
+    display: inline;
   }
 }
 

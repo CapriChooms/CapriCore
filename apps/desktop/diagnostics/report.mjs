@@ -483,6 +483,13 @@ export async function createDiagnosticReport({
   }
   if (snapshot.artwork?.mode === 'fallback')
     findings.push('The desktop is displaying the procedural fallback instead of Capri artwork.');
+  if (snapshot.desktopCrash)
+    findings.push('Capri closed unexpectedly. See desktopCrash in session.json.');
+  const gpuExits = snapshot.windowGraphics?.gpuProcessFailures;
+  if (Number.isSafeInteger(gpuExits) && gpuExits > 0)
+    findings.push(
+      `Unexpected Electron GPU process exits: ${gpuExits}. See windowGraphics in session.json.`,
+    );
   for (const item of avatarFiles.filter((f) => !f.exists))
     findings.push('Missing avatar component: ' + item.file);
   if (artwork.failure && avatarFiles[0].exists)

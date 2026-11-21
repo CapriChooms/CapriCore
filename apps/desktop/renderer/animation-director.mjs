@@ -48,13 +48,14 @@ export class AnimationDirector {
     return true;
   }
   activity(now) {
-    const resting = this.random() < 0.65 ? 'pose-sit-floor' : 'pose-crouch';
+    const roll = this.random();
+    const resting = roll < 0.45 ? 'pose-sit-floor' : roll >= 0.75 ? 'pose-crouch' : null;
     if (this.frames.has(resting)) {
       this.sequence = {
         id: resting,
         frames: [
           { id: resting, ms: 4200 },
-          { id: 'neutral', ms: 220 },
+          { id: this.base.frameId, ms: 220 },
         ],
         start: now,
         kind: 'ambient',
@@ -62,12 +63,12 @@ export class AnimationDirector {
       return;
     }
     const frames = [
-      ['neutral', 1500],
+      [this.base.frameId, 1500],
       ['idle-look_left', 1100],
       ['idle-look_up', 900],
       ['idle-look_right', 1400],
       ['idle-look_down', 900],
-      ['neutral', 2800],
+      [this.base.frameId, 2800],
     ].filter(([id]) => this.frames.has(id));
     this.sequence = {
       id: 'looking-around',
@@ -125,7 +126,7 @@ export class AnimationDirector {
     if (
       !this.sequence &&
       this.settings.enabled &&
-      this.base.id === 'neutral' &&
+      (this.base.id === 'neutral' || this.frames.get(this.base.frameId)?.kind === 'expression') &&
       now >= this.nextActivity &&
       !active &&
       !typing &&

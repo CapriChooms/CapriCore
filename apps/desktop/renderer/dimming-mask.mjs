@@ -13,7 +13,7 @@ const surfaces = [
   '.preferences-panel, #dimming-panel, #notice, #clip-result, #time-alert, #action-approval',
 ].join(', ');
 const scrollSurfaces =
-  '.dock-notifications, #process-graphs-hud, #memory-hud, #reply-slot[data-resizing]';
+  '.dock-notifications, #process-graphs-hud, #memory-hud, #reply-slot[data-resizing], #quick-controls';
 const snap = (value) => Math.round(value * 64) / 64;
 
 export function featherForSurface(softness, { width, height }) {

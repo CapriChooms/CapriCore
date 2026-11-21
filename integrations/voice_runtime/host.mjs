@@ -19,7 +19,10 @@ import { speechModelsInstalled } from '../../apps/desktop/language-models.mjs';
 import { readVoiceSettings } from '../../packages/runtime/src/voice-settings.mjs';
 import { requiresPrivacyRestart } from '../../packages/runtime/src/host/processes.mjs';
 import { voiceDeviceLaunch } from '../../packages/runtime/src/hardware/model-devices.mjs';
-import { readModelDevices } from '../../packages/runtime/src/model-device-settings.mjs';
+import {
+  readModelDevices,
+  voiceDevicePreference,
+} from '../../packages/runtime/src/model-device-settings.mjs';
 
 export function companionVoiceSettings() {
   const value = readVoiceSettings(root);
@@ -58,7 +61,7 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
   if (!profile.startsWith(root + path.sep))
     throw new Error('Voice profile must stay in this project.');
   const expected = JSON.parse(readFileSync(path.join(profile, 'voice-profile.json'), 'utf8'));
-  const deviceKey = readModelDevices(root).voice;
+  const deviceKey = voiceDevicePreference(readModelDevices(root).voice, selected.backend);
   const { python, env: runtimeEnv } = voiceRuntime(root, selected, deviceKey);
   if (!existsSync(python))
     throw new Error('Install the voice environment with setup-voice-training.cmd.');

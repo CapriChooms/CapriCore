@@ -129,7 +129,7 @@ import {
   selectedScreenSource,
 } from './screen-observation.mjs';
 import { applicationId } from '../../packages/runtime/src/host/desktop-identity.mjs';
-import { PointerController } from './main/pointer-controller.mjs';
+import { PointerController, WINDOW_MOTION_INTERVAL_MS } from './main/pointer-controller.mjs';
 import { createDesktopResources } from './main/resources.mjs';
 import { createIpcHandler, settingsVersion } from './main/ipc.mjs';
 import { resourceResponse } from './main/protocol.mjs';
@@ -5279,15 +5279,19 @@ async function initializeDesktop() {
       saveWindow();
       return true;
     }
-    // Allow the renderer to prepare the reply slot before the first native resize.
-    const start = performance.now() + 24;
+    // Give the renderer time to prepare the reply slot, then submit intermediate
+    // bounds more frequently than the usual pointer and idle paint cadence.
+    const lead = 24;
+    const duration = 240;
+    const start = performance.now() + lead;
     let previous = bounds;
     const frame = () => {
       if (window !== target || target.isDestroyed()) {
         stopReplyWindowResize();
         return;
       }
-      const fraction = Math.min(1, Math.max(0, (performance.now() - start) / 240));
+      const now = performance.now();
+      const fraction = Math.min(1, Math.max(0, (now - start) / duration));
       const ease = fraction * fraction * (3 - 2 * fraction);
       const current = {
         x: Math.round(bounds.x + (next.x - bounds.x) * ease),
@@ -5298,13 +5302,15 @@ async function initializeDesktop() {
       if (Object.keys(current).some((key) => current[key] !== previous[key]))
         target.setBounds(current, false);
       previous = current;
-      if (fraction < 1) replyResizeTimer = setTimeout(frame, 16);
-      else {
+      if (fraction < 1) {
+        const deadline = Math.min(start + duration, now + WINDOW_MOTION_INTERVAL_MS);
+        replyResizeTimer = setTimeout(frame, Math.max(1, Math.ceil(deadline - performance.now())));
+      } else {
         stopReplyWindowResize();
         saveWindow();
       }
     };
-    replyResizeTimer = setTimeout(frame, 24);
+    replyResizeTimer = setTimeout(frame, lead);
     return true;
   }
 

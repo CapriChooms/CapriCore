@@ -501,6 +501,10 @@ const replyStage = elements['subtitle-stage'];
 const replyMotionPreference = matchMedia('(prefers-reduced-motion: reduce)');
 let replyNativeMotion, replyFade, replyChangePending;
 let focusReplyAfterReveal = false;
+const windowMotion = () => ({
+  active: dragPointer !== null || replyNativeMotion?.animated === true || Boolean(replyFade),
+  surfaceHeight: replyNativeMotion?.animated ? replyNativeMotion.expandedHeight : null,
+});
 
 function settleReplyPresentation(hidden) {
   replyNativeMotion = null;
@@ -511,10 +515,12 @@ function settleReplyPresentation(hidden) {
   delete replySlot.dataset.resizing;
   replySlot.style.removeProperty('--reply-reveal');
   replySlot.style.removeProperty('height');
+  document.body.style.removeProperty('--reply-canvas-height');
   if (!hidden && focusReplyAfterReveal) {
     focusReplyAfterReveal = false;
     document.getElementById('subtitle-collapse').focus({ preventScroll: true });
   }
+  signalFx?.invalidate();
   scheduleRegions();
 }
 
@@ -545,7 +551,11 @@ function beginNativeReplyMotion(event) {
     return;
   replyChangePending = false;
   replyNativeMotion = event;
-  if (event.animated && !replySlot.hidden) replySlot.dataset.resizing = '';
+  if (event.animated) {
+    if (!replySlot.hidden) replySlot.dataset.resizing = '';
+    // The viewport clips the effects. Keep their pixel buffers fixed while the window changes height.
+    document.body.style.setProperty('--reply-canvas-height', `${event.expandedHeight}px`);
+  } else document.body.style.removeProperty('--reply-canvas-height');
   paintNativeReplyMotion();
   scheduleRegions();
 }
@@ -3660,6 +3670,7 @@ signalFx = new SignalFX({
   },
   onMovement: scheduleRegions,
   onFrame: animateCharacter,
+  windowMotion,
   text: (value) => ui.text(value),
 });
 signalFx.onGlitch = (value) => api.glitchFrame(value).catch(() => {});

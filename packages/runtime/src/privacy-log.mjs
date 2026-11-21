@@ -22,6 +22,7 @@ const ERROR_CODES = new Set([
   'EBUSY',
   'EPIPE',
   'EINVAL',
+  'NPM_NETWORK_UNAVAILABLE',
   'UND_ERR_CONNECT_TIMEOUT',
   'UND_ERR_HEADERS_TIMEOUT',
   'UND_ERR_BODY_TIMEOUT',
@@ -83,6 +84,12 @@ const STAGES = new Set([
   'python',
   'node',
   'extracting',
+  'waiting',
+  'registering',
+  'recovering',
+  'update-prepare',
+  'update-backup',
+  'update-cleanup',
 ]);
 const EVENTS = new Set([
   'started',

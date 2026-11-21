@@ -17,6 +17,7 @@ export class SignalFX {
     onLayout,
     onMovement,
     onFrame,
+    windowMotion,
     text = (value) => value,
   }) {
     Object.assign(this, {
@@ -29,6 +30,7 @@ export class SignalFX {
       onLayout,
       onMovement,
       onFrame,
+      windowMotion,
       text,
     });
     this.ctx = canvas.getContext('2d', { alpha: true });
@@ -194,10 +196,13 @@ export class SignalFX {
       this.reveal = reveal;
       document.body.style.setProperty('--reveal', String(reveal));
     }
-    // State changes still render in reduced-motion mode; idle requires no redraw.
+    const motion = this.windowMotion();
+    // Let Chromium render at its display cadence while the companion moves.
+    // Outside these gestures, keep the regular effects budget and reduced-motion behavior.
     if (
       !changed &&
       !this.dirty &&
+      !motion.active &&
       ((reduced && snapshot.state !== 'speaking') ||
         now - this.lastDraw <
           1000 /
@@ -232,6 +237,7 @@ export class SignalFX {
     if (reduced || !this.floatSettings.floatEnabled || !this.floatSettings.floatAmplitude)
       this.floatY = 0;
     else if (
+      !motion.active &&
       !this.model.interacting &&
       !(
         ['TEXTAREA', 'INPUT'].includes(document.activeElement?.tagName) &&
@@ -274,20 +280,18 @@ export class SignalFX {
       });
     this.sentGlitch = interference.strength > 0.04;
     const ratio = Math.min(devicePixelRatio || 1, 1.25),
+      surfaceHeight = motion.surfaceHeight ?? innerHeight,
+      width = Math.round(innerWidth * ratio),
+      height = Math.round(surfaceHeight * ratio),
       origin = this.canvas.getBoundingClientRect();
     for (const [canvas, ctx] of [
       [this.canvas, this.ctx],
       [this.frameCanvas, this.frameCtx],
     ]) {
-      if (
-        canvas.width !== Math.round(innerWidth * ratio) ||
-        canvas.height !== Math.round(innerHeight * ratio)
-      ) {
-        canvas.width = Math.round(innerWidth * ratio);
-        canvas.height = Math.round(innerHeight * ratio);
-      }
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      ctx.clearRect(0, 0, innerWidth, surfaceHeight);
       ctx.translate(-origin.x, -origin.y);
     }
     const frame = this.frame.getBoundingClientRect();
@@ -297,6 +301,7 @@ export class SignalFX {
       avatar: this.sprite.getBoundingClientRect(),
       origin,
       ratio,
+      surfaceHeight,
       glitch: interference.strength,
       reduced,
       visible: snapshot.expanded && !detached && intro !== 'pending',

@@ -102,12 +102,14 @@ try {
         const slot = document.getElementById('reply-slot');
         const stage = document.getElementById('subtitle-stage');
         const portrait = document.getElementById('portrait-panel');
+        const effects = [...document.querySelectorAll('#signal-fx, #frame-fx, #crt-screen')];
         const reveal = document.getElementById('subtitle-reveal');
         const collapse = document.getElementById('subtitle-collapse');
         const sample = () => ({
           height: innerHeight,
           portraitTop: screenY + portrait.getBoundingClientRect().top,
           opacity: slot.hidden ? 0 : Number(getComputedStyle(stage).opacity),
+          effectHeights: effects.map((canvas) => canvas.height),
           stageHeight: stage.getBoundingClientRect().height,
           hidden: slot.hidden,
           focused: document.activeElement.id,
@@ -155,13 +157,17 @@ try {
     report.samples.push({ name, frames, bounds });
     assert.equal(after.hidden, !open, name);
     assert.equal(after.focused, open ? 'subtitle-collapse' : 'subtitle-reveal', name);
-    assert(
-      frames.some(({ opacity }) => opacity > 0.1 && opacity < 0.9),
-      name + ' fades',
-    );
+    const fading = frames.filter(({ opacity }) => opacity > 0.1 && opacity < 0.9);
+    assert(fading.length > 0, name + ' fades');
     const heights = new Set(frames.map(({ height }) => height));
     if (vertical) {
       assert(heights.size >= 4, name + ' interpolates native heights');
+      assert(
+        fading.every(({ effectHeights }) =>
+          effectHeights.every((height, index) => height === fading[0].effectHeights[index]),
+        ),
+        name + ' retains the canvas buffer sizes between paints',
+      );
       assert(Math.abs(after.height - before.height) >= 80, name + ' changes physical size');
       assert(
         bounds.every(({ y, height }) => y + height === bounds[0].y + bounds[0].height),

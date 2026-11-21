@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { pointInRect, resizeWindowBounds, spriteDragHit, spritePressKind } from '../geometry.mjs';
+
+export const WINDOW_MOTION_INTERVAL_MS = 8;
+const POINTER_POLL_INTERVAL_MS = 16;
+
 /** Native click-through and bounded drag gestures are independent of visual effects. */
 export class PointerController {
   constructor({
@@ -37,10 +41,16 @@ export class PointerController {
       started: this.now(),
     };
     this.drag.last = this.drag.bounds;
+    if (this.timer) this.pollEvery(WINDOW_MOTION_INTERVAL_MS);
   }
-  endWindow() {
+  clearWindowDrag() {
     const drag = this.drag;
     this.drag = null;
+    if (drag && this.timer) this.pollEvery(POINTER_POLL_INTERVAL_MS);
+    return drag;
+  }
+  endWindow() {
+    const drag = this.clearWindowDrag();
     if (drag) this.onEnd?.(drag);
   }
   beginAvatar(point, sprite, mask, headpat) {
@@ -68,8 +78,14 @@ export class PointerController {
     return true;
   }
   cancel() {
-    this.drag = null;
+    this.clearWindowDrag();
     this.endAvatar();
+  }
+  setInteractive(interactive) {
+    if (this.ignored === interactive) {
+      this.ignored = !interactive;
+      this.window.setIgnoreMouseEvents(this.ignored, { forward: true });
+    }
   }
   tick() {
     if (this.verification || this.window.isDestroyed() || !this.window.isVisible()) return;
@@ -98,6 +114,9 @@ export class PointerController {
           this.window.setBounds(bounds, false);
           this.drag.last = bounds;
         }
+        // The whole window remains interactive during the captured gesture.
+        if (this.getRegions()) this.setInteractive(true);
+        return;
       }
     }
     const regions = this.getRegions();
@@ -106,22 +125,24 @@ export class PointerController {
       point = { x: cursor.x - bounds.x, y: cursor.y - bounds.y },
       mask = this.getMask();
     if (this.avatarPress) this.onAvatarTether(this.avatarPress, cursor, bounds, time);
-    const interactive =
-      this.drag !== null ||
+    this.setInteractive(
       this.avatarPress !== null ||
-      regions.controls.some((rect) => pointInRect(point, rect)) ||
-      spriteDragHit(point, regions.sprite, mask);
-    if (this.ignored === interactive) {
-      this.ignored = !interactive;
-      this.window.setIgnoreMouseEvents(this.ignored, { forward: true });
-    }
+        regions.controls.some((rect) => pointInRect(point, rect)) ||
+        spriteDragHit(point, regions.sprite, mask),
+    );
+  }
+  pollEvery(interval) {
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), interval);
+    this.timer.unref();
   }
   start() {
-    this.timer = setInterval(() => this.tick(), 16);
-    this.timer.unref();
+    if (!this.timer)
+      this.pollEvery(this.drag ? WINDOW_MOTION_INTERVAL_MS : POINTER_POLL_INTERVAL_MS);
   }
   stop() {
     clearInterval(this.timer);
+    this.timer = undefined;
     this.cancel();
   }
 }

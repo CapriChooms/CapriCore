@@ -5,16 +5,19 @@ import {
   readFileSync,
   copyFileSync,
   renameSync,
+  rmSync,
   unlinkSync,
   statSync,
 } from 'node:fs';
 import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { readJson, noLinks, identityFile, diskFree } from '../../installer/src/policy.mjs';
 import { updateSourcePath, updatePayloadFiles, installerRequired } from './payload-policy.mjs';
 import { installationLock } from '../../installer/src/lock.mjs';
 import { runCommand } from '../../installer/src/commands.mjs';
 import { installNpmDependencies } from '../../installer/src/npm-install.mjs';
+import { replaceSourceFile } from '../../installer/src/replace-source-file.mjs';
 import { ensureElectronRuntime } from '../../installer/src/electron-runtime.mjs';
 import { npmInstallRequired } from './npm-policy.mjs';
 import { writeJsonAtomic } from '../../runtime/src/atomic-json.mjs';
@@ -47,7 +50,7 @@ export function installedUpdateVersion(root, tag) {
   return tag;
 }
 const supportFile =
-  /^(?:[^/]+\.cmd|README\.md|ROADMAP\.md|CONTRIBUTING\.md|SECURITY\.md|LICENSE|THIRD_PARTY_NOTICES\.md)$/i;
+  /^(?:[^/\\:]+\.cmd|README\.md|ROADMAP\.md|CONTRIBUTING\.md|SECURITY\.md|LICENSE|THIRD_PARTY_NOTICES\.md)$/i;
 const mutable = new Set([
   'config/companion-voice.json',
   'config/companion-asr.json',
@@ -146,23 +149,13 @@ export function verifyPayload(source, tag) {
   if (needsInstaller) throw installerRequired('unsupported_source_path');
   return manifest.files;
 }
-function replaceFile(source, target) {
-  noLinks(target);
-  mkdirSync(path.dirname(target), { recursive: true });
-  const temporary = target + '.' + randomUUID() + '.update';
-  try {
-    copyFileSync(source, temporary);
-    renameSync(temporary, target);
-  } finally {
-    if (existsSync(temporary)) unlinkSync(temporary);
-  }
-}
 function backupPath(name) {
   if (
     name === '.capri-install.json' ||
     name === 'Capri.exe' ||
     name === 'uninstall.exe' ||
-    name === '.runtime/installer/source-files.json'
+    name === '.runtime/installer/source-files.json' ||
+    name === '.runtime/installer/registration.json'
   )
     return name;
   if (typeof name === 'string' && name.startsWith('Support/') && supportFile.test(name.slice(8))) {
@@ -178,18 +171,69 @@ export function runtimeUpgradeRequired(root, source) {
     (name) => before.artifacts[name]?.sha256 !== after.artifacts[name]?.sha256,
   );
 }
-function restore(root, backup, journal) {
-  for (const item of [...journal.entries].reverse()) {
-    const name = backupPath(item.path),
-      target = path.join(root, name);
-    noLinks(target);
-    if (item.existed) {
-      const saved = path.join(backup, 'files', name);
-      noLinks(saved);
-      if (hash(saved) !== item.sha256) throw new Error('The update backup failed verification');
-      replaceFile(saved, target);
-    } else if (existsSync(target)) unlinkSync(target);
+async function retryFileOperation(operation) {
+  for (const wait of [200, 500, 1000, 2000, 0]) {
+    try {
+      return operation();
+    } catch (error) {
+      if (!wait || !['EPERM', 'EACCES', 'EBUSY'].includes(error.code)) throw error;
+      await delay(wait);
+    }
   }
+}
+
+async function restoreFiles(root, backup, journal) {
+  const failures = [];
+  for (const item of [...journal.entries].reverse()) {
+    try {
+      const name = backupPath(item.path);
+      const target = path.join(root, name);
+      noLinks(target);
+      if (item.existed) {
+        // In particular, avoid replacing the launcher just to restore identical bytes.
+        if (existsSync(target) && hash(target) === item.sha256) continue;
+        const saved = path.join(backup, 'files', name);
+        noLinks(saved);
+        if (hash(saved) !== item.sha256) throw new Error('The update backup failed verification');
+        await replaceSourceFile(saved, target, { root });
+      } else if (existsSync(target)) {
+        await retryFileOperation(() => unlinkSync(target));
+      }
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length) throw failures[0];
+}
+
+function modulePaths(root, backup) {
+  const installed = path.join(root, 'node_modules');
+  const previous = path.join(backup, 'node_modules.previous');
+  const failed = path.join(backup, 'node_modules.failed');
+  for (const directory of [installed, previous, failed]) noLinks(directory);
+  return { installed, previous, failed };
+}
+
+async function restoreNodeModules(root, backup, { npmDirectoryExisted }) {
+  const { installed, previous, failed } = modulePaths(root, backup);
+  const hasBackup = existsSync(previous);
+  // If the saved tree never moved, or has already been restored, leave it in place.
+  if (npmDirectoryExisted && !hasBackup) return;
+  if (existsSync(installed)) await retryFileOperation(() => renameSync(installed, failed));
+  if (hasBackup) await retryFileOperation(() => renameSync(previous, installed));
+}
+
+function reportFailure(emit, stage, error) {
+  const code = [error.npmCode, error.code, error.cause?.code].find(
+    (value) => typeof value === 'string' && /^[A-Z][A-Z0-9_]{2,63}$/.test(value),
+  );
+  emit({
+    phase: 'operation-failed',
+    stage,
+    ...(code ? { code } : {}),
+    ...(Number.isInteger(error.exitCode) ? { exitCode: error.exitCode } : {}),
+    message: error.message.slice(0, 1200),
+  });
 }
 /** A failed/interrupted update restores owned source files. Private data is never a transaction target. */
 export async function applyUpdate(
@@ -206,10 +250,12 @@ export async function applyUpdate(
   const cache = path.join(root, '.runtime/installer');
   noLinks(cache);
   mkdirSync(cache, { recursive: true });
-  const releaseLock = installationLock(cache);
   let journal, backup;
   const active = path.join(updateRoot, 'active.json');
+  const receipt = path.join(cache, 'source-files.json');
   noLinks(active);
+  noLinks(receipt);
+  const releaseLock = installationLock(cache);
   const env = {
     ...process.env,
     CAPRI_NODE_PATH: process.execPath,
@@ -250,10 +296,10 @@ export async function applyUpdate(
       path.join(root, script),
       ...args,
     ]);
-  let dependenciesStarted = false;
+  let stage = 'verifying';
   let npmChanged = false;
-  const syncDependencies = async (changed, { forceNpm = false } = {}) => {
-    if (forceNpm || npmChanged) {
+  const syncNode = async (installNpm) => {
+    if (installNpm) {
       emit({ phase: 'dependencies' });
       await installNpmDependencies({
         nodeExecutable: process.execPath,
@@ -271,6 +317,8 @@ export async function applyUpdate(
       await command(process.execPath, [path.join(root, 'packages/runtime/bin/patch-openclaw.mjs')]);
     }
     await ensureElectronRuntime(root, { command, emit });
+  };
+  const syncPython = async (changed) => {
     const uv = path.join(root, '.runtime/uv/uv.exe');
     for (const [lock, venv] of [
       ['config/asr-requirements.lock.txt', 'asr-venv'],
@@ -303,26 +351,49 @@ export async function applyUpdate(
     )
       await ps('tools/setup/setup-voice-training.ps1', ['-DependenciesOnly']);
   };
+  const discardModuleBackup = (directory, name) => {
+    const target = path.join(directory, name);
+    try {
+      noLinks(target);
+      rmSync(target, { force: true, recursive: true });
+    } catch (error) {
+      reportFailure(emit, 'update-cleanup', error);
+    }
+  };
+  const rollback = async (saved, previous) => {
+    emit({ phase: 'recovering' });
+    const savedModules = typeof previous.npmDirectoryExisted === 'boolean';
+    const results = await Promise.allSettled([
+      restoreFiles(root, saved, previous),
+      ...(savedModules ? [restoreNodeModules(root, saved, previous)] : []),
+    ]);
+    for (const result of results) if (result.status === 'rejected') throw result.reason;
+    if (!savedModules && previous.dependenciesStarted) {
+      await syncNode(previous.npmDependenciesChanged !== false);
+    }
+    if (previous.pythonDependenciesStarted ?? previous.dependenciesStarted)
+      await syncPython(new Set(previous.changed));
+    previous.phase = 'rolled-back';
+    writeJsonAtomic(path.join(saved, 'journal.json'), previous);
+    unlinkSync(active);
+    if (savedModules) discardModuleBackup(saved, 'node_modules.failed');
+  };
   try {
     if (existsSync(active)) {
+      stage = 'recovering';
       const pending = readJson(active);
       if (pending.schemaVersion !== 1 || !/^[a-f0-9-]{36}$/.test(pending.id ?? ''))
         throw new Error('Invalid interrupted update receipt');
       const saved = path.join(updateRoot, 'backups', pending.id);
       noLinks(saved);
       const previous = readJson(path.join(saved, 'journal.json'), 2 * 1024 ** 2);
+      if (previous.schemaVersion !== 1 || previous.id !== pending.id)
+        throw new Error('Invalid interrupted update journal');
       if (previous.phase !== 'complete' && previous.phase !== 'rolled-back') {
-        emit({ phase: 'recovering' });
-        restore(root, saved, previous);
-        if (previous.dependenciesStarted)
-          await syncDependencies(new Set([...previous.changed, 'package-lock.json']), {
-            forceNpm: previous.npmDependenciesChanged !== false,
-          });
-        previous.phase = 'rolled-back';
-        writeJsonAtomic(path.join(saved, 'journal.json'), previous);
-      }
-      unlinkSync(active);
+        await rollback(saved, previous);
+      } else unlinkSync(active);
     }
+    stage = 'verifying';
     const installedTag = existsSync(path.join(root, 'config/release.json'))
       ? readJson(path.join(root, 'config/release.json')).tag
       : 'v' + identity.version + '-0';
@@ -355,6 +426,7 @@ export async function applyUpdate(
       (npmChanged ? 2 * 1024 ** 3 : 64 * 1024 ** 2);
     if (availableDisk(root) < needed)
       throw new Error('Not enough free space for the update and its backup.');
+    stage = 'update-backup';
     const id = randomUUID();
     backup = path.join(updateRoot, 'backups', id);
     mkdirSync(backup, { recursive: true });
@@ -365,20 +437,27 @@ export async function applyUpdate(
       phase: 'backing-up',
       changed: [...changed],
       dependenciesStarted: false,
+      pythonDependenciesStarted: false,
       npmDependenciesChanged: npmChanged,
       entries: [],
     };
+    // Registration can move already installed support documents as well as new ones.
+    const old = existsSync(receipt) ? (readJson(receipt, 2 * 1024 ** 2).files ?? []) : [];
+    const support = register
+      ? [...old, ...files]
+          .filter((file) => supportFile.test(file.path))
+          .flatMap((file) => [sourcePath(file.path), 'Support/' + file.path])
+      : [];
     const owned = [
       ...updates.map((file) => file.path),
-      ...(register
-        ? files.filter((file) => supportFile.test(file.path)).map((file) => 'Support/' + file.path)
-        : []),
+      ...support,
       '.capri-install.json',
       '.runtime/installer/source-files.json',
+      ...(register ? ['.runtime/installer/registration.json'] : []),
       'Capri.exe',
       'uninstall.exe',
     ];
-    for (const name of owned) {
+    for (const name of new Set(owned)) {
       const target = path.join(root, name);
       noLinks(target);
       const existed = existsSync(target),
@@ -391,23 +470,31 @@ export async function applyUpdate(
     }
     writeJsonAtomic(path.join(backup, 'journal.json'), journal);
     writeJsonAtomic(active, { schemaVersion: 1, id });
+    stage = 'installing';
     emit({ phase: 'installing' });
     journal.phase = 'installing';
     writeJsonAtomic(path.join(backup, 'journal.json'), journal);
     for (const file of updates)
-      replaceFile(path.join(source, file.path), path.join(root, file.path));
-    dependenciesStarted = true;
+      await replaceSourceFile(path.join(source, file.path), path.join(root, file.path), { root });
+    stage = 'node';
     journal.dependenciesStarted = true;
+    const modules = npmChanged ? modulePaths(root, backup) : null;
+    if (modules) journal.npmDirectoryExisted = existsSync(modules.installed);
     writeJsonAtomic(path.join(backup, 'journal.json'), journal);
-    await syncDependencies(changed);
+    if (journal.npmDirectoryExisted)
+      await retryFileOperation(() => renameSync(modules.installed, modules.previous));
+    await syncNode(npmChanged);
+    stage = 'python';
+    journal.pythonDependenciesStarted = true;
+    writeJsonAtomic(path.join(backup, 'journal.json'), journal);
+    await syncPython(changed);
+    stage = 'registering';
     writeJsonAtomic(identityFile(root), {
       ...identity,
       version: parseVersion(tag).version,
       releaseTag: tag,
     });
     // Keep the previous owned-file list as well: a later uninstall may remove old source, but not private files.
-    const receipt = path.join(cache, 'source-files.json');
-    const old = existsSync(receipt) ? (readJson(receipt, 2 * 1024 ** 2).files ?? []) : [];
     const all = new Map(old.map((item) => [item.path, item]));
     for (const item of files) all.set(item.path, item);
     writeJsonAtomic(receipt, { files: [...all.values()] });
@@ -422,30 +509,27 @@ export async function applyUpdate(
         ...(links.some((file) => /Programs|Start Menu/i.test(file)) ? ['-StartMenuShortcut'] : []),
       ]);
     }
+    writeJsonAtomic(path.join(backup, 'journal.json'), { ...journal, phase: 'complete' });
     journal.phase = 'complete';
-    writeJsonAtomic(path.join(backup, 'journal.json'), journal);
     unlinkSync(active);
+    if (modules) discardModuleBackup(backup, 'node_modules.previous');
     emit({ phase: 'complete' });
     return { tag, backup, changed: updates.length };
   } catch (error) {
-    if (journal && backup && journal.phase !== 'complete') {
-      emit({ phase: 'recovering' });
+    reportFailure(emit, stage, error);
+    if (journal && backup && existsSync(active) && journal.phase !== 'complete') {
       try {
-        restore(root, backup, journal);
-        if (dependenciesStarted)
-          await syncDependencies(new Set([...journal.changed, 'package-lock.json']), {
-            forceNpm: journal.npmDependenciesChanged !== false,
-          });
-        journal.phase = 'rolled-back';
-        writeJsonAtomic(path.join(backup, 'journal.json'), journal);
-        if (existsSync(active)) unlinkSync(active);
-      } catch {
+        await rollback(backup, journal);
+      } catch (recoveryError) {
+        reportFailure(emit, 'recovering', recoveryError);
         throw new Error(
           'Update failed and automatic recovery could not finish. Keep this folder and run the previous installer to repair it.',
+          { cause: recoveryError },
         );
       }
       throw new Error(
         'The update failed. Previous source files were restored. Try again or use the full installer.',
+        { cause: error },
       );
     }
     throw error;

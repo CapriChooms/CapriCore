@@ -8,6 +8,11 @@ export const deviceSelectionId = (value) =>
   /^(?:auto|cpu|(?:cuda|rocm|vulkan|npu-openvino|npu-vitis|npu-qnn):\d{1,2}:[a-f0-9]{16})$/.test(
     value,
   );
+
+export function voiceDevicePreference(id, backend) {
+  if (id === 'auto' || id === 'cpu') return id;
+  return id.startsWith('vulkan:') === (backend === 'breeze-tts') ? id : 'auto';
+}
 export function deviceSettingsFile(root) {
   const file = path.join(root, 'data/desktop/model-devices.json');
   assertPrivatePath(file);

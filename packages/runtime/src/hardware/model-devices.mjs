@@ -8,6 +8,7 @@ import {
   readModelDevices,
   deviceEnvironment,
   unrestrictedDeviceEnvironment,
+  voiceDevicePreference,
 } from '../model-device-settings.mjs';
 const run = promisify(execFile);
 const validName = (name) =>
@@ -185,7 +186,7 @@ export async function voiceDeviceLaunch(
   runtimeEnv,
   { probe = probeVoiceDevices, qwen = false } = {},
 ) {
-  const id = readModelDevices(root).voice;
+  const id = voiceDevicePreference(readModelDevices(root).voice);
   const selected = resolveModelDevice(
     id,
     id === 'auto' || id === 'cpu' ? [] : await probe(root, python, { env: runtimeEnv, qwen }),

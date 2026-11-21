@@ -142,6 +142,8 @@ const ERRORS = new Set([
 ]);
 const screenStartupFailure =
   /^Capri screen startup failed: \{"stage":"(selection|capture|first-frame)","name":"(NotAllowedError|NotReadableError|AbortError|InvalidStateError|NotFoundError|TypeError|Error)"\}$/;
+const settingsRendererFailure =
+  /^Settings renderer stopped: (clean-exit|abnormal-exit|killed|crashed|oom|launch-failed|integrity-failure|memory-eviction)(?: \(exit code (-?\d{1,10}|unknown)\))?$/;
 // Host-defined control vocabulary only. Never admit arbitrary target labels,
 // destinations, message text or model-provided prose under these field names.
 const CONTROL_VALUES = {
@@ -258,6 +260,17 @@ export function diagnosticState(value, key = '', depth = 0) {
     const screenFailure = key === 'message' && screenStartupFailure.exec(value);
     if (screenFailure)
       return { event: 'screen-startup-failed', stage: screenFailure[1], name: screenFailure[2] };
+    if (key === 'message') {
+      const stopped = settingsRendererFailure.exec(value);
+      if (stopped)
+        return {
+          event: 'settings-renderer-stopped',
+          rendererReason: stopped[1],
+          ...(stopped[2] && stopped[2] !== 'unknown' ? { exitCode: Number(stopped[2]) } : {}),
+        };
+      if (value === 'Settings native window hidden unexpectedly')
+        return { event: 'settings-window-hidden' };
+    }
     if (STATES.has(value) || ERRORS.has(value)) return value;
     if (isDiagnosticControlValue(key, value)) return value;
     if (

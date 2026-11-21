@@ -132,16 +132,14 @@ export class CRTScreen {
       this.setMode('fallback');
     }
   }
-  draw({ now, frame, avatar, origin, ratio, glitch, reduced, visible }) {
+  draw({ now, frame, avatar, origin, ratio, surfaceHeight, glitch, reduced, visible }) {
     if (!this.ready) return;
     const gl = this.gl,
       u = this.uniforms;
     const w = Math.round(innerWidth * ratio),
-      h = Math.round(innerHeight * ratio);
-    if (this.canvas.width !== w || this.canvas.height !== h) {
-      this.canvas.width = w;
-      this.canvas.height = h;
-    }
+      h = Math.round(surfaceHeight * ratio);
+    if (this.canvas.width !== w) this.canvas.width = w;
+    if (this.canvas.height !== h) this.canvas.height = h;
     gl.viewport(0, 0, w, h);
     gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 0);
@@ -175,7 +173,7 @@ export class CRTScreen {
         this.textureAvatar = avatar;
       }
       gl.uniform1i(u.image, 0);
-      gl.uniform2f(u.resolution, innerWidth, innerHeight);
+      gl.uniform2f(u.resolution, innerWidth, surfaceHeight);
       const x = frame.x - origin.x + 12,
         y = frame.y - origin.y + 14,
         width = frame.width - 24,

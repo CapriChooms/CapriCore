@@ -11,6 +11,36 @@ import { createIpcHandler } from '../apps/desktop/main/ipc.mjs';
 import { SETTINGS_CHANNELS } from '../apps/desktop/main/settings-channels.mjs';
 import { PointerController } from '../apps/desktop/main/pointer-controller.mjs';
 
+test('window drag doubles native polling only until release, cancellation or shutdown', ({
+  mock,
+}) => {
+  mock.timers.enable({ apis: ['setInterval'] });
+  const pointer = new PointerController({
+    window: { getBounds: () => ({ x: 0, y: 0, width: 480, height: 660 }) },
+    screen: { getCursorScreenPoint: () => ({ x: 10, y: 10 }) },
+  });
+  let samples = 0;
+  pointer.tick = () => samples++;
+  const sample = (expected) => {
+    samples = 0;
+    mock.timers.tick(32);
+    assert.equal(samples, expected);
+  };
+  pointer.start();
+  sample(2);
+  pointer.beginWindow();
+  sample(4);
+  pointer.endWindow();
+  sample(2);
+  pointer.beginWindow();
+  sample(4);
+  pointer.cancel();
+  sample(2);
+  pointer.beginWindow();
+  pointer.stop();
+  sample(0);
+});
+
 test('holding a transparent window does not repeatedly move it or accumulate fractional-DPI size drift', () => {
   let bounds = { x: 0, y: 0, width: 480, height: 660 },
     cursor = { x: 10, y: 10 };

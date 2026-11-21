@@ -332,7 +332,7 @@ try {
     store: { snapshot: () => [...stored.values()], put: (item) => stored.set(item.id, item) },
     interfaceState: () => ({ modelToolsAvailable: false }),
     externalInference: true,
-    externalRequestTooLargeSince: (startedAt) => api.requestTooLargeSince(startedAt),
+    externalChatProviderRejectionSince: (startedAt) => api.chatProviderRejectionSince(startedAt),
   });
   const events = [];
   await chat.send(

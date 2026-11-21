@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { VOICE_VOLUME_DEFAULT } from './voice-volume.mjs';
+import { VOICE_VOLUME_DEFAULT, VOICE_VOLUME_MAX } from './voice-volume.mjs';
 
 export class VoiceVolumeMenu {
   constructor({ button, api, ui, player, onError, onLayout }) {
     Object.assign(this, { button, api, ui, player, onError, onLayout });
     this.menu = document.getElementById('voice-volume-menu');
     this.slider = document.getElementById('voice-volume');
+    this.slider.max = VOICE_VOLUME_MAX;
     this.output = document.getElementById('voice-volume-value');
     this.settings = { enabled: false, volume: VOICE_VOLUME_DEFAULT };
     this.write = Promise.resolve();
@@ -81,6 +82,7 @@ export class VoiceVolumeMenu {
     this.output.value = new Intl.NumberFormat(this.ui.language, { style: 'percent' }).format(
       volume / 100,
     );
+    this.slider.setAttribute('aria-valuetext', this.output.value);
   }
 
   flush() {

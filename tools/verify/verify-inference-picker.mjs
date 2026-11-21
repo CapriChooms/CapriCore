@@ -211,8 +211,36 @@ try {
   assert.equal(await choices.nth(3).isDisabled(), true);
   await page.keyboard.press('Escape');
 
+  await page.evaluate(async () => {
+    const { renderInferenceLabel } = await import('capri://desktop/inference-panel.mjs');
+    renderInferenceLabel(
+      {
+        remote: true,
+        authMode: 'chatgpt',
+        providerHost: 'api.openai.com',
+        model: 'fixture/' + 'long-model-'.repeat(12),
+      },
+      { text: (value) => value },
+    );
+  });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.waitForFunction(
+    () => document.getElementById('inference-info').dataset.overflow === 'true',
+  );
+  assert.equal(
+    await page.locator('#inference-track').evaluate((node) => getComputedStyle(node).animationName),
+    'telemetry-ticker',
+  );
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(
+    await page.locator('#inference-track').evaluate((node) => getComputedStyle(node).animationName),
+    'none',
+  );
+  await page.screenshot({ path: path.join(folder, 'toolbar-two-rows.png') });
+
   for (const [width, height] of [
     [480, 660],
+    [380, 520],
     [320, 480],
     [320, 360],
   ]) {
@@ -223,6 +251,37 @@ try {
           .setContentSize(...size),
       [width, height],
     );
+    const toolbar = await page.evaluate(() => {
+      const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
+      const model = rect('#inference-label'),
+        version = rect('#capri-header-version'),
+        ctx = rect('#context-hud');
+      const headerButtons = rect('.window-actions'),
+        quick = rect('#quick-actions');
+      const gear = rect('#settings-open');
+      const buttons = [...document.querySelectorAll('#quick-actions button')]
+        .map((node) => node.getBoundingClientRect())
+        .filter((box) => box.width);
+      return {
+        fits: model.width > 0 && model.right <= headerButtons.left + 1,
+        sameRow:
+          Math.abs(model.top + model.bottom - (headerButtons.top + headerButtons.bottom)) <= 2,
+        versionAligned: version.top >= headerButtons.top && version.bottom <= headerButtons.bottom,
+        contextAligned:
+          !ctx.width ||
+          (ctx.top >= headerButtons.top &&
+            ctx.bottom <= headerButtons.bottom &&
+            ctx.right <= headerButtons.left + 1),
+        quickRow: headerButtons.bottom <= quick.top && buttons.every((box) => box.top === gear.top),
+      };
+    });
+    assert.deepEqual(toolbar, {
+      fits: true,
+      sameRow: true,
+      versionAligned: true,
+      contextAligned: true,
+      quickRow: true,
+    });
     await open();
     const bounds = await menu.evaluate((node) => {
       const r = node.getBoundingClientRect();
@@ -243,6 +302,29 @@ try {
     await page.screenshot({ path: path.join(folder, `picker-${width}x${height}.png`) });
     await page.keyboard.press('Escape');
   }
+  const extra = await page.evaluate(() => {
+    const scroller = document.getElementById('quick-controls');
+    const gear = document.getElementById('settings-open');
+    const buttons = Array.from({ length: 15 }, () => {
+      const button = document.createElement('button');
+      button.textContent = '+';
+      return button;
+    });
+    scroller.append(...buttons);
+    const overflow = scroller.scrollWidth > scroller.clientWidth;
+    scroller.scrollLeft = scroller.scrollWidth;
+    const visible = scroller.getBoundingClientRect(),
+      last = buttons.at(-1).getBoundingClientRect();
+    const pinned = gear.getBoundingClientRect();
+    for (const button of buttons) button.remove();
+    scroller.scrollLeft = 0;
+    return {
+      overflow,
+      lastReachable: last.right <= visible.right + 1 && last.left >= visible.left,
+      gearPinned: pinned.right <= innerWidth && pinned.left >= visible.right,
+    };
+  });
+  assert.deepEqual(extra, { overflow: true, lastReachable: true, gearPinned: true });
   await application.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()
       .find((item) => item.webContents.getURL().endsWith('/index.html'))

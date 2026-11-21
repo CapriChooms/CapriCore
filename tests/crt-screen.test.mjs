@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CRTScreen } from '../apps/desktop/renderer/crt-screen.mjs';
 
-test('the CRT keeps the last portrait during a sprite load and clears when hidden', () => {
+test('the CRT keeps the last portrait during a sprite load and hides when it cannot draw', () => {
   const previous = {
     document: globalThis.document,
     innerWidth: globalThis.innerWidth,
@@ -44,14 +44,24 @@ test('the CRT keeps the last portrait during a sprite load and clears when hidde
   const canvas = { width: 400, height: 300, addEventListener() {}, getContext: () => null };
   try {
     const screen = new CRTScreen(canvas, sprite);
-    Object.assign(screen, { ready: true, gl, uniforms: { avatar: 'avatar' } });
+    Object.assign(screen, { initialized: true, ready: true, gl, uniforms: { avatar: 'avatar' } });
     const first = { x: 45, y: 55, width: 170, height: 170 };
     const second = { x: 65, y: 70, width: 210, height: 210 };
     const frame = { x: 20, y: 32, width: 280, height: 210 };
     const origin = { x: 5, y: 7 };
     const draw = (avatar, visible = true) => {
       calls.length = 0;
-      screen.draw({ now: 0, frame, avatar, origin, ratio: 1, glitch: 0, reduced: true, visible });
+      screen.draw({
+        now: 0,
+        frame,
+        avatar,
+        origin,
+        ratio: 1,
+        surfaceHeight: 300,
+        glitch: 0,
+        reduced: true,
+        visible,
+      });
       return calls;
     };
 
@@ -60,11 +70,12 @@ test('the CRT keeps the last portrait during a sprite load and clears when hidde
     Object.assign(sprite, { src: 'second', complete: false, naturalWidth: 0 });
     assert.deepEqual(draw(second), ['clear', [40, 48, 170, 170], 'draw']);
     assert.equal(document.body.dataset.crt, 'webgl');
-    assert.deepEqual(draw(second, false), ['clear']);
+    assert.deepEqual(draw(second, false), []);
+    assert.equal(document.body.dataset.crt, 'fallback');
     Object.assign(sprite, { complete: true, naturalWidth: 1254 });
     assert.deepEqual(draw(second), ['clear', 'second', [60, 63, 210, 210], 'draw']);
     Object.assign(sprite, { src: 'broken', naturalWidth: 0 });
-    assert.deepEqual(draw(second), ['clear']);
+    assert.deepEqual(draw(second), []);
     assert.equal(document.body.dataset.crt, 'fallback');
   } finally {
     Object.assign(globalThis, previous);

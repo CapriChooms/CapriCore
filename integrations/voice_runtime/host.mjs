@@ -9,7 +9,7 @@ import {
 } from '../../packages/runtime/src/index.mjs';
 import { LANGUAGE_PACKS } from '../../apps/desktop/renderer/language-settings.mjs';
 import { waitForVoiceReady } from './readiness.mjs';
-import { voiceStartupError } from './startup-error.mjs';
+import { voiceStartupError, voiceStartupFailure } from './startup-error.mjs';
 import {
   selectedVoiceModel,
   voiceRuntime,
@@ -79,14 +79,18 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
     // Another Capri installation may already own this port. Do not load a second
     // CUDA model just to discover that binding the HTTP socket will fail.
     if (/^HTTP (?:401|403) from /.test(error.message))
-      throw new Error(
+      throw voiceStartupFailure(
+        'CAPRI_VOICE_START_PORT_AUTH',
         'Voice port belongs to another installation. Close its voice service before starting this one.',
       );
     return null;
   });
   signal?.throwIfAborted();
   if (current && !managedProcess('companion-voice'))
-    throw new Error('Voice port belongs to an unmanaged process.');
+    throw voiceStartupFailure(
+      'CAPRI_VOICE_START_PORT_OWNER',
+      'Voice port belongs to an unmanaged process.',
+    );
   if (
     current &&
     (current.protocolVersion !== 2 ||
@@ -147,7 +151,8 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
     result.adapterSha256 !== expected.adapterSha256 ||
     result.activeEngine !== expectedEngine
   )
-    throw new Error(
+    throw voiceStartupFailure(
+      'CAPRI_VOICE_START_PROFILE_MISMATCH',
       'Running voice service does not match the selected profile. Restart Capri with stop.cmd.',
     );
   return result;

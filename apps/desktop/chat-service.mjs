@@ -30,14 +30,23 @@ import { youtubeMusicRequest } from './youtube-music-request.mjs';
 import { CoreFailureStream, ToolProgressGuard, toolLoopError } from './tool-loop.mjs';
 import { desktopTurnContext, whenPromptSkill } from './turn-context.mjs';
 import { reasoningEffort } from '../../packages/skills/src/settings-catalog.mjs';
-import { conversationOnly, factualQuestion, suppliedCodeReview } from './conversation-route.mjs';
+import {
+  companionDialogueQuestion,
+  conversationOnly,
+  factualQuestion,
+  suppliedCodeReview,
+} from './conversation-route.mjs';
 import { randomUUID } from 'node:crypto';
 import { AvatarStreamParser, avatarInstructions } from './avatar-protocol.mjs';
 import { PlainTextStream } from '../../packages/runtime/src/text.mjs';
 import { modelPreparationErrors } from '../../packages/runtime/src/providers/model-residency.mjs';
 import { dialogueStyleInstruction } from './dialogue-style.mjs';
 import { observationText } from './screen-observation.mjs';
-import { CAPRI_CHARACTER_SELF, CAPRI_SCREEN_SELF } from './screen-identity.mjs';
+import {
+  CAPRI_CHARACTER_SELF,
+  CAPRI_DESKTOP_IDENTITY,
+  CAPRI_SCREEN_SELF,
+} from './screen-identity.mjs';
 import { cyberpunkLoreContext } from './cyberpunk-lore.mjs';
 import { uiText } from './interface-translations.mjs';
 import { lemonadeDialogue } from './lemonade-dialogue.mjs';
@@ -48,7 +57,7 @@ import {
   WEB_SEARCH_SKILL_ID,
 } from '../../packages/skills/src/web-search/index.mjs';
 import { reasoningForTurn, VisibleAnswerStream } from './thinking-mode.mjs';
-import { API_REQUEST_TOO_LARGE } from './inference-api.mjs';
+import { providerRejectionMessage } from './inference-api.mjs';
 
 export const MAX_INPUT = 8000;
 const MAX_OUTPUT = 65536;
@@ -277,6 +286,15 @@ function gatewayFailure(code, message, httpStatus) {
     ...(Number.isInteger(httpStatus) ? { httpStatus } : {}),
   });
 }
+function providerRejection(status) {
+  const error = gatewayFailure(
+    'CAPRI_GATEWAY_REPORTED_ERROR',
+    'API provider rejected the request',
+    status,
+  );
+  error.providerStatus = status;
+  return error;
+}
 function replyLoopGuard() {
   const interval = 192;
   const repetitions = 6;
@@ -328,7 +346,12 @@ function publicError(error, externalInference = false) {
       : 'API connection failed. Check the provider URL and network.';
   if (error.code === 'CAPRI_SPOTIFY_PLAN_INVALID')
     return 'The model could not prepare the Spotify command. Try naming a song or artist.';
-  if (externalInference && error.httpStatus === 413) return API_REQUEST_TOO_LARGE;
+  if (externalInference) {
+    const message = providerRejectionMessage(
+      error.providerStatus ?? (error.httpStatus === 413 ? 413 : undefined),
+    );
+    if (message) return message;
+  }
   if (externalInference && error.code === 'CAPRI_GATEWAY_RESPONSE_EMPTY')
     return 'API model returned no text.';
   if (error.code === 'CAPRI_NPU_REQUEST_FAILED')
@@ -367,7 +390,7 @@ export class ChatService {
     defaultAvatarId = 'neutral',
     interfaceState = () => ({}),
     externalInference = false,
-    externalRequestTooLargeSince = null,
+    externalChatProviderRejectionSince = null,
     prepareContext = null,
     prepareModel = null,
     prepareThinking = null,
@@ -409,7 +432,7 @@ export class ChatService {
       defaultAvatarId,
       interfaceState,
       externalInference,
-      externalRequestTooLargeSince,
+      externalChatProviderRejectionSince,
       prepareContext,
       prepareModel,
       prepareThinking,
@@ -628,6 +651,8 @@ export class ChatService {
       youtubeMusicRequest(input.text, state);
     const youtubeMusicTurn = Boolean(musicRequest);
     const smallTalk = !input.mode && input.internet !== true && conversationOnly(input.text);
+    const companionQuestion =
+      !input.mode && input.internet !== true && companionDialogueQuestion(input.text);
     const codeReview = !input.mode && input.internet !== true && suppliedCodeReview(input.text);
     const thinking = input.thinking === true && !input.mode;
     const directSmallTalk = smallTalk && !thinking ? this.directLocalDialogue : null;
@@ -750,7 +775,7 @@ export class ChatService {
         if (pendingTools.get(value.callId) !== value.name) return;
         pendingTools.delete(value.callId);
         if (pendingTools.size || !assistant.text.trim())
-          armDeadline(pendingTools.size ? this.toolTimeoutMs : this.firstTextTimeoutMs);
+          armDeadline(pendingTools.size ? this.toolTimeoutMs : initialTextTimeoutMs);
         else clearTimeout(firstTextTimer);
       }
       emit({
@@ -1198,7 +1223,14 @@ export class ChatService {
           }),
         classification: () => {
           phase = 'context';
-          if (computerMode || smallTalk || codeReview || !this.requestRouter || thinking) {
+          if (
+            computerMode ||
+            smallTalk ||
+            companionQuestion ||
+            codeReview ||
+            !this.requestRouter ||
+            thinking
+          ) {
             knownDomain = toolDomain(input.text, state, routing);
             return;
           }
@@ -1386,7 +1418,8 @@ export class ChatService {
         requestSignal,
       );
       if (preparation?.then ? await preparation : preparation) return;
-      const conversationalTurn = classifiedConversation || conversationOnly(input.text, routing);
+      const conversationalTurn =
+        companionQuestion || classifiedConversation || conversationOnly(input.text, routing);
       const factualWithoutActions =
         interfaceState.activeSkills &&
         !input.mode &&
@@ -1497,6 +1530,7 @@ export class ChatService {
         ? ''
         : [
             this.persona(),
+            CAPRI_DESKTOP_IDENTITY,
             dialogueOnly
               ? dialogueOnlyInstruction
               : tools
@@ -1643,18 +1677,18 @@ export class ChatService {
             )
           )
             throw toolLoopError();
-          const status =
-            packet.error.status === 413 ||
-            /^(?:HTTP 413\b|413 (?:Request (?:Entity )?Too Large|Payload Too Large)\b|API provider returned HTTP 413\b)/iu.test(
-              detail,
+          if (this.externalInference) {
+            const status = Number(/^API provider returned HTTP (\d{3})\b/iu.exec(detail)?.[1]);
+            if (providerRejectionMessage(status)) throw providerRejection(status);
+            if (
+              packet.error.status === 413 ||
+              /^(?:HTTP 413\b|413 (?:Request (?:Entity )?Too Large|Payload Too Large)\b)/iu.test(
+                detail,
+              )
             )
-              ? 413
-              : undefined;
-          const error = gatewayFailure(
-            'CAPRI_GATEWAY_REPORTED_ERROR',
-            'Gateway reported an error',
-            status,
-          );
+              throw providerRejection(413);
+          }
+          const error = gatewayFailure('CAPRI_GATEWAY_REPORTED_ERROR', 'Gateway reported an error');
           if (/compaction|context overflow|prompt too large/i.test(detail))
             error.code = 'CONTEXT_COMPACTION_FAILED';
           throw error;
@@ -1759,13 +1793,23 @@ export class ChatService {
           error = taskError;
         }
       }
-      const reason = requestSignal.aborted
-        ? requestSignal.reason
-        : this.externalInference &&
-            responseFailureCodes.has(error.code) &&
-            this.externalRequestTooLargeSince?.(gatewayStartedAt)
-          ? gatewayFailure('CAPRI_GATEWAY_REPORTED_ERROR', 'API request too large', 413)
-          : error;
+      const failure = requestSignal.aborted ? requestSignal.reason : error;
+      const providerStatus =
+        this.externalInference &&
+        !controller.signal.aborted &&
+        !assistant.text.trim() &&
+        (failure?.name === 'TimeoutError' ||
+          [
+            'CAPRI_GATEWAY_HTTP_ERROR',
+            'CAPRI_GATEWAY_REPORTED_ERROR',
+            'CAPRI_GATEWAY_RESPONSE_EMPTY',
+            'CAPRI_GATEWAY_STREAM_INCOMPLETE',
+          ].includes(failure?.code))
+          ? this.externalChatProviderRejectionSince?.(gatewayStartedAt)
+          : undefined;
+      const reason = providerRejectionMessage(providerStatus)
+        ? providerRejection(providerStatus)
+        : failure;
       if (!controller.signal.aborted)
         this.lastFailure = {
           at: new Date().toISOString(),
@@ -1773,9 +1817,16 @@ export class ChatService {
           elapsedMs: Date.now() - startedAt,
           errorName: reason?.name ?? 'Error',
           ...(responseFailureCodes.has(reason?.code) ? { code: reason.code } : {}),
-          ...(Object.hasOwn(modelPreparationErrors, reason?.cause?.code)
-            ? { failureCode: reason.cause.code }
-            : {}),
+          ...(reason?.code === 'CAPRI_TOOL_LOOP' &&
+          [
+            'CAPRI_TOOL_LOOP_GATEWAY',
+            'CAPRI_TOOL_LOOP_REPEATED_FAILURE',
+            'CAPRI_TOOL_LOOP_UNCHANGED_RESULT',
+          ].includes(reason.failureCode)
+            ? { failureCode: reason.failureCode }
+            : Object.hasOwn(modelPreparationErrors, reason?.cause?.code)
+              ? { failureCode: reason.cause.code }
+              : {}),
           ...(Number.isInteger(reason?.httpStatus) &&
           reason.httpStatus >= 400 &&
           reason.httpStatus <= 599

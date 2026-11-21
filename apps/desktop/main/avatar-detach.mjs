@@ -1119,16 +1119,18 @@ export class AvatarDetach {
 
   async playSurface(action, side, stillAllowed = () => true) {
     const overlay = this.overlay;
+    const playback = (this.surfacePlayback = {});
     const available = () =>
       this.available &&
+      this.surfacePlayback === playback &&
       this.overlay === overlay &&
       overlay &&
       !overlay.isDestroyed() &&
       overlay.isVisible() &&
       !this.session?.reducedMotion &&
       stillAllowed();
-    if (!available()) return false;
     try {
+      if (!available()) return false;
       // Releasing pointer input early during arrival does not finish the flight.
       await withTimeout(this.sendOverlay(overlay, 'whenSettled'), this.timeoutMs);
       if (!available()) return false;
@@ -1137,11 +1139,15 @@ export class AvatarDetach {
         this.timeoutMs,
       );
       if (started === true && available()) return true;
-      if (started === true && this.overlay === overlay) this.playReaction('stopSurface');
+      if (started === true && this.overlay === overlay && this.surfacePlayback === playback)
+        this.playReaction('stopSurface');
       return false;
     } catch {
-      if (this.overlay === overlay) this.playReaction('stopSurface');
+      if (this.overlay === overlay && this.surfacePlayback === playback)
+        this.playReaction('stopSurface');
       return false;
+    } finally {
+      if (this.surfacePlayback === playback) this.surfacePlayback = null;
     }
   }
 

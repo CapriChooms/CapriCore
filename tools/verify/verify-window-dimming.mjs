@@ -11,7 +11,8 @@ import { settingsView } from './settings-view.mjs';
 const parent = path.join(root, '.runtime/dimming-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'ui-')),
-  errors = [];
+  errors = [],
+  graphicsWarnings = [];
 const server = createServer((req, res) => {
   if (req.url === '/v1/models') {
     res.setHeader('content-type', 'application/json');
@@ -59,6 +60,8 @@ async function launch() {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'warning' && message.text().startsWith('Capri portrait graphics: '))
+      graphicsWarnings.push(message.text());
   });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.waitForFunction(
@@ -402,11 +405,63 @@ try {
   });
   assert.equal((await layer()).opacity, 0.57);
   checks.push('Existing preferences persist on restart');
+
+  await presence('portrait');
+  await page.waitForFunction(() => document.body.dataset.crt === 'webgl');
+  const contextLostLog = page.waitForEvent('console', {
+    predicate: (message) => message.text().includes('"event":"context-lost"'),
+  });
+  await page.locator('#crt-screen').evaluate((canvas) => {
+    const contextLoss = canvas.getContext('webgl').getExtension('WEBGL_lose_context');
+    canvas.addEventListener('capri-test-restore-context', () => contextLoss.restoreContext(), {
+      once: true,
+    });
+    contextLoss.loseContext();
+  });
+  await contextLostLog;
+  await page.waitForFunction(() => document.body.dataset.crt === 'fallback');
+  assert.equal(await page.locator('#crt-screen').isVisible(), false);
+  assert.equal(
+    await page.locator('#sprite').evaluate((node) => getComputedStyle(node).opacity),
+    '1',
+  );
+  const contextRestoredLog = page.waitForEvent('console', {
+    predicate: (message) => message.text().includes('"event":"context-restored"'),
+  });
+  await page.locator('#crt-screen').dispatchEvent('capri-test-restore-context');
+  await contextRestoredLog;
+  await page.waitForFunction(() => document.body.dataset.crt === 'webgl');
+  checks.push('WebGL context loss reveals the sprite and Chromium can restore the effect');
+
+  await application.evaluate(({ app }) => {
+    app.emit('child-process-gone', {}, { type: 'Utility', reason: 'crashed', exitCode: 1 });
+    app.emit('child-process-gone', {}, { type: 'GPU', reason: 'clean-exit', exitCode: 0 });
+  });
+  assert.equal(await page.locator('body').getAttribute('data-crt'), 'webgl');
+  const fallbackLog = page.waitForEvent('console', {
+    predicate: (message) => message.text().includes('"event":"gpu-process-exit-fallback"'),
+  });
+  await application.evaluate(({ app }) =>
+    app.emit('child-process-gone', {}, { type: 'GPU', reason: 'crashed', exitCode: -1073741819 }),
+  );
+  await fallbackLog;
+  await page.waitForFunction(() => document.body.dataset.crt === 'fallback');
+  assert.equal(await page.locator('#crt-screen').isVisible(), false);
+  assert.equal(
+    await page.locator('#sprite').evaluate((node) => getComputedStyle(node).opacity),
+    '1',
+  );
+  await page.locator('#crt-screen').dispatchEvent('webglcontextrestored');
+  assert.equal(await page.locator('body').getAttribute('data-crt'), 'fallback');
+  assert.equal((await page.evaluate(() => window.capri.bootstrap())).portraitFallback, true);
+  checks.push('Unexpected GPU exit switches to the DOM sprite and disables WebGL for this session');
+
   assert.deepEqual(errors, []);
   report.passed = true;
 } catch (error) {
   report.error = error.message;
   report.pageErrors = errors;
+  report.graphicsWarnings = graphicsWarnings;
   report.renderer = await page
     ?.evaluate(() => ({
       phase: document.body.dataset.phase,

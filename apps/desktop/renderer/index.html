@@ -32,8 +32,12 @@
           <span class="status-dot" aria-hidden="true"></span
           ><strong id="capri-header-version" dir="ltr" data-untranslated></strong>
           <button id="inference-label" type="button" data-untranslated hidden>
-            <span id="inference-mode"></span><bdi id="inference-detail"></bdi
-            ><bdi id="inference-model" hidden></bdi>
+            <span id="inference-info" dir="ltr">
+              <span id="inference-track" class="ticker-copy">
+                <span id="inference-mode"></span><bdi id="inference-detail"></bdi
+                ><bdi id="inference-model" hidden></bdi>
+              </span>
+            </span>
           </button>
           <button id="context-hud" type="button" data-memory="CTX" data-untranslated hidden>
             <span>CTX</span><strong>—</strong>
@@ -110,117 +114,124 @@
       </header>
       <nav id="quick-actions" aria-label="Quick actions" data-hit-region>
         <span id="compact-status">CAPRI // <span data-signal-label>CONNECTING</span></span>
-        <div
-          class="toolbar-group conversation-actions"
-          role="group"
-          aria-label="Conversation controls"
-        >
-          <button
-            id="microphone-toggle"
-            type="button"
-            aria-label="Enable microphone (English)"
-            aria-pressed="false"
-            title="Enable microphone (English)"
-            disabled
+        <div id="quick-controls">
+          <div
+            class="toolbar-group conversation-actions"
+            role="group"
+            aria-label="Conversation controls"
           >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <rect x="7" y="2" width="6" height="10" rx="3" />
-              <path d="M4 9v1a6 6 0 0012 0V9M10 16v3M7 19h6" />
-            </svg>
-          </button>
-          <button
-            id="voice-toggle"
-            type="button"
-            aria-label="Mute Capri"
-            aria-pressed="true"
-            aria-controls="voice-volume-menu"
-            aria-expanded="false"
-            title="Mute Capri"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true" data-skill-icon>
-              <path d="M3 8h3l4-4v12l-4-4H3z" />
-              <path class="voice-waves" d="M13 7a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10" />
-              <path class="voice-muted" d="m13 8 4 4m0-4-4 4" />
-            </svg>
-          </button>
-          <button
-            id="music-toggle"
-            type="button"
-            aria-label="Music listening"
-            title="Music listening"
-            aria-pressed="false"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M7 14V4l10-2v10M7 7l10-2" />
-              <ellipse cx="4.5" cy="15" rx="2.5" ry="2" />
-              <ellipse cx="14.5" cy="13" rx="2.5" ry="2" />
-            </svg>
-          </button>
-          <button
-            id="history-toggle"
-            type="button"
-            aria-label="Open conversation history"
-            aria-controls="history-panel"
-            aria-expanded="false"
-            title="Conversation history"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M4 4.5h12v9H9l-4 3v-3H4zM7 7.5h6M7 10h4" />
-            </svg>
-          </button>
-          <button
-            id="subtitle-reveal"
-            type="button"
-            data-hit-region
-            aria-label="Show reply"
-            title="Show reply"
-            aria-controls="subtitle-frame"
-            aria-expanded="false"
-            hidden
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7l5 5 5-5" /></svg>
-          </button>
-        </div>
-        <div class="toolbar-group capability-actions" role="group" aria-label="Capabilities">
-          <button
-            id="screen-indicator"
-            type="button"
-            aria-pressed="false"
-            title="Screen observation (BETA)"
-            aria-label="Screen observation (BETA)"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path
-                d="M7 3H4a1 1 0 0 0-1 1v3m10-4h3a1 1 0 0 1 1 1v3M3 13v3a1 1 0 0 0 1 1h3m6 0h3a1 1 0 0 0 1-1v-3"
-                stroke-linecap="round"
-              />
-              <circle cx="10" cy="10" r="3" fill="currentColor" stroke="none" />
-            </svg>
-          </button>
-          <button
-            id="applications-open"
-            type="button"
-            data-quick="applications"
-            title="Application access"
-            aria-label="Application access"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z" />
-            </svg>
-          </button>
-          <button
-            id="time-open"
-            type="button"
-            data-quick="time"
-            title="Timers and reminders"
-            aria-label="Timers and reminders"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <circle cx="10" cy="10" r="7" />
-              <path d="M10 6v4l3 2" />
-            </svg>
-          </button>
-          <button id="stopwatch-hud" type="button" aria-label="Stopwatch controls" hidden></button>
+            <button
+              id="microphone-toggle"
+              type="button"
+              aria-label="Enable microphone (English)"
+              aria-pressed="false"
+              title="Enable microphone (English)"
+              disabled
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <rect x="7" y="2" width="6" height="10" rx="3" />
+                <path d="M4 9v1a6 6 0 0012 0V9M10 16v3M7 19h6" />
+              </svg>
+            </button>
+            <button
+              id="voice-toggle"
+              type="button"
+              aria-label="Mute Capri"
+              aria-pressed="true"
+              aria-controls="voice-volume-menu"
+              aria-expanded="false"
+              title="Mute Capri"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true" data-skill-icon>
+                <path d="M3 8h3l4-4v12l-4-4H3z" />
+                <path class="voice-waves" d="M13 7a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10" />
+                <path class="voice-muted" d="m13 8 4 4m0-4-4 4" />
+              </svg>
+            </button>
+            <button
+              id="music-toggle"
+              type="button"
+              aria-label="Music listening"
+              title="Music listening"
+              aria-pressed="false"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M7 14V4l10-2v10M7 7l10-2" />
+                <ellipse cx="4.5" cy="15" rx="2.5" ry="2" />
+                <ellipse cx="14.5" cy="13" rx="2.5" ry="2" />
+              </svg>
+            </button>
+            <button
+              id="history-toggle"
+              type="button"
+              aria-label="Open conversation history"
+              aria-controls="history-panel"
+              aria-expanded="false"
+              title="Conversation history"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M4 4.5h12v9H9l-4 3v-3H4zM7 7.5h6M7 10h4" />
+              </svg>
+            </button>
+            <button
+              id="subtitle-reveal"
+              type="button"
+              data-hit-region
+              aria-label="Show reply"
+              title="Show reply"
+              aria-controls="subtitle-frame"
+              aria-expanded="false"
+              hidden
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7l5 5 5-5" /></svg>
+            </button>
+          </div>
+          <div class="toolbar-group capability-actions" role="group" aria-label="Capabilities">
+            <button
+              id="screen-indicator"
+              type="button"
+              aria-pressed="false"
+              title="Screen observation (BETA)"
+              aria-label="Screen observation (BETA)"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  d="M7 3H4a1 1 0 0 0-1 1v3m10-4h3a1 1 0 0 1 1 1v3M3 13v3a1 1 0 0 0 1 1h3m6 0h3a1 1 0 0 0 1-1v-3"
+                  stroke-linecap="round"
+                />
+                <circle cx="10" cy="10" r="3" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+            <button
+              id="applications-open"
+              type="button"
+              data-quick="applications"
+              title="Application access"
+              aria-label="Application access"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z" />
+              </svg>
+            </button>
+            <button
+              id="time-open"
+              type="button"
+              data-quick="time"
+              title="Timers and reminders"
+              aria-label="Timers and reminders"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <circle cx="10" cy="10" r="7" />
+                <path d="M10 6v4l3 2" />
+              </svg>
+            </button>
+            <button
+              id="stopwatch-hud"
+              type="button"
+              aria-label="Stopwatch controls"
+              hidden
+            ></button>
+          </div>
         </div>
         <div class="toolbar-group settings-actions-group" role="group" aria-label="Settings">
           <button type="button" data-quick="languages" title="Languages" aria-label="Languages">
@@ -248,7 +259,7 @@
       <section id="voice-volume-menu" aria-labelledby="voice-volume-label" data-hit-region hidden>
         <label id="voice-volume-label" for="voice-volume">Capri’s voice volume</label>
         <output id="voice-volume-value" for="voice-volume">100%</output>
-        <input id="voice-volume" type="range" min="0" max="100" step="1" value="100" />
+        <input id="voice-volume" type="range" min="0" step="1" value="100" />
       </section>
       <section
         id="stopwatch-controls"

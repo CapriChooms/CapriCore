@@ -275,7 +275,48 @@ try {
         player.disableCallOutput();
       }
     }
-    return { options, factoryDevices, rows, errors };
+    const speakerLevels = [];
+    for (const [volume, amplitude] of [
+      [0, 0.12],
+      [100, 0.12],
+      [150, 0.12],
+      [200, 0.12],
+      [200, 0.8],
+    ]) {
+      const speakers = clock();
+      let started = false;
+      const player = new VoicePlayer({
+        onState() {},
+        onError: (error) => errors.push(String(error)),
+        onPlayback: (event) => {
+          started ||= event.type === 'started';
+        },
+        contextFactory: () => speakers.facade,
+        mediaDevices: devices,
+      });
+      await player.unlock();
+      player.begin('speaker-level');
+      const pcm = tone(24000, [[1230, amplitude]]);
+      player.accept({
+        turnId: 'speaker-level',
+        sequence: 0,
+        sampleRate: 24000,
+        pcm: new Uint8Array(pcm.buffer),
+      });
+      for (let i = 0; i < 20 && !started; i++) await Promise.resolve();
+      if (!started) throw Error('Speaker playback did not start.');
+      player.setSpeakerVolume(volume);
+      player.finish('speaker-level');
+      const output = (await speakers.native.startRendering()).getChannelData(0);
+      speakerLevels.push({
+        volume,
+        amplitude,
+        output: signal(output, 1230).amplitude,
+        peak: output.reduce((peak, sample) => Math.max(peak, Math.abs(sample)), 0),
+      });
+      player.stop();
+    }
+    return { options, factoryDevices, rows, speakerLevels, errors };
   });
   report.measurements = result;
   assert.deepEqual(errors, []);
@@ -346,6 +387,15 @@ try {
       'Changing Capri’s volume must not attenuate the microphone.',
     );
   }
+  const [muted, normal, boosted, doubled, loud] = result.speakerLevels;
+  assert.ok(muted.output < 0.0002);
+  assert.ok(Math.abs(normal.output - normal.amplitude) < 0.005);
+  assert.ok(Math.abs(boosted.output / normal.output - 1.5) < 0.01);
+  assert.ok(Math.abs(doubled.output / normal.output - 2) < 0.01);
+  assert.ok(loud.peak < 1 && loud.peak > 0.95);
+  report.checks.push(
+    'Speaker output ramps up to 200%, with full gain on quiet signals and bounded peaks on loud signals.',
+  );
   report.checks.push(
     '16k/24k/44.1k/48k microphones keep 440Hz pitch and 8–12kHz detail in both 44.1k and 48k mono mixers.',
   );

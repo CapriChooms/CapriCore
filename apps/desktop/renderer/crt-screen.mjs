@@ -47,29 +47,59 @@ void main(){
 }`;
 
 export class CRTScreen {
-  constructor(canvas, sprite, onModeChange = () => {}, getImage = () => sprite) {
+  constructor(canvas, sprite, onScreenChange = () => {}, getImage = () => sprite) {
     this.canvas = canvas;
     this.sprite = sprite;
     this.getImage = getImage;
-    this.onModeChange = onModeChange;
+    this.onScreenChange = onScreenChange;
     this.ready = false;
+    this.initialized = false;
+    this.disabled = false;
     this.lost = (event) => {
+      if (this.disabled) return;
       event.preventDefault();
-      this.ready = false;
-      this.setMode('fallback');
+      this.fail('context-lost');
     };
-    this.restored = () => this.initialize();
+    this.restored = () => {
+      if (this.disabled) return;
+      this.record('context-restored');
+      this.initialize();
+      this.onScreenChange();
+    };
     canvas.addEventListener('webglcontextlost', this.lost);
     canvas.addEventListener('webglcontextrestored', this.restored);
-    this.initialize();
+    this.setMode('fallback');
+  }
+  record(event, glError) {
+    console.warn(
+      'Capri portrait graphics: ' +
+        JSON.stringify({
+          event,
+          timeMs: Date.now(),
+          width: this.canvas.width,
+          height: this.canvas.height,
+          ...(glError != null ? { glError } : {}),
+        }),
+    );
+  }
+  fail(event, glError) {
+    this.ready = false;
+    this.setMode('fallback');
+    this.record(event, glError);
+  }
+  disableForSession() {
+    if (this.disabled) return;
+    this.disabled = true;
+    this.fail('gpu-process-exit-fallback');
   }
   setMode(mode) {
     if (document.body.dataset.crt !== mode) {
       document.body.dataset.crt = mode;
-      this.onModeChange();
+      this.onScreenChange();
     }
   }
   initialize() {
+    this.initialized = true;
     try {
       const gl = (this.gl = this.canvas.getContext('webgl', {
         alpha: true,
@@ -128,31 +158,45 @@ export class CRTScreen {
       this.ready = true;
       this.setMode('fallback');
     } catch {
-      this.ready = false;
-      this.setMode('fallback');
+      this.fail('initialization-failed');
     }
   }
   draw({ now, frame, avatar, origin, ratio, surfaceHeight, glitch, reduced, visible }) {
+    if (this.disabled) return;
+    const width = frame.width - 24,
+      height = frame.height - 44;
+    if (!visible || width <= 0 || height <= 0 || avatar.width <= 0 || avatar.height <= 0) {
+      this.setMode('fallback');
+      return;
+    }
+    if (!this.initialized) this.initialize();
     if (!this.ready) return;
     const gl = this.gl,
       u = this.uniforms;
     const w = Math.round(innerWidth * ratio),
       h = Math.round(surfaceHeight * ratio);
-    if (this.canvas.width !== w) this.canvas.width = w;
-    if (this.canvas.height !== h) this.canvas.height = h;
-    gl.viewport(0, 0, w, h);
-    gl.disable(gl.SCISSOR_TEST);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    if (!visible) return;
     const imageReady = this.sprite.complete;
     if (imageReady && !this.sprite.naturalWidth) {
       this.textureAvatar = null;
       this.setMode('fallback');
+      if (!this.missingImage) this.record('sprite-image-missing');
+      this.missingImage = true;
       return;
     }
-    if (!imageReady && !this.textureAvatar) return;
+    if (imageReady) this.missingImage = false;
+    if (!imageReady && !this.textureAvatar) {
+      this.setMode('fallback');
+      return;
+    }
+    const checkFrame =
+      this.canvas.width !== w || this.canvas.height !== h || document.body.dataset.crt !== 'webgl';
     try {
+      if (this.canvas.width !== w) this.canvas.width = w;
+      if (this.canvas.height !== h) this.canvas.height = h;
+      gl.viewport(0, 0, w, h);
+      gl.disable(gl.SCISSOR_TEST);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
       gl.useProgram(this.program);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -165,7 +209,8 @@ export class CRTScreen {
           this.textureRevision !== image.avatarTextureRevision
         ) {
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-          if (gl.getError() !== gl.NO_ERROR) throw new Error('CRT texture unavailable');
+          const error = gl.getError();
+          if (error !== gl.NO_ERROR) return this.fail('texture-upload-failed', error);
           this.source = this.sprite.src;
           this.textureImage = image;
           this.textureRevision = image.avatarTextureRevision;
@@ -175,9 +220,7 @@ export class CRTScreen {
       gl.uniform1i(u.image, 0);
       gl.uniform2f(u.resolution, innerWidth, surfaceHeight);
       const x = frame.x - origin.x + 12,
-        y = frame.y - origin.y + 14,
-        width = frame.width - 24,
-        height = frame.height - 44;
+        y = frame.y - origin.y + 14;
       gl.uniform4f(u.portrait, x, y, width, height);
       const rect = this.textureAvatar;
       gl.uniform4f(u.avatar, rect.x - origin.x, rect.y - origin.y, rect.width, rect.height);
@@ -194,10 +237,13 @@ export class CRTScreen {
       );
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.disable(gl.SCISSOR_TEST);
+      if (checkFrame) {
+        const error = gl.getError();
+        if (error !== gl.NO_ERROR) return this.fail('draw-failed', error);
+      }
       this.setMode('webgl');
     } catch {
-      this.ready = false;
-      this.setMode('fallback');
+      this.fail('draw-failed');
     }
   }
   destroy() {

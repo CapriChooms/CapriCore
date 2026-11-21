@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /** Animate only genuine overflow. No measurement or JavaScript loop while text is moving. */
 export class OverflowTicker {
-  constructor(element) {
+  constructor(element, copy) {
     this.element = element;
     if (!element.hasAttribute('dir')) element.dir = 'auto';
-    this.copy = element.ownerDocument.createElement('span');
-    this.copy.className = 'ticker-copy';
-    this.copy.textContent = element.textContent;
+    this.copy = copy ?? element.ownerDocument.createElement('span');
+    if (!copy) {
+      this.copy.className = 'ticker-copy';
+      this.copy.textContent = element.textContent;
+      element.replaceChildren(this.copy);
+    }
     element.classList.add('overflow-ticker');
-    element.replaceChildren(this.copy);
     this.observer = new ResizeObserver(() => this.schedule());
     this.observer.observe(element);
     this.observer.observe(this.copy);

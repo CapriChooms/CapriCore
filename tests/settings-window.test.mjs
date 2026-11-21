@@ -438,6 +438,8 @@ test('settings crash and shutdown release the native window and reject delayed p
 
 test('open Settings recovers a crashed renderer only once and resumes its saved location', async () => {
   const { host, owner, errors, notices } = fixture();
+  const crashes = [];
+  host.onRendererCrash = (details) => crashes.push(details);
   const opening = host.open('appearance');
   const first = host.window;
   host.loaded();
@@ -449,6 +451,7 @@ test('open Settings recovers a crashed renderer only once and resumes its saved 
   first.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 7 });
   assert.equal(first.isDestroyed(), true);
   assert.deepEqual(errors, ['Settings renderer stopped: crashed (exit code 7)']);
+  assert.deepEqual(crashes, [{ reason: 'crashed', exitCode: 7 }]);
   await new Promise((resolve) => setTimeout(resolve, 170));
 
   const replacement = host.window;

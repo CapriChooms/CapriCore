@@ -13,7 +13,7 @@ export function skillToolbar({ ui, openSettings, onLayout, inputMic }) {
   const group = document.createElement('div');
   group.className = 'toolbar-group skills-toolbar';
   group.setAttribute('role', 'group');
-  toolbar.prepend(group);
+  toolbar.querySelector('#quick-controls').prepend(group);
   let previousHeight;
   new ResizeObserver(([entry]) => {
     const unit =

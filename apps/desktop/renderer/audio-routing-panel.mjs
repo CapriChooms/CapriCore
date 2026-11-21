@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { VOICE_VOLUME_MAX } from './voice-volume.mjs';
+
 const routeNames = ['microphone', 'speaker', 'music', 'system', 'call'];
 
 function audioOption(value, label) {
@@ -36,7 +38,7 @@ export class AudioRoutingPanel {
           <div class="call-voice-volume" id="audio-route-volume-control" hidden>
             <label for="audio-route-volume">Capri’s voice volume</label>
             <output for="audio-route-volume" id="audio-route-volume-value"></output>
-            <input type="range" id="audio-route-volume" min="0" max="100" step="1">
+            <input type="range" id="audio-route-volume" min="0" max="${VOICE_VOLUME_MAX}" step="1">
           </div>
           <div class="settings-actions"><button type="button" data-audio-settings="voice">Voice effects</button></div>
         </section>
@@ -146,6 +148,7 @@ export class AudioRoutingPanel {
     this.volumeValue.value = new Intl.NumberFormat(this.ui.language, { style: 'percent' }).format(
       this.volume.valueAsNumber / 100,
     );
+    this.volume.setAttribute('aria-valuetext', this.volumeValue.value);
   }
 
   renderPending() {

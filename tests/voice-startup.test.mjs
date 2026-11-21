@@ -29,7 +29,7 @@ test('a stopped voice worker fails promptly instead of waiting ten minutes', asy
       },
       isRunning: () => clock < 6000,
     }),
-    /process stopped/,
+    { code: 'CAPRI_VOICE_START_PROCESS_EXIT', message: /process stopped/ },
   );
   assert.equal(clock, 10000);
 });
@@ -46,7 +46,7 @@ test('voice startup stays bounded and cancellation is preserved', async () => {
       health: async () => ({ ready: false }),
       isRunning: () => true,
     }),
-    /loading timed out/,
+    { code: 'CAPRI_VOICE_START_TIMEOUT', message: /loading timed out/ },
   );
   const controller = new AbortController();
   controller.abort(new Error('cancel startup'));

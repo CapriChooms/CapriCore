@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // App identity is trusted context, not a claim that Capri is present in any frame.
+export const CAPRI_DESKTOP_IDENTITY =
+  'You are Capri, the character in this Windows desktop companion. The app has a movable window and your animated desktop avatar. The user can drag the CAPRI header to move the window. Speak about the avatar as yours. Describe actions only as capabilities unless the app confirms they happened.';
+
 export const CAPRI_VISUAL_REFERENCE =
   'Visual reference for the Capri desktop companion: a CAPRI header, cyan angular cyberpunk borders, chat/subtitles and control buttons; its character sprite typically has vivid red or magenta hair, a neon-green face and large cybernetic eyes. The compact form is a small geometric signal core. Identify this app/avatar only when matching features are actually visible. A CAPRI word in unrelated text alone is not enough. Do not assume this window is present or confuse other characters/apps with it.';
 

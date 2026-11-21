@@ -255,9 +255,9 @@ try {
       locale.id + ': Conversation copy label',
     );
     for (const [selector, key] of [
-      ['#knowledge-panel h2:not(#skill-settings-title)', 'Brain and private memory'],
-      ['#workflows-panel h2:not(#skill-settings-title)', 'Task training'],
-      ['#user-tools-panel h2:not(#skill-settings-title)', 'User tools'],
+      ['#knowledge-panel > h2', 'Brain and private memory'],
+      ['#workflows-panel > h2', 'Task training'],
+      ['#user-tools-panel > h2', 'User tools'],
       ['#brain-search', 'Search Brain'],
       ['#private-lock', 'Lock now'],
       ['#workflow-record', 'Start recording'],

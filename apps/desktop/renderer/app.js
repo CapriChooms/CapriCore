@@ -80,6 +80,10 @@ const headpat = new AvatarHeadpat(document.getElementById('avatar-viewport'), ()
 const dimmingMask = new DimmingMask(document.getElementById('window-shade'));
 const microphoneLabelTicker = new OverflowTicker(document.getElementById('microphone-label'));
 const microphoneTextTicker = new OverflowTicker(document.getElementById('microphone-text'));
+new OverflowTicker(
+  document.getElementById('inference-info'),
+  document.getElementById('inference-track'),
+);
 const ui = new InterfaceLanguage();
 const historyAttachments = new HistoryAttachments({
   openImage: (id) => api.openAttachmentImage(id),
@@ -2424,6 +2428,10 @@ function renderHistoryMessage(message, refreshLocale = false) {
 
 let interfaceLanguageRevision = 0;
 function onEvent(event) {
+  if (event.type === 'window.portrait-fallback') {
+    signalFx?.crt.disableForSession();
+    return;
+  }
   if (event.type === 'window.reply-resize') {
     beginNativeReplyMotion(event);
     return;
@@ -3246,7 +3254,9 @@ function publishRegions() {
     const notifications =
       mode === 'core' ? element.closest('.dock-notifications')?.getBoundingClientRect() : null;
     const clip =
-      element.closest('#reply-slot[data-resizing]')?.getBoundingClientRect() ?? notifications;
+      element
+        .closest('#reply-slot[data-resizing], body[data-presence="portrait"] #quick-controls')
+        ?.getBoundingClientRect() ?? notifications;
     const x = Math.max(rect.left, clip?.left ?? rect.left);
     const y = Math.max(rect.top, clip?.top ?? rect.top);
     return {
@@ -3575,7 +3585,7 @@ for (const element of [
 ])
   regionObserver.observe(element);
 for (const scroller of document.querySelectorAll(
-  '.dock-notifications, #process-graphs-hud, #memory-hud',
+  '.dock-notifications, #process-graphs-hud, #memory-hud, #quick-controls',
 ))
   scroller.addEventListener('scroll', scheduleRegions, { passive: true });
 document.getElementById('clip-open').addEventListener('click', () => {
@@ -3699,6 +3709,7 @@ window.addEventListener(
 
 try {
   const snapshot = await api.bootstrap();
+  if (snapshot.portraitFallback) signalFx.crt.disableForSession();
   cameraPublisher.setState(snapshot.callCamera);
   await prepareInterfaceLocale(snapshot.languages.interface);
   skillState = snapshot.skills ?? {};

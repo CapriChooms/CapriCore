@@ -2019,6 +2019,67 @@ test('a tool-free external turn does not request gateway tools and explains a pr
   }
 });
 
+test('introductions, avatar questions and requests for instructions avoid the agent tool loop', async () => {
+  const prompts = [
+    "Hi, I'm Alex. What can you do?",
+    'Can I drag you?',
+    'How do I do it? Please tell me step by step.',
+  ];
+  const service = client({
+    interfaceState: () => ({ fullComputerAccess: true }),
+    requestRouter: { classify: () => assert.fail('Tool routing is unnecessary') },
+    computerIntent: () => assert.fail('No desktop action was requested'),
+    fetchImpl: () => assert.fail('The local dialogue should bypass the gateway'),
+    directLocalDialogue: async ({ messages }) => {
+      assert.match(messages[0].content, /animated desktop avatar/);
+      assert.match(messages[0].content, /drag the CAPRI header/);
+      assert.equal(messages.at(-1).content, prompts.shift());
+      return response('You can do that from my window.');
+    },
+  });
+  for (const text of [...prompts]) {
+    const events = [];
+    await service.send({ id: randomUUID(), text }, (event) => events.push(event));
+    assert.equal(events.at(-1).type, 'turn.completed');
+  }
+});
+
+test('an upstream 404 or 429 survives a generic gateway error or first-text timeout', async () => {
+  for (const status of [404, 429]) {
+    const events = [];
+    const service = client({
+      externalInference: true,
+      firstTextTimeoutMs: 40,
+      externalChatProviderRejectionSince: (startedAt) => {
+        assert.ok(Number.isFinite(startedAt));
+        return status;
+      },
+      fetchImpl: async (_url, { signal }) => {
+        if (status === 404)
+          return response('', 'data: {"error":{"message":"gateway private-canary"}}\n\n');
+        return new Promise((_, reject) => {
+          const keepAlive = setTimeout(() => reject(new Error('Test deadline exceeded')), 1000);
+          signal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(keepAlive);
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+        });
+      },
+    });
+    await service.send({ id: randomUUID(), text: 'What is two plus two?' }, (event) =>
+      events.push(event),
+    );
+    assert.equal(events.at(-1).type, 'turn.failed');
+    assert.match(events.at(-1).message, new RegExp('API provider returned HTTP ' + status));
+    assert.equal(service.diagnostics().lastFailure.httpStatus, status);
+    assert.doesNotMatch(JSON.stringify(events), /private-canary/);
+  }
+});
+
 test('input, output and endpoints are bounded; output overflow still finalizes the turn', async () => {
   for (const text of ['', ' ', 'x'.repeat(8001), 'bad\0text'])
     assert.throws(() => validateInput({ id: randomUUID(), text }));
@@ -2167,6 +2228,7 @@ test('real tool progress grants bounded execution time and a fresh final-answer 
   const service = client({
     firstTextTimeoutMs: 25,
     toolTimeoutMs: 100,
+    prepareModel: async () => ({ conversationBudget: { firstTextTimeoutMs: 300 } }),
     fetchImpl: async (_url, { headers, signal }) => {
       assert.equal(headers['x-capri-tool-progress'], '1');
       return new Response(
@@ -2177,7 +2239,7 @@ test('real tool progress grants bounded execution time and a fresh final-answer 
             const final = setTimeout(() => {
               stream.enqueue(Buffer.from(packet('Playing your song.') + 'data: [DONE]\n\n'));
               stream.close();
-            }, 60);
+            }, 120);
             signal.addEventListener(
               'abort',
               () => {

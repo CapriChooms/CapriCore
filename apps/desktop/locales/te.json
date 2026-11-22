@@ -2477,7 +2477,8 @@
     "Vertical": "నిలువు",
     "Horizontal": "అడ్డం",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube తెరుచుకుందో లేదో నిర్ధారించలేకపోయాను. బ్రౌజర్‌లో పేజీని తనిఖీ చేయండి.",
-    "No supported browser was found to open YouTube.": "YouTube తెరవడానికి మద్దతు ఉన్న బ్రౌజర్ ఏదీ కనబడలేదు."
+    "No supported browser was found to open YouTube.": "YouTube తెరవడానికి మద్దతు ఉన్న బ్రౌజర్ ఏదీ కనబడలేదు.",
+    "Disable streaming": "స్ట్రీమింగ్ నిషేάση"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,8 @@
     "corrections": 4,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·"
+  ]
 }

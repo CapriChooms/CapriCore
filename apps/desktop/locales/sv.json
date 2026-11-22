@@ -2477,7 +2477,8 @@
     "Vertical": "Vertikal",
     "Horizontal": "Horisontell",
     "I could not verify that YouTube opened. Check the page in the browser.": "Jag kunde inte bekräfta att YouTube öppnades. Kontrollera sidan i webbläsaren.",
-    "No supported browser was found to open YouTube.": "Det gick inte att hitta en webbläsare som stöds för att öppna YouTube."
+    "No supported browser was found to open YouTube.": "Det gick inte att hitta en webbläsare som stöds för att öppna YouTube.",
+    "Disable streaming": "Disable streaming"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

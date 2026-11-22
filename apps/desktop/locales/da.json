@@ -2477,7 +2477,8 @@
     "Vertical": "Lodret",
     "Horizontal": "Vandret",
     "I could not verify that YouTube opened. Check the page in the browser.": "Jeg kunne ikke bekræfte, at YouTube blev åbnet. Tjek siden i browseren.",
-    "No supported browser was found to open YouTube.": "Der blev ikke fundet en understøttet browser til at åbne YouTube."
+    "No supported browser was found to open YouTube.": "Der blev ikke fundet en understøttet browser til at åbne YouTube.",
+    "Disable streaming": "Disable streaming"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

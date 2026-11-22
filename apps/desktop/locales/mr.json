@@ -2477,7 +2477,8 @@
     "Vertical": "उभी",
     "Horizontal": "आडवी",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube उघडले का, याची खात्री करता आली नाही. ब्राउझरमध्ये पृष्ठ तपासा.",
-    "No supported browser was found to open YouTube.": "YouTube उघडण्यासाठी समर्थित ब्राउझर सापडला नाही."
+    "No supported browser was found to open YouTube.": "YouTube उघडण्यासाठी समर्थित ब्राउझर सापडला नाही.",
+    "Disable streaming": "Disable streaming"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -2477,7 +2477,8 @@
     "Vertical": "Усправни",
     "Horizontal": "Водоравни",
     "I could not verify that YouTube opened. Check the page in the browser.": "Нисам успела да потврдим да се YouTube отворио. Провери страницу у прегледачу.",
-    "No supported browser was found to open YouTube.": "Није пронађен подржани прегледач за отварање YouTube-а."
+    "No supported browser was found to open YouTube.": "Није пронађен подржани прегледач за отварање YouTube-а.",
+    "Disable streaming": "Onemogući snabdijevanje"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

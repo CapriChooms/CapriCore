@@ -2477,7 +2477,8 @@
     "Vertical": "אנכית",
     "Horizontal": "אופקית",
     "I could not verify that YouTube opened. Check the page in the browser.": "לא הצלחתי לאמת ש־YouTube נפתח. יש לבדוק את הדף בדפדפן.",
-    "No supported browser was found to open YouTube.": "לא נמצא דפדפן נתמך לפתיחת YouTube."
+    "No supported browser was found to open YouTube.": "לא נמצא דפדפן נתמך לפתיחת YouTube.",
+    "Disable streaming": "השבת זרמה"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,9 @@
     "corrections": 7,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "idle-surprised_closed", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "idle-surprised_closed",
+    "Capri ·"
+  ]
 }

@@ -2477,7 +2477,8 @@
     "Vertical": "Wima",
     "Horizontal": "Mlalo",
     "I could not verify that YouTube opened. Check the page in the browser.": "Sikuweza kuthibitisha kuwa YouTube imefunguka. Angalia ukurasa kwenye kivinjari.",
-    "No supported browser was found to open YouTube.": "Hakuna kivinjari kinachotumika kilichopatikana cha kufungua YouTube."
+    "No supported browser was found to open YouTube.": "Hakuna kivinjari kinachotumika kilichopatikana cha kufungua YouTube.",
+    "Disable streaming": "Funga mtiririko"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

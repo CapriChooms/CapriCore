@@ -2477,7 +2477,8 @@
     "Vertical": "Verticală",
     "Horizontal": "Orizontală",
     "I could not verify that YouTube opened. Check the page in the browser.": "Nu am putut confirma că YouTube s-a deschis. Verifică pagina în browser.",
-    "No supported browser was found to open YouTube.": "Nu a fost găsit niciun browser compatibil pentru a deschide YouTube."
+    "No supported browser was found to open YouTube.": "Nu a fost găsit niciun browser compatibil pentru a deschide YouTube.",
+    "Disable streaming": "Dezactivați transmiterea"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

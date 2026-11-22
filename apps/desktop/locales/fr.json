@@ -2486,7 +2486,8 @@
     "Check the pieces and confirm the side to move": "Vérifie les pièces et confirme le trait",
     "Switch to the window with the chessboard": "Passe à la fenêtre contenant l’échiquier",
     "Confirm the diagram or import a complete FEN": "Confirme le diagramme ou importe un FEN complet",
-    "Drag a square around the chessboard. Esc cancels.": "Trace un carré autour de l’échiquier. Échap annule."
+    "Drag a square around the chessboard. Esc cancels.": "Trace un carré autour de l’échiquier. Échap annule.",
+    "Disable streaming": "Désactiver le streaming"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

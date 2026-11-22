@@ -2477,7 +2477,8 @@
     "Vertical": "Dikey",
     "Horizontal": "Yatay",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube’un açıldığını doğrulayamadım. Sayfayı tarayıcıda kontrol et.",
-    "No supported browser was found to open YouTube.": "YouTube’u açmak için desteklenen bir tarayıcı bulunamadı."
+    "No supported browser was found to open YouTube.": "YouTube’u açmak için desteklenen bir tarayıcı bulunamadı.",
+    "Disable streaming": "Akışı devre dışı bırak"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

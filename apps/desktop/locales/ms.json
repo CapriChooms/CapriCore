@@ -2477,7 +2477,8 @@
     "Vertical": "Menegak",
     "Horizontal": "Mendatar",
     "I could not verify that YouTube opened. Check the page in the browser.": "Saya tidak dapat mengesahkan bahawa YouTube telah dibuka. Semak halaman dalam pelayar.",
-    "No supported browser was found to open YouTube.": "Tiada pelayar yang disokong ditemui untuk membuka YouTube."
+    "No supported browser was found to open YouTube.": "Tiada pelayar yang disokong ditemui untuk membuka YouTube.",
+    "Disable streaming": "Matikan streaming"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

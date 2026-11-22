@@ -2477,7 +2477,8 @@
     "Vertical": "Вертикална",
     "Horizontal": "Хоризонтална",
     "I could not verify that YouTube opened. Check the page in the browser.": "Не успях да потвърдя, че YouTube се отвори. Провери страницата в браузъра.",
-    "No supported browser was found to open YouTube.": "Не е намерен поддържан браузър за отваряне на YouTube."
+    "No supported browser was found to open YouTube.": "Не е намерен поддържан браузър за отваряне на YouTube.",
+    "Disable streaming": "Изключване на стрийминг"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,10 @@
     "corrections": 1,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·", "Switch to the meeting tab", "Overdrive"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·",
+    "Switch to the meeting tab",
+    "Overdrive"
+  ]
 }

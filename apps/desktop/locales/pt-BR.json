@@ -2577,6 +2577,7 @@
     "Preparing native NPU runtime. This can take several minutes…": "Preparando o ambiente nativo da NPU. Isso pode levar alguns minutos…",
     "Compiling and checking the native NPU model…": "Compilando e verificando o modelo nativo da NPU…",
     "Native NPU model is ready. You can use it and restart Capri.": "O modelo nativo da NPU está pronto. Você pode selecioná-lo e reiniciar a Capri.",
-    "Runtime prepared. Choose a converted model and test it.": "Ambiente de execução pronto. Escolha um modelo convertido e faça um teste."
+    "Runtime prepared. Choose a converted model and test it.": "Ambiente de execução pronto. Escolha um modelo convertido e faça um teste.",
+    "Disable streaming": "Desativar transmissão"
   }
 }

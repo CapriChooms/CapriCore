@@ -2471,7 +2471,8 @@
     "Vertical": "ਲੰਬਕਾਰੀ",
     "Horizontal": "ਖਿਤਿਜੀ",
     "I could not verify that YouTube opened. Check the page in the browser.": "ਮੈਂ ਪੁਸ਼ਟੀ ਨਹੀਂ ਕਰ ਸਕੀ ਕਿ YouTube ਖੁੱਲ੍ਹਿਆ ਹੈ। ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਪੰਨਾ ਵੇਖੋ।",
-    "No supported browser was found to open YouTube.": "YouTube ਖੋਲ੍ਹਣ ਲਈ ਕੋਈ ਸਮਰਥਿਤ ਬ੍ਰਾਊਜ਼ਰ ਨਹੀਂ ਮਿਲਿਆ।"
+    "No supported browser was found to open YouTube.": "YouTube ਖੋਲ੍ਹਣ ਲਈ ਕੋਈ ਸਮਰਥਿਤ ਬ੍ਰਾਊਜ਼ਰ ਨਹੀਂ ਮਿਲਿਆ।",
+    "Disable streaming": "ਸਟ੍ਰੀਮਿੰਗ ਬੰਦ ਕਰੋ"
   },
   "id": "pa",
   "name": "Punjabi",
@@ -2485,5 +2486,8 @@
     "corrections": 2,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·"
+  ]
 }

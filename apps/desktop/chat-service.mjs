@@ -417,6 +417,7 @@ export class ChatService {
     toolTimeoutMs = 45000,
     thinkingTimeoutMs = 300000,
     thinkingFirstTextTimeoutMs = 180000,
+    enableStreaming = true,
   }) {
     const endpoint = new URL(gatewayUrl);
     if (endpoint.protocol !== 'http:' || endpoint.hostname !== '127.0.0.1')
@@ -465,6 +466,7 @@ export class ChatService {
       toolTimeoutMs,
       thinkingTimeoutMs,
       thinkingFirstTextTimeoutMs,
+      enableStreaming,
     });
     this.active = null;
     this.lastFailure = null;
@@ -1592,6 +1594,7 @@ export class ChatService {
           : initialTextTimeoutMs,
       );
       gatewayStartedAt = performance.now();
+      const useStreaming = this.enableStreaming !== false;
       const response = directDialogue
         ? await directDialogue(directPayload, requestSignal)
         : await this.fetchImpl(`${this.gatewayUrl}/v1/chat/completions`, {
@@ -1603,7 +1606,7 @@ export class ChatService {
             headers: {
               authorization: `Bearer ${this.token()}`,
               'content-type': 'application/json',
-              accept: 'text/event-stream',
+              accept: useStreaming ? 'text/event-stream' : 'application/json',
               'x-openclaw-session-key': this.sessionKey,
               'x-openclaw-message-channel': 'webchat',
               'x-capri-tool-progress': '1',
@@ -1619,7 +1622,7 @@ export class ChatService {
             },
             body: JSON.stringify({
               model: `openclaw/${this.agentId}`,
-              stream: true,
+              stream: useStreaming,
               messages: [
                 {
                   role: 'system',
@@ -1641,84 +1644,112 @@ export class ChatService {
           response.status,
         );
       }
-      if (!response.headers.get('content-type')?.includes('text/event-stream') || !response.body)
-        throw gatewayFailure(
-          'CAPRI_GATEWAY_STREAM_INVALID',
-          'Gateway did not return an event stream',
-        );
       let complete = false;
-      let firstGatewayToken = false;
-      const modelRepeating = !this.externalInference && replyLoopGuard();
-      for await (const data of sseData(response.body)) {
-        if (modelComputerTask) break;
-        if (this.active?.computerTaskResult) {
-          complete = true;
-          break;
-        }
-        if (data === '[DONE]') {
-          complete = true;
-          break;
-        }
-        let packet;
-        try {
-          packet = JSON.parse(data);
-        } catch (error) {
-          error.code = 'CAPRI_GATEWAY_EVENT_INVALID';
-          throw error;
-        }
-        if (!packet || typeof packet !== 'object' || Array.isArray(packet))
-          throw gatewayFailure('CAPRI_GATEWAY_EVENT_INVALID', 'Invalid Gateway event');
-        if (packet.error) {
-          if (this.npuDialogue) throw npuFailure();
-          const detail = String(packet.error.message ?? '').slice(0, 2000);
-          if (
-            /OpenClaw stopped this (?:run|turn)|\b\d{1,2} consecutive identical tool failures\b/i.test(
-              detail,
-            )
-          )
-            throw toolLoopError();
-          if (this.externalInference) {
-            const status = Number(/^API provider returned HTTP (\d{3})\b/iu.exec(detail)?.[1]);
-            if (providerRejectionMessage(status)) throw providerRejection(status);
+      if (useStreaming) {
+        if (!response.headers.get('content-type')?.includes('text/event-stream') || !response.body)
+          throw gatewayFailure(
+            'CAPRI_GATEWAY_STREAM_INVALID',
+            'Gateway did not return an event stream',
+          );
+        let firstGatewayToken = false;
+        const modelRepeating = !this.externalInference && replyLoopGuard();
+        for await (const data of sseData(response.body)) {
+          if (modelComputerTask) break;
+          if (this.active?.computerTaskResult) {
+            complete = true;
+            break;
+          }
+          if (data === '[DONE]') {
+            complete = true;
+            break;
+          }
+          let packet;
+          try {
+            packet = JSON.parse(data);
+          } catch (error) {
+            error.code = 'CAPRI_GATEWAY_EVENT_INVALID';
+            throw error;
+          }
+          if (!packet || typeof packet !== 'object' || Array.isArray(packet))
+            throw gatewayFailure('CAPRI_GATEWAY_EVENT_INVALID', 'Invalid Gateway event');
+          if (packet.error) {
+            if (this.npuDialogue) throw npuFailure();
+            const detail = String(packet.error.message ?? '').slice(0, 2000);
             if (
-              packet.error.status === 413 ||
-              /^(?:HTTP 413\b|413 (?:Request (?:Entity )?Too Large|Payload Too Large)\b)/iu.test(
+              /OpenClaw stopped this (?:run|turn)|\b\d{1,2} consecutive identical tool failures\b/i.test(
                 detail,
               )
             )
-              throw providerRejection(413);
+              throw toolLoopError();
+            if (this.externalInference) {
+              const status = Number(/^API provider returned HTTP (\d{3})\b/iu.exec(detail)?.[1]);
+              if (providerRejectionMessage(status)) throw providerRejection(status);
+              if (
+                packet.error.status === 413 ||
+                /^(?:HTTP 413\b|413 (?:Request (?:Entity )?Too Large|Payload Too Large)\b)/iu.test(
+                  detail,
+                )
+              )
+                throw providerRejection(413);
+            }
+            const error = gatewayFailure('CAPRI_GATEWAY_REPORTED_ERROR', 'Gateway reported an error');
+            if (/compaction|context overflow|prompt too large/i.test(detail))
+              error.code = 'CONTEXT_COMPACTION_FAILED';
+            throw error;
           }
-          const error = gatewayFailure('CAPRI_GATEWAY_REPORTED_ERROR', 'Gateway reported an error');
-          if (/compaction|context overflow|prompt too large/i.test(detail))
-            error.code = 'CONTEXT_COMPACTION_FAILED';
-          throw error;
+          if (packet.capri) {
+            toolProgress(packet.capri);
+            continue;
+          }
+          const choice = packet.choices?.[0];
+          if (directDialogue && choice?.finish_reason === 'stop') complete = true;
+          const delta = choice?.delta?.content;
+          if (typeof delta !== 'string' || !delta) continue;
+          if (!firstGatewayToken) {
+            firstGatewayToken = true;
+            markResponseTiming('gateway_first_token');
+          }
+          received += delta.length;
+          if (received > (this.npuDialogue && !thinking ? 6144 : MAX_OUTPUT + 2048))
+            throw new Error('Response exceeds limit');
+          const visible = visibleAnswer.push(delta);
+          if (modelRepeating && modelRepeating(visible)) {
+            const error = gatewayFailure('CAPRI_REPLY_REPETITION', 'Local reply pattern repeated');
+            firstTextDeadline.abort(error);
+            throw error;
+          }
+          consume(parser.push(visible));
+          if (Date.now() - checkpoint > 750) {
+            this.store.put(assistant);
+            checkpoint = Date.now();
+          }
         }
-        if (packet.capri) {
-          toolProgress(packet.capri);
-          continue;
+      } else {
+        const json = await response.json();
+        if (json.error) {
+          throw gatewayFailure(
+            'CAPRI_GATEWAY_REPORTED_ERROR',
+            String(json.error.message ?? 'Gateway reported an error'),
+          );
         }
-        const choice = packet.choices?.[0];
-        if (directDialogue && choice?.finish_reason === 'stop') complete = true;
-        const delta = choice?.delta?.content;
-        if (typeof delta !== 'string' || !delta) continue;
-        if (!firstGatewayToken) {
-          firstGatewayToken = true;
-          markResponseTiming('gateway_first_token');
+        const content = json.choices?.[0]?.message?.content || '';
+        if (content) {
+          received += content.length;
+          if (received > (this.npuDialogue && !thinking ? 6144 : MAX_OUTPUT + 2048))
+            throw new Error('Response exceeds limit');
+          const visible = visibleAnswer.push(content);
+          if (modelRepeating && modelRepeating(visible)) {
+            const error = gatewayFailure('CAPRI_REPLY_REPETITION', 'Local reply pattern repeated');
+            firstTextDeadline.abort(error);
+            throw error;
+          }
+          consume(parser.push(visible));
+          if (Date.now() - checkpoint > 750) {
+            this.store.put(assistant);
+            checkpoint = Date.now();
+          }
         }
-        received += delta.length;
-        if (received > (this.npuDialogue && !thinking ? 6144 : MAX_OUTPUT + 2048))
-          throw new Error('Response exceeds limit');
-        const visible = visibleAnswer.push(delta);
-        if (modelRepeating && modelRepeating(visible)) {
-          const error = gatewayFailure('CAPRI_REPLY_REPETITION', 'Local reply pattern repeated');
-          firstTextDeadline.abort(error);
-          throw error;
-        }
-        consume(parser.push(visible));
-        if (Date.now() - checkpoint > 750) {
-          this.store.put(assistant);
-          checkpoint = Date.now();
-        }
+        complete = true;
       }
       if (modelComputerTask) {
         await runModelComputerTask();

@@ -26,6 +26,7 @@ const DEFAULT = {
   model: '',
   vision: false,
   contextTokens: 32768,
+  enableStreaming: true,
 };
 const LEGACY_PROFILE = 'legacy';
 const MAX_PROFILES = 20;
@@ -279,6 +280,7 @@ export function apiSettings(value = DEFAULT) {
     (result.enabled && result.setupRequired) ||
     typeof result.vision !== 'boolean' ||
     typeof result.tools !== 'boolean' ||
+    typeof result.enableStreaming !== 'boolean' ||
     (result.profileId !== undefined &&
       (typeof result.profileId !== 'string' || !validProfileId(result.profileId))) ||
     !Number.isInteger(result.contextTokens) ||

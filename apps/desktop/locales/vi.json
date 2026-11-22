@@ -2477,7 +2477,8 @@
     "Vertical": "Dọc",
     "Horizontal": "Ngang",
     "I could not verify that YouTube opened. Check the page in the browser.": "Tôi không xác nhận được YouTube đã mở. Hãy kiểm tra trang trong trình duyệt.",
-    "No supported browser was found to open YouTube.": "Không tìm thấy trình duyệt được hỗ trợ để mở YouTube."
+    "No supported browser was found to open YouTube.": "Không tìm thấy trình duyệt được hỗ trợ để mở YouTube.",
+    "Disable streaming": "Tắt phát trực tuyến"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

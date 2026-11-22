@@ -2477,7 +2477,8 @@
     "Vertical": "縦型",
     "Horizontal": "横型",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube が開いたことを確認できませんでした。ブラウザーでページを確認してください。",
-    "No supported browser was found to open YouTube.": "YouTube を開ける対応ブラウザーが見つかりませんでした。"
+    "No supported browser was found to open YouTube.": "YouTube を開ける対応ブラウザーが見つかりませんでした。",
+    "Disable streaming": "Disable streaming"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

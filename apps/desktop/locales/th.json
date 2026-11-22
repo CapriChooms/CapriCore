@@ -2477,7 +2477,8 @@
     "Vertical": "แนวตั้ง",
     "Horizontal": "แนวนอน",
     "I could not verify that YouTube opened. Check the page in the browser.": "ฉันยืนยันไม่ได้ว่าเปิด YouTube แล้ว โปรดตรวจสอบหน้าเว็บในเบราว์เซอร์",
-    "No supported browser was found to open YouTube.": "ไม่พบเบราว์เซอร์ที่รองรับสำหรับเปิด YouTube"
+    "No supported browser was found to open YouTube.": "ไม่พบเบราว์เซอร์ที่รองรับสำหรับเปิด YouTube",
+    "Disable streaming": "ปิดใช้งานสตรีมมิง"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,13 @@
     "corrections": 0,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·", "Amethyst", "Overdrive", "Spark", "Thunder", "Pulse"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·",
+    "Amethyst",
+    "Overdrive",
+    "Spark",
+    "Thunder",
+    "Pulse"
+  ]
 }

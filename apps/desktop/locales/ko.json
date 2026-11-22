@@ -2477,7 +2477,8 @@
     "Vertical": "세로형",
     "Horizontal": "가로형",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube가 열렸는지 확인하지 못했습니다. 브라우저에서 페이지를 확인하세요.",
-    "No supported browser was found to open YouTube.": "YouTube를 열 수 있는 지원 브라우저를 찾지 못했습니다."
+    "No supported browser was found to open YouTube.": "YouTube를 열 수 있는 지원 브라우저를 찾지 못했습니다.",
+    "Disable streaming": "Disable streaming"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,13 @@
     "corrections": 1,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·", "Amethyst", "Overdrive", "Spark", "Thunder", "Pulse"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·",
+    "Amethyst",
+    "Overdrive",
+    "Spark",
+    "Thunder",
+    "Pulse"
+  ]
 }

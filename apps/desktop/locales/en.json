@@ -2475,6 +2475,7 @@
     "Vertical": "Vertical",
     "Horizontal": "Horizontal",
     "I could not verify that YouTube opened. Check the page in the browser.": "I could not verify that YouTube opened. Check the page in the browser.",
-    "No supported browser was found to open YouTube.": "No supported browser was found to open YouTube."
+    "No supported browser was found to open YouTube.": "No supported browser was found to open YouTube.",
+    "Disable streaming": "Disable streaming"
   }
 }

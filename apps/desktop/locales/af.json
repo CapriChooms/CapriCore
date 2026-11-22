@@ -2477,7 +2477,8 @@
     "Vertical": "Vertikaal",
     "Horizontal": "Horisontaal",
     "I could not verify that YouTube opened. Check the page in the browser.": "Ek kon nie bevestig dat YouTube oopgemaak is nie. Gaan die bladsy in die blaaier na.",
-    "No supported browser was found to open YouTube.": "Geen ondersteunde blaaier is gevind om YouTube oop te maak nie."
+    "No supported browser was found to open YouTube.": "Geen ondersteunde blaaier is gevind om YouTube oop te maak nie.",
+    "Disable streaming": "Skakel stroom uit"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

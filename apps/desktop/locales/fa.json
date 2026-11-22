@@ -2477,7 +2477,8 @@
     "Vertical": "عمودی",
     "Horizontal": "افقی",
     "I could not verify that YouTube opened. Check the page in the browser.": "نتوانستم تأیید کنم که YouTube باز شده است. صفحه را در مرورگر بررسی کن.",
-    "No supported browser was found to open YouTube.": "مرورگر پشتیبانی‌شده‌ای برای باز کردن YouTube پیدا نشد."
+    "No supported browser was found to open YouTube.": "مرورگر پشتیبانی‌شده‌ای برای باز کردن YouTube پیدا نشد.",
+    "Disable streaming": "غیرفعال کردن به^− stream"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,9 @@
     "corrections": 56,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "TRANSCRIPT", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "TRANSCRIPT",
+    "Capri ·"
+  ]
 }

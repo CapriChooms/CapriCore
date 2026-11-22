@@ -2477,7 +2477,8 @@
     "Vertical": "纵向",
     "Horizontal": "横向",
     "I could not verify that YouTube opened. Check the page in the browser.": "无法确认 YouTube 是否已打开。请在浏览器中检查页面。",
-    "No supported browser was found to open YouTube.": "未找到可用于打开 YouTube 的受支持浏览器。"
+    "No supported browser was found to open YouTube.": "未找到可用于打开 YouTube 的受支持浏览器。",
+    "Disable streaming": "Disable streaming"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,10 @@
     "corrections": 22,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "idle-surprised_closed", "{label} ({seconds} s)", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "idle-surprised_closed",
+    "{label} ({seconds} s)",
+    "Capri ·"
+  ]
 }

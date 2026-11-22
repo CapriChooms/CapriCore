@@ -18,6 +18,7 @@ import { probeHardware } from '../src/hardware/probe.mjs';
 import { MODEL_CHOICES } from '../src/hardware/model-catalog.mjs';
 import { recommendProfile } from '../src/hardware/profiles.mjs';
 import { startDesktop } from '../src/desktop-launcher.mjs';
+import { electronBundleReady } from '../src/host/electron-bundle.mjs';
 
 const args = process.argv.slice(2),
   command = args[0] ?? 'help';
@@ -84,9 +85,21 @@ try {
       );
     const { profile } = saveModelProfile({ root, rt: runtime(), id: selected, hardware });
 
-    console.log(
-      `Saved ${profile.id} locally. Next: npm run models:pull, then npm run desktop. No models were downloaded by setup.`,
-    );
+    if (selected === 'api') {
+      console.log(
+        'API mode selected. No local models will be downloaded. Please configure an API provider in Settings → API connections.',
+      );
+    } else {
+      console.log(
+        `Saved ${profile.id} locally. Next: npm run models:pull, then npm run desktop. No models were downloaded by setup.`,
+      );
+    }
+    const electronReady = electronBundleReady(path.join(root, 'node_modules/electron'));
+    if (!electronReady) {
+      console.warn(
+        'Warning: Electron desktop runtime is incomplete. Repair the installation (re-run the installer or npm install) before running npm run desktop.',
+      );
+    }
   } else if (command === 'desktop') {
     const marker = await startDesktop({ wait: args.includes('--wait') });
     console.log(

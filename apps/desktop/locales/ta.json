@@ -2477,7 +2477,8 @@
     "Vertical": "செங்குத்து",
     "Horizontal": "கிடைமட்டம்",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube திறந்ததா என்பதை என்னால் உறுதிப்படுத்த முடியவில்லை. உலாவியில் பக்கத்தைச் சரிபார்க்கவும்.",
-    "No supported browser was found to open YouTube.": "YouTube ஐத் திறக்க ஆதரிக்கப்படும் உலாவி எதுவும் கிடைக்கவில்லை."
+    "No supported browser was found to open YouTube.": "YouTube ஐத் திறக்க ஆதரிக்கப்படும் உலாவி எதுவும் கிடைக்கவில்லை.",
+    "Disable streaming": "ஸ்ட்ரீமிங் ನিষ್ಕ್ರಿಯಗೊಳಿಸಿ"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,8 @@
     "corrections": 51,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·"
+  ]
 }

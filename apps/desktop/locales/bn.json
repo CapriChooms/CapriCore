@@ -2477,7 +2477,8 @@
     "Vertical": "উল্লম্ব",
     "Horizontal": "অনুভূমিক",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube খুলেছে কি না নিশ্চিত করতে পারিনি। ব্রাউজারে পৃষ্ঠাটি দেখুন।",
-    "No supported browser was found to open YouTube.": "YouTube খোলার জন্য কোনো সমর্থিত ব্রাউজার পাওয়া যায়নি।"
+    "No supported browser was found to open YouTube.": "YouTube খোলার জন্য কোনো সমর্থিত ব্রাউজার পাওয়া যায়নি।",
+    "Disable streaming": "স্ট্রিমিং নিষ্ক্রিয় করুন"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2486,8 @@
     "corrections": 42,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·"
+  ]
 }

@@ -89,7 +89,7 @@ export class InferencePanel {
       <p class="settings-help" data-inline-help>Paste the key itself. Copied outer spaces and quotation marks are removed.</p>
       <label><input id="api-tools" type="checkbox" disabled> This API model supports tool calls</label>
       <label><input id="api-vision" type="checkbox" disabled> This API model supports images</label>
-      <label><input id="api-streaming" type="checkbox" checked><span id="api-streaming-text">Disable streaming</span></label>
+      <label><input id="api-streaming" type="checkbox"><span id="api-streaming-text">Disable streaming</span></label>
       <label for="api-context">Provider context limit (tokens)</label><input id="api-context" type="number" min="32768" max="262144" step="1024" data-untranslated disabled>
       <p class="settings-help">Image support is required for screen questions. Set the same context limit as the server. Leave tool calls off for chat-only models.</p>
       <div class="settings-actions"><button id="api-save" type="button" disabled>Save connection</button><button id="api-cancel" type="button">Cancel</button></div>
@@ -212,7 +212,7 @@ export class InferencePanel {
             baseUrl: this.get('url').value.trim(),
             model: this.get('model').value.trim(),
             vision: this.get('vision').checked,
-            enableStreaming: this.get('streaming').checked,
+            enableStreaming: !this.get('streaming').checked,
             tools: this.get('tools').checked,
             contextTokens: Number(this.get('context').value),
           },
@@ -473,7 +473,7 @@ export class InferencePanel {
     this.get('context').value = 32768;
     this.get('tools').checked = true;
     this.get('vision').checked = false;
-    this.get('streaming').checked = true;
+    this.get('streaming').checked = false;
     this.clear();
     this.syncProvider();
     this.syncEnabled();
@@ -491,7 +491,7 @@ export class InferencePanel {
     this.syncProvider();
     this.get('tools').checked = profile.tools !== false;
     this.get('vision').checked = profile.vision === true;
-    this.get('streaming').checked = profile.enableStreaming !== false;
+    this.get('streaming').checked = profile.enableStreaming === false;
     this.get('context').value = profile.contextTokens;
     this.get('form-title').textContent = this.ui.text('Edit');
     this.get('editing-name').textContent =

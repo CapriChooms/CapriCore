@@ -1,0 +1,10 @@
+feat: add non-streaming API mode with size limits and end-to-end wiring
+
+- Add enableStreaming flag to ChatService and API connection settings
+- UI checkbox "Disable streaming" (unchecked by default = streaming on)
+- Non-streaming JSON response path with 2MB ReadableStream limit
+- Fix modelRepeating ReferenceError (moved outside SSE block)
+- Wire enableStreaming end-to-end: UI -> inference-api -> main -> ChatService -> Provider
+- Add sseData() and gatewayFailure() helper modules
+- Tests: tests/chat-service-streaming.test.mjs (10/14 core logic passing)
+- Revert Electron to 45.3.1 per maintainer request

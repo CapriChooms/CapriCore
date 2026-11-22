@@ -1,4 +1,6 @@
 import { conversationInstruction } from './language-context.mjs';
+import { sseData } from './sse.mjs';
+import { gatewayFailure } from './errors.mjs';
 import { freemem } from 'node:os';
 import { coordinateTurn, TURN_HANDLED } from '../../packages/core/src/turn-coordinator.mjs';
 import {
@@ -62,6 +64,7 @@ import { providerRejectionMessage } from './inference-api.mjs';
 export const MAX_INPUT = 8000;
 const MAX_OUTPUT = 65536;
 const MAX_EVENT = 262144;
+const MAX_JSON_SIZE = 2 * 1024 * 1024;
 const npuFailure = () =>
   Object.assign(new Error('NPU model request failed'), { code: 'CAPRI_NPU_REQUEST_FAILED' });
 const audioChannelInstruction =
@@ -223,36 +226,6 @@ export function validateInput(value) {
     ...(value.internet !== undefined ? { internet: value.internet } : {}),
   };
 }
-
-/** Decode SSE without assuming a TCP chunk is a line or a complete UTF-8 character. */
-export async function* sseData(body) {
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let data = [];
-  let dataLength = 0;
-  for await (const chunk of body) {
-    buffer += decoder.decode(chunk, { stream: true });
-    if (buffer.length > MAX_EVENT) throw new Error('Gateway event exceeds limit');
-    let position;
-    while ((position = buffer.indexOf('\n')) !== -1) {
-      const line = buffer.slice(0, position).replace(/\r$/, '');
-      buffer = buffer.slice(position + 1);
-      if (!line) {
-        if (data.length) yield data.join('\n');
-        data = [];
-        dataLength = 0;
-      } else if (line.startsWith('data:')) {
-        data.push(line.slice(5).replace(/^ /, ''));
-        dataLength += data.at(-1).length;
-        if (dataLength > MAX_EVENT) throw new Error('Gateway event exceeds limit');
-      }
-    }
-  }
-  buffer += decoder.decode();
-  if (buffer.trim() || data.length)
-    throw new Error('Gateway stream ended in the middle of an event');
-}
-
 const responseFailureCodes = new Set([
   'CONTEXT_COMPACTION_FAILED',
   'CAPRI_MODEL_NOT_READY',
@@ -280,12 +253,7 @@ const responseNetworkCodes = new Set([
   'UND_ERR_BODY_TIMEOUT',
   'UND_ERR_SOCKET',
 ]);
-function gatewayFailure(code, message, httpStatus) {
-  return Object.assign(new Error(message), {
-    code,
-    ...(Number.isInteger(httpStatus) ? { httpStatus } : {}),
-  });
-}
+
 function providerRejection(status) {
   const error = gatewayFailure(
     'CAPRI_GATEWAY_REPORTED_ERROR',
@@ -417,6 +385,7 @@ export class ChatService {
     toolTimeoutMs = 45000,
     thinkingTimeoutMs = 300000,
     thinkingFirstTextTimeoutMs = 180000,
+    enableStreaming = true,
   }) {
     const endpoint = new URL(gatewayUrl);
     if (endpoint.protocol !== 'http:' || endpoint.hostname !== '127.0.0.1')
@@ -465,6 +434,7 @@ export class ChatService {
       toolTimeoutMs,
       thinkingTimeoutMs,
       thinkingFirstTextTimeoutMs,
+      enableStreaming,
     });
     this.active = null;
     this.lastFailure = null;
@@ -1592,6 +1562,7 @@ export class ChatService {
           : initialTextTimeoutMs,
       );
       gatewayStartedAt = performance.now();
+      const useStreaming = this.enableStreaming !== false;
       const response = directDialogue
         ? await directDialogue(directPayload, requestSignal)
         : await this.fetchImpl(`${this.gatewayUrl}/v1/chat/completions`, {
@@ -1603,7 +1574,7 @@ export class ChatService {
             headers: {
               authorization: `Bearer ${this.token()}`,
               'content-type': 'application/json',
-              accept: 'text/event-stream',
+              accept: useStreaming ? 'text/event-stream' : 'application/json',
               'x-openclaw-session-key': this.sessionKey,
               'x-openclaw-message-channel': 'webchat',
               'x-capri-tool-progress': '1',
@@ -1619,7 +1590,7 @@ export class ChatService {
             },
             body: JSON.stringify({
               model: `openclaw/${this.agentId}`,
-              stream: true,
+              stream: useStreaming,
               messages: [
                 {
                   role: 'system',
@@ -1641,84 +1612,128 @@ export class ChatService {
           response.status,
         );
       }
-      if (!response.headers.get('content-type')?.includes('text/event-stream') || !response.body)
-        throw gatewayFailure(
-          'CAPRI_GATEWAY_STREAM_INVALID',
-          'Gateway did not return an event stream',
-        );
       let complete = false;
-      let firstGatewayToken = false;
       const modelRepeating = !this.externalInference && replyLoopGuard();
-      for await (const data of sseData(response.body)) {
-        if (modelComputerTask) break;
-        if (this.active?.computerTaskResult) {
-          complete = true;
-          break;
-        }
-        if (data === '[DONE]') {
-          complete = true;
-          break;
-        }
-        let packet;
-        try {
-          packet = JSON.parse(data);
-        } catch (error) {
-          error.code = 'CAPRI_GATEWAY_EVENT_INVALID';
-          throw error;
-        }
-        if (!packet || typeof packet !== 'object' || Array.isArray(packet))
-          throw gatewayFailure('CAPRI_GATEWAY_EVENT_INVALID', 'Invalid Gateway event');
-        if (packet.error) {
-          if (this.npuDialogue) throw npuFailure();
-          const detail = String(packet.error.message ?? '').slice(0, 2000);
-          if (
-            /OpenClaw stopped this (?:run|turn)|\b\d{1,2} consecutive identical tool failures\b/i.test(
-              detail,
-            )
-          )
-            throw toolLoopError();
-          if (this.externalInference) {
-            const status = Number(/^API provider returned HTTP (\d{3})\b/iu.exec(detail)?.[1]);
-            if (providerRejectionMessage(status)) throw providerRejection(status);
+      if (useStreaming) {
+        if (!response.headers.get('content-type')?.includes('text/event-stream') || !response.body)
+          throw gatewayFailure(
+            'CAPRI_GATEWAY_STREAM_INVALID',
+            'Gateway did not return an event stream',
+          );
+        let firstGatewayToken = false;
+        for await (const data of sseData(response.body)) {
+          if (modelComputerTask) break;
+          if (this.active?.computerTaskResult) {
+            complete = true;
+            break;
+          }
+          if (data === '[DONE]') {
+            complete = true;
+            break;
+          }
+          let packet;
+          try {
+            packet = JSON.parse(data);
+          } catch (error) {
+            error.code = 'CAPRI_GATEWAY_EVENT_INVALID';
+            throw error;
+          }
+          if (!packet || typeof packet !== 'object' || Array.isArray(packet))
+            throw gatewayFailure('CAPRI_GATEWAY_EVENT_INVALID', 'Invalid Gateway event');
+          if (packet.error) {
+            if (this.npuDialogue) throw npuFailure();
+            const detail = String(packet.error.message ?? '').slice(0, 2000);
             if (
-              packet.error.status === 413 ||
-              /^(?:HTTP 413\b|413 (?:Request (?:Entity )?Too Large|Payload Too Large)\b)/iu.test(
+              /OpenClaw stopped this (?:run|turn)|\b\d{1,2} consecutive identical tool failures\b/i.test(
                 detail,
               )
             )
-              throw providerRejection(413);
+              throw toolLoopError();
+            if (this.externalInference) {
+              const status = Number(/^API provider returned HTTP (\d{3})\b/iu.exec(detail)?.[1]);
+              if (providerRejectionMessage(status)) throw providerRejection(status);
+              if (
+                packet.error.status === 413 ||
+                /^(?:HTTP 413\b|413 (?:Request (?:Entity )?Too Large|Payload Too Large)\b)/iu.test(
+                  detail,
+                )
+              )
+                throw providerRejection(413);
+            }
+            const error = gatewayFailure('CAPRI_GATEWAY_REPORTED_ERROR', 'Gateway reported an error');
+            if (/compaction|context overflow|prompt too large/i.test(detail))
+              error.code = 'CONTEXT_COMPACTION_FAILED';
+            throw error;
           }
-          const error = gatewayFailure('CAPRI_GATEWAY_REPORTED_ERROR', 'Gateway reported an error');
-          if (/compaction|context overflow|prompt too large/i.test(detail))
-            error.code = 'CONTEXT_COMPACTION_FAILED';
-          throw error;
+          if (packet.capri) {
+            toolProgress(packet.capri);
+            continue;
+          }
+          const choice = packet.choices?.[0];
+          if (directDialogue && choice?.finish_reason === 'stop') complete = true;
+          const delta = choice?.delta?.content;
+          if (typeof delta !== 'string' || !delta) continue;
+          if (!firstGatewayToken) {
+            firstGatewayToken = true;
+            markResponseTiming('gateway_first_token');
+          }
+          received += delta.length;
+          if (received > (this.npuDialogue && !thinking ? 6144 : MAX_OUTPUT + 2048))
+            throw new Error('Response exceeds limit');
+          const visible = visibleAnswer.push(delta);
+          if (modelRepeating && modelRepeating(visible)) {
+            const error = gatewayFailure('CAPRI_REPLY_REPETITION', 'Local reply pattern repeated');
+            firstTextDeadline.abort(error);
+            throw error;
+          }
+          consume(parser.push(visible));
+          if (Date.now() - checkpoint > 750) {
+            this.store.put(assistant);
+            checkpoint = Date.now();
+          }
         }
-        if (packet.capri) {
-          toolProgress(packet.capri);
-          continue;
+      } else {
+        const chunks = [];
+        let totalSize = 0;
+        const reader = response.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          totalSize += value.byteLength;
+          if (totalSize > MAX_JSON_SIZE) {
+            reader.releaseLock();
+            throw new Error('Response exceeds size limit');
+          }
         }
-        const choice = packet.choices?.[0];
-        if (directDialogue && choice?.finish_reason === 'stop') complete = true;
-        const delta = choice?.delta?.content;
-        if (typeof delta !== 'string' || !delta) continue;
-        if (!firstGatewayToken) {
-          firstGatewayToken = true;
-          markResponseTiming('gateway_first_token');
+        reader.releaseLock();
+        const json = JSON.parse(
+          new TextDecoder().decode(Buffer.concat(chunks)),
+        );
+        if (json.error) {
+          throw gatewayFailure(
+            'CAPRI_GATEWAY_REPORTED_ERROR',
+            String(json.error.message ?? 'Gateway reported an error'),
+          );
         }
-        received += delta.length;
-        if (received > (this.npuDialogue && !thinking ? 6144 : MAX_OUTPUT + 2048))
-          throw new Error('Response exceeds limit');
-        const visible = visibleAnswer.push(delta);
-        if (modelRepeating && modelRepeating(visible)) {
-          const error = gatewayFailure('CAPRI_REPLY_REPETITION', 'Local reply pattern repeated');
-          firstTextDeadline.abort(error);
-          throw error;
+        const content = json.choices?.[0]?.message?.content || '';
+        if (content) {
+          received += content.length;
+          if (received > (this.npuDialogue && !thinking ? 6144 : MAX_OUTPUT + 2048))
+            throw new Error('Response exceeds limit');
+          const visible = visibleAnswer.push(content);
+          if (modelRepeating && modelRepeating(visible)) {
+            const error = gatewayFailure('CAPRI_REPLY_REPETITION', 'Local reply pattern repeated');
+            firstTextDeadline.abort(error);
+            throw error;
+          }
+          consume(parser.push(visible));
+          if (Date.now() - checkpoint > 750) {
+            this.store.put(assistant);
+            checkpoint = Date.now();
+          }
         }
-        consume(parser.push(visible));
-        if (Date.now() - checkpoint > 750) {
-          this.store.put(assistant);
-          checkpoint = Date.now();
-        }
+        complete = true;
       }
       if (modelComputerTask) {
         await runModelComputerTask();

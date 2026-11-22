@@ -1334,6 +1334,7 @@ async function initializeDesktop() {
     codingTask: (goal, { signal } = {}) =>
       callSkill('capri.coding', 'run', goal, { source: 'chat', signal }),
     externalInference: rt.remote.enabled,
+    enableStreaming: rt.remote?.enableStreaming ?? true,
     externalChatProviderRejectionSince: (startedAt) =>
       inferenceApi.chatProviderRejectionSince(startedAt),
     firstTextTimeoutMs: responseTiming.firstTextTimeoutMs,

@@ -80,11 +80,14 @@ export function validateCoreSettings(value) {
     throw new Error('Invalid llama.cpp version');
   if (
     result.cpuThreads !== undefined &&
+    !(result.skipLocalModels === true && result.cpuThreads === 0) &&
     (!Number.isInteger(result.cpuThreads) || result.cpuThreads < 1 || result.cpuThreads > 16)
   )
     throw new Error('Invalid CPU thread budget');
   if (result.acceleration !== undefined && !['auto', 'cpu'].includes(result.acceleration))
     throw new Error('Invalid acceleration preference');
+  if (result.useLocalMemory !== undefined && typeof result.useLocalMemory !== 'boolean')
+    throw new Error('Invalid useLocalMemory setting');
   result.generation = generationParams(result.generation);
   result.reasoningBudget = reasoningBudget(result.reasoningBudget);
   if (

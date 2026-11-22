@@ -18,6 +18,7 @@ import { probeHardware } from '../src/hardware/probe.mjs';
 import { MODEL_CHOICES } from '../src/hardware/model-catalog.mjs';
 import { recommendProfile } from '../src/hardware/profiles.mjs';
 import { startDesktop } from '../src/desktop-launcher.mjs';
+import { writeJsonAtomic } from '../src/atomic-json.mjs';
 
 const args = process.argv.slice(2),
   command = args[0] ?? 'help';
@@ -84,9 +85,21 @@ try {
       );
     const { profile } = saveModelProfile({ root, rt: runtime(), id: selected, hardware });
 
-    console.log(
-      `Saved ${profile.id} locally. Next: npm run models:pull, then npm run desktop. No models were downloaded by setup.`,
-    );
+    if (selected === 'api') {
+      console.log(
+        'API mode selected. No local models will be downloaded. Please configure an API provider in Settings → API connections.',
+      );
+      const apiSettingsFile = path.join(root, 'data/desktop/inference-api.json');
+      try {
+        writeJsonAtomic(apiSettingsFile, { setupRequired: true });
+      } catch {
+        // Non-fatal: setupRequired will be set on first API connection save.
+      }
+    } else {
+      console.log(
+        `Saved ${profile.id} locally. Next: npm run models:pull, then npm run desktop. No models were downloaded by setup.`,
+      );
+    }
   } else if (command === 'desktop') {
     const marker = await startDesktop({ wait: args.includes('--wait') });
     console.log(

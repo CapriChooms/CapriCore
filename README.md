@@ -1,14 +1,21 @@
 <img src="assets/default/icon-source.png" alt="CapriCore lightning logo" width="72" align="right">
 
-# CapriCore · Capri 1.1.1
+# CapriCore · Capri 1.2.2
 
-A Windows AI desktop companion powered by OpenClaw: bundled local LLMs, Hugging Face GGUF models or OpenAI-compatible APIs, with shared conversation and memory, 50 interface languages, optional voice and explicitly enabled desktop tools.
+Capri is a Windows AI desktop companion powered by OpenClaw. Run a bundled local model, import a compatible Hugging Face GGUF model, or connect to an OpenAI-compatible API. Capri supports text and voice chat, persistent memory, an animated desktop avatar, and optional tools for working with apps and files.
 
 [Website](https://capri-core.com/) · [Discord](https://discord.gg/capricore) · [Documentation](docs/README.md) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
-**[Download the latest Capri for Windows](https://github.com/CapriChooms/CapriCore/releases/latest)** · [1.1.1 release notes](docs/releases/1.1.1.md) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
+**[Download the latest Capri for Windows](https://github.com/CapriChooms/CapriCore/releases/latest)** · [1.2.2 release notes](https://github.com/CapriChooms/CapriCore/releases/tag/v1.2.2) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
 
 The public repository and releases are **CapriChooms/CapriCore**. Downloads and update checks do not require a GitHub account, invitation or token.
+
+## What's new in 1.2.2
+
+- Adjust voice output gain up to 200% in Audio settings or the voice volume menu.
+- Trigger more avatar animations in conversation, including pull-ups and seated gestures. Capri also picks animations that fit her current pose when idle.
+- Fit toolbar controls into two rows, with long model names scrolling inside the model selector.
+- Recover the portrait after a WebGL or GPU renderer failure. After a crash, Capri opens its logs and lets you save a diagnostic ZIP.
 
 ## What Capri can do
 
@@ -31,7 +38,7 @@ On Windows 10 22H2/11 x64, run the **CapriSetup** executable for your release, o
 For a first installation, complete this wizard before opening **Capri.exe**. Use
 the same wizard and installation folder to repair missing runtimes or dependencies.
 
-**Upgrading an existing installation.** Run the 1.1.1 installer and select your Capri installation folder. This updates the installed runtime and keeps local data, compatible downloaded models and personal settings. The stable update channel uses the public repository.
+**Upgrading an existing installation.** Open **Settings → Updates** in Capri. You can also run the latest installer and select your current Capri folder to update the runtime while keeping local data, compatible downloaded models and settings.
 
 For voice replies on a supported GPU, choose your **Conversation language** and the included **Capri · Chatterbox** voice. Setup installs English or the matching multilingual voice. The CPU Qwen3-TTS option is separate and BETA. No separate voice ZIP, destination folder, recording or training is needed for the included reference. Add or prepare voices later in **Settings → Language model → Voice models**. [Voice installation guide](docs/voice-installation.md), [release packaging](docs/voice-distribution.md).
 

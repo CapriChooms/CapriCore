@@ -42,6 +42,7 @@
       "hostRam": [1, 2],
       "gpuSystemRamGiB": 12
     },
-    "gemma4-e2b": { "vram": [8, 12], "cpuRam": [9, 14], "hostRam": [1.5, 3], "gpuSystemRamGiB": 16 }
+    "gemma4-e2b": { "vram": [8, 12], "cpuRam": [9, 14], "hostRam": [1.5, 3], "gpuSystemRamGiB": 16 },
+    "api": { "vram": [0, 0], "cpuRam": [0, 0], "hostRam": [0, 0], "gpuSystemRamGiB": 0 }
   }
 }

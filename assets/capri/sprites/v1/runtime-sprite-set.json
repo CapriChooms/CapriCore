@@ -1,0 +1,839 @@
+{
+  "schemaVersion": 2,
+  "character": "Capri",
+  "defaultSprite": "neutral",
+  "canvas": {
+    "width": 1254,
+    "height": 1254
+  },
+  "canonicalAnchor": {
+    "x": 627,
+    "y": 1166
+  },
+  "sprites": [
+    {
+      "id": "neutral",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-relaxed.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Relaxed",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "104e01a2267431e701380da458ff6a837b2c3985dc3464db40eedf41c1fb7aaa"
+    },
+    {
+      "id": "annoyed",
+      "pose": "idle",
+      "expression": "annoyed",
+      "file": "capri-idle-annoyed.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Annoyed",
+      "description": "Standing; annoyed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "e9b11cccb9d42ed53256f869b2e3a50ebeb911772be625882acea7e241d8077d"
+    },
+    {
+      "id": "attentive",
+      "pose": "idle",
+      "expression": "attentive",
+      "file": "capri-idle-attentive.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Attentive",
+      "description": "Standing; attentive.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "35a070efb98b25d083b06fcad4a90fa98416a2836295e3d35530730ed7ab372d"
+    },
+    {
+      "id": "idle-blink_closed",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-blink_closed.png",
+      "kind": "micro_frame",
+      "canPersist": false,
+      "label": "blink closed",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "0f1574e04c942a9143abbb40f074e11b33b92a97f0d0131f367e38f4e10731c5"
+    },
+    {
+      "id": "idle-blink_half",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-blink_half.png",
+      "kind": "micro_frame",
+      "canPersist": false,
+      "label": "blink half",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "7c7f82aeaa45a438379688428130867346c27972e1c91e308a49cef0cff5a0c5"
+    },
+    {
+      "id": "concerned",
+      "pose": "idle",
+      "expression": "concerned",
+      "file": "capri-idle-concerned.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Concerned",
+      "description": "Standing; concerned.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "f697b7c95bbb512b616ad39b7d4c04c7709093cbfdd2b677bdc1b751dc970361"
+    },
+    {
+      "id": "embarrassed",
+      "pose": "idle",
+      "expression": "embarrassed",
+      "file": "capri-idle-embarrassed.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Embarrassed",
+      "description": "Standing; embarrassed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "46d6160a26af60a04b4ad482bc28d07452db04bc90f0b8c23b1be2d0b77e9b43"
+    },
+    {
+      "id": "idle-excited",
+      "pose": "idle",
+      "expression": "excited",
+      "file": "capri-idle-excited.png",
+      "kind": "reaction_expression",
+      "canPersist": false,
+      "label": "excited",
+      "description": "Standing; excited.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "bd050f9d909323783512ac147e3355874f73e86534fa65a0845ca332ea10bb47"
+    },
+    {
+      "id": "flirty",
+      "pose": "idle",
+      "expression": "flirty",
+      "file": "capri-idle-flirty.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Flirty",
+      "description": "Standing; flirty.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "7d83479bcbe4fa82cbb08dc59a998f05eb11aa2dd9fe656fab8e24211df19da9"
+    },
+    {
+      "id": "focused",
+      "pose": "idle",
+      "expression": "focused",
+      "file": "capri-idle-focused.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Focused",
+      "description": "Standing; focused.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "c87e6ee3e3e0bab85cfdeca608895a82c92aa8d776f5cbcb5fee9fa624a60003"
+    },
+    {
+      "id": "happy",
+      "pose": "idle",
+      "expression": "happy",
+      "file": "capri-idle-happy.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Happy",
+      "description": "Standing; happy.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "b28b19690777912a77df8f3f11175a6a69e465e916295b1f7c33023c41abb170"
+    },
+    {
+      "id": "idle-laughing",
+      "pose": "idle",
+      "expression": "laughing",
+      "file": "capri-idle-laughing.png",
+      "kind": "reaction_expression",
+      "canPersist": false,
+      "label": "laughing",
+      "description": "Standing; laughing.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "01cfe618701f7e7f4aced93b1ab012c72e188e366415347e09d5472ac218383b"
+    },
+    {
+      "id": "idle-look_down",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-look_down.png",
+      "kind": "gaze_frame",
+      "canPersist": false,
+      "label": "look down",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "8b6bddbf1101d90118d6366d99ffd63b27888d007a55c3180d36b8914975674a"
+    },
+    {
+      "id": "idle-look_left",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-look_left.png",
+      "kind": "gaze_frame",
+      "canPersist": false,
+      "label": "look left",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "4229e73d66c10fd20a59577258da9897c271777d4f57a3245e3ae090e7e2c73d"
+    },
+    {
+      "id": "idle-look_right",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-look_right.png",
+      "kind": "gaze_frame",
+      "canPersist": false,
+      "label": "look right",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "e8c6afde8c310c8c7f6d6ba8cdd9bb599fdad7866bf48fe6d122247688cd9cba"
+    },
+    {
+      "id": "idle-look_up",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-look_up.png",
+      "kind": "gaze_frame",
+      "canPersist": false,
+      "label": "look up",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "5f62ce861c5d3bb6764a6f9472756cd07010775c972193e9db301d2e33c773fb"
+    },
+    {
+      "id": "idle-mouth_round",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-mouth_round.png",
+      "kind": "micro_frame",
+      "canPersist": false,
+      "label": "mouth medium",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "8d015a35453bce030c27fc8d54e782e5811d5706321dd527bf649b329473311b"
+    },
+    {
+      "id": "idle-mouth_small",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-mouth_small.png",
+      "kind": "micro_frame",
+      "canPersist": false,
+      "label": "mouth small",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "e2816a1d5452cdd24a392aced6c96d73fb55ae330438ead5ae87fa9f0ab50b5d"
+    },
+    {
+      "id": "idle-mouth_wide",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "capri-idle-mouth_wide.png",
+      "kind": "micro_frame",
+      "canPersist": false,
+      "label": "mouth wide",
+      "description": "Standing; relaxed.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "0f4226996a5e0929a2e2bb3fb3c9e02328ccc9c9fa7d719a8a8a426607fd509c"
+    },
+    {
+      "id": "sad",
+      "pose": "idle",
+      "expression": "sad",
+      "file": "capri-idle-sad.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Sad",
+      "description": "Standing; sad.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "854af0ab0ba43a5552b7525ef63dcfb15b8b1764d15763f7183d4d04855fba3e"
+    },
+    {
+      "id": "skeptical",
+      "pose": "idle",
+      "expression": "skeptical",
+      "file": "capri-idle-skeptical.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Skeptical",
+      "description": "Standing; skeptical.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "f7463d9f8d8189f921d2c5c56da7e871aecea8a86863bacf222f786eb37e7699"
+    },
+    {
+      "id": "sleepy",
+      "pose": "idle",
+      "expression": "sleepy",
+      "file": "capri-idle-sleepy.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Sleepy",
+      "description": "Standing; sleepy.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "a5fa7ae3ea8d3ab8b31750e495a131a405ea6559e712d90355a816fbbb075433"
+    },
+    {
+      "id": "smirk",
+      "pose": "idle",
+      "expression": "smirk",
+      "file": "capri-idle-smirk.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Playful",
+      "description": "Standing; playful.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "7e4ac87e63ef644a2aa1aafd3d2d94bbdf5a9ba89b08d689e185b8647fac8a83"
+    },
+    {
+      "id": "idle-surprised_closed",
+      "pose": "idle",
+      "expression": "surprised",
+      "file": "capri-idle-surprised_closed.png",
+      "kind": "micro_frame",
+      "canPersist": false,
+      "label": "surprised closed",
+      "description": "Standing; surprised.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "022f2fa7cdbe72e4c6017bb2f22015118686b78e1487875baf9cf438f311259b"
+    },
+    {
+      "id": "surprised",
+      "pose": "idle",
+      "expression": "surprised",
+      "file": "capri-idle-surprised.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Surprised",
+      "description": "Standing; surprised.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "13c3967727953fb38c33505c3985df60ffdbec94b1aa166a173977675faa1a00"
+    },
+    {
+      "id": "thinking",
+      "pose": "idle",
+      "expression": "thinking",
+      "file": "capri-idle-thinking.png",
+      "kind": "expression",
+      "canPersist": true,
+      "label": "Standing · Thoughtful",
+      "description": "Standing; thoughtful.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "22468b1fafa6f0c783ae772fca21487ec3b74bf067efc08d53e6f0fa88a03e0a"
+    },
+    {
+      "id": "idle-wink_closed",
+      "pose": "idle",
+      "expression": "flirty",
+      "file": "capri-idle-wink_closed.png",
+      "kind": "reaction_frame",
+      "canPersist": false,
+      "label": "wink closed",
+      "description": "Standing; flirty.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "9c9a873d27420358f9fdfcd707f17b594f1547e7c6b1aa333b7d247cc2bbb96f"
+    },
+    {
+      "id": "idle-wink_half",
+      "pose": "idle",
+      "expression": "flirty",
+      "file": "capri-idle-wink_half.png",
+      "kind": "reaction_frame",
+      "canPersist": false,
+      "label": "wink half",
+      "description": "Standing; flirty.",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 210,
+        "y": 115,
+        "width": 835,
+        "height": 1052
+      },
+      "sha256": "9c0636b2ef823021e6b8f31e9d744ac267cf615af73e8065aaf6c3385ae05728"
+    }
+  ],
+  "actions": [
+    {
+      "id": "wink",
+      "animation": "wink",
+      "frame": "flirty",
+      "returnTo": "flirty",
+      "label": "wink",
+      "description": "A playful wink when the conversation invites it."
+    },
+    {
+      "id": "laugh",
+      "animation": "laugh",
+      "frame": "smirk",
+      "returnTo": "happy",
+      "label": "laugh",
+      "description": "A brief laugh for something genuinely funny."
+    },
+    {
+      "id": "excited",
+      "animation": "excited",
+      "frame": "happy",
+      "returnTo": "happy",
+      "label": "excited",
+      "description": "Brief excitement or celebration of good news."
+    }
+  ],
+  "clips": [
+    {
+      "id": "blink",
+      "frames": [
+        {
+          "id": "neutral",
+          "ms": 1700
+        },
+        {
+          "id": "idle-blink_half",
+          "ms": 60
+        },
+        {
+          "id": "idle-blink_closed",
+          "ms": 80
+        },
+        {
+          "id": "idle-blink_half",
+          "ms": 60
+        },
+        {
+          "id": "neutral",
+          "ms": 600
+        }
+      ]
+    },
+    {
+      "id": "speech",
+      "frames": [
+        {
+          "id": "neutral",
+          "ms": 300
+        },
+        {
+          "id": "idle-mouth_small",
+          "ms": 110
+        },
+        {
+          "id": "idle-mouth_round",
+          "ms": 140
+        },
+        {
+          "id": "idle-mouth_wide",
+          "ms": 120
+        },
+        {
+          "id": "idle-mouth_round",
+          "ms": 140
+        },
+        {
+          "id": "idle-mouth_small",
+          "ms": 110
+        },
+        {
+          "id": "neutral",
+          "ms": 350
+        }
+      ]
+    },
+    {
+      "id": "wink",
+      "frames": [
+        {
+          "id": "flirty",
+          "ms": 350
+        },
+        {
+          "id": "idle-wink_half",
+          "ms": 60
+        },
+        {
+          "id": "idle-wink_closed",
+          "ms": 107
+        },
+        {
+          "id": "idle-wink_half",
+          "ms": 60
+        },
+        {
+          "id": "flirty",
+          "ms": 600
+        }
+      ]
+    },
+    {
+      "id": "laugh",
+      "frames": [
+        {
+          "id": "smirk",
+          "ms": 140
+        },
+        {
+          "id": "idle-laughing",
+          "ms": 1300
+        },
+        {
+          "id": "happy",
+          "ms": 300
+        }
+      ]
+    },
+    {
+      "id": "excited",
+      "frames": [
+        {
+          "id": "happy",
+          "ms": 140
+        },
+        {
+          "id": "idle-excited",
+          "ms": 1400
+        },
+        {
+          "id": "happy",
+          "ms": 300
+        }
+      ]
+    },
+    {
+      "id": "gaze",
+      "frames": [
+        {
+          "id": "idle-look_left",
+          "ms": 650
+        },
+        {
+          "id": "idle-look_up",
+          "ms": 650
+        },
+        {
+          "id": "idle-look_right",
+          "ms": 650
+        },
+        {
+          "id": "idle-look_down",
+          "ms": 650
+        }
+      ]
+    },
+    {
+      "id": "surprise",
+      "frames": [
+        {
+          "id": "surprised",
+          "ms": 900
+        },
+        {
+          "id": "idle-surprised_closed",
+          "ms": 147
+        },
+        {
+          "id": "surprised",
+          "ms": 900
+        }
+      ]
+    },
+    {
+      "id": "sleepy",
+      "frames": [
+        {
+          "id": "sleepy",
+          "ms": 2320
+        }
+      ]
+    }
+  ],
+  "autonomy": {
+    "enabled": true,
+    "startExpanded": true,
+    "firstActivityMs": 18000,
+    "activityGapMs": 12000
+  },
+  "excluded": {
+    "kinds": [
+      "walk_frame"
+    ],
+    "poses": [
+      "walk_left",
+      "walk_right"
+    ],
+    "reason": "Walking was rejected by the owner."
+  }
+}

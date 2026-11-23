@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "productId": "capri.desktop",
+  "platform": "win32-x64",
+  "minimumWindowsBuild": 17763,
+  "recommendedWindowsBuild": 19045,
+  "legacyWindowsStatus": "experimental",
+  "storage": {
+    "npmDownloadMiB": 192,
+    "coreExpandedMiB": 3584,
+    "nodeExpandedMiB": 128,
+    "reserveMiB": 1024,
+    "embeddingBytes": 1157672831,
+    "englishVoiceBytes": 2987690140,
+    "python": { "downloadMiB": 27, "expandedMiB": 80 },
+    "recognition": { "downloadMiB": 144, "expandedMiB": 352 },
+    "router": { "downloadMiB": 48, "expandedMiB": 128 },
+    "cudaVoice": { "downloadMiB": 3379, "expandedMiB": 5632 },
+    "rocmVoice": { "downloadMiB": 2560, "expandedMiB": 6144 },
+    "qwenVoice": { "downloadMiB": 700, "expandedMiB": 4200 }
+  },
+  "artifacts": {
+    "electron": {
+      "version": "45.3.1",
+      "url": "https://github.com/electron/electron/releases/download/v45.3.1/electron-v45.3.1-win32-x64.zip",
+      "mirrors": ["https://npmmirror.com/mirrors/electron/45.3.1/electron-v45.3.1-win32-x64.zip"],
+      "sha256": "d92d1aa4700e3a7e7f174731f5086ebd9c21f9773e642b260160fe0a6ebe12d2",
+      "bytes": 158352921,
+      "directory": "electron"
+    },
+    "node": {
+      "version": "24.22.1",
+      "url": "https://nodejs.org/dist/v24.22.1/node-v24.22.1-win-x64.zip",
+      "mirrors": ["https://cdn.npmmirror.com/binaries/node/v24.22.1/node-v24.22.1-win-x64.zip"],
+      "sha256": "d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5",
+      "bytes": 37748064,
+      "directory": "node-v24.22.1-win-x64"
+    },
+    "llama": {
+      "version": "b12317",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12317/llama-b12317-bin-win-vulkan-x64.zip",
+      "mirrors": [
+        "https://gh-proxy.org/https://github.com/ggml-org/llama.cpp/releases/download/b12317/llama-b12317-bin-win-vulkan-x64.zip"
+      ],
+      "sha256": "968a487604622f4194d0451d77a92b6a7cff1c29338e88841dd38472c81013ca",
+      "bytes": 38051900,
+      "expandedBytes": 106633501,
+      "directory": "llama-b12317-vulkan"
+    },
+    "git": {
+      "version": "2.56.0.4",
+      "url": "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/MinGit-2.56.0.4-64-bit.zip",
+      "sha256": "e3bf78351fe777fba47ddee5950082f8a98bb0f02604fdc7ba3ee2cb68ffa877",
+      "bytes": 39846926,
+      "directory": "git"
+    },
+    "uv": {
+      "version": "0.13.5",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-pc-windows-msvc.zip",
+      "sha256": "a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a",
+      "bytes": 15264056,
+      "directory": "uv"
+    }
+  },
+  "profiles": [
+    {
+      "id": "minimal",
+      "ramGiB": 8,
+      "model": "qwen3.5:0.8b",
+      "recommendedVramGiB": 0
+    },
+    {
+      "id": "balanced",
+      "ramGiB": 16,
+      "model": "qwen3.5:2b",
+      "recommendedVramGiB": 4
+    },
+    {
+      "id": "desktop",
+      "ramGiB": 24,
+      "model": "qwen3.5:4b",
+      "recommendedVramGiB": 8
+    },
+    {
+      "id": "quality",
+      "ramGiB": 32,
+      "model": "qwen3.5:9b",
+      "recommendedVramGiB": 12
+    },
+    {
+      "id": "ministral-3-3b",
+      "ramGiB": 16,
+      "model": "ministral-3:3b",
+      "recommendedVramGiB": 6,
+      "experimental": true
+    },
+    {
+      "id": "gemma4-e2b",
+      "ramGiB": 24,
+      "model": "gemma4:e2b",
+      "recommendedVramGiB": 12,
+      "experimental": true
+    }
+  ]
+}

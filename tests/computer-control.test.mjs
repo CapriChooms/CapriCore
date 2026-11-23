@@ -1,0 +1,1329 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { ComputerControl } from '../apps/desktop/computer-control.mjs';
+import { computerPlanner } from '../apps/desktop/computer-planner.mjs';
+import { computerVision } from '../apps/desktop/computer-vision.mjs';
+import { cyberpunkLauncherTarget } from '../apps/desktop/steam-game-launch.mjs';
+
+function fixture() {
+  const state = { allowed: true, turn: 'owner-1', visible: false, registered: false, calls: [] };
+  state.bridge = async (command) => {
+    state.calls.push(command);
+    if (command.action === 'computer_state')
+      return {
+        ok: true,
+        windowId: '123',
+        processId: '456',
+        startedAtTicks: '789',
+        untrustedTitle: 'Owned fixture',
+        untrustedControls: [{ id: 'field', untrustedName: 'Draft', x: 12, y: 34, editable: true }],
+      };
+    return { ok: true, confirmation: 'Fixture action completed.' };
+  };
+  const control = new ComputerControl({
+    allowed: () => state.allowed,
+    canStart: () => true,
+    currentTurn: () => state.turn,
+    bridge: (...args) => state.bridge(...args),
+    capture: async () => ({
+      png: Buffer.from('private transient fixture image'),
+      width: 100,
+      height: 100,
+      bounds: { x: 1000, y: 200, width: 200, height: 100 },
+    }),
+    describe: async () => ({
+      summary: 'Fixture screen.',
+      targets: [{ label: 'Button', x: 70, y: 50 }],
+    }),
+    registerEscape: (stop) => {
+      state.escape = stop;
+      state.registered = true;
+      return true;
+    },
+    unregisterEscape: () => {
+      state.registered = false;
+    },
+    showBorder: async () => {
+      state.visible = true;
+    },
+    hideBorder: () => {
+      state.visible = false;
+    },
+  });
+  return { state, control };
+}
+
+test('the idle planner permits only a nudge or skip and receives no desktop data', async () => {
+  let answer = { action: 'right' };
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:12345',
+    model: 'fixture',
+    fetchImpl: async (_url, { body }) => {
+      const { messages, tools } = JSON.parse(body);
+      assert.deepEqual(tools, []);
+      assert.deepEqual(
+        messages.map(({ role }) => role),
+        ['system'],
+      );
+      return Response.json({ done: true, message: { content: JSON.stringify(answer) } });
+    },
+  });
+  assert.deepEqual(await plan.idleCursor(), { action: 'right' });
+  answer = { action: 'skip' };
+  assert.deepEqual(await plan.idleCursor(), { action: 'skip' });
+  answer = { action: 'click' };
+  await assert.rejects(plan.idleCursor(), { code: 'COMPUTER_PLAN_SCHEMA' });
+});
+
+test('idle cursor uses the indicator and Escape, requires permission, and sends one fixed action', async () => {
+  const { state, control } = fixture();
+  state.allowed = false;
+  assert.equal(await control.runIdleCursor('left', () => true), false);
+  state.allowed = true;
+  assert.equal(await control.runIdleCursor('left', () => false), false);
+  assert.equal(await control.runIdleCursor('click', () => true), false);
+  state.bridge = async (command, { stillAllowed }) => {
+    assert.equal(state.registered && state.visible && stillAllowed(), true);
+    state.calls.push(command);
+    return { moved: true };
+  };
+  assert.equal(await control.runIdleCursor('right', () => true), true);
+  assert.deepEqual(state.calls, [{ action: 'idle_cursor_nudge', direction: 'right' }]);
+  assert.equal(state.registered || state.visible || control.snapshot().active, false);
+});
+
+test('idle cursor cannot be used by a chat tool and Escape interrupts it before input', async () => {
+  const { state, control } = fixture();
+  const shown = Promise.withResolvers();
+  control.showBorder = async () => shown.resolve();
+  const pending = control.runIdleCursor('left', () => true);
+  const cancelled = assert.rejects(pending, /cancelled|aborted/i);
+  await shown.promise;
+  await assert.rejects(control.execute({ action: 'observe' }), /owner-requested session/i);
+  state.escape();
+  await cancelled;
+  assert.deepEqual(state.calls, []);
+  await control.begin('Open the fixture');
+  assert.equal(control.snapshot().active, true);
+  await control.stop();
+});
+
+test('returning to the desktop after the indicator opens cancels a scheduled cursor prank', async () => {
+  const { state, control } = fixture();
+  const shown = Promise.withResolvers();
+  let idle = true;
+  control.showBorder = async () => shown.resolve();
+  const pending = control.runIdleCursor('left', () => idle);
+  const outcome = assert.rejects(pending, /cancelled|aborted/i);
+  await shown.promise;
+  idle = false;
+  assert.equal(control.supervise({ indicatorVisible: true }), false);
+  await outcome;
+  assert.deepEqual(state.calls, []);
+  assert.equal(control.snapshot().active, false);
+});
+
+test('a native input failure consumes the observation and an in-flight action excludes overlapping input', async () => {
+  const { state, control } = fixture();
+  const bridge = state.bridge;
+  const dispatched = Promise.withResolvers();
+  const response = Promise.withResolvers();
+  state.bridge = async (command) => {
+    if (command.action === 'computer_click') {
+      dispatched.resolve();
+      return response.promise;
+    }
+    return bridge(command);
+  };
+  try {
+    await control.begin('Click the fixture');
+    const view = await control.execute({ action: 'observe', vision: false });
+    const click = {
+      action: 'click',
+      observationId: view.observationId,
+      targetId: view.targets[0].targetId,
+    };
+    const action = control.execute(click);
+    const rejection = assert.rejects(action, /native receipt unavailable/);
+    await dispatched.promise;
+    await assert.rejects(control.execute(click), /current computer action/);
+    await assert.rejects(control.execute({ action: 'observe' }), /current computer action/);
+    response.reject(Error('native receipt unavailable'));
+    await rejection;
+    await assert.rejects(control.execute(click), /Observe the current target/);
+    const next = await control.execute({ action: 'observe', vision: false });
+    await assert.rejects(
+      control.execute({ ...click, targetId: next.targets[0].targetId }),
+      /latest observe result/,
+    );
+  } finally {
+    await control.stop();
+  }
+});
+
+test('bound vision captures the whole display and rejects a reused handle', async () => {
+  const { state, control } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    return command.action === 'computer_state'
+      ? { ...result, x: -400, y: 50, width: 800, height: 600 }
+      : result;
+  };
+  const captures = [];
+  const capture = control.capture;
+  control.capture = async (options) => {
+    captures.push(options.displayWindow);
+    assert.equal(options.windowBounds, undefined);
+    return { ...(await capture(options)), bounds: { x: -600, y: 0, width: 2000, height: 1000 } };
+  };
+  control.describe = async () => ({
+    summary: 'An app and the Windows taskbar.',
+    targets: [
+      { label: 'Behind the active window', x: 70, y: 50 },
+      { label: 'Inside the active window', x: 30, y: 40 },
+      { label: 'Taskbar button', x: 20, y: 97 },
+    ],
+  });
+  const stateWithGeometry = state.bridge;
+  state.bridge = async (command) => {
+    const result = await stateWithGeometry(command);
+    if (command.action === 'computer_state')
+      result.desktopSurfaces = [
+        {
+          kind: 'taskbar',
+          windowId: '10',
+          processId: '11',
+          startedAtTicks: '12',
+          x: -600,
+          y: 950,
+          width: 2000,
+          height: 50,
+        },
+      ];
+    return result;
+  };
+  try {
+    await control.begin('Observe the bound fixture');
+    const visualWindow = { windowId: '123', processId: 456, startedAtTicks: '789' };
+    const bound = await control.execute({ action: 'observe', vision: true, visualWindow });
+    assert.equal(bound.screenAvailable, true);
+    const stale = await control.execute({
+      action: 'observe',
+      vision: true,
+      visualWindow: { ...visualWindow, startedAtTicks: '888' },
+    });
+    assert.equal(stale.screenAvailable, false);
+    assert.equal(
+      bound.targets.some((target) => target.untrustedLabel === 'Behind the active window'),
+      false,
+    );
+    const taskbar = bound.targets.find((target) => target.untrustedLabel === 'Taskbar button');
+    assert.equal(taskbar.surface, 'taskbar');
+    assert.deepEqual(taskbar.position, { x: 21, y: 98 });
+    assert.equal(
+      bound.targets.some((target) => target.untrustedLabel === 'Inside the active window'),
+      true,
+    );
+    assert.deepEqual(captures, ['123']);
+  } finally {
+    await control.stop();
+  }
+});
+
+test('the last allowed action can be verified without permitting another input', async () => {
+  const { state, control } = fixture();
+  try {
+    await control.begin('Click the fixture once', { maxSteps: 1 });
+    const before = await control.execute({ action: 'observe', vision: false });
+    await control.execute({ action: 'click', targetId: before.targets[0].targetId });
+    const after = await control.execute({ action: 'observe', vision: false });
+    assert.notEqual(after.observationId, before.observationId);
+    await assert.rejects(
+      control.execute({ action: 'click', targetId: after.targets[0].targetId }),
+      /computer action limit/,
+    );
+    assert.equal(state.calls.filter(({ action }) => action === 'computer_click').length, 1);
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a screenshot with mismatched monitor bounds cannot override current Windows targets', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action === 'computer_state')
+      result.displayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
+    return result;
+  };
+  control.capture = async () => ({
+    bounds: { x: 0, y: 0, width: 1919, height: 1080 },
+    width: 1280,
+    height: 720,
+  });
+  control.describe = async () => ({
+    summary: 'A screenshot with a misplaced button.',
+    targets: [{ label: 'Old button', x: 200, y: 200 }],
+  });
+  await control.begin('Check current controls');
+  try {
+    const view = await control.execute({ action: 'observe', vision: true });
+    assert.equal(view.screenAvailable, false);
+    assert.equal(view.visionStatus, 'unavailable');
+    assert.deepEqual(
+      view.targets.map(({ untrustedLabel }) => untrustedLabel),
+      ['Draft'],
+    );
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a browser document URL is visible as navigation evidence and cannot receive input', async () => {
+  const { control, state } = fixture();
+  const execute = state.bridge;
+  state.bridge = async (command) => {
+    const result = await execute(command);
+    if (command.action === 'computer_state')
+      result.untrustedControls.push({
+        id: 'doc',
+        type: 'ControlType.Document',
+        untrustedName: 'Article',
+        untrustedValue: 'https://example.com/article',
+        browserAddress: true,
+        browserDocumentAddress: true,
+        x: 25,
+        y: 50,
+        editable: false,
+      });
+    return result;
+  };
+  try {
+    await control.begin('Verify an article');
+    const view = await control.execute({ action: 'observe', vision: false });
+    const document = view.targets.find((target) => target.browserDocumentAddress);
+    assert.equal(document?.untrustedValue, 'https://example.com/article');
+    await assert.rejects(
+      control.execute({ action: 'click', targetId: document.targetId }),
+      /actual targetId/,
+    );
+    await assert.rejects(
+      control.execute({
+        action: 'drag',
+        targetId: document.targetId,
+        toTargetId: view.targets[0].targetId,
+      }),
+      /two current targets/,
+    );
+    assert.ok(
+      !state.calls.some((command) => ['computer_click', 'computer_drag'].includes(command.action)),
+    );
+  } finally {
+    await control.stop();
+  }
+});
+
+test('workflow ownership survives startup supervision without a chat, while revocation and lost Escape still stop it', async () => {
+  for (const reason of ['permission', 'turn', 'escape']) {
+    const { control, state } = fixture();
+    let workflowTurn = 'reviewed-workflow';
+    control.currentTurn = () => workflowTurn;
+    control.canStart = () => Boolean(workflowTurn);
+    let started, finish;
+    const showing = new Promise((resolve) => {
+      started = resolve;
+    });
+    control.showBorder = () =>
+      new Promise((resolve) => {
+        finish = () => {
+          state.visible = true;
+          resolve();
+        };
+        started();
+      });
+    const beginning = control.begin('Saved workflow without a chat turn');
+    await showing;
+    for (let tick = 0; tick < 4; tick++)
+      assert.equal(control.supervise({ indicatorVisible: true, escapeAvailable: false }), true);
+    finish();
+    await beginning;
+    assert.equal(control.supervise({ indicatorVisible: true, escapeAvailable: true }), true);
+    await control.execute({ action: 'observe', vision: false });
+    if (reason === 'permission') state.allowed = false;
+    if (reason === 'turn') workflowTurn = null;
+    assert.equal(
+      control.supervise({ indicatorVisible: true, escapeAvailable: reason !== 'escape' }),
+      false,
+    );
+    await control.stopping;
+    assert.equal(state.visible, false);
+    assert.equal(control.session, null);
+  }
+});
+
+test('owner cancellation during indicator startup is immediate and is not reported as a visibility timeout', async () => {
+  const { control, state } = fixture(),
+    owner = new AbortController();
+  let started;
+  const showing = new Promise((resolve) => {
+    started = resolve;
+  });
+  control.showBorder = () => {
+    started();
+    return new Promise(() => {});
+  };
+  const beginning = control.begin('Cancel a workflow during startup', { signal: owner.signal });
+  await showing;
+  owner.abort();
+  await assert.rejects(beginning, /cancelled/);
+  assert.equal(state.visible, false);
+  assert.equal(control.session, null);
+  state.visible = true;
+  assert.equal(control.supervise({ indicatorVisible: true }), false);
+  await control.stopping;
+  assert.equal(state.visible, false);
+});
+
+test('task cleanup permits another session in the same turn, but Escape still blocks it', async () => {
+  const { control, state } = fixture();
+  await control.begin('First task');
+  await control.stop({ blockTurn: false });
+  assert.equal(state.visible, false);
+  await control.begin('Second task');
+  state.escape();
+  await assert.rejects(control.begin('Retry after Escape'), /stopped for this turn/);
+  state.turn = 'owner-2';
+  await control.begin('New request');
+  await control.stop();
+});
+
+test('stop clears an orphan indicator even without a session or when unregistering Escape fails', async () => {
+  const { control, state } = fixture();
+  state.visible = true;
+  control.unregisterEscape = () => {
+    throw new Error('Synthetic unregister failure');
+  };
+  assert.equal((await control.stop()).active, false);
+  assert.equal(state.visible, false);
+  state.visible = true;
+  assert.equal((await control.stop()).active, false);
+  assert.equal(state.visible, false);
+});
+
+test('Escape releases held input immediately and stop stays bounded if the native helper ignores abort', async () => {
+  const f = fixture();
+  f.control.cleanupTimeoutMs = 15;
+  await f.control.begin('Hold a key in the owned fixture');
+  const view = await f.control.execute({ action: 'observe', vision: false });
+  let entered, finishNative, finishHide;
+  const started = new Promise((resolve) => {
+    entered = resolve;
+  });
+  const base = f.state.bridge;
+  f.state.bridge = (command, options) => {
+    if (command.action !== 'computer_keys') return base(command, options);
+    f.state.calls.push(command);
+    entered();
+    return new Promise((resolve) => {
+      finishNative = resolve;
+    });
+  };
+  const pending = f.control.execute({
+    action: 'press_keys',
+    observationId: view.observationId,
+    keys: ['W'],
+    holdMs: 2000,
+  });
+  await started;
+  let hides = 0;
+  f.control.hideBorder = () => {
+    f.state.visible = false;
+    if (++hides === 1)
+      return new Promise((resolve) => {
+        finishHide = resolve;
+      });
+  };
+  const stopping = f.control.stop();
+  assert.equal(f.state.visible, false);
+  assert.equal(f.state.registered, true, 'Escape stays armed until the hide attempt completes');
+  assert.ok(
+    f.state.calls.some(
+      (command) => command.action === 'computer_release' && command.keys.includes('W'),
+    ),
+  );
+  finishHide();
+  const result = await Promise.race([
+    stopping,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Stop hung on a native promise')), 300),
+    ),
+  ]);
+  assert.equal(result.active, false);
+  assert.equal(f.state.registered, false);
+  assert.ok(f.state.calls.filter((command) => command.action === 'computer_release').length >= 2);
+  finishNative({ ok: true });
+  await assert.rejects(pending, /stopped/);
+});
+
+test('callback failures cannot bypass held-input cleanup and native text entry has its own release record', async () => {
+  const f = fixture();
+  await f.control.begin('Enter text in the owned field');
+  const view = await f.control.execute({ action: 'observe', vision: false });
+  const base = f.state.bridge;
+  f.state.bridge = (command, options) => {
+    if (command.action !== 'computer_type') return base(command, options);
+    throw new Error('Synthetic native type failure');
+  };
+  await assert.rejects(
+    f.control.execute({
+      action: 'enter_text',
+      targetId: view.targets[0].targetId,
+      text: 'fixture',
+    }),
+    /Synthetic native type failure/,
+  );
+  assert.ok(
+    f.state.calls.some(
+      (command) =>
+        command.action === 'computer_release' &&
+        command.button === 'left' &&
+        command.keys.includes('CTRL'),
+    ),
+  );
+  const releases = f.state.calls.filter((command) => command.action === 'computer_release');
+  for (const key of ['CTRL', 'SHIFT', 'L', 'HOME', 'END'])
+    assert.ok(releases.some((command) => command.keys.includes(key)));
+  assert.ok(releases.every((command) => command.keys.length <= 4));
+  f.control.hideBorder = () => {
+    f.state.visible = false;
+    throw new Error('Synthetic hide failure');
+  };
+  f.control.unregisterEscape = () => {
+    f.state.registered = false;
+    throw new Error('Synthetic unregister failure');
+  };
+  await f.control.stop();
+  assert.equal(f.state.visible, false);
+  assert.equal(f.state.registered, false);
+});
+
+test('failed Escape registration cannot leave a session or an old indicator alive', async () => {
+  for (const register of [
+    () => false,
+    () => {
+      throw new Error('Synthetic registration failure');
+    },
+    async () => false,
+  ]) {
+    const f = fixture();
+    f.state.visible = true;
+    f.control.registerEscape = register;
+    await assert.rejects(
+      f.control.begin('Do not start without emergency stop'),
+      /Escape emergency stop is unavailable/,
+    );
+    assert.equal(f.control.snapshot().active, false);
+    assert.equal(f.state.visible, false);
+  }
+});
+
+test('arming registration and a loading indicator cannot expose observation or concurrent ready sessions', async () => {
+  for (const phase of ['registration', 'indicator']) {
+    const f = fixture();
+    let release, entered;
+    const waiting = new Promise((resolve) => {
+      entered = resolve;
+    });
+    if (phase === 'registration')
+      f.control.registerEscape = () =>
+        new Promise((resolve) => {
+          release = () => resolve(true);
+          entered();
+        });
+    else
+      f.control.showBorder = () =>
+        new Promise((resolve) => {
+          release = () => {
+            f.state.visible = true;
+            resolve();
+          };
+          entered();
+        });
+    const beginning = f.control.begin('Arm safely before observing');
+    await waiting;
+    assert.equal(f.control.snapshot().active, false);
+    await assert.rejects(f.control.execute({ action: 'observe' }), /not ready/);
+    await assert.rejects(f.control.begin('Concurrent request'), /current operation/);
+    assert.equal(f.state.calls.length, 0);
+    release();
+    assert.equal((await beginning).active, true);
+    await f.control.stop();
+  }
+});
+
+test('an old failed registration cannot stop a newer session', async () => {
+  const f = fixture();
+  let finishOld;
+  f.control.registerEscape = () =>
+    new Promise((resolve) => {
+      finishOld = resolve;
+    });
+  const old = f.control.begin('Old pending task');
+  await f.control.stop({ blockTurn: false });
+  f.state.turn = 'owner-2';
+  f.control.registerEscape = () => true;
+  await f.control.begin('New owner task');
+  finishOld(false);
+  await assert.rejects(old, /Escape emergency stop/);
+  assert.equal(f.control.snapshot().active, true);
+  assert.equal(f.state.visible, true);
+  await f.control.stop();
+});
+
+test('an ended or aborted owner turn cannot reuse a session or keep native input authorized', async () => {
+  for (const change of ['ended', 'aborted']) {
+    const f = fixture();
+    let cancelled = false;
+    f.control.canStart = () => !cancelled;
+    await f.control.begin('Owned fixture task');
+    const view = await f.control.execute({ action: 'observe', vision: false });
+    let allowedDuringInput;
+    const base = f.state.bridge;
+    f.state.bridge = (command, options) => {
+      if (command.action === 'computer_keys') allowedDuringInput = options.stillAllowed;
+      return base(command, options);
+    };
+    await f.control.execute({
+      action: 'press_keys',
+      observationId: view.observationId,
+      keys: ['TAB'],
+    });
+    assert.equal(allowedDuringInput(), true);
+    if (change === 'ended') f.state.turn = 'owner-2';
+    else cancelled = true;
+    assert.equal(allowedDuringInput(), false);
+    await assert.rejects(f.control.execute({ action: 'observe', vision: false }), /stopped/);
+    await f.control.stop();
+    assert.equal(f.control.snapshot().active, false);
+    assert.equal(f.state.visible, false);
+  }
+});
+
+test('stop during indicator startup prevents queued or late indicator activation', async () => {
+  const f = fixture();
+  let shown = 0;
+  f.control.showBorder = async () => {
+    shown++;
+    f.state.visible = true;
+  };
+  const beginning = f.control.begin('Cancel before the indicator opens');
+  await f.control.stop({ blockTurn: false });
+  await assert.rejects(beginning, /indicator|cancelled/);
+  assert.equal(shown, 0);
+  assert.equal(f.state.visible, false);
+
+  const late = fixture();
+  late.control.cleanupTimeoutMs = 15;
+  let entered, finish;
+  const starting = new Promise((resolve) => {
+    entered = resolve;
+  });
+  late.control.showBorder = () =>
+    new Promise((resolve) => {
+      entered();
+      finish = () => {
+        late.state.visible = true;
+        resolve();
+      };
+    });
+  const pending = late.control.begin('Cancel a loading indicator');
+  await starting;
+  await late.control.stop();
+  finish();
+  await assert.rejects(pending, /indicator|cancelled/);
+  assert.equal(late.state.visible, false);
+});
+
+test('drag uses two fresh app targets, rejects taskbar destinations and releases the mouse when cancelled', async () => {
+  const f = fixture(),
+    base = f.state.bridge;
+  f.state.bridge = async (...args) => {
+    const value = await base(...args);
+    if (value.untrustedControls)
+      value.untrustedControls.push({
+        id: 'destination',
+        untrustedName: 'Timeline',
+        x: 80,
+        y: 90,
+        editable: false,
+      });
+    return value;
+  };
+  f.control.pointerDuration = () => 640;
+  await f.control.begin('Drag the test clip');
+  const view = await f.control.execute({ action: 'observe', vision: false });
+  await assert.rejects(
+    f.control.execute({ action: 'drag', targetId: view.targets[0].targetId, toTargetId: 'old' }),
+    /two current/,
+  );
+  let entered;
+  const started = new Promise((resolve) => (entered = resolve)),
+    normal = f.state.bridge;
+  f.state.bridge = (command, options = {}) => {
+    if (command.action !== 'computer_drag') return normal(command, options);
+    f.state.calls.push(command);
+    entered();
+    return new Promise((resolve, reject) =>
+      options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true }),
+    );
+  };
+  const pending = f.control.execute({
+    action: 'drag',
+    targetId: view.targets[0].targetId,
+    toTargetId: view.targets[1].targetId,
+  });
+  await started;
+  assert.equal(f.state.calls.at(-1).toControlId, 'destination');
+  assert.equal(f.state.calls.at(-1).durationMs, 640);
+  f.state.escape();
+  await assert.rejects(pending, /stopped/);
+  assert(f.state.calls.some((c) => c.action === 'computer_release' && c.button === 'left'));
+});
+
+test('observed taskbar targets retain their shell identity and origin window, without allowing keyboard input to the shell', async () => {
+  const f = fixture(),
+    original = f.state.bridge;
+  f.state.bridge = async (args) => {
+    const result = await original(args);
+    if (args.action === 'computer_state') {
+      result.desktopSurfaces = [
+        {
+          kind: 'taskbar',
+          windowId: '900',
+          processId: '901',
+          startedAtTicks: '902',
+          x: 0,
+          y: 1000,
+          width: 1920,
+          height: 80,
+        },
+      ];
+      result.untrustedControls.push({
+        id: 'discord',
+        untrustedName: 'Discord',
+        x: 500,
+        y: 1040,
+        editable: false,
+        surface: 'taskbar',
+        surfaceWindowId: '900',
+        surfaceProcessId: '901',
+        surfaceStartedAtTicks: '902',
+      });
+    }
+    return result;
+  };
+  f.control.bridge = (...args) => f.state.bridge(...args);
+  await f.control.begin('Open Discord from the taskbar.');
+  const view = await f.control.execute({ action: 'observe', vision: false });
+  const discord = view.targets.find((t) => t.untrustedLabel === 'Discord');
+  assert.equal(discord.surface, 'taskbar');
+  assert.equal(view.desktop.taskbarAvailable, true);
+  await f.control.execute({ action: 'click', targetId: discord.targetId });
+  const clicked = f.state.calls.find((c) => c.action === 'computer_click');
+  assert.equal(clicked.windowId, '900');
+  assert.equal(clicked.originWindowId, '123');
+  assert.equal(clicked.originProcessId, '456');
+  assert.equal(clicked.surface, 'taskbar');
+  const fresh = await f.control.execute({ action: 'observe', vision: false });
+  await f.control.execute({
+    action: 'press_keys',
+    observationId: fresh.observationId,
+    keys: ['TAB'],
+  });
+  const keys = f.state.calls.find((c) => c.action === 'computer_keys');
+  assert.equal(keys.windowId, '123');
+  assert.equal(keys.surface, undefined);
+  await f.control.stop();
+});
+
+test('computer sessions require full access, visible emergency stop and a fresh observation before input', async () => {
+  const f = fixture();
+  f.state.allowed = false;
+  await assert.rejects(f.control.begin('Test the owned fixture'), /Full computer access/);
+  f.state.allowed = true;
+  await f.control.begin('Test the owned fixture');
+  assert.equal(f.state.visible, true);
+  assert.equal(f.state.registered, true);
+  await assert.rejects(f.control.execute({ action: 'press_keys', keys: ['A'] }), /Observe/);
+  const view = await f.control.execute({ action: 'observe' });
+  assert.equal(view.screenAvailable, true);
+  assert.equal(JSON.stringify(view).includes('private transient'), false);
+  const button = view.targets.find((entry) => entry.untrustedLabel === 'Button');
+  await f.control.execute({ action: 'click', targetId: button.targetId });
+  assert.deepEqual(
+    f.state.calls.find((c) => c.action === 'computer_click'),
+    {
+      action: 'computer_click',
+      windowId: '123',
+      processId: '456',
+      startedAtTicks: '789',
+      x: 1141,
+      y: 250,
+      button: 'left',
+      clickCount: 1,
+      durationMs: 220,
+    },
+  );
+  await assert.rejects(
+    f.control.execute({ action: 'click', targetId: button.targetId }),
+    /Observe/,
+  );
+  await f.control.stop();
+  assert.equal(f.state.visible, false);
+  assert.equal(f.state.registered, false);
+});
+
+test('mouse hovering passes the observed native element so its current position can be resolved again', async () => {
+  const f = fixture();
+  await f.control.begin('Hover the draft field');
+  const view = await f.control.execute({ action: 'observe', vision: false });
+  await f.control.execute({ action: 'move_pointer', targetId: view.targets[0].targetId });
+  assert.equal(f.state.calls.at(-1).action, 'computer_pointer');
+  assert.equal(f.state.calls.at(-1).controlId, 'field');
+  assert.equal(
+    f.state.calls.some((call) => call.action === 'computer_click'),
+    false,
+  );
+  await f.control.stop();
+});
+
+test('Escape aborts held input, releases injected keys and cannot be undone by the same model turn', async () => {
+  const f = fixture();
+  await f.control.begin('Hold W in the owned fixture');
+  const view = await f.control.execute({ action: 'observe' });
+  let started;
+  const beginning = new Promise((resolve) => {
+    started = resolve;
+  });
+  const base = f.state.bridge;
+  f.state.bridge = (command, { signal } = {}) => {
+    if (command.action !== 'computer_keys') return base(command);
+    f.state.calls.push(command);
+    started();
+    return new Promise((_, reject) =>
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
+    );
+  };
+  const pending = f.control.execute({
+    action: 'press_keys',
+    observationId: view.observationId,
+    keys: ['W'],
+    holdMs: 2000,
+  });
+  await beginning;
+  f.state.escape();
+  await assert.rejects(pending, /stopped/);
+  assert.ok(f.state.calls.some((c) => c.action === 'computer_release' && c.keys[0] === 'W'));
+  assert.equal(f.state.visible, false);
+  await assert.rejects(f.control.begin('Resume without a new owner message'), /new owner request/);
+  f.state.turn = 'owner-2';
+  await f.control.begin('A new explicit owner request');
+  await f.control.stop();
+});
+
+test('stale targets, unsupported keys and revoked permission cannot inject input', async () => {
+  const f = fixture();
+  let now = 0;
+  f.control.now = () => now;
+  await f.control.begin('Test fixture');
+  const old = await f.control.execute({ action: 'observe' });
+  let fresh = await f.control.execute({ action: 'observe' });
+  await assert.rejects(
+    f.control.execute({ action: 'click', targetId: old.targets[0].targetId }),
+    /actual targetId/,
+  );
+  now += 31000;
+  await assert.rejects(
+    f.control.execute({ action: 'click', targetId: fresh.targets[0].targetId }),
+    { code: 'COMPUTER_OBSERVATION_CHANGED', inputPerformed: false },
+  );
+  fresh = await f.control.execute({ action: 'observe' });
+  for (const keys of [['ESCAPE'], ['A', 'A'], ['COMMAND'], ['CTRL', 'SHIFT', 'ALT', 'WIN', 'A']])
+    await assert.rejects(
+      f.control.execute({ action: 'press_keys', observationId: fresh.observationId, keys }),
+      /supported keys/,
+    );
+  f.state.allowed = false;
+  await assert.rejects(
+    f.control.execute({ action: 'scroll', observationId: fresh.observationId, amount: 1 }),
+    /stopped/,
+  );
+  assert.equal(
+    f.state.calls.filter((c) => /computer_(?:keys|click|scroll)/.test(c.action)).length,
+    0,
+  );
+  assert.equal(f.state.visible, false);
+});
+
+test('computer vision rejects generated actions and drops bad points without losing the scene', async () => {
+  let packet = {
+    done: true,
+    message: {
+      content: JSON.stringify({
+        summary: 'Owned fixture.',
+        targets: [{ label: 'OK', x: 5, y: 5, role: 'button' }],
+      }),
+    },
+  };
+  const infer = computerVision({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const body = JSON.parse(request.body);
+      assert.deepEqual(body.tools, []);
+      assert.equal(body.messages.at(-1).images.length, 1);
+      return new Response(JSON.stringify(packet));
+    },
+  });
+  const args = { png: Buffer.from('fixture pixels'), width: 10, height: 10, goal: 'Test fixture' };
+  assert.equal((await infer(args)).targets.length, 1);
+  packet.message.tool_calls = [{ function: { name: 'click' } }];
+  await assert.rejects(infer(args), /Incomplete/);
+  delete packet.message.tool_calls;
+  packet.message.content = JSON.stringify({
+    summary: 'Fixture.',
+    targets: [
+      { label: 'outside', x: 10, y: 1, role: 'button' },
+      { label: 'A heading', x: 5, y: 1, role: 'heading' },
+      { label: 'A field', x: 5, y: 5, role: 'field' },
+    ],
+  });
+  assert.deepEqual(await infer(args), {
+    summary: 'Fixture.',
+    targets: [{ label: 'A field', x: 5, y: 5, role: 'field' }],
+  });
+  packet.message.content = JSON.stringify({
+    summary: 'Fixture.',
+    targets: null,
+  });
+  await assert.rejects(infer(args), /Invalid screen targets/);
+});
+
+test('Steam screenshot analysis keeps main-pane evidence separate from the requested Library row', async () => {
+  const steamLibrary = { page: 'game', gameTitle: 'Alchemy Factory', launchState: 'ready' };
+  const targets = [
+    { label: 'Cyberpunk 2077', x: 5, y: 5, role: 'item', steamRole: 'game_row' },
+    { label: 'Play', x: 7, y: 2, role: 'link', steamRole: 'play' },
+  ];
+  const infer = computerVision({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const body = JSON.parse(request.body);
+      assert(body.format.required.includes('steamLibrary'));
+      assert.match(body.messages[0].content, /large main Library details pane/);
+      assert.deepEqual(body.tools, []);
+      return new Response(
+        JSON.stringify({
+          done: true,
+          message: { content: JSON.stringify({ summary: 'Steam Library', targets, steamLibrary }) },
+        }),
+      );
+    },
+  });
+  const observed = await infer({
+    png: Buffer.from('full monitor fixture'),
+    width: 10,
+    height: 10,
+    goal: 'Open Steam and find Cyberpunk 2077',
+    steamGame: 'Cyberpunk 2077',
+  });
+  assert.deepEqual(observed.steamLibrary, steamLibrary);
+  assert.equal(observed.targets[0].steamRole, 'game_row');
+  assert.equal(observed.targets[1].steamRole, undefined);
+});
+
+test('Steam pointer grounding uses the recognized row instead of the model’s inaccurate point', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    return command.action === 'computer_state'
+      ? {
+          ...result,
+          executable: 'C:\\Steam\\steamwebhelper.exe',
+          x: 1000,
+          y: 200,
+          width: 200,
+          height: 100,
+        }
+      : result;
+  };
+  const fullSize = Buffer.from('full-size screen');
+  const capture = control.capture;
+  control.capture = async (options) => ({
+    ...(await capture(options)),
+    ocrPng: fullSize,
+    ocrWidth: 200,
+    ocrHeight: 100,
+  });
+  const row = (number, y) => [
+    { text: 'cybermmk', x: 12, y, width: 10, height: 4 },
+    { text: number, x: 24, y, width: 8, height: 4 },
+  ];
+  let lines = [row('2088', 28), row('2077', 38)];
+  control.readSteamText = async (png) => {
+    assert.equal(png, fullSize);
+    return lines;
+  };
+  control.describe = async ({ steamGame }) => {
+    assert.equal(steamGame, 'Cyberpunk 2077');
+    return {
+      summary: 'The game is in the list.',
+      steamLibrary: { page: 'library', gameTitle: '', launchState: 'unavailable' },
+      targets: [{ label: steamGame, x: 8, y: 60, role: 'item', steamRole: 'game_row' }],
+    };
+  };
+  await control.begin('Найди сайберпанк 2077 в Steam');
+  control.session.steamGame = { name: 'Cyberpunk 2077', play: false };
+  try {
+    const view = await control.execute({ action: 'observe' });
+    const target = view.targets.find(({ steamRole }) => steamRole === 'game_row');
+    assert.equal(view.window.applicationKind, 'steam');
+    await control.execute({
+      action: 'click',
+      targetId: target.targetId,
+      observationId: view.observationId,
+    });
+    const actual = state.calls.find(({ action }) => action === 'computer_click');
+    assert.deepEqual([actual.x, actual.y], [1018, 240]);
+
+    lines.push(row('2077', 51));
+    const ambiguous = await control.execute({ action: 'observe' });
+    assert(!ambiguous.targets.some(({ steamRole }) => steamRole === 'game_row'));
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a verified Steam game keeps its visible Play target when the model omits its coordinates', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    return command.action === 'computer_state'
+      ? {
+          ...result,
+          executable: 'C:\\Steam\\steamwebhelper.exe',
+          x: 1000,
+          y: 200,
+          width: 200,
+          height: 100,
+        }
+      : result;
+  };
+  let gameTitle = 'Cyberpunk 2077';
+  control.describe = async () => ({
+    summary: 'The game page is open.',
+    steamLibrary: { page: 'game', gameTitle, launchState: 'ready' },
+    targets: [],
+  });
+  control.readSteamText = async () => [[{ text: 'Играть', x: 45, y: 40, width: 6, height: 10 }]];
+  await control.begin('Open Cyberpunk from Steam, then launch the game');
+  try {
+    const verified = await control.execute({ action: 'observe' });
+    assert(verified.targets.some((target) => target.steamRole === 'play'));
+    gameTitle = 'Alchemy Factory';
+    const other = await control.execute({ action: 'observe' });
+    assert(!other.targets.some((target) => target.steamRole === 'play'));
+  } finally {
+    await control.stop();
+  }
+});
+
+test('the REDlauncher Play caption becomes actionable when OCR matches its Windows bounds', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  const executable = 'C:\\Programs\\CD Projekt Red\\REDlauncher\\REDlauncher.exe';
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action !== 'computer_state') return result;
+    return {
+      ...result,
+      executable,
+      x: 1000,
+      y: 200,
+      width: 200,
+      height: 100,
+      untrustedControls: [
+        {
+          id: 'heading',
+          untrustedName: 'Cyberpunk 2077',
+          type: 'ControlType.Text',
+          clickKind: 'text',
+        },
+        {
+          id: 'caption',
+          untrustedName: 'Играть',
+          type: 'ControlType.Text',
+          clickKind: 'candidate',
+          x: 1040,
+          y: 239,
+          captionBounds: { x: 1030, y: 230, width: 34, height: 20 },
+        },
+      ],
+    };
+  };
+  let x = 17;
+  control.readSteamText = async () => [[{ text: 'Играть', x, y: 34, width: 6, height: 10 }]];
+  control.describe = async () => {
+    throw Error('Vision backend timed out');
+  };
+  await control.begin('Open Cyberpunk from Steam, then launch the game');
+  try {
+    const view = await control.execute({ action: 'observe' });
+    const button = cyberpunkLauncherTarget(view, { executable });
+    assert.equal(view.screenAvailable, true);
+    assert.equal(button.clickKind, 'visual-caption');
+    assert.equal(button.visualConfirmed, true);
+
+    x = 65;
+    const unmatched = await control.execute({ action: 'observe' });
+    assert.equal(unmatched.screenAvailable, false);
+    assert.equal(
+      unmatched.targets.find((item) => item.untrustedLabel === 'Играть').clickKind,
+      'candidate',
+    );
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a text-only provider falls back to Windows controls without capturing the display', async () => {
+  const { control } = fixture();
+  control.visionAvailable = () => false;
+  control.capture = async () => assert.fail('The text-only model must not receive an image');
+  await control.begin('Test native observation');
+  try {
+    const view = await control.execute({ action: 'observe', vision: true });
+    assert.equal(view.visionStatus, 'unavailable');
+    assert.equal(view.targets[0].untrustedLabel, 'Draft');
+  } finally {
+    await control.stop();
+  }
+});
+
+test('a visually confirmed button keeps its native identity for the final hit test', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action === 'computer_state')
+      result.untrustedControls.push({
+        id: 'native-button',
+        untrustedName: 'Button',
+        type: 'ControlType.Button',
+        clickKind: 'control',
+        x: 1140,
+        y: 251,
+        bounds: { x: 1120, y: 234, width: 44, height: 32 },
+      });
+    return result;
+  };
+  await control.begin('Click the visible button');
+  try {
+    const view = await control.execute({ action: 'observe', vision: true });
+    const buttons = view.targets.filter((target) => target.untrustedLabel === 'Button');
+    assert.equal(buttons.length, 1);
+    assert.equal(buttons[0].visualConfirmed, true);
+    await control.execute({ action: 'click', targetId: buttons[0].targetId });
+    assert.equal(
+      state.calls.find(({ action }) => action === 'computer_click').controlId,
+      'native-button',
+    );
+  } finally {
+    await control.stop();
+  }
+});
+
+test('visual search targets near a named edit or inside a translated edit use its Windows identity', async () => {
+  const { control, state } = fixture();
+  const bridge = state.bridge;
+  const windowBounds = { x: 1000, y: 200, width: 200, height: 100 };
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action !== 'computer_state') return result;
+    return {
+      ...result,
+      ...windowBounds,
+      untrustedControls: [
+        {
+          id: 'store-search',
+          untrustedName: 'Поиск по магазину',
+          type: 'ControlType.Edit',
+          x: 1100,
+          y: 240,
+          editable: true,
+          bounds: { x: 1040, y: 232, width: 120, height: 16 },
+        },
+        {
+          id: 'address',
+          untrustedName: 'Адрес',
+          type: 'ControlType.Edit',
+          browserAddress: true,
+          x: 1100,
+          y: 214,
+          editable: true,
+          bounds: { x: 1040, y: 206, width: 120, height: 16 },
+        },
+        {
+          id: 'search-button',
+          untrustedName: 'Поиск',
+          type: 'ControlType.Button',
+          clickKind: 'control',
+          x: 1172,
+          y: 240,
+          bounds: { x: 1160, y: 232, width: 24, height: 16 },
+        },
+      ],
+    };
+  };
+  await control.begin('Use the fixture store search');
+  try {
+    for (const point of [
+      { label: 'Поиск по магазину', x: 83, y: 40 },
+      { label: 'Store search', x: 40, y: 40 },
+    ]) {
+      control.describe = async () => ({ summary: 'Store', targets: [{ ...point, role: 'field' }] });
+      const view = await control.execute({ action: 'observe' });
+      assert.equal(view.targets.filter((target) => target.source === 'vision').length, 0);
+      const field = view.targets.find((target) => target.visualConfirmed);
+      assert.equal(field.untrustedLabel, 'Поиск по магазину');
+      await control.execute({ action: 'click', targetId: field.targetId });
+      assert.equal(
+        state.calls.findLast(({ action }) => action === 'computer_click').controlId,
+        'store-search',
+      );
+    }
+    control.describe = async () => ({
+      summary: 'Store',
+      targets: [{ label: 'Store search', x: 40, y: 14, role: 'field' }],
+    });
+    const view = await control.execute({ action: 'observe' });
+    const field = view.targets.find((target) => target.source === 'vision');
+    assert.ok(field);
+    await control.execute({ action: 'click', targetId: field.targetId });
+    const visualClick = state.calls.findLast(({ action }) => action === 'computer_click');
+    assert.equal(visualClick.controlId, undefined);
+    assert.deepEqual(visualClick.observedWindowBounds, windowBounds);
+    assert.equal(visualClick.visualField, true);
+  } finally {
+    await control.stop();
+  }
+});
+
+test('visual button evidence can promote the matching native caption but does not make other text clickable', async () => {
+  const { state, control } = fixture();
+  const bridge = state.bridge;
+  state.bridge = async (command) => {
+    const result = await bridge(command);
+    if (command.action === 'computer_state')
+      result.untrustedControls = [
+        {
+          id: 'heading',
+          untrustedName: 'Export',
+          type: 'ControlType.Text',
+          clickKind: 'text',
+          x: 1060,
+          y: 210,
+        },
+        {
+          id: 'caption',
+          untrustedName: 'Export',
+          type: 'ControlType.Text',
+          clickKind: 'candidate',
+          x: 1141,
+          y: 250,
+          captionBounds: { x: 1120, y: 234, width: 44, height: 32 },
+        },
+        {
+          id: 'other-caption',
+          untrustedName: 'Print',
+          type: 'ControlType.Text',
+          clickKind: 'candidate',
+          x: 1150,
+          y: 280,
+          captionBounds: { x: 1125, y: 266, width: 60, height: 30 },
+        },
+      ];
+    return result;
+  };
+  control.describe = async () => ({
+    summary: 'Export controls.',
+    targets: [
+      { label: 'EXPORT', role: 'button', x: 70, y: 50 },
+      { label: 'Print', role: 'button', x: 20, y: 50 },
+    ],
+  });
+  await control.begin('Open the export screen and export the selected document');
+  try {
+    let view = await control.execute({ action: 'observe', vision: false });
+    const click = (target) => control.execute({ action: 'click', targetId: target.targetId });
+    await assert.rejects(click(view.targets[0]), {
+      code: 'COMPUTER_TARGET_NOT_CLICKABLE',
+      inputPerformed: false,
+    });
+    await assert.rejects(click(view.targets[1]), {
+      code: 'COMPUTER_TARGET_NOT_CLICKABLE',
+      inputPerformed: false,
+    });
+    assert.equal(
+      state.calls.some(({ action }) => action === 'computer_click'),
+      false,
+    );
+    view = await control.execute({ action: 'observe', vision: true });
+    const [heading, caption, printCaption] = view.targets;
+    assert.equal(heading.clickKind, 'text');
+    assert.equal(printCaption.clickKind, 'candidate');
+    assert.equal(caption.clickKind, 'visual-caption');
+    assert.equal(caption.actionRole, 'button');
+    assert.equal(
+      view.targets.filter((target) => target.untrustedLabel.toLowerCase() === 'export').length,
+      2,
+    );
+    await click(caption);
+    const receipt = state.calls.find(({ action }) => action === 'computer_click');
+    assert.equal(receipt.controlId, 'caption');
+    assert.equal(receipt.exactLabel, 'Export');
+  } finally {
+    await control.stop();
+  }
+});
+
+test('key input carries the observed native focus identity so a changed field cannot receive Enter', async () => {
+  const f = fixture();
+  const base = f.state.bridge;
+  f.state.bridge = async (...args) => {
+    const result = await base(...args);
+    if (result.untrustedControls)
+      Object.assign(result.untrustedControls[0], { focused: true, browserAddress: true });
+    return result;
+  };
+  await f.control.begin('Submit a search in the owned fixture');
+  try {
+    const view = await f.control.execute({ action: 'observe', vision: false });
+    assert.equal(view.targets[0].focused, true);
+    assert.equal(view.targets[0].browserAddress, true);
+    await f.control.execute({
+      action: 'press_keys',
+      keys: ['ENTER'],
+      observationId: view.observationId,
+    });
+    assert.equal(f.state.calls.find((c) => c.action === 'computer_keys').focusedControlId, 'field');
+  } finally {
+    await f.control.stop();
+  }
+});

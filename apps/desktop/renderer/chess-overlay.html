@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./chess-overlay.css" />
+    <script type="module" src="./chess-overlay.mjs"></script>
+    <title>Chess</title>
+  </head>
+  <body>
+    <p id="instructions" hidden></p>
+    <div id="selection" hidden></div>
+    <div id="board" aria-hidden="true">
+      <div id="board-frame" hidden></div>
+      <svg id="arrow" viewBox="0 0 8 8" preserveAspectRatio="none" hidden></svg>
+      <canvas id="lightning" width="1" height="1" hidden></canvas>
+    </div>
+  </body>
+</html>

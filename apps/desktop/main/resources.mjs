@@ -1,0 +1,309 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import path from 'node:path';
+import localeIndex from '../../shared/interface-locales.json' with { type: 'json' };
+import { loadStartupIntro } from '../startup-intro-assets.mjs';
+import { hangingCelAssetNames } from '../renderer/hanging-cels.mjs';
+const rendererFiles = [
+  'index.html',
+  'minimized-chip.html',
+  'minimized-chip.css',
+  'minimized-chip.mjs',
+  'recording-indicator.html',
+  'recording-indicator.css',
+  'recording-indicator.mjs',
+  'settings.html',
+  'settings.css',
+  'chess-arrow-configurator.css',
+  'model-device-panel.mjs',
+  'developer-panel.mjs',
+  'developer-panel.css',
+  'credits.css',
+  'credits-panel.mjs',
+  'credits-rays.mjs',
+  'avatar-gallery.mjs',
+  'avatar-face-expressions.mjs',
+  'avatar-face-rig.mjs',
+  'avatar-layered-blink.mjs',
+  'avatar-gallery.css',
+  'settings-app.mjs',
+  'audio-routing-panel.mjs',
+  'settings-divider.mjs',
+  'settings-loading.mjs',
+  'settings-api.mjs',
+  'settings-registry.mjs',
+  'settings-guide.mjs',
+  'settings-guide-core.mjs',
+  'settings-guide-skills.mjs',
+  'settings-guide-advanced.mjs',
+  'skill-toolbar.mjs',
+  'settings-search.mjs',
+  'settings-location.mjs',
+  'settings-help.html',
+  'settings-help.css',
+  'settings-help.mjs',
+  'stopwatch-hud.mjs',
+  'memory-hud.mjs',
+  'resource-metrics.mjs',
+  'motion-settings.mjs',
+  'app.js',
+  'attachment-composer.mjs',
+  'clipboard-files.mjs',
+  'history-attachments.mjs',
+  'attachment-viewer.html',
+  'attachment-viewer.mjs',
+  'attachment-viewer.css',
+  'styles.css',
+  'cyberpunk.css',
+  'guide.css',
+  'guide-content.mjs',
+  'guide-overlay.mjs',
+  'faq-content.mjs',
+  'presence-model.mjs',
+  'thinking-mode.mjs',
+  'internet-mode.mjs',
+  'thinking-mode.css',
+  'signal-fx.mjs',
+  'glitch-settings.mjs',
+  'interface-theme.mjs',
+  'panel-frames.mjs',
+  'crt-screen.mjs',
+  'screen-geometry.mjs',
+  'reply-geometry.mjs',
+  'animation-director.mjs',
+  'avatar-mouth.mjs',
+  'avatar-drag-tether.mjs',
+  'avatar-tether.html',
+  'avatar-tether.mjs',
+  'avatar-detach.html',
+  'avatar-detach.css',
+  'avatar-detach.mjs',
+  'avatar-surface-performance.mjs',
+  'hanging-cels.mjs',
+  'idle-gesture-rig.mjs',
+  'screen-interaction-motion.mjs',
+  'surface-gaze.mjs',
+  'detached-reply-layout.mjs',
+  'reply-bubble-outline.mjs',
+  'reply-pages.mjs',
+  'avatar-composer.html',
+  'avatar-composer.css',
+  'avatar-composer.mjs',
+  'avatar-headpat.mjs',
+  'avatar-tap-effect.mjs',
+  'avatar-headpat.css',
+  'avatar-sleep.css',
+  'avatar-observation.css',
+  'avatar-observation.mjs',
+  'avatar-wave.mjs',
+  'avatar-teleport-motion.mjs',
+  'sandevistan-motion.mjs',
+  'teleport-effects.mjs',
+  'spark-atlas.mjs',
+  'avatar-teleport-sound.mjs',
+  'dimming-settings.mjs',
+  'dimming-mask.mjs',
+  'overflow-ticker.mjs',
+  'subtitles.mjs',
+  'subtitle-controller.mjs',
+  'speech-text.mjs',
+  'voice-player.mjs',
+  'local-audio-output.mjs',
+  'voice-volume.mjs',
+  'voice-volume-menu.mjs',
+  'reply-visibility.mjs',
+  'call-audio-settings.mjs',
+  'call-audio-route.mjs',
+  'call-camera-frame.mjs',
+  'call-microphone.mjs',
+  'voice-effects.mjs',
+  'voice-effects-settings.mjs',
+  'voice-effects-panel.mjs',
+  'speech-panel.mjs',
+  'speech-settings.mjs',
+  'interface-translations.mjs',
+  'language-settings.mjs',
+  'language-panel.mjs',
+  'companion-panel.mjs',
+  'saved-memory-panel.mjs',
+  'knowledge-panel.mjs',
+  'private-memory-panel.mjs',
+  'workflows-panel.mjs',
+  'user-tools-panel.mjs',
+  'updates-panel.mjs',
+  'update-notification.mjs',
+  'update-notification.css',
+  'models-panel.mjs',
+  'npu-panel.mjs',
+  'coding-panel.mjs',
+  'huggingface-panel.mjs',
+  'voice-model-panel.mjs',
+  'external-tts-panel.mjs',
+  'external-tts-settings.mjs',
+  'discord-panel.mjs',
+  'inference-panel.mjs',
+  'desktop-ai-panel.mjs',
+  'inference-picker.mjs',
+  'local-load-controls.mjs',
+  'inference-endpoint.mjs',
+  'api-key.mjs',
+  'music-animation.mjs',
+  'system-music-capture.mjs',
+  'music-worklet.mjs',
+  'music-listening-panel.mjs',
+  'inference-privacy.mjs',
+  'control-overlay.html',
+  'wild-prank.html',
+  'wild-prank.css',
+  'wild-prank.mjs',
+  'chess-panel.mjs',
+  'chess-arrow.mjs',
+  'chess-arrow-style.mjs',
+  'chess-arrow-path.mjs',
+  'chess-arrow-configurator.mjs',
+  'chess-frame-configurator.mjs',
+  'chess-frame-effect.mjs',
+  'chess-frame-style.mjs',
+  'chess-move-lightning.mjs',
+  'chess-reaction-settings.mjs',
+  'chess-overlay.html',
+  'chess-overlay.css',
+  'chess-overlay.mjs',
+  'control-overlay.css',
+  'control-overlay.mjs',
+  'control-task-chain.mjs',
+  'computer-appearance-panel.mjs',
+  'confirmation-dialog.mjs',
+  'confirmation-requests.mjs',
+  'button-feedback.mjs',
+  'startup-panel.mjs',
+  'startup-intro.mjs',
+  'startup-intro-motion.mjs',
+  'microphone-button.mjs',
+  'file-access-panel.mjs',
+  'applications-panel.mjs',
+  'initiative-panel.mjs',
+  'screen-panel.mjs',
+  'screen-mosaic.mjs',
+  'time-panel.mjs',
+  'screen-watch.mjs',
+  'screen-change.mjs',
+  'microphone.mjs',
+  'wake-feedback.mjs',
+  'microphone-worklet.mjs',
+];
+const types = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+};
+/** An explicit resource table; never expose a directory or user-supplied path. */
+export function createDesktopResources({
+  root,
+  directory,
+  catalog,
+  spriteFile,
+  startupIntro = loadStartupIntro(root),
+}) {
+  const resources = new Map(
+    rendererFiles.map((name) => [
+      '/' + name,
+      { file: path.join(directory, 'renderer', name), type: types[path.extname(name)] },
+    ]),
+  );
+  for (const module of [
+    'settings-catalog.mjs',
+    'attachment-formats.mjs',
+    'web-search/settings.mjs',
+  ]) {
+    const name = 'packages/skills/src/' + module;
+    resources.set('/' + name, { file: path.join(root, name), type: types['.mjs'] });
+  }
+  resources.set('/packages/runtime/src/hardware/imported-model.mjs', {
+    file: path.join(root, 'packages/runtime/src/hardware/imported-model.mjs'),
+    type: types['.mjs'],
+  });
+  for (const name of [
+    'clip-command.mjs',
+    'credits-epithets.mjs',
+    'wake-phrase.mjs',
+    'avatar-layout.mjs',
+    'music-listening-settings.mjs',
+    'avatar-body-regions.mjs',
+    'avatar-grip-rig.mjs',
+    'avatar-pose-motion.mjs',
+    'avatar-motion-protocol.mjs',
+    'call-camera-protocol.mjs',
+    'sleep-service.mjs',
+  ])
+    resources.set('/' + name, { file: path.join(directory, name), type: types['.mjs'] });
+  for (const name of ['languages.json', 'interface-locales.json'])
+    resources.set('/shared/' + name, {
+      file: path.join(root, 'apps/shared', name),
+      type: 'application/json; charset=utf-8',
+    });
+  for (const id of Object.keys(localeIndex.locales)) {
+    resources.set('/locales/' + id + '.json', {
+      file: path.join(directory, 'locales', id + '.json'),
+      type: 'application/json; charset=utf-8',
+    });
+    resources.set('/locales/guide-' + id + '.json', {
+      file: path.join(directory, 'guide-locales', id + '.json'),
+      type: 'application/json; charset=utf-8',
+    });
+  }
+  resources.set('/hall-of-fame.json', {
+    file: path.join(root, 'config/hall-of-fame.json'),
+    type: 'application/json; charset=utf-8',
+  });
+  for (const name of ['pdf.mjs', 'pdf.worker.mjs'])
+    resources.set('/attachment-' + name, {
+      file: path.join(root, 'node_modules/pdfjs-dist/build', name),
+      type: types['.mjs'],
+    });
+  resources.set('/fonts/exo2.ttf', {
+    file: path.join(root, 'assets/fonts/exo2/Exo2-Variable.ttf'),
+    type: 'font/ttf',
+  });
+  resources.set('/sprite.png', { file: spriteFile, type: 'image/png' });
+  for (const layer of ['pose', 'eyes']) {
+    resources.set(`/avatar-blink-${layer}.png`, {
+      file: path.join(root, 'assets/default', `capri-blink-${layer}.png`),
+      type: 'image/png',
+    });
+  }
+  for (const group of ['poses', 'gestures'])
+    for (const extension of ['png', 'json']) {
+      const name = `face-${group}.${extension}`;
+      resources.set('/avatar-' + name, {
+        file: path.join(root, 'assets/default', 'capri-' + name),
+        type: extension === 'png' ? 'image/png' : 'application/json; charset=utf-8',
+        asyncRead: true,
+      });
+    }
+  resources.set('/capri-wave.webp', {
+    file: path.join(root, 'assets/default/capri-wave.webp'),
+    type: 'image/webp',
+    asyncRead: true,
+  });
+  for (const name of hangingCelAssetNames)
+    resources.set('/hanging-cels/' + name + '.webp', {
+      file: path.join(root, 'assets/default/hanging-cels', name + '.webp'),
+      type: 'image/webp',
+      asyncRead: true,
+    });
+  for (const brand of ['boosty', 'lava', 'discord', 'github', 'capricore'])
+    resources.set(`/brand/${brand}.svg`, {
+      file: path.join(root, 'assets/default/brand', `${brand}.svg`),
+      type: 'image/svg+xml',
+    });
+  for (const frame of catalog.portraitFrames)
+    resources.set(`/sprites/${frame.id}.png`, { file: frame.file, type: 'image/png' });
+  for (const frame of catalog.desktopPoseFrames ?? [])
+    resources.set(new URL(frame.url).pathname, { file: frame.file, type: 'image/png' });
+  for (const note of catalog.musicNotes ?? [])
+    resources.set(new URL(note.url).pathname, { file: note.file, type: 'image/png' });
+  for (const frame of startupIntro?.frames ?? [])
+    resources.set(new URL(frame.url).pathname, { file: frame.file, type: 'image/png' });
+  return resources;
+}

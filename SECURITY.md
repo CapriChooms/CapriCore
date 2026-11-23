@@ -1,0 +1,71 @@
+# Security
+
+This policy describes the public **CapriCore 1.0.1** release. When reporting a
+problem, include the installed version and whether it also occurs on the latest
+public release. Historical early-access notes are not a statement of current
+protection.
+
+Permission bypass, malformed IPC, path traversal, unwanted capture, credential leakage and unsafe process termination are security issues.
+
+The default installation scope intentionally gives Capri read/write access to its own source, configuration and data. It can be revoked in File access. This permits self-modification and is not a security boundary against altered application code or configuration. Additional folder grants and screen/microphone permissions remain separate capabilities in the shipped implementation.
+
+Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/CapriChooms/CapriCore/security/advisories/new). Do not post exploit details or credentials in public issues. Provide a minimal fixture-based reproduction; never attach private data, recordings, models or unredacted logs.
+
+The source exporter is a defense layer, not a guarantee that arbitrary future code contains no personal data. Review the artifact before publishing. Rotate any exposed credential. CI has read-only repository permissions; untrusted pull requests must not publish releases or run privileged desktop actions.
+
+The [reviewed dependency backports](docs/security-backports.md) document two upstream denial-of-service fixes applied to actual runtime files. Original versions and version-based audit warnings remain visible; the checksums and regression fixtures establish the narrow mitigation claim.
+
+## Personal data at rest
+
+Full encryption of conversation history, attachments and ordinary memory is deferred. Capri 1.0.1 uses the existing local file storage and does not require EFS, WinFsp or Dokany. It must not be described as fully encrypted. Existing API credential protection and the separately password-protected private memory feature are retained. Stored API credentials use Electron safeStorage/Windows DPAPI for the current Windows account; this is not protection against a compromised account, administrator or process-memory access. The private memory box does not encrypt ordinary conversation history or other copies of information already shared.
+
+A read-only compatibility decoder can recover dialogue and image previews from the withdrawn local encryption experiment using the original Windows account and saved key. It never creates a key or encrypts new files. Unreadable history is preserved instead of being overwritten by new messages.
+
+## External providers and enabled tools
+
+Local inference and an external API have different data boundaries. When an
+external API is selected, the configured provider receives the conversation
+context, personality, relevant memory and tool results needed for a request.
+Enabled vision can also send selected screen images. A server running on this
+PC may keep that inference local, but its configuration and logs are controlled
+by that server. Provider retention, pricing and privacy policies apply; see
+[external AI providers](docs/external-api.md).
+
+The optional ChatGPT plan connection has its own browser authorization, PKCE,
+signed identity validation and account-bound encrypted token store. It does not
+reuse ChatGPT, Codex, Claude or Gemini credentials from installed applications.
+Access tokens are sent only to OpenAI's official public API. The renderer
+receives account presentation and model IDs, never tokens. Account switching,
+refresh, revocation, cancellation and plan-use consent are documented in
+[AI app connections](docs/desktop-ai-providers.md). Screen observation is paused
+before opening sign-in. App discovery runs on demand and never executes detected
+AI command-line programs or imports their private settings.
+
+**Voice API** is a separate, disabled-by-default choice. When enabled, only the
+text selected for speech (including explicitly requested previews and wake replies)
+is sent to the configured voice provider, with the selected voice and model IDs.
+It does not send microphone audio, reference recordings, screen images or the
+conversation history. The spoken reply can itself contain personal information;
+the provider's retention policy applies. Its key has separate account-bound
+DPAPI storage. Provider error bodies and audio are excluded from diagnostics.
+There is no automatic local fallback that silently reloads a voice model.
+See [external voice](docs/external-tts.md).
+
+Screen, microphone, file access and computer actions require their applicable
+permissions. Review grants before enabling full computer control or a third-party
+user tool. A local tool can have its own network and file behavior; declaring a
+permission does not establish that its script is trustworthy. Stop an active
+computer-control session with **Escape**.
+
+Public downloads and update checks use
+[CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases) without
+a GitHub account or token. Optional saved GitHub access stays protected by the
+existing account-bound credential storage. Download hashes and manifests detect
+integrity problems; they do not replace publisher code signing. The current
+Windows installer is unsigned.
+
+## Logs and diagnostic exports
+
+Managed services do not write arbitrary child stdout/stderr to disk. Capri keeps allowlisted service lifecycle, stage, error-class and error-code records. OpenClaw raw logging, prompt-cache traces and telemetry exports are disabled, including during existing-configuration migration. The owned legacy runtime log cleanup keeps bounded technical summaries and discards free-form text. Personal documents, conversation history and memory are not log sources.
+
+Diagnostic exports omit legacy free-form log lines and unknown textual session fields. Error classes and stages, resource counters and benign hardware/service information remain available. The problem description and reproduction steps are the user's explicit report text; review these before sharing. Exporting a report never uploads it automatically. No guarantee is made for logs generated independently by third-party software, external tools or an older process that has not yet restarted into the updated privacy policy.

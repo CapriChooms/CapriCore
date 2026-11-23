@@ -1,0 +1,8 @@
+{
+  "id": "capri-spotify",
+  "name": "Capri Spotify Desktop",
+  "description": "Spotify-scoped Windows playback, search and queue controls through the logged-in desktop app.",
+  "activation": { "onStartup": true },
+  "contracts": { "tools": ["spotify_control"] },
+  "configSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+}

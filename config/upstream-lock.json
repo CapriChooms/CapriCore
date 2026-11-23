@@ -1,0 +1,41 @@
+{
+  "openclaw": {
+    "package": "openclaw@2026.10.6",
+    "source": "https://github.com/openclaw/openclaw.git",
+    "sourceCommit": "ec58b6924b9a5b69764d95dff1c5c49ce00e7806"
+  },
+  "node": {
+    "version": "24.22.1",
+    "source": "https://nodejs.org/dist/v24.22.1/"
+  },
+  "desktop": {
+    "runtime": "electron@45.3.1",
+    "source": "https://github.com/electron/electron/releases/tag/v45.3.1",
+    "interface": "apps/desktop",
+    "sprite": "assets/capri/sprites/v1/capri-neutral.png",
+    "spriteSha256": "6cc8436659c5bc7cb48efb041eb6de73522680fc32468556acc9bc9c10390c56"
+  },
+  "llama": {
+    "version": "b12317",
+    "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b12317",
+    "windowsArchiveSha256": "968a487604622f4194d0451d77a92b6a7cff1c29338e88841dd38472c81013ca"
+  },
+  "python": {
+    "version": "3.11.17",
+    "runtime": "uv-managed standalone on E:"
+  },
+  "uv": {
+    "version": "0.13.5",
+    "source": "https://github.com/astral-sh/uv/releases/tag/0.13.5"
+  },
+  "voice": {
+    "manifest": "config/voice-upstream.json",
+    "runtime": "config/requirements-voice-training.lock"
+  },
+  "asr": {
+    "config": "config/companion-asr.json"
+  },
+  "requestRouter": {
+    "manifest": "config/request-router-upstream.json"
+  }
+}

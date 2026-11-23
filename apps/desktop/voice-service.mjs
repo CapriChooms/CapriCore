@@ -1,0 +1,514 @@
+import { setTimeout as delay } from 'node:timers/promises';
+import {
+  currentResponseTiming,
+  markResponseTiming,
+} from '../../packages/runtime/src/response-timing.mjs';
+
+import {
+  SentenceBuffer,
+  MAX_SPEECH_SENTENCE,
+  speechLanguageMismatch,
+} from './renderer/speech-text.mjs';
+import { LANGUAGE_PACKS } from './renderer/language-settings.mjs';
+export { SentenceBuffer, spokenText, MAX_SPEECH_SENTENCE } from './renderer/speech-text.mjs';
+
+const VOICE_LANGUAGE_MISMATCH = 'CAPRI_VOICE_LANGUAGE_MISMATCH';
+const VOICE_SPEECH_LIMIT = 'CAPRI_VOICE_SPEECH_LIMIT';
+const VOICE_LANGUAGE_WARNING =
+  'The English voice cannot read this response language. Text replies remain available.';
+const VOICE_START_WARNING = 'Capri’s voice could not start. Text replies are still available.';
+const MAX_VOICE_SEGMENTS = 100;
+const MAX_SPLIT_SPEECH_LENGTH = 480;
+const MIN_SPEECH_RETRY_LENGTH = 160;
+const maxPcmBytes = 24000 * 4 * 45;
+const voiceFailureCodes = new Set([
+  VOICE_LANGUAGE_MISMATCH,
+  VOICE_SPEECH_LIMIT,
+  'CAPRI_VOICE_CUDA_OOM',
+  'CAPRI_VOICE_MODEL_MISSING',
+  'CAPRI_VOICE_INFERENCE_FAILED',
+]);
+
+function splitSpeech(text, limit, capacity) {
+  const parts = [];
+  while (text.length > limit && parts.length < capacity) {
+    const window = text.slice(0, limit + 1);
+    const clause = [...window.slice(0, limit).matchAll(/[,;:](?=\s)|[、，；：]/gu)].pop();
+    const clauseEnd = clause ? clause.index + 1 : 0;
+    const wordEnd = window.lastIndexOf(' ');
+    let cut = wordEnd >= limit / 2 ? wordEnd : limit;
+    if (clauseEnd >= limit / 2) cut = clauseEnd;
+    if (/^[\uDC00-\uDFFF]$/u.test(text[cut])) cut--;
+    parts.push(text.slice(0, cut).trimEnd());
+    text = text.slice(cut).trimStart();
+  }
+  if (!text) return parts;
+  if (parts.length >= capacity) return null;
+  parts.push(text);
+  return parts;
+}
+
+async function voiceHttpFailure(response) {
+  const error = Object.assign(new Error(`Voice HTTP ${response.status}`), {
+    httpStatus: response.status,
+  });
+  try {
+    if (response.headers?.get('content-type')?.startsWith('application/json')) {
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of response.body ?? []) {
+        size += chunk.length;
+        if (size > 4096) break;
+        chunks.push(chunk);
+      }
+      if (size <= 4096) {
+        const value = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (voiceFailureCodes.has(value?.code)) error.code = value.code;
+      }
+    } else await response.body?.cancel();
+  } catch {
+    /* Keep the HTTP status; never log arbitrary server response text. */
+  }
+  return error;
+}
+
+async function readVoicePcm(response) {
+  const encoding = response.headers.get('content-encoding');
+  const declared =
+    encoding && encoding.toLowerCase() !== 'identity'
+      ? 0
+      : Number(response.headers.get('content-length'));
+  if (declared > maxPcmBytes) {
+    await response.body?.cancel();
+    throw new Error('Voice audio exceeds limit');
+  }
+  const length = Number.isSafeInteger(declared) && declared > 0 ? declared : 0;
+  const pcm = length ? new Uint8Array(length) : null;
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body) {
+    const next = size + chunk.length;
+    if (next > maxPcmBytes || (pcm && next > length)) throw new Error('Voice audio exceeds limit');
+    if (pcm) pcm.set(chunk, size);
+    else chunks.push(chunk);
+    size = next;
+  }
+  if (!size || size % 4 || (pcm && size !== length)) throw new Error('Invalid PCM audio');
+  if (pcm) return pcm;
+  const unpacked = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    unpacked.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return unpacked;
+}
+
+/** Turn-scoped sentence queue. Text replies never wait for synthesis. */
+export class VoiceService {
+  constructor({
+    url,
+    headers,
+    emit,
+    fetchImpl = fetch,
+    enabled = true,
+    language = 'en',
+    external,
+    native,
+    ensureReady,
+  }) {
+    const endpoint = new URL(url);
+    if (endpoint.protocol !== 'http:' || endpoint.hostname !== '127.0.0.1')
+      throw new Error('Voice service must use loopback');
+    Object.assign(this, { url, headers, emit, fetchImpl, enabled, external, native, ensureReady });
+    this.turn = null;
+    this.ready = false;
+    this.running = false;
+    this.language = language;
+    this.error = null;
+  }
+  snapshot() {
+    return {
+      enabled: this.enabled,
+      ready: this.ready && this.language !== 'off',
+      language: this.language,
+      error: this.error,
+      source: this.external?.config.enabled ? 'api' : 'local',
+    };
+  }
+  diagnostics() {
+    return {
+      ...this.snapshot(),
+      running: this.running,
+      preparing: Boolean(this.prepareController),
+      queuedSentences: this.turn?.queue.length ?? 0,
+      lastFailure: this.lastFailure ?? null,
+    };
+  }
+  get generating() {
+    // Retained playback identity is not an inference that blocks reminders.
+    return this.running || Boolean(this.turn && (!this.turn.final || this.turn.queue.length));
+  }
+  recordFailure(error, phase) {
+    this.lastFailure = {
+      at: new Date().toISOString(),
+      phase,
+      name: error.name,
+      message: error.message,
+      stack: error.stack?.slice(0, 12000),
+      ...(voiceFailureCodes.has(error.code) ? { code: error.code } : {}),
+      ...(Number.isInteger(error.httpStatus) ? { httpStatus: error.httpStatus } : {}),
+    };
+  }
+  setLanguage(language) {
+    if (language !== 'off' && !LANGUAGE_PACKS.some((p) => p.id === language && p.speechReady))
+      throw new Error('Unsupported voice language');
+    if (language !== this.language) {
+      this.cancel();
+      this.prepareController?.abort();
+    }
+    this.language = language;
+    this.emit({ type: 'voice.settings', ...this.snapshot() });
+  }
+  async prepareLanguage() {
+    if (this.language === 'off') return;
+    this.prepareController?.abort();
+    const controller = (this.prepareController = new AbortController()),
+      language = this.language;
+    const requestId = `prepare:${language}:${Date.now()}`;
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(600000)]);
+    this.setReady(false);
+    try {
+      const adapter = this.external?.config.enabled ? this.external : this.native?.(language);
+      if (adapter) {
+        await adapter.prepare();
+        if (this.prepareController === controller && this.language === language && !signal.aborted)
+          this.setReady(true);
+        return;
+      }
+      let response;
+      do {
+        response = await this.fetchImpl(`${this.url}/prepare`, {
+          method: 'POST',
+          headers: { ...this.headers(), 'content-type': 'application/json' },
+          body: JSON.stringify({ language, requestId }),
+          redirect: 'error',
+          signal,
+        });
+        if (response.status !== 409) break;
+        await response.body?.cancel();
+        await delay(100, undefined, { signal });
+      } while (!signal.aborted);
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        throw new Error(
+          details?.error === 'model_missing'
+            ? 'Multilingual voice files are missing or damaged. Open Languages and install multilingual speech.'
+            : `Could not prepare the selected voice model: HTTP ${response.status}`,
+        );
+      }
+      await response.body?.cancel();
+      if (this.prepareController === controller && this.language === language) this.setReady(true);
+    } catch (error) {
+      if (this.prepareController === controller && !controller.signal.aborted) {
+        this.recordFailure(error, 'prepare');
+        this.error = error.message;
+        this.cancel();
+        this.emit({ type: 'voice.settings', ...this.snapshot() });
+        this.emit({
+          type: 'voice.error',
+          message: this.external?.config.enabled
+            ? error.message
+            : error.message.includes('Multilingual voice')
+              ? error.message
+              : 'The selected voice could not start. Text replies remain available. Check setup-multilingual.cmd.',
+        });
+      }
+    } finally {
+      if (this.prepareController === controller) this.prepareController = null;
+    }
+  }
+  setReady(value) {
+    this.ready = value;
+    if (value) this.lastFailure = null;
+    this.error = null;
+    this.emit({ type: 'voice.settings', ...this.snapshot() });
+    if (value) this.pump().catch(() => {});
+  }
+  fail(message) {
+    this.ready = false;
+    this.error = message;
+    this.cancel();
+    this.emit({ type: 'voice.settings', ...this.snapshot() });
+    this.emit({ type: 'voice.error', message });
+  }
+  setEnabled(value) {
+    if (typeof value !== 'boolean') throw new Error('Invalid voice setting');
+    this.enabled = value;
+    if (!value) this.cancel();
+    this.emit({ type: 'voice.settings', ...this.snapshot() });
+    return this.snapshot();
+  }
+  close() {
+    this.prepareController?.abort();
+    this.cancel();
+  }
+  cancel() {
+    const turn = this.turn;
+    if (turn) {
+      turn.controller.abort();
+      this.turn = null;
+      if (turn.requestId && !turn.external && !turn.native)
+        this.fetchImpl(`${this.url}/cancel`, {
+          method: 'POST',
+          headers: { ...this.headers(), 'content-type': 'application/json' },
+          body: JSON.stringify({ requestId: turn.requestId }),
+          redirect: 'error',
+          signal: AbortSignal.timeout(2000),
+        })
+          .then((response) => response.body?.cancel())
+          .catch(() => {});
+      this.emit({ type: 'voice.cancelled', turnId: turn.id });
+    }
+  }
+  beginTurn(turnId, preview = false) {
+    this.cancel();
+    if (this.error && !this.ready) return;
+    if ((this.enabled || preview) && this.language !== 'off') {
+      const turn = (this.turn = {
+        id: turnId,
+        language: this.language,
+        external: this.external?.config.enabled === true,
+        native: this.external?.config.enabled ? null : this.native?.(this.language),
+        controller: new AbortController(),
+        buffer: new SentenceBuffer(),
+        queue: [],
+        final: false,
+        sequence: 0,
+        requestSequence: 0,
+        segments: 0,
+        started: performance.now(),
+        timing: currentResponseTiming(),
+      });
+      if (!this.ready && this.ensureReady) {
+        // Start beside text generation and give the renderer the turn before a
+        // startup failure or a fast provider can publish voice events for it.
+        void Promise.resolve().then(async () => {
+          if (this.turn !== turn || this.ready || this.prepareController) return;
+          try {
+            await this.ensureReady();
+          } catch {
+            // The host handles startup diagnostics and may already have failed this turn.
+          }
+          if (this.turn === turn && !this.ready && !this.prepareController) {
+            // A busy installer or another temporary blocker can make the host
+            // decline startup. Complete only this turn's voice path so the next
+            // reply can try again without requiring a speaker toggle.
+            this.cancel();
+            this.emit({ type: 'voice.error', turnId: turn.id, message: VOICE_START_WARNING });
+          }
+        });
+      }
+    }
+  }
+  preview(turnId, text) {
+    if (!this.ready || this.language === 'off')
+      throw new Error('No spoken voice is selected for this language.');
+    this.beginTurn(turnId, true);
+    this.onChat({ type: 'turn.delta', turnId, text });
+    this.onChat({ type: 'turn.completed', turnId });
+  }
+  onChat(event) {
+    if (event.type === 'turn.started') {
+      this.beginTurn(event.turnId);
+    }
+    const turn = this.turn;
+    if (!turn || turn.id !== event.turnId) return;
+    if (['turn.cancelled', 'turn.failed'].includes(event.type)) {
+      this.cancel();
+      return;
+    }
+    if (event.type === 'turn.preface') {
+      if (
+        turn.preface ||
+        turn.segments >= MAX_VOICE_SEGMENTS ||
+        typeof event.text !== 'string' ||
+        !event.text.trim() ||
+        event.text.length > 240
+      )
+        return;
+      turn.preface = true;
+      turn.queue.push({ text: event.text, canSplit: true });
+      turn.segments++;
+      this.pump().catch(() => {});
+      return;
+    }
+    if (event.type === 'turn.delta' || event.type === 'turn.completed') {
+      if (event.text && !turn.textReceived) {
+        turn.textReceived = true;
+        if (turn.timing) markResponseTiming('voice_text', {}, { turn: turn.timing });
+      }
+      turn.final = event.type === 'turn.completed';
+      const parts = turn.buffer.push(event.text || '', turn.final);
+      if (turn.external && parts.some((text) => text.length > MAX_SPEECH_SENTENCE)) {
+        this.cancel();
+        this.emit({
+          type: 'voice.error',
+          message: 'This sentence is too long to read aloud. The full text is still available.',
+        });
+        return;
+      }
+      for (const text of parts) {
+        const capacity = MAX_VOICE_SEGMENTS - turn.segments;
+        const limit = turn.native ? MAX_SPLIT_SPEECH_LENGTH : MAX_SPEECH_SENTENCE;
+        const chunks =
+          text.length > limit ? splitSpeech(text, MAX_SPLIT_SPEECH_LENGTH, capacity) : [text];
+        if (!chunks || chunks.length > capacity) {
+          this.cancel();
+          this.emit({ type: 'voice.error', message: 'This reply is too long to read aloud.' });
+          return;
+        }
+        turn.segments += chunks.length;
+        turn.queue.push(...chunks.map((chunk) => ({ text: chunk, canSplit: true })));
+      }
+      this.pump().catch(() => {});
+    }
+  }
+  async pump() {
+    const queued = this.turn;
+    if (queued?.queue.length && !queued.queued) {
+      queued.queued = true;
+      if (queued.timing)
+        markResponseTiming('voice_queued', { cold: this.ready ? 0 : 1 }, { turn: queued.timing });
+    }
+    if (this.running || !this.ready) return;
+    this.running = true;
+    try {
+      while (this.turn) {
+        const turn = this.turn;
+        const segment = turn.queue.shift();
+        if (!segment) {
+          if (turn.final) this.emit({ type: 'voice.generated', turnId: turn.id });
+          break;
+        }
+        const { text, canSplit } = segment;
+        if (!turn.external && speechLanguageMismatch(text, turn.language)) {
+          if (!turn.languageWarning) {
+            turn.languageWarning = true;
+            this.recordFailure(
+              Object.assign(new Error(VOICE_LANGUAGE_WARNING), { code: VOICE_LANGUAGE_MISMATCH }),
+              'synthesis',
+            );
+            this.emit({ type: 'voice.warning', turnId: turn.id, message: VOICE_LANGUAGE_WARNING });
+          }
+          continue;
+        }
+        try {
+          const started = Date.now();
+          if (turn.requestSequence === 0 && turn.timing)
+            markResponseTiming(
+              'voice_synthesis',
+              { speechCharacters: text.length },
+              { turn: turn.timing },
+            );
+          turn.requestId = `${turn.id}:${turn.requestSequence++}`;
+          let response;
+          if (turn.external) {
+            response = await this.external.synthesize({ text, signal: turn.controller.signal });
+          } else if (turn.native) {
+            response = await turn.native.synthesize({ text, signal: turn.controller.signal });
+          } else {
+            const signal = AbortSignal.any([turn.controller.signal, AbortSignal.timeout(90000)]);
+            do {
+              response = await this.fetchImpl(`${this.url}/synthesize`, {
+                method: 'POST',
+                headers: { ...this.headers(), 'content-type': 'application/json' },
+                body: JSON.stringify({ text, language: turn.language, requestId: turn.requestId }),
+                redirect: 'error',
+                signal,
+              });
+              if (response.status !== 409) break;
+              await response.body?.cancel();
+              // Use one deadline for the sentence, including time spent waiting for the worker.
+              await delay(50, undefined, { signal });
+              signal.throwIfAborted();
+            } while (response.status === 409);
+          }
+          if (!response.ok) throw await voiceHttpFailure(response);
+          if (
+            response.headers.get('content-type') !== 'application/octet-stream' ||
+            response.headers.get('x-sample-rate') !== '24000'
+          )
+            throw new Error('Unexpected voice audio format');
+          const pcm = await readVoicePcm(response);
+          if (this.turn !== turn || turn.controller.signal.aborted) continue;
+          turn.requestId = null;
+          if (turn.sequence === 0 && turn.timing)
+            markResponseTiming(
+              'voice_audio',
+              {
+                requestMs: Date.now() - started,
+                tokenMs: Number(response.headers.get('x-t3-ms')),
+                decoderMs: Number(response.headers.get('x-decoder-ms')),
+              },
+              { turn: turn.timing },
+            );
+          this.emit({
+            type: 'voice.timing',
+            turnId: turn.id,
+            sequence: turn.sequence,
+            elapsedMs: performance.now() - turn.started,
+            requestMs: Date.now() - started,
+            tokenMs: Number(response.headers.get('x-t3-ms')),
+            decoderMs: Number(response.headers.get('x-decoder-ms')),
+          });
+          this.emit({
+            type: 'voice.audio',
+            turnId: turn.id,
+            sequence: turn.sequence++,
+            text,
+            sampleRate: 24000,
+            pcm,
+          });
+        } catch (error) {
+          if (this.turn === turn && !turn.controller.signal.aborted) {
+            if (
+              !turn.external &&
+              canSplit &&
+              error.code === VOICE_SPEECH_LIMIT &&
+              text.length >= MIN_SPEECH_RETRY_LENGTH
+            ) {
+              // The worker returned no audio for this request. Retry each smaller piece once.
+              const chunks = splitSpeech(
+                text,
+                Math.min(MAX_SPLIT_SPEECH_LENGTH, Math.ceil(text.length / 2)),
+                MAX_VOICE_SEGMENTS - turn.segments + 1,
+              );
+              if (chunks) {
+                turn.requestId = null;
+                turn.segments += chunks.length - 1;
+                turn.queue.unshift(...chunks.map((chunk) => ({ text: chunk, canSplit: false })));
+                continue;
+              }
+            }
+            const failure =
+              !turn.external && error.cause?.name === 'TimeoutError' ? error.cause : error;
+            this.recordFailure(failure, 'synthesize');
+            this.cancel();
+            this.emit({
+              type: 'voice.error',
+              message: turn.external
+                ? error.message
+                : failure.name === 'TimeoutError' || error.code === VOICE_SPEECH_LIMIT
+                  ? 'This sentence could not be spoken. Voice is still ready.'
+                  : 'Capri’s voice is unavailable. Text replies are still available.',
+            });
+            console.error('Voice request failed:', error.message);
+          }
+        }
+      }
+    } finally {
+      this.running = false;
+    }
+  }
+}

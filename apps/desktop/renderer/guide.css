@@ -1,0 +1,624 @@
+/* Guides and FAQ share Capri's current palette. */
+#handle .window-actions #guide-open {
+  color: var(--ui-accent, var(--cyan, #8ef5ed));
+  font-size: 14px;
+  font-weight: 780;
+}
+
+#handle .window-actions #guide-open:is(:focus-visible, :hover) {
+  color: var(--ui-text, #edfcff);
+}
+
+#capri-guide {
+  --guide-accent: var(--ui-accent, var(--cyan, #8ef5ed));
+  --guide-glitch: var(--ui-glitch, var(--pink, #ff7894));
+  --guide-text: var(--ui-text, #edfcff);
+  --guide-muted: var(--ui-muted, #acc9cf);
+  --guide-panel: color-mix(in srgb, var(--ui-surface, #0b1821) 89%, #05090d);
+  --guide-edge: color-mix(in srgb, var(--guide-accent) 52%, var(--guide-panel));
+  --guide-halo: color-mix(in srgb, var(--guide-accent) 26%, transparent);
+  --guide-backdrop: color-mix(in srgb, #03070c 71%, transparent);
+  --guide-margin: 12px;
+  position: fixed;
+  z-index: 240;
+  inset: 0;
+  isolation: isolate;
+  color: var(--guide-text);
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+
+#capri-guide .guide-mask {
+  position: absolute;
+  background: var(--guide-backdrop);
+}
+
+#capri-guide .guide-spotlight {
+  position: absolute;
+  pointer-events: none;
+}
+
+#capri-guide .guide-edge {
+  position: absolute;
+  background: color-mix(in srgb, var(--guide-accent) 78%, transparent);
+  box-shadow: 0 0 9px var(--guide-halo);
+  transform-origin: center;
+}
+
+#capri-guide .guide-edge:is([data-edge='top'], [data-edge='bottom']) {
+  inset-inline: 0;
+  height: 1px;
+}
+
+#capri-guide .guide-edge:is([data-edge='left'], [data-edge='right']) {
+  inset-block: 0;
+  width: 1px;
+}
+
+#capri-guide .guide-edge[data-edge='top'] {
+  top: 0;
+}
+
+#capri-guide .guide-edge[data-edge='bottom'] {
+  bottom: 0;
+}
+
+#capri-guide .guide-edge[data-edge='left'] {
+  left: 0;
+}
+
+#capri-guide .guide-edge[data-edge='right'] {
+  right: 0;
+}
+
+#capri-guide .guide-corners {
+  --bracket: color-mix(in srgb, var(--guide-accent) 68%, white);
+  --corner: clamp(6px, 3vw, 15px);
+  position: absolute;
+  inset: -2px;
+  background:
+    linear-gradient(var(--bracket) 0 0) left top / var(--corner) 2px,
+    linear-gradient(var(--bracket) 0 0) left top / 2px var(--corner),
+    linear-gradient(var(--bracket) 0 0) right top / var(--corner) 2px,
+    linear-gradient(var(--bracket) 0 0) right top / 2px var(--corner),
+    linear-gradient(var(--bracket) 0 0) left bottom / var(--corner) 2px,
+    linear-gradient(var(--bracket) 0 0) left bottom / 2px var(--corner),
+    linear-gradient(var(--bracket) 0 0) right bottom / var(--corner) 2px,
+    linear-gradient(var(--bracket) 0 0) right bottom / 2px var(--corner);
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 0 4px var(--guide-halo));
+}
+
+#capri-guide .guide-dialog {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: min(390px, calc(100vw - 2 * var(--guide-margin)));
+  max-height: calc(100dvh - 2 * var(--guide-margin));
+  overflow: auto;
+  overscroll-behavior: contain;
+  transform: translate(-50%, -50%);
+  padding: 16px;
+  border: 1px solid var(--guide-edge);
+  border-block-start-color: var(--guide-accent);
+  background:
+    linear-gradient(90deg, var(--guide-accent) 0 21%, var(--guide-glitch) 21% 27%, transparent 27%)
+      top left / 100% 2px no-repeat,
+    radial-gradient(ellipse at 3% 0%, var(--guide-halo), transparent 64%),
+    linear-gradient(
+      136deg,
+      var(--guide-panel) 67%,
+      color-mix(in srgb, var(--guide-panel) 85%, var(--guide-glitch))
+    );
+  box-shadow:
+    0 8px 28px #000a,
+    0 0 19px var(--guide-halo);
+}
+
+#capri-guide .guide-dialog[data-positioned] {
+  transform: none;
+}
+
+#capri-guide .guide-dialog::before {
+  position: absolute;
+  inset: 3px 3px auto auto;
+  width: 44px;
+  height: 9px;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--guide-accent) 42%, transparent) 0 2px,
+    transparent 2px 6px
+  );
+  content: '';
+  pointer-events: none;
+}
+
+#capri-guide .guide-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-inline-end: 31px;
+}
+
+#capri-guide .guide-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+#capri-guide .guide-avatar {
+  position: relative;
+  display: block;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+  overflow: hidden;
+  border: 1px solid var(--guide-edge);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 4px, var(--guide-halo) 4px 5px),
+    radial-gradient(ellipse at 50% 50%, var(--guide-halo), transparent 78%), var(--guide-panel);
+  clip-path: polygon(12% 0, 100% 0, 100% 88%, 88% 100%, 0 100%, 0 12%);
+}
+
+#capri-guide .guide-avatar img {
+  /* 206px square from (526, 274) on the 1254px neutral sprite. */
+  position: absolute;
+  width: 608.75%;
+  height: 608.75%;
+  max-width: none;
+  left: -255.34%;
+  top: -133.01%;
+  image-rendering: auto;
+}
+
+#capri-guide .guide-kicker,
+#capri-guide .guide-step {
+  display: inline-block;
+  margin: 0 0 4px;
+  color: var(--guide-accent);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.45;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+#capri-guide .guide-step:not(:empty) {
+  padding-inline-start: 8px;
+  margin-inline-start: 6px;
+  border-inline-start: 1px solid var(--guide-edge);
+  color: var(--guide-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+#capri-guide .guide-title {
+  color: var(--guide-text);
+  margin: 0;
+  font-size: clamp(17px, 5vw, 21px);
+  font-weight: 720;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+#capri-guide .guide-description {
+  margin: 14px 0;
+  color: var(--guide-text);
+  font-size: 13px;
+  line-height: 1.52;
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+#capri-guide .guide-progress {
+  transform-origin: left;
+  height: 3px;
+  margin-block: 10px 13px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(var(--guide-step-width, 12.5%) - 4px),
+      var(--guide-panel) 0 var(--guide-step-width, 12.5%)
+    ),
+    linear-gradient(
+      90deg,
+      var(--guide-accent) 0 var(--guide-progress, 0%),
+      var(--guide-edge) var(--guide-progress, 0%)
+    );
+}
+
+#capri-guide:dir(rtl) .guide-progress {
+  transform-origin: right;
+  background:
+    repeating-linear-gradient(
+      270deg,
+      transparent 0 calc(var(--guide-step-width, 12.5%) - 4px),
+      var(--guide-panel) 0 var(--guide-step-width, 12.5%)
+    ),
+    linear-gradient(
+      270deg,
+      var(--guide-accent) 0 var(--guide-progress, 0%),
+      var(--guide-edge) var(--guide-progress, 0%)
+    );
+}
+
+#capri-guide .guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-block-start: 10px;
+  border-block-start: 1px solid var(--guide-edge);
+}
+
+#capri-guide
+  :is(
+    .guide-actions button,
+    .guide-action,
+    .guide-list button,
+    .guide-faq-toolbar button,
+    .guide-faq-action
+  ) {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--guide-edge);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--guide-panel) 87%, var(--guide-accent));
+  color: var(--guide-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 660;
+  line-height: 1.2;
+  text-shadow: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+#capri-guide
+  :is(
+    .guide-actions button,
+    .guide-action,
+    .guide-list button,
+    .guide-faq-toolbar button,
+    .guide-faq-action
+  ):enabled:hover {
+  border-color: var(--guide-accent);
+  background: color-mix(in srgb, var(--guide-panel) 76%, var(--guide-accent));
+  box-shadow: 0 0 8px var(--guide-halo);
+  color: var(--guide-text);
+}
+
+#capri-guide :is(button, input, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--guide-accent);
+  outline-offset: 2px;
+}
+
+#capri-guide .guide-actions .guide-primary {
+  margin-inline-start: auto;
+  border-color: var(--guide-accent);
+  background: var(--guide-accent);
+  color: #071015;
+}
+
+#capri-guide .guide-actions .guide-primary:enabled:hover {
+  background: color-mix(in srgb, var(--guide-accent) 80%, white);
+  color: #071015;
+}
+
+#capri-guide .guide-actions .guide-skip {
+  background: transparent;
+  color: var(--guide-muted);
+}
+
+#capri-guide .guide-action {
+  border-inline-start: 2px solid var(--guide-accent);
+  margin-block-end: 9px;
+  color: var(--guide-accent);
+}
+
+#capri-guide .guide-error {
+  margin: 0 0 9px;
+  color: color-mix(in srgb, var(--guide-glitch) 78%, white);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+#capri-guide .guide-close {
+  position: absolute;
+  inset-block-start: 13px;
+  inset-inline-end: 13px;
+}
+
+#capri-guide .guide-list {
+  display: grid;
+  gap: 8px;
+  margin: 13px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+
+#capri-guide .guide-list button {
+  width: 100%;
+  padding: 12px;
+  border-inline-start: 3px solid var(--guide-accent);
+  text-align: start;
+}
+
+#capri-guide .guide-list button :is(strong, span) {
+  display: block;
+}
+
+#capri-guide .guide-list button strong {
+  font-size: 14px;
+}
+
+#capri-guide .guide-list button span {
+  margin-block-start: 4px;
+  color: var(--guide-muted);
+  font-weight: 480;
+  line-height: 1.38;
+}
+
+#capri-guide[data-view='faq'] .guide-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(530px, calc(100vw - 2 * var(--guide-margin)));
+}
+
+#capri-guide .guide-faq-panel {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  gap: 10px;
+  margin-block-start: 12px;
+}
+
+#capri-guide .guide-faq-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+#capri-guide .guide-faq-toolbar button {
+  max-inline-size: 118px;
+}
+
+#capri-guide .guide-faq-toolbar input {
+  min-inline-size: 0;
+  min-block-size: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--guide-edge);
+  border-radius: 0;
+  background: var(--guide-panel);
+  color: var(--guide-text);
+  font: inherit;
+  font-size: 13px;
+}
+
+#capri-guide .guide-faq-toolbar input::placeholder {
+  color: var(--guide-muted);
+  opacity: 1;
+}
+
+#capri-guide .guide-faq-results {
+  min-block-size: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 2px 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--guide-edge) transparent;
+}
+
+#capri-guide .guide-faq-group + .guide-faq-group {
+  margin-block-start: 14px;
+}
+
+#capri-guide .guide-faq-group h3 {
+  margin: 0 0 6px;
+  color: var(--guide-accent);
+  font-size: 13px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+#capri-guide .guide-faq-group details {
+  margin-block-start: 5px;
+  border: 1px solid var(--guide-edge);
+  background: color-mix(in srgb, var(--guide-panel) 92%, var(--guide-accent));
+  overflow-wrap: anywhere;
+}
+
+#capri-guide .guide-faq-group details[open] {
+  border-inline-start-color: var(--guide-accent);
+}
+
+#capri-guide .guide-faq-group summary {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 660;
+  line-height: 1.35;
+}
+
+#capri-guide .guide-faq-group summary::marker {
+  color: var(--guide-accent);
+}
+
+#capri-guide .guide-faq-group summary:hover {
+  background: color-mix(in srgb, var(--guide-panel) 83%, var(--guide-accent));
+}
+
+#capri-guide .guide-faq-answer {
+  margin: 0;
+  padding: 2px 10px 10px;
+  color: var(--guide-text);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line;
+  user-select: text;
+}
+
+#capri-guide .guide-faq-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+
+#capri-guide .guide-faq-empty {
+  margin: 0 0 4px;
+  color: var(--guide-muted);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 345px), (max-height: 390px) {
+  #capri-guide {
+    --guide-margin: 8px;
+  }
+
+  #capri-guide .guide-dialog {
+    padding: 12px;
+  }
+
+  #capri-guide .guide-header {
+    gap: 9px;
+  }
+
+  #capri-guide .guide-avatar {
+    flex-basis: 46px;
+    width: 46px;
+    height: 46px;
+  }
+
+  #capri-guide .guide-description {
+    margin-block: 9px;
+  }
+
+  #capri-guide .guide-close {
+    inset-block-start: 9px;
+    inset-inline-end: 9px;
+  }
+}
+
+#settings-header #settings-guide-open {
+  flex: none;
+  inline-size: 38px;
+  block-size: 42px;
+  color: var(--settings-control-ink);
+  background: var(--settings-control-fill);
+  border-color: var(--settings-control-line);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+#settings-header #settings-guide-open:enabled:is(:hover, :focus-visible) {
+  border-color: var(--settings-control-ink);
+  background: var(--settings-control-hover);
+}
+
+#settings-header #settings-guide-open[data-guide-pending]:enabled {
+  --toolbar-pulse-color: var(--settings-control-ink);
+  border-color: var(--settings-control-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #settings-header #settings-guide-open[data-guide-pending]:enabled {
+    box-shadow: 0 0 6px color-mix(in srgb, var(--settings-control-ink) 38%, transparent);
+  }
+}
+
+[data-settings-loading] #settings-guide-open {
+  visibility: hidden;
+}
+
+#companion[data-settings-guide-scroll]::after {
+  display: block;
+  block-size: var(--settings-guide-room, 0px);
+  content: '';
+}
+
+#capri-guide.settings-guide {
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: none;
+  max-block-size: none;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+#capri-guide.settings-guide::backdrop {
+  background: transparent;
+}
+
+#capri-guide.settings-guide .guide-window-drag {
+  position: absolute;
+  inset: 0 0 auto;
+  block-size: var(--settings-header-height);
+  -webkit-app-region: drag;
+}
+
+#capri-guide.settings-guide:has(.guide-spotlight[hidden]) {
+  background: var(--guide-backdrop);
+}
+
+#capri-guide.settings-guide .guide-spotlight {
+  box-shadow: 0 0 0 200vmax var(--guide-backdrop);
+}
+
+#capri-guide.settings-guide .guide-dialog {
+  top: auto;
+  bottom: var(--guide-margin);
+  width: min(520px, calc(100vw - 2 * var(--guide-margin)));
+  max-height: min(62dvh, calc(100dvh - 145px));
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+}
+
+#capri-guide.settings-guide .guide-description {
+  padding: 2px 7px 2px 2px;
+  margin: 10px 0 4px;
+  overflow: auto;
+  white-space: pre-line;
+  scrollbar-color: var(--guide-edge) transparent;
+}
+
+#capri-guide.settings-guide .guide-actions {
+  padding-block-start: 8px;
+}
+
+#capri-guide.settings-guide .guide-close {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 32px;
+  padding: 0;
+}
+
+#capri-guide.settings-guide .guide-close svg {
+  inline-size: 20px;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+@media (max-height: 455px) {
+  #capri-guide.settings-guide .guide-dialog {
+    padding: 10px;
+  }
+
+  #capri-guide.settings-guide .guide-avatar {
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  #capri-guide.settings-guide .guide-progress {
+    margin-block: 6px;
+  }
+}

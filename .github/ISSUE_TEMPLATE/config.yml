@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Installation and documentation
+    url: https://github.com/CapriChooms/CapriCore/blob/main/docs/README.md
+    about: Find setup, model, voice, permissions and troubleshooting guides.
+  - name: Security vulnerability
+    url: https://github.com/CapriChooms/CapriCore/security/advisories/new
+    about: Report security problems privately instead of posting sensitive details in a public issue.
+  - name: Capri community
+    url: https://discord.gg/capricore
+    about: Ask general usage questions and talk with the community.

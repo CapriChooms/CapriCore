@@ -1,0 +1,1819 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { ComputerAgent } from '../apps/desktop/computer-agent.mjs';
+import { computerPlanner, computerActionSchema } from '../apps/desktop/computer-planner.mjs';
+import { ChatService } from '../apps/desktop/chat-service.mjs';
+import { steamGameGoal, steamMilestones } from '../apps/desktop/steam-task-state.mjs';
+import { matchSteamTitle } from '../apps/desktop/steam-library.mjs';
+import { cyberpunkSteamLaunch } from '../apps/desktop/steam-game-launch.mjs';
+import { computerModeRequest, ownerAppLaunch } from '../apps/desktop/computer-mode-request.mjs';
+import { edgerunnersPages, edgerunnersTeaserRequest } from '../apps/desktop/edgerunners-teaser.mjs';
+import {
+  browserSearchState,
+  browserPageState,
+  quotedYouTubeSearch,
+  explicitBrowserDestination,
+  youtubeWatchRequirement,
+  youtubeWatchVerified,
+  browserSearchUrl,
+  browserNavigationState,
+  requiresPageSearch,
+  observedSteamStoreProduct,
+} from '../apps/desktop/browser-search-state.mjs';
+
+test('explicit Steam launch wording does not replace conversation, denial or chained goals', () => {
+  const reportedGoal =
+    'Используй мой компьютер, открой приложение Steam и запусти Cyberpunk 2077 из библиотеки';
+  const steamPlayGoal = 'Open Steam, launch Cyberpunk 2077 and press "play"';
+  assert.deepEqual(computerModeRequest(reportedGoal), { enabled: true, run: true });
+  assert.equal(cyberpunkSteamLaunch(reportedGoal), true);
+  assert.equal(cyberpunkSteamLaunch(steamPlayGoal), true);
+  assert.deepEqual(computerModeRequest(steamPlayGoal, { fullComputerAccess: true }), {
+    enabled: true,
+    run: true,
+  });
+  assert.deepEqual(ownerAppLaunch(reportedGoal), { name: 'Steam', single: false });
+  assert.deepEqual(
+    ownerAppLaunch('Используй мой компьютер, открой приложение Paint и нажми Файл.'),
+    { name: 'Paint', single: false },
+  );
+  for (const text of [
+    'Do not launch Cyberpunk 2077.',
+    'How do I launch Cyberpunk 2077?',
+    'Launch Cyberpunk 2077 from GOG.',
+    'Launch Cyberpunk 2077 and then open Discord.',
+    'Open Steam, go to Cyberpunk 2077 and click Play, then open Discord.',
+    'Launch another game in Steam.',
+    reportedGoal + ', потом открой Discord.',
+    'Используй мой компьютер, открой приложение Steam и запусти другую игру из библиотеки.',
+  ])
+    assert.equal(cyberpunkSteamLaunch(text), false, text);
+});
+
+test('the model chooses even an exact launch, then receives fresh controls for a chained goal', async () => {
+  for (const single of [true, false]) {
+    const controller = new AbortController();
+    const calls = [];
+    let launched = false;
+    const control = {
+      session: null,
+      async begin() {
+        this.session = { controller };
+      },
+      async stop() {
+        this.session = null;
+      },
+      requireSession() {},
+      async execute({ action }) {
+        calls.push(action);
+        return {
+          window: {
+            windowId: launched ? '42' : '1',
+            untrustedTitle: launched ? 'Steam' : 'Desktop',
+          },
+          targets: launched ? [{ targetId: 'library', untrustedLabel: 'Library' }] : [],
+        };
+      },
+    };
+    const agent = new ComputerAgent({
+      control,
+      applications: {
+        async findApplications(query, _signal, options) {
+          assert.equal(query, 'steam');
+          assert.equal(options.exact, true);
+          return [{ name: 'Steam' }];
+        },
+        async execute(_id, args) {
+          calls.push(args.action);
+          launched = true;
+          return { ok: true, focused: true, windowVerified: true, windowId: '42' };
+        },
+      },
+      async plan(context) {
+        if (!launched) return { action: 'launch', query: 'steam' };
+        assert.equal(single, false);
+        assert.equal(context.currentObservation.window.windowId, '42');
+        assert.equal(context.actualSteps[0].action, 'launch');
+        return { action: 'ask_user', summary: 'Test reached the Library controls.' };
+      },
+    });
+    const result = await agent.run(
+      'useful computer access and open steam' + (single ? '.' : ' then go to my library.'),
+    );
+    assert.equal(result.status, single ? 'completed' : 'needs_user');
+    assert.deepEqual(calls, single ? ['observe', 'launch'] : ['observe', 'launch', 'observe']);
+  }
+});
+
+test('page-search wording excludes the toolbar and preserves explicit negative address-bar instructions', () => {
+  assert(requiresPageSearch('Type Capri into the search bar, then open Images.'));
+  assert(requiresPageSearch('Use the page search field. Do not use the address bar.'));
+  assert(requiresPageSearch('Введи Капри в поле поиска. Не используй адресную строку.'));
+  assert(requiresPageSearch('Click inside the store search input and type Portal 2.'));
+  assert(requiresPageSearch('Открой поиск по магазину и введи Portal 2.'));
+  assert(!requiresPageSearch('Type Capri in the address bar.'));
+});
+
+test('Steam product evidence requires a loaded store address and the actual product window title', () => {
+  const view = {
+    window: { untrustedTitle: 'Portal 2 on Steam - Google Chrome' },
+    targets: [{ browserAddress: true, untrustedValue: 'store.steampowered.com/app/620/Portal_2/' }],
+  };
+  assert.equal(observedSteamStoreProduct(view), 'Portal 2');
+  view.targets[0].focused = true;
+  assert.equal(observedSteamStoreProduct(view), null);
+  view.targets[0].focused = false;
+  view.targets[0].untrustedValue = 'store.steampowered.com/search/?term=Portal+2';
+  assert.equal(observedSteamStoreProduct(view), null);
+});
+
+test('a pending page query cannot finish or send keys before a real search field contains text', () => {
+  const fields = [
+    { targetId: 'unrelated', editable: true, untrustedLabel: 'Page field' },
+    { targetId: 'images', untrustedLabel: 'Images', pageContent: true },
+  ];
+  let schema = computerActionSchema(
+    { pageSearchRequired: true, pageQueryPending: true, targets: fields },
+    { type: 'string' },
+  );
+  assert(
+    !schema.anyOf.some((b) =>
+      ['press_keys', 'finish', 'browser_input', 'click'].includes(b.properties.action.const),
+    ),
+  );
+  fields.push({
+    targetId: 'search',
+    editable: true,
+    browserSearch: true,
+    focused: true,
+    untrustedValue: 'Capri',
+  });
+  schema = computerActionSchema(
+    { pageSearchRequired: true, pageQueryPending: true, targets: fields },
+    { type: 'string' },
+  );
+  assert(schema.anyOf.some((b) => b.properties.action.const === 'press_keys'));
+});
+
+test('navigation accepts Chrome hiding www, while rejecting another site, port, path or requested query', () => {
+  const target = { windowId: '123', navigationUrl: 'https://www.google.com/' };
+  const view = {
+    window: { windowId: '123', untrustedTitle: 'Google' },
+    targets: [{ browserAddress: true, focused: false, untrustedValue: 'google.com' }],
+  };
+  assert.equal(browserNavigationState(view, target), 'ready');
+  for (const address of [
+    'https://google.com.evil.invalid/',
+    'http://google.com/',
+    'https://google.com:444/',
+    'https://google.com/search',
+  ]) {
+    view.targets[0].untrustedValue = address;
+    assert.equal(browserNavigationState(view, target), 'loading');
+  }
+  view.targets[0].untrustedValue = 'https://google.com/?q=wrong';
+  assert.equal(
+    browserNavigationState(view, { ...target, navigationUrl: 'https://google.com/?q=Capri' }),
+    'loading',
+  );
+});
+
+test('Netflix home verifies its browse redirect and reports login or profile selection', () => {
+  const target = { windowId: '123', navigationUrl: 'https://www.netflix.com/' };
+  const view = {
+    window: { windowId: '123', untrustedTitle: 'Netflix' },
+    targets: [{ browserAddress: true, focused: false, untrustedValue: 'netflix.com/browse' }],
+  };
+  assert.equal(browserNavigationState(view, target), 'ready');
+  view.targets[0].untrustedValue = 'netflix.com/login';
+  assert.equal(browserNavigationState(view, target), 'sign_in');
+  view.targets[0].untrustedValue = 'netflix.com/ManageProfiles';
+  assert.equal(browserNavigationState(view, target), 'profile');
+  view.targets[0].untrustedValue = 'netflix.com.example.org/login';
+  assert.equal(browserNavigationState(view, target), 'loading');
+  const title = { ...target, navigationUrl: edgerunnersPages.netflix };
+  view.targets[0].untrustedValue = 'netflix.com/se-en/title/81001476';
+  assert.equal(browserNavigationState(view, title), 'loading');
+  view.targets[0].untrustedValue = 'netflix.com/se-en/title/81054853';
+  assert.equal(browserNavigationState(view, title), 'ready');
+  view.targets[0].focused = true;
+  assert.equal(browserNavigationState(view, title), 'loading');
+});
+
+test('an official web search is not blocked by a later Netflix step', async () => {
+  const actions = [];
+  const agent = new ComputerAgent({
+    control: { requireSession() {} },
+    applications: {
+      execute: async (_id, args) => {
+        actions.push(args);
+        return { ok: true, windowId: '123', navigationRequested: true };
+      },
+    },
+  });
+  const step = { action: 'browser_search', query: 'Google Chrome', text: 'official show website' };
+  const view = { targets: [] };
+  const signal = new AbortController().signal;
+  const result = await agent.applicationStep(
+    step,
+    'Open Chrome and search for the official show website. After that watch it on Netflix.',
+    view,
+    signal,
+  );
+  assert.equal(result.searchSubmitted, true);
+  assert.equal(actions[0].action, 'open_url');
+  assert.equal(new URL(actions[0].url).searchParams.get('q'), step.text);
+  assert.equal(
+    (await agent.applicationStep(step, 'Search for the show on Netflix.', view, signal)).ok,
+    false,
+  );
+  assert.equal(actions.length, 1);
+});
+
+test('the Edgerunners workflow opens both verified pages, scrolls and clicks only the first season-two teaser', async () => {
+  const goal =
+    'Please use my computer to open Google Chrome and search for the official Cyberpunk Adrinas 2 website. After that watch it on Netflix, scroll down a bit and play the teaser.';
+  for (const phrase of [
+    goal,
+    'открыть хром -> найти официальный сайт Cyberpung Edgerunners 2 -> посмотреть его на Netflix, scroll down, play the teaser',
+  ])
+    assert.equal(edgerunnersTeaserRequest(phrase), true);
+  assert.equal(edgerunnersTeaserRequest(goal + ' Then open Discord.'), false);
+  assert.equal(edgerunnersTeaserRequest('Do not ' + goal), false);
+  for (const signIn of [false, true]) {
+    const calls = [];
+    let page,
+      scrolled = false,
+      playing = false;
+    const control = {
+      async begin() {
+        this.session = { controller: new AbortController() };
+      },
+      async stop() {
+        this.session = null;
+      },
+      requireSession() {
+        assert.ok(this.session);
+      },
+      async execute(step) {
+        if (step.action === 'observe') {
+          const isNetflix = page === edgerunnersPages.netflix;
+          const address = isNetflix && signIn ? 'https://www.netflix.com/se-en/login' : page;
+          const button = (targetId, untrustedLabel) => ({
+            targetId,
+            untrustedLabel,
+            pageContent: true,
+            role: 'ControlType.Button',
+          });
+          return {
+            observationId: 'fresh',
+            window: { windowId: '123', untrustedTitle: 'Cyberpunk: Edgerunners 2' },
+            targets: [
+              { browserAddress: true, untrustedValue: address },
+              ...(scrolled
+                ? [
+                    button('second', '1m 12s TEASER Teaser 2: Cyberpunk: Edgerunners 2'),
+                    button('first', '1m 24s TEASER Teaser: Cyberpunk: Edgerunners 2'),
+                    button('season-one', 'Teaser: Cyberpunk: Edgerunners'),
+                  ]
+                : []),
+              ...(playing ? [button('pause', 'Pause')] : []),
+            ],
+          };
+        }
+        if (step.action === 'press_keys') {
+          assert.equal(page, edgerunnersPages.netflix);
+          assert.equal(step.observationId, 'fresh');
+          assert.deepEqual(step.keys, ['PAGEDOWN']);
+          scrolled = true;
+        }
+        if (step.action === 'click') {
+          assert.equal(step.targetId, 'first');
+          playing = true;
+        }
+        calls.push(step.action);
+        return { ok: true };
+      },
+    };
+    const agent = new ComputerAgent({
+      control,
+      plan: async (context, { review }) => {
+        if (review || playing)
+          return { action: 'finish', evidence: 'Pause', summary: 'Teaser is playing.' };
+        if (!page || page === edgerunnersPages.official)
+          return {
+            action: 'open_url',
+            query: 'Google Chrome',
+            url: page ? edgerunnersPages.netflix : edgerunnersPages.official,
+          };
+        if (signIn) return { action: 'ask_user', summary: 'Sign in to Netflix.' };
+        if (!scrolled) return { action: 'press_keys', keys: ['PAGEDOWN'] };
+        return {
+          action: 'click',
+          targetId: context.currentObservation.targets.find((t) => t.targetId === 'first').targetId,
+        };
+      },
+      applications: {
+        async execute(_id, args) {
+          assert.equal(args.action, 'open_url');
+          assert.equal(args.query, 'Google Chrome');
+          page = args.url;
+          calls.push(page);
+          return { ok: true, navigationRequested: true, windowId: '123' };
+        },
+        operation: (_id, _args, run) => run(),
+      },
+    });
+    const result = await agent.run(goal);
+    assert.deepEqual(calls, [
+      edgerunnersPages.official,
+      edgerunnersPages.netflix,
+      ...(signIn ? [] : ['press_keys', 'click']),
+    ]);
+    assert.equal(result.status, signIn ? 'needs_user' : 'completed');
+    assert.equal(result.verified === true, !signIn);
+  }
+});
+
+test('dense windows retain visual click targets and keep the observation within a bounded prompt', async () => {
+  const targets = Array.from({ length: 140 }, (_, i) => ({
+    targetId: 'ui-' + i,
+    untrustedLabel: 'Decorative label ' + i + 'x'.repeat(90),
+    untrustedValue: 'v'.repeat(500),
+    role: 'ControlType.Text',
+    editable: false,
+    focused: false,
+  }));
+  targets.push({
+    targetId: 'visible-image',
+    source: 'vision',
+    untrustedLabel: 'Actual image to open',
+  });
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const body = JSON.parse(request.body),
+        payload = JSON.parse(body.messages[1].content.split('\n\nORIGINAL OWNER GOAL')[0]);
+      assert(JSON.stringify(payload.currentObservation.targets).length < 12500);
+      assert(payload.currentObservation.targets.some((t) => t.source === 'vision'));
+      const target = payload.currentObservation.targets.find((t) => t.source === 'vision');
+      return Response.json({
+        done: true,
+        message: {
+          content: JSON.stringify({
+            action: 'click',
+            targetId: target.targetId,
+            summary: 'Open the observed picture.',
+          }),
+        },
+      });
+    },
+  });
+  assert.equal(
+    (
+      await plan({
+        originalOwnerGoal: 'Open the picture',
+        currentObservation: { window: { untrustedTitle: 'Fixture' }, targets },
+      })
+    ).targetId,
+    'visible-image',
+  );
+});
+
+test('page search never submits or navigates in place of the model’s next step', async () => {
+  const agent = new ComputerAgent({
+    control: { execute: () => assert.fail('Only the model chooses GUI actions') },
+    applications: { execute: () => assert.fail('No implicit address-bar navigation') },
+  });
+  const step = { action: 'browser_search', query: 'Chrome', text: 'Capri' };
+  for (const targets of [
+    [],
+    [{ targetId: 'page-field', editable: true, browserSearch: true, focused: true }],
+  ]) {
+    const result = await agent.applicationStep(
+      step,
+      'Use the search bar.',
+      { targets },
+      new AbortController().signal,
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.inputPerformed, false);
+    assert.match(result.instruction, /enter_text/);
+  }
+});
+
+test('fullscreen is required by observed window state before a finish claim can succeed', async () => {
+  const f = fixture(async () => ({
+    action: 'finish',
+    evidence: 'Owned test window',
+    summary: 'Done.',
+  }));
+  const result = await f.agent.run('Show the picture in fullscreen.');
+  assert.equal(result.ok, false);
+  assert.equal(result.steps, 0);
+});
+
+test('only an explicit no-text-sent preflight failure may be replanned; uncertain input is never replayed', async () => {
+  const f = fixture(async ({ currentObservation: view }) =>
+    view.targets[0].untrustedValue === 'Capri'
+      ? { action: 'finish', evidence: 'Capri', summary: 'Typed Capri.' }
+      : {
+          action: 'enter_text',
+          targetId: view.targets[0].targetId,
+          text: 'Capri',
+          summary: 'Type Capri.',
+        },
+  );
+  const execute = f.control.execute.bind(f.control);
+  let attempts = 0;
+  f.control.execute = async (args, signal) => {
+    if (args.action === 'enter_text' && ++attempts === 1)
+      throw Object.assign(new Error('No text was sent.'), {
+        code: 'COMPUTER_FIELD_STALE',
+        inputPerformed: false,
+      });
+    return execute(args, signal);
+  };
+  assert.equal((await f.agent.run('Type Capri.')).ok, true);
+  assert.equal(attempts, 2);
+  assert.equal(f.calls.filter((c) => c.action === 'enter_text').length, 1);
+});
+
+test('a foreground change rejected before input replans against a new observation', async () => {
+  let plans = 0;
+  const f = fixture(async ({ currentObservation: view, correction }) => {
+    if (++plans === 2) assert.match(correction, /restore the intended app/);
+    return view.targets[1].untrustedLabel === 'Saved draft'
+      ? { action: 'finish', evidence: 'Saved draft', summary: 'Saved.' }
+      : { action: 'click', targetId: view.targets[1].targetId };
+  });
+  const execute = f.control.execute.bind(f.control);
+  let attempts = 0;
+  f.control.execute = async (args, signal) => {
+    if (args.action === 'click' && ++attempts === 1)
+      throw Object.assign(new Error('The foreground changed before input.'), {
+        code: 'COMPUTER_FOREGROUND_CHANGED',
+        inputPerformed: false,
+      });
+    return execute(args, signal);
+  };
+  assert.equal((await f.agent.run('Click Save.')).ok, true);
+  assert.equal(attempts, 2);
+  assert.equal(f.calls.filter((call) => call.action === 'click').length, 1);
+});
+
+test('the model can choose a verified taskbar button after Windows denies focus', async () => {
+  let activated = false;
+  const f = fixture(async ({ actualSteps, currentObservation }) => {
+    if (!actualSteps.length) return { action: 'launch', query: 'Discord' };
+    if (!activated)
+      return {
+        action: 'click',
+        targetId: currentObservation.targets.find((t) => t.surface === 'taskbar').targetId,
+      };
+    return { action: 'finish', evidence: 'Discord', summary: 'Discord is open.' };
+  });
+  f.agent.applications.execute = async () => ({ ok: true, focused: false, windowId: '456' });
+  const execute = f.control.execute.bind(f.control);
+  f.control.execute = async (args, signal) => {
+    const result = await execute(args, signal);
+    if (args.action === 'click') {
+      assert.equal(args.targetId, 'discord-button');
+      activated = true;
+    }
+    if (args.action === 'observe') {
+      if (activated)
+        f.control.session.target = {
+          processId: '202',
+          startedAtTicks: '2000',
+          executable: 'C:\\Discord\\Discord.exe',
+        };
+      result.window = {
+        windowId: activated ? '456' : '123',
+        untrustedTitle: activated ? 'Discord' : 'Fixture',
+      };
+      result.targets.push({
+        targetId: 'discord-button',
+        surface: 'taskbar',
+        untrustedLabel: 'Приложение Discord —1 запущенное окно закреплено',
+      });
+    }
+    return result;
+  };
+  assert.equal((await f.agent.run('Open Discord.')).ok, true);
+  assert.equal(f.calls.filter((call) => call.action === 'click').length, 1);
+});
+
+function fixture(plan) {
+  let text = '',
+    clicked = false,
+    revision = 0;
+  const calls = [],
+    phases = [];
+  const control = {
+    session: null,
+    async begin() {
+      this.session = { controller: new AbortController() };
+    },
+    async stop() {
+      this.session?.controller.abort();
+      this.session = null;
+    },
+    requireSession() {
+      if (!this.session) throw Error('Stopped');
+      return this.session;
+    },
+    async execute(args, signal) {
+      signal?.throwIfAborted();
+      calls.push(args);
+      if (args.action === 'observe')
+        return {
+          observationId: String(++revision),
+          window: { untrustedTitle: 'Owned test window' },
+          targets: [
+            {
+              targetId: `${revision}-edit`,
+              untrustedLabel: 'Draft',
+              editable: true,
+              untrustedValue: text,
+            },
+            {
+              targetId: `${revision}-button`,
+              untrustedLabel: clicked ? 'Saved draft' : 'Save',
+              editable: false,
+            },
+          ],
+        };
+      if (args.action === 'enter_text') text = args.text;
+      if (args.action === 'click') clicked = true;
+      return { ok: true };
+    },
+  };
+  const agent = new ComputerAgent({
+    control,
+    plan,
+    maxDecisions: 8,
+    applications: {
+      operation: (_id, _args, run) => run(),
+      execute: async () => {
+        throw Error('Uncertain native failure');
+      },
+    },
+    emit: (event) => phases.push(event.phase),
+  });
+  return { agent, control, calls, phases, values: () => ({ text, clicked }) };
+}
+test('host task loop observes each mutation and independently reviews the entire goal before success', async () => {
+  let reviews = 0;
+  const f = fixture(async (context, { review }) => {
+    assert.equal(context.originalOwnerGoal, 'Write Capri and save the draft');
+    if (review) reviews++;
+    const [field, button] = context.currentObservation.targets;
+    if (field.untrustedValue !== 'Capri')
+      return { action: 'enter_text', targetId: field.targetId, text: 'Capri', summary: 'Type' };
+    if (button.untrustedLabel === 'Save')
+      return { action: 'click', targetId: button.targetId, summary: 'Save' };
+    return { action: 'finish', evidence: 'Saved draft', summary: 'Wrote and saved Capri.' };
+  });
+  const result = await f.agent.run('Write Capri and save the draft');
+  assert.equal(result.verified, true);
+  assert.equal(result.steps, 2);
+  assert.equal(reviews, 1);
+  assert.deepEqual(
+    f.calls.map((c) => c.action),
+    ['observe', 'enter_text', 'observe', 'click', 'observe', 'observe'],
+  );
+  assert.deepEqual(
+    f.calls.filter((c) => c.action === 'observe').map((c) => c.vision),
+    [true, true, true, false],
+  );
+  assert.equal(f.control.session, null);
+  assert.equal(f.agent.running, false);
+});
+test('completion prose without actual evidence never finishes a task', async () => {
+  const f = fixture(async () => ({
+    action: 'finish',
+    evidence: 'Made up success',
+    summary: 'Done',
+  }));
+  assert.equal((await f.agent.run('Do a task')).ok, false);
+  assert(f.calls.every((c) => c.action === 'observe'));
+});
+
+const reportedSteamGoal =
+  'Can you use my computer to open Steam? Then find Cyberpunk 2077, open it and uh press play button.';
+const reportedSteamLaunch = 'Используй компьютер, открой стим, найди там киберпанк и запусти его';
+
+test('Steam Library evidence distinguishes the game in the sidebar from the game in its main pane', async () => {
+  assert.deepEqual(steamGameGoal(reportedSteamGoal), { name: 'Cyberpunk 2077', play: true });
+  assert.deepEqual(
+    steamGameGoal(
+      'open steam then go to my library go to cyberpunk twenty seventy seven and click play',
+    ),
+    { name: 'Cyberpunk 2077', play: true },
+  );
+  const f = fixture(async () => ({
+    action: 'finish',
+    evidence: 'Owned test window',
+    summary: 'Done',
+  }));
+  assert.equal((await f.agent.run(reportedSteamGoal)).ok, false);
+  assert(f.calls.every((call) => call.action === 'observe'));
+
+  const goal = steamGameGoal(reportedSteamGoal);
+  const view = {
+    window: { windowId: '42', applicationKind: 'steam' },
+    steamLibrary: { page: 'game', gameTitle: 'Alchemy Factory', launchState: 'ready' },
+    targets: [
+      {
+        targetId: 'game',
+        steamRole: 'game_row',
+        role: 'ControlType.ListItem',
+        untrustedLabel: 'Cyberpunk 2077',
+      },
+      { targetId: 'play', steamRole: 'play', role: 'ControlType.Button', untrustedLabel: 'Играть' },
+    ],
+  };
+  const launch = { ok: true, action: 'launch', query: 'steam', windowId: '42' };
+  const click = { ok: true, action: 'click', target: 'Cyberpunk 2077', windowId: '42' };
+  const wrongPage = steamMilestones(goal, view, [launch, click]);
+  assert.equal(wrongPage.gamePage, false);
+  assert.equal(wrongPage.playTarget, null);
+  assert.equal(wrongPage.gameTarget, 'game');
+  const matchingView = {
+    ...view,
+    steamLibrary: { ...view.steamLibrary, gameTitle: 'Cyberpunk 2077' },
+  };
+  assert.equal(steamMilestones(goal, matchingView, [launch, click]).playTarget, 'play');
+  const history = [launch, click, { ...click, target: 'Играть', steamPlay: true }];
+  const played = steamMilestones(goal, matchingView, history);
+  assert.equal(played.playTarget, null);
+  assert.match(played.remaining, /already requested/);
+  matchingView.steamLibrary.launchState = 'running';
+  assert.equal(steamMilestones(goal, matchingView, history).remaining, null);
+});
+
+test('the reported Steam launch resolves Steam, visually selects Cyberpunk and verifies its launcher', async () => {
+  assert.deepEqual(steamGameGoal(reportedSteamLaunch), { name: 'Cyberpunk 2077', play: true });
+  assert.deepEqual(steamGameGoal('open cyberpunk from steam, then launch the game'), {
+    name: 'Cyberpunk 2077',
+    play: true,
+  });
+  assert.equal(steamGameGoal('open Cyberpunk from Steam, then open Discord'), null);
+  assert.equal(steamGameGoal('do not open Cyberpunk from Steam'), null);
+  assert.deepEqual(steamGameGoal('Open Portal 2 from Steam and launch it.'), {
+    name: 'Portal 2',
+    play: true,
+  });
+  assert.equal(cyberpunkSteamLaunch(reportedSteamLaunch), false);
+
+  let screen = 'desktop';
+  const actions = [];
+  const f = fixture(async (context) => {
+    assert.equal(context.originalOwnerGoal, reportedSteamLaunch);
+    const view = context.currentObservation;
+    if (screen === 'desktop') return { action: 'launch', query: 'Steam' };
+    if (screen === 'running')
+      return { action: 'finish', evidence: 'Cyberpunk 2077', summary: 'Started Cyberpunk.' };
+    assert.equal(view.screenAvailable, true);
+    const planned = { library: 'Cyberpunk 2077', game: 'Играть', launcher: 'Play' }[screen];
+    const target = view.targets.find((item) => item.untrustedLabel === planned);
+    if (screen === 'launcher')
+      assert.equal(
+        view.targets.find((item) => item.targetId === context.steamTaskTargets[0])?.untrustedLabel,
+        'Play',
+      );
+    assert(target, planned);
+    return { action: 'click', targetId: target.targetId, summary: planned };
+  });
+  f.agent.applications.findApplications = async (name) => {
+    assert.equal(name, 'Steam');
+    return [{ name: 'Steam', id: 'steam' }];
+  };
+  f.agent.applications.execute = async (_id, input) => {
+    assert.deepEqual(input, { action: 'launch', appId: 'steam' });
+    actions.push('Steam');
+    screen = 'library';
+    return { ok: true, focused: true, windowVerified: true, windowId: '42' };
+  };
+  let revision = 0;
+  let current;
+  let blockedObservation;
+  f.control.execute = async (input) => {
+    if (input.action === 'observe') {
+      if (screen === 'desktop')
+        throw Object.assign(new Error('No available window'), {
+          code: 'COMPUTER_APPLICATION_UNAVAILABLE',
+        });
+      const steam = ['library', 'game'].includes(screen);
+      const launcher = screen === 'launcher';
+      const windowId = steam ? '42' : launcher ? '43' : '1';
+      f.control.session.target = launcher
+        ? { windowId, executable: 'C:\\Programs\\CD Projekt Red\\REDlauncher\\REDlauncher.exe' }
+        : { windowId, ...(screen === 'running' && { executable: 'C:\\games\\Cyberpunk2077.exe' }) };
+      if (launcher) assert.equal(input.vision, true);
+      const targets = (
+        screen === 'library'
+          ? [{ untrustedLabel: 'Cyberpunk 2077', steamRole: 'game_row' }]
+          : screen === 'game'
+            ? [{ untrustedLabel: 'Играть', steamRole: 'play' }]
+            : launcher
+              ? [
+                  { untrustedLabel: 'Cyberpunk 2077' },
+                  { untrustedLabel: 'Play', actionRole: 'button', visualConfirmed: true },
+                ]
+              : []
+      ).map((item, index) => ({ ...item, targetId: `${screen}-${index}`, source: 'vision' }));
+      current = {
+        observationId: String(++revision),
+        window: {
+          windowId,
+          ...(steam && { applicationKind: 'steam' }),
+          ...(screen === 'running' && { untrustedTitle: 'Cyberpunk 2077' }),
+        },
+        targets,
+        screenAvailable: input.vision,
+        ...(steam && {
+          steamLibrary: {
+            page: 'game',
+            gameTitle: screen === 'library' ? 'Alchemy Factory' : 'Cyberpunk 2077',
+            launchState: 'ready',
+          },
+        }),
+      };
+      return current;
+    }
+    assert.equal(input.action, 'click');
+    assert.equal(input.observationId, current.observationId);
+    if (screen === 'library' && !blockedObservation) {
+      blockedObservation = input.observationId;
+      throw Object.assign(Error('The pointer moved before the click. No click was sent.'), {
+        code: 'COMPUTER_INPUT_BUSY',
+        inputPerformed: false,
+      });
+    }
+    if (screen === 'library') assert.notEqual(input.observationId, blockedObservation);
+    actions.push(
+      current.targets.find((target) => target.targetId === input.targetId)?.untrustedLabel,
+    );
+    screen = { library: 'game', game: 'launcher', launcher: 'running' }[screen];
+    return { ok: true, windowId: current.window.windowId };
+  };
+  const result = await f.agent.run(reportedSteamLaunch);
+  assert.equal(result.verified, true, JSON.stringify(result));
+  assert.deepEqual(actions, ['Steam', 'Cyberpunk 2077', 'Играть', 'Play']);
+  assert(f.agent.diagnostics().actions.some(({ code }) => code === 'COMPUTER_INPUT_BUSY'));
+});
+
+test('the Steam task rejects unrelated tabs, games and repeat Play, then verifies a fresh result', async () => {
+  let page = 'other',
+    gameTitle = '',
+    launchState = 'unavailable',
+    revision = 0;
+  let startingFrames = 0,
+    reviewed = false;
+  const delivered = [];
+  const planned = [
+    'Library',
+    'Community',
+    'Alchemy Factory',
+    'Cyberpunk 2077',
+    'Play',
+    'Play',
+    'finish',
+    'observe',
+    'finish',
+  ];
+  const f = fixture(async (context, { review }) => {
+    if (review) {
+      reviewed = true;
+      return {
+        action: 'finish',
+        evidence: 'Running Cyberpunk 2077',
+        summary: 'Cyberpunk 2077 is running.',
+      };
+    }
+    const action = planned.shift();
+    if (action === 'finish')
+      return { action, evidence: 'Running Cyberpunk 2077', summary: 'Done.' };
+    if (action === 'observe') return { action, summary: 'Check the current Steam page' };
+    const item = context.currentObservation.targets.find(
+      (target) => target.untrustedLabel === action,
+    );
+    assert(item, action);
+    return { action: 'click', targetId: item.targetId, summary: action };
+  });
+  let currentTargets;
+  f.control.execute = async (args) => {
+    if (args.action === 'observe') {
+      assert.equal(args.vision, true);
+      if (launchState === 'starting' && ++startingFrames === 4) launchState = 'running';
+      const controls = [
+        ['Library', 'library'],
+        ['Community'],
+        ['Alchemy Factory', 'game_row'],
+        ['Cyberpunk 2077', 'game_row'],
+        ['Play', 'play'],
+      ];
+      currentTargets = controls.map(([untrustedLabel, steamRole], i) => ({
+        targetId: `${++revision}-${i}`,
+        untrustedLabel,
+        steamRole,
+        source: 'vision',
+      }));
+      return {
+        observationId: `${revision}`,
+        window: { windowId: '42', applicationKind: 'steam', untrustedTitle: 'Steam' },
+        targets: currentTargets,
+        screenAvailable: true,
+        steamLibrary: { page, gameTitle, launchState },
+        scene:
+          launchState === 'running'
+            ? 'Running Cyberpunk 2077'
+            : `${page} ${gameTitle} ${launchState}`,
+      };
+    }
+    const clicked = currentTargets.find(
+      (target) => target.targetId === args.targetId,
+    )?.untrustedLabel;
+    assert.equal(args.action, 'click');
+    delivered.push(clicked);
+    if (clicked === 'Library') {
+      page = 'game';
+      gameTitle = 'Alchemy Factory';
+      launchState = 'ready';
+    }
+    if (clicked === 'Cyberpunk 2077') gameTitle = 'Cyberpunk 2077';
+    if (clicked === 'Play') launchState = 'starting';
+    return { ok: true, windowId: '42' };
+  };
+  f.agent.maxDecisions = 12;
+  const result = await f.agent.run(reportedSteamGoal);
+  assert.equal(result.verified, true, JSON.stringify(result));
+  assert.deepEqual(delivered, ['Library', 'Cyberpunk 2077', 'Play']);
+  assert.equal(reviewed, true);
+  assert.deepEqual(planned, []);
+});
+
+async function assertSteamLaunch(goal, installedGame = null) {
+  const actions = [];
+  let state = 'before',
+    revision = 0;
+  const f = fixture(async ({ currentObservation: view }, { review }) => {
+    if (state === 'before') return { action: 'launch', query: 'Steam' };
+    if (review || state === 'running')
+      return {
+        action: 'finish',
+        evidence: 'Alchemy Factory is running',
+        summary: 'Launched Alchemy Factory.',
+      };
+    return {
+      action: 'click',
+      targetId: view.targets.find(
+        (item) => item.steamRole === (state === 'library' ? 'game_row' : 'play'),
+      ).targetId,
+      summary: 'Continue',
+    };
+  });
+  f.agent.applications.findApplications = async (name) => {
+    assert.equal(name, 'Steam');
+    return [{ name: 'Steam', id: 'steam', executable: 'C:\\Steam\\steam.exe' }];
+  };
+  if (installedGame) {
+    f.agent.resolveSteamGame = async (executable, name) => {
+      assert.equal(executable, 'C:\\Steam\\steam.exe');
+      assert.equal(name, 'алхими фактори');
+      return installedGame;
+    };
+  }
+  f.agent.applications.execute = async (_id, payload) => {
+    assert.deepEqual(payload, { action: 'launch', appId: 'steam' });
+    actions.push('Steam');
+    state = 'library';
+    return { ok: true, focused: true, windowVerified: true, windowId: '42' };
+  };
+  f.control.execute = async (args) => {
+    if (state === 'before')
+      throw Object.assign(new Error('No application open'), {
+        code: 'COMPUTER_APPLICATION_UNAVAILABLE',
+      });
+    if (args.action === 'observe') {
+      assert.equal(args.vision, true);
+      assert.equal(f.control.session.steamGame.name, 'Alchemy Factory');
+      const observationId = String(++revision);
+      return {
+        observationId,
+        window: { windowId: '42', applicationKind: 'steam', untrustedTitle: 'Steam' },
+        screenAvailable: true,
+        steamLibrary: {
+          page: 'game',
+          gameTitle: state === 'library' ? 'Another game' : 'Alchemy Factory',
+          launchState: state === 'running' ? 'running' : 'ready',
+        },
+        scene: state === 'running' ? 'Alchemy Factory is running' : 'Steam Library',
+        targets: [
+          {
+            targetId: 'row-' + observationId,
+            steamRole: 'game_row',
+            untrustedLabel: 'Alchemy Factory',
+          },
+          { targetId: 'play-' + observationId, steamRole: 'play', untrustedLabel: 'Играть' },
+        ],
+      };
+    }
+    assert.equal(args.action, 'click');
+    assert.equal(args.targetId, (state === 'library' ? 'row-' : 'play-') + revision);
+    actions.push(state === 'library' ? 'Alchemy Factory' : 'Играть');
+    state = state === 'library' ? 'selected' : 'running';
+    return { ok: true, windowId: '42' };
+  };
+  const result = await f.agent.run(goal);
+  assert.equal(result.verified, true);
+  assert.deepEqual(actions, ['Steam', 'Alchemy Factory', 'Играть']);
+}
+
+test('a named game other than Cyberpunk is observed and launched inside Steam', async () => {
+  await assertSteamLaunch(
+    "Hi, Capri! Can you please use my PC, open Steam, launch Alchemy Factory for me? I'll be glad",
+  );
+});
+
+test('a Cyrillic game title uses a unique Steam library match for playing and verifying', async () => {
+  const game = { appId: '3669570', name: 'Alchemy Factory' };
+  assert.equal(matchSteamTitle('алхими фактори', [game]), game);
+  assert.equal(
+    matchSteamTitle('алхими фактори', [game, { appId: '42', name: 'Alchemy Factor' }]),
+    null,
+  );
+  assert.equal(matchSteamTitle('алхими фактори 2', [game]), null);
+  assert.equal(
+    matchSteamTitle('алхими фактори', [game, { appId: '42', name: 'Alchemy Factori' }]),
+    null,
+  );
+  assert.equal(matchSteamTitle('Alchemy Factori', [game]), null);
+  await assertSteamLaunch('Привет, используй пк и запусти алхими фактори из стима, пж', game);
+});
+
+test('an import cannot report success while its modal file picker is still open', async () => {
+  const f = fixture(async () => ({
+    action: 'finish',
+    evidence: 'Owned test window',
+    summary: 'Imported.',
+  }));
+  const original = f.control.execute.bind(f.control);
+  f.control.execute = async (...args) => {
+    const r = await original(...args);
+    if (args[0].action === 'observe') r.window.modal = true;
+    return r;
+  };
+  assert.equal((await f.agent.run('Import the test video into the media pool')).ok, false);
+  assert(f.calls.every((c) => c.action === 'observe'));
+});
+
+test('long chains retain early milestones after the detailed history rolls over', async () => {
+  let index = 0,
+    remembered = false;
+  const f = fixture(async (context, { review }) => {
+    if (index >= 50) {
+      remembered = context.completedSteps.some((s) => s.text === 'step 0');
+      return { action: 'finish', evidence: 'step 49', summary: 'Completed fifty steps.' };
+    }
+    return {
+      action: 'enter_text',
+      targetId: context.currentObservation.targets[0].targetId,
+      text: 'step ' + index++,
+      summary: 'Advance workflow.',
+    };
+  });
+  f.agent.maxDecisions = 100;
+  const r = await f.agent.run('Complete the fifty-step test workflow.');
+  assert.equal(r.ok, true);
+  assert.equal(r.steps, 50);
+  assert(remembered);
+});
+test('review can reject premature completion and continue the missing action', async () => {
+  const f = fixture(async (context, { review }) => {
+    const field = context.currentObservation.targets[0];
+    if (review && field.untrustedValue !== 'Capri')
+      return {
+        action: 'enter_text',
+        targetId: field.targetId,
+        text: 'Capri',
+        summary: 'Missing typing step',
+      };
+    return {
+      action: 'finish',
+      evidence: field.untrustedValue || 'Owned test window',
+      summary: 'Entered Capri.',
+    };
+  });
+  assert.equal((await f.agent.run('Enter Capri')).ok, true);
+  assert.equal(f.values().text, 'Capri');
+});
+test('Escape during planning prevents dispatch and releases the session', async () => {
+  const abort = new AbortController();
+  const f = fixture(async () => {
+    abort.abort();
+    return { action: 'click', targetId: '1-button' };
+  });
+  await assert.rejects(f.agent.run('Click Save', { signal: abort.signal }), /abort/i);
+  assert(f.calls.every((c) => c.action === 'observe'));
+  assert.equal(f.control.session, null);
+});
+test('an uncertain native action stops without replay, and unchanged actions cannot loop forever', async () => {
+  const f = fixture(async () => ({ action: 'launch', query: 'Fixture', summary: 'Open' }));
+  const result = await f.agent.run('Open fixture');
+  assert.equal(result.status, 'incomplete');
+  assert.equal(f.calls.length, 1);
+  const waiting = fixture(async () => ({ action: 'observe', summary: 'Look' }));
+  assert.equal((await waiting.agent.run('Find button')).status, 'stalled');
+});
+test('planner uses the configured loopback boundary and keeps screenshots and secrets out of requests', async () => {
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const body = JSON.parse(request.body);
+      assert.equal(body.tools.length, 0);
+      assert.equal(body.stream, false);
+      assert.match(body.messages[0].content, /UNTRUSTED data/i);
+      return Response.json({
+        done: true,
+        message: {
+          content: JSON.stringify({ action: 'finish', evidence: 'Ready', summary: 'Done.' }),
+        },
+      });
+    },
+  });
+  assert.equal(
+    (
+      await plan({
+        originalOwnerGoal: 'Test',
+        currentObservation: { window: { untrustedTitle: 'Ready' }, targets: [] },
+      })
+    ).action,
+    'finish',
+  );
+  assert.throws(
+    () => computerPlanner({ url: 'https://example.org', model: 'fixture' }),
+    /boundary/,
+  );
+});
+
+test('the decoding schema requires app arguments and restricts pointer targets to the current observation', () => {
+  const schema = computerActionSchema(
+    {
+      targets: [
+        { targetId: 'live-button', clickKind: 'control' },
+        { targetId: 'live-field', editable: true },
+        { targetId: 'heading', clickKind: 'text' },
+        { targetId: 'unconfirmed-caption', clickKind: 'candidate' },
+        { targetId: 'observed-caption', clickKind: 'visual-caption' },
+      ],
+    },
+    { type: 'string', enum: ['Ready'] },
+  );
+  const branch = (action) => schema.anyOf.find((b) => b.properties.action.const === action);
+  assert(branch('browser_search').required.includes('query'));
+  assert(branch('browser_search').required.includes('text'));
+  assert.equal(branch('browser_search').properties.targetId, undefined);
+  assert.deepEqual(branch('click').properties.targetId.enum, [
+    'live-button',
+    'live-field',
+    'observed-caption',
+  ]);
+  assert.deepEqual(branch('enter_text').properties.targetId.enum, ['live-field']);
+  assert.equal(branch('launch').required.includes('windowTitle'), false);
+  assert.equal(
+    computerActionSchema({ targets: [] }, { type: 'string' }).anyOf.some(
+      (b) => b.properties.action.const === 'click',
+    ),
+    false,
+  );
+});
+
+test('planner selection binds readable labels to their exact current native targets', async () => {
+  let supplied = 'Images [obs-ui-38]';
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const body = JSON.parse(request.body);
+      if (body.format === 'json') {
+        assert.match(body.messages[0].content, /Copy targetId and toTargetId exactly/);
+      } else {
+        const click = body.format.anyOf.find(
+          (branch) => branch.properties.action.const === 'click',
+        );
+        assert.deepEqual(click.properties.targetId.enum, [
+          'Images [obs-ui-38]',
+          'Search by image [obs-ui-23]',
+        ]);
+      }
+      return Response.json({
+        done: true,
+        message: {
+          content: JSON.stringify({ action: 'click', targetId: supplied, summary: 'Open images' }),
+        },
+      });
+    },
+  });
+  const state = {
+    originalOwnerGoal: 'Open photos',
+    currentObservation: {
+      targets: [
+        { targetId: 'obs-ui-23', untrustedLabel: 'Search by image' },
+        { targetId: 'obs-ui-38', untrustedLabel: 'Images' },
+      ],
+    },
+  };
+  assert.equal((await plan(state)).targetId, 'obs-ui-38');
+  supplied = 'Images [obs-ui-23]';
+  await assert.rejects(plan(state), /Invalid computer plan/);
+});
+
+test('a pending Steam launch exposes only verified input and observation actions to the planner', async () => {
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      const { format, messages } = JSON.parse(request.body);
+      assert.deepEqual(
+        format.anyOf.map((entry) => entry.properties.action.const),
+        ['click'],
+      );
+      assert.deepEqual(format.anyOf[0].properties.targetId.enum, ['Играть [play]']);
+      assert.match(messages.at(-1).content, /Steam launch or selection is still pending/);
+      return Response.json({
+        done: true,
+        message: {
+          content: JSON.stringify({
+            action: 'click',
+            targetId: 'Играть [play]',
+            summary: 'Launch the verified title',
+          }),
+        },
+      });
+    },
+  });
+  const result = await plan({
+    originalOwnerGoal: reportedSteamLaunch,
+    language: 'ru',
+    steamTaskTargets: ['play'],
+    steamMustAdvance: true,
+    currentObservation: {
+      window: { applicationKind: 'steam' },
+      targets: [
+        { targetId: 'play', untrustedLabel: 'Играть', source: 'vision' },
+        { targetId: 'store', untrustedLabel: 'Store', source: 'vision' },
+      ],
+    },
+  });
+  assert.equal(result.targetId, 'play');
+});
+
+test('image search stages exclude unrelated login and source links before opening the actual thumbnail', () => {
+  const targets = [
+    { targetId: 'login', untrustedLabel: 'Sign in' },
+    { targetId: 'images', untrustedLabel: 'Картинки' },
+    { targetId: 'source', untrustedLabel: 'Visit website' },
+    { targetId: 'image', untrustedLabel: 'Capri picture', imageCandidate: true },
+  ];
+  const branch = (schema, name) => schema.anyOf.find((b) => b.properties.action.const === name);
+  let schema = computerActionSchema({ imageResultsPending: true, targets }, { type: 'string' });
+  assert.deepEqual(branch(schema, 'click').properties.targetId.enum, ['images']);
+  assert(!branch(schema, 'finish'));
+  schema = computerActionSchema({ imagePreviewPending: true, targets }, { type: 'string' });
+  assert.deepEqual(branch(schema, 'click').properties.targetId.enum, ['image']);
+  assert(!branch(schema, 'browser_search'));
+});
+
+test('an open image preview cannot finish before actual fullscreen and can request F11', () => {
+  const schema = computerActionSchema(
+    {
+      fullscreenPending: true,
+      imageFullscreenPending: true,
+      targets: [{ targetId: 'source', untrustedLabel: 'Visit website' }],
+    },
+    { type: 'string' },
+  );
+  assert(!schema.anyOf.some((b) => b.properties.action.const === 'finish'));
+  assert(!schema.anyOf.some((b) => b.properties.action.const === 'click'));
+  assert.deepEqual(
+    schema.anyOf.find((b) => b.properties.action.const === 'press_keys').properties.keys.items,
+    { const: 'F11' },
+  );
+});
+
+test('browser page context distinguishes loaded image results from web results and unsubmitted drafts', () => {
+  const view = {
+    window: { windowId: '123', untrustedTitle: 'Capri cyberpunk - Google Search' },
+    targets: [
+      {
+        browserAddress: true,
+        focused: false,
+        untrustedValue: 'google.com/search?q=Capri+cyberpunk&udm=2',
+      },
+    ],
+  };
+  assert.equal(browserPageState(view).results, 'images');
+  assert.equal(browserPageState(view).query, 'Capri cyberpunk');
+  view.targets[0].focused = true;
+  assert.equal(browserPageState(view), null);
+  view.targets[0].focused = false;
+  view.targets[0].untrustedValue = 'google.com/search?q=Capri+cyberpunk';
+  assert.equal(browserPageState(view).results, 'web');
+  view.targets[0].untrustedValue = 'example.com/search?q=Capri+cyberpunk&udm=2';
+  assert.equal(browserPageState(view), null);
+});
+
+test('a browser draft is not typed repeatedly as the page controls change', async () => {
+  let plans = 0;
+  const f = fixture(async (context) => {
+    if (++plans === 3) {
+      assert.match(context.correction, /ALREADY in the address bar/);
+      return { action: 'ask_user', summary: 'The draft is ready.' };
+    }
+    return { action: 'browser_input', query: 'Chrome', text: 'Capri' };
+  });
+  const execute = f.control.execute.bind(f.control);
+  f.control.execute = async (...args) => {
+    const result = await execute(...args);
+    if (result.window) {
+      result.window.windowId = '123';
+      result.targets[0].browserAddress = true;
+      result.targets[1].untrustedLabel += plans;
+    }
+    return result;
+  };
+  f.agent.applications.execute = async (_id, args) => {
+    await f.control.execute({ action: 'enter_text', text: args.text });
+    return { ok: true, typed: true, windowId: '123' };
+  };
+  await f.agent.run('Type Capri in Chrome');
+  assert.equal(f.calls.filter((call) => call.action === 'enter_text').length, 1);
+});
+
+test('a repeated click is reviewed before input, but genuinely unfinished repeated actions can continue', async () => {
+  for (const requiredClicks of [1, 3]) {
+    let clicks = 0;
+    const f = fixture(async (ctx, { review }) =>
+      review
+        ? clicks >= requiredClicks
+          ? { action: 'finish', evidence: 'Images', summary: 'Opened images.' }
+          : { action: 'continue', summary: 'The owner requested more clicks.' }
+        : { action: 'click', targetId: ctx.currentObservation.targets[1].targetId },
+    );
+    const execute = f.control.execute.bind(f.control);
+    f.control.execute = async (...args) => {
+      if (args[0].action === 'click') clicks++;
+      const view = await execute(...args);
+      if (view.window) {
+        view.window.windowId = '123';
+        view.targets[0].untrustedValue = String(clicks);
+        view.targets[1].untrustedLabel = 'Images';
+      }
+      return view;
+    };
+    assert.equal((await f.agent.run('Click the requested number of times')).ok, true);
+    assert.equal(clicks, requiredClicks);
+  }
+});
+
+test('returning from a modal reviews an already delivered click before reopening it', async () => {
+  let clicks = 0;
+  let modal = false;
+  let saved = false;
+  const f = fixture(async ({ currentObservation }, { review }) => {
+    if (review) {
+      assert.equal(saved, true);
+      return { action: 'finish', evidence: 'Saved draft', summary: 'Saved.' };
+    }
+    return {
+      action: 'click',
+      targetId: currentObservation.targets[0].targetId,
+      summary: 'Save.',
+    };
+  });
+  const execute = f.control.execute.bind(f.control);
+  f.control.execute = async (...args) => {
+    const result = await execute(...args);
+    if (args[0].action === 'click') {
+      clicks++;
+      saved = modal;
+      modal = !modal;
+    }
+    if (args[0].action === 'observe') {
+      f.control.session.target = { processId: '42', startedAtTicks: '9001' };
+      result.window = { windowId: modal ? '22' : '11', modal, untrustedTitle: 'Owned test window' };
+      result.targets = [
+        { targetId: 'action', untrustedLabel: modal ? 'Confirm' : 'Save' },
+        ...(saved ? [{ targetId: 'receipt', untrustedLabel: 'Saved draft' }] : []),
+      ];
+    }
+    return result;
+  };
+  assert.equal((await f.agent.run('Save the draft')).ok, true);
+  assert.equal(clicks, 2);
+});
+test('browser helper uses the active full-access session and a fresh value for completion', async () => {
+  const f = fixture(async (ctx, { review }) => {
+    if (review || ctx.actualSteps.length) {
+      assert.equal(ctx.actualSteps[0].keys, undefined, 'Unused model arguments did not run.');
+      assert.equal(ctx.actualSteps[0].submitted, false);
+      return { action: 'finish', evidence: 'Draft: Capri', summary: 'Entered Capri.' };
+    }
+    return {
+      action: 'browser_input',
+      query: 'Google Chrome',
+      text: 'Capri',
+      summary: 'Type',
+      keys: ['ENTER'],
+    };
+  });
+  f.agent.applications.execute = async (_id, _args, approvals) =>
+    approvals.propose({
+      execute: async () => {
+        await f.control.execute({ action: 'enter_text', text: 'Capri' });
+        return { ok: true, typed: true, submitted: false };
+      },
+    });
+  assert.equal((await f.agent.run('Type Capri in Chrome')).ok, true);
+});
+test('explicit no-Enter instruction is enforced even when the planner proposes submission', async () => {
+  const f = fixture(async () => ({ action: 'press_keys', keys: ['ENTER'], summary: 'Submit' }));
+  assert.equal((await f.agent.run('Write a draft. Do not press Enter.')).ok, false);
+  assert(f.calls.every((c) => c.action === 'observe'));
+});
+test('a result that changes during the completion review is not reported as verified', async () => {
+  let read = 0;
+  const f = fixture(async () => ({
+    action: 'finish',
+    evidence: 'Owned test window',
+    summary: 'Done.',
+  }));
+  const base = f.control.execute.bind(f.control);
+  f.control.execute = async (...args) => {
+    const v = await base(...args);
+    if (v.window) v.window.untrustedTitle = ++read % 2 ? 'Owned test window' : 'Changed window';
+    return v;
+  };
+  assert.equal((await f.agent.run('Inspect the owned window')).ok, false);
+});
+test('explicit computer task mode waits for the model and persists the actual result', async () => {
+  const records = new Map(),
+    events = [];
+  const service = new ChatService({
+    gatewayUrl: 'http://127.0.0.1:1234',
+    agentId: 'capri',
+    store: {
+      snapshot: () => [...records.values()],
+      put: (item) => records.set(item.id, structuredClone(item)),
+    },
+    computerTask: async (goal) => {
+      assert.equal(goal, 'Write Capri');
+      return { status: 'completed', steps: 2, summary: 'Entered Capri.' };
+    },
+    token: () => 'fixture',
+    persona: () => 'Capri',
+    fetchImpl: async () => {
+      service.selectModelComputerTask('Write Capri');
+      return new Response('data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } });
+    },
+  });
+  await service.send(
+    { id: '11111111-1111-4111-8111-111111111111', text: 'Write Capri', mode: 'computer' },
+    (event) => events.push(event),
+  );
+  assert.equal(events.at(-1).type, 'turn.completed');
+  assert.equal(events.at(-1).assistant.text, 'Entered Capri.');
+  assert.equal(events.at(-1).assistant.computerTask.status, 'completed');
+});
+
+test('invented Chrome titles are discarded; a sole verified window can resolve selection without repeating input', async () => {
+  const requests = [];
+  const f = fixture(async (ctx, { review }) =>
+    review || ctx.actualSteps.length
+      ? { action: 'finish', evidence: 'Draft: Capri', summary: 'Typed Capri.' }
+      : {
+          action: 'browser_input',
+          query: 'Google Chrome',
+          windowTitle: 'Capri - Google Chrome',
+          text: 'Capri',
+        },
+  );
+  f.agent.applications.execute = async (_id, args) => {
+    requests.push(args);
+    if (!args.windowId)
+      return {
+        ok: true,
+        needsWindow: true,
+        inputPerformed: false,
+        windows: [{ windowId: '123', untrustedTitle: 'A different page - Google Chrome' }],
+      };
+    assert.equal(args.windowId, '123');
+    await f.control.execute({ action: 'enter_text', text: args.text });
+    return { ok: true, typed: true, submitted: false };
+  };
+  const result = await f.agent.run('Type Capri in Chrome');
+  assert.equal(result.ok, true);
+  assert.equal(result.steps, 1);
+  assert.equal(requests.length, 2);
+  assert(requests.every((args) => args.windowTitle === undefined));
+  assert.equal(f.calls.filter((c) => c.action === 'enter_text').length, 1);
+  assert(!JSON.stringify(f.agent.diagnostics()).includes('A different page'));
+});
+
+test('ambiguous windows or an explicitly requested missing title never cause arbitrary input or count as completed steps', async () => {
+  for (const specific of [false, true]) {
+    let count = 0;
+    const f = fixture(async () => ({
+      action: 'browser_input',
+      query: 'Chrome',
+      windowTitle: specific ? 'Owner selected tab' : '',
+      text: 'Capri',
+    }));
+    f.agent.applications.execute = async () => {
+      count++;
+      return {
+        ok: true,
+        needsWindow: true,
+        inputPerformed: false,
+        windows: specific ? [{ windowId: '123' }] : [{ windowId: '123' }, { windowId: '456' }],
+      };
+    };
+    const result = await f.agent.run(
+      specific ? 'In Owner selected tab, type Capri' : 'Type Capri in Chrome',
+    );
+    assert.equal(result.status, 'needs_user');
+    assert.equal(result.steps, 0);
+    assert.equal(count, 1);
+    assert(f.calls.every((c) => c.action === 'observe'));
+  }
+});
+
+test('only a currently observed window among returned candidates is selected when several browser windows exist', async () => {
+  const f = fixture(async (ctx, { review }) =>
+    review || ctx.actualSteps.length
+      ? { action: 'finish', evidence: 'Draft: Capri', summary: 'Done.' }
+      : { action: 'browser_input', query: 'Chrome', text: 'Capri' },
+  );
+  const base = f.control.execute.bind(f.control);
+  f.control.execute = async (...args) => {
+    const v = await base(...args);
+    if (v.window) v.window.windowId = '456';
+    return v;
+  };
+  f.agent.applications.execute = async (_id, args) => {
+    if (!args.windowId)
+      return {
+        ok: true,
+        needsWindow: true,
+        inputPerformed: false,
+        windows: [{ windowId: '123' }, { windowId: '456' }],
+      };
+    assert.equal(args.windowId, '456');
+    await f.control.execute({ action: 'enter_text', text: 'Capri' });
+    return { ok: true, typed: true };
+  };
+  assert.equal((await f.agent.run('Type Capri in Chrome')).ok, true);
+});
+
+test('failed application attempts remain failures in the next plan and completion review cannot erase the correction', async () => {
+  let normal = 0;
+  const f = fixture(async (ctx, { review }) => {
+    if (review) return { action: 'continue', summary: 'Still need to type.' };
+    if (++normal === 1)
+      return { action: 'click', targetId: ctx.currentObservation.targets[1].targetId };
+    if (normal === 2) return { action: 'browser_input', query: 'missing', text: 'Capri' };
+    assert.match(ctx.correction, /unknown_app/);
+    assert.equal(ctx.actualSteps.at(-1).ok, false);
+    return { action: 'ask_user', summary: 'Choose the app.' };
+  });
+  f.agent.applications.execute = async () => ({ ok: false, error: 'unknown_app' });
+  const result = await f.agent.run('Type Capri in a browser');
+  assert.equal(result.steps, 1);
+});
+
+test('browser search bypasses Chrome autocomplete and verifies exact results before completion', async () => {
+  let submitted = false,
+    reviews = 0;
+  const f = fixture(async (ctx, { review }) => {
+    if (review || ctx.actualSteps.length) {
+      if (review) reviews++;
+      assert(submitted);
+      return { action: 'finish', evidence: 'Capri - Google Search', summary: 'Searched.' };
+    }
+    return { action: 'browser_search', query: 'Chrome', text: 'Capri' };
+  });
+  const base = f.control.execute.bind(f.control);
+  f.control.execute = async (args, signal) => {
+    const result = await base(args, signal);
+    assert.notEqual(args.action, 'press_keys');
+    if (result.window) {
+      result.window = {
+        windowId: '123',
+        untrustedTitle: submitted ? 'Capri - Google Search' : 'Old page',
+      };
+      Object.assign(result.targets[0], {
+        browserAddress: true,
+        focused: !submitted,
+        untrustedValue: submitted
+          ? 'https://www.google.com/search?q=Capri'
+          : 'https://www.google.com/search?q=Capri+cyberpunk',
+      });
+    }
+    return result;
+  };
+  f.agent.applications.execute = async (_id, args, approvals) =>
+    approvals.propose({
+      execute: async () => {
+        assert.equal(args.action, 'open_url');
+        assert.equal(args.url, 'https://www.google.com/search?q=Capri');
+        submitted = true;
+        return { ok: true, navigationRequested: true, windowId: '123' };
+      },
+    });
+  const result = await f.agent.run('Google Capri in Chrome');
+  assert.equal(result.ok, true);
+  assert.equal(result.steps, 1);
+  assert.equal(reviews, 1);
+  assert.equal(f.calls.filter((c) => c.action === 'press_keys').length, 0);
+});
+
+test('browser search cannot submit a draft into a changed window or override a no-Enter instruction', async () => {
+  const f = fixture(async () => ({
+    action: 'browser_search',
+    query: 'Chrome',
+    text: 'Capri',
+    windowTitle: 'Test window',
+  }));
+  let dispatches = 0;
+  f.agent.applications.execute = async () => {
+    dispatches++;
+    return { ok: true, typed: true, windowId: '123' };
+  };
+  assert.equal((await f.agent.run('Type Capri. Do not press Enter.')).ok, false);
+  assert.equal(dispatches, 0);
+  assert.equal((await f.agent.run('Google Capri in the Test window')).ok, false);
+  assert.equal(dispatches, 0);
+  assert(f.calls.every((c) => c.action === 'observe'));
+});
+
+test('search completion distinguishes a draft, a loading page, a CAPTCHA, and actual search results', () => {
+  const search = { windowId: '123', text: 'кто такая Капри' };
+  const view = {
+    window: { windowId: '123', untrustedTitle: 'Old page - Google Chrome' },
+    targets: [
+      {
+        browserAddress: true,
+        focused: true,
+        untrustedValue: 'https://www.google.com/search?q=' + encodeURIComponent(search.text),
+      },
+    ],
+  };
+  assert.equal(browserSearchState(view, search), 'loading');
+  view.targets[0].focused = false;
+  assert.equal(browserSearchState(view, search), 'loading');
+  view.targets[0].untrustedValue = 'google.com/sorry/index?continue=https://www.google.com/search';
+  assert.equal(browserSearchState(view, search), 'challenge');
+  view.targets[0].untrustedValue = 'google.com/search?q=кто%20такая%20Капри';
+  view.window.untrustedTitle = 'кто такая Капри - Поиск в Google - Google Chrome';
+  assert.equal(browserSearchState(view, search), 'ready');
+  view.window.windowId = '456';
+  assert.equal(browserSearchState(view, search), 'window_changed');
+});
+
+test('malformed app arguments are replanned before dispatch rather than aborting the entire task', async () => {
+  let planned = 0;
+  const f = fixture(async (ctx, { review }) => {
+    if (review || ctx.actualSteps.length)
+      return { action: 'finish', evidence: 'Draft: Capri', summary: 'Typed Capri.' };
+    if (++planned === 1) return { action: 'browser_input', query: '', text: 'Capri' };
+    assert.match(ctx.correction, /application name/);
+    return {
+      action: 'enter_text',
+      targetId: ctx.currentObservation.targets[0].targetId,
+      text: 'Capri',
+    };
+  });
+  assert.equal((await f.agent.run('Type Capri')).ok, true);
+  assert.equal(f.calls.filter((call) => call.action === 'enter_text').length, 1);
+  assert.deepEqual(f.agent.diagnostics().actions[0], {
+    action: 'browser_input',
+    outcome: 'invalid_arguments',
+  });
+});
+
+test('planner and executor can hover a current target without clicking', async () => {
+  let moved = false;
+  const f = fixture(async (ctx, { review }) =>
+    review || ctx.actualSteps.length
+      ? { action: 'finish', evidence: 'Save', summary: 'Hovered Save.' }
+      : { action: 'move_pointer', targetId: ctx.currentObservation.targets[1].targetId },
+  );
+  const base = f.control.execute.bind(f.control);
+  f.control.execute = async (...args) => {
+    if (args[0].action === 'move_pointer') moved = true;
+    return base(...args);
+  };
+  assert.equal((await f.agent.run('Hover Save without clicking')).ok, true);
+  assert.equal(moved, true);
+  assert.equal(
+    f.calls.some((call) => call.action === 'click'),
+    false,
+  );
+  const planner = computerPlanner({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (_url, request) => {
+      assert(
+        JSON.parse(request.body).format.anyOf.some(
+          (branch) => branch.properties.action.const === 'move_pointer',
+        ),
+      );
+      return Response.json({
+        done: true,
+        message: {
+          content: JSON.stringify({
+            action: 'move_pointer',
+            targetId: 'Save [current]',
+            summary: 'Hover',
+          }),
+        },
+      });
+    },
+  });
+  assert.equal(
+    (
+      await planner({
+        originalOwnerGoal: 'Hover',
+        currentObservation: { targets: [{ targetId: 'current', untrustedLabel: 'Save' }] },
+      })
+    ).action,
+    'move_pointer',
+  );
+});
+
+test('verified search is not resubmitted when the next required step is clicking Images', async () => {
+  let submitted = false,
+    submissions = 0,
+    planned = 0;
+  const f = fixture(async (ctx, { review }) => {
+    if (f.values().clicked)
+      return { action: 'finish', evidence: 'Images', summary: 'Opened images.' };
+    if (review)
+      return f.values().clicked
+        ? { action: 'finish', evidence: 'Images', summary: 'Opened images.' }
+        : { action: 'continue', summary: 'Click Images on the results page.' };
+    if (++planned <= 2) return { action: 'browser_search', query: 'Chrome', text: 'Capri' };
+    assert.match(ctx.correction, /DO NOT search again/);
+    return { action: 'click', targetId: ctx.currentObservation.targets[1].targetId };
+  });
+  const base = f.control.execute.bind(f.control);
+  f.control.execute = async (...args) => {
+    assert.notEqual(args[0].action, 'press_keys');
+    const value = await base(...args);
+    if (value.window) {
+      value.window = {
+        windowId: '123',
+        untrustedTitle: submitted ? 'Capri - Google Search' : 'Chrome',
+      };
+      Object.assign(value.targets[0], { browserAddress: true, focused: !submitted });
+      value.targets[1].untrustedLabel = 'Images';
+      if (submitted) value.targets[0].untrustedValue = 'https://www.google.com/search?q=Capri';
+      if (f.values().clicked)
+        value.targets[0].untrustedValue = 'https://www.google.com/search?q=Capri&udm=2';
+    }
+    return value;
+  };
+  f.agent.applications.execute = async (_id, args) => {
+    assert.equal(args.url, 'https://www.google.com/search?q=Capri');
+    submitted = true;
+    submissions++;
+    return { ok: true, navigationRequested: true, windowId: '123' };
+  };
+  const result = await f.agent.run('Search Capri and open photos');
+  assert.equal(result.ok, true);
+  assert.equal(submissions, 1);
+  assert.equal(f.values().clicked, true);
+});
+test('YouTube search only verifies the requested loaded results, never a draft or another video page', () => {
+  const goal =
+    'Open Google Chrome, go to YouTube, search for "Artemis I launch", then open the NASA video.';
+  assert.equal(quotedYouTubeSearch(goal), 'Artemis I launch');
+  assert.equal(quotedYouTubeSearch('Do not open YouTube, search for "Artemis I launch".'), null);
+  assert.equal(quotedYouTubeSearch(goal + ' Use its search bar.'), null);
+  const query = 'Artemis I launch';
+  const view = {
+    window: {
+      windowId: 'native-window',
+      untrustedTitle: 'Artemis I launch - YouTube - Google Chrome',
+    },
+    targets: [
+      { browserAddress: true, focused: false, untrustedValue: browserSearchUrl(query, 'youtube') },
+    ],
+  };
+  assert.equal(
+    browserSearchState(view, { site: 'youtube', text: query, windowId: 'native-window' }),
+    'ready',
+  );
+  assert.equal(browserPageState(view).results, 'video');
+  view.targets[0].focused = true;
+  assert.equal(browserPageState(view), null);
+  view.targets[0].focused = false;
+  view.targets[0].untrustedValue = 'https://www.youtube.com/watch?v=unrelated';
+  assert.equal(browserPageState(view), null);
+});
+
+test('accepted browser navigation can bind to a late window only after native URL proof', () => {
+  const query = 'Capri QA';
+  const url = browserSearchUrl(query, 'youtube');
+  const view = {
+    window: { windowId: 'late-window', untrustedTitle: 'Capri QA - YouTube - Google Chrome' },
+    targets: [{ browserAddress: true, editable: false, focused: false, untrustedValue: url }],
+  };
+  const search = { text: query, site: 'youtube', windowId: 'previous-window' };
+  assert.equal(browserSearchState(view, search), 'window_changed');
+  assert.equal(browserSearchState(view, { ...search, allowUnboundNavigation: true }), 'ready');
+  view.targets[0].focused = true;
+  assert.equal(browserSearchState(view, { ...search, allowUnboundNavigation: true }), 'loading');
+  view.targets[0].focused = false;
+  view.targets[0].untrustedValue = browserSearchUrl('Different search', 'youtube');
+  assert.equal(browserSearchState(view, { ...search, allowUnboundNavigation: true }), 'loading');
+  view.targets[0].browserDocumentAddress = true;
+  view.targets.push({ browserAddress: true, browserDocumentAddress: true, untrustedValue: url });
+  assert.equal(browserSearchState(view, { ...search, allowUnboundNavigation: true }), 'loading');
+  view.targets[0].untrustedValue = url;
+  assert.equal(browserSearchState(view, { ...search, allowUnboundNavigation: true }), 'ready');
+  view.targets[0].untrustedValue = browserSearchUrl('Background tab', 'youtube');
+  view.targets[0].untrustedLabel = 'Background tab - YouTube';
+  view.targets[1].untrustedLabel = 'Capri QA - YouTube';
+  view.window.browserExecutable = 'chrome.exe';
+  assert.equal(
+    browserSearchState(view, {
+      ...search,
+      browserExecutable: 'chrome.exe',
+      allowUnboundNavigation: true,
+    }),
+    'ready',
+  );
+  assert.equal(
+    browserSearchState(view, {
+      ...search,
+      browserExecutable: 'msedge.exe',
+      allowUnboundNavigation: true,
+    }),
+    'loading',
+  );
+});
+
+test('a direct browser request never discards another requested action or URL credentials', () => {
+  const goal = 'Open Google Chrome, then go to https://example.com/watch?v=abc.';
+  assert.deepEqual(
+    explicitBrowserDestination(
+      goal + ' Leave this video open; do not sign in or change any settings.',
+    ),
+    { browser: 'Google Chrome', url: 'https://example.com/watch?v=abc' },
+  );
+  assert.equal(explicitBrowserDestination(goal + ' Play the video and go fullscreen.'), null);
+  assert.equal(
+    explicitBrowserDestination('Open Chrome and visit https://name:password@example.com/.'),
+    null,
+  );
+});
+
+test('a related music video or an unverified publisher cannot satisfy the requested teaser', () => {
+  const goal =
+    'Open Chrome, go to YouTube, search for "Cyberpunk Edgerunners official teaser Netflix", and open a matching official Netflix teaser video.';
+  const wanted = youtubeWatchRequirement(goal);
+  const view = {
+    window: {
+      untrustedTitle:
+        'Cyberpunk: Edgerunners 2 — High Forever | Animated Music Video - YouTube - Google Chrome',
+    },
+    targets: [
+      { browserAddress: true, untrustedValue: 'https://www.youtube.com/watch?v=abc1234_AbC' },
+    ],
+  };
+  assert.equal(youtubeWatchVerified(view, wanted), false);
+  view.window.untrustedTitle =
+    'Cyberpunk: Edgerunners 2 | Official Teaser - YouTube - Google Chrome';
+  assert.equal(youtubeWatchVerified(view, wanted), false);
+  view.targets.push({
+    pageContent: true,
+    untrustedLabel: 'Netflix Anime',
+    untrustedValue: 'https://www.youtube.com/@netflixanime',
+  });
+  assert.equal(youtubeWatchVerified(view, wanted), true);
+  const exact = youtubeWatchRequirement(
+    'Go to YouTube, search for "Me at the zoo jawed", then open the video titled "Me at the zoo".',
+  );
+  assert.equal(youtubeWatchVerified(view, exact), false);
+  view.window.untrustedTitle = 'Me at the zoo - YouTube - Google Chrome';
+  assert.equal(youtubeWatchVerified(view, exact), true);
+  view.targets[0].focused = true;
+  assert.equal(youtubeWatchVerified(view, exact), false);
+});

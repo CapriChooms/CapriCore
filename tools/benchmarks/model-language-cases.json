@@ -1,0 +1,1576 @@
+{
+  "schemaVersion": 1,
+  "description": "Two synthetic text probes per conversation language: antonym selection and short reasoning over a count that changes. Each expected group must match at least one answer variant. This checks constrained task success; it is not a measure of general fluency.",
+  "languages": {
+    "en": [
+      {
+        "id": "opposite",
+        "prompt": "What is the opposite of “hot” when talking about temperature? Reply with one word.",
+        "expected": [["cold", "cool"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya has 2 apples. She buys 3 more and gives 1 to a friend. How many apples does Maya have now? Answer in one short sentence.",
+        "expected": [
+          ["4", "four"],
+          ["apple", "apples"]
+        ]
+      }
+    ],
+    "af": [
+      {
+        "id": "opposite",
+        "prompt": "Wat is die teenoorgestelde van “warm” wanneer ons oor temperatuur praat? Antwoord met een woord.",
+        "expected": [["koud", "koel"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya het 2 appels. Sy koop nog 3 en gee 1 vir ’n vriendin. Hoeveel appels het Maya nou? Antwoord in een kort sin.",
+        "expected": [
+          ["4", "vier"],
+          ["appel", "appels"]
+        ]
+      }
+    ],
+    "sq": [
+      {
+        "id": "opposite",
+        "prompt": "Cila është e kundërta e fjalës «i nxehtë» kur flasim për temperaturën? Përgjigju me një fjalë.",
+        "expected": [["ftohtë", "ftoht", "ftohta", "freskët"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maja ka 2 mollë. Ajo blen edhe 3 dhe i jep 1 një shoqeje. Sa mollë ka Maja tani? Përgjigju me një fjali të shkurtër.",
+        "expected": [
+          ["4", "katër", "kater"],
+          ["mollë", "molla", "molle"]
+        ]
+      }
+    ],
+    "am": [
+      {
+        "id": "opposite",
+        "prompt": "ስለ ሙቀት ስንናገር የ«ሞቃት» ተቃራኒ ቃል ምንድን ነው? በአንድ ቃል መልስ።",
+        "expected": [["ቀዝቃዛ", "ብርድ", "ቀዝቀዝ"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "ማያ 2 ፖም አላት። ተጨማሪ 3 ፖም ገዝታ ለጓደኛዋ 1 ፖም ሰጠች። አሁን ማያ ስንት ፖም አላት? በአንድ አጭር ዓረፍተ ነገር መልስ።",
+        "expected": [
+          ["4", "አራት", "፬"],
+          ["ፖም", "ፖሞች"]
+        ]
+      }
+    ],
+    "ar": [
+      {
+        "id": "opposite",
+        "prompt": "ما عكس كلمة «حارّ» عند الحديث عن درجة الحرارة؟ أجب بكلمة واحدة.",
+        "expected": [["بارد", "باردة", "باردًا", "برودة", "باردا"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "لدى مايا تفاحتان. اشترت 3 تفاحات أخرى وأعطت صديقةً لها تفاحة واحدة. كم تفاحة بقيت لدى مايا؟ أجب بجملة قصيرة.",
+        "expected": [
+          ["4", "أربع", "اربع", "أربعة", "اربعة", "٤"],
+          ["تفاح", "تفاحة", "تفاحات", "تفاحاتٍ"]
+        ]
+      }
+    ],
+    "hy": [
+      {
+        "id": "opposite",
+        "prompt": "Երբ խոսքը ջերմաստիճանի մասին է, ո՞րն է «տաք» բառի հակառակը։ Պատասխանի՛ր մեկ բառով։",
+        "expected": [["սառը", "ցուրտ", "պաղ", "հով"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Մայան ունի 2 խնձոր։ Նա գնում է ևս 3 խնձոր և 1-ը տալիս է ընկերուհուն։ Քանի՞ խնձոր ունի Մայան հիմա։ Պատասխանի՛ր մեկ կարճ նախադասությամբ։",
+        "expected": [
+          ["4", "չորս", "չորսը"],
+          ["խնձոր", "խնձորներ"]
+        ]
+      }
+    ],
+    "as": [
+      {
+        "id": "opposite",
+        "prompt": "উষ্ণতাৰ কথা কওঁতে «গৰম» শব্দটোৰ বিপৰীত শব্দ কি? এটা শব্দত উত্তৰ দিয়া।",
+        "expected": [["ঠাণ্ডা", "ঠান্ডা", "শীতল", "চেঁচা"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "মায়াৰ ওচৰত 2টা আপেল আছে। তাই আৰু 3টা কিনিলে আৰু বান্ধৱীক 1টা দিলে। এতিয়া মায়াৰ ওচৰত কেইটা আপেল আছে? এটা চমু বাক্যত উত্তৰ দিয়া।",
+        "expected": [
+          ["4", "চাৰি", "চাৰিটা", "৪"],
+          ["আপেল", "আপেলটো"]
+        ]
+      }
+    ],
+    "az": [
+      {
+        "id": "opposite",
+        "prompt": "Temperaturdan danışanda «isti» sözünün əksi nədir? Bir sözlə cavab ver.",
+        "expected": [["soyuq", "sərin"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Mayanın 2 alması var. O, daha 3 alma alır və 1 almanı dostuna verir. İndi Mayanın neçə alması var? Bir qısa cümlə ilə cavab ver.",
+        "expected": [
+          ["4", "dörd"],
+          ["alma", "alması", "almaları"]
+        ]
+      }
+    ],
+    "bn": [
+      {
+        "id": "opposite",
+        "prompt": "তাপমাত্রার কথা বললে «গরম» শব্দের বিপরীত কী? এক শব্দে উত্তর দাও।",
+        "expected": [["ঠান্ডা", "ঠাণ্ডা", "শীতল"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "মায়ার কাছে 2টি আপেল আছে। সে আরও 3টি কেনে এবং 1টি এক বন্ধুকে দেয়। এখন মায়ার কাছে কয়টি আপেল আছে? একটি ছোট বাক্যে উত্তর দাও।",
+        "expected": [
+          ["4", "চার", "চারটি", "চারটে", "৪"],
+          ["আপেল", "আপেলগুলো"]
+        ]
+      }
+    ],
+    "ba": [
+      {
+        "id": "opposite",
+        "prompt": "Температура тураһында һүҙ барғанда, «эҫе» һүҙенең ҡапма-ҡаршы мәғәнәһе ниндәй? Бер һүҙ менән яуап бир.",
+        "expected": [["һыуыҡ", "һалҡын", "һыуык", "салҡын"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Майяла 2 алма бар. Ул тағы 3 алма һатып ала һәм 1 алманы дуҫына бирә. Хәҙер Майяла нисә алма бар? Бер ҡыҫҡа һөйләм менән яуап бир.",
+        "expected": [
+          ["4", "дүрт", "дүртәү"],
+          ["алма", "алмаһы", "алмалар"]
+        ]
+      }
+    ],
+    "eu": [
+      {
+        "id": "opposite",
+        "prompt": "Tenperaturari buruz ari garenean, zein da «bero» hitzaren kontrakoa? Hitz bakar batekin erantzun.",
+        "expected": [["hotz", "hotza", "fresko", "freskoa"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maiak 2 sagar ditu. Beste 3 erosi ditu eta lagun bati 1 eman dio. Zenbat sagar ditu Maiak orain? Erantzun esaldi labur batean.",
+        "expected": [
+          ["4", "lau", "launa"],
+          ["sagar", "sagarra", "sagarrak"]
+        ]
+      }
+    ],
+    "be": [
+      {
+        "id": "opposite",
+        "prompt": "Якое слова супрацьлеглае слову «гарачы», калі гаворка пра тэмпературу? Адкажы адным словам.",
+        "expected": [["халодны", "халодная", "халоднае", "холадна", "прахалодны"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "У Маі 2 яблыкі. Яна купляе яшчэ 3 і аддае 1 сяброўцы. Колькі яблыкаў цяпер у Маі? Адкажы адным кароткім сказам.",
+        "expected": [
+          ["4", "чатыры"],
+          ["яблык", "яблыкі", "яблыкаў"]
+        ]
+      }
+    ],
+    "bs": [
+      {
+        "id": "opposite",
+        "prompt": "Koja je suprotnost riječi „vruć” kada govorimo o temperaturi? Odgovori jednom riječju.",
+        "expected": [["hladan", "hladna", "hladno", "hladni"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maja ima 2 jabuke. Kupi još 3 i pokloni 1 prijateljici. Koliko jabuka Maja sada ima? Odgovori jednom kratkom rečenicom.",
+        "expected": [
+          ["4", "četiri", "cetiri"],
+          ["jabuka", "jabuke"]
+        ]
+      }
+    ],
+    "br": [
+      {
+        "id": "opposite",
+        "prompt": "Pa gomzer eus ar wrez, petra eo ar c'hontrol eus ar ger « tomm »? Respont gant ur ger hepken.",
+        "expected": [["yen", "yenienn", "fresk"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Daou aval zo gant Maya. Prenañ a ra 3 aval all ha reiñ a ra 1 d'he mignonez. Pet aval zo ganti bremañ? Respont gant ur frazenn verr.",
+        "expected": [
+          ["4", "pevar", "peder"],
+          ["aval", "avaloù", "avalou"]
+        ]
+      }
+    ],
+    "bg": [
+      {
+        "id": "opposite",
+        "prompt": "Коя дума е противоположна на „горещ“, когато говорим за температура? Отговори с една дума.",
+        "expected": [["студен", "студена", "студено", "хладен"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Мая има 2 ябълки. Купува още 3 и дава 1 на приятелка. Колко ябълки има Мая сега? Отговори с едно кратко изречение.",
+        "expected": [
+          ["4", "четири"],
+          ["ябълки", "ябълка"]
+        ]
+      }
+    ],
+    "my": [
+      {
+        "id": "opposite",
+        "prompt": "အပူချိန်အကြောင်း ပြောတဲ့အခါ «ပူ» ရဲ့ ဆန့်ကျင်ဘက် စကားလုံးက ဘာလဲ။ စကားလုံးတစ်လုံးနဲ့ ဖြေပါ။",
+        "expected": [["အေး", "အေးမြ", "အေးတယ်", "အအေး"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "မာယာမှာ ပန်းသီး 2 လုံး ရှိတယ်။ နောက်ထပ် 3 လုံးဝယ်ပြီး သူငယ်ချင်းကို 1 လုံး ပေးလိုက်တယ်။ အခု မာယာမှာ ပန်းသီး ဘယ်နှလုံး ရှိသလဲ။ ဝါကျတိုတစ်ကြောင်းနဲ့ ဖြေပါ။",
+        "expected": [["4", "လေး", "လေးလုံး", "၄"], ["ပန်းသီး"]]
+      }
+    ],
+    "yue": [
+      {
+        "id": "opposite",
+        "prompt": "講緊溫度嗰陣，「熱」嘅相反詞係乜嘢？用一個詞答。",
+        "expected": [["凍", "冷", "凍嘅", "冰凍"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "瑪雅有 2 個蘋果。佢再買 3 個，跟住送咗 1 個蘋果畀朋友。依家瑪雅有幾多個蘋果？用一句短句答。",
+        "expected": [
+          ["4", "四", "４"],
+          ["蘋果", "苹果"]
+        ]
+      }
+    ],
+    "ca": [
+      {
+        "id": "opposite",
+        "prompt": "Quin és el contrari de «calent» quan parlem de temperatura? Respon amb una sola paraula.",
+        "expected": [["fred", "freda", "fresc"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "La Maia té 2 pomes. En compra 3 més i en dona 1 a una amiga. Quantes pomes té ara la Maia? Respon amb una frase curta.",
+        "expected": [
+          ["4", "quatre"],
+          ["poma", "pomes"]
+        ]
+      }
+    ],
+    "zh": [
+      {
+        "id": "opposite",
+        "prompt": "说到温度时，“热”的反义词是什么？请只用一个词回答。",
+        "expected": [["冷", "凉", "寒冷", "冰冷", "低温", "寒"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "玛雅有 2 个苹果。她又买了 3 个，然后送给朋友 1 个。玛雅现在有几个苹果？请用一句简短的话回答。",
+        "expected": [
+          ["4", "四", "４"],
+          ["苹果", "蘋果"]
+        ]
+      }
+    ],
+    "hr": [
+      {
+        "id": "opposite",
+        "prompt": "Koja je suprotnost riječi „vruć” kada govorimo o temperaturi? Odgovori jednom riječju.",
+        "expected": [["hladan", "hladna", "hladno", "hladni"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maja ima 2 jabuke. Kupi još 3 i pokloni 1 prijateljici. Koliko jabuka Maja sada ima? Odgovori jednom kratkom rečenicom.",
+        "expected": [
+          ["4", "četiri", "cetiri"],
+          ["jabuka", "jabuke"]
+        ]
+      }
+    ],
+    "cs": [
+      {
+        "id": "opposite",
+        "prompt": "Co je opakem slova „horký“, když mluvíme o teplotě? Odpověz jedním slovem.",
+        "expected": [["studený", "studená", "studené", "chladný", "chlad", "chladno"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maja má 2 jablka. Koupí ještě 3 a 1 dá kamarádce. Kolik jablek má Maja teď? Odpověz jednou krátkou větou.",
+        "expected": [
+          ["4", "čtyři", "ctyri"],
+          ["jablko", "jablka", "jablek"]
+        ]
+      }
+    ],
+    "da": [
+      {
+        "id": "opposite",
+        "prompt": "Hvad er det modsatte af “varm”, når vi taler om temperatur? Svar med ét ord.",
+        "expected": [["kold", "koldt", "kolde", "kølig"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya har 2 æbler. Hun køber 3 mere og giver 1 til en ven. Hvor mange æbler har Maya nu? Svar med én kort sætning.",
+        "expected": [
+          ["4", "fire"],
+          ["æble", "æbler"]
+        ]
+      }
+    ],
+    "nl": [
+      {
+        "id": "opposite",
+        "prompt": "Wat is het tegenovergestelde van ‘heet’ als het om temperatuur gaat? Antwoord met één woord.",
+        "expected": [["koud", "koude", "koel"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya heeft 2 appels. Ze koopt er nog 3 en geeft er 1 aan een vriendin. Hoeveel appels heeft Maya nu? Antwoord in één korte zin.",
+        "expected": [
+          ["4", "vier"],
+          ["appel", "appels", "appelen"]
+        ]
+      }
+    ],
+    "et": [
+      {
+        "id": "opposite",
+        "prompt": "Mis on sõna «kuum» vastand, kui räägime temperatuurist? Vasta ühe sõnaga.",
+        "expected": [["külm", "jahe", "külma"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Mayal on 2 õuna. Ta ostab veel 3 ja annab 1 sõbrale. Mitu õuna on Mayal nüüd? Vasta ühe lühikese lausega.",
+        "expected": [
+          ["4", "neli", "nelja"],
+          ["õun", "õuna", "õunad"]
+        ]
+      }
+    ],
+    "fo": [
+      {
+        "id": "opposite",
+        "prompt": "Hvat er tað øvuta av orðinum «heitur», tá ið vit tosa um hitastig? Svara við einum orði.",
+        "expected": [["kaldur", "køld", "kalt", "kaldar"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya hevur 2 súrepli. Hon keypir 3 aftrat og gevur einari vinkonu 1. Hvussu nógv súrepli hevur Maya nú? Svara við einum stuttum setningi.",
+        "expected": [
+          ["4", "fýra", "fyra"],
+          ["súrepli", "súreplir"]
+        ]
+      }
+    ],
+    "tl": [
+      {
+        "id": "opposite",
+        "prompt": "Ano ang kabaligtaran ng “mainit” kapag temperatura ang pinag-uusapan? Sumagot sa isang salita.",
+        "expected": [["malamig", "lamig"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "May 2 mansanas si Maya. Bumili siya ng 3 pa at nagbigay ng 1 sa kaibigan niya. Ilang mansanas na ang mayroon si Maya ngayon? Sumagot sa isang maikling pangungusap.",
+        "expected": [["4", "apat", "apat na"], ["mansanas"]]
+      }
+    ],
+    "fi": [
+      {
+        "id": "opposite",
+        "prompt": "Mikä on sanan ”kuuma” vastakohta, kun puhutaan lämpötilasta? Vastaa yhdellä sanalla.",
+        "expected": [["kylmä", "viileä", "kylmää", "viileää"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Mayalla on 2 omenaa. Hän ostaa 3 lisää ja antaa 1 omenan ystävälleen. Montako omenaa Mayalla on nyt? Vastaa yhdellä lyhyellä virkkeellä.",
+        "expected": [
+          ["4", "neljä", "nelja"],
+          ["omena", "omenaa", "omenat", "omenoita"]
+        ]
+      }
+    ],
+    "fr": [
+      {
+        "id": "opposite",
+        "prompt": "Quel est le contraire de « chaud » quand on parle de température ? Réponds en un seul mot.",
+        "expected": [["froid", "froide", "frais", "fraîche"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya a 2 pommes. Elle en achète 3 de plus et en donne 1 à une amie. Combien de pommes Maya a-t-elle maintenant ? Réponds en une phrase courte.",
+        "expected": [
+          ["4", "quatre"],
+          ["pomme", "pommes"]
+        ]
+      }
+    ],
+    "gl": [
+      {
+        "id": "opposite",
+        "prompt": "Cal é o contrario de «quente» cando falamos da temperatura? Responde cunha soa palabra.",
+        "expected": [["frío", "fría", "frio", "fresco"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maia ten 2 mazás. Compra 3 máis e dálle 1 a unha amiga. Cantas mazás ten agora Maia? Responde cunha frase curta.",
+        "expected": [
+          ["4", "catro"],
+          ["mazá", "mazás", "mazas"]
+        ]
+      }
+    ],
+    "ka": [
+      {
+        "id": "opposite",
+        "prompt": "ტემპერატურაზე საუბრისას რა არის „ცხელის“ საპირისპირო სიტყვა? უპასუხე ერთი სიტყვით.",
+        "expected": [["ცივი", "გრილი", "სიცივე"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "მაიას 2 ვაშლი აქვს. ის კიდევ 3-ს ყიდულობს და 1-ს მეგობარს აძლევს. ახლა რამდენი ვაშლი აქვს მაიას? უპასუხე ერთი მოკლე წინადადებით.",
+        "expected": [
+          ["4", "ოთხი", "ოთხ"],
+          ["ვაშლი", "ვაშლები", "ვაშლს"]
+        ]
+      }
+    ],
+    "de": [
+      {
+        "id": "opposite",
+        "prompt": "Was ist das Gegenteil von „heiß“, wenn es um die Temperatur geht? Antworte mit einem Wort.",
+        "expected": [["kalt", "kühl", "kalte", "kälte"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya hat 2 Äpfel. Sie kauft 3 dazu und gibt 1 einer Freundin. Wie viele Äpfel hat Maya jetzt? Antworte in einem kurzen Satz.",
+        "expected": [
+          ["4", "vier"],
+          ["apfel", "äpfel", "äpfeln"]
+        ]
+      }
+    ],
+    "el": [
+      {
+        "id": "opposite",
+        "prompt": "Ποιο είναι το αντίθετο του «ζεστός» όταν μιλάμε για θερμοκρασία; Απάντησε με μία λέξη.",
+        "expected": [["κρύος", "κρύα", "κρύο", "ψυχρός", "ψυχρό", "δροσερός"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Η Μάγια έχει 2 μήλα. Αγοράζει άλλα 3 και δίνει 1 σε μια φίλη της. Πόσα μήλα έχει τώρα η Μάγια; Απάντησε με μία σύντομη πρόταση.",
+        "expected": [
+          ["4", "τέσσερα", "τεσσερα"],
+          ["μήλο", "μήλα", "μηλα"]
+        ]
+      }
+    ],
+    "gu": [
+      {
+        "id": "opposite",
+        "prompt": "તાપમાનની વાત કરીએ ત્યારે «ગરમ»નો વિરુદ્ધાર્થી શબ્દ કયો છે? એક શબ્દમાં જવાબ આપો.",
+        "expected": [["ઠંડું", "ઠંડો", "ઠંડી", "ઠંડુ", "શીતળ"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "માયા પાસે 2 સફરજન છે. તે વધુ 3 ખરીદે છે અને એક મિત્રને 1 આપે છે. હવે માયા પાસે કેટલાં સફરજન છે? એક ટૂંકા વાક્યમાં જવાબ આપો.",
+        "expected": [
+          ["4", "ચાર", "૪"],
+          ["સફરજન", "સફરજનો"]
+        ]
+      }
+    ],
+    "ht": [
+      {
+        "id": "opposite",
+        "prompt": "Lè n ap pale de tanperati, ki mo ki opoze ak « cho »? Reponn ak yon sèl mo.",
+        "expected": [["frèt", "fret", "fre"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya gen 2 pòm. Li achte 3 ankò epi li bay yon zanmi 1. Konbyen pòm Maya genyen kounye a? Reponn ak yon sèl fraz kout.",
+        "expected": [
+          ["4", "kat"],
+          ["pòm", "pom"]
+        ]
+      }
+    ],
+    "ha": [
+      {
+        "id": "opposite",
+        "prompt": "Idan ana magana game da yanayin zafi, wace kalma ce kishiyar «zafi»? Amsa da kalma ɗaya.",
+        "expected": [["sanyi", "ɗari"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya tana da tuffa 2. Ta sayi ƙarin 3, ta ba ƙawarta 1. Tuffa nawa Maya take da su yanzu? Amsa da gajeriyar jimla ɗaya.",
+        "expected": [
+          ["4", "huɗu", "hudu"],
+          ["tuffa", "tufa"]
+        ]
+      }
+    ],
+    "haw": [
+      {
+        "id": "opposite",
+        "prompt": "Ke kamaʻilio kākou no ke ana wela, he aha ka huaʻōlelo kūʻē i ka «wela»? E pane me hoʻokahi huaʻōlelo.",
+        "expected": [["anu", "anuanu", "huʻihuʻi", "huihui"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "He 2 ʻāpala kā Maya. Kūʻai hou ʻo ia i 3, a hāʻawi aku i 1 i kāna hoaaloha. Ehia ʻāpala kā Maya i kēia manawa? E pane ma hoʻokahi ʻōlelo pōkole.",
+        "expected": [
+          ["4", "ʻehā", "'ehā", "ehā", "eha"],
+          ["ʻāpala", "'āpala", "āpala", "apala"]
+        ]
+      }
+    ],
+    "he": [
+      {
+        "id": "opposite",
+        "prompt": "מה ההפך מ״חם״ כשמדברים על טמפרטורה? ענה במילה אחת.",
+        "expected": [["קר", "קרה", "קרים", "קור", "צונן"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "למאיה יש 2 תפוחים. היא קונה עוד 3 ונותנת 1 לחברה. כמה תפוחים יש למאיה עכשיו? ענה במשפט קצר אחד.",
+        "expected": [
+          ["4", "ארבעה", "ארבע"],
+          ["תפוח", "תפוחים"]
+        ]
+      }
+    ],
+    "hi": [
+      {
+        "id": "opposite",
+        "prompt": "तापमान की बात करते समय «गरम» का विलोम क्या है? एक शब्द में जवाब दो।",
+        "expected": [["ठंडा", "ठण्डा", "ठंडी", "शीतल", "शीत"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "माया के पास 2 सेब हैं। वह 3 और खरीदती है और 1 सेब अपनी सहेली को देती है। अब माया के पास कितने सेब हैं? एक छोटे वाक्य में जवाब दो।",
+        "expected": [["4", "चार", "४"], ["सेब"]]
+      }
+    ],
+    "hu": [
+      {
+        "id": "opposite",
+        "prompt": "Mi a „forró” szó ellentéte, ha hőmérsékletről beszélünk? Egy szóval válaszolj.",
+        "expected": [["hideg", "hűvös", "hideget"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Majának 2 almája van. Vesz még 3-at, és 1-et odaad a barátnőjének. Hány almája van most Majának? Egy rövid mondattal válaszolj.",
+        "expected": [
+          ["4", "négy", "negy"],
+          ["alma", "almája", "almát", "almák"]
+        ]
+      }
+    ],
+    "is": [
+      {
+        "id": "opposite",
+        "prompt": "Hvert er andheiti orðsins „heitur“ þegar talað er um hitastig? Svaraðu með einu orði.",
+        "expected": [["kaldur", "köld", "kalt", "kuldi", "svalur"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya á 2 epli. Hún kaupir 3 í viðbót og gefur vinkonu sinni 1. Hve mörg epli á Maya núna? Svaraðu með einni stuttri setningu.",
+        "expected": [
+          ["4", "fjögur", "fjórir", "fjórar"],
+          ["epli", "eplin"]
+        ]
+      }
+    ],
+    "id": [
+      {
+        "id": "opposite",
+        "prompt": "Apa lawan kata “panas” ketika membicarakan suhu? Jawab dengan satu kata.",
+        "expected": [["dingin", "sejuk"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya punya 2 apel. Ia membeli 3 lagi dan memberikan 1 kepada temannya. Berapa apel yang dimiliki Maya sekarang? Jawab dengan satu kalimat pendek.",
+        "expected": [["4", "empat"], ["apel"]]
+      }
+    ],
+    "it": [
+      {
+        "id": "opposite",
+        "prompt": "Qual è il contrario di «caldo» quando si parla di temperatura? Rispondi con una sola parola.",
+        "expected": [["freddo", "fredda", "fresco", "fresca"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya ha 2 mele. Ne compra altre 3 e ne dà 1 a un’amica. Quante mele ha adesso Maya? Rispondi con una frase breve.",
+        "expected": [
+          ["4", "quattro"],
+          ["mela", "mele"]
+        ]
+      }
+    ],
+    "ja": [
+      {
+        "id": "opposite",
+        "prompt": "温度を表す「熱い」の反対の意味を持つ言葉は何ですか。一語で答えてください。",
+        "expected": [["冷たい", "つめたい", "寒い", "さむい", "冷たさ", "低温"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "マヤはリンゴを2個持っています。さらに3個買い、友達に1個あげました。マヤのリンゴはいま何個ですか。短い一文で答えてください。",
+        "expected": [
+          ["4", "四", "４", "よん"],
+          ["リンゴ", "りんご", "林檎"]
+        ]
+      }
+    ],
+    "jw": [
+      {
+        "id": "opposite",
+        "prompt": "Nalika rembugan bab suhu, apa kosok baline tembung «panas»? Wangsulana nganggo tembung siji.",
+        "expected": [["adhem", "adem", "asrep", "asrem"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya duwe apel 2. Dheweke tuku 3 maneh lan menehi 1 marang kancane. Saiki Maya duwe apel pira? Wangsulana nganggo ukara cekak siji.",
+        "expected": [["4", "papat", "sekawan"], ["apel"]]
+      }
+    ],
+    "kn": [
+      {
+        "id": "opposite",
+        "prompt": "ತಾಪಮಾನದ ವಿಷಯದಲ್ಲಿ «ಬಿಸಿ» ಪದಕ್ಕೆ ವಿರುದ್ಧ ಪದ ಯಾವುದು? ಒಂದೇ ಪದದಲ್ಲಿ ಉತ್ತರಿಸಿ.",
+        "expected": [["ತಣ್ಣಗೆ", "ತಣ್ಣನೆಯ", "ತಣ್ಣಗಿರುವ", "ತಂಪು", "ಶೀತ", "ತಣ್ಣ", "ಚಳಿ"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "ಮಾಯಾಳ ಬಳಿ 2 ಸೇಬುಗಳಿವೆ. ಅವಳು ಇನ್ನೂ 3 ಸೇಬುಗಳನ್ನು ಕೊಂಡು 1 ಸೇಬನ್ನು ಗೆಳತಿಗೆ ಕೊಡುತ್ತಾಳೆ. ಈಗ ಮಾಯಾಳ ಬಳಿ ಎಷ್ಟು ಸೇಬುಗಳಿವೆ? ಒಂದು ಚಿಕ್ಕ ವಾಕ್ಯದಲ್ಲಿ ಉತ್ತರಿಸಿ.",
+        "expected": [
+          ["4", "ನಾಲ್ಕು", "೪"],
+          ["ಸೇಬು", "ಸೇಬುಗಳು", "ಸೇಬುಗಳಿವೆ"]
+        ]
+      }
+    ],
+    "kk": [
+      {
+        "id": "opposite",
+        "prompt": "Температура туралы айтқанда «ыстық» сөзінің қарама-қарсы мағынасы қандай? Бір сөзбен жауап бер.",
+        "expected": [["суық", "салқын"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Майяда 2 алма бар. Ол тағы 3 алма сатып алады да, 1 алманы досына береді. Қазір Майяда қанша алма бар? Бір қысқа сөйлеммен жауап бер.",
+        "expected": [
+          ["4", "төрт"],
+          ["алма", "алмасы", "алмалар"]
+        ]
+      }
+    ],
+    "km": [
+      {
+        "id": "opposite",
+        "prompt": "ពេលនិយាយពីសីតុណ្ហភាព តើពាក្យផ្ទុយនឹង «ក្តៅ» ជាអ្វី? ឆ្លើយត្រឹមមួយពាក្យ។",
+        "expected": [["ត្រជាក់", "រងា"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "ម៉ាយ៉ាមានផ្លែប៉ោម 2 ផ្លែ។ នាងទិញបន្ថែម 3 ផ្លែ ហើយឱ្យមិត្តភក្តិ 1 ផ្លែ។ ឥឡូវម៉ាយ៉ាមានផ្លែប៉ោមប៉ុន្មាន? ឆ្លើយជាប្រយោគខ្លីមួយ។",
+        "expected": [
+          ["4", "បួន", "៤"],
+          ["ប៉ោម", "ផ្លែប៉ោម"]
+        ]
+      }
+    ],
+    "ko": [
+      {
+        "id": "opposite",
+        "prompt": "온도를 나타낼 때 ‘뜨겁다’의 반대말은 무엇인가요? 한 단어로 답하세요.",
+        "expected": [["차갑다", "차가운", "차가움", "차갑습니다", "춥다", "추운", "시원하다"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "마야에게 사과가 2개 있습니다. 사과 3개를 더 사고 친구에게 1개를 주었습니다. 지금 마야에게 사과가 몇 개 있나요? 짧은 한 문장으로 답하세요.",
+        "expected": [["4", "네", "네 개", "네개", "넷", "사 개", "４"], ["사과"]]
+      }
+    ],
+    "lo": [
+      {
+        "id": "opposite",
+        "prompt": "ເມື່ອເວົ້າເຖິງອຸນຫະພູມ, ຄຳທີ່ມີຄວາມໝາຍກົງກັນຂ້າມກັບ «ຮ້ອນ» ແມ່ນຫຍັງ? ຕອບພຽງຄຳດຽວ.",
+        "expected": [["ເຢັນ", "ໜາວ", "ຫນາວ"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "ມາຢາມີໝາກແອັບເປີນ 2 ໜ່ວຍ. ນາງຊື້ເພີ່ມອີກ 3 ໜ່ວຍ ແລ້ວໃຫ້ໝູ່ 1 ໜ່ວຍ. ຕອນນີ້ມາຢາມີໝາກແອັບເປີນຈັກໜ່ວຍ? ຕອບເປັນປະໂຫຍກສັ້ນໆ.",
+        "expected": [
+          ["4", "ສີ່", "໔"],
+          ["ແອັບເປີນ", "ແອບເປີນ", "ແອັບເປິນ", "ແອັບເປີ້ນ"]
+        ]
+      }
+    ],
+    "la": [
+      {
+        "id": "opposite",
+        "prompt": "Cum de temperatura loquimur, quod verbum «calido» contrarium est? Uno verbo responde.",
+        "expected": [["frigidus", "frigida", "frigidum", "frigidō", "frigid", "frigus"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maia duo mala habet. Tria alia emit et unum amicae dat. Quot mala Maia nunc habet? Una brevi sententia responde.",
+        "expected": [
+          ["4", "quattuor", "quatuor"],
+          ["mala", "malum", "māla"]
+        ]
+      }
+    ],
+    "lv": [
+      {
+        "id": "opposite",
+        "prompt": "Kāds ir vārda “karsts” pretstats, runājot par temperatūru? Atbildi ar vienu vārdu.",
+        "expected": [["auksts", "auksta", "auksti", "vēss", "aukstums"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maijai ir 2 āboli. Viņa nopērk vēl 3 un 1 iedod draudzenei. Cik ābolu Maijai ir tagad? Atbildi ar vienu īsu teikumu.",
+        "expected": [
+          ["4", "četri", "četras", "cetri"],
+          ["ābols", "āboli", "ābolu", "ābolus"]
+        ]
+      }
+    ],
+    "ln": [
+      {
+        "id": "opposite",
+        "prompt": "Liloba nini ezali na ndimbola ya kokesana na «molunge»? Yanola na liloba moko.",
+        "expected": [["malili", "mpiɔ", "mpio", "mpɛmbɛ"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya azali na pome 2. Asombi 3 mosusu mpe apesi moninga na ye 1. Sikoyo Maya azali na pome boni? Yanola na fraze moko ya mokuse.",
+        "expected": [
+          ["4", "minei", "minéi", "mineyi"],
+          ["pome", "pɔm", "pɔme", "mapome"]
+        ]
+      }
+    ],
+    "lt": [
+      {
+        "id": "opposite",
+        "prompt": "Koks yra žodžio „karštas“ antonimas, kai kalbame apie temperatūrą? Atsakyk vienu žodžiu.",
+        "expected": [["šaltas", "šalta", "šaltis", "vėsus", "vėsu"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maja turi 2 obuolius. Ji nusiperka dar 3 ir 1 atiduoda draugei. Kiek obuolių Maja turi dabar? Atsakyk vienu trumpu sakiniu.",
+        "expected": [
+          ["4", "keturis", "keturi", "keturių"],
+          ["obuolys", "obuoliai", "obuolių", "obuolius"]
+        ]
+      }
+    ],
+    "lb": [
+      {
+        "id": "opposite",
+        "prompt": "Wat ass de Géigendeel vu „waarm“, wa mir iwwer Temperatur schwätzen? Äntwert mat engem Wuert.",
+        "expected": [["kal", "kalt", "kill"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "D'Maya huet 2 Äppel. Si keeft nach 3 a gëtt enger Frëndin 1 dovun. Wéi vill Äppel huet d'Maya elo? Äntwert mat engem kuerze Saz.",
+        "expected": [
+          ["4", "véier", "veier"],
+          ["apel", "äppel"]
+        ]
+      }
+    ],
+    "mk": [
+      {
+        "id": "opposite",
+        "prompt": "Кој е спротивниот збор на „жешко“ кога зборуваме за температура? Одговори со еден збор.",
+        "expected": [["ладно", "ладен", "ладна", "студено", "студен"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Маја има 2 јаболка. Купува уште 3 и ѝ дава 1 на другарка. Колку јаболка има Маја сега? Одговори со една кратка реченица.",
+        "expected": [
+          ["4", "четири"],
+          ["јаболко", "јаболка"]
+        ]
+      }
+    ],
+    "mg": [
+      {
+        "id": "opposite",
+        "prompt": "Raha mari-pana no resahina, inona ny teny mifanohitra amin’ny hoe «mafana»? Valio amin’ny teny iray.",
+        "expected": [["mangatsiaka", "mangatsiatsiaka", "hatsiaka"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Manana paoma 2 i Maya. Mividy 3 fanampiny izy ary manome 1 ny namany. Firy ny paoma ananan’i Maya izao? Valio amin’ny fehezanteny fohy iray.",
+        "expected": [["4", "efatra"], ["paoma"]]
+      }
+    ],
+    "ms": [
+      {
+        "id": "opposite",
+        "prompt": "Apakah lawan kata “panas” apabila bercakap tentang suhu? Jawab dengan satu perkataan.",
+        "expected": [["sejuk", "dingin"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya ada 2 biji epal. Dia membeli 3 biji lagi dan memberikan 1 biji kepada rakannya. Berapa biji epal yang Maya ada sekarang? Jawab dalam satu ayat pendek.",
+        "expected": [
+          ["4", "empat"],
+          ["epal", "apel"]
+        ]
+      }
+    ],
+    "ml": [
+      {
+        "id": "opposite",
+        "prompt": "താപനിലയെക്കുറിച്ച് പറയുമ്പോൾ «ചൂട്» എന്ന വാക്കിന്റെ വിപരീതം എന്താണ്? ഒറ്റ വാക്കിൽ ഉത്തരം പറയുക.",
+        "expected": [["തണുപ്പ്", "തണുത്ത", "തണുത്തത്", "കുളിർ", "ശീതം"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "മായയുടെ കൈയിൽ 2 ആപ്പിളുണ്ട്. അവൾ 3 എണ്ണം കൂടി വാങ്ങി, 1 ആപ്പിൾ കൂട്ടുകാരിക്കു കൊടുത്തു. ഇപ്പോൾ മായയുടെ കൈയിൽ എത്ര ആപ്പിളുണ്ട്? ഒരു ചെറിയ വാക്യത്തിൽ ഉത്തരം പറയുക.",
+        "expected": [
+          ["4", "നാല്", "നാലു", "നാലെണ്ണം", "൪"],
+          ["ആപ്പിൾ", "ആപ്പിള്‍", "ആപ്പിള്", "ആപ്പിളുകൾ", "ആപ്പിളുണ്ട്"]
+        ]
+      }
+    ],
+    "mt": [
+      {
+        "id": "opposite",
+        "prompt": "X'inhu l-kuntrarju ta' “sħun” meta nitkellmu dwar it-temperatura? Wieġeb b'kelma waħda.",
+        "expected": [["kiesaħ", "kiesħa", "kesħa"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya għandha 2 tuffiħat. Tixtri 3 oħra u tagħti 1 lil ħabiba. Kemm għandha tuffiħat Maya issa? Wieġeb b'sentenza waħda qasira.",
+        "expected": [
+          ["4", "erbgħa", "erba’", "erba'", "erba"],
+          ["tuffieħa", "tuffiħ", "tuffiħat"]
+        ]
+      }
+    ],
+    "mi": [
+      {
+        "id": "opposite",
+        "prompt": "Ina kōrero tātou mō te pāmahana, he aha te kupu tauaro o te kupu «wera»? Kia kotahi te kupu hei whakautu.",
+        "expected": [["mātao", "matao", "makariri", "mātaratara"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "E 2 ngā āporo a Maya. Ka hoko ia i ētahi atu āporo e 3, ā, ka hoatu e ia te 1 ki tana hoa. E hia ngā āporo a Maya ināianei? Whakautua ki te rerenga kōrero poto kotahi.",
+        "expected": [
+          ["4", "whā", "wha"],
+          ["āporo", "aporo"]
+        ]
+      }
+    ],
+    "mr": [
+      {
+        "id": "opposite",
+        "prompt": "तापमानाबद्दल बोलताना «गरम» या शब्दाचा विरुद्धार्थी शब्द कोणता? एका शब्दात उत्तर द्या.",
+        "expected": [["थंड", "थंडा", "गार", "शीत"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "मायाकडे 2 सफरचंदे आहेत. ती आणखी 3 विकत घेते आणि 1 मैत्रिणीला देते. आता मायाकडे किती सफरचंदे आहेत? एका छोट्या वाक्यात उत्तर द्या.",
+        "expected": [
+          ["4", "चार", "४"],
+          ["सफरचंद", "सफरचंदे", "सफरचंदं"]
+        ]
+      }
+    ],
+    "mn": [
+      {
+        "id": "opposite",
+        "prompt": "Температурын тухай ярихад «халуун» гэдэг үгийн эсрэг утгатай үг юу вэ? Нэг үгээр хариулаарай.",
+        "expected": [["хүйтэн", "сэрүүн"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Маяад 2 алим байна. Тэр нэмж 3 алим худалдаж аваад 1 алимыг найздаа өглөө. Одоо Маяад хэдэн алим байна вэ? Нэг богино өгүүлбэрээр хариулаарай.",
+        "expected": [
+          ["4", "дөрөв", "дөрвөн"],
+          ["алим", "алимаа", "алимтай"]
+        ]
+      }
+    ],
+    "ne": [
+      {
+        "id": "opposite",
+        "prompt": "तापक्रमको कुरा गर्दा «तातो» शब्दको विपरीत अर्थ के हो? एउटा शब्दमा जवाफ दिनुहोस्।",
+        "expected": [["चिसो", "शीतल", "चिसा"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "मायासँग 2 वटा स्याउ छन्। उसले थप 3 वटा किन्छे र 1 वटा साथीलाई दिन्छे। अब मायासँग कति वटा स्याउ छन्? एउटा छोटो वाक्यमा जवाफ दिनुहोस्।",
+        "expected": [
+          ["4", "चार", "४"],
+          ["स्याउ", "स्याउहरू"]
+        ]
+      }
+    ],
+    "no": [
+      {
+        "id": "opposite",
+        "prompt": "Hva er det motsatte av «varm» når vi snakker om temperatur? Svar med ett ord.",
+        "expected": [["kald", "kaldt", "kalde", "kjølig"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya har 2 epler. Hun kjøper 3 til og gir 1 til en venninne. Hvor mange epler har Maya nå? Svar med én kort setning.",
+        "expected": [
+          ["4", "fire"],
+          ["eple", "epler"]
+        ]
+      }
+    ],
+    "nn": [
+      {
+        "id": "opposite",
+        "prompt": "Kva er det motsette av «varm» når vi snakkar om temperatur? Svar med eitt ord.",
+        "expected": [["kald", "kaldt", "kalde", "kjøleg"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya har 2 eple. Ho kjøper 3 til og gjev 1 til ei veninne. Kor mange eple har Maya no? Svar med éi kort setning.",
+        "expected": [
+          ["4", "fire"],
+          ["eple", "epla"]
+        ]
+      }
+    ],
+    "oc": [
+      {
+        "id": "opposite",
+        "prompt": "Quin es lo contrari de «caud» quand parlam de temperatura? Respond amb un sol mot.",
+        "expected": [["fred", "freda", "freg", "freja", "frech"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya a 2 pomas. Ne crompa 3 de mai e ne dona 1 a una amiga. Quantes pomas a Maya ara? Respond amb una frasa corta.",
+        "expected": [
+          ["4", "quatre"],
+          ["poma", "pomas"]
+        ]
+      }
+    ],
+    "ps": [
+      {
+        "id": "opposite",
+        "prompt": "کله چې د تودوخې په اړه خبرې کوو، د «ګرم» مخالفه کلمه څه ده؟ په یوه کلمه ځواب ورکړه.",
+        "expected": [["یخ", "سوړ", "سړه", "سړ", "یخه"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "مایا 2 مڼې لري. هغه 3 نورې مڼې اخلي او 1 خپلې ملګرې ته ورکوي. اوس مایا څو مڼې لري؟ په یوه لنډه جمله ځواب ورکړه.",
+        "expected": [
+          ["4", "څلور", "۴", "٤"],
+          ["مڼه", "مڼې", "مڼي"]
+        ]
+      }
+    ],
+    "fa": [
+      {
+        "id": "opposite",
+        "prompt": "وقتی دربارهٔ دما حرف می‌زنیم، متضاد «گرم» چیست؟ با یک کلمه پاسخ بده.",
+        "expected": [["سرد", "خنک"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "مایا 2 سیب دارد. او 3 سیب دیگر می‌خرد و 1 سیب به دوستش می‌دهد. مایا حالا چند سیب دارد؟ با یک جملهٔ کوتاه پاسخ بده.",
+        "expected": [
+          ["4", "چهار", "۴", "٤"],
+          ["سیب", "سيب"]
+        ]
+      }
+    ],
+    "pl": [
+      {
+        "id": "opposite",
+        "prompt": "Jakie jest przeciwieństwo słowa „gorący”, gdy mówimy o temperaturze? Odpowiedz jednym słowem.",
+        "expected": [["zimny", "zimna", "zimne", "zimno", "chłodny"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maja ma 2 jabłka. Kupuje jeszcze 3 i daje 1 koleżance. Ile jabłek ma teraz Maja? Odpowiedz jednym krótkim zdaniem.",
+        "expected": [
+          ["4", "cztery"],
+          ["jabłko", "jabłka", "jabłek"]
+        ]
+      }
+    ],
+    "pt": [
+      {
+        "id": "opposite",
+        "prompt": "Qual é o contrário de «quente» quando falamos de temperatura? Responde com uma só palavra.",
+        "expected": [["frio", "fria", "fresco", "fresca"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "A Maia tem 2 maçãs. Compra mais 3 e dá 1 a uma amiga. Quantas maçãs tem agora a Maia? Responde com uma frase curta.",
+        "expected": [
+          ["4", "quatro"],
+          ["maçã", "maçãs"]
+        ]
+      }
+    ],
+    "pa": [
+      {
+        "id": "opposite",
+        "prompt": "ਤਾਪਮਾਨ ਦੀ ਗੱਲ ਕਰਦੇ ਹੋਏ «ਗਰਮ» ਦਾ ਉਲਟ ਸ਼ਬਦ ਕੀ ਹੈ? ਇੱਕ ਸ਼ਬਦ ਵਿੱਚ ਜਵਾਬ ਦਿਓ।",
+        "expected": [["ਠੰਢਾ", "ਠੰਡਾ", "ਠੰਢੀ", "ਠੰਢ", "ਠੰਡ", "ਠੰਢੇ", "ਸੀਤਲ"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "ਮਾਇਆ ਕੋਲ 2 ਸੇਬ ਹਨ। ਉਹ 3 ਹੋਰ ਖਰੀਦਦੀ ਹੈ ਅਤੇ ਆਪਣੀ ਸਹੇਲੀ ਨੂੰ 1 ਦਿੰਦੀ ਹੈ। ਹੁਣ ਮਾਇਆ ਕੋਲ ਕਿੰਨੇ ਸੇਬ ਹਨ? ਇੱਕ ਛੋਟੇ ਵਾਕ ਵਿੱਚ ਜਵਾਬ ਦਿਓ।",
+        "expected": [
+          ["4", "ਚਾਰ", "੪"],
+          ["ਸੇਬ", "ਸੇਬਾਂ"]
+        ]
+      }
+    ],
+    "ro": [
+      {
+        "id": "opposite",
+        "prompt": "Care este opusul cuvântului „fierbinte” când vorbim despre temperatură? Răspunde cu un singur cuvânt.",
+        "expected": [["rece", "răcoros", "răcoritoare"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maia are 2 mere. Mai cumpără 3 și îi dă 1 unei prietene. Câte mere are Maia acum? Răspunde într-o propoziție scurtă.",
+        "expected": [
+          ["4", "patru"],
+          ["măr", "mere", "merele"]
+        ]
+      }
+    ],
+    "ru": [
+      {
+        "id": "opposite",
+        "prompt": "Какое слово противоположно слову «горячий», если речь о температуре? Ответь одним словом.",
+        "expected": [["холодный", "холодная", "холодное", "холодно", "прохладный"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "У Майи 2 яблока. Она покупает ещё 3 и отдаёт 1 подруге. Сколько яблок теперь у Майи? Ответь одним коротким предложением.",
+        "expected": [
+          ["4", "четыре"],
+          ["яблоко", "яблока", "яблок", "яблоками"]
+        ]
+      }
+    ],
+    "sa": [
+      {
+        "id": "opposite",
+        "prompt": "तापमानस्य विषये «उष्ण» इति पदस्य विपरीतार्थकं पदं किम्? एकेन पदेन उत्तरं देहि।",
+        "expected": [["शीतम्", "शीतं", "शीतः", "शीत", "शीतला", "शीतलम्", "शीतलः", "शीतल", "हिमम्"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "मायायाः समीपे 2 सेवफले स्तः। सा 3 अन्यानि सेवफलानि क्रीणाति, 1 सेवफलं च सख्यै ददाति। इदानीं मायायाः समीपे कति सेवफलानि सन्ति? एकेन लघुवाक्येन उत्तरं देहि।",
+        "expected": [
+          ["4", "चत्वारि", "चतुर्", "चतुरः", "चत्वारः", "४"],
+          ["सेवफलम्", "सेवफलं", "सेवफलानि", "सेवफलान्य्", "सेवफलान्यपि"]
+        ]
+      }
+    ],
+    "sr": [
+      {
+        "id": "opposite",
+        "prompt": "Која је супротност речи „врућ” када говоримо о температури? Одговори једном речју.",
+        "expected": [["хладан", "хладна", "хладно", "hladan", "hladna", "hladno"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Маја има 2 јабуке. Купи још 3 и поклони 1 пријатељици. Колико јабука Маја сада има? Одговори једном кратком реченицом.",
+        "expected": [
+          ["4", "четири", "četiri", "cetiri"],
+          ["јабука", "јабуке", "jabuka", "jabuke"]
+        ]
+      }
+    ],
+    "sn": [
+      {
+        "id": "opposite",
+        "prompt": "Kana tichitaura nezvetembiricha, ishoko ripi rinopesana nokuti “kupisa”? Pindura neshoko rimwe chete.",
+        "expected": [["kutonhora", "kunotonhora", "chando", "kutonhorera"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya ane maapuro 2. Anotenga mamwe 3 ozopa shamwari yake 1. Iye zvino Maya ane maapuro mangani? Pindura nemutsara mumwe mupfupi.",
+        "expected": [
+          ["4", "mana", "ina", "zvina"],
+          ["apuro", "maapuro"]
+        ]
+      }
+    ],
+    "sd": [
+      {
+        "id": "opposite",
+        "prompt": "جڏهن گرمي پد جي ڳالهه ڪجي ته «گرم» جو ابتڙ لفظ ڪهڙو آهي؟ هڪ لفظ ۾ جواب ڏيو.",
+        "expected": [["ٿڌو", "ٿڌي", "ٿڌ", "سرد"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "مايا وٽ 2 صوف آهن. هوءَ 3 صوف وڌيڪ خريد ڪري ٿي ۽ 1 صوف پنهنجي سهيلي کي ڏئي ٿي. هاڻي مايا وٽ ڪيترا صوف آهن؟ هڪ ننڍڙي جملي ۾ جواب ڏيو.",
+        "expected": [
+          ["4", "چار", "۴", "٤"],
+          ["صوف", "صوفن"]
+        ]
+      }
+    ],
+    "si": [
+      {
+        "id": "opposite",
+        "prompt": "උෂ්ණත්වය ගැන කතා කරන විට «උණුසුම්» යන්නෙහි විරුද්ධ පදය කුමක්ද? එක් වචනයකින් පිළිතුරු දෙන්න.",
+        "expected": [["සීතල", "සිසිල්", "ශීත", "සීත"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "මායා ළඟ ඇපල් 2ක් තිබේ. ඇය තවත් ඇපල් 3ක් මිල දී ගෙන මිතුරියකට 1ක් දෙයි. දැන් මායා ළඟ ඇපල් කීයක් තිබේද? එක් කෙටි වාක්‍යයකින් පිළිතුරු දෙන්න.",
+        "expected": [
+          ["4", "හතර", "හතරක්", "සතර", "සතරක්", "෪"],
+          ["ඇපල්", "ඇපල"]
+        ]
+      }
+    ],
+    "sk": [
+      {
+        "id": "opposite",
+        "prompt": "Aký je opak slova „horúci“, keď hovoríme o teplote? Odpovedz jedným slovom.",
+        "expected": [["studený", "studená", "studené", "chladný", "chladno"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maja má 2 jablká. Kúpi si ešte 3 a 1 dá kamarátke. Koľko jabĺk má teraz Maja? Odpovedz jednou krátkou vetou.",
+        "expected": [
+          ["4", "štyri", "styri"],
+          ["jablko", "jablká", "jablka", "jabĺk"]
+        ]
+      }
+    ],
+    "sl": [
+      {
+        "id": "opposite",
+        "prompt": "Kaj je nasprotje besede »vroč«, ko govorimo o temperaturi? Odgovori z eno besedo.",
+        "expected": [["hladen", "hladna", "hladno", "mrzel", "mrzlo"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maja ima 2 jabolki. Kupi še 3 in 1 podari prijateljici. Koliko jabolk ima Maja zdaj? Odgovori z enim kratkim stavkom.",
+        "expected": [
+          ["4", "štiri", "stiri"],
+          ["jabolko", "jabolka", "jabolki", "jabolk"]
+        ]
+      }
+    ],
+    "so": [
+      {
+        "id": "opposite",
+        "prompt": "Marka heerkulka laga hadlayo, waa maxay erayga lidka ku ah “kulul”? Hal eray ku jawaab.",
+        "expected": [["qabow", "qaboow"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya waxay haysataa 2 tufaax. Waxay soo iibsataa 3 kale, dabadeedna 1 ayay siisaa saaxiibteed. Imisa tufaax ayay Maya hadda haysataa? Hal jumlad oo gaaban ku jawaab.",
+        "expected": [
+          ["4", "afar"],
+          ["tufaax", "tufaaxood"]
+        ]
+      }
+    ],
+    "es": [
+      {
+        "id": "opposite",
+        "prompt": "¿Cuál es el antónimo de «caliente» cuando hablamos de temperatura? Responde con una sola palabra.",
+        "expected": [["frío", "fría", "frio", "fresco"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya tiene 2 manzanas. Compra 3 más y le da 1 a una amiga. ¿Cuántas manzanas tiene Maya ahora? Responde con una frase breve.",
+        "expected": [
+          ["4", "cuatro"],
+          ["manzana", "manzanas"]
+        ]
+      }
+    ],
+    "su": [
+      {
+        "id": "opposite",
+        "prompt": "Lamun keur ngabahas suhu, naon sabalikna tina kecap «panas»? Jawab ku hiji kecap.",
+        "expected": [["tiis", "tiris", "tiisan"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya boga 2 apel. Manéhna meuli deui 3 jeung méré 1 ka babaturanana. Ayeuna Maya boga sabaraha apel? Jawab ku hiji kalimah pondok.",
+        "expected": [["4", "opat"], ["apel"]]
+      }
+    ],
+    "sw": [
+      {
+        "id": "opposite",
+        "prompt": "Ni neno gani lenye maana iliyo kinyume cha “moto” tunapozungumzia halijoto? Jibu kwa neno moja.",
+        "expected": [["baridi", "ubaridi"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya ana matufaha 2. Ananunua mengine 3 na kumpa rafiki yake 1. Maya ana matufaha mangapi sasa? Jibu kwa sentensi moja fupi.",
+        "expected": [
+          ["4", "manne", "nne"],
+          ["matufaha", "tufaha"]
+        ]
+      }
+    ],
+    "sv": [
+      {
+        "id": "opposite",
+        "prompt": "Vad är motsatsen till ”het” när man talar om temperatur? Svara med ett ord.",
+        "expected": [["kall", "kallt", "kalla", "sval", "kyla"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya har 2 äpplen. Hon köper 3 till och ger 1 till en vän. Hur många äpplen har Maya nu? Svara med en kort mening.",
+        "expected": [
+          ["4", "fyra"],
+          ["äpple", "äpplen"]
+        ]
+      }
+    ],
+    "tg": [
+      {
+        "id": "opposite",
+        "prompt": "Вақте ки дар бораи ҳарорат мегӯем, калимаи муқобили «гарм» чист? Бо як калима ҷавоб деҳ.",
+        "expected": [["сард", "хунук"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Майя 2 себ дорад. Ӯ боз 3 себ мехарад ва 1 себро ба дӯсташ медиҳад. Ҳоло Майя чанд себ дорад? Бо як ҷумлаи кӯтоҳ ҷавоб деҳ.",
+        "expected": [
+          ["4", "чор"],
+          ["себ", "себҳо"]
+        ]
+      }
+    ],
+    "ta": [
+      {
+        "id": "opposite",
+        "prompt": "வெப்பநிலையைப் பற்றிப் பேசும்போது «சூடான» என்பதன் எதிர்ச்சொல் என்ன? ஒரு சொல்லில் பதிலளி.",
+        "expected": [["குளிர்", "குளிர்ந்த", "குளிர்ச்சி", "குளுமை", "குளிரான"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "மாயாவிடம் 2 ஆப்பிள்கள் உள்ளன. அவள் மேலும் 3 ஆப்பிள்களை வாங்கி, தோழிக்கு 1 கொடுக்கிறாள். இப்போது மாயாவிடம் எத்தனை ஆப்பிள்கள் உள்ளன? ஒரு சிறிய வாக்கியத்தில் பதிலளி.",
+        "expected": [
+          ["4", "நான்கு", "௪"],
+          ["ஆப்பிள்", "ஆப்பிள்கள்"]
+        ]
+      }
+    ],
+    "tt": [
+      {
+        "id": "opposite",
+        "prompt": "Температура турында сөйләгәндә, «кайнар» сүзенең капма-каршысы нинди? Бер сүз белән җавап бир.",
+        "expected": [["салкын", "суык", "салкынча"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Майяның 2 алмасы бар. Ул тагын 3 алма сатып ала һәм 1 алманы дустына бирә. Хәзер Майяның ничә алмасы бар? Бер кыска җөмлә белән җавап бир.",
+        "expected": [
+          ["4", "дүрт"],
+          ["алма", "алмасы", "алмалар"]
+        ]
+      }
+    ],
+    "te": [
+      {
+        "id": "opposite",
+        "prompt": "ఉష్ణోగ్రత గురించి మాట్లాడేటప్పుడు «వేడి» అనే పదానికి వ్యతిరేక పదం ఏమిటి? ఒక్క పదంతో జవాబు ఇవ్వండి.",
+        "expected": [["చల్లని", "చల్లదనం", "చలి", "చల్లగా", "చల్ల", "శీతలం"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "మాయ దగ్గర 2 ఆపిల్ పండ్లు ఉన్నాయి. ఆమె ఇంకో 3 కొని, 1 పండును స్నేహితురాలికి ఇస్తుంది. ఇప్పుడు మాయ దగ్గర ఎన్ని ఆపిల్ పండ్లు ఉన్నాయి? ఒక చిన్న వాక్యంలో జవాబు ఇవ్వండి.",
+        "expected": [
+          ["4", "నాలుగు", "౪"],
+          ["ఆపిల్", "ఆపిల్స్", "ఆపిళ్లు", "యాపిల్", "యాపిల్స్", "యాపిల్లు", "ఆపిల్‌"]
+        ]
+      }
+    ],
+    "th": [
+      {
+        "id": "opposite",
+        "prompt": "เมื่อพูดถึงอุณหภูมิ คำตรงข้ามของคำว่า «ร้อน» คืออะไร ตอบเพียงคำเดียว",
+        "expected": [["เย็น", "หนาว"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "มายามีแอปเปิล 2 ลูก เธอซื้อเพิ่มอีก 3 ลูก แล้วให้เพื่อนไป 1 ลูก ตอนนี้มายามีแอปเปิลกี่ลูก ตอบเป็นประโยคสั้น ๆ หนึ่งประโยค",
+        "expected": [
+          ["4", "สี่", "๔"],
+          ["แอปเปิล", "แอปเปิ้ล", "แอ๊ปเปิ้ล"]
+        ]
+      }
+    ],
+    "bo": [
+      {
+        "id": "opposite",
+        "prompt": "དྲོད་ཚད་སྐོར་བཤད་སྐབས་ «ཚ་པོ་» ཡི་ལྡོག་ཚིག་ག་རེ་ཡིན། ཚིག་གཅིག་གིས་ལན་ཐོབ།",
+        "expected": [["གྲང་མོ", "གྲང་པོ", "གྲང", "བསིལ་པོ", "བསིལ", "འཁྱག་པོ"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "མཱ་ཡཱ་ལ་ཀུ་ཤུ་ 2 ཡོད། མོས་ཀུ་ཤུ་ 3 མང་དུ་ཉོས་ནས་གྲོགས་མོར་ 1 སྤྲད། ད་ལྟ་མཱ་ཡཱ་ལ་ཀུ་ཤུ་ག་ཚོད་ཡོད། ཚིག་གྲུབ་ཐུང་ཐུང་གཅིག་གིས་ལན་ཐོབ།",
+        "expected": [
+          ["4", "བཞི", "༤"],
+          ["ཀུ་ཤུ", "ཀུ་ཤུའི"]
+        ]
+      }
+    ],
+    "tr": [
+      {
+        "id": "opposite",
+        "prompt": "Sıcaklıktan söz ederken “sıcak” kelimesinin zıt anlamlısı nedir? Tek kelimeyle yanıtla.",
+        "expected": [["soğuk", "serin"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya'nın 2 elması var. 3 tane daha alıp 1 tanesini arkadaşına veriyor. Şimdi Maya'nın kaç elması var? Tek bir kısa cümleyle yanıtla.",
+        "expected": [
+          ["4", "dört", "dort"],
+          ["elma", "elması", "elmalar", "elmaları"]
+        ]
+      }
+    ],
+    "tk": [
+      {
+        "id": "opposite",
+        "prompt": "Temperatura barada aýdanymyzda, «yssy» sözüniň garşydaş manysy näme? Bir söz bilen jogap ber.",
+        "expected": [["sowuk", "salkyn"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maýanyň 2 almasy bar. Ol ýene 3 alma satyn alýar we 1 almany jorasyna berýär. Indi Maýanyň näçe almasy bar? Bir gysga sözlem bilen jogap ber.",
+        "expected": [
+          ["4", "dört", "dort"],
+          ["alma", "almasy", "almalar"]
+        ]
+      }
+    ],
+    "uk": [
+      {
+        "id": "opposite",
+        "prompt": "Яке слово протилежне до слова «гарячий», якщо йдеться про температуру? Відповідай одним словом.",
+        "expected": [["холодний", "холодна", "холодне", "холодно", "прохолодний"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "У Маї є 2 яблука. Вона купує ще 3 і віддає 1 подрузі. Скільки яблук тепер у Маї? Відповідай одним коротким реченням.",
+        "expected": [
+          ["4", "чотири"],
+          ["яблуко", "яблука", "яблук"]
+        ]
+      }
+    ],
+    "ur": [
+      {
+        "id": "opposite",
+        "prompt": "جب درجۂ حرارت کی بات ہو تو «گرم» کا متضاد کیا ہے؟ ایک لفظ میں جواب دیں۔",
+        "expected": [["ٹھنڈا", "ٹھنڈی", "ٹھنڈ", "سرد"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "مایا کے پاس 2 سیب ہیں۔ وہ مزید 3 خریدتی ہے اور 1 اپنی سہیلی کو دیتی ہے۔ اب مایا کے پاس کتنے سیب ہیں؟ ایک مختصر جملے میں جواب دیں۔",
+        "expected": [["4", "چار", "۴", "٤"], ["سیب"]]
+      }
+    ],
+    "uz": [
+      {
+        "id": "opposite",
+        "prompt": "Harorat haqida gapirganda «issiq» so‘zining antonimi nima? Bitta so‘z bilan javob ber.",
+        "expected": [["sovuq", "salqin", "совуқ", "салқин"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Mayada 2 ta olma bor. U yana 3 ta olma sotib oladi va 1 tasini dugonasiga beradi. Endi Mayada nechta olma bor? Bitta qisqa gap bilan javob ber.",
+        "expected": [
+          ["4", "to‘rt", "toʻrt", "to'rt", "to’rt", "tort", "тўрт"],
+          ["olma", "olmasi", "olmalar", "олма", "олмаси"]
+        ]
+      }
+    ],
+    "vi": [
+      {
+        "id": "opposite",
+        "prompt": "Khi nói về nhiệt độ, từ trái nghĩa với “nóng” là gì? Hãy trả lời bằng một từ.",
+        "expected": [["lạnh", "mát", "rét"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Maya có 2 quả táo. Cô ấy mua thêm 3 quả rồi cho bạn 1 quả. Bây giờ Maya có bao nhiêu quả táo? Hãy trả lời bằng một câu ngắn.",
+        "expected": [["4", "bốn"], ["táo"]]
+      }
+    ],
+    "cy": [
+      {
+        "id": "opposite",
+        "prompt": "Beth yw gwrthwyneb “poeth” wrth sôn am dymheredd? Ateba ag un gair.",
+        "expected": [["oer", "oeraidd"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Mae gan Maya 2 afal. Mae hi'n prynu 3 arall ac yn rhoi 1 i ffrind. Sawl afal sydd gan Maya nawr? Ateba mewn un frawddeg fer.",
+        "expected": [
+          ["4", "pedwar", "pedair"],
+          ["afal", "afalau"]
+        ]
+      }
+    ],
+    "yi": [
+      {
+        "id": "opposite",
+        "prompt": "וואָס איז דער היפּוך פֿון „הייס“ ווען מע רעדט וועגן טעמפּעראַטור? ענטפֿער מיט איין וואָרט.",
+        "expected": [["קאַלט", "קאלט", "קיל"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "מאַיאַ האָט 2 עפּל. זי קויפֿט נאָך 3 און גיט 1 אַ פֿרײַנדין. וויפֿל עפּל האָט מאַיאַ איצט? ענטפֿער מיט איין קורצן זאַץ.",
+        "expected": [
+          ["4", "פֿיר", "פיר", "פֿיער"],
+          ["עפּל", "עפלעך", "עפל", "עפּלעך"]
+        ]
+      }
+    ],
+    "yo": [
+      {
+        "id": "opposite",
+        "prompt": "Nígbà tí a bá ń sọ̀rọ̀ nípa ìwọ̀n ooru, kí ni ọ̀rọ̀ tó lòdì sí “gbígbóná”? Fi ọ̀rọ̀ kan dáhùn.",
+        "expected": [["tútù", "tutu", "òtútù", "otútù", "otutu"]],
+        "maxWords": 4
+      },
+      {
+        "id": "apples",
+        "prompt": "Máyà ní ápù 2. Ó ra 3 sí i, ó sì fún ọ̀rẹ́ rẹ̀ ní 1. Ápù mélòó ni Máyà ní báyìí? Dáhùn nínú gbólóhùn kúkúrú kan.",
+        "expected": [
+          ["4", "mẹ́rin", "mẹrin", "merin"],
+          ["ápù", "àpù", "apu", "apù"]
+        ]
+      }
+    ]
+  }
+}

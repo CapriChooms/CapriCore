@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "sprites": [
+    {
+      "id": "pose-ceiling",
+      "file": "capri-ceiling.png",
+      "pose": "ceiling_hands",
+      "anchor": {
+        "name": "ceiling",
+        "x": 615,
+        "y": 111
+      },
+      "visibleBounds": {
+        "x": 208,
+        "y": 75,
+        "width": 836,
+        "height": 1102
+      },
+      "label": "Ceiling grip",
+      "description": "Hanging from an edge by both hands.",
+      "sha256": "ba3e3c31eb1edf577ec8fe6174b7011d6ed86d5e775764b9e2da40dfde0c488d"
+    },
+    {
+      "id": "pose-dock-left",
+      "file": "capri-dock-left.png",
+      "pose": "wall_left",
+      "anchor": {
+        "name": "dock-left",
+        "x": 239,
+        "y": 555
+      },
+      "visibleBounds": {
+        "x": 219,
+        "y": 76,
+        "width": 815,
+        "height": 1101
+      },
+      "label": "Left wall grip",
+      "description": "Holding a vertical edge to her left.",
+      "sha256": "69032b74a7a7658f49e1694a790d15b0b1c46531783f26187d2926d4b10f58f1"
+    },
+    {
+      "id": "pose-dock-right",
+      "file": "capri-dock-right.png",
+      "pose": "wall_right",
+      "anchor": {
+        "name": "dock-right",
+        "x": 994,
+        "y": 505
+      },
+      "visibleBounds": {
+        "x": 212,
+        "y": 75,
+        "width": 831,
+        "height": 1103
+      },
+      "label": "Right wall grip",
+      "description": "Holding a vertical edge to her right.",
+      "sha256": "4427d808679071effcd769fac99952fc8216b6a666c94ebc8390722f0acadc93"
+    },
+    {
+      "id": "pose-sit-edge",
+      "file": "capri-sit-edge.png",
+      "pose": "seat",
+      "anchor": {
+        "name": "seat",
+        "x": 599,
+        "y": 773
+      },
+      "visibleBounds": {
+        "x": 183,
+        "y": 110,
+        "width": 887,
+        "height": 1067
+      },
+      "label": "Sitting on an edge",
+      "description": "Resting on the top edge of an open window.",
+      "sha256": "41ccf38b260e16473e1ee8aa3cc01f964bcff8ccf526c0affa551af2d49b6557"
+    },
+    {
+      "id": "pose-ceiling-upside-down",
+      "file": "capri-ceiling-upside-down.png",
+      "pose": "ceiling_feet",
+      "anchor": {
+        "name": "ceiling-upside-down",
+        "x": 629,
+        "y": 94
+      },
+      "visibleBounds": {
+        "x": 201,
+        "y": 84,
+        "width": 851,
+        "height": 933
+      },
+      "label": "Upside-down hang",
+      "description": "Hanging from the top of the display by her feet.",
+      "sha256": "77cbc4b565fd4fc3ef90ab20ca3067d8ed9b506ccb89c1cc8badac03574f15c1"
+    },
+    {
+      "id": "pose-sit-floor",
+      "file": "capri-sit-floor.png",
+      "pose": "sit_floor",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 186,
+        "y": 255,
+        "width": 884,
+        "height": 911
+      },
+      "label": "Sitting on the floor",
+      "description": "Relaxed and seated on the ground.",
+      "sha256": "5d0cdd45630bc5ac71090bc6d8a1521225a7fd3ca7de55d9786256a6fb0ef260"
+    },
+    {
+      "id": "pose-crouch",
+      "file": "capri-crouch.png",
+      "pose": "crouch",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 225,
+        "y": 333,
+        "width": 803,
+        "height": 834
+      },
+      "label": "Crouching",
+      "description": "Low, attentive crouch.",
+      "sha256": "e202632416117d521a5d789962c4cb97172a0f72469cc426be0c127359793736"
+    },
+    {
+      "id": "pose-sleep",
+      "file": "capri-sleep.png",
+      "pose": "sleep",
+      "anchor": {
+        "name": "ground",
+        "x": 627,
+        "y": 1166
+      },
+      "visibleBounds": {
+        "x": 76,
+        "y": 709,
+        "width": 1102,
+        "height": 457
+      },
+      "label": "Sleeping",
+      "description": "Asleep on her side.",
+      "sha256": "2876d7939703d50ce17ac5232840ad1f466f59acbfc7afa868c6dd496cfd5e8e"
+    }
+  ]
+}

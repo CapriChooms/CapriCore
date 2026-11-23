@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "profile": "capri",
+  "language": "en",
+  "enabledLanguages": ["en"],
+  "engine": "chatterbox-turbo",
+  "modelDir": "data/speech/chatterbox-turbo",
+  "datasetDir": "data/voices/capri/en",
+  "sampleRate": 24000,
+  "maxDatasetSeconds": 300,
+  "minClipSeconds": 0.8,
+  "maxClipSeconds": 18,
+  "seed": 417,
+  "inference": { "precision": "float32", "maxSpeechTokens": 800 },
+  "emotions": ["neutral", "warm", "playful", "excited", "sad", "serious", "whisper", "surprised"],
+  "training": {
+    "rank": 8,
+    "alpha": 16,
+    "dropout": 0.05,
+    "learningRate": 0.00001,
+    "epochs": 8,
+    "gradientAccumulation": 4,
+    "gradientCheckpointing": true,
+    "earlyStoppingPatience": 3,
+    "minValidationImprovement": 0.001,
+    "maxTextTokens": 384,
+    "maxSpeechTokens": 500,
+    "minimumFreeVramGiB": 5
+  }
+}

@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob: data:; connect-src capri://desktop/index.html capri://desktop/capri-wave.webp capri://desktop/hall-of-fame.json capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
+    <title>Capri Settings</title>
+    <link rel="icon" type="image/svg+xml" href="/brand/capricore.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="cyberpunk.css" />
+    <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="guide.css" />
+    <link rel="stylesheet" href="chess-arrow-configurator.css" />
+    <link rel="stylesheet" href="developer-panel.css" />
+    <link rel="stylesheet" href="credits.css" />
+    <link rel="stylesheet" href="avatar-gallery.css" />
+    <link rel="stylesheet" href="avatar-headpat.css" />
+    <script type="module" src="settings-loading.mjs"></script>
+    <script type="module" src="settings-app.mjs"></script>
+  </head>
+  <body class="settings-window" data-settings-loading>
+    <header id="settings-header">
+      <strong>CAPRI <small>SETTINGS</small></strong>
+      <div id="settings-header-actions">
+        <div id="settings-draft-actions" hidden>
+          <button id="settings-stay" type="button">Keep editing</button>
+          <button id="settings-discard" type="button">Discard changes</button>
+          <button id="settings-apply" type="button">Save changes</button>
+        </div>
+        <button
+          id="settings-guide-open"
+          type="button"
+          aria-controls="capri-guide"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-label="Guide for this tab"
+          data-untranslated
+          disabled
+        >
+          ?
+        </button>
+        <button id="settings-window-close" type="button" aria-label="Close settings">×</button>
+      </div>
+    </header>
+    <div id="settings-notice" role="status" hidden></div>
+    <div id="settings-loading" aria-hidden="true">
+      <div class="settings-loading-nav">
+        <i class="settings-skeleton skeleton-input"></i>
+        <i class="settings-skeleton skeleton-label"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+        <i class="settings-skeleton skeleton-label"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+        <i class="settings-skeleton skeleton-nav"></i>
+      </div>
+      <div class="settings-loading-content">
+        <i class="settings-skeleton skeleton-title"></i>
+        <div class="skeleton-group">
+          <i class="settings-skeleton skeleton-label"></i
+          ><i class="settings-skeleton skeleton-input"></i
+          ><i class="settings-skeleton skeleton-line"></i>
+        </div>
+        <div class="skeleton-group">
+          <i class="settings-skeleton skeleton-label"></i
+          ><i class="settings-skeleton skeleton-toggle"></i
+          ><i class="settings-skeleton skeleton-toggle"></i>
+        </div>
+        <div class="skeleton-group">
+          <i class="settings-skeleton skeleton-label"></i
+          ><i class="settings-skeleton skeleton-input"></i>
+        </div>
+      </div>
+    </div>
+    <div id="settings-layout" inert>
+      <nav id="settings-sidebar" aria-label="Settings categories">
+        <input
+          id="settings-search"
+          aria-label="Search settings"
+          aria-controls="settings-search-results"
+          placeholder="Search settings…"
+          type="search"
+        />
+        <div id="settings-navigation"></div>
+        <div id="settings-search-results" hidden>
+          <p id="settings-search-empty" role="status" hidden></p>
+          <div id="settings-search-items"></div>
+        </div>
+      </nav>
+      <div
+        id="settings-divider"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Settings categories"
+        aria-controls="settings-sidebar"
+        tabindex="0"
+      ></div>
+      <main id="companion" aria-busy="true">
+        <div id="settings-panel-loading" class="settings-loading-content" aria-hidden="true">
+          <i class="settings-skeleton skeleton-title"></i>
+          <div class="skeleton-group">
+            <i class="settings-skeleton skeleton-label"></i
+            ><i class="settings-skeleton skeleton-input"></i
+            ><i class="settings-skeleton skeleton-line"></i>
+          </div>
+          <div class="skeleton-group">
+            <i class="settings-skeleton skeleton-label"></i
+            ><i class="settings-skeleton skeleton-toggle"></i
+            ><i class="settings-skeleton skeleton-input"></i>
+          </div>
+        </div>
+        <button id="settings-open" class="sr-only">Settings</button>
+        <div id="settings-forms">
+          <section
+            id="avatar-gallery-panel"
+            class="preferences-panel"
+            aria-labelledby="avatar-gallery-title"
+            hidden
+          >
+            <h2 id="avatar-gallery-title">Avatar gallery</h2>
+            <div class="preferences-content avatar-gallery">
+              <div id="avatar-gallery-preview">
+                <div class="avatar-gallery-stage">
+                  <div class="avatar-gallery-art">
+                    <img class="avatar-gallery-poster" alt="" draggable="false" hidden />
+                    <canvas class="avatar-gallery-canvas" aria-hidden="true" hidden></canvas>
+                  </div>
+                </div>
+                <div class="avatar-gallery-caption">
+                  <h3 id="avatar-gallery-selection" data-untranslated></h3>
+                  <button id="avatar-gallery-zoom-out" type="button" aria-label="Zoom out" title="Zoom out">
+                    &minus;
+                  </button>
+                  <button id="avatar-gallery-zoom-in" type="button" aria-label="Zoom in" title="Zoom in">
+                    +
+                  </button>
+                  <button
+                    id="avatar-gallery-reset"
+                    type="button"
+                    aria-label="Reset position and zoom"
+                    title="Reset position and zoom"
+                  >
+                    &#8634;
+                  </button>
+                </div>
+                <div class="avatar-gallery-playback">
+                  <button id="avatar-gallery-play" type="button" data-untranslated hidden>
+                    Play animation
+                  </button>
+                  <button
+                    id="avatar-gallery-loop"
+                    type="button"
+                    aria-pressed="false"
+                    data-untranslated
+                    hidden
+                  >
+                    Loop animation
+                  </button>
+                </div>
+                <p id="avatar-gallery-status" class="settings-help" role="status" hidden></p>
+              </div>
+              <div id="avatar-gallery-library">
+                <div
+                  class="avatar-gallery-categories"
+                  role="group"
+                  aria-labelledby="avatar-gallery-title"
+                >
+                  <button type="button" data-gallery-category="poses" aria-pressed="true">
+                    Poses
+                  </button>
+                  <button type="button" data-gallery-category="expressions" aria-pressed="false">
+                    Expressions
+                  </button>
+                  <button type="button" data-gallery-category="animations" aria-pressed="false">
+                    Animations
+                  </button>
+                </div>
+                <div id="avatar-gallery-items" class="avatar-gallery-items"></div>
+              </div>
+            </div>
+          </section>
+          <section
+            id="call-audio-panel"
+            class="preferences-panel"
+            data-panel-cut="12"
+            aria-label="Voice calls"
+            hidden
+          >
+            <h2>Voice calls</h2>
+            <div class="preferences-content">
+              <div class="settings-card" id="call-camera-card">
+                <label class="skill-display-control">
+                  <input
+                    id="call-camera-enabled"
+                    type="checkbox"
+                    role="switch"
+                    aria-describedby="call-camera-help"
+                  />
+                  <span>Camera</span>
+                </label>
+                <p id="call-camera-help">
+                  Select Capri Camera in Discord, Zoom or OBS to show Capri’s sprite.
+                </p>
+                <p id="call-camera-status" role="status" aria-live="polite"></p>
+                <div id="call-camera-background" hidden>
+                  <div class="settings-actions call-camera-background-actions">
+                    <label class="call-camera-color" for="call-camera-color">
+                      <input id="call-camera-color" type="color" />
+                      <span>Background color</span>
+                    </label>
+                    <input
+                      id="call-camera-image-file"
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      hidden
+                    />
+                    <button id="call-camera-image-pick" type="button">Background image…</button>
+                    <button id="call-camera-image-remove" type="button" hidden>Remove image</button>
+                    <button id="call-camera-background-reset" type="button">Reset</button>
+                  </div>
+                </div>
+                <figure id="call-camera-preview-panel" class="call-camera-preview" hidden>
+                  <figcaption id="call-camera-preview-label">Preview</figcaption>
+                  <canvas
+                    id="call-camera-preview"
+                    role="img"
+                    aria-labelledby="call-camera-preview-label"
+                  ></canvas>
+                </figure>
+              </div>
+              <div class="settings-card call-setup-card">
+                <h3>Set up virtual microphone</h3>
+                <div id="call-setup-recording" class="call-setup-recording" hidden>
+                  <span>Microphone to select in your call app</span>
+                  <strong id="call-setup-recording-name" data-untranslated></strong>
+                </div>
+                <p id="call-setup-status" role="status" aria-live="polite"></p>
+                <div class="settings-actions">
+                  <button id="call-setup-connect" type="button">Set up automatically</button>
+                  <button id="call-output-disable" type="button" hidden>Stop call output</button>
+                </div>
+                <div id="call-setup-install-options" hidden>
+                  <p data-inline-help>
+                    VB-CABLE by VB-Audio creates the virtual microphone. It is donationware; you can
+                    support its author. Windows will ask permission to install its driver.
+                  </p>
+                  <div class="settings-actions call-vendor-links">
+                    <button id="call-setup-website" type="button">About VB-CABLE / Donate</button>
+                    <button id="call-setup-license" type="button">License terms</button>
+                  </div>
+                  <label
+                    ><input id="call-setup-consent" type="checkbox" /> I agree to install VB-CABLE
+                    under its license terms.</label
+                  >
+                  <div class="settings-actions">
+                    <button id="call-setup-install" type="button" disabled>
+                      Install VB-CABLE and connect
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <h3>Spoken replies</h3>
+                <label
+                  ><input id="call-output-share-replies" type="checkbox" disabled /> Send replies to
+                  call</label
+                >
+                <p data-inline-help>
+                  While enabled, Capri’s spoken replies are shared with the call. Voice previews
+                  stay local.
+                </p>
+                <div class="call-voice-volume">
+                  <label for="call-voice-volume">Capri’s voice volume in calls</label>
+                  <output id="call-voice-volume-value" for="call-voice-volume" data-untranslated
+                    >50%</output
+                  >
+                  <input
+                    id="call-voice-volume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value="50"
+                    aria-describedby="call-voice-volume-help"
+                  />
+                  <p id="call-voice-volume-help" data-inline-help>
+                    Only changes Capri’s voice in the call. Your microphone and local playback stay
+                    unchanged. 0% mutes Capri in the call.
+                  </p>
+                </div>
+                <label
+                  ><input id="call-output-allow-model" type="checkbox" /> Allow Capri to choose
+                  where to speak</label
+                >
+                <p data-inline-help>
+                  Use Ask Capri in call to send a single request. Capri chooses speakers or speakers
+                  and call.
+                </p>
+              </div>
+              <details id="call-output-advanced" class="settings-disclosure">
+                <summary>Advanced: choose a cable manually</summary>
+                <div class="settings-disclosure-content">
+                  <p data-inline-help>
+                    Use this if you already have a different virtual audio cable.
+                  </p>
+                  <label for="call-output-device">Call output device</label>
+                  <select id="call-output-device"></select>
+                  <label
+                    ><input id="call-output-mix-mic" type="checkbox" checked /> Share my microphone
+                    with the call</label
+                  >
+                  <p id="call-output-status" role="status"></p>
+                  <div class="settings-actions">
+                    <button id="call-output-refresh" type="button">Refresh devices</button>
+                    <button id="call-output-enable" type="button">Enable call output</button>
+                  </div>
+                </div>
+              </details>
+              <div class="settings-card">
+                <h3>Optional: hear the call and system audio</h3>
+                <p data-inline-help>
+                  Turn on Capri’s microphone first, then include system audio. Capri can hear you
+                  and people in the call, and wake when either says her name.
+                </p>
+                <p>
+                  With wake and automatic sending enabled, requests addressed to Capri are sent
+                  automatically. Otherwise, review the text before sending. Use headphones to avoid
+                  feedback.
+                </p>
+                <label
+                  ><input id="call-system-wake" type="checkbox" checked /> Wake from system
+                  audio</label
+                >
+                <p id="call-system-status" role="status"></p>
+                <div class="settings-actions">
+                  <button id="call-system-enable" type="button">Include system audio</button>
+                  <button id="call-system-stop" type="button" hidden>Stop system audio</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <dialog
+      id="capri-guide"
+      class="settings-guide"
+      aria-labelledby="settings-guide-title"
+      aria-describedby="settings-guide-description"
+      data-untranslated
+    >
+      <div class="guide-window-drag" aria-hidden="true"></div>
+      <div class="guide-spotlight" aria-hidden="true" hidden>
+        <span class="guide-edge" data-edge="top"></span>
+        <span class="guide-edge" data-edge="right"></span>
+        <span class="guide-edge" data-edge="bottom"></span>
+        <span class="guide-edge" data-edge="left"></span>
+        <span class="guide-corners"></span>
+      </div>
+      <section class="guide-dialog">
+        <header class="guide-header">
+          <span class="guide-avatar" aria-hidden="true">
+            <img src="sprite.png" alt="" draggable="false" loading="lazy" />
+          </span>
+          <div class="guide-meta">
+            <span class="guide-kicker"></span>
+            <span class="guide-step"></span>
+            <h2 class="guide-title" id="settings-guide-title" tabindex="-1" autofocus></h2>
+          </div>
+          <button class="guide-faq-action guide-close" type="button" aria-keyshortcuts="Escape">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+          </button>
+        </header>
+        <div class="guide-description" id="settings-guide-description" tabindex="0"></div>
+        <div class="guide-progress" aria-hidden="true"></div>
+        <footer class="guide-actions">
+          <button id="settings-guide-back" type="button" aria-keyshortcuts="ArrowLeft"></button>
+          <button class="guide-skip" id="settings-guide-skip" type="button"></button>
+          <button
+            class="guide-primary"
+            id="settings-guide-next"
+            type="button"
+            aria-keyshortcuts="ArrowRight"
+          ></button>
+        </footer>
+      </section>
+    </dialog>
+  </body>
+</html>

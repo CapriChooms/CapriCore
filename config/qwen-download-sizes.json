@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "source": "https://ollama.com/library/qwen3.5/tags",
+  "checkedAt": "2026-10-28",
+  "note": "Download estimates for the pinned local GGUF weights and vision projectors.",
+  "models": {
+    "qwen3.5:0.8b": 1019201167,
+    "qwen3.5:2b": 2683396559,
+    "qwen3.5:4b": 3324173679,
+    "qwen3.5:9b": 6550825295,
+    "ministral-3:3b": 4099964832,
+    "gemma4:e2b": 4489338491
+  }
+}

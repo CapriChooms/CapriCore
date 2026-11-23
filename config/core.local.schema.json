@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Capri private local overrides",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "agentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sessionKey": {
+      "type": "string",
+      "maxLength": 160,
+      "pattern": "^[a-zA-Z0-9:_-]+$"
+    },
+    "model": {
+      "type": "string"
+    },
+    "upstreamModel": {
+      "type": "string"
+    },
+    "embeddingModel": {
+      "type": "string"
+    },
+    "gatewayPort": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "ollamaPort": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "contextTokens": {
+      "type": "integer",
+      "minimum": 8192,
+      "maximum": 262144
+    },
+    "cpuThreads": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16
+    },
+    "acceleration": {
+      "enum": ["auto", "cpu"]
+    },
+    "resourceProfile": {
+      "enum": ["minimal", "balanced", "desktop", "quality"]
+    },
+    "keepAlive": {
+      "type": "integer",
+      "minimum": -1,
+      "maximum": 86400
+    },
+    "preloadModels": {
+      "type": "boolean"
+    },
+    "reasoningBudget": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4096
+    },
+    "generation": {
+      "type": "object",
+      "properties": {
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1.5
+        },
+        "repeat_last_n": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2048
+        }
+      }
+    },
+    "nodeVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "ollamaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "openclawVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    }
+  }
+}

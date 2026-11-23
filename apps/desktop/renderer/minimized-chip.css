@@ -1,0 +1,99 @@
+html,
+body {
+  margin: 0;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+}
+button {
+  width: 100%;
+  height: 100%;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+  color: var(--chip-accent, #80fff0);
+  transition: color 180ms ease;
+}
+svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  overflow: visible;
+  transition:
+    filter 180ms ease,
+    transform 180ms ease;
+}
+.shell {
+  fill: var(--chip-background, #091f27f2);
+  transition: fill 180ms ease;
+}
+.core {
+  fill: currentColor;
+  stroke: none;
+  transform-origin: 20px 20px;
+  transition:
+    filter 180ms ease,
+    transform 180ms ease;
+}
+button:is(:hover, :focus-visible) {
+  color: color-mix(in srgb, var(--chip-accent, #80fff0) 55%, white);
+}
+button:is(:hover, :focus-visible) svg {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--chip-accent, #80fff0) 45%, transparent));
+}
+button:is(:hover, :focus-visible) .shell {
+  fill: color-mix(in srgb, var(--chip-background, #091f27) 78%, var(--chip-accent, #80fff0));
+}
+button:is(:hover, :focus-visible) .core {
+  filter: drop-shadow(0 0 2px currentColor);
+  transform: scale(1.04);
+}
+.sheen {
+  stroke: none;
+  opacity: 0;
+  transform: skewX(-16deg);
+}
+button:is(:hover, :focus-visible):not([data-dragging]) .sheen {
+  animation: chip-glint 650ms ease-out both;
+}
+button:active svg {
+  transform: scale(0.96);
+}
+button[data-dragging] {
+  cursor: grabbing;
+}
+button[data-dragging] svg {
+  transform: none;
+}
+button:focus-visible {
+  outline: 2px solid var(--chip-accent, #80fff0);
+  outline-offset: -3px;
+}
+@keyframes chip-glint {
+  0% {
+    opacity: 0;
+    transform: translateX(0) skewX(-16deg);
+  }
+  20%,
+  65% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(80px) skewX(-16deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

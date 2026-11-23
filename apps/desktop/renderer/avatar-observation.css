@@ -1,0 +1,69 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+.avatar-observation {
+  position: absolute;
+  z-index: 4;
+  top: 40%;
+  left: 50%;
+  width: clamp(28px, 12%, 124px);
+  aspect-ratio: 2.1;
+  translate: -50% -50%;
+  color: var(--cyan, #88f7ed);
+  filter: drop-shadow(0 0 3px #021014) drop-shadow(0 0 4px currentColor);
+  pointer-events: none;
+}
+
+.avatar-observation::before,
+.avatar-observation::after {
+  position: absolute;
+  content: '';
+  pointer-events: none;
+}
+
+.avatar-observation::before {
+  inset: 0;
+  border: 1px solid currentColor;
+  mask: linear-gradient(to right, #000 18%, transparent 18% 82%, #000 82%);
+}
+
+.avatar-observation[data-kind='screen']::after {
+  inset: 48% 0 auto;
+  height: 1px;
+  background: currentColor;
+}
+
+.avatar-observation[data-kind='attention']::before {
+  inset: -18% -14%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .avatar-observation[data-kind='screen']::after {
+    inset: 10% 0 10%;
+    height: auto;
+    background: linear-gradient(transparent 1%, #88f7ed45 39%, currentColor 50%, transparent 54%);
+    background-size: 100% 35%;
+    background-repeat: no-repeat;
+    animation: avatar-observation-scan 880ms ease-in-out both;
+  }
+
+  .avatar-observation[data-kind='attention']::before {
+    animation: avatar-observation-focus 550ms ease-out both;
+  }
+}
+
+@keyframes avatar-observation-scan {
+  from {
+    background-position: center top;
+  }
+  to {
+    background-position: center bottom;
+  }
+}
+
+@keyframes avatar-observation-focus {
+  from {
+    transform: scale(1.5);
+  }
+  to {
+    transform: scale(1);
+  }
+}

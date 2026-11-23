@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "canvas": {
+    "width": 1536,
+    "height": 1536
+  },
+  "defaultSprite": "neutral",
+  "sprites": [
+    {
+      "id": "neutral",
+      "pose": "idle",
+      "expression": "neutral_small_smile",
+      "file": "avatar.png",
+      "description": "Original digital companion symbol."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# Reviewed override of Chatterbox's upstream torch 2.6 pins for Blackwell GPUs.
+# All model/source/adapter pins and other dependency pins remain unchanged.
+torch==2.7.1+cu128
+torchaudio==2.7.1+cu128
+sympy==1.14.0
+# Preserve the same reviewed Perth source when resolving Chatterbox's moving ref.
+resemble-perth @ git+https://github.com/resemble-ai/Perth.git@ff1c8ac55a976971245cdd53c18d6131ca00d993

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "yamnet-qualcomm-v0.61.0",
+  "sampleRate": 16000,
+  "packetSamples": 8000,
+  "windowSamples": 48000,
+  "hopSamples": 16000,
+  "artifact": {
+    "urls": [
+      "https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/models/yamnet/releases/v0.61.0/yamnet-onnx-float.zip"
+    ],
+    "sha256": "0fbd3ed023fc6fdd63b3fcedf05c7d9730015187e0fa7ba38ea11ae2356364ec",
+    "bytes": 13893328,
+    "archiveRoot": "yamnet-onnx-float"
+  },
+  "files": [
+    {
+      "name": "yamnet.onnx",
+      "bytes": 166437,
+      "sha256": "7ccdf9c6d5b81e7ad280dc04e1f481adc4fd596b632671beb46a42d47d8205a4"
+    },
+    {
+      "name": "yamnet.data",
+      "bytes": 14915108,
+      "sha256": "0b4de0b14bf2b528d51e3cd84e2d3e2ae826b942fbec6001c654605f1f2ceb60"
+    },
+    {
+      "name": "labels.txt",
+      "bytes": 6230,
+      "sha256": "8e1267a120c1932b7273c0d0e0c5529edbb9a35512b437b1c8982baa59047051"
+    },
+    {
+      "name": "metadata.json",
+      "bytes": 950,
+      "sha256": "3db8f4779f7f701bf8b92bba971db0ad59721f5fced1161e3592311ea3f6536b"
+    }
+  ],
+  "classes": { "music": 132, "speech": 0, "singing": 24 },
+  "source": "https://github.com/qualcomm/ai-hub-models/tree/v0.61.0/src/qai_hub_models/models/yamnet",
+  "originalSource": "https://github.com/tensorflow/models/tree/master/research/audioset/yamnet",
+  "implementationSource": "https://github.com/w-hc/torch_audioset/tree/e8852c5",
+  "licenses": ["Apache-2.0", "MIT", "BSD-3-Clause"]
+}

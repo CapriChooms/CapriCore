@@ -9,7 +9,7 @@ npm ci
 ./start-capri.sh
 ```
 
-The launcher accepts the Node executable from PATH or the absolute path in `CAPRI_NODE_PATH`. Re-running the launcher shows a running Capri instance. To use an API for conversation, open **Settings → API connections**. For local inference, install a compatible Linux build of `llama-server`, put it on PATH or set `CAPRI_LLAMA_PATH` to its absolute path, then use the model settings or `npm run models:pull`.
+The launcher accepts the Node executable from PATH or the absolute path in `CAPRI_NODE_PATH`. Re-running the launcher shows a running Capri instance. Install a compatible Linux build of `llama-server` and put it on PATH or set `CAPRI_LLAMA_PATH` to its absolute path. Run `npm run models:pull` to prepare the local model and memory model. If you use a remote chat API, prepare the local memory model with `npm run models:pull -- --embedding-only`, then configure the provider in **Settings → API connections**.
 
 On Ubuntu 24.04, Chromium's sandbox may require an [AppArmor profile](https://discourse.ubuntu.com/t/ubuntu-24-04-lts-noble-numbat-release-notes/39890) with `userns` for the exact path to this installation's Electron binary. Keep the Chromium sandbox enabled.
 

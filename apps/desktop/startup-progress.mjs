@@ -15,10 +15,19 @@ const coreStartupMessages = Object.freeze({
   CAPRI_SERVICE_PORT_OCCUPIED: 'Could not reconnect. Check the local core.',
 });
 
-export function coreStartupFailure(error) {
+const linuxCoreStartupMessages = Object.freeze({
+  CAPRI_LLAMA_BUNDLE_INCOMPLETE:
+    'Install llama.cpp for Linux and add llama-server to PATH, then reconnect.',
+  CAPRI_GATEWAY_RUNTIME_MISSING: 'Run npm ci in the Capri folder, then reconnect.',
+  CAPRI_MEMORY_MODEL_MISSING: 'Run npm run models:pull to install the local memory model.',
+});
+
+export function coreStartupFailure(error, { platform = 'win32' } = {}) {
   if (!Object.hasOwn(coreStartupMessages, error?.code))
     return { message: 'The local core is unavailable. Reconnect to try again.' };
-  return { code: error.code, message: coreStartupMessages[error.code] };
+  const message =
+    (platform === 'linux' && linuxCoreStartupMessages[error.code]) || coreStartupMessages[error.code];
+  return { code: error.code, message };
 }
 
 /** Stage completion is measured; ETA is an explicitly approximate local estimate. */

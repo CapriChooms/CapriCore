@@ -4050,7 +4050,7 @@ async function initializeDesktop() {
         console.error('Core startup failed:', error.code ?? '', error.message);
         if (!shuttingDown && sleepService.phase !== 'sleeping') {
           startup.end('core', true);
-          const { code, message } = coreStartupFailure(error);
+          const { code, message } = coreStartupFailure(error, { platform: process.platform });
           setBackend('offline', message, code);
         }
         throw error;

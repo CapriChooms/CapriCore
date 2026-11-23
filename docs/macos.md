@@ -10,7 +10,7 @@ npm run build:macos
 
 The build prints the path to **Capri.app** under `release/`. Open it in Finder or move it to Applications. It includes the pinned Electron, Node, OpenClaw and llama.cpp runtimes. The signature is ad hoc for local use. For a public binary release, the publisher needs to qualify signing, notarization and redistribution of the included assets. [Asset terms](character-assets.md) · [Redistribution](licensing.md)
 
-On the first local launch, Capri lists the missing models and asks before downloading them. The default Qwen 2B configuration uses up to 3.84 GB for chat and memory. Select **Later** to explore the interface first. Use **Reconnect** to continue setup. An API connection still needs the local embedding model for memory. Chat history, models and settings live in `~/Library/Application Support/CapriCore`. To update, quit Capri and replace the application bundle.
+On the first local launch, Capri lists the missing models and asks before downloading them. On a Mac with 8 GiB of memory or less, a fresh installation selects Qwen 0.8B and the existing experimental 16K context preset. This downloads up to 2.18 GB for chat and memory. Larger Macs start with Qwen 2B, up to 3.84 GB. Select **Later** to explore the interface first. Use **Reconnect** to continue setup. An API connection still needs the local embedding model for memory. Chat history, models and settings live in `~/Library/Application Support/CapriCore`. To update, quit Capri and replace the application bundle.
 
 ## What to try
 
@@ -29,4 +29,4 @@ This opens the packaged app in a temporary home, sends a message through its int
 Two optional checks use pinned Qwen 0.8B and BGE-M3 layers already present in the checkout's `data/models`. Each starts with a fresh test profile and removes its temporary model copies after shutdown.
 
 - `--local` asks “How are you?” through Capri's direct local conversation route and expects a completed reply from Qwen.
-- `--agent` sends an arithmetic question through the OpenClaw gateway and checks the answer. This route timed out in the initial M1 test.
+- `--agent` sends an arithmetic question through the OpenClaw gateway and checks the answer. It returned “Seven plus five is twelve.” on an 8 GB M1 with the experimental 16K context. An earlier run at 32K timed out before producing text.

@@ -90,6 +90,7 @@ writeFileSync(
     gatewayPort: port,
     ollamaPort,
     ...(real ? { model: 'capri-qwen3.5:0.8b', upstreamModel: 'qwen3.5:0.8b' } : {}),
+    ...(mode === '--agent' ? { contextTokens: 16384, experimentalContext: true } : {}),
   }),
 );
 let launched;
@@ -134,6 +135,11 @@ try {
     return img?.complete && img.naturalWidth > 0;
   });
   if (await page.locator('#guide-close').isVisible()) await page.locator('#guide-close').click();
+  await page.evaluate(() => {
+    window.capri.onEvent((event) => {
+      if (event.type === 'turn.failed') document.body.dataset.testTurnError = event.message;
+    });
+  });
   await page.locator('#message').fill(prompt);
   await page.locator('#message').press('Enter');
   if (!(await page.locator('#history-panel').isVisible()))
@@ -144,7 +150,11 @@ try {
     )
     .last();
   await response.waitFor({ timeout: 240000 });
-  assert.equal(await response.getAttribute('data-status'), 'complete', 'Assistant turn failed');
+  assert.equal(
+    await response.getAttribute('data-status'),
+    'complete',
+    (await page.locator('body').getAttribute('data-test-turn-error')) || 'Assistant turn failed',
+  );
   const reply = response.locator('.message-text');
   assert.match(
     await reply.textContent(),
@@ -189,6 +199,22 @@ try {
       stdio: 'inherit',
     });
     rmSync(path.join(support, 'data/models'), { recursive: true, force: true });
+  }
+}
+if (real) {
+  const transcript = JSON.parse(readFileSync(path.join(support, 'data/desktop/transcript.json')));
+  const answer = transcript.messages.findLast((message) => message.role === 'assistant');
+  assert.equal(answer.status, 'complete');
+  if (mode === '--local') {
+    assert.equal(answer.localDialogue, true);
+  } else {
+    const events = readFileSync(path.join(support, 'logs/response-provider.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+      .filter((event) => event.traceId === answer.turnId);
+    assert.ok(events.some((event) => event.stage === 'provider_finished'));
+    assert.ok(events.some((event) => event.stage === 'gateway_finished' && event.status === 200));
   }
 }
 execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);

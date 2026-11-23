@@ -118,3 +118,64 @@ test('opening a second app can claim the existing profile before changing any re
   assert.equal(existsSync(profile), true);
   assert.equal(existsSync(path.join(support, '.capri-bundle')), false);
 });
+
+test(
+  'a fresh Apple Silicon setup selects the 16K, 0.8B preset through 8 GiB and keeps the larger default above it',
+  { skip: process.platform === 'win32' },
+  () => {
+    const small = {
+      model: 'capri-qwen3.5:0.8b',
+      upstreamModel: 'qwen3.5:0.8b',
+      contextTokens: 16384,
+      experimentalContext: true,
+      preloadModels: false,
+    };
+    const gib = 1024 ** 3;
+    for (const [memoryBytes, expected] of [
+      [4 * gib, small],
+      [8 * gib, small],
+      [8 * gib + 1, null],
+      [16 * gib, null],
+    ]) {
+      using temp = mkdtempDisposableSync(path.join(realpathSync(tmpdir()), 'capri-mac-memory-'));
+      const { source, support } = fixture(temp.path);
+      const core = JSON.stringify({ model: 'capri-qwen3.5:2b', contextTokens: 32768 });
+      writeFileSync(path.join(source, 'config/core.json'), core);
+      prepareMacRuntime(source, support, { memoryBytes });
+      const local = path.join(support, 'config/core.local.json');
+      assert.deepEqual(existsSync(local) ? JSON.parse(readFileSync(local)) : null, expected);
+      assert.equal(readFileSync(path.join(support, 'config/core.json'), 'utf8'), core);
+    }
+  },
+);
+
+test(
+  'smaller Mac preset preserves restored settings, edited selections and intentionally removed overrides on upgrade',
+  { skip: process.platform === 'win32' },
+  () => {
+    using temp = mkdtempDisposableSync(path.join(realpathSync(tmpdir()), 'capri-mac-upgrade-'));
+    const { source, support } = fixture(temp.path);
+    const config = path.join(support, 'config');
+    mkdirSync(config, { recursive: true });
+    const core = path.join(config, 'core.json');
+    const local = path.join(config, 'core.local.json');
+    writeFileSync(core, 'restored owner config');
+    prepareMacRuntime(source, support, { memoryBytes: 8 * 1024 ** 3 });
+    assert.equal(readFileSync(core, 'utf8'), 'restored owner config');
+    assert.equal(existsSync(local), false);
+    writeFileSync(local, '{"model":"capri-qwen3.5:4b"}');
+    prepareMacRuntime(source, support, { memoryBytes: 4 * 1024 ** 3 });
+    assert.equal(readFileSync(local, 'utf8'), '{"model":"capri-qwen3.5:4b"}');
+    rmSync(local);
+    prepareMacRuntime(source, support, { memoryBytes: 4 * 1024 ** 3 });
+    assert.equal(existsSync(local), false);
+    const outside = path.join(temp.path, 'external-owner-config');
+    writeFileSync(outside, 'synthetic');
+    symlinkSync(outside, local);
+    assert.throws(
+      () => prepareMacRuntime(source, support, { memoryBytes: 4 * 1024 ** 3 }),
+      /regular settings file/,
+    );
+    assert.equal(readFileSync(outside, 'utf8'), 'synthetic');
+  },
+);

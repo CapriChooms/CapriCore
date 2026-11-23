@@ -15,7 +15,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, totalmem } from 'node:os';
 
 const stat = (file) => lstatSync(file, { throwIfNoEntry: false });
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -23,10 +23,12 @@ const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 function directory(folder) {
   try {
     mkdirSync(folder, { mode: 0o700 });
+    return true;
   } catch (error) {
     if (error.code !== 'EEXIST') throw error;
   }
   if (!lstatSync(folder).isDirectory()) throw new Error('Expected a private directory: ' + folder);
+  return false;
 }
 
 function atomicWrite(file, bytes) {
@@ -48,9 +50,41 @@ function regular(file) {
 
 // Defaults can change between releases. Preserve an owner's edited default
 // and any local-only files while refreshing untouched copies.
-function syncDefaults(source, support) {
+function syncDefaults(source, support, memoryBytes) {
   const receipt = path.join(support, '.capri-config-defaults.json');
-  const previous = regular(receipt) ? JSON.parse(readFileSync(receipt, 'utf8')) : {};
+  const hasReceipt = regular(receipt);
+  const previous = hasReceipt ? JSON.parse(readFileSync(receipt, 'utf8')) : {};
+  const config = path.join(support, 'config');
+  const created = directory(config);
+  if (realpathSync(config) !== path.resolve(config))
+    throw new Error('Linked Mac settings directory');
+  const local = path.join(config, 'core.local.json');
+  const hasLocal = regular(local);
+  // The packaged Apple Silicon host reports total unified memory. Seed once,
+  // before recording defaults; relocation, upgrades and restored settings keep
+  // the owner's choice, including a deliberate return to the base defaults.
+  if (
+    created &&
+    !hasReceipt &&
+    !hasLocal &&
+    !stat(path.join(support, '.capri-bundle')) &&
+    Number.isSafeInteger(memoryBytes) &&
+    memoryBytes > 0 &&
+    memoryBytes <= 8 * 1024 ** 3
+  ) {
+    const preset = {
+      model: 'capri-qwen3.5:0.8b',
+      upstreamModel: 'qwen3.5:0.8b',
+      contextTokens: 16384,
+      experimentalContext: true,
+      preloadModels: false,
+    };
+    try {
+      writeFileSync(local, JSON.stringify(preset, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+    } catch (error) {
+      if (error.code !== 'EEXIST' || !regular(local)) throw error;
+    }
+  }
   const next = {};
   function walk(subdir) {
     directory(path.join(support, subdir));
@@ -113,7 +147,7 @@ export function macProfileRoot(support) {
   return folder;
 }
 
-export function prepareMacRuntime(source, support) {
+export function prepareMacRuntime(source, support, { memoryBytes = totalmem() } = {}) {
   directory(support);
   for (const name of ['data', 'logs', '.runtime']) directory(path.join(support, name));
   // All resource links resolve through one replaceable pointer, so moving the
@@ -131,7 +165,7 @@ export function prepareMacRuntime(source, support) {
         throw new Error('Unexpected existing Capri installation entry: ' + name);
     }
   }
-  syncDefaults(source, support);
+  syncDefaults(source, support, memoryBytes);
   try {
     symlinkSync(source, pointer);
   } catch (error) {

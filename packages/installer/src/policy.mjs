@@ -257,10 +257,12 @@ export function planFingerprint(plan, lockBytes) {
   return createHash('sha256').update(JSON.stringify(plan)).update(lockBytes).digest('hex');
 }
 export function profilesAgree(manifest) {
+  const localChoices = MODEL_CHOICES.filter((item) => item.id !== 'api');
+  const localProfiles = manifest.profiles.filter((item) => item.id !== 'api');
   return (
-    manifest.profiles.length === MODEL_CHOICES.length &&
-    manifest.profiles.every((item) =>
-      MODEL_CHOICES.some(
+    localProfiles.length === localChoices.length &&
+    localProfiles.every((item) =>
+      localChoices.some(
         (profile) =>
           profile.id === item.id &&
           profile.model === item.model &&

@@ -82,6 +82,9 @@ try {
       throw new Error(
         'Local settings already exist. Use --replace only to deliberately change this installation.',
       );
+    // Reuses the same saveModelProfile flow as the Windows installer wizard
+    // (applyInstallerModelSelection → saveModelProfile), so CLI and GUI setup
+    // write identical core.local.json for the API profile.
     const { profile } = saveModelProfile({ root, rt: runtime(), id: selected, hardware });
 
     if (selected === 'api') {

@@ -11,7 +11,7 @@ export const ELECTRON_RUNTIME_FILES = [
 ];
 
 /** Inspect without requiring Electron: recent versions download lazily on require(). */
-export function electronBundleReady(packageDirectory, expectedVersion) {
+export function electronBundleReady(packageDirectory, expectedVersion, platform = 'win32') {
   try {
     const version = JSON.parse(
       readFileSync(path.join(packageDirectory, 'package.json'), 'utf8'),
@@ -23,7 +23,8 @@ export function electronBundleReady(packageDirectory, expectedVersion) {
     )
       return false;
     return ELECTRON_RUNTIME_FILES.every((name) => {
-      const entry = statSync(path.join(packageDirectory, 'dist', name));
+      const file = name === 'electron.exe' && platform === 'linux' ? 'electron' : name;
+      const entry = statSync(path.join(packageDirectory, 'dist', file));
       return entry.isFile() && entry.size > 0;
     });
   } catch {

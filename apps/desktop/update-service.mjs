@@ -74,6 +74,7 @@ export class UpdateService {
     launch = spawn,
     prepareHost = prepareUpdateHost,
     startupTimeoutMs = 15000,
+    installSupported = true,
   }) {
     Object.assign(this, {
       root,
@@ -95,18 +96,21 @@ export class UpdateService {
     const metadata = JSON.parse(readFileSync(path.join(root, 'config/release.json'), 'utf8'));
     parseVersion(metadata.tag);
     this.current = installedUpdateVersion(root, metadata.tag);
-    this.mode = 'installer';
-    try {
-      managedInstallation(root);
-      this.mode = 'managed';
-    } catch {
-      /* A source checkout is never overwritten by the updater. */
+    this.mode = installSupported ? 'installer' : 'manual';
+    if (installSupported) {
+      try {
+        managedInstallation(root);
+        this.mode = 'managed';
+      } catch {
+        /* A source checkout is never overwritten by the updater. */
+      }
     }
     this.value = {
-      phase: 'idle',
+      phase: installSupported ? 'idle' : 'manual',
       current: this.current,
       mode: this.mode,
       ...this.preferences.snapshot(),
+      ...(!installSupported && { automatic: false, experimental: false }),
       notification: null,
     };
     this.selected = null;
@@ -141,7 +145,7 @@ export class UpdateService {
     this.automaticController?.abort(new Error('Automatic update check cancelled'));
   }
   startAutomaticChecks() {
-    if (this.closed || this.automaticChecksStarted) return;
+    if (this.mode === 'manual' || this.closed || this.automaticChecksStarted) return;
     this.automaticChecksStarted = true;
     this.syncAutomaticCheckTimer();
     return this.checkOnStartup();
@@ -350,6 +354,7 @@ export class UpdateService {
     );
   }
   async chooseHistory(id) {
+    if (this.mode === 'manual') return this.snapshot();
     const entry = this.historyEntries?.get(id);
     if (!entry?.view.update) throw new Error('This version is not available as an in-app update.');
     if (this.busy()) throw new Error('Wait for the update operation to finish.');
@@ -377,6 +382,7 @@ export class UpdateService {
     return this.publish({ notification: null });
   }
   setSettings(value) {
+    if (this.mode === 'manual') return this.snapshot();
     if (this.busy()) throw new Error('Wait for the update operation to finish.');
     const previous = this.preferences.value;
     const settings = this.preferences.set(validateUpdateSettings(value, previous.automatic));
@@ -407,6 +413,7 @@ export class UpdateService {
     return snapshot;
   }
   async check(value) {
+    if (this.mode === 'manual') return this.snapshot();
     this.cancelAutomaticCheck();
     const experimental =
       value === undefined
@@ -448,6 +455,7 @@ export class UpdateService {
     }
   }
   async prepare() {
+    if (this.mode === 'manual') return this.snapshot();
     this.cancelAutomaticCheck();
     if (this.busy()) return this.snapshot();
     if (!this.selected) throw new Error('Check for updates first.');
@@ -538,6 +546,7 @@ export class UpdateService {
     return this.snapshot();
   }
   async install({ parentPid, language, shutdown }) {
+    if (this.mode === 'manual') return false;
     this.cancelAutomaticCheck();
     if (this.busy() || this.installOperation) return false;
     if (!this.prepared || this.value.phase !== 'ready')

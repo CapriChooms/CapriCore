@@ -938,6 +938,7 @@ async function initializeDesktop() {
     ...(verification ? { fallback: async () => null } : {}),
   });
   const updates = new UpdateService({
+    installSupported: process.platform === 'win32',
     root,
     state,
     node: nodePath,
@@ -8021,6 +8022,7 @@ async function initializeDesktop() {
       )
         throw new Error('Wait for the current operation to finish.');
       if (verification) throw new Error('Installing updates is disabled in desktop verification.');
+      if (updates.mode === 'manual') return false;
       const managed = updates.mode === 'managed';
       const fullInstaller = Boolean(updates.prepared?.executable);
       if (
@@ -9954,7 +9956,7 @@ async function initializeDesktop() {
 
     activeMask = maskFor(avatar.currentId);
 
-    tray = new Tray(path.join(root, 'assets/default/app.ico'));
+    tray = new Tray(process.platform === 'linux' ? applicationIcon : path.join(root, 'assets/default/app.ico'));
     tray.setToolTip(uiText('Capri desktop companion', languages.value.interface));
     tray.on('click', () => restoreCompanion());
     tray.on('balloon-click', () => {

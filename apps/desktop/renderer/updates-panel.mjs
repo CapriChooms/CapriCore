@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 const messages = {
+  manual: 'Use the Linux preview archive to update Capri.',
   idle: 'Check GitHub for a newer version of Capri.',
   checking: 'Checking for updates...',
   available: 'A new version is available.',
@@ -83,7 +84,7 @@ export class UpdatesPanel {
       const selected = selectedVersion();
       this.get('changelog').hidden = !selected;
       this.get('changelog').textContent = selected?.notes || this.ui.text('No release notes.');
-      this.get('select').hidden = !selected?.update;
+      this.get('select').hidden = !selected?.update || this.value?.mode === 'manual';
       this.get('release-page').hidden = !selected;
     };
     this.get('version').onchange = showVersion;
@@ -204,6 +205,7 @@ export class UpdatesPanel {
     if (!value) return;
     for (const id of ['automatic', 'experimental']) {
       const input = this.get(id);
+      input.disabled = value.mode === 'manual';
       const pending =
         this.deferDrafts && !resetSettings && this.value && input.checked !== this.value[id];
       if (!pending) input.checked = value[id];
@@ -222,7 +224,7 @@ export class UpdatesPanel {
       : '';
     this.get('error').textContent = currentChannel && value.error ? this.ui.text(value.error) : '';
     if (value.needsAccess) this.get('access-details').open = true;
-    this.get('check').disabled = busy;
+    this.get('check').disabled = busy || value.mode === 'manual';
     this.get('download').hidden =
       !currentChannel || !value.release || busy || value.phase === 'ready';
     this.get('download').disabled = busy;

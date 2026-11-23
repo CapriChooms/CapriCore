@@ -24,4 +24,9 @@ Native speech packs and wake-word setup, multi-display capture, desktop input, S
 npm run verify:macos -- "/path/to/Capri.app"
 ```
 
-This opens the packaged app in a temporary home, sends a message through its interface to a loopback fixture, opens Settings and verifies the bundle signature after shutdown. The optional `--local` check uses existing pinned Qwen 0.8B and BGE-M3 model layers from the checkout's `data/models` to test real inference in a fresh profile. All test messages are synthetic.
+This opens the packaged app in a temporary home, sends a message through its interface to a loopback fixture, opens Settings and verifies the bundle signature after shutdown.
+
+Two optional checks use pinned Qwen 0.8B and BGE-M3 layers already present in the checkout's `data/models`. Each starts with a fresh test profile and removes its temporary model copies after shutdown.
+
+- `--local` asks “How are you?” through Capri's direct local conversation route and expects a completed reply from Qwen.
+- `--agent` sends an arithmetic question through the OpenClaw gateway and checks the answer. This route timed out in the initial M1 test.

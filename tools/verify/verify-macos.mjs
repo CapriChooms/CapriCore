@@ -19,8 +19,12 @@ import { macSupportRoot, prepareMacRuntime } from '../release/macos-runtime.mjs'
 import { settingsView } from './settings-view.mjs';
 
 const [target, mode] = process.argv.slice(2);
-if (process.platform !== 'darwin' || !target?.endsWith('.app') || (mode && mode !== '--local'))
-  throw new Error('Usage: npm run verify:macos -- /absolute/path/to/Capri.app [--local]');
+if (
+  process.platform !== 'darwin' ||
+  !target?.endsWith('.app') ||
+  (mode && !['--local', '--agent'].includes(mode))
+)
+  throw new Error('Usage: npm run verify:macos -- /absolute/path/to/Capri.app [--local | --agent]');
 const app = realpathSync(target);
 const root = path.resolve(import.meta.dirname, '../..');
 const resources = path.join(app, 'Contents/Resources/capri');
@@ -31,9 +35,9 @@ const support = macSupportRoot(home);
 prepareMacRuntime(resources, support);
 const fixture = path.join(support, '.runtime/fixture');
 mkdirSync(fixture);
-const real = mode === '--local';
+const real = Boolean(mode);
 const node = path.join(app, 'Contents/Helpers/node');
-const prompt = 'What is seven plus five? Answer in digits.';
+const prompt = mode === '--local' ? 'How are you?' : 'What is seven plus five? Answer in digits.';
 const token = 'CAPRI_MACOS_STREAM_OK';
 const requests = [];
 const gateway = createServer(async (req, res) => {
@@ -134,8 +138,18 @@ try {
   await page.locator('#message').press('Enter');
   if (!(await page.locator('#history-panel').isVisible()))
     await page.locator('#history-toggle').click();
-  const reply = page.locator('.message[data-role="assistant"] .message-text').last();
-  await reply.filter({ hasText: real ? /\b12\b/ : token }).waitFor({ timeout: 180000 });
+  const response = page
+    .locator(
+      '.message[data-role="assistant"][data-status="complete"], .message[data-role="assistant"][data-status="error"]',
+    )
+    .last();
+  await response.waitFor({ timeout: 240000 });
+  assert.equal(await response.getAttribute('data-status'), 'complete', 'Assistant turn failed');
+  const reply = response.locator('.message-text');
+  assert.match(
+    await reply.textContent(),
+    mode === '--local' ? /\p{L}/u : real ? /\b(?:12|twelve)\b/i : new RegExp(token),
+  );
   if (!real)
     assert.ok(
       requests.some(({ messages }) => messages.some((m) => String(m.content).includes(prompt))),

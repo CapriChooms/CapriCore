@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 
 /** Explicit, version/hash-pinned fixes; never overwrite an unknown dependency. */
-export function applyOpenClawCompatibility(workspace) {
+export function applyOpenClawCompatibility(workspace, { verifyOnly = false } = {}) {
   const manifest = JSON.parse(
     readFileSync(path.join(workspace, 'integrations/openclaw-compat/patches.json'), 'utf8'),
   );
@@ -35,6 +35,8 @@ export function applyOpenClawCompatibility(workspace) {
     pending.push({ file, updated });
   }
   // Verify every file before mutating any, including on a partially applied install.
+  if (verifyOnly && pending.length)
+    throw new Error('Packaged OpenClaw is missing reviewed compatibility patches. Rebuild Capri.');
   for (const { file, updated } of pending) writeFileSync(file, updated);
   return pending.length > 0;
 }

@@ -1,8 +1,20 @@
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bundledLlamaPath } from './llama-bundle.mjs';
 
-export const root = path.resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
+export const resourceRoot = path.resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
+
+/** A packaged Mac app keeps its mutable installation outside the signed bundle.
+ * Source checkouts and other platforms keep their installation-relative paths. */
+export function runtimeRoot(source, { platform = process.platform, env = process.env } = {}) {
+  const directory = platform === 'darwin' && env.CAPRI_MACOS_RUNTIME_ROOT;
+  if (!directory) return source;
+  if (!path.isAbsolute(directory)) throw new Error('CAPRI_MACOS_RUNTIME_ROOT must be absolute.');
+  return path.resolve(directory);
+}
+
+export const root = runtimeRoot(resourceRoot);
 export const paths = Object.freeze({
   root,
   data: path.join(root, 'data'),
@@ -43,7 +55,10 @@ export function resolveExecutables(
       throw new Error(variable + ' must point to an existing executable.');
     return env[variable];
   };
-  const bundledNode = path.join(paths.cache, `node-v${settings.nodeVersion}-win-x64/node.exe`);
+  const bundledNode =
+    platform === 'win32'
+      ? path.join(paths.cache, `node-v${settings.nodeVersion}-win-x64/node.exe`)
+      : null;
   const node = explicit(
     'CAPRI_NODE_PATH',
     findExecutable('node', {
@@ -57,13 +72,13 @@ export function resolveExecutables(
     findExecutable('llama-server', {
       env,
       platform,
-      extra: [path.join(paths.cache, `llama-${settings.llamaVersion}-vulkan/llama-server.exe`)],
+      extra: [bundledLlamaPath(root, settings.llamaVersion, platform)],
     }),
   );
   return Object.freeze({
     node,
     llama,
-    openclaw: path.join(root, 'node_modules/openclaw/openclaw.mjs'),
+    openclaw: path.join(resourceRoot, 'node_modules/openclaw/openclaw.mjs'),
   });
 }
 

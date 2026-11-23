@@ -209,6 +209,19 @@ export class UpdatesPanel {
       if (!pending) input.checked = value[id];
     }
     this.value = value;
+    if (value.mode === 'manual') {
+      this.get('current').textContent = value.current;
+      this.get('status').textContent = this.ui.text(
+        'To update this macOS build, replace the app with a newer macOS build. Your Capri data stays in Application Support.',
+      );
+      const card = this.get('current').closest('section');
+      for (const el of card.children) {
+        el.hidden = !el.contains(this.get('current')) && !el.contains(this.get('status'));
+      }
+      this.get('experimental').closest('section').hidden = true;
+      this.get('access-details').closest('section').hidden = true;
+      return;
+    }
     const busy = ['checking', 'downloading', 'verifying', 'installing'].includes(value.phase);
     this.get('current').textContent = value.current;
     const currentChannel =
@@ -254,7 +267,8 @@ export class UpdatesPanel {
     if (!open) this.get('token').value = '';
     if (open) {
       this.show(await this.api.updateStatus());
-      if (this.api.githubStatus) this.showAccess(await this.api.githubStatus());
+      if (this.value?.mode !== 'manual' && this.api.githubStatus)
+        this.showAccess(await this.api.githubStatus());
       this.ui.apply(this.ui.language);
     }
     return true;

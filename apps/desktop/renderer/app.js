@@ -2142,11 +2142,16 @@ function controls() {
       busy || attachmentComposer.pending || !ready || backend.phase !== 'ready';
     if (attachmentComposer.items.length && backend.phase !== 'ready') elements.send.disabled = true;
   }
-  elements.reconnect.hidden = backend.phase !== 'offline' || busy;
+  const downloadingModels = backend.phase === 'downloading-models';
+  elements.reconnect.hidden = (!downloadingModels && backend.phase !== 'offline') || busy;
   elements.status.classList.toggle('sr-only', elements.reconnect.hidden);
   if (!elements.reconnect.hidden) {
     const label = ui.text(
-      backend.code === 'CAPRI_LOCAL_MODEL_SETUP_REQUIRED' ? 'Language model' : 'Reconnect',
+      downloadingModels
+        ? 'Pause download'
+        : backend.code === 'CAPRI_LOCAL_MODEL_SETUP_REQUIRED'
+          ? 'Language model'
+          : 'Reconnect',
     );
     if (elements.reconnect.textContent !== label) elements.reconnect.textContent = label;
   }

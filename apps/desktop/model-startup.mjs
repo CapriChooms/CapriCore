@@ -33,15 +33,15 @@ export function consumeMicrophoneRestart(state, now = Date.now()) {
 }
 
 /** The wizard's choice applies only to the next desktop launch, including via a shortcut. */
-export function consumeFirstLaunchPreload(state) {
+export function consumeFirstLaunchPreload(state, fallback = true) {
   const file = path.join(state, 'first-start.json');
   let choice;
   try {
     choice = JSON.parse(readFileSync(file, 'utf8'));
   } catch {
-    return true;
+    return fallback;
   }
-  if (choice?.schemaVersion !== 1 || typeof choice.preloadModels !== 'boolean') return true;
+  if (choice?.schemaVersion !== 1 || typeof choice.preloadModels !== 'boolean') return fallback;
   try {
     unlinkSync(file);
   } catch (error) {

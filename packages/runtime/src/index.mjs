@@ -1,5 +1,5 @@
 /** Public runtime boundary. Importing it never starts a service or loads a model. */
-export { root, paths, findExecutable, requireExecutable } from './host/paths.mjs';
+export { root, resourceRoot, paths, findExecutable, requireExecutable } from './host/paths.mjs';
 export { nodePath, llamaPath, openclawPath } from './host/executables.mjs';
 export { settings, loadCoreSettings, validateCoreSettings } from './config/settings.mjs';
 export {

@@ -70,6 +70,32 @@ function fixture({ experimental = false, ...overrides } = {}) {
   return { service: new UpdateService(options), options, state, events, calls };
 }
 
+test('manual macOS updates list public release notes without offering the Windows installer', async () => {
+  let requests = 0;
+  const { service, calls } = fixture({
+    inAppUpdates: false,
+    releases: async ({ token }) => {
+      requests++;
+      assert.equal(token, null);
+      return [release()];
+    },
+  });
+  await service.startAutomaticChecks();
+  await service.checkOnStartup();
+  assert.equal((await service.check()).mode, 'manual');
+  assert.equal(requests, 0);
+  const history = await service.history();
+  const [entry] = history.releases;
+  assert.equal(entry.update, false);
+  await assert.rejects(service.chooseHistory(entry.id));
+  await assert.rejects(service.prepare());
+  await assert.rejects(service.install({}));
+  assert.equal(requests, 1);
+  assert.equal(calls.credentials, 0);
+  assert.equal(calls.downloads, 0);
+  service.close();
+});
+
 test('startup checks find public releases without a readable usable credential', async (t) => {
   for (const token of [null, '', ' ', 'fixture\ncredential', undefined]) {
     await t.test(String(token), async () => {

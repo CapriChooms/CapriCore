@@ -72,6 +72,7 @@ export class UpdateService {
     download = downloadUpdate,
     stage = stageUpdate,
     launch = spawn,
+    inAppUpdates = true,
     prepareHost = prepareUpdateHost,
     startupTimeoutMs = 15000,
   }) {
@@ -102,6 +103,7 @@ export class UpdateService {
     } catch {
       /* A source checkout is never overwritten by the updater. */
     }
+    if (!inAppUpdates) this.mode = 'manual';
     this.value = {
       phase: 'idle',
       current: this.current,
@@ -141,7 +143,7 @@ export class UpdateService {
     this.automaticController?.abort(new Error('Automatic update check cancelled'));
   }
   startAutomaticChecks() {
-    if (this.closed || this.automaticChecksStarted) return;
+    if (this.closed || this.automaticChecksStarted || this.mode === 'manual') return;
     this.automaticChecksStarted = true;
     this.syncAutomaticCheckTimer();
     return this.checkOnStartup();
@@ -228,6 +230,7 @@ export class UpdateService {
   }
   checkAutomatically() {
     if (
+      this.mode === 'manual' ||
       this.closed ||
       !this.preferences.value.automatic ||
       this.busy() ||
@@ -294,7 +297,7 @@ export class UpdateService {
   }
   async history(experimental = false) {
     if (typeof experimental !== 'boolean') throw new Error('Invalid update channel.');
-    const token = await this.optionalCredential();
+    const token = this.mode === 'manual' ? null : await this.optionalCredential();
     const signal = AbortSignal.timeout(20000);
     const publicRequest = this.releases({ token, signal, allowAnonymousFallback: true });
     const previewRequest =
@@ -319,6 +322,7 @@ export class UpdateService {
               experimental: prerelease,
               notes: typeof release.body === 'string' ? release.body.slice(0, 12000) : '',
               update:
+                this.mode !== 'manual' &&
                 compareVersions(releaseVersion(release, repository), this.current) > 0 &&
                 Boolean(releaseAsset(release, this.mode === 'managed' ? 'source' : 'installer')),
             },
@@ -410,6 +414,7 @@ export class UpdateService {
     return snapshot;
   }
   async check(value) {
+    if (this.mode === 'manual') return this.snapshot();
     this.cancelAutomaticCheck();
     const experimental =
       value === undefined

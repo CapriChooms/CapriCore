@@ -33,11 +33,10 @@ export async function startDesktop({ wait = false } = {}) {
     throw new Error(
       'An update is in progress or was interrupted. Wait for it to finish, or repair this folder with the full installer.',
     );
-  if (process.platform !== 'win32' || process.arch !== 'x64')
-    throw new Error(
-      'This desktop preview currently targets Windows x64. Runtime unit tests also run on Linux.',
-    );
-  if (!existsSync(path.join(root, 'config/core.local.json')))
+  const mac = process.platform === 'darwin' && process.arch === 'arm64';
+  if (!mac && (process.platform !== 'win32' || process.arch !== 'x64'))
+    throw new Error('Capri desktop supports Windows x64 and Apple Silicon Macs.');
+  if (!mac && !existsSync(path.join(root, 'config/core.local.json')))
     throw new Error('Run npm run setup first to choose a hardware profile.');
   const existing = managedProcess('desktop');
   if (existing) {
@@ -47,14 +46,21 @@ export async function startDesktop({ wait = false } = {}) {
     );
     return { ...existing, alreadyRunning: true };
   }
-  if (!electronBundleReady(path.join(root, 'node_modules/electron')))
+  const electronPackage = path.join(root, 'node_modules/electron');
+  if (!electronBundleReady(electronPackage, undefined, process.platform)) {
+    if (mac)
+      throw new Error(
+        'The Apple Silicon Electron runtime is incomplete. Reinstall the project dependencies.',
+      );
     throw new Error(
       'The Capri desktop download is incomplete. Open Capri Setup again, select this installation folder and choose Retry or Repair. Keep Setup open until it finishes; microphone and voice are optional.',
     );
+  }
   const rt = runtime();
   initialize(rt);
-  let executable = path.join(root, 'node_modules/electron/dist/electron.exe');
-  executable = await ensureDesktopIdentity(executable);
+  const executable = mac
+    ? path.join(electronPackage, 'dist/Electron.app/Contents/MacOS/Electron')
+    : await ensureDesktopIdentity(path.join(electronPackage, 'dist/electron.exe'));
   for (const action of ['stop', 'show'])
     try {
       unlinkSync(path.join(paths.data, 'run', `desktop.${action}`));

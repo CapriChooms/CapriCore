@@ -16,8 +16,8 @@ const port = Number(process.env.CAPRI_OLLAMA_PORT);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
   throw new Error('Invalid managed inference port.');
 const device = process.env.CAPRI_LLAMA_DEVICE;
-if (device && device !== 'unavailable' && !/^Vulkan\d{1,2}$/.test(device))
-  throw new Error('Invalid local Vulkan device.');
+if (device && device !== 'unavailable' && !/^(?:Vulkan|MTL)\d{1,2}$/.test(device))
+  throw new Error('Invalid local inference device.');
 const overheadMiB = Number(process.env.CAPRI_LLAMA_RESERVE_MIB) || 768;
 if (overheadMiB < 0 || overheadMiB > 8192) throw new Error('Invalid local VRAM reserve.');
 const env = {};

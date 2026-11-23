@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runtimeRoot } from '../../packages/runtime/src/host/paths.mjs';
 import { mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { ApplicationService, schema } from './service.mjs';
@@ -11,7 +12,7 @@ export default {
     const source = api.source?.startsWith('file:')
         ? fileURLToPath(api.source)
         : (api.source ?? fileURLToPath(import.meta.url)),
-      root = path.resolve(path.dirname(source), '../..');
+      root = runtimeRoot(path.resolve(path.dirname(source), '../..'));
     const isolated = api.pluginConfig?.stateDirectory
       ? path.resolve(root, api.pluginConfig.stateDirectory)
       : null;

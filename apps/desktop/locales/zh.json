@@ -6,6 +6,14 @@
   "locale": "zh",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "允许 Capri 在你离开时移动鼠标指针",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "指针恶作剧需要完整的电脑访问权限。按 Esc 停止。",
+    "Animate the reply bubble": "播放回复气泡动画",
+    "Drag lightning color": "拖动时的闪电颜色",
+    "Wild desktop pranks": "狂野模式的桌面恶作剧",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "在狂野模式下，Capri 偶尔会偷走一个假光标。鼠标和键盘仍可正常使用。",
+    "Preview a prank": "预览恶作剧",
+    "Prank preview is unavailable right now.": "暂时无法预览恶作剧。",
     "Automatically check for updates": "自动检查更新",
     "Capri’s game reactions": "Capri 的棋局反应",
     "React to game events": "应对游戏事件",
@@ -355,6 +363,9 @@
     "Folder": "文件夹",
     "Folder access could not be revoked.": "无法撤销文件夹访问。",
     "Folder permissions could not be saved.": "无法保存文件夹权限。",
+    "Follow-up listening": "继续聆听",
+    "After a question": "提问后",
+    "After any spoken reply": "每次语音回复后",
     "Follow-up listening time (seconds)": "后续聆听时间（秒）",
     "For example, Tamil": "例如，泰米尔语",
     "Freeing model memory…": "正在释放模型内存…",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "可选活动图片",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "将图片上传到您的应用程序的富存在性 -> 艺术资产，然后将其资产密钥粘贴在此处。对于仅文本活动的，请保持此字段为空。",
     "Settings closed unexpectedly. Open Settings to try again.": "设置意外关闭。打开设置以重试。",
-    "Capri closed unexpectedly.": "Capri 意外关闭。",
-    "The logs folder is open.": "日志文件夹已打开。",
-    "The logs folder could not be opened.": "无法打开日志文件夹。",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "请保存并检查诊断 ZIP 文件，然后通过 Discord 私信将其发送给 Overyx。",
-    "The crash report could not be saved.": "无法保存崩溃报告。",
-    "You can try saving a report from Report a bug after restarting Capri.": "重新启动 Capri 后，可尝试从“报告错误”中保存报告。",
     "Test": "测试",
     "Stop computer control (Esc)": "停止电脑控制 (Esc)",
     "Capri on the desktop": "桌面上的 Capri",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "可选：收听通话和系统音频",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "同时启用唤醒和自动发送后，向 Capri 提出的请求会自动发送。否则，请在发送前检查文本。请使用耳机以避免啸叫。",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "请先开启 Capri 的麦克风，再加入系统音频。Capri 可以听到你和通话中的其他人，并在任何人说出她的名字时唤醒。",
+    "Days": "天",
     "Hours": "小时",
     "Seconds": "秒",
     "Set up once, then choose the virtual microphone in your call app.": "只需设置一次，然后在通话应用中选择虚拟麦克风。",
@@ -2477,7 +2483,13 @@
     "Vertical": "纵向",
     "Horizontal": "横向",
     "I could not verify that YouTube opened. Check the page in the browser.": "无法确认 YouTube 是否已打开。请在浏览器中检查页面。",
-    "No supported browser was found to open YouTube.": "未找到可用于打开 YouTube 的受支持浏览器。"
+    "No supported browser was found to open YouTube.": "未找到可用于打开 YouTube 的受支持浏览器。",
+    "Avatar gallery": "角色图库",
+    "Poses": "姿势",
+    "Expressions": "表情",
+    "Animations": "动画",
+    "Loop animation": "循环播放动画",
+    "Play animation": "播放动画"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,10 @@
     "corrections": 22,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "idle-surprised_closed", "{label} ({seconds} s)", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "idle-surprised_closed",
+    "{label} ({seconds} s)",
+    "Capri ·"
+  ]
 }

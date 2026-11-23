@@ -129,6 +129,7 @@ contextBridge.exposeInMainWorld(
     openDonation: () => ipcRenderer.invoke('capri:donation-open'),
     getPersonality: () => ipcRenderer.invoke('capri:personality-get'),
     setCommunicationStyle: (style) => ipcRenderer.invoke('capri:communication-style', style),
+    previewWildPrank: () => ipcRenderer.invoke('capri:wild-prank-preview'),
     keepWildTab: (id) => ipcRenderer.invoke('capri:wild-tabs-keep', id),
     wildTabPromptShown: (id) => ipcRenderer.invoke('capri:wild-tabs-shown', id),
     openPersonalityFile: () => ipcRenderer.invoke('capri:personality-open'),
@@ -246,6 +247,7 @@ contextBridge.exposeInMainWorld(
     avatarReady: (selection) => ipcRenderer.invoke('capri:avatar-ready', selection),
     avatarFrameReady: (frame) => ipcRenderer.invoke('capri:avatar-frame-ready', frame),
     avatarMouth: (shape) => ipcRenderer.invoke('capri:avatar-mouth', shape),
+    avatarFace: (state) => ipcRenderer.invoke('capri:avatar-face', state),
     avatarReply: (text) => ipcRenderer.invoke('capri:avatar-reply', text),
     avatarStatus: (value) => ipcRenderer.invoke('capri:avatar-status', value),
     avatarFailed: (selection) => ipcRenderer.invoke('capri:avatar-failed', selection),
@@ -273,7 +275,8 @@ contextBridge.exposeInMainWorld(
     startAvatarDrag: (value) => ipcRenderer.invoke('capri:avatar-drag-start', value),
     endAvatarDrag: (value) => ipcRenderer.invoke('capri:avatar-drag-end', value),
     startDrag: (edge) => ipcRenderer.invoke('capri:drag-start', edge),
-    endDrag: () => ipcRenderer.invoke('capri:drag-end'),
+    dragFrame: () => ipcRenderer.invoke('capri:drag-frame'),
+    endDrag: (released) => ipcRenderer.invoke('capri:drag-end', released),
     onEvent: (callback) => {
       if (typeof callback !== 'function') throw new TypeError('Expected callback');
       const listener = (_event, payload) => callback(payload);

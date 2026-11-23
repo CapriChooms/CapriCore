@@ -339,9 +339,7 @@ try {
   assert.equal((await requests()).checks, pausedCount);
   await page.evaluate(() => window.capri.checkUpdates());
   assert.equal((await requests()).checks, pausedCount + 1);
-  checks.push(
-    'the localized Updates checkbox disables polling after Save while manual checks still run',
-  );
+  checks.push('the localized Updates checkbox disables polling after Save while manual checks still run');
 
   page = await launch('available');
   assert.equal((await page.evaluate(() => window.capri.updateStatus())).automatic, false);

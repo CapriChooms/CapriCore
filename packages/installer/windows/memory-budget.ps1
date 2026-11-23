@@ -71,6 +71,15 @@ function Get-CapriMemoryBudget($Selection,$Hardware,$Estimates) {
     }
     return @{contextTokens=$Estimates.contextTokens;mode=$(if($languageGpu){'gpu'}else{'cpu'});offload=[bool]$offload;ram=(Row $ram $Hardware.ramGiB $Hardware.availableRamGiB);vram=(Row $vram $(if($gpu){$Hardware.vramGiB}else{$null}) $freeVram)}
 }
+function Test-CapriRocmVoiceGpu([string[]]$Names, $AmdWindows, [int]$WindowsBuild) {
+    if($WindowsBuild -lt $AmdWindows.minimumBuild){return $false}
+    $models=@($AmdWindows.models | ForEach-Object{$_ -replace '\s+',''})
+    foreach($name in $Names){
+        $model=($name -replace '\s+','') -replace '^(?:AMD)?(?:RADEON(?:\(TM\)|[\u00ae\u2122])?)?',''
+        if($models -contains $model){return $true}
+    }
+    return $false
+}
 function Update-CapriMemorySnapshot($Hardware) {
     try {
         Add-Type -AssemblyName Microsoft.VisualBasic

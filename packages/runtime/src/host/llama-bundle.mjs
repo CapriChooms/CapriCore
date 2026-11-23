@@ -40,8 +40,8 @@ export function createLlamaRuntimeView(executable, scratch, { allowGpu, baseline
   const files = LLAMA_VULKAN_FILES.filter((name) => allowGpu || name !== 'ggml-vulkan.dll');
   if (!baseline)
     files.push(
-      ...readdirSync(source).filter((name) =>
-        /^ggml-cpu-(?!x64\.dll$)[a-z0-9-]+\.dll$/i.test(name),
+      ...readdirSync(source).filter(
+        (name) => /^ggml-cpu-(?!x64\.dll$)[a-z0-9-]+\.dll$/i.test(name),
       ),
     );
   noLinks(scratch);

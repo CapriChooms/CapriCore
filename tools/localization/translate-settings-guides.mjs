@@ -20,7 +20,9 @@ const guides = { ...coreGuides, ...skillGuides, ...advancedGuides };
 const strings = [
   ...new Set([
     ...Object.keys(guides).flatMap((section) =>
-      settingsGuideSteps(section, guides).flatMap((step) => step[1]),
+      settingsGuideSteps(section, guides).flatMap(([, english, , options]) =>
+        options?.interfaceCopy ? [] : english,
+      ),
     ),
     'Guide for {section}',
     '{title} (guide)',

@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 export const VOICE_COMMIT_MESSAGE =
   'Windows ran out of committed memory while loading the voice. Enable a system-managed paging file, close memory-heavy apps, or choose a smaller Qwen model, then restart Capri. Text replies remain available.';
-export function voiceStartupFailure(code, message) {
-  return Object.assign(new Error(message), { code });
-}
-
 export function voiceStartupError(value, { pid, startedAt }) {
   if (
     value?.schemaVersion !== 1 ||

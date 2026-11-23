@@ -252,7 +252,7 @@ test('reduced motion and a suspended renderer restart without old notes or a pha
   assert.deepEqual(suspended.notes, []);
 });
 
-test('music mouth patches and native body regions follow both registered poses', () => {
+test('facial landmarks and native body regions follow both registered music poses', () => {
   for (const [id, [x, y], chest] of [
     ['music-window', [639, 375], [630, 515]],
     ['music-floor', [645, 615], [655, 780]],

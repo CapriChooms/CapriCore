@@ -33,6 +33,7 @@ delete env.ELECTRON_RUN_AS_NODE;
 let application;
 const narrow = process.argv.includes('--narrow');
 const supportOnly = process.argv.includes('--support');
+const supportScrollOnly = process.argv.includes('--support-scroll');
 const supportLinks = [
   'boosty-donate',
   'lava-donate',
@@ -55,8 +56,68 @@ verifyLayout: try {
   await owner.waitForFunction(() => document.body.dataset.phase === 'ready');
   let settings = await settingsView(
     application,
-    sidebarOnly ? 'languages' : supportOnly ? 'support' : themeOnly ? 'appearance' : 'general',
+    sidebarOnly
+      ? 'languages'
+      : supportOnly || supportScrollOnly
+        ? 'support'
+        : themeOnly
+          ? 'appearance'
+          : 'general',
   );
+  if (supportScrollOnly) {
+    await application.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows().find((view) =>
+        view.webContents.getURL().endsWith('/settings.html'),
+      );
+      window.setContentSize(window.getContentBounds().width, 580);
+    });
+    await settings.waitForFunction(() => {
+      const canvas = document.querySelector('#support-frame canvas:nth-of-type(even)');
+      return canvas?.width > 1;
+    });
+    await settings.evaluate(() => {
+      const canvas = document.querySelector('#support-frame canvas');
+      if (getComputedStyle(canvas).filter !== 'none') throw new Error('Bloom is not cached');
+      const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      let covered = 0;
+      for (let index = 3; index < pixels.length; index += 4) {
+        if (pixels[index]) covered++;
+      }
+      if (covered < canvas.width * 12) throw new Error('Cached bloom has no visible spread');
+      const sparks = document.querySelector('#support-frame canvas:nth-of-type(even)');
+      const context = sparks.getContext('2d');
+      const clear = context.clearRect.bind(context);
+      window.supportFramePaints = 0;
+      context.clearRect = (...args) => {
+        window.supportFramePaints++;
+        return clear(...args);
+      };
+    });
+    await settings.waitForFunction(() => window.supportFramePaints >= 2);
+    const scroll = await settings.locator('#companion').evaluate(async (pane) => {
+      const limit = pane.scrollHeight - pane.clientHeight;
+      if (limit < 16) throw new Error('Support scroll test requires overflowing content');
+      const painted = new Promise((resolve) => {
+        pane.addEventListener('scroll', () => resolve(window.supportFramePaints), { once: true });
+      });
+      pane.scrollTop += pane.scrollTop < 16 ? 16 : -16;
+      const during = await painted;
+      // Let the compositor advance while the last sparks frame stays in place.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return { during, after: window.supportFramePaints };
+    });
+    assert.equal(scroll.after, scroll.during, 'sparks stop repainting during scrolling');
+    assert.equal(await settings.locator('#support-frame').isVisible(), true);
+    await settings.waitForFunction((paints) => window.supportFramePaints > paints, scroll.after);
+    await settings.screenshot({ path: path.join(folder, 'support-scroll.png') });
+    await settingsView(application, 'updates');
+    await settings.locator('#support-frame').waitFor({ state: 'hidden' });
+    const hiddenPaints = await settings.evaluate(() => window.supportFramePaints);
+    await settings.waitForTimeout(180);
+    assert.equal(await settings.evaluate(() => window.supportFramePaints), hiddenPaints);
+    console.log('PASS Support scroll and frame lifecycle. Screenshot: ' + folder);
+    break verifyLayout;
+  }
   if (supportOnly)
     await application.evaluate(({ shell }) => {
       globalThis.supportExternalLinks = [];

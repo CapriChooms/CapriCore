@@ -1,0 +1,32 @@
+{
+  "en": {
+    "interface": "Which language should Capri’s interface use?",
+    "device": "Where should Capri’s language model run?",
+    "conversation": "Which language should Capri use in conversation?",
+    "voice": "Which voice model should Capri use?",
+    "modelLabel": "Language model",
+    "installerLanguageHelp": "Choose the language for this installer. The next field sets the interface language of the installed app.",
+    "deviceLabel": "Local model compute device",
+    "deviceAuto": "Automatic (GPU when available)",
+    "deviceCpu": "CPU only",
+    "deviceKeep": "Keep the current device",
+    "deviceHelp": "Automatic uses compatible GPU acceleration when available. CPU only uses system RAM for the language model. This choice is separate from voice processing.",
+    "voiceHelp": "Choose a voice compatible with your conversation language and hardware. You can configure more voices, including a voice API, in Spoken replies after installation.",
+    "voiceOffRepair": "Keep the current voice without installing a new one"
+  },
+  "ru": {
+    "interface": "На каком языке показывать интерфейс Capri?",
+    "device": "Где будет работать языковая модель Capri?",
+    "conversation": "На каком языке Capri будет с вами общаться?",
+    "voice": "Какую модель озвучки будет использовать Capri?",
+    "modelLabel": "Языковая модель",
+    "installerLanguageHelp": "Выберите язык установщика. В следующем поле можно задать язык интерфейса самой Capri.",
+    "deviceLabel": "Устройство локальной модели",
+    "deviceAuto": "Автоматически (GPU при наличии)",
+    "deviceCpu": "Только CPU",
+    "deviceKeep": "Оставить текущее устройство",
+    "deviceHelp": "В автоматическом режиме Capri использует доступное ускорение на совместимой видеокарте. Режим «Только CPU» использует оперативную память для языковой модели. Устройство озвучки настраивается отдельно.",
+    "voiceHelp": "Выберите голос, совместимый с языком общения и вашим оборудованием. После установки в разделе «Озвучка ответов» можно выбрать другие голоса или подключить API голоса.",
+    "voiceOffRepair": "Оставить текущий голос без загрузки нового"
+  }
+}

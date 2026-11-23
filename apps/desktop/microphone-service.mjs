@@ -169,8 +169,6 @@ export class MicrophoneService {
     const rows = this.recognitionTimings;
     return {
       language: this.config.language,
-      wakeWordEnabled: this.config.wakeWord?.enabled === true,
-      captureActive: Boolean(this.capture),
       wakeState: this.capture?.wake.state ?? 'off',
       recognitionPhase: this.capture?.recognitionPhase ?? 'idle',
       samples: rows.length,

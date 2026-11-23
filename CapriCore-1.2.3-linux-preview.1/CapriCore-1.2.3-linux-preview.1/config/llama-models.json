@@ -1,0 +1,135 @@
+{
+  "qwen3.5:0.8b": {
+    "layers": [
+      {
+        "mediaType": "application/vnd.ollama.image.projector",
+        "digest": "sha256:5ba2eb9bf28c5b5ff7a705f07bd9269f0f2dbd6cb2b4c46d5f98ed8d15d18883",
+        "size": 207346304
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.model",
+        "digest": "sha256:889ea3b9143cdc32146c7d530ce5f3d452ec18069086f6f4167ce9ae72a9691f",
+        "size": 811843520
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:50cbab8a892c5f2993b8c7351a99182507472def3b1374558308605d99b86b32",
+        "size": 11343
+      }
+    ]
+  },
+  "qwen3.5:2b": {
+    "layers": [
+      {
+        "mediaType": "application/vnd.ollama.image.projector",
+        "digest": "sha256:5ddf560e34046fd958b2576324f2a9b57d70f297afe6526958d60a23f3bfc20b",
+        "size": 671372768
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.model",
+        "digest": "sha256:e8bf47d40c5ba68baf8f3e503ee36710da6e8641cb0a670a508cff5b3f0cfbf7",
+        "size": 2012012448
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:50cbab8a892c5f2993b8c7351a99182507472def3b1374558308605d99b86b32",
+        "size": 11343
+      }
+    ]
+  },
+  "qwen3.5:4b": {
+    "layers": [
+      {
+        "mediaType": "application/vnd.ollama.image.projector",
+        "digest": "sha256:e56a899b1540860385465756dd308c84417410b94dbc1c380adffd20a921ca60",
+        "size": 675569120
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.model",
+        "digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "size": 2648593216
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:50cbab8a892c5f2993b8c7351a99182507472def3b1374558308605d99b86b32",
+        "size": 11343
+      }
+    ]
+  },
+  "qwen3.5:9b": {
+    "layers": [
+      {
+        "mediaType": "application/vnd.ollama.image.projector",
+        "digest": "sha256:f836f08f921193f4d6b6a6952dba0a6fb116759d26a757bcb395d570d73976ca",
+        "size": 921704832
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.model",
+        "digest": "sha256:02d45dc1cf451ba2475ac33b301c2dd8f985abe4c182ce04a1f2f5bf0260278d",
+        "size": 5629109120
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:50cbab8a892c5f2993b8c7351a99182507472def3b1374558308605d99b86b32",
+        "size": 11343
+      }
+    ]
+  },
+  "ministral-3:3b": {
+    "nativeModel": {
+      "url": "https://huggingface.co/ggml-org/Ministral-3-3B-Instruct-2512-GGUF/resolve/742ab8db17d5c8ee5dc8f5afb5acfc2da1c33b26/Ministral-3-3B-Instruct-2512-Q8_0.gguf",
+      "bytes": 3651679744,
+      "sha256": "70c6e5b77435062a46bfa3f0b9fa21744a10161ed23eabe9fdc47b3fb6711ad3"
+    },
+    "extraProjector": {
+      "url": "https://huggingface.co/ggml-org/Ministral-3-3B-Instruct-2512-GGUF/resolve/742ab8db17d5c8ee5dc8f5afb5acfc2da1c33b26/mmproj-Ministral-3-3B-Instruct-2512-Q8_0.gguf",
+      "bytes": 448285088,
+      "sha256": "57af826536cde496dde1e8343b8e72c89fdbd89084d58e18eb391ef34c39c9f2"
+    },
+    "layers": [
+      {
+        "mediaType": "application/vnd.ollama.image.model",
+        "digest": "sha256:910e4bf4e2338f181e99796d7452404e85c1b6bbbf8cd0bb094672cf9b6f2f22",
+        "size": 2953825504
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+        "size": 11356
+      }
+    ]
+  },
+  "gemma4:e2b": {
+    "layers": [
+      {
+        "mediaType": "application/vnd.ollama.image.model",
+        "digest": "sha256:6dd7ac24fe13a238898e16e253ebc7a72fa27fb83f2658c2f6c241df3af5937d",
+        "size": 3502493472
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.projector",
+        "digest": "sha256:7ba3bbacdf1b6959c27f0470defa080942c5a1f37e539b09ff1668c1e6265900",
+        "size": 986833664
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:7339fa418c9ad3e8e12e74ad0fd26a9cc4be8703f9c110728a992b193be85cb2",
+        "size": 11355
+      }
+    ]
+  },
+  "bge-m3:latest": {
+    "layers": [
+      {
+        "mediaType": "application/vnd.ollama.image.model",
+        "digest": "sha256:daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c",
+        "size": 1157671200
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:a406579cd136771c705c521db86ca7d60a6f3de7c9b5460e6193a2df27861bde",
+        "size": 1068
+      }
+    ]
+  }
+}

@@ -1,5 +1,13 @@
 {
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "ਤੁਹਾਡੀ ਗੈਰਹਾਜ਼ਰੀ ਵਿੱਚ Capri ਨੂੰ ਮਾਊਸ ਪੁਆਇੰਟਰ ਹਿਲਾਉਣ ਦਿਓ",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "ਪੁਆਇੰਟਰ ਵਾਲੀ ਸ਼ਰਾਰਤ ਲਈ ਕੰਪਿਊਟਰ ਤੱਕ ਪੂਰੀ ਪਹੁੰਚ ਚਾਹੀਦੀ ਹੈ। ਰੋਕਣ ਲਈ Esc ਦਬਾਓ।",
+    "Animate the reply bubble": "ਜਵਾਬ ਦੇ ਬੁਲਬੁਲੇ ਨੂੰ ਐਨੀਮੇਟ ਕਰੋ",
+    "Drag lightning color": "ਖਿੱਚਣ ਵੇਲੇ ਬਿਜਲੀ ਦਾ ਰੰਗ",
+    "Wild desktop pranks": "ਡੈਸਕਟਾਪ ਉੱਤੇ ਸ਼ਰਾਰਤਾਂ",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "ਬੇਲਗਾਮ ਮੋਡ ਵਿੱਚ Capri ਕਦੇ-ਕਦੇ ਨਕਲੀ ਕਰਸਰ ਚੁਰਾ ਲੈਂਦੀ ਹੈ। ਤੁਹਾਡਾ ਮਾਊਸ ਅਤੇ ਕੀਬੋਰਡ ਆਮ ਵਾਂਗ ਕੰਮ ਕਰਦੇ ਹਨ।",
+    "Preview a prank": "ਸ਼ਰਾਰਤ ਦੀ ਝਲਕ ਵੇਖੋ",
+    "Prank preview is unavailable right now.": "ਸ਼ਰਾਰਤ ਦੀ ਝਲਕ ਇਸ ਵੇਲੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
     "Automatically check for updates": "ਅੱਪਡੇਟਾਂ ਦੀ ਆਪਣੇ ਆਪ ਜਾਂਚ ਕਰੋ",
     "Capri’s game reactions": "ਖੇਡ ਬਾਰੇ Capri ਦੀਆਂ ਪ੍ਰਤੀਕਿਰਿਆਵਾਂ",
     "React to game events": "ਗੇਮ ਦੀਆਂ ਘਟਨਾਵਾਂ ਪ੍ਰਤੀ ਪ੍ਰਤੀਕਰਮ",
@@ -349,6 +357,9 @@
     "Folder": "ਫੋਲਡਰ",
     "Folder access could not be revoked.": "ਫੋਲਡਰ ਪਹੁੰਚ ਨੂੰ ਵਾਪਸ ਲਿਆ ਜਾਣ ਵਿੱਚ ਅਸਫਲ ਰਿਹਾ।",
     "Folder permissions could not be saved.": "ਫੋਲਡਰ ਅਧਿਕਾਰਾਂ ਨੂੰ ਸੰਭਾਲਣ ਵਿੱਚ ਅਸਫਲ ਰਿਹਾ।",
+    "Follow-up listening": "ਮੁੜ ਸੁਣਨਾ",
+    "After a question": "ਸਵਾਲ ਤੋਂ ਬਾਅਦ",
+    "After any spoken reply": "ਹਰ ਬੋਲੇ ਗਏ ਜਵਾਬ ਤੋਂ ਬਾਅਦ",
     "Follow-up listening time (seconds)": "ਅਗਲੇ ਪੜਾਅ ਦੀ ਸੁਣਨ ਸਮਾਂ (ਸਕਿੰਟ)",
     "For example, Tamil": "ਉਦਾਹਰਣ ਵਜੋਂ, ਤਾਮਿਲ",
     "Freeing model memory…": "ਮਾਡਲ ਮੈਮੋਰੀ ਛੁੱਟ ਰਹੀ ਹੈ...",
@@ -1503,12 +1514,6 @@
     "Optional activity image": "ਵਿਕਲਪਿਕ ਐਕਟੀਵਿਟੀ ਤਸਵੀਰ",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "ਆਪਣੇ ਐਪਲੀਕੇਸ਼ਨ ਦੇ ਰਿੱਚ ਪ੍ਰੈਜ਼ੈਂਸ → ਆਰਟ ਐਸੇਟਸ ਵਿੱਚ ਇੱਕ ਤਸਵੀਰ ਅਪਲੋਡ ਕਰੋ, ਫਿਰ ਇਸਦਾ ਐਸੇਟ ਕੀ ਇੱਥੇ ਪੇਸਟ ਕਰੋ। ਟੈਕਸਟ-ਵਿਰਧਿਤ ਐਕਟੀਵਿਟੀ ਲਈ ਇਸ ਖੇਤਰ ਨੂੰ ਖਾਲੀ ਛੱਡੋ।",
     "Settings closed unexpectedly. Open Settings to try again.": "ਸੈਟਿੰਗਾਂ ਅਚਾਨਕ ਬੰਦ ਹੋ ਗਈਆਂ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰਨ ਲਈ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੋ।",
-    "Capri closed unexpectedly.": "Capri ਅਚਾਨਕ ਬੰਦ ਹੋ ਗਈ।",
-    "The logs folder is open.": "ਲੌਗ ਫੋਲਡਰ ਖੁੱਲ੍ਹਾ ਹੈ।",
-    "The logs folder could not be opened.": "ਲੌਗ ਫੋਲਡਰ ਖੋਲ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ।",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "ਜਾਂਚ ਵਾਲੀ ZIP ਫ਼ਾਈਲ ਸੰਭਾਲੋ ਤੇ ਵੇਖੋ, ਫਿਰ Discord ਉੱਤੇ ਨਿੱਜੀ ਸੁਨੇਹੇ ਵਿੱਚ Overyx ਨੂੰ ਭੇਜੋ।",
-    "The crash report could not be saved.": "ਕਰੈਸ਼ ਰਿਪੋਰਟ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ।",
-    "You can try saving a report from Report a bug after restarting Capri.": "Capri ਮੁੜ ਚਲਾਉਣ ਤੋਂ ਬਾਅਦ ‘ਗਲਤੀ ਦੀ ਰਿਪੋਰਟ ਕਰੋ’ ਤੋਂ ਰਿਪੋਰਟ ਸੰਭਾਲਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     "Test": "ਟੈਸਟ ਕਰੋ",
     "Stop computer control (Esc)": "ਕੰਪਿਊਟਰ ਦਾ ਕੰਟਰੋਲ ਰੋਕੋ (Esc)",
     "Capri on the desktop": "ਡੈਸਕਟਾਪ ’ਤੇ Capri",
@@ -1711,6 +1716,7 @@
     "Optional: hear the call and system audio": "ਚੋਣਵਾਂ: ਕਾਲ ਅਤੇ ਸਿਸਟਮ ਦੀ ਆਵਾਜ਼ ਸੁਣੋ",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "ਨਾਮ ਲੈ ਕੇ ਸਰਗਰਮ ਕਰਨ ਅਤੇ ਆਪਣੇ ਆਪ ਭੇਜਣ ਦੇ ਦੋਵੇਂ ਵਿਕਲਪ ਚਾਲੂ ਹੋਣ 'ਤੇ, Capri ਨੂੰ ਸੰਬੋਧਿਤ ਬੇਨਤੀਆਂ ਆਪਣੇ ਆਪ ਭੇਜ ਦਿੱਤੀਆਂ ਜਾਂਦੀਆਂ ਹਨ। ਨਹੀਂ ਤਾਂ, ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਲਿਖਤ ਦੀ ਸਮੀਖਿਆ ਕਰੋ। ਆਡੀਓ ਫੀਡਬੈਕ ਤੋਂ ਬਚਣ ਲਈ ਹੈੱਡਫੋਨ ਵਰਤੋ।",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "ਪਹਿਲਾਂ Capri ਦਾ ਮਾਈਕ੍ਰੋਫ਼ੋਨ ਚਾਲੂ ਕਰੋ, ਫਿਰ ਸਿਸਟਮ ਦੀ ਆਵਾਜ਼ ਸ਼ਾਮਲ ਕਰੋ। Capri ਤੁਹਾਨੂੰ ਅਤੇ ਕਾਲ ਵਿੱਚ ਲੋਕਾਂ ਨੂੰ ਸੁਣ ਸਕਦੀ ਹੈ ਅਤੇ ਕਿਸੇ ਵੱਲੋਂ ਉਸ ਦਾ ਨਾਮ ਲੈਣ ਉੱਤੇ ਜਾਗ ਸਕਦੀ ਹੈ।",
+    "Days": "ਦਿਨ",
     "Hours": "ਘੰਟੇ",
     "Seconds": "ਸਕਿੰਟ",
     "Set up once, then choose the virtual microphone in your call app.": "ਇੱਕ ਵਾਰ ਸੈਟ ਅੱਪ ਕਰੋ, ਫਿਰ ਆਪਣੀ ਕਾਲ ਐਪ ਵਿੱਚ ਵਰਚੁਅਲ ਮਾਈਕ੍ਰੋਫ਼ੋਨ ਚੁਣੋ।",
@@ -2471,7 +2477,13 @@
     "Vertical": "ਲੰਬਕਾਰੀ",
     "Horizontal": "ਖਿਤਿਜੀ",
     "I could not verify that YouTube opened. Check the page in the browser.": "ਮੈਂ ਪੁਸ਼ਟੀ ਨਹੀਂ ਕਰ ਸਕੀ ਕਿ YouTube ਖੁੱਲ੍ਹਿਆ ਹੈ। ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਪੰਨਾ ਵੇਖੋ।",
-    "No supported browser was found to open YouTube.": "YouTube ਖੋਲ੍ਹਣ ਲਈ ਕੋਈ ਸਮਰਥਿਤ ਬ੍ਰਾਊਜ਼ਰ ਨਹੀਂ ਮਿਲਿਆ।"
+    "No supported browser was found to open YouTube.": "YouTube ਖੋਲ੍ਹਣ ਲਈ ਕੋਈ ਸਮਰਥਿਤ ਬ੍ਰਾਊਜ਼ਰ ਨਹੀਂ ਮਿਲਿਆ।",
+    "Avatar gallery": "ਅਵਤਾਰ ਗੈਲਰੀ",
+    "Poses": "ਮੁਦਰਾਵਾਂ",
+    "Expressions": "ਚਿਹਰੇ ਦੇ ਹਾਵ-ਭਾਵ",
+    "Animations": "ਐਨੀਮੇਸ਼ਨ",
+    "Loop animation": "ਐਨੀਮੇਸ਼ਨ ਵਾਰ-ਵਾਰ ਚਲਾਓ",
+    "Play animation": "ਐਨੀਮੇਸ਼ਨ ਚਲਾਓ"
   },
   "id": "pa",
   "name": "Punjabi",
@@ -2485,5 +2497,8 @@
     "corrections": 2,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·"
+  ]
 }

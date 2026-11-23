@@ -24,23 +24,32 @@ export function placeInWorkArea(saved, workArea, size, margin = 16) {
 export const WINDOW_RESIZE_EDGES = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
 
 export function resizeWindowBounds(bounds, edge, movement, workArea, minimum) {
-  const start = placeInWorkArea(bounds, workArea, bounds);
-  const minWidth = Math.min(minimum.width, start.width);
-  const minHeight = Math.min(minimum.height, start.height);
-  let { x, y, width, height } = start;
+  let { x, y, width, height } = bounds;
+  const right = x + width;
+  const bottom = y + height;
+  const minWidth = Math.min(minimum.width, width);
+  const minHeight = Math.min(minimum.height, height);
   const dx = Math.round(movement.x);
   const dy = Math.round(movement.y);
+  // The transparent window can already extend past the work area. Preserve
+  // the stationary edges and let the dragged edges return without snapping.
   if (edge.includes('w')) {
-    x = Math.max(workArea.x, Math.min(start.x + dx, start.x + start.width - minWidth));
-    width = start.x + start.width - x;
+    x = Math.max(Math.min(workArea.x, x), Math.min(x + dx, right - minWidth));
+    width = right - x;
   } else if (edge.includes('e')) {
-    width = Math.max(minWidth, Math.min(start.width + dx, workArea.x + workArea.width - x));
+    width = Math.max(
+      minWidth,
+      Math.min(width + dx, Math.max(right, workArea.x + workArea.width) - x),
+    );
   }
   if (edge.includes('n')) {
-    y = Math.max(workArea.y, Math.min(start.y + dy, start.y + start.height - minHeight));
-    height = start.y + start.height - y;
+    y = Math.max(Math.min(workArea.y, y), Math.min(y + dy, bottom - minHeight));
+    height = bottom - y;
   } else if (edge.includes('s')) {
-    height = Math.max(minHeight, Math.min(start.height + dy, workArea.y + workArea.height - y));
+    height = Math.max(
+      minHeight,
+      Math.min(height + dy, Math.max(bottom, workArea.y + workArea.height) - y),
+    );
   }
   return { x, y, width, height };
 }

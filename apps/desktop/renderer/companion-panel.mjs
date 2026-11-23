@@ -25,6 +25,7 @@ import {
 import { SavedMemoryPanel } from './saved-memory-panel.mjs';
 import { bindAudioOutput, createAudioOutputContext } from './local-audio-output.mjs';
 import {
+  DRAG_LIGHTNING_COLOR,
   SANDEVISTAN_RANGES,
   TELEPORT_LIGHTNING_DEFAULTS,
   TELEPORT_LIGHTNING_RANGES,
@@ -304,6 +305,7 @@ export class CompanionPanel {
           </section>
           <section class="settings-card" data-companion-group="Window motion">
           <h3 id="companion-motion-heading">Window motion</h3>
+          <label><input id="reply-animation" type="checkbox">Animate the reply bubble</label>
           <div class="motion-preview" id="motion-preview" aria-hidden="true" data-untranslated><i></i><span>CAPRI<span>◇</span></span><i></i></div>
           <label><input id="companion-float-enabled" type="checkbox">Enable floating motion</label>
           <label for="companion-float-amplitude">Motion amplitude <output id="companion-float-amplitude-value" data-untranslated></output></label><input id="companion-float-amplitude" type="range" min="0" max="24" step="1">
@@ -325,6 +327,8 @@ export class CompanionPanel {
           <section class="settings-card" data-companion-group="Desktop roaming">
           <h3>Desktop roaming</h3>
           <label><input id="avatar-roaming" type="checkbox">Let Capri move around on her own</label>
+          <label><input id="avatar-roam-cursor-pranks" type="checkbox">Let Capri move the mouse pointer while you are away</label>
+          <p class="settings-help">Cursor pranks require Full computer access. Press Esc to stop.</p>
           <label for="avatar-roam-monitors">Roaming monitors</label><select id="avatar-roam-monitors"><option value="current">Current or observed monitor</option><option value="any">Any monitor</option><option value="pointer">Monitor with the pointer</option></select>
           <label class="drag-lightning-control" for="avatar-roam-interval">Time between moves <output id="avatar-roam-interval-value" data-untranslated></output></label>
           <input id="avatar-roam-interval" type="range" min="30" max="1800" step="30" value="120">
@@ -361,6 +365,7 @@ export class CompanionPanel {
           <section class="settings-card" data-companion-group="Drag lightning">
           <h3>Drag lightning</h3>
           <label><input id="avatar-drag-tether" type="checkbox">Show drag lightning on the desktop</label>
+          <label class="drag-lightning-control" for="avatar-drag-tether-color"><span>Drag lightning color</span><input id="avatar-drag-tether-color" type="color"></label>
           ${dragLightningSliders
             .map(
               ({ id, label, initial, max }) => `
@@ -402,13 +407,16 @@ export class CompanionPanel {
           <select id="communication-style"><option value="neutral">Neutral</option><option value="romantic">Romantic</option><option value="business">Business</option><option value="wild">Wild</option></select>
           <p class="settings-help">This style shapes Capri's next reply. Your Personality file remains editable.</p>
           <label id="wild-close-ai-tabs-label"><input type="checkbox" id="wild-close-ai-tabs">Close other AI tabs</label>
+          <label id="wild-desktop-pranks-label"><input type="checkbox" id="wild-desktop-pranks">Wild desktop pranks</label>
+          <p class="settings-help" data-help-for="wild-desktop-pranks-label">In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.</p>
+          <button type="button" id="wild-pranks-preview">Preview a prank</button>
           </section>
           <section class="settings-card" data-companion-group="Hands-free conversation">
           <label id="companion-conversation-mode-label"><input type="checkbox" id="companion-conversation-mode">Hands-free conversation</label>
           <p class="settings-help" data-help-for="companion-conversation-mode-label">While the microphone is on, speech goes to the selected model, which can stay silent. Start voice commands with “Capri” to use skills.</p>
-          <label><input type="checkbox" id="companion-follow-up">Let Capri keep listening when she asks a question</label>
+          <label for="companion-follow-up">Follow-up listening</label>
+          <select id="companion-follow-up"><option value="off">Off</option><option value="questions">After a question</option><option value="replies">After any spoken reply</option></select>
           <label for="companion-follow-up-seconds">Follow-up listening time (seconds)</label><input id="companion-follow-up-seconds" type="number" min="5" max="30" value="12">
-          <p class="settings-help">After a voice request, a question from Capri opens Listening after she finishes speaking. Text requests never open Listening. The microphone must already be enabled.</p>
           </section>
           <div class="settings-actions"><button type="button" id="companion-save">Apply settings</button></div>
           <section class="settings-card" data-companion-group="Personality">
@@ -493,9 +501,11 @@ export class CompanionPanel {
       });
     }
     this.avatarEffectControls = () => {
+      const tetherEnabled = this.get('avatar-drag-tether').checked;
+      this.get('avatar-drag-tether-color').disabled = !tetherEnabled;
       for (const { id, unit } of dragLightningSliders) {
         const control = this.get(id);
-        control.disabled = !this.get('avatar-drag-tether').checked;
+        control.disabled = !tetherEnabled;
         this.get(`${id}-value`).textContent = `${control.value}${unit}`;
       }
       const radius = Number(this.get('avatar-snap-radius').value);
@@ -530,15 +540,16 @@ export class CompanionPanel {
     this.get('wake-play').onclick = () => void this.playWakePreview();
     this.roamingControls = () => {
       const control = this.get('avatar-roam-interval');
-      control.disabled = !this.get('avatar-roaming').checked;
-      this.get('avatar-roam-monitors').disabled = control.disabled;
+      const roaming = this.get('avatar-roaming').checked;
+      control.disabled = !roaming && !this.get('avatar-roam-cursor-pranks').checked;
+      this.get('avatar-roam-monitors').disabled = !roaming;
       const seconds = control.valueAsNumber;
       this.get('avatar-roam-interval-value').textContent =
         seconds < 60
           ? `${seconds} s`
           : `${Math.floor(seconds / 60)} min${seconds % 60 ? ' 30 s' : ''}`;
     };
-    for (const id of ['avatar-roaming', 'avatar-roam-interval'])
+    for (const id of ['avatar-roaming', 'avatar-roam-cursor-pranks', 'avatar-roam-interval'])
       this.get(id).addEventListener('input', this.roamingControls);
     this.resourceMetricInputs = Object.fromEntries(
       resourceDisplays.map(({ field }) => [
@@ -817,12 +828,15 @@ export class CompanionPanel {
       wakeSound: this.get('wake-sound').value,
       wakePhrase: this.get('wake-phrase').value,
       wakeVolume: Number(this.get('wake-volume').value),
-      followUp: this.get('companion-follow-up').checked,
+      followUp: this.get('companion-follow-up').value !== 'off',
+      followUpAfterAnyReply: this.get('companion-follow-up').value === 'replies',
       conversationMode: this.get('companion-conversation-mode').checked,
       followUpSeconds: Number(this.get('companion-follow-up-seconds').value),
       wildCloseAiTabs: this.get('wild-close-ai-tabs').checked,
+      wildDesktopPranks: this.get('wild-desktop-pranks').checked,
       wakeOnReminder: this.get('companion-reminder-wake').checked,
       expandOnReply: this.get('companion-expand-reply').checked,
+      replyAnimation: this.get('reply-animation').checked,
       replyAutoHide: this.get('reply-auto-hide').checked,
       minimizedChip: this.get('minimized-chip').checked,
       detachedStyle: this.get('detached-style').value,
@@ -842,7 +856,9 @@ export class CompanionPanel {
       ...this.teleportDraft(),
       teleportSound: this.get('teleport-sound').value,
       avatarDragTether: this.get('avatar-drag-tether').checked,
+      avatarDragTetherColor: this.get('avatar-drag-tether-color').value,
       avatarRoaming: this.get('avatar-roaming').checked,
+      avatarRoamCursorPranks: this.get('avatar-roam-cursor-pranks').checked,
       avatarRoamMonitors: this.get('avatar-roam-monitors').value,
       avatarRoamIntervalSeconds: this.get('avatar-roam-interval').valueAsNumber,
       ...Object.fromEntries(
@@ -883,6 +899,9 @@ export class CompanionPanel {
     action('personality-save', async () => {
       await this.savePersonality();
       this.result('Personality saved.');
+    });
+    action('wild-pranks-preview', async () => {
+      if (!(await api.previewWildPrank())) this.result('Prank preview is unavailable right now.');
     });
     this.saveCommunicationStyle = async () => {
       const control = this.get('communication-style');
@@ -1042,13 +1061,19 @@ export class CompanionPanel {
     this.get('wake-phrase').value = value.wakePhrase;
     this.wakeResponseControls();
     this.get('wake-volume').value = value.wakeVolume;
-    this.get('companion-follow-up').checked = value.followUp;
+    this.get('companion-follow-up').value = !value.followUp
+      ? 'off'
+      : value.followUpAfterAnyReply
+        ? 'replies'
+        : 'questions';
     this.get('companion-conversation-mode').checked = value.conversationMode === true;
     this.get('companion-follow-up-seconds').value = value.followUpSeconds;
     this.get('wild-close-ai-tabs').checked = value.wildCloseAiTabs === true;
+    this.get('wild-desktop-pranks').checked = value.wildDesktopPranks === true;
     this.get('companion-reminder-wake').checked = value.wakeOnReminder !== false;
     this.get('companion-expand-reply').checked = value.expandOnReply !== false;
     this.get('reply-auto-hide').checked = value.replyAutoHide !== false;
+    this.get('reply-animation').checked = value.replyAnimation === true;
     this.replyVisibilityControls();
     this.get('minimized-chip').checked = value.minimizedChip !== false;
     this.get('detached-style').value = value.detachedStyle ?? 'character';
@@ -1085,7 +1110,10 @@ export class CompanionPanel {
     this.get('teleport-sound').value = value.teleportSound ?? 'spark';
     this.previewTeleport();
     this.get('avatar-drag-tether').checked = value.avatarDragTether !== false;
+    this.get('avatar-drag-tether-color').value =
+      value.avatarDragTetherColor ?? DRAG_LIGHTNING_COLOR;
     this.get('avatar-roaming').checked = value.avatarRoaming === true;
+    this.get('avatar-roam-cursor-pranks').checked = value.avatarRoamCursorPranks === true;
     this.get('avatar-roam-monitors').value = value.avatarRoamMonitors ?? 'current';
     this.get('avatar-roam-interval').value = value.avatarRoamIntervalSeconds ?? 120;
     this.roamingControls();
@@ -1143,8 +1171,10 @@ export class CompanionPanel {
         'companion-conversation-mode',
         'companion-follow-up-seconds',
         'wild-close-ai-tabs',
+        'wild-desktop-pranks',
         'companion-reminder-wake',
         'companion-expand-reply',
+        'reply-animation',
         'reply-auto-hide',
         'minimized-chip',
         'detached-style',
@@ -1166,7 +1196,9 @@ export class CompanionPanel {
         'teleport-reduced-flash',
         'teleport-sound',
         'avatar-drag-tether',
+        'avatar-drag-tether-color',
         'avatar-roaming',
+        'avatar-roam-cursor-pranks',
         'avatar-roam-monitors',
         'avatar-roam-interval',
         ...dragLightningSliders.map(({ id }) => id),
@@ -1244,6 +1276,7 @@ export class CompanionPanel {
         color,
         inset: -4,
         speed: 0.4,
+        scrollport: frame.closest('#companion'),
         // The section gutter and part of the panel padding are available for the effect.
         getOutsetLimit: () =>
           Math.floor(Number.parseFloat(getComputedStyle(section).paddingInlineStart)) + 8,

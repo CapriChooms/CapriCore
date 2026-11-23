@@ -159,7 +159,7 @@ class DatasetTests(unittest.TestCase):
 
 
 class AdapterTests(unittest.TestCase):
-    def test_saved_adapter_reloads_on_an_unchanged_base(self):
+    def test_saved_adapter_reloads_when_only_pack_distribution_changes(self):
         class Tiny(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -178,8 +178,10 @@ class AdapterTests(unittest.TestCase):
         add_adapters(model, options)
         with torch.no_grad():
             model.tfmr.h[0].attn.c_attn.lora_B.normal_(std=0.01)
+        upstream = json.loads((ROOT / "config/voice-upstream.json").read_text())
+        upstream["bundledPack"] = {"url": "https://example.invalid/older.zip", "bytes": 1}
         metadata = {
-            "upstream": json.loads((ROOT / "config/voice-upstream.json").read_text()),
+            "upstream": upstream,
             "language": "en",
             "adapter": options,
         }
@@ -191,6 +193,10 @@ class AdapterTests(unittest.TestCase):
             load_adapter(fresh, folder, read_config())
             value = torch.randn(2, 3, 5)
             torch.testing.assert_close(model(value), fresh(value))
+            upstream["model"]["revision"] = "0" * 40
+            (folder / "adapter.json").write_text(json.dumps(metadata), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "different base model"):
+                load_adapter(Tiny(), folder, read_config())
 
     def test_lora_starts_as_identity_and_only_adapter_receives_gradients(self):
         base = Conv1D(7, 5)

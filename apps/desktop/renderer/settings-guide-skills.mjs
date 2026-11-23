@@ -93,10 +93,10 @@ export const skillGuides = {
     step(
       '#time-duration',
       'Set the duration',
-      'Scroll or drag the wheels, use the arrow keys or type a value. A quick preset fills all three fields at once.',
+      'Scroll or drag the wheels, use the arrow keys or type a value.',
       'Задай длительность',
-      'Прокрути барабаны колёсиком мыши, перетаскиванием или клавишами со стрелками. Числа можно ввести и вручную. Готовый интервал заполнит все три поля.',
-      '#time-hours, #time-minutes, #time-seconds, #time-presets',
+      'Прокрути барабаны колёсиком мыши, перетаскиванием или клавишами со стрелками. Числа можно ввести и вручную.',
+      '#time-days, #time-hours, #time-minutes, #time-seconds, #time-presets',
     ),
     step(
       '#time-title',
@@ -601,6 +601,18 @@ export const skillGuides = {
       'Разреши Капри перемещаться самой',
       'Капри сможет сама менять положение. Перемещения приостанавливаются, пока ты говоришь, печатаешь или взаимодействуешь с ней.',
     ),
+    [
+      '#avatar-roam-cursor-pranks',
+      [
+        'Let Capri move the mouse pointer while you are away',
+        'Cursor pranks require Full computer access. Press Esc to stop.',
+      ],
+      [
+        'Разреши Капри двигать курсор, пока тебя нет',
+        'Для розыгрышей с курсором нужен полный доступ к компьютеру. Чтобы остановить розыгрыш, нажми Esc.',
+      ],
+      { interfaceCopy: true },
+    ],
     step(
       '#avatar-roam-monitors',
       'Choose where Capri can roam',
@@ -673,6 +685,13 @@ export const skillGuides = {
       'The drag effect follows pointer movement on the desktop. It can be enabled separately from teleport lightning.',
       'Покажи молнию при перетаскивании',
       'Эффект следует за курсором на рабочем столе. Он включается отдельно от молнии телепортации.',
+    ),
+    step(
+      '#avatar-drag-tether-color',
+      'Drag lightning color',
+      'Choose the color of the bolt that follows the pointer while you hold Capri. The teleport effect on release has its own color setting.',
+      'Цвет молнии при перетаскивании',
+      'Выбери цвет молнии, которая тянется за курсором, пока ты держишь Капри. У эффекта телепортации после отпускания свой цвет.',
     ),
     step(
       '#avatar-drag-tether-intensity',

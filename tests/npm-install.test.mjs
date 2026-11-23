@@ -160,6 +160,68 @@ const npmNode = [
 ].find((exe) => exe && existsSync(path.join(path.dirname(exe), 'node_modules/npm/bin/npm-cli.js')));
 const temporaryFolder = temporaryFolders('capri-npm-network-unit-');
 
+test('package progress follows distinct locked archives and survives a stalled npm retry', async () => {
+  const folder = temporaryFolder();
+  const a = 'https://registry.npmjs.org/a/-/a-1.tgz';
+  const b = 'https://registry.npmjs.org/b/-/b-1.tgz';
+  const unsupported = 'https://registry.npmjs.org/c/-/c-1.tgz';
+  writeFileSync(
+    path.join(folder, 'package-lock.json'),
+    JSON.stringify({
+      packages: {
+        'node_modules/a': { resolved: a },
+        'node_modules/nested/node_modules/a': { resolved: a },
+        'node_modules/b': { resolved: b },
+        'node_modules/c': { resolved: unsupported, os: ['!' + process.platform] },
+      },
+    }),
+  );
+  const progress = [],
+    retries = [];
+  let runs = 0;
+  await installNpmDependencies({
+    nodeExecutable: process.execPath,
+    root: folder,
+    command: async (_exe, args, { idleTimeoutMs, onOutput }) => {
+      assert.ok(args.includes('--loglevel=info'));
+      assert.ok(args.includes('--fetch-timeout=90000'));
+      assert.equal(idleTimeoutMs, 180000);
+      assert.equal(onOutput('npm http fetch GET 200 ' + unsupported + ' 27ms (cache miss)'), false);
+      assert.equal(onOutput('npm http fetch GET 502 ' + b + ' 12ms'), false);
+      assert.equal(onOutput('npm http fetch GET 200 ' + a + ' 275584ms (cache miss)'), true);
+      if (++runs === 1) throw Object.assign(new Error('no output'), { code: 'CAPRI_INSTALL_IDLE' });
+      assert.equal(onOutput('npm http cache ' + b + ' 4ms (cache hit)'), true);
+    },
+    onPackages: (event) => progress.push(event),
+    onRetry: (event) => retries.push(event),
+    recover: () => assert.fail('A timeout without a named download cannot recover an archive'),
+    sleep: async () => {},
+  });
+  assert.deepEqual(progress, [
+    { processed: 1, total: 2 },
+    { processed: 2, total: 2 },
+  ]);
+  assert.equal(retries[0].code, 'ETIMEDOUT');
+});
+
+test('a silent lifecycle script ends setup without automatically replaying it', async () => {
+  let runs = 0;
+  await assert.rejects(
+    installNpmDependencies({
+      nodeExecutable: process.execPath,
+      command: async (_exe, _args, { onOutput }) => {
+        runs++;
+        onOutput(
+          'npm info run native-fixture@1.0.0 postinstall node_modules/native-fixture node setup.js',
+        );
+        throw Object.assign(new Error('no output'), { code: 'CAPRI_INSTALL_IDLE' });
+      },
+    }),
+    { code: 'NPM_LIFECYCLE_STALLED' },
+  );
+  assert.equal(runs, 1);
+});
+
 test(
   'real npm recovers from a mid-body reset, verifies the package, then installs offline from its cache',
   { skip: !npmNode },
@@ -228,17 +290,19 @@ test(
     const retries = [];
     let offline = false;
     try {
-      const command = async (exe, args) => {
+      const packages = [];
+      const command = async (exe, args, { onOutput } = {}) => {
         attempts++;
         await runCommand(
           exe,
           [
-            ...args.map((arg) => (arg === '--fetch-retries=3' ? '--fetch-retries=0' : arg)),
+            ...args.map((arg) => (arg.startsWith('--fetch-retries=') ? '--fetch-retries=0' : arg)),
             ...(offline ? ['--offline'] : []),
           ],
           {
             cwd: folder,
             timeoutMs: 20000,
+            output: onOutput,
             env: {
               ...process.env,
               npm_config_cache: path.join(folder, 'cache'),
@@ -255,6 +319,8 @@ test(
       await installNpmDependencies({
         nodeExecutable: npmNode,
         command,
+        root: folder,
+        onPackages: (value) => packages.push(value),
         onRetry: (value) => retries.push(value),
         sleep: async () => {},
       });
@@ -262,6 +328,7 @@ test(
       assert.equal(retries.length, 1);
       assert.equal(retries[0].code, 'ECONNRESET');
       assert.ok(requests >= 2);
+      assert.deepEqual(packages, [{ processed: 1, total: 1 }]);
       assert.equal(
         readFileSync(path.join(folder, 'node_modules/capri-network-fixture/index.js'), 'utf8'),
         'module.exports = 7;\n',

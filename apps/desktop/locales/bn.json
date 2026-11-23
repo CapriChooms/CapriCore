@@ -6,6 +6,14 @@
   "locale": "bn",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "আপনি দূরে থাকলে Capri-কে মাউস পয়েন্টার সরাতে দিন",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "পয়েন্টার নিয়ে দুষ্টুমি করতে কম্পিউটারে পূর্ণ অ্যাক্সেস দরকার। থামাতে Esc চাপুন।",
+    "Animate the reply bubble": "উত্তরের বুদ্‌বুদ অ্যানিমেট করুন",
+    "Drag lightning color": "টানার সময় বিদ্যুতের রং",
+    "Wild desktop pranks": "ডেস্কটপে বুনো দুষ্টুমি",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "বুনো মোডে Capri মাঝে মাঝে একটি নকল কার্সর সরিয়ে নেয়। আপনার মাউস ও কীবোর্ড স্বাভাবিকভাবেই কাজ করে।",
+    "Preview a prank": "দুষ্টুমির পূর্বরূপ দেখুন",
+    "Prank preview is unavailable right now.": "দুষ্টুমির পূর্বরূপ এখন উপলভ্য নয়।",
     "Automatically check for updates": "স্বয়ংক্রিয়ভাবে আপডেট খুঁজুন",
     "Capri’s game reactions": "খেলা নিয়ে Capri-এর প্রতিক্রিয়া",
     "React to game events": "গেম ইভেন্টগুলিতে প্রতিক্রিয়া",
@@ -355,6 +363,9 @@
     "Folder": "ফোল্ডার",
     "Folder access could not be revoked.": "ফোল্ডার অ্যাক্সেসটি রিভোক করা সম্ভব হয়নি।",
     "Folder permissions could not be saved.": "ফোল্ডার অনুমতি সেভ করা সম্ভব হয়নি।",
+    "Follow-up listening": "আবার শোনা",
+    "After a question": "প্রশ্নের পর",
+    "After any spoken reply": "প্রতিটি কথ্য উত্তরের পর",
     "Follow-up listening time (seconds)": "পরবর্তী শ্রবণের সময় (সেকেন্ড)",
     "For example, Tamil": "উদাহরণস্বরূপ, তামিল",
     "Freeing model memory…": "মডেল মেমোরি মুক্ত হচ্ছে…",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "ঐচ্ছিক কার্যকলাপ চিত্র",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "আপনার অ্যাপ্লিকেশনের রিচ প্রেজেন্স → আর্ট অ্যাসেটস-এ একটি চিত্র আপলোড করুন, তারপর এর অ্যাসেট কী এখানে পেস্ট করুন। শুধুমাত্র টেক্সট কার্যকলাপের জন্য এই ক্ষেত্রটি খালি রাখুন।",
     "Settings closed unexpectedly. Open Settings to try again.": "সেটিংস অপ্রত্যাশিতভাবে বন্ধ হয়ে গেছে। আবার চেষ্টা করতে সেটিংস খুলুন।",
-    "Capri closed unexpectedly.": "Capri অপ্রত্যাশিতভাবে বন্ধ হয়ে গেছে।",
-    "The logs folder is open.": "লগের ফোল্ডারটি খোলা আছে।",
-    "The logs folder could not be opened.": "লগের ফোল্ডারটি খোলা যায়নি।",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "ডায়াগনস্টিক ZIP ফাইলটি সংরক্ষণ করে দেখুন, তারপর Discord-এ ব্যক্তিগত বার্তায় Overyx-কে পাঠান।",
-    "The crash report could not be saved.": "ক্র্যাশের প্রতিবেদন সংরক্ষণ করা যায়নি।",
-    "You can try saving a report from Report a bug after restarting Capri.": "Capri পুনরায় চালু করার পর ‘বাগের প্রতিবেদন করুন’ থেকে প্রতিবেদন সংরক্ষণের চেষ্টা করুন।",
     "Test": "পরীক্ষা করুন",
     "Stop computer control (Esc)": "কম্পিউটার নিয়ন্ত্রণ বন্ধ করুন (Esc)",
     "Capri on the desktop": "ডেস্কটপে Capri",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "ঐচ্ছিক: কল ও সিস্টেমের শব্দ শুনুন",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "নাম ধরে ডেকে সক্রিয় করা এবং স্বয়ংক্রিয়ভাবে পাঠানো—দুটিই চালু থাকলে, Capri-কে উদ্দেশ্য করে বলা অনুরোধগুলো স্বয়ংক্রিয়ভাবে পাঠানো হয়। তা না হলে, পাঠানোর আগে লেখাটি দেখে নিন। অডিও ফিডব্যাক এড়াতে হেডফোন ব্যবহার করুন।",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "আগে Capri-এর মাইক্রোফোন চালু করুন, তারপর সিস্টেম অডিও যুক্ত করুন। Capri আপনাকে ও কলের অন্যদের শুনতে পারবে এবং যে কেউ তার নাম বললে সক্রিয় হবে।",
+    "Days": "দিন",
     "Hours": "ঘণ্টা",
     "Seconds": "সেকেন্ড",
     "Set up once, then choose the virtual microphone in your call app.": "একবার সেট আপ করুন, তারপর কলের অ্যাপে ভার্চুয়াল মাইক্রোফোনটি বেছে নিন।",
@@ -2477,7 +2483,13 @@
     "Vertical": "উল্লম্ব",
     "Horizontal": "অনুভূমিক",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube খুলেছে কি না নিশ্চিত করতে পারিনি। ব্রাউজারে পৃষ্ঠাটি দেখুন।",
-    "No supported browser was found to open YouTube.": "YouTube খোলার জন্য কোনো সমর্থিত ব্রাউজার পাওয়া যায়নি।"
+    "No supported browser was found to open YouTube.": "YouTube খোলার জন্য কোনো সমর্থিত ব্রাউজার পাওয়া যায়নি।",
+    "Avatar gallery": "অ্যাভাটার গ্যালারি",
+    "Poses": "ভঙ্গি",
+    "Expressions": "মুখভঙ্গি",
+    "Animations": "অ্যানিমেশন",
+    "Loop animation": "অ্যানিমেশন বারবার চালান",
+    "Play animation": "অ্যানিমেশন চালান"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,8 @@
     "corrections": 42,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·"
+  ]
 }

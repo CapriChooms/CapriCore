@@ -42,6 +42,19 @@ export function localResidencyPresentation(value, text) {
 export class InferencePicker {
   constructor({ button, api, ui, onError, onLayout = () => {}, isBusy = () => false }) {
     Object.assign(this, { button, api, ui, onError, onLayout, isBusy });
+    const name = button.querySelector('#inference-name');
+    const track = name.firstElementChild;
+    const nameSize = new ResizeObserver(() => {
+      const overflow = Math.ceil(track.getBoundingClientRect().width - name.clientWidth);
+      const scrollable = name.clientWidth > 0 && overflow > 1;
+      name.toggleAttribute('data-overflow', scrollable);
+      if (scrollable) {
+        track.style.setProperty('--inference-scroll-distance', `${overflow}px`);
+        track.style.setProperty('--inference-scroll-duration', `${1.6 + overflow / 26}s`);
+      }
+    });
+    nameSize.observe(name);
+    nameSize.observe(track);
     this.request = 0;
     this.selecting = false;
     this.previewing = false;

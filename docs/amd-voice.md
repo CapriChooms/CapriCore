@@ -9,8 +9,11 @@ The pinned qualification target is **Windows 11 x64, Python 3.12.12, PyTorch /
 TorchAudio 2.9.1 with ROCm 7.2.1**, AMD Adrenalin **26.2.2 or newer**, and sufficient
 free GPU/system memory. The official Radeon matrix lists RX 9070 / 9070 XT,
 RX 9060 XT, RX 7900 XTX, RX 7700, Radeon AI PRO R9700 and PRO W7900 / Dual Slot.
-Other Radeon models, integrated graphics, Windows 10 and NPUs are not qualified
-by this runtime. Do not spoof a GPU architecture to bypass the installer check.
+Capri also lets RX 9070 GRE attempt the experimental runtime. AMD's Windows HIP
+SDK lists that GPU with the same `gfx1201` target as the RX 9070 and RX 9070 XT.
+The pinned PyTorch matrix does not list GRE separately. Capri requires its
+GPU kernel checks to pass before using the runtime. Other Radeon models,
+integrated graphics, Windows 10 and NPUs are outside this configuration.
 
 ## Qwen3-TTS
 
@@ -65,6 +68,7 @@ feature experimental until those checks pass on each supported architecture.
 Primary references:
 
 - [Pinned AMD Windows compatibility matrix](https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.2.1/docs/compatibility/compatibilityrad/windows/windows_compatibility.html)
+- [AMD Windows HIP SDK hardware requirements](https://rocm.docs.amd.com/projects/install-on-windows/en/latest/reference/system-requirements.html)
 - [Official AMD installation and wheel URLs](https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.2.1/docs/install/installrad/windows/install-pytorch.html)
 - [AMD Windows limitations](https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.2.1/docs/limitations/limitationsrad.html)
 - [PyTorch HIP semantics](https://docs.pytorch.org/docs/stable/notes/hip.html)

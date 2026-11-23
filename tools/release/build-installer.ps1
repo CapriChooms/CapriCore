@@ -33,6 +33,38 @@ foreach($folder in @($Source,$Destination)){if(-not [IO.Path]::GetFullPath($fold
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $payload=Join-Path $Destination 'source.zip'
 [IO.Compression.ZipFile]::CreateFromDirectory($Source,$payload,[IO.Compression.CompressionLevel]::Optimal,$false)
+# Verify the bytes that will be embedded, including changes made after source export.
+$archive=[IO.Compression.ZipFile]::OpenRead($payload)
+try {
+    $manifestEntry=$archive.GetEntry('SOURCE_MANIFEST.json')
+    if(-not $manifestEntry -or $manifestEntry.Length -gt 2MB){throw 'Invalid source payload manifest. Export the source again before building Setup.'}
+    $reader=[IO.StreamReader]::new($manifestEntry.Open())
+    try{$manifest=$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}
+    if($manifest.schemaVersion -ne 1 -or -not $manifest.files){throw 'Invalid source payload manifest.'}
+    $entries=[Collections.Generic.Dictionary[string,IO.Compression.ZipArchiveEntry]]::new([StringComparer]::Ordinal)
+    foreach($entry in $archive.Entries){
+        $name=$entry.FullName.Replace('\','/')
+        if($entry -eq $manifestEntry -or $name.EndsWith('/')){continue}
+        $entries.Add($name,$entry)
+    }
+    if($entries.Count -ne $manifest.files.Count){throw 'Source payload file list differs from its manifest. Export the source again before building Setup.'}
+    $algorithm=[Security.Cryptography.SHA256]::Create()
+    try {
+        foreach($file in $manifest.files){
+            $entry=$null
+            if(-not $entries.TryGetValue([string]$file.path,[ref]$entry)){
+                throw ('Source payload manifest lists a missing or duplicate file: '+$file.path)
+            }
+            $stream=$entry.Open()
+            try{$hash=([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-','').ToLowerInvariant()}
+            finally{$stream.Dispose()}
+            if($entry.Length -ne $file.bytes -or $hash -cne $file.sha256){
+                throw ('Source payload checksum mismatch: '+$file.path+'. Export the source again before building Setup.')
+            }
+            $null=$entries.Remove($file.path)
+        }
+    }finally{$algorithm.Dispose()}
+}finally{$archive.Dispose()}
 $checksum=(Get-CapriHash $payload)
 $voiceChecksum=''
 $voiceResource=@()

@@ -84,25 +84,15 @@ try {
       );
     const { profile } = saveModelProfile({ root, rt: runtime(), id: selected, hardware });
 
-    if (selected === 'api') {
-      console.log(
-        'API mode selected. No local models will be downloaded. Please configure an API provider in Settings → API connections.',
-      );
-    } else {
-      console.log(
-        `Saved ${profile.id} locally. Next: npm run models:pull, then npm run desktop. No models were downloaded by setup.`,
-      );
-    }
+    console.log(
+      `Saved ${profile.id} locally. Next: npm run models:pull, then npm run desktop. No models were downloaded by setup.`,
+    );
   } else if (command === 'desktop') {
     const marker = await startDesktop({ wait: args.includes('--wait') });
     console.log(
-      marker?.crashReported
-        ? 'Capri stopped unexpectedly and showed the diagnostic prompt.'
-        : marker?.alreadyRunning
-          ? 'Showing the running Capri.'
-          : marker
-            ? `Capri companion started (process ${marker.pid}).`
-            : 'Capri closed.',
+      marker.alreadyRunning
+        ? 'Showing the running Capri.'
+        : `Capri companion started (process ${marker.pid}).`,
     );
   } else if (command === 'models') {
     process.argv.splice(2, 1);

@@ -189,8 +189,7 @@ test('locale-aware validation rejects cross-language contamination but preserves
     'उपलब्ध नहीं — {device}',
   );
   assert.throws(
-    () =>
-      validateLocaleTranslation('Unavailable — {device}', 'उपलब्ध नहीं — {device} ({उपकरण})', 'hi'),
+    () => validateLocaleTranslation('Unavailable — {device}', 'उपलब्ध नहीं — {device} ({उपकरण})', 'hi'),
     /Changed placeholders/,
   );
 });

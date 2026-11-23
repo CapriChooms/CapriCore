@@ -26,7 +26,6 @@ const DEFAULT = {
   model: '',
   vision: false,
   contextTokens: 32768,
-  enableStreaming: true,
 };
 const LEGACY_PROFILE = 'legacy';
 const MAX_PROFILES = 20;
@@ -220,8 +219,6 @@ const PROVIDER_ERRORS = {
   413: API_REQUEST_TOO_LARGE,
   429: 'API provider returned HTTP 429. The provider rate limit was reached.',
 };
-export const providerRejectionMessage = (status) =>
-  Object.hasOwn(PROVIDER_ERRORS, status) ? PROVIDER_ERRORS[status] : undefined;
 function publicApiError(error, failure) {
   if (error instanceof ChatGPTPlanError) return error.message;
   if (error.code === 'MODEL_IMAGES_UNSUPPORTED') return IMAGES_UNSUPPORTED;
@@ -238,7 +235,7 @@ function publicApiError(error, failure) {
     if (error.message === message) return message;
   if (Number.isInteger(failure.providerStatus) && failure.providerStatus >= 400)
     return (
-      providerRejectionMessage(failure.providerStatus) ??
+      PROVIDER_ERRORS[failure.providerStatus] ??
       'API provider returned HTTP ' +
         failure.providerStatus +
         '. Check access, model availability and account balance.'
@@ -280,7 +277,6 @@ export function apiSettings(value = DEFAULT) {
     (result.enabled && result.setupRequired) ||
     typeof result.vision !== 'boolean' ||
     typeof result.tools !== 'boolean' ||
-    typeof result.enableStreaming !== 'boolean' ||
     (result.profileId !== undefined &&
       (typeof result.profileId !== 'string' || !validProfileId(result.profileId))) ||
     !Number.isInteger(result.contextTokens) ||
@@ -787,9 +783,8 @@ export class InferenceApi {
       lastFailure: structuredClone(this.lastFailure),
     };
   }
-  chatProviderRejectionSince(startedAt) {
-    if (Number.isFinite(startedAt) && this.lastChatRejection?.at >= startedAt)
-      return this.lastChatRejection.status;
+  requestTooLargeSince(startedAt) {
+    return Number.isFinite(startedAt) && this.lastChatSizeRejection >= startedAt;
   }
   recordFailure(error, { stage, streaming, startedAt, signal, httpStatus } = {}) {
     const networkCode = failureNetworkCode(error);
@@ -1281,8 +1276,7 @@ export class InferenceApi {
         if (!Array.isArray(input.messages)) throw new Error('Invalid API conversation.');
         streaming = input.stream === true;
         const ollama = req.url === '/api/chat';
-        if (!ollama && streaming && !(this.lastChatRejection?.at > startedAt))
-          this.lastChatRejection = { at: startedAt };
+        if (!ollama && streaming) this.lastChatSizeRejection = undefined;
         // Native planners use root unions for llama.cpp's grammar. Responses
         // requires an object root; nest the unchanged union and unwrap exactly
         // once below so each planner still validates its original command shape.
@@ -1480,11 +1474,10 @@ export class InferenceApi {
         if (
           req.url === '/v1/chat/completions' &&
           streaming &&
-          this.lastChatRejection?.at === startedAt &&
-          providerRejectionMessage(httpStatus) &&
+          httpStatus === 413 &&
           !res.headersSent
         )
-          this.lastChatRejection = { at: startedAt, status: httpStatus };
+          this.lastChatSizeRejection = performance.now();
         this.recordFailure(error, {
           stage,
           streaming,

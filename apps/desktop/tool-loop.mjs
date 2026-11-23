@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { createHash } from 'node:crypto';
 
-export const toolLoopError = (failureCode = 'CAPRI_TOOL_LOOP_GATEWAY') =>
+export const toolLoopError = () =>
   Object.assign(new Error('Tool execution made no progress.'), {
     code: 'CAPRI_TOOL_LOOP',
-    failureCode,
   });
 const canonical = (value) =>
   Array.isArray(value)
@@ -35,7 +34,7 @@ export class ToolProgressGuard {
       const action = tool + ':' + args?.action;
       this.failures = action === this.failedAction ? this.failures + 1 : 1;
       this.failedAction = action;
-      if (this.failures >= 3) throw toolLoopError('CAPRI_TOOL_LOOP_REPEATED_FAILURE');
+      if (this.failures >= 3) throw toolLoopError();
       return;
     }
     this.failures = 0;
@@ -48,7 +47,7 @@ export class ToolProgressGuard {
     const count = (this.reads.get(key) ?? 0) + 1;
     if (this.reads.size >= 32) this.reads.delete(this.reads.keys().next().value);
     this.reads.set(key, count);
-    if (count >= 3) throw toolLoopError('CAPRI_TOOL_LOOP_UNCHANGED_RESULT');
+    if (count >= 3) throw toolLoopError();
   }
 }
 

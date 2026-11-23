@@ -6,6 +6,14 @@
   "locale": "el",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "Να μπορεί η Capri να μετακινεί τον δείκτη όταν λείπεις",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "Οι φάρσες με τον δείκτη απαιτούν πλήρη πρόσβαση στον υπολογιστή. Πάτησε Esc για διακοπή.",
+    "Animate the reply bubble": "Κίνηση του συννεφιού απάντησης",
+    "Drag lightning color": "Χρώμα αστραπής κατά τη μεταφορά",
+    "Wild desktop pranks": "Άγριες φάρσες στην επιφάνεια εργασίας",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "Στην άγρια λειτουργία, η Capri κλέβει πού και πού έναν ψεύτικο δείκτη. Το ποντίκι και το πληκτρολόγιο λειτουργούν κανονικά.",
+    "Preview a prank": "Προεπισκόπηση φάρσας",
+    "Prank preview is unavailable right now.": "Η προεπισκόπηση φάρσας δεν είναι διαθέσιμη αυτή τη στιγμή.",
     "Automatically check for updates": "Αυτόματος έλεγχος για ενημερώσεις",
     "Capri’s game reactions": "Αντιδράσεις της Capri στην παρτίδα",
     "React to game events": "Αντιδράσεις σε γεγονότα παιχνιδιού",
@@ -355,6 +363,9 @@
     "Folder": "Φάκελος",
     "Folder access could not be revoked.": "Η πρόσβαση στον φάκελο δεν μπορούσε να ανακληθεί.",
     "Folder permissions could not be saved.": "Δεν ήταν δυνατή η αποθήκευση των δικαιωμάτων πρόσβασης στον φάκελο.",
+    "Follow-up listening": "Συνέχιση ακρόασης",
+    "After a question": "Μετά από ερώτηση",
+    "After any spoken reply": "Μετά από κάθε φωνητική απάντηση",
     "Follow-up listening time (seconds)": "Χρόνος ακρόασης επανεξέτασης (δευτερόλεπτα)",
     "For example, Tamil": "Για παράδειγμα, Ταμίλ",
     "Freeing model memory…": "Ελευθέρωση μνήμης μοντέλου...",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "Αποκτήστε μια εικόνα στα Στοιχεία Τέχνης της εφαρμογής σας → Rich Presence, στη συνέχεια επικολλήστε την κλειδί του στο πεδίο αυτό. Αφήστε αυτό το πεδίο κενό για δραστηριότητες μόνο με κείμενο.",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "Οι Ρυθμίσεις κλείσαν απρόσμενα. Ανοίξτε τις Ρυθμίσεις για να δοκιμάσετε ξανά.",
     "Settings closed unexpectedly. Open Settings to try again.": "Δοκιμή",
-    "Capri closed unexpectedly.": "Το Capri έκλεισε απροσδόκητα.",
-    "The logs folder is open.": "Ο φάκελος καταγραφών είναι ανοιχτός.",
-    "The logs folder could not be opened.": "Δεν ήταν δυνατό να ανοίξει ο φάκελος καταγραφών.",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "Αποθηκεύστε και ελέγξτε το διαγνωστικό αρχείο ZIP και στείλτε το στον Overyx με προσωπικό μήνυμα στο Discord.",
-    "The crash report could not be saved.": "Δεν ήταν δυνατή η αποθήκευση της αναφοράς σφάλματος.",
-    "You can try saving a report from Report a bug after restarting Capri.": "Μετά την επανεκκίνηση του Capri, δοκιμάστε να αποθηκεύσετε μια αναφορά από την επιλογή «Αναφορά σφάλματος».",
     "Test": "Δοκιμή",
     "Stop computer control (Esc)": "Διακοπή ελέγχου υπολογιστή (Esc)",
     "Capri on the desktop": "Η Capri στην επιφάνεια εργασίας",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "Προαιρετικά: ακρόαση κλήσης και ήχου συστήματος",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "Όταν είναι ενεργοποιημένες η αφύπνιση με το όνομα και η αυτόματη αποστολή, τα αιτήματα προς την Capri αποστέλλονται αυτόματα. Διαφορετικά, ελέγξτε το κείμενο πριν το στείλετε. Χρησιμοποιήστε ακουστικά για να αποφύγετε τον μικροφωνισμό.",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "Ενεργοποιήστε πρώτα το μικρόφωνο της Capri και μετά προσθέστε τον ήχο συστήματος. Η Capri μπορεί να ακούει εσάς και τους συμμετέχοντες στην κλήση και να ξυπνά όταν κάποιος λέει το όνομά της.",
+    "Days": "Ημέρες",
     "Hours": "Ώρες",
     "Seconds": "Δευτερόλεπτα",
     "Set up once, then choose the virtual microphone in your call app.": "Ρυθμίστε το μία φορά και μετά επιλέξτε το εικονικό μικρόφωνο στην εφαρμογή κλήσεων.",
@@ -2477,7 +2483,13 @@
     "Vertical": "Κατακόρυφη",
     "Horizontal": "Οριζόντια",
     "I could not verify that YouTube opened. Check the page in the browser.": "Δεν μπόρεσα να επιβεβαιώσω ότι άνοιξε το YouTube. Έλεγξε τη σελίδα στο πρόγραμμα περιήγησης.",
-    "No supported browser was found to open YouTube.": "Δεν βρέθηκε υποστηριζόμενο πρόγραμμα περιήγησης για το άνοιγμα του YouTube."
+    "No supported browser was found to open YouTube.": "Δεν βρέθηκε υποστηριζόμενο πρόγραμμα περιήγησης για το άνοιγμα του YouTube.",
+    "Avatar gallery": "Συλλογή άβαταρ",
+    "Poses": "Στάσεις",
+    "Expressions": "Εκφράσεις",
+    "Animations": "Κινούμενα σχέδια",
+    "Loop animation": "Επανάληψη κίνησης",
+    "Play animation": "Αναπαραγωγή κίνησης"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,10 @@
     "corrections": 54,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "{label} ({seconds} s)", "Capri ·", "Overdrive"]
+  "reviewedIdentical": [
+    "Spotify",
+    "{label} ({seconds} s)",
+    "Capri ·",
+    "Overdrive"
+  ]
 }

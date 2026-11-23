@@ -14,6 +14,17 @@ const strikeReach = [0.15, 0.34, 0.26, 0.19, 0.11, 0.055];
 const boltOnlyFrames = arrivalStart + strikeReach.length;
 const red = TELEPORT_LIGHTNING_DEFAULTS.teleportColor;
 const filament = '#cc123c';
+const maxEffectPixels = 1920 * 1080;
+
+export function teleportBackingSize({ width, height }, pixelRatio) {
+  // Leave the native avatar and UI at their full resolution. Only the short-lived
+  // effect canvas gets a pixel budget, even on HiDPI or multiple monitors.
+  const ratio = Math.min(pixelRatio, 2, Math.sqrt(maxEffectPixels / (width * height)));
+  return {
+    width: Math.max(1, Math.floor(width * ratio)),
+    height: Math.max(1, Math.floor(height * ratio)),
+  };
+}
 
 function sample(values, at) {
   const index = Math.max(0, Math.min(values.length - 1, at));
@@ -216,7 +227,7 @@ function prepareBoltSparks(points, scale, length, profile) {
   return sparks;
 }
 
-function drawBoltSparks(context, sparks, profile, time) {
+function drawBoltSparks(context, sparks, profile, time, viewport) {
   if (!sparks.length || time < transitStart - 2 || time >= boltOnlyFrames) return;
   const atlas = getSparkAtlas(profile.color === red ? undefined : profile.color, profile.glow);
   if (!atlas) return;
@@ -226,8 +237,18 @@ function drawBoltSparks(context, sparks, profile, time) {
     if (age < 0 || age >= 1) continue;
     const progress = 1 - (1 - age) ** 1.4;
     const { x, y } = along(origin, axis, progress * drift, side * (2.5 + progress * reach));
+    const span = size * (1 - age * 0.54);
+    const half = span / 2;
+    if (
+      viewport &&
+      (x + half <= viewport.x ||
+        x - half >= viewport.x + viewport.width ||
+        y + half <= viewport.y ||
+        y - half >= viewport.y + viewport.height)
+    )
+      continue;
     context.globalAlpha = alpha * (1 - age) ** 1.35;
-    drawSpark(context, atlas, x, y, size * (1 - age * 0.54), age, seed);
+    drawSpark(context, atlas, x, y, span, age, seed);
   }
   context.globalAlpha = alpha;
 }
@@ -667,6 +688,7 @@ function draw(
     materialize = true,
     effects,
     drawCapri,
+    viewport,
     motion = prepareTeleportMotion({ from, to, seed, scale, bounds, reducedFlash, effects }),
   },
 ) {
@@ -689,7 +711,7 @@ function draw(
     sparks,
   } = motion;
 
-  drawBoltSparks(context, sparks, profile, time);
+  drawBoltSparks(context, sparks, profile, time, viewport);
 
   if (current === 'departure') {
     const reveal = sample([1, 1, 1, 0.74, 0.37, 0], time);

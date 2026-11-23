@@ -22,7 +22,6 @@ export async function replaceSourceFile(source, target, { root, signal } = {}) {
     throw new Error('Source replacement escaped installation');
   noLinks(source);
   noLinks(destination);
-  mkdirSync(path.dirname(destination), { recursive: true });
   const staging = path.join(boundary, '.runtime/installer/staging');
   noLinks(staging);
   mkdirSync(staging, { recursive: true });

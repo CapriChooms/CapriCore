@@ -21,8 +21,8 @@ writeFileSync(
   `
 import { app, desktopCapturer, nativeImage, screen, session } from 'electron';
 import { ScreenFrameWorker } from ${JSON.stringify(
-    pathToFileURL(path.join(root, 'apps/desktop/screen-frame-worker.mjs')).href,
-  )};
+  pathToFileURL(path.join(root, 'apps/desktop/screen-frame-worker.mjs')).href,
+)};
 const width = 960, height = 540;
 const displays = [1171001, 1171002].map((id, index) => ({
   id, bounds: { x: index * width, y: 0, width, height }, scaleFactor: 1, rotation: 0,
@@ -285,21 +285,13 @@ try {
     freshColors,
   );
   const turnId = randomUUID();
-  await companion.evaluate(
-    (id) => window.capri.send({ id, text: 'What colors can you see now?' }),
-    turnId,
-  );
-  await companion.waitForFunction(
-    async (id) =>
-      (await window.capri.bootstrap()).messages.some(
-        (message) =>
-          message.turnId === id &&
-          message.role === 'assistant' &&
-          message.status === 'complete' &&
-          message.text === 'I can see the two colors.',
-      ),
-    turnId,
-  );
+  await companion.evaluate((id) => window.capri.send({ id, text: 'What colors can you see now?' }), turnId);
+  await companion.waitForFunction(async (id) =>
+    (await window.capri.bootstrap()).messages.some(
+      (message) => message.turnId === id && message.role === 'assistant' &&
+        message.status === 'complete' && message.text === 'I can see the two colors.',
+    ),
+  turnId);
   const foreground = analysisRequests.find((request) => request.options.num_predict > 192);
   assert.ok(foreground, 'An ordinary question should trigger a fresh mosaic');
   await checkAnalysis(foreground, freshColors, true);

@@ -1,0 +1,208 @@
+import { faceAnimations, faceFrames } from './avatar-face-expressions.mjs';
+
+const faceReactions = { surprised: 'surprise', sleepy: 'sleepy' };
+
+/** Local visual autonomy. No generated dialogue, network calls or keyword guessing. */
+export class AnimationDirector {
+  constructor({ choices, frames, clips, settings, random = Math.random }) {
+    this.choices = new Map(choices.map((choice) => [choice.id, choice]));
+    this.frames = new Map(frames.map((frame) => [frame.id, frame]));
+    this.clips = new Map(clips.map((clip) => [clip.id, clip]));
+    this.settings = settings;
+    this.random = random;
+    this.revision = -1;
+    this.base = this.choices.get('neutral');
+    this.semantic = this.base;
+    this.sequence = null;
+    this.nextActivity = Infinity;
+    this.nextBlink = 0;
+    this.lastTick = null;
+    this.lookNext = false;
+  }
+  select(id, revision, now) {
+    const choice = this.choices.get(id);
+    if (!choice || revision < this.revision) return false;
+    this.semantic = choice;
+    this.revision = revision;
+    this.base = this.choices.get(choice.returnTo ?? choice.id);
+    this.sequence = null;
+    if (choice.animation || Object.hasOwn(faceReactions, id))
+      this.play(choice.animation ?? faceReactions[id], now, 'reaction');
+    this.attend(now);
+    this.nextBlink = now + 3000 + this.random() * 3000;
+    return true;
+  }
+  attend(now, interrupt = false) {
+    this.lastAttention = now;
+    this.nextActivity = now + this.settings.firstActivityMs;
+    if (interrupt || this.sequence?.kind === 'ambient') this.sequence = null;
+  }
+  react(id, now, duration) {
+    const frameId = this.choices.get(id)?.frameId;
+    if (this.frames.has(frameId)) this.reaction = { frameId, until: now + duration };
+  }
+  play(id, now, kind = 'reaction') {
+    const clip = this.clips.get(id);
+    if (Object.hasOwn(faceAnimations, id) && this.frames.has('neutral')) {
+      this.sequence = { id, start: now, face: faceAnimations[id], kind };
+      return true;
+    }
+    if (!clip) return false;
+    this.sequence = {
+      id,
+      start: now,
+      frames: clip.frames.map((frame) => ({ ...frame })),
+      effect: clip.effect,
+      kind,
+    };
+    return true;
+  }
+  activity(now) {
+    this.lookNext = !this.lookNext;
+    if (!this.lookNext && this.frames.has('idle-look_left')) {
+      this.play('gaze', now, 'ambient');
+      return;
+    }
+    const resting = this.random() < 0.65 ? 'pose-sit-floor' : 'pose-crouch';
+    if (this.frames.has(resting)) {
+      this.sequence = {
+        id: resting,
+        frames: [
+          { id: resting, ms: 4200 },
+          { id: 'neutral', ms: 220 },
+        ],
+        start: now,
+        kind: 'ambient',
+      };
+      return;
+    }
+    this.play('gaze', now, 'ambient');
+  }
+  tick(
+    now,
+    {
+      expanded,
+      active,
+      typing,
+      speaking,
+      sleeping = false,
+      reduced = false,
+      dragging = false,
+      heldFrame = null,
+    } = {},
+  ) {
+    const gap = this.lastTick === null ? 0 : Math.max(0, now - this.lastTick);
+    if (gap > 1000) {
+      if (this.sequence) this.sequence.start += gap;
+      this.nextActivity += gap;
+      this.nextBlink += gap;
+    }
+    const dt = Math.min(1000, gap);
+    this.lastTick = now;
+    if (this.revision < 0) return null;
+    if (sleeping) {
+      this.sequence = null;
+      this.reaction = null;
+      this.nextActivity = now + this.settings.firstActivityMs;
+      this.nextBlink = now + 3000;
+      return this.result(this.frames.has('pose-sleep') ? 'pose-sleep' : this.base.frameId, 'sleep');
+    }
+    if (!expanded) {
+      if (this.sequence) this.sequence.start += dt;
+      this.nextActivity = now + this.settings.firstActivityMs;
+      return this.result(this.base.frameId);
+    }
+    if (dragging || heldFrame) {
+      if (this.sequence) this.sequence.start += dt;
+      this.nextActivity = now + this.settings.firstActivityMs;
+    }
+    if (this.reaction && (now >= this.reaction.until || active || typing)) this.reaction = null;
+    if (this.reaction && !dragging) return this.result(this.reaction.frameId, 'reaction');
+    if (active || typing || speaking) this.attend(now);
+    if (reduced) {
+      this.sequence = null;
+      return this.result(heldFrame ?? this.base.frameId);
+    }
+    if (
+      !this.sequence &&
+      this.settings.enabled &&
+      this.base.id === 'neutral' &&
+      now >= this.nextActivity &&
+      !active &&
+      !typing &&
+      !speaking &&
+      !dragging
+    )
+      this.activity(now);
+    if (this.sequence) {
+      let age = now - this.sequence.start;
+      if (this.sequence.face) {
+        const { id, start, face } = this.sequence;
+        if (age < face.duration)
+          return this.result(heldFrame ?? this.base.frameId, id, null, { id, start });
+      }
+      for (const frame of this.sequence.frames ?? []) {
+        if (age < frame.ms) {
+          const effect =
+            this.sequence.effect?.onFrame === frame.id
+              ? { ...this.sequence.effect, progress: Math.max(0, age / frame.ms) }
+              : null;
+          return this.result(frame.id, this.sequence.id, effect, {
+            id: 'gaze',
+            start: this.sequence.start + 450,
+          });
+        }
+        age -= frame.ms;
+      }
+      this.sequence = null;
+      this.nextActivity = now + this.settings.activityGapMs + this.random() * 6000;
+    }
+    if (now >= this.nextBlink && this.frames.has('idle-blink_closed') && !dragging) {
+      if (now - this.nextBlink < faceAnimations.blink.duration)
+        return this.result(heldFrame ?? this.base.frameId, 'blink', null, {
+          id: 'blink',
+          start: this.nextBlink,
+        });
+      this.nextBlink = now + 3000 + this.random() * 4500;
+    }
+    return this.result(heldFrame ?? this.base.frameId);
+  }
+  result(frameId, activity = 'dialogue', effect = null, clip = null) {
+    return {
+      frameId,
+      choiceId: this.semantic.id,
+      revision: this.revision,
+      activity,
+      effect,
+      clip,
+      expression: Object.hasOwn(faceFrames, this.base.frameId) ? this.base.frameId : null,
+    };
+  }
+}
+
+/** Small decoded-frame cache; new poses do not upload an entire atlas to VRAM. */
+export class SpriteImages {
+  constructor(frames, limit = 20) {
+    this.frames = new Map(frames.map((frame) => [frame.id, frame]));
+    this.cache = new Map();
+    this.limit = limit;
+  }
+  get(id) {
+    if (!this.frames.has(id)) return Promise.reject(new Error('Unknown frame'));
+    if (this.cache.has(id)) {
+      const value = this.cache.get(id);
+      this.cache.delete(id);
+      this.cache.set(id, value);
+      return value;
+    }
+    const image = new Image();
+    image.src = this.frames.get(id).url;
+    const value = image.decode().then(() => image);
+    this.cache.set(id, value);
+    value.catch(() => {
+      if (this.cache.get(id) === value) this.cache.delete(id);
+    });
+    while (this.cache.size > this.limit) this.cache.delete(this.cache.keys().next().value);
+    return value;
+  }
+}

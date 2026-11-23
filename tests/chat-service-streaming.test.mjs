@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ChatService, validateInput } from '../apps/desktop/chat-service.mjs';
-import { sseData } from '../apps/desktop/sse.mjs';
+import { sseData } from '../apps/desktop/chat-service.mjs';
 
 const gatewayUrl = 'http://127.0.0.1:18789';
 const agentId = 'capri';
@@ -32,39 +32,6 @@ function makeSseResponse(events) {
         releaseLock: () => {},
       }),
     },
-  };
-}
-
-function makeJsonResponse(json) {
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(JSON.stringify(json));
-  let yielded = false;
-  return {
-    ok: true,
-    status: 200,
-    headers: { get: (key) => (key === 'content-type' ? 'application/json' : null) },
-    body: {
-      [Symbol.asyncIterator]: async function* () {
-        if (!yielded) { yielded = true; yield bytes; }
-      },
-      getReader: () => ({
-        read: async () => {
-          if (yielded) return { done: true, value: null };
-          yielded = true;
-          return { done: false, value: bytes };
-        },
-        releaseLock: () => {},
-      }),
-    },
-  };
-}
-
-function makeErrorResponse(status) {
-  return {
-    ok: false,
-    status,
-    headers: { get: () => null },
-    body: null,
   };
 }
 
@@ -207,138 +174,6 @@ test('SSE mode: AbortController cancels request', async () => {
     clearTimeout(timeout);
   }
   assert.ok(threw || events.some((e) => e.type === 'turn.cancelled'), 'should cancel on abort');
-});
-
-// ---------- ChatService JSON Mode Tests ----------
-
-test('JSON mode: parses full response', async () => {
-  const fetchImpl = async () => makeJsonResponse({
-    choices: [{ message: { content: 'Full response' } }],
-  });
-  const chat = createChatService({ enableStreaming: false, fetchImpl });
-  const events = [];
-  await chat.send(
-    { id: '123e4567-e89b-12d3-a456-426614174004', text: 'Hi' },
-    (event) => events.push(event),
-  );
-  const deltas = events.filter((e) => e.type === 'turn.delta').map((e) => e.text);
-  assert.deepStrictEqual(deltas, ['Full response']);
-  assert.ok(events.some((e) => e.type === 'turn.completed'));
-});
-
-test('JSON mode: handles provider error', async () => {
-  const fetchImpl = async () => makeErrorResponse(500);
-  const chat = createChatService({ enableStreaming: false, fetchImpl });
-  const events = [];
-  await chat.send(
-    { id: '123e4567-e89b-12d3-a456-426614174005', text: 'Hi' },
-    (event) => events.push(event),
-  );
-  assert.ok(events.some((e) => e.type === 'turn.failed'), 'should emit turn.failed');
-  assert.strictEqual(chat.lastFailure.code, 'CAPRI_GATEWAY_HTTP_ERROR');
-});
-
-test('JSON mode: handles empty choices', async () => {
-  const fetchImpl = async () => makeJsonResponse({ choices: [] });
-  const chat = createChatService({ enableStreaming: false, fetchImpl });
-  const events = [];
-  let threw = false;
-  try {
-    await chat.send(
-      { id: '123e4567-e89b-12d3-a456-426614174006', text: 'Hi' },
-      (event) => events.push(event),
-    );
-  } catch {
-    threw = true;
-  }
-  assert.ok(events.length > 0 || threw, 'should either emit events or throw');
-});
-
-test('JSON mode: AbortController cancels request', async () => {
-  const fetchImpl = async (_url, init = {}) => {
-    return new Promise((resolve, reject) => {
-      const abort = () => reject(new DOMException('Aborted', 'AbortError'));
-      if (init.signal?.aborted) {
-        abort();
-        return;
-      }
-      init.signal?.addEventListener('abort', abort, { once: true });
-      setTimeout(
-        () => resolve(makeJsonResponse({ choices: [{ message: { content: 'Slow' } }] })),
-        1000,
-      );
-    });
-  };
-  const chat = createChatService({ enableStreaming: false, fetchImpl });
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10);
-  const events = [];
-  let threw = false;
-  try {
-    await chat.send(
-      { id: '123e4567-e89b-12d3-a456-426614174007', text: 'Slow' },
-      (event) => events.push(event),
-      { signal: controller.signal },
-    );
-  } catch (error) {
-    threw = error.name === 'AbortError';
-  } finally {
-    clearTimeout(timeout);
-  }
-  assert.ok(threw || events.some((e) => e.type === 'turn.cancelled'), 'should cancel on abort');
-});
-
-test('JSON mode: rejects response exceeding 2MB limit', async () => {
-  const bigContent = 'x'.repeat(3 * 1024 * 1024);
-  const fetchImpl = async () => makeJsonResponse({
-    choices: [{ message: { content: bigContent } }],
-  });
-  const chat = createChatService({ enableStreaming: false, fetchImpl });
-  const events = [];
-  await chat.send(
-    { id: '123e4567-e89b-12d3-a456-426614174008', text: 'Hi' },
-    (event) => events.push(event),
-  );
-  assert.ok(events.some((e) => e.type === 'turn.failed'), 'should emit turn.failed');
-});
-
-test('JSON mode: accepts response under 2MB limit', async () => {
-  const okContent = 'x'.repeat(1024);
-  const fetchImpl = async () => makeJsonResponse({
-    choices: [{ message: { content: okContent } }],
-  });
-  const chat = createChatService({ enableStreaming: false, fetchImpl });
-  const events = [];
-  await chat.send(
-    { id: '123e4567-e89b-12d3-a456-426614174009', text: 'Hi' },
-    (event) => events.push(event),
-  );
-  const deltas = events.filter((e) => e.type === 'turn.delta').map((e) => e.text);
-  assert.deepStrictEqual(deltas, [okContent]);
-});
-
-test('JSON mode: invalid JSON does not crash UI', async () => {
-  const fetchImpl = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'application/json' },
-    body: {
-      [Symbol.asyncIterator]: async function* () {
-        yield new TextEncoder().encode('not valid json {{{');
-      },
-      getReader: () => ({
-        read: async () => ({ done: true, value: null }),
-        releaseLock: () => {},
-      }),
-    },
-  });
-  const chat = createChatService({ enableStreaming: false, fetchImpl });
-  const events = [];
-  await chat.send(
-    { id: '123e4567-e89b-12d3-a456-426614174010', text: 'Hi' },
-    (event) => events.push(event),
-  );
-  assert.ok(events.some((e) => e.type === 'turn.failed'), 'should emit turn.failed');
 });
 
 // ---------- validateInput Tests ----------

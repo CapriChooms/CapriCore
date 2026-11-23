@@ -146,9 +146,8 @@ export class CompanionActions {
     if (tool === 'desktop_control' && args?.action === 'run_task') {
       if (Object.keys(args).some((key) => !['action', 'goal'].includes(key)))
         throw new Error('Invalid computer task.');
-      if (this.runComputerTask) return this.runComputerTask(args.goal, { signal });
-      if (!this.computerAgent) throw new Error('Computer task executor is unavailable.');
-      return this.computerAgent.run(args.goal, { signal });
+      if (!this.runComputerTask) throw new Error('Computer task executor is unavailable.');
+      return this.runComputerTask(args.goal, { signal });
     }
     if (tool === 'youtube_music_control')
       return invoke(ACTION_SKILLS.youtubeMusic, 'execute', args);
@@ -170,9 +169,9 @@ export class CompanionActions {
     }
     if (tool === 'desktop_control' && COMPUTER_ACTIONS.has(args?.action)) {
       if (!this.computer) throw new Error('Computer control is unavailable.');
-      return ['begin_control', 'end_control', 'control_status', 'observe'].includes(args.action)
-        ? this.computer.execute(args, signal)
-        : this.desktop.operation(id, args, () => this.computer.execute(args, signal), signal);
+      if (!['end_control', 'control_status'].includes(args.action))
+        throw new Error('Use desktop_control run_task with the exact owner goal.');
+      return this.computer.execute(args, signal);
     }
     if (tool === 'time_control') return this.time.execute(id, args, { source: 'tool', signal });
     if (tool === 'filesystem_control')

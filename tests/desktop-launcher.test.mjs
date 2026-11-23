@@ -15,54 +15,10 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { processStartedAt } from '../packages/runtime/src/host/processes.mjs';
-import { superviseDesktopExit } from '../packages/runtime/src/desktop-launcher.mjs';
 import { randomUUID } from 'node:crypto';
 
 const parent = path.join(root, '.runtime/desktop-launcher-tests');
 mkdirSync(parent, { recursive: true });
-
-test('desktop supervision distinguishes abnormal termination, clean quit and an existing instance', async () => {
-  const reported = [];
-  const reportCrash = (code) => {
-    reported.push(code);
-    return true;
-  };
-  const marker = { pid: 123 };
-  for (const [code, signal] of [
-    [0, null],
-    [undefined, undefined],
-    [null, 'SIGINT'],
-    [-1073741510, null],
-  ]) {
-    const clean = await superviseDesktopExit((exit) => {
-      exit(code, signal);
-      return marker;
-    }, reportCrash);
-    assert.equal(clean, marker);
-  }
-  assert.deepEqual(reported, []);
-  const result = await superviseDesktopExit((exit) => {
-    queueMicrotask(() => exit(-1073741819, null));
-    return marker;
-  }, reportCrash);
-  assert.deepEqual(result, { ...marker, crashReported: true });
-  const early = await superviseDesktopExit((exit) => {
-    exit(1, null);
-    throw Object.assign(new Error('Startup process stopped'), {
-      code: 'CAPRI_SERVICE_EXITED',
-      exitCode: 1,
-    });
-  }, reportCrash);
-  assert.deepEqual(early, { crashReported: true });
-  assert.deepEqual(reported, [-1073741819, 1]);
-  await assert.rejects(
-    superviseDesktopExit(() => {
-      throw new Error('Missing runtime');
-    }, reportCrash),
-    /Missing runtime/u,
-  );
-  assert.equal(reported.length, 2);
-});
 function fixture() {
   const folder = mkdtempSync(path.join(parent, 'fixture-'));
   cpSync(path.join(root, 'packages/runtime/src'), path.join(folder, 'packages/runtime/src'), {

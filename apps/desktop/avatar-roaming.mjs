@@ -15,19 +15,19 @@ export function chooseRoamingDisplay({
     mode === 'any'
       ? displays.filter(({ id }) => id !== current?.id)
       : observed && displays.filter(({ id }) => observed.has(id));
-  if (!candidates || (mode === 'any' && !candidates.length)) return current;
+  if (!candidates?.length) return current;
   return candidates[Math.floor(random() * candidates.length)];
 }
 
 /** Uses the existing desktop tick: no extra timer, model request or screen capture. */
 export class AvatarRoaming {
-  constructor({ now = Date.now, random = Math.random } = {}) {
-    Object.assign(this, { now, random });
+  constructor({ now = Date.now, random = Math.random, enabledKey = 'avatarRoaming' } = {}) {
+    Object.assign(this, { now, random, enabledKey });
     this.nextAt = Infinity;
     this.revision = 0;
   }
   sync(settings) {
-    const enabled = settings.avatarRoaming === true;
+    const enabled = settings[this.enabledKey] === true;
     const monitors = settings.avatarRoamMonitors ?? COMPANION_DEFAULTS.avatarRoamMonitors;
     const seconds =
       settings.avatarRoamIntervalSeconds ?? COMPANION_DEFAULTS.avatarRoamIntervalSeconds;

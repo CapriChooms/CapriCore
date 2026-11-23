@@ -98,16 +98,7 @@ function Read-CapriUpdateEvents {
     try{$record=$events[$i]|ConvertFrom-Json}catch{break}
     $script:lines=$i+1
     $phase=[string]$record.phase
-    if($phase -in @('failed','operation-failed')){
-      # Keep actionable diagnostics in the exported log without copying command output.
-      $failure=@{schemaVersion=1;event='failure';phase=$phase}
-      if([string]$record.stage -cmatch '^[a-z-]{1,32}$'){$failure.stage=[string]$record.stage}
-      if([string]$record.code -cmatch '^[A-Z][A-Z0-9_]{2,63}$'){$failure.code=[string]$record.code}
-      if($record.exitCode -is [int] -or $record.exitCode -is [long]){$failure.exitCode=$record.exitCode}
-      [Console]::WriteLine(($failure|ConvertTo-Json -Compress))
-      if($phase -eq 'failed'){Show-CapriUpdateFailure}
-      continue
-    }
+    if($phase -eq 'failed'){Show-CapriUpdateFailure;continue}
     if(-not $labels.ContainsKey($phase) -or $script:terminalPhase -eq 'failed'){continue}
     $status.Text=Text-Capri $labels[$phase]
     $status.ForeColor=if($phase -eq 'recovering'){$yellow}else{$cyan}
@@ -162,4 +153,4 @@ $form.Add_Shown({
   }
 })
 try{[void]$form.ShowDialog()}finally{$timer.Dispose();$form.Dispose();if($icon){$icon.Dispose()}}
-if($script:verificationFailed -or $script:terminalPhase -eq 'failed'){exit 1}
+if($script:verificationFailed){exit 1}

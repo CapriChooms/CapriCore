@@ -6,6 +6,14 @@
   "locale": "is",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "Leyfa Capri að færa músarbendilinn þegar þú ert fjarri",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "Hrekkir með músarbendlinum krefjast fulls tölvuaðgangs. Ýttu á Esc til að stöðva.",
+    "Animate the reply bubble": "Hreyfa svarbóluna",
+    "Drag lightning color": "Litur eldingar við að draga",
+    "Wild desktop pranks": "Villt hrekkjabrögð á skjáborðinu",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "Í villtri stillingu stelur Capri stundum gervibendli. Músin og lyklaborðið virka eins og venjulega.",
+    "Preview a prank": "Forskoða hrekk",
+    "Prank preview is unavailable right now.": "Forskoðun hrekks er ekki tiltæk sem stendur.",
     "Automatically check for updates": "Leita sjálfkrafa að uppfærslum",
     "Capri’s game reactions": "Viðbrögð Capri's",
     "React to game events": "Reykja fyrir leikburði",
@@ -355,6 +363,9 @@
     "Folder": "Mappa",
     "Folder access could not be revoked.": "Mappa aðgangur gat ekki verið afturkallaður.",
     "Folder permissions could not be saved.": "Mappa leyfi gat ekki verið vistað.",
+    "Follow-up listening": "Áframhaldandi hlustun",
+    "After a question": "Eftir spurningu",
+    "After any spoken reply": "Eftir öll töluð svör",
     "Follow-up listening time (seconds)": "Tími eftirfarandi hlustunar (sekúndur)",
     "For example, Tamil": "T.d. Tamil",
     "Freeing model memory…": "Frjálsun líkaminnar minnis...",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "Hljóðu mynd í Ríkri Tilkynningu þinna tæknians → Listar gæðir, síðan kopa gæðaskeyann þess hér. Látu þetta felu óskilum fyrir textaaktivitet.",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "Innstillingar lokaðu óvænt. Opna Innstillingar til að reyna aftur.",
     "Settings closed unexpectedly. Open Settings to try again.": "Prófa",
-    "Capri closed unexpectedly.": "Capri lokaðist óvænt.",
-    "The logs folder is open.": "Mappan með atvikaskrám er opin.",
-    "The logs folder could not be opened.": "Ekki tókst að opna möppuna með atvikaskrám.",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "Vistaðu og skoðaðu ZIP-greiningarskrá og sendu hana svo til Overyx í einkaskilaboðum á Discord.",
-    "The crash report could not be saved.": "Ekki tókst að vista hrunskýrsluna.",
-    "You can try saving a report from Report a bug after restarting Capri.": "Eftir að þú endurræsir Capri geturðu reynt að vista skýrslu með því að velja „Tilkynna villu“.",
     "Test": "Prófa",
     "Stop computer control (Esc)": "Stöðva tölvustýringu (Esc)",
     "Capri on the desktop": "Capri á skjáborðinu",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "Valfrjálst: hlusta á símtalið og kerfishljóð",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "Þegar virkjun með nafni og sjálfvirk sending eru í gangi eru beiðnir til Capri sendar sjálfkrafa. Annars skaltu fara yfir textann áður en þú sendir. Notaðu heyrnartól til að forðast hljóðendurgjöf.",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "Kveiktu fyrst á hljóðnema Capri og bættu síðan kerfishljóði við. Capri getur heyrt þig og fólkið í símtalinu og vaknað þegar einhver segir nafnið hennar.",
+    "Days": "Dagar",
     "Hours": "Klukkustundir",
     "Seconds": "Sekúndur",
     "Set up once, then choose the virtual microphone in your call app.": "Settu þetta upp einu sinni og veldu síðan sýndarhljóðnemann í símtalaforritinu þínu.",
@@ -2477,7 +2483,13 @@
     "Vertical": "Lóðrétt",
     "Horizontal": "Lárétt",
     "I could not verify that YouTube opened. Check the page in the browser.": "Ég gat ekki staðfest að YouTube hafi opnast. Athugaðu síðuna í vafranum.",
-    "No supported browser was found to open YouTube.": "Enginn studdur vafri fannst til að opna YouTube."
+    "No supported browser was found to open YouTube.": "Enginn studdur vafri fannst til að opna YouTube.",
+    "Avatar gallery": "Avatarsafn",
+    "Poses": "Stellingar",
+    "Expressions": "Svipbrigði",
+    "Animations": "Hreyfingar",
+    "Loop animation": "Endurtaka hreyfingu",
+    "Play animation": "Spila hreyfingu"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,11 @@
     "corrections": 50,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·", "Hugging Face token", "caching", "Overdrive"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·",
+    "Hugging Face token",
+    "caching",
+    "Overdrive"
+  ]
 }

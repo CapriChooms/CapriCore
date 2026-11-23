@@ -6,6 +6,14 @@
   "locale": "he",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "לאפשר ל-Capri להזיז את סמן העכבר כשאינך ליד המחשב",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "מתיחות עם הסמן דורשות גישה מלאה למחשב. לעצירה, לוחצים על Esc.",
+    "Animate the reply bubble": "הנפשת בועת התשובה",
+    "Drag lightning color": "צבע הברק בעת גרירה",
+    "Wild desktop pranks": "תעלולי שולחן עבודה במצב פרוע",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "במצב פרוע, Capri גונבת מדי פעם סמן מדומה. העכבר והמקלדת פועלים כרגיל.",
+    "Preview a prank": "תצוגה מקדימה של תעלול",
+    "Prank preview is unavailable right now.": "התצוגה המקדימה של התעלול אינה זמינה כרגע.",
     "Automatically check for updates": "לבדוק אם יש עדכונים באופן אוטומטי",
     "Capri’s game reactions": "התגובות של Capri למשחק",
     "React to game events": "תגובה לאירועים במשחק",
@@ -355,6 +363,9 @@
     "Folder": "תיקייה",
     "Folder access could not be revoked.": "לא ניתן להשביע גישה לתיקייה.",
     "Folder permissions could not be saved.": "אישורי תיקייה לא ניתן לשמור.",
+    "Follow-up listening": "המשך האזנה",
+    "After a question": "אחרי שאלה",
+    "After any spoken reply": "אחרי כל תשובה קולית",
     "Follow-up listening time (seconds)": "זמן האזנה נוסף (שניות)",
     "For example, Tamil": "למשל, טמילית",
     "Freeing model memory…": "שחרור זיכרון המודל...",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "תמונה אופציונלית לפעילות",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "העלי את תמונה ב-Rich Presence של היישום שלך -> נכסי אמנות, ואז הדביקי את מפתח הנכס כאן. השאירי שדה זה ריק לפעילות טקסט בלבד.",
     "Settings closed unexpectedly. Open Settings to try again.": "הגדרות נסגרו באופן בלתי צפוי. פתחי את ההגדרות כדי לנסות שוב.",
-    "Capri closed unexpectedly.": "Capri נסגרה באופן בלתי צפוי.",
-    "The logs folder is open.": "תיקיית היומנים פתוחה.",
-    "The logs folder could not be opened.": "לא ניתן היה לפתוח את תיקיית היומנים.",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "שמרו ובדקו את קובץ ה־ZIP לאבחון, ולאחר מכן שלחו אותו ל־Overyx בהודעה פרטית ב־Discord.",
-    "The crash report could not be saved.": "לא ניתן היה לשמור את דוח הקריסה.",
-    "You can try saving a report from Report a bug after restarting Capri.": "לאחר הפעלה מחדש של Capri, אפשר לנסות לשמור דוח דרך ״דיווח על תקלה״.",
     "Test": "בדיקה",
     "Stop computer control (Esc)": "עצירת בקרת מחשב (Esc)",
     "Capri on the desktop": "Capri על שולחן העבודה",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "רשות: האזנה לשיחה ולשמע המערכת",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "כאשר הפעלה בשם ושליחה אוטומטית מופעלות שתיהן, בקשות שמופנות ל-Capri נשלחות אוטומטית. אחרת, יש לבדוק את הטקסט לפני השליחה. יש להשתמש באוזניות כדי למנוע משוב קולי.",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "הפעל תחילה את המיקרופון של Capri, ואז הוסף את שמע המערכת. Capri יכולה לשמוע אותך ואת משתתפי השיחה, ולהתעורר כשמישהו אומר את שמה.",
+    "Days": "ימים",
     "Hours": "שעות",
     "Seconds": "שניות",
     "Set up once, then choose the virtual microphone in your call app.": "הגדר פעם אחת, ואז בחר את המיקרופון הווירטואלי באפליקציית השיחות שלך.",
@@ -2477,7 +2483,13 @@
     "Vertical": "אנכית",
     "Horizontal": "אופקית",
     "I could not verify that YouTube opened. Check the page in the browser.": "לא הצלחתי לאמת ש־YouTube נפתח. יש לבדוק את הדף בדפדפן.",
-    "No supported browser was found to open YouTube.": "לא נמצא דפדפן נתמך לפתיחת YouTube."
+    "No supported browser was found to open YouTube.": "לא נמצא דפדפן נתמך לפתיחת YouTube.",
+    "Avatar gallery": "גלריית דמות",
+    "Poses": "תנוחות",
+    "Expressions": "הבעות פנים",
+    "Animations": "הנפשות",
+    "Loop animation": "הנפשה בלולאה",
+    "Play animation": "הפעלת הנפשה"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,9 @@
     "corrections": 7,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "idle-surprised_closed", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "idle-surprised_closed",
+    "Capri ·"
+  ]
 }

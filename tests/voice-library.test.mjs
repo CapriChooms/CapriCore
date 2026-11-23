@@ -310,7 +310,7 @@ test('Qwen ROCm installs as a shared runtime without replacing CPU or CUDA', asy
   await unsupported.task;
   assert.match(unsupported.snapshot().error, /supported Radeon/);
   assert.equal(installs, 0);
-  gpu = 'AMD Radeon RX 9060 XT';
+  gpu = 'AMD Radeon RX 9070 GRE';
   const library = new VoiceCatalogService(options);
   assert.equal((await library.refresh()).qwenRocmSupported, true);
   library.install(selection);

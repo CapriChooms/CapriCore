@@ -45,8 +45,9 @@ Update-CapriMemorySnapshot $hardware
 if($hardware.ramGiB -eq 0){try{Add-Type -AssemblyName Microsoft.VisualBasic;
         $memory=New-Object Microsoft.VisualBasic.Devices.ComputerInfo;
         $hardware.ramGiB=[Math]::Round($memory.TotalPhysicalMemory/1GB,1)}catch{}}
-$voiceGpu=($hardware.gpu -match 'NVIDIA') -or (([Environment]::OSVersion.Version.Build -ge 22000) -and ($hardware.gpu -match '\b(?:RX (?:9070(?: XT)?|9060 XT|7900 XTX|7700)|(?:AI )?PRO (?:R9700|W7900(?: Dual Slot)?))\b'))
-$rocmVoice=$hardware.gpu -notmatch 'NVIDIA' -and $hardware.gpu -match '\b(?:RX (?:9070(?: XT)?|9060 XT|7900 XTX|7700)|(?:AI )?PRO (?:R9700|W7900(?: Dual Slot)?))\b'
+$amdVoice=(Read-CapriJson (Join-Path $sourceRoot 'config/voice-runtime.json')).amdWindows
+$rocmVoice=($hardware.gpu -notmatch 'NVIDIA') -and (Test-CapriRocmVoiceGpu ($hardware.gpu -split ',\s*') $amdVoice ([Environment]::OSVersion.Version.Build))
+$voiceGpu=($hardware.gpu -match 'NVIDIA') -or $rocmVoice
 if(-not $BundledVoicePack -and (Test-Path -LiteralPath (Join-Path $sourceRoot '.bundled-voice/voice-profile.json'))){$BundledVoicePack=Join-Path $sourceRoot '.bundled-voice'}
 if($BundledVoicePack){$BundledVoicePack=Assert-CapriVoicePack $BundledVoicePack}
 $voiceCatalog=(Read-CapriJson (Join-Path $sourceRoot 'config/tts-catalog.json')).models
@@ -482,6 +483,18 @@ function Update-CapriModelRecommendations {
     }
 }
 function Format-CapriGiB([long]$Bytes){return ($Bytes/1GB).ToString('0.00')+' GiB'}
+$script:navigationStorageEstimate=$null
+function Get-CapriNavigationStorageEstimate($Selection){
+    $profile=if($Selection.inferenceMode -eq 'api' -or $Selection.modelSource -eq 'huggingface'){'deferred'}else{$Selection.profile}
+    $downloadModel=$profile -ne 'deferred' -and $Selection.downloadModels
+    $key=@($Selection.target,$Selection.inferenceMode,$Selection.modelSource,$profile,$downloadModel,
+        $Selection.conversationLanguage,$Selection.recognition,$Selection.voiceMode,[bool]$Selection.voicePack) -join '|'
+    if(-not $script:navigationStorageEstimate -or $script:navigationStorageEstimate.key -cne $key){
+        $estimate=Get-CapriStorageEstimate $Selection $manifest $storageCatalog $rocmVoice $hardware
+        $script:navigationStorageEstimate=@{key=$key;value=$estimate}
+    }
+    return $script:navigationStorageEstimate.value
+}
 function Format-CapriStorageEstimate($Estimate){
     return (Text-Capri 'storage')+': '+(Format-CapriGiB $Estimate.requiredBytes)+"`n"+(Text-Capri 'download')+': ~'+(Format-CapriGiB $Estimate.downloadBytes)
 }
@@ -842,12 +855,12 @@ function Update-CapriPageControls{
                 param($sender)
                 if($sender -and -not $sender.Checked){return}
                 $script:fields.languageDevice.Enabled=-not $script:fields.api.Checked
-                Update-CapriMemoryBudgetView
+                Update-CapriMemoryBudgetView -DeferLayout
                 Fit-CapriPage
             }
             foreach($mode in @('local','api','huggingface')){$script:fields[$mode].Add_CheckedChanged($updateInferenceChoice)}
             $device.Add_SelectedIndexChanged({Update-CapriMemoryBudgetView})
-            & $updateInferenceChoice
+            $device.Enabled=-not $script:fields.api.Checked
         }
         'conversation'{
             $choice=Add-CapriCombo 'conversationLanguage' 93 @(Get-CapriConversationChoices) $options.conversationLanguage
@@ -910,12 +923,15 @@ function Update-CapriPageControls{
             $script:fields.storageEstimate=Add-CapriLabel '' 261 55
             $null=Add-CapriInfo 'storage' 261
             $refreshVoiceChoice={
+                param($sender)
                 $body.FinishQuestionReveal()
                 $custom=(Selected-Capri 'voiceMode') -eq 'custom'
                 $script:fields.voicePack.Enabled=$script:fields.voicePack.Visible=$custom
                 $script:fields.voiceBrowse.Enabled=$script:fields.voiceBrowse.Visible=$custom
-                Update-CapriMemoryBudgetView
-                Fit-CapriPage
+                if($sender){
+                    Update-CapriMemoryBudgetView -DeferLayout
+                    Fit-CapriPage
+                }
             }
             $choice.Add_SelectedIndexChanged($refreshVoiceChoice)
             & $refreshVoiceChoice
@@ -944,7 +960,7 @@ function Update-CapriPageControls{
             if($options.inferenceMode -eq 'local'){
                 $modelSummary+="`n"+(Survey-Capri 'deviceLabel' 'hardware')+': '+(Get-CapriDeviceChoiceLabel $options.languageDevice)
             }
-            $script:reviewStorage=Get-CapriStorageEstimate $options $manifest $storageCatalog $rocmVoice $hardware
+            $script:reviewStorage=Get-CapriNavigationStorageEstimate $options
             $voiceSummary=if($options.voiceMode -eq 'qwen-ru'){$russianVoiceLabel}elseif($options.voiceMode -eq 'qwen'){Text-Capri 'voiceHuggingFace'}elseif($options.voicePack){'Chatterbox / Capri / '+$options.conversationLanguage+' / '+(Text-Capri 'on')}elseif($options.repair){Survey-Capri 'voiceOffRepair' 'voiceOff'}else{Text-Capri 'voiceOff'}
             $summary=$options.target+"`n"+$modelSummary+"`n"+(Text-Capri 'uiLanguage')+': '+$options.interfaceLanguage+'  |  '+(Text-Capri 'conversationLanguage')+': '+$options.conversationLanguage+"`n"+(Text-Capri 'recognition')+': '+$(if($options.recognition){Text-Capri 'on'}else{Text-Capri 'off'})+'  |  '+(Text-Capri 'classifierIncluded')+"`n"+(Text-Capri 'voiceChoice')+': '+$voiceSummary
             $shortcuts=@(
@@ -1044,7 +1060,7 @@ function Update-CapriPageControls{
             Add-CapriReportButtons $(if($script:result -and ($options.inferenceMode -eq 'api' -or $options.modelSource -eq 'huggingface')){463}else{498})
         }
     }
-    Update-CapriMemoryBudgetView
+    Update-CapriMemoryBudgetView -DeferLayout
     Fit-CapriPage
     $body.PreviewWelcome=$script:page -eq 'interface'
     Update-CapriCyberpunkTheme $form
@@ -1058,6 +1074,8 @@ function Start-CapriInstall{
     $options.target=Assert-CapriTarget $options.target $sourceRoot (Read-CapriJson (Join-Path $sourceRoot 'package.json')).version
     if(-not $options.acceptLicense -or -not $options.acceptDownloads){throw 'License acceptance and download consent are required.'}
     $estimate=Get-CapriStorageEstimate $options $manifest $storageCatalog $rocmVoice $hardware
+    $script:navigationStorageEstimate=$null
+    $script:reviewStorage=$estimate
     $free=Get-CapriAvailableDiskBytes $options.target
     if($null -eq $free -or $free -lt $estimate.requiredBytes){
         Update-CapriDiskReview -Available $free
@@ -1343,9 +1361,10 @@ public static class CapriSetupScrollVerification {
     }
     function Wait-CapriAnswerReveal {
         $clock=[Diagnostics.Stopwatch]::StartNew()
-        while($body.QuestionRevealActive -and $body.AnswerRevealOpacity -le 0.05 -and $clock.ElapsedMilliseconds -lt 2200){
+        while($body.QuestionRevealActive -and $body.AnswerRevealOpacity -le 0.05 -and $clock.ElapsedMilliseconds -lt 700){
             Wait-CapriVerificationEvents 12
         }
+        if($body.AnswerRevealOpacity -le 0.05){throw 'The installer answers did not start revealing promptly.'}
     }
     function Save-CapriAnimationFrame([string]$Name){
         $folder=Join-Path $check 'animation'
@@ -1646,16 +1665,16 @@ public static class CapriSetupScrollVerification {
                        [Math]::Abs($middleX-$body.ClientSize.Width/2) -gt 1 -or [Math]::Abs($middleY-$body.ClientSize.Height/2) -gt 1){
                         throw 'Setup must reveal its question in the center before the answers.'
                     }
-                    Wait-CapriVerificationEvents 115
-                    $peakBloom=$body.QuestionBloom
-                    if($body.QuestionTextOpacity -le 0.1 -or $peakBloom -le 0.1 -or $body.AnswerRevealOpacity -gt 0){
+                    Wait-CapriVerificationEvents 95
+                    if($body.QuestionTextOpacity -le 0.1 -or $body.QuestionBloom -le 0.1 -or $body.AnswerRevealOpacity -gt 0){
                         throw 'The question must fade in with bloom while the answers are hidden.'
                     }
-                    Save-CapriAnimationFrame ($language+'-question')
-                    Wait-CapriVerificationEvents 650
+                    while($body.QuestionTextOpacity -lt 0.99 -and $stopwatch.ElapsedMilliseconds -lt 300){Wait-CapriVerificationEvents 12}
+                    $peakBloom=$body.QuestionBloom
                     if($title.Location -ne $center -or $body.QuestionTextOpacity -lt 0.99 -or $answer.Visible -or $body.AnswerRevealOpacity -gt 0){
                         throw 'The fully visible question must pause in the center before it rises.'
                     }
+                    Save-CapriAnimationFrame ($language+'-question')
                     Wait-CapriAnswerReveal
                     if($answer.Visible -or $body.AnswerRevealOpacity -ge 1 -or $body.AnswerRevealOffset -le 0 -or
                        $title.Top -ge ($middleY-$title.Height/2) -or $body.QuestionBloom -ge $peakBloom){

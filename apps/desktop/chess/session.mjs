@@ -311,26 +311,37 @@ export class ChessSession {
     }, trace);
   }
 
-  async detectSelection(frame, crop, signal) {
+  async detectSelection(frame, crop, signal, { tracking = false } = {}) {
     const size = frame.bitmap.getSize();
     const pad = Math.max(4, Math.ceil(Math.min(crop.width, crop.height) / 28));
     const x = Math.max(0, crop.x - pad);
     const y = Math.max(0, crop.y - pad);
-    const padded = {
-      x,
-      y,
-      width: Math.min(size.width, crop.x + crop.width + pad) - x,
-      height: Math.min(size.height, crop.y + crop.height + pad) - y,
-    };
+    const right = Math.min(size.width, crop.x + crop.width + pad);
+    const bottom = Math.min(size.height, crop.y + crop.height + pad);
+    const padded = { x, y, width: right - x, height: bottom - y };
     const [candidate] = await this.detect(frame, padded, false, 1, signal);
     if (
       candidate &&
       Math.abs(candidate.rect.width - crop.width) <= pad * 2 &&
       Math.abs(candidate.rect.height - crop.height) <= pad * 2 &&
       chessRectInside(candidate.rect, padded)
-    )
+    ) {
+      const rect = candidate.rect;
+      // Let the next full scan recover a board that has moved outside this crop.
+      if (
+        tracking &&
+        ((x > 0 && rect.x === x) ||
+          (y > 0 && rect.y === y) ||
+          (right < size.width && rect.x + rect.width === right) ||
+          (bottom < size.height && rect.y + rect.height === bottom))
+      )
+        return [];
       return [candidate];
-    return this.detect(frame, crop, true, 1, signal);
+    }
+    const fallback = await this.detect(frame, crop, true, 1, signal);
+    // A tight crop can still read the pieces, but cannot prove where the board ends.
+    if (tracking && fallback.length) return [{ ...fallback[0], rect: crop }];
+    return fallback;
   }
 
   async detect(frame, crop, manual, limit, signal) {
@@ -348,7 +359,10 @@ export class ChessSession {
   }
 
   async trackableBoards(frame, crop, view, orientation, signal, limit = 3) {
-    const items = await this.detect(frame, crop, Boolean(crop && limit === 1), limit, signal);
+    const items =
+      crop && limit === 1
+        ? await this.detectSelection(frame, crop, signal, { tracking: true })
+        : await this.detect(frame, crop, false, limit, signal);
     return items.flatMap((item) => {
       if (!this.capture.inView(frame, item.rect, view)) return [];
       const pieces = orientPlacement(item.placement, orientation);
@@ -493,10 +507,9 @@ export class ChessSession {
         const line = lines?.[0];
         const score = line?.score;
         if (!score || line.depth < 8 || score.bound) continue;
-        const decisive =
-          score.type === 'mate'
-            ? score.value !== 0
-            : score.type === 'cp' && Math.abs(score.value) >= 160;
+        const decisive = score.type === 'mate'
+          ? score.value !== 0
+          : score.type === 'cp' && Math.abs(score.value) >= 160;
         if (decisive) fact.advantage = score.value > 0 ? 'w' : 'b';
         if (score.type === 'cp' && Math.abs(score.value) <= 45) fact.balanced = true;
       } catch {

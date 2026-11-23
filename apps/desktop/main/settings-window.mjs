@@ -59,7 +59,6 @@ export class SettingsWindow {
     onBusy,
     onError,
     onRendererLost = () => {},
-    onRendererCrash = () => {},
     idleCloseMs = 60000,
   }) {
     Object.assign(this, {
@@ -73,7 +72,6 @@ export class SettingsWindow {
       onBusy,
       onError,
       onRendererLost,
-      onRendererCrash,
       idleCloseMs,
     });
     this.requested = false;
@@ -91,7 +89,6 @@ export class SettingsWindow {
     this.helpRevision = 0;
     this.presentationRevision = 0;
     this.nextRendererRecovery = -Infinity;
-    this.nextVisibilityRecovery = -Infinity;
     owner.on('move', () => this.reposition());
     owner.on('resize', () => this.reposition());
     owner.on('hide', () => this.hide());
@@ -408,12 +405,10 @@ export class SettingsWindow {
       });
       this.view.on('hide', () => {
         if (this.window === view) {
-          const revision = this.presentationRevision;
-          if (this.surfaceReady && this.requested && !this.quitting()) {
-            // Windows can hide a native surface independently of Capri. Allow
-            // the owner's hide/minimize event to cancel recovery first.
-            queueMicrotask(() => this.restoreVisibility(view, revision));
-          } else this.settingsHidden(view);
+          this.send({ type: 'settings.visibility', visible: false });
+          this.hideHelp(true, true);
+          view.webContents.setBackgroundThrottling(true);
+          this.onBusy(false);
         }
       });
       this.view.on('show', () => {
@@ -499,39 +494,6 @@ export class SettingsWindow {
     }
     this.present();
   }
-  settingsHidden(view) {
-    this.send({ type: 'settings.visibility', visible: false });
-    this.hideHelp(true, true);
-    view.webContents.setBackgroundThrottling(true);
-    this.onBusy(false);
-  }
-  restoreVisibility(view, revision) {
-    if (
-      this.window !== view ||
-      this.presentationRevision !== revision ||
-      !this.requested ||
-      this.quitting() ||
-      view.isVisible()
-    )
-      return;
-    const now = performance.now();
-    if (
-      this.owner.isVisible() &&
-      !this.owner.isMinimized() &&
-      now >= this.nextVisibilityRecovery &&
-      !view.webContents.isCrashed()
-    ) {
-      this.nextVisibilityRecovery = now + 1000;
-      this.onError('Settings native window hidden unexpectedly');
-      view.showInactive();
-      if (this.window !== view) return;
-      if (view.isVisible()) {
-        view.webContents.invalidate();
-        return;
-      }
-    }
-    this.settingsHidden(view);
-  }
   rendererStopped(view, { reason, exitCode }) {
     const requested = this.requested;
     const section = this.contentReady ? null : this.section;
@@ -541,7 +503,6 @@ export class SettingsWindow {
     this.rememberPlacement(view);
     this.destroy();
     if (!requested) return;
-    this.onRendererCrash({ reason, exitCode });
     if (now < this.nextRendererRecovery) {
       this.onRendererLost();
       return;

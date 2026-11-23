@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { loadAvatarGestureFaces } from './avatar-face-rig.mjs';
+
 const waveAsset = 'capri://desktop/capri-wave.webp';
 const canvasSize = 627;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -41,12 +43,15 @@ export class AvatarWave {
     this.onChange();
   }
 
-  async play() {
+  async play({ shouldLoop = () => false } = {}) {
     if (this.run || !this.available() || !globalThis.ImageDecoder) return false;
     const run = (this.run = { controller: new AbortController() });
     const current = () => this.run === run && this.available();
     try {
-      const response = await fetch(waveAsset, { signal: run.controller.signal });
+      const [response, drawFace] = await Promise.all([
+        fetch(waveAsset, { signal: run.controller.signal }),
+        loadAvatarGestureFaces().catch(() => null),
+      ]);
       if (!response.ok) throw new Error('Wave artwork unavailable');
       const data = await response.arrayBuffer();
       if (!current()) return false;
@@ -61,30 +66,34 @@ export class AvatarWave {
       const context = this.canvas.getContext('2d');
       this.canvas.width = this.canvas.height = canvasSize;
       let started, end;
-      for (let frameIndex = 0; frameIndex < count && current(); frameIndex++) {
-        const { image } = await decoder.decode({ frameIndex });
-        try {
-          const timestamp = image.timestamp / 1000;
-          started ??= performance.now();
-          end = started + timestamp + image.duration / 1000;
-          const delay = started + timestamp - performance.now();
-          if (delay > 0) await wait(delay);
-          if (!current()) return false;
-          // After a slow decode, skip frames whose full display interval has already elapsed.
-          if (performance.now() >= end) continue;
-          context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-          context.drawImage(image, 0, 0, this.canvas.width, this.canvas.height);
-          this.canvas.avatarTextureRevision = frameIndex;
-          if (this.canvas.hidden) {
-            this.canvas.hidden = false;
-            this.parent.dataset.avatarWaving = 'true';
-            this.onChange();
+      do {
+        for (let frameIndex = 0; frameIndex < count && current(); frameIndex++) {
+          const { image } = await decoder.decode({ frameIndex });
+          try {
+            const timestamp = image.timestamp / 1000;
+            started ??= performance.now();
+            end = started + timestamp + image.duration / 1000;
+            const delay = started + timestamp - performance.now();
+            if (delay > 0) await wait(delay);
+            if (!current()) return false;
+            // After a slow decode, skip frames whose full display interval has already elapsed.
+            if (performance.now() >= end) continue;
+            context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            context.drawImage(image, 0, 0, this.canvas.width, this.canvas.height);
+            drawFace?.(context, 'wave:' + frameIndex, canvasSize);
+            this.canvas.avatarTextureRevision = frameIndex;
+            if (this.canvas.hidden) {
+              this.canvas.hidden = false;
+              this.parent.dataset.avatarWaving = 'true';
+              this.onChange();
+            }
+          } finally {
+            image.close();
           }
-        } finally {
-          image.close();
         }
-      }
-      if (current() && end > performance.now()) await wait(end - performance.now());
+        if (current() && end > performance.now()) await wait(end - performance.now());
+        started = end;
+      } while (current() && shouldLoop());
       return current();
     } catch (error) {
       if (!run.controller.signal.aborted) console.warn('Capri wave could not play:', error);

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "status": "component-specific",
+  "tts": {
+    "model": "ResembleAI/chatterbox",
+    "revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+    "source": "https://github.com/resemble-ai/chatterbox",
+    "license": "MIT",
+    "directory": "data/speech/candidates/chatterbox-multilingual-v2",
+    "files": [
+      {
+        "file": "t3_mtl23ls_v2.safetensors",
+        "bytes": 2143989752,
+        "sha256": "b1237586127ce98e7800a68e49938eb5092846862aabcb6e17b2fda7889a6c75"
+      },
+      {
+        "file": "s3gen.pt",
+        "bytes": 1057165844,
+        "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+      },
+      {
+        "file": "ve.pt",
+        "bytes": 5698626,
+        "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+      },
+      {
+        "file": "grapheme_mtl_merged_expanded_v1.json",
+        "bytes": 69989,
+        "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+      },
+      {
+        "file": "Cangjie5_TC.json",
+        "bytes": 1920163,
+        "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+      }
+    ],
+    "status": "evaluation-only"
+  },
+  "asr": {
+    "model": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+    "revision": "2bda32ec70b097a55adaa07d9a7173915b43cc78",
+    "source": "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3",
+    "license": "CC-BY-4.0",
+    "directory": "data/speech/candidates/parakeet-tdt-v3-int8",
+    "files": [
+      {
+        "file": "encoder.int8.onnx",
+        "bytes": 652184281,
+        "sha256": "acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247"
+      },
+      {
+        "file": "decoder.int8.onnx",
+        "bytes": 11845275,
+        "sha256": "179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e"
+      },
+      {
+        "file": "joiner.int8.onnx",
+        "bytes": 6355277,
+        "sha256": "3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3"
+      },
+      {
+        "file": "tokens.txt",
+        "bytes": 93939,
+        "sha256": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"
+      }
+    ],
+    "status": "active-multilingual-recognition"
+  }
+}

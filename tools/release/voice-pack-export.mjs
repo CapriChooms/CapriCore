@@ -4,7 +4,7 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync, statSync } from '
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { root, writeJsonAtomic } from '../../packages/runtime/src/index.mjs';
-import { validateVoicePack } from '../../packages/installer/src/voice-pack.mjs';
+import { validateVoicePack, voiceModelPins } from '../../packages/installer/src/voice-pack.mjs';
 import { noLinks } from '../../packages/installer/src/policy.mjs';
 
 // A release pack is a separate binary artifact. Never export the surrounding
@@ -13,7 +13,10 @@ export function exportVoicePack({ source, destination, upstream } = {}) {
   upstream ??= JSON.parse(readFileSync(path.join(root, 'config/voice-upstream.json'), 'utf8'));
   const { profile, entries } = validateVoicePack(source, upstream.model);
   const original = JSON.parse(readFileSync(path.join(source, 'adapter.json'), 'utf8'));
-  if (!isDeepStrictEqual(original.upstream, upstream) || original.language !== 'en')
+  if (
+    !isDeepStrictEqual(voiceModelPins(original.upstream), voiceModelPins(upstream)) ||
+    original.language !== 'en'
+  )
     throw new Error('Voice adapter metadata does not match the pinned runtime');
   const adapter = Object.fromEntries(
     ['rank', 'alpha', 'dropout'].map((key) => [key, original.adapter?.[key]]),

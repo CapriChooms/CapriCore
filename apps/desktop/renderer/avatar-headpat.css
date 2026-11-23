@@ -10,19 +10,11 @@
   filter: drop-shadow(0 5px 13px #02081080);
 }
 
-img:has(+ .avatar-headpat-plate:not([hidden])) {
-  visibility: hidden;
-}
-
-#sprite-region:has(.avatar-mouth-plate:not([hidden], [data-patch])) :is(img, .avatar-headpat-plate),
-#parked-avatar
-  .avatar-portrait:has(.avatar-mouth-plate:not([hidden], [data-patch]))
-  > :is(img, .avatar-headpat-plate),
 body[data-crt='webgl'] :is(.avatar-headpat-plate, .avatar-mouth-plate) {
   visibility: hidden;
 }
 
-#sprite-region .avatar-mouth-plate[data-patch] {
+#sprite-region :is(.avatar-mouth-plate, .avatar-headpat-plate)[data-patch] {
   filter: none;
 }
 

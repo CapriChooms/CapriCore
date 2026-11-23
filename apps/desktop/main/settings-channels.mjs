@@ -106,6 +106,7 @@ export const SETTINGS_CHANNELS = [
   'personality-save',
   'personality-open',
   'communication-style',
+  'wild-prank-preview',
   'confirmation',
   'wake-import',
   'wake-prepare',

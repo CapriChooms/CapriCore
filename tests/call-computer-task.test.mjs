@@ -60,7 +60,10 @@ function fixture(observations, mutate = () => ({ ok: true }), options = {}) {
     agent: new ComputerAgent({
       control,
       applications: { operation: (_id, _args, execute) => execute() },
-      plan: () => assert.fail('Call actions must not use a model-generated UI plan'),
+      plan: ({ callTaskAllowed }) => {
+        assert.equal(callTaskAllowed, true);
+        return { action: 'call_task' };
+      },
       ...options,
     }),
   };

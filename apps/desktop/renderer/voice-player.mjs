@@ -3,7 +3,7 @@ import { VOICE_EFFECT_DEFAULTS, validateVoiceEffects } from './voice-effects-set
 import { CALL_VOICE_VOLUME_DEFAULT, validateCallVoiceVolume } from './call-audio-settings.mjs';
 import { isVerifiedSeparateCallCable } from './call-audio-route.mjs';
 import { MICROPHONE_GAIN, validateMicrophoneGain } from './speech-settings.mjs';
-import { VOICE_VOLUME_DEFAULT, VOICE_VOLUME_MAX, validateVoiceVolume } from './voice-volume.mjs';
+import { VOICE_VOLUME_DEFAULT, validateVoiceVolume } from './voice-volume.mjs';
 import {
   audioOutputDevice,
   bindAudioOutput,
@@ -21,17 +21,6 @@ const validCallOutput = (id) =>
 const unavailableCallMicrophone =
   'The selected microphone is unavailable. Choose a device in Menu → Microphone input.';
 const speakerReadyTimeoutMs = 3000;
-const maximumSpeakerGain = VOICE_VOLUME_MAX / 100;
-const speakerPeakCurve = Float32Array.from({ length: 4097 }, (_, index) => {
-  const sample = (index / 2048 - 1) * maximumSpeakerGain;
-  const level = Math.abs(sample);
-  // Keep normal speech linear and compress only peaks near full scale.
-  const knee = 0.9;
-  const headroom = 0.09;
-  return level <= knee
-    ? sample
-    : Math.sign(sample) * (knee + headroom * (1 - Math.exp(-(level - knee) / headroom)));
-});
 
 /** Float32 PCM stays in memory; generation and playback have separate lifetimes. */
 export class VoicePlayer {
@@ -115,10 +104,9 @@ export class VoicePlayer {
 
   connectSpeakers(connected) {
     const output = this.speakers;
-    const source = output.peakLimiter ?? output.voiceGain;
-    if (!source || Boolean(output.connected) === connected) return;
-    if (connected) source.connect(output.context.destination);
-    else source.disconnect(output.context.destination);
+    if (!output.voiceGain || Boolean(output.connected) === connected) return;
+    if (connected) output.voiceGain.connect(output.context.destination);
+    else output.voiceGain.disconnect(output.context.destination);
     output.connected = connected;
   }
 
@@ -253,15 +241,9 @@ export class VoicePlayer {
     this.mediaDevices?.removeEventListener?.('devicechange', output.deviceChange);
     output.effects?.destroy();
     output.analyser?.disconnect();
-    if (output.peakLimiter) {
-      output.voiceGain.disconnect();
-      output.limiterInput.disconnect();
-    }
     Object.assign(output, {
       context: null,
       voiceGain: null,
-      limiterInput: null,
-      peakLimiter: null,
       analyser: null,
       meter: null,
       effects: null,
@@ -281,23 +263,14 @@ export class VoicePlayer {
       output.voiceGain = context.createGain();
       output.voiceGain.gain.value =
         (output === this.speakers ? this.speakerVolume : this.callVoiceVolume) / 100;
-      if (output === this.speakers) {
-        if (context.createWaveShaper) {
-          output.limiterInput = context.createGain();
-          output.limiterInput.gain.value = 1 / maximumSpeakerGain;
-          output.peakLimiter = context.createWaveShaper();
-          output.peakLimiter.curve = speakerPeakCurve;
-          // WaveShaper input spans [-1, 1]. Scale the boosted signal into
-          // that range before applying the curve defined in speaker levels.
-          output.voiceGain.connect(output.limiterInput).connect(output.peakLimiter);
-        }
+      if (output === this.speakers)
         this.connectSpeakers(
           !this.speakerRoute &&
             !output.deviceProbe &&
             output.verifiedDevice === this.speakerDevice &&
             matchesAudioOutput(context, this.speakerDevice),
         );
-      } else output.voiceGain.connect(output.mixer ?? context.destination);
+      else output.voiceGain.connect(output.mixer ?? context.destination);
     }
     const destination = output.voiceGain ?? output.mixer ?? context.destination;
     if (!output.analyser && context.createAnalyser) {
@@ -656,6 +629,13 @@ export class VoicePlayer {
     const revision = this.revision,
       effects = this.output?.effects,
       tail = effects?.tailSeconds ?? 0;
+    const complete = () => {
+      this.clearTurnEffects();
+      this.onState({
+        busy: false,
+        ...(!this.firstPlayback && this.turnId && { completedTurnId: this.turnId }),
+      });
+    };
     clearTimeout(this.tailTimer);
     effects?.speaking(false);
     if (this.output !== this.speakers) this.speakers.effects?.speaking(false);
@@ -663,14 +643,11 @@ export class VoicePlayer {
       this.onState({ busy: true });
       this.tailTimer = setTimeout(() => {
         if (revision === this.revision && !this.source && !this.queue.length) {
-          this.clearTurnEffects();
-          this.onState({ busy: false });
+          complete();
         }
       }, tail * 1000);
-    } else {
-      if (this.generated) this.clearTurnEffects();
-      this.onState({ busy: !this.generated, waiting: !this.generated });
-    }
+    } else if (this.generated) complete();
+    else this.onState({ busy: true, waiting: true });
   }
   accept(event) {
     if (event.turnId !== this.turnId || event.sequence !== this.sequence) return;

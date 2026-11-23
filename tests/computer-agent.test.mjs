@@ -6,7 +6,7 @@ import { computerPlanner, computerActionSchema } from '../apps/desktop/computer-
 import { ChatService } from '../apps/desktop/chat-service.mjs';
 import { steamGameGoal, steamMilestones } from '../apps/desktop/steam-task-state.mjs';
 import { matchSteamTitle } from '../apps/desktop/steam-library.mjs';
-import { cyberpunkSteamLaunch, steamGameLauncher } from '../apps/desktop/steam-game-launch.mjs';
+import { cyberpunkSteamLaunch } from '../apps/desktop/steam-game-launch.mjs';
 import { computerModeRequest, ownerAppLaunch } from '../apps/desktop/computer-mode-request.mjs';
 import { edgerunnersPages, edgerunnersTeaserRequest } from '../apps/desktop/edgerunners-teaser.mjs';
 import {
@@ -22,7 +22,7 @@ import {
   observedSteamStoreProduct,
 } from '../apps/desktop/browser-search-state.mjs';
 
-test('Cyberpunk launch verifies the game process and handles the separately observed REDlauncher', async () => {
+test('explicit Steam launch wording does not replace conversation, denial or chained goals', () => {
   const reportedGoal =
     'Используй мой компьютер, открой приложение Steam и запусти Cyberpunk 2077 из библиотеки';
   const steamPlayGoal = 'Open Steam, launch Cyberpunk 2077 and press "play"';
@@ -49,86 +49,9 @@ test('Cyberpunk launch verifies the game process and handles the separately obse
     'Используй мой компьютер, открой приложение Steam и запусти другую игру из библиотеки.',
   ])
     assert.equal(cyberpunkSteamLaunch(text), false, text);
-  for (const state of [
-    'installed',
-    'running',
-    'launcher',
-    'not-installed',
-    'client-unavailable',
-    'revoked',
-  ]) {
-    const opened = [];
-    let clicked = false;
-    const control = {
-      session: null,
-      async begin() {
-        this.session = { controller: new AbortController() };
-      },
-      requireSession() {
-        if (state === 'revoked') throw new Error('Access was revoked.');
-      },
-      async stop() {
-        this.session = null;
-      },
-      async execute(args, _signal, options) {
-        assert(['installed', 'launcher'].includes(state));
-        if (args.action === 'observe') {
-          this.session.target = {
-            executable: 'C:\\Programs\\CD Projekt Red\\REDlauncher\\REDlauncher.exe',
-          };
-          return {
-            window: { windowId: '42' },
-            targets: [
-              { untrustedLabel: 'Cyberpunk 2077' },
-              { untrustedLabel: 'Играть', targetId: 'play' },
-            ],
-          };
-        }
-        assert.deepEqual(args, { action: 'click', targetId: 'play' });
-        assert.deepEqual(options, { exactClickLabel: 'Играть' });
-        assert.equal(clicked, false);
-        clicked = true;
-        return { ok: true };
-      },
-    };
-    const agent = new ComputerAgent({
-      control,
-      applications: { operation: (_id, _args, run) => run() },
-      launchSteamGame: steamGameLauncher({
-        readState: async () =>
-          ['client-unavailable', 'revoked'].includes(state)
-            ? 'installed'
-            : state === 'launcher'
-              ? 'running'
-              : state,
-        isRunning: async () => state === 'running' || clicked,
-        findLauncher: async () => ({ windowId: '42' }),
-        openExternal: async (uri) => {
-          opened.push(uri);
-          if (state === 'client-unavailable') throw new Error('No registered protocol handler');
-        },
-      }),
-      plan: async () => assert.fail('The Steam handoff does not require an LLM'),
-    });
-    const result = await agent.run(
-      state === 'installed'
-        ? steamPlayGoal
-        : 'Use my computer and turn on Cyberpunk’s 2077 please.',
-    );
-    assert.equal(
-      result.status,
-      ['installed', 'running', 'launcher'].includes(state) ? 'completed' : 'incomplete',
-    );
-    assert.equal(clicked, ['installed', 'launcher'].includes(state));
-    assert.deepEqual(
-      opened,
-      ['installed', 'client-unavailable'].includes(state) ? ['steam://rungameid/1091500'] : [],
-    );
-    assert.equal(control.session, null);
-  }
 });
 
-test('an exact foreground-verified application can open without a model; chained goals continue with fresh controls', async () => {
+test('the model chooses even an exact launch, then receives fresh controls for a chained goal', async () => {
   for (const single of [true, false]) {
     const controller = new AbortController();
     const calls = [];
@@ -168,6 +91,7 @@ test('an exact foreground-verified application can open without a model; chained
         },
       },
       async plan(context) {
+        if (!launched) return { action: 'launch', query: 'steam' };
         assert.equal(single, false);
         assert.equal(context.currentObservation.window.windowId, '42');
         assert.equal(context.actualSteps[0].action, 'launch');
@@ -374,8 +298,22 @@ test('the Edgerunners workflow opens both verified pages, scrolls and clicks onl
     };
     const agent = new ComputerAgent({
       control,
-      plan: async () =>
-        assert.fail('Known workflow must not ask a model to invent links or controls'),
+      plan: async (context, { review }) => {
+        if (review || playing)
+          return { action: 'finish', evidence: 'Pause', summary: 'Teaser is playing.' };
+        if (!page || page === edgerunnersPages.official)
+          return {
+            action: 'open_url',
+            query: 'Google Chrome',
+            url: page ? edgerunnersPages.netflix : edgerunnersPages.official,
+          };
+        if (signIn) return { action: 'ask_user', summary: 'Sign in to Netflix.' };
+        if (!scrolled) return { action: 'press_keys', keys: ['PAGEDOWN'] };
+        return {
+          action: 'click',
+          targetId: context.currentObservation.targets.find((t) => t.targetId === 'first').targetId,
+        };
+      },
       applications: {
         async execute(_id, args) {
           assert.equal(args.action, 'open_url');
@@ -394,7 +332,7 @@ test('the Edgerunners workflow opens both verified pages, scrolls and clicks onl
       ...(signIn ? [] : ['press_keys', 'click']),
     ]);
     assert.equal(result.status, signIn ? 'needs_user' : 'completed');
-    assert.equal(result.verified, !signIn);
+    assert.equal(result.verified === true, !signIn);
   }
 });
 
@@ -444,79 +382,26 @@ test('dense windows retain visual click targets and keep the observation within 
   );
 });
 
-test('browser_search uses the observed page field, clicks/types through computer control and submits exactly once', async () => {
-  const actions = [];
-  const field = {
-    targetId: 'page-field',
-    editable: true,
-    browserSearch: true,
-    focused: true,
-    untrustedValue: 'Capri',
-  };
-  const view = { window: { windowId: '123', untrustedTitle: 'Google' }, targets: [field] };
+test('page search never submits or navigates in place of the model’s next step', async () => {
   const agent = new ComputerAgent({
-    control: {
-      requireSession() {},
-      execute: async (args) => {
-        actions.push(args);
-        return args.action === 'observe' ? view : { ok: true, typed: true, windowId: '123' };
-      },
-    },
-    applications: {
-      execute: () => assert.fail('Page input must not fall back to the omnibox'),
-      operation: (_id, _args, run) => run(),
-    },
+    control: { execute: () => assert.fail('Only the model chooses GUI actions') },
+    applications: { execute: () => assert.fail('No implicit address-bar navigation') },
   });
-  const result = await agent.applicationStep(
-    { action: 'browser_search', query: 'Chrome', text: 'Capri' },
-    'Use the search bar.',
-    view,
-    new AbortController().signal,
-  );
-  assert(result.searchSubmitted);
-  assert.deepEqual(
-    actions.map((a) => a.action),
-    ['enter_text', 'observe', 'press_keys'],
-  );
-  assert.deepEqual(actions.at(-1).keys, ['ENTER']);
-});
-
-test('a missing page field loads Google home without claiming that the requested query was searched', async () => {
-  const urls = [];
-  const view = { window: { windowId: '123', untrustedTitle: 'New Tab' }, targets: [] };
-  const agent = new ComputerAgent({
-    control: {
-      requireSession() {},
-      execute: async () => assert.fail('Opening Google must not type a draft into the address bar'),
-    },
-    applications: {
-      execute: async (_id, args) => {
-        assert.equal(args.action, 'open_url');
-        urls.push(args.url);
-        return { ok: true, navigationRequested: true, windowId: '123' };
-      },
-      operation: (_id, _args, run) => run(),
-    },
-  });
-  const result = await agent.applicationStep(
-    { action: 'browser_search', query: 'Chrome', text: 'Capri' },
-    'Use the search bar.',
-    view,
-    new AbortController().signal,
-  );
-  assert.deepEqual(urls, ['https://www.google.com/']);
-  assert.equal(result.searchSubmitted, false);
-  assert.equal(result.navigationUrl, 'https://www.google.com/');
-  assert.equal(
-    browserNavigationState(
-      {
-        window: { windowId: '123', untrustedTitle: 'Google' },
-        targets: [{ browserAddress: true, untrustedValue: 'https://www.google.com/' }],
-      },
-      result,
-    ),
-    'ready',
-  );
+  const step = { action: 'browser_search', query: 'Chrome', text: 'Capri' };
+  for (const targets of [
+    [],
+    [{ targetId: 'page-field', editable: true, browserSearch: true, focused: true }],
+  ]) {
+    const result = await agent.applicationStep(
+      step,
+      'Use the search bar.',
+      { targets },
+      new AbortController().signal,
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.inputPerformed, false);
+    assert.match(result.instruction, /enter_text/);
+  }
 });
 
 test('fullscreen is required by observed window state before a finish claim can succeed', async () => {
@@ -579,13 +464,17 @@ test('a foreground change rejected before input replans against a new observatio
   assert.equal(f.calls.filter((call) => call.action === 'click').length, 1);
 });
 
-test('a verified launch with denied focus uses a unique observed Windows taskbar button', async () => {
+test('the model can choose a verified taskbar button after Windows denies focus', async () => {
   let activated = false;
-  const f = fixture(async ({ actualSteps }) =>
-    actualSteps.length
-      ? { action: 'finish', evidence: 'Discord', summary: 'Discord is open.' }
-      : { action: 'launch', query: 'Discord' },
-  );
+  const f = fixture(async ({ actualSteps, currentObservation }) => {
+    if (!actualSteps.length) return { action: 'launch', query: 'Discord' };
+    if (!activated)
+      return {
+        action: 'click',
+        targetId: currentObservation.targets.find((t) => t.surface === 'taskbar').targetId,
+      };
+    return { action: 'finish', evidence: 'Discord', summary: 'Discord is open.' };
+  });
   f.agent.applications.execute = async () => ({ ok: true, focused: false, windowId: '456' });
   const execute = f.control.execute.bind(f.control);
   f.control.execute = async (args, signal) => {
@@ -595,6 +484,12 @@ test('a verified launch with denied focus uses a unique observed Windows taskbar
       activated = true;
     }
     if (args.action === 'observe') {
+      if (activated)
+        f.control.session.target = {
+          processId: '202',
+          startedAtTicks: '2000',
+          executable: 'C:\\Discord\\Discord.exe',
+        };
       result.window = {
         windowId: activated ? '456' : '123',
         untrustedTitle: activated ? 'Discord' : 'Fixture',
@@ -779,20 +674,20 @@ test('the reported Steam launch resolves Steam, visually selects Cyberpunk and v
   const f = fixture(async (context) => {
     assert.equal(context.originalOwnerGoal, reportedSteamLaunch);
     const view = context.currentObservation;
-    assert.notEqual(screen, 'desktop', 'Planning must start in the requested app.');
+    if (screen === 'desktop') return { action: 'launch', query: 'Steam' };
+    if (screen === 'running')
+      return { action: 'finish', evidence: 'Cyberpunk 2077', summary: 'Started Cyberpunk.' };
     assert.equal(view.screenAvailable, true);
     const planned = { library: 'Cyberpunk 2077', game: 'Играть', launcher: 'Play' }[screen];
     const target = view.targets.find((item) => item.untrustedLabel === planned);
     if (screen === 'launcher')
-      assert.deepEqual(
-        view.targets.map((item) => item.untrustedLabel),
-        ['Play'],
+      assert.equal(
+        view.targets.find((item) => item.targetId === context.steamTaskTargets[0])?.untrustedLabel,
+        'Play',
       );
     assert(target, planned);
     return { action: 'click', targetId: target.targetId, summary: planned };
   });
-  f.agent.plan.outline = async () =>
-    assert.fail('The Steam launch must not wait for a generic outline.');
   f.agent.applications.findApplications = async (name) => {
     assert.equal(name, 'Steam');
     return [{ name: 'Steam', id: 'steam' }];
@@ -803,28 +698,22 @@ test('the reported Steam launch resolves Steam, visually selects Cyberpunk and v
     screen = 'library';
     return { ok: true, focused: true, windowVerified: true, windowId: '42' };
   };
-  f.agent.launchSteamGame = steamGameLauncher({
-    readState: async () => 'installed',
-    isRunning: async () => screen === 'running',
-    openExternal: async () => assert.fail('Steam Play must not be dispatched twice'),
-  });
   let revision = 0;
   let current;
   let blockedObservation;
   f.control.execute = async (input) => {
     if (input.action === 'observe') {
-      assert.notEqual(
-        screen,
-        'desktop',
-        'A failed attempt to focus the window behind Capri must not block opening Steam.',
-      );
+      if (screen === 'desktop')
+        throw Object.assign(new Error('No available window'), {
+          code: 'COMPUTER_APPLICATION_UNAVAILABLE',
+        });
       const steam = ['library', 'game'].includes(screen);
       const launcher = screen === 'launcher';
       const windowId = steam ? '42' : launcher ? '43' : '1';
       f.control.session.target = launcher
         ? { windowId, executable: 'C:\\Programs\\CD Projekt Red\\REDlauncher\\REDlauncher.exe' }
-        : { windowId };
-      assert.equal(input.vision, !launcher || Boolean(input.visualWindow));
+        : { windowId, ...(screen === 'running' && { executable: 'C:\\games\\Cyberpunk2077.exe' }) };
+      if (launcher) assert.equal(input.vision, true);
       const targets = (
         screen === 'library'
           ? [{ untrustedLabel: 'Cyberpunk 2077', steamRole: 'game_row' }]
@@ -833,13 +722,17 @@ test('the reported Steam launch resolves Steam, visually selects Cyberpunk and v
             : launcher
               ? [
                   { untrustedLabel: 'Cyberpunk 2077' },
-                  { untrustedLabel: 'Play', actionRole: 'button' },
+                  { untrustedLabel: 'Play', actionRole: 'button', visualConfirmed: true },
                 ]
               : []
       ).map((item, index) => ({ ...item, targetId: `${screen}-${index}`, source: 'vision' }));
       current = {
         observationId: String(++revision),
-        window: { windowId, ...(steam && { applicationKind: 'steam' }) },
+        window: {
+          windowId,
+          ...(steam && { applicationKind: 'steam' }),
+          ...(screen === 'running' && { untrustedTitle: 'Cyberpunk 2077' }),
+        },
         targets,
         screenAvailable: input.vision,
         ...(steam && {
@@ -969,6 +862,7 @@ async function assertSteamLaunch(goal, installedGame = null) {
   let state = 'before',
     revision = 0;
   const f = fixture(async ({ currentObservation: view }, { review }) => {
+    if (state === 'before') return { action: 'launch', query: 'Steam' };
     if (review || state === 'running')
       return {
         action: 'finish',
@@ -1001,7 +895,10 @@ async function assertSteamLaunch(goal, installedGame = null) {
     return { ok: true, focused: true, windowVerified: true, windowId: '42' };
   };
   f.control.execute = async (args) => {
-    assert.notEqual(state, 'before');
+    if (state === 'before')
+      throw Object.assign(new Error('No application open'), {
+        code: 'COMPUTER_APPLICATION_UNAVAILABLE',
+      });
     if (args.action === 'observe') {
       assert.equal(args.vision, true);
       assert.equal(f.control.session.steamGame.name, 'Alchemy Factory');
@@ -1465,7 +1362,7 @@ test('a result that changes during the completion review is not reported as veri
   };
   assert.equal((await f.agent.run('Inspect the owned window')).ok, false);
 });
-test('explicit computer task mode bypasses chat routing and persists the actual result', async () => {
+test('explicit computer task mode waits for the model and persists the actual result', async () => {
   const records = new Map(),
     events = [];
   const service = new ChatService({
@@ -1479,8 +1376,11 @@ test('explicit computer task mode bypasses chat routing and persists the actual 
       assert.equal(goal, 'Write Capri');
       return { status: 'completed', steps: 2, summary: 'Entered Capri.' };
     },
-    fetchImpl: () => {
-      throw Error('Must not use ordinary chat');
+    token: () => 'fixture',
+    persona: () => 'Capri',
+    fetchImpl: async () => {
+      service.selectModelComputerTask('Write Capri');
+      return new Response('data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } });
     },
   });
   await service.send(
@@ -1658,7 +1558,7 @@ test('browser search cannot submit a draft into a changed window or override a n
   assert.equal((await f.agent.run('Type Capri. Do not press Enter.')).ok, false);
   assert.equal(dispatches, 0);
   assert.equal((await f.agent.run('Google Capri in the Test window')).ok, false);
-  assert.equal(dispatches, 1);
+  assert.equal(dispatches, 0);
   assert(f.calls.every((c) => c.action === 'observe'));
 });
 

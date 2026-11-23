@@ -4,6 +4,7 @@ import { HistoryAttachments } from './history-attachments.mjs';
 import { VoicePlayer } from './voice-player.mjs';
 import { bindAudioOutput, createAudioOutputContext } from './local-audio-output.mjs';
 import { ReplyVisibility } from './reply-visibility.mjs';
+import { REPLY_SPACE, MIN_COMPACT_HEIGHT } from './reply-geometry.mjs';
 import { VoiceEffectsPanel } from './voice-effects-panel.mjs';
 import { InterfaceLanguage, languageName } from './language-settings.mjs';
 import { prepareInterfaceLocale } from './interface-translations.mjs';
@@ -80,10 +81,6 @@ const headpat = new AvatarHeadpat(document.getElementById('avatar-viewport'), ()
 const dimmingMask = new DimmingMask(document.getElementById('window-shade'));
 const microphoneLabelTicker = new OverflowTicker(document.getElementById('microphone-label'));
 const microphoneTextTicker = new OverflowTicker(document.getElementById('microphone-text'));
-new OverflowTicker(
-  document.getElementById('inference-info'),
-  document.getElementById('inference-track'),
-);
 const ui = new InterfaceLanguage();
 const historyAttachments = new HistoryAttachments({
   openImage: (id) => api.openAttachmentImage(id),
@@ -447,6 +444,7 @@ function resumeRestartedMicrophone() {
 let miniDraftRevision = 0,
   lastMiniSnapshot;
 let dragPointer = null;
+let dragMotion;
 let regionsFrame = null;
 let followOutput = true;
 let companionLocale = ui.language;
@@ -502,13 +500,15 @@ let desktopCue;
 let desktopStatus;
 const replySlot = document.getElementById('reply-slot');
 const replyStage = elements['subtitle-stage'];
+replySlot.style.setProperty('--reply-space', REPLY_SPACE + 'px');
+replySlot.style.setProperty('--reply-min-compact', MIN_COMPACT_HEIGHT + 'px');
 const replyMotionPreference = matchMedia('(prefers-reduced-motion: reduce)');
 let replyNativeMotion, replyFade, replyChangePending;
 let focusReplyAfterReveal = false;
-const windowMotion = () => ({
-  active: dragPointer !== null || replyNativeMotion?.animated === true || Boolean(replyFade),
-  surfaceHeight: replyNativeMotion?.animated ? replyNativeMotion.expandedHeight : null,
-});
+
+function animateReplyBubble() {
+  return companionSettings?.replyAnimation === true && !replyMotionPreference.matches;
+}
 
 function settleReplyPresentation(hidden) {
   replyNativeMotion = null;
@@ -518,13 +518,12 @@ function settleReplyPresentation(hidden) {
   replySlot.hidden = hidden;
   delete replySlot.dataset.resizing;
   replySlot.style.removeProperty('--reply-reveal');
+  replySlot.style.removeProperty('--reply-budget');
   replySlot.style.removeProperty('height');
-  document.body.style.removeProperty('--reply-canvas-height');
   if (!hidden && focusReplyAfterReveal) {
     focusReplyAfterReveal = false;
     document.getElementById('subtitle-collapse').focus({ preventScroll: true });
   }
-  signalFx?.invalidate();
   scheduleRegions();
 }
 
@@ -535,16 +534,12 @@ function paintNativeReplyMotion() {
     settleReplyPresentation(collapsed);
     return;
   }
-  if (!animated) return;
-  const reveal = Math.min(
-    1,
-    Math.max(0, (innerHeight - compactHeight) / (expandedHeight - compactHeight)),
-  );
-  const style = getComputedStyle(replyStage);
-  const height =
-    replyStage.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
-  replySlot.style.height = height * reveal + 'px';
-  replySlot.style.setProperty('--reply-reveal', String(reveal));
+  const budget = expandedHeight - compactHeight;
+  const occupied = Math.max(0, Math.min(budget, innerHeight - compactHeight));
+  replySlot.style.setProperty('--reply-budget', budget + 'px');
+  replySlot.style.height = occupied + 'px';
+  if (animated && budget > 0)
+    replySlot.style.setProperty('--reply-reveal', String(occupied / budget));
 }
 
 function beginNativeReplyMotion(event) {
@@ -555,11 +550,7 @@ function beginNativeReplyMotion(event) {
     return;
   replyChangePending = false;
   replyNativeMotion = event;
-  if (event.animated) {
-    if (!replySlot.hidden) replySlot.dataset.resizing = '';
-    // The viewport clips the effects. Keep their pixel buffers fixed while the window changes height.
-    document.body.style.setProperty('--reply-canvas-height', `${event.expandedHeight}px`);
-  } else document.body.style.removeProperty('--reply-canvas-height');
+  if (event.animated && !replySlot.hidden) replySlot.dataset.resizing = '';
   paintNativeReplyMotion();
   scheduleRegions();
 }
@@ -585,7 +576,7 @@ function presentReply(hidden) {
     }
     return;
   }
-  if (!document.body.hasAttribute('data-horizontal-portrait') || replyMotionPreference.matches) {
+  if (!document.body.hasAttribute('data-horizontal-portrait') || !animateReplyBubble()) {
     settleReplyPresentation(hidden);
     return;
   }
@@ -777,7 +768,11 @@ const voicePlayer = new VoicePlayer({
   onState: (value) => {
     voiceBusy = value.busy;
     replyVisibility.playback(voicePlayer.turnId, value.busy);
-    api.playbackState(value.busy).catch(() => {});
+    api
+      .playbackState(
+        value.completedTurnId ? { completedTurnId: value.completedTurnId } : value.busy,
+      )
+      .catch(() => {});
     presence.playback({ busy: value.busy, speaking: Boolean(value.text) });
     document.body.dataset.speaking = String(Boolean(value.text));
     microphoneClient?.playback({
@@ -1709,6 +1704,13 @@ function updateDimming() {
 }
 
 let lastDraftBusy = false;
+const inputHeightLimit = (height) => (height <= 400 ? 29 : height <= 540 ? 48 : 67);
+function composerHeightLimit() {
+  const replyHeight = document.body.hasAttribute('data-vertical-portrait')
+    ? replySlot.offsetHeight
+    : 0;
+  return inputHeightLimit(innerHeight - replyHeight);
+}
 function sizeInput() {
   const busy = Boolean(
     elements.message.value.trim() ||
@@ -1720,7 +1722,7 @@ function sizeInput() {
     api.draftState(busy).catch(() => {});
   }
   elements.message.style.height = '29px';
-  const maximum = innerHeight <= 400 ? 29 : innerHeight <= 540 ? 48 : 67;
+  const maximum = composerHeightLimit();
   if (elements.message.value && maximum > 29)
     elements.message.style.height = `${Math.max(29, Math.min(maximum, elements.message.scrollHeight))}px`;
   scheduleRegions();
@@ -1816,7 +1818,7 @@ const portraitWave = new AvatarWave(elements['sprite-region'], {
 const cameraPublisher = new CameraFramePublisher({
   image: () =>
     avatarDetachPhase === 'attached'
-      ? (portraitWave.image ?? portraitMouth.image(headpat.image(elements.sprite)))
+      ? (portraitWave.image ?? portraitMouth.image(elements.sprite))
       : elements.sprite,
   send: (frame) => api.publishCameraFrame(frame),
   sendPreview: (frame) => api.publishCameraPreview(frame),
@@ -1824,7 +1826,8 @@ const cameraPublisher = new CameraFramePublisher({
 });
 window.addEventListener('pagehide', () => cameraPublisher.stop(), { once: true });
 let mouthShape = 'closed',
-  desktopMouth;
+  desktopMouth,
+  desktopFace;
 function animateCharacter(now, snapshot, reduced) {
   if (avatarDetachPhase !== 'attached' && companionSettings?.detachedStyle === 'dialogue') return;
   if (startupIntro?.active && presence.sleeping) startupIntro.cancel();
@@ -1843,8 +1846,6 @@ function animateCharacter(now, snapshot, reduced) {
     desktopMouth = mouthShape;
     api.avatarMouth(mouthShape).catch(() => {});
   } else if (!detached) desktopMouth = undefined;
-  if (avatarDetachPhase === 'attached')
-    portraitMouth.update(headpat.image(elements.sprite), mouthShape, renderedFrame?.id);
   if (!director || (!detached && avatarDetachPhase !== 'attached')) {
     musicNotes?.clear();
     return;
@@ -1860,6 +1861,31 @@ function animateCharacter(now, snapshot, reduced) {
     sleeping: presence.sleeping,
   });
   if (!state) return;
+  const clip = reduced ? null : state.clip;
+  if (detached) {
+    const remoteClip = clip?.id === 'blink' ? null : clip;
+    const key = [state.expression, remoteClip?.id, remoteClip?.start].join(':');
+    if (key !== desktopFace) {
+      desktopFace = key;
+      api
+        .avatarFace({
+          expression: state.expression,
+          clip: remoteClip?.id ?? null,
+          startedAt: remoteClip ? Date.now() - Math.round(now - remoteClip.start) : 0,
+        })
+        .catch(() => {});
+    }
+  } else {
+    desktopFace = undefined;
+    portraitMouth.update(
+      elements.sprite,
+      mouthShape,
+      renderedFrame?.id,
+      presence.sleeping ? 'idle-blink_closed' : (headpat.expression ?? state.expression),
+      presence.sleeping || headpat.expression ? null : clip,
+      now,
+    );
+  }
   // Moving Capri or her window changes placement, not the current music pose.
   const musicActive = Boolean(
     musicAnimationReady(musicState) &&
@@ -3203,12 +3229,17 @@ function applyWindowLayout({ windowLayout = 'vertical', horizontalMonitorPositio
     return;
   state.windowLayout = windowLayout;
   state.horizontalMonitorPosition = horizontalMonitorPosition;
-  redrawAvatar();
-  if (subtitleController.state.id) showSubtitles(subtitleController.state);
+  portraitLayoutDirty = true;
+  scheduleRegions();
 }
 
+let viewportWidth = innerWidth;
+let viewportHeight = innerHeight;
+let portraitLayoutDirty = false;
+let composerLayoutDirty = false;
+let previousComposerLimit;
+
 function publishRegions() {
-  regionsFrame = null;
   const { avatarDock, avatarDetach, presence: mode, windowLayout } = document.body.dataset;
   const homePortrait =
     mode === 'portrait' &&
@@ -3227,10 +3258,6 @@ function publishRegions() {
   } else if (callAudioDock.previousElementSibling !== dockTelemetry) {
     callAudioDock.before(dockTelemetry);
   }
-  if (layoutChanged) {
-    sizeInput();
-    if (subtitleController.state.id) showSubtitles(subtitleController.state);
-  }
   guide.scheduleLayout();
   const compact = mode === 'core' || avatarDock === 'compact';
   const modal = confirmDialog.dialog.open || guide.active;
@@ -3241,11 +3268,33 @@ function publishRegions() {
     (layoutChanged && replyFade)
   )
     settleReplyPresentation(replyHidden);
+  const widthChanged = viewportWidth !== innerWidth;
+  const heightChanged = viewportHeight !== innerHeight;
+  const resized = widthChanged || heightChanged;
+  const replyResizing = Boolean(replyNativeMotion);
+  const composerLimit = composerHeightLimit();
+  const composerHeightChanged = composerLimit !== previousComposerLimit;
+  previousComposerLimit = composerLimit;
+  if (resized) {
+    endSpriteDrag();
+    viewportWidth = innerWidth;
+    viewportHeight = innerHeight;
+  }
+  if (layoutChanged || composerLayoutDirty || widthChanged || composerHeightChanged) {
+    composerLayoutDirty = false;
+    sizeInput();
+  }
+  if (layoutChanged || widthChanged || (heightChanged && !replyResizing))
+    subtitleController.reflow();
+  if (layoutChanged || resized || portraitLayoutDirty) {
+    portraitLayoutDirty = false;
+    redrawAvatar();
+  }
   const replyCollapsed = verticalPortrait && replyHidden && !modal;
   const reply = document.getElementById('subtitle-frame');
   reply.toggleAttribute(
     'data-hit-region',
-    horizontalPortrait && !replyHidden && reply.scrollHeight > reply.clientHeight + 1,
+    homePortrait && !replyHidden && reply.scrollHeight > reply.clientHeight + 1,
   );
   const fitBackdrop = compact || replyHidden || windowLayout === 'horizontal';
   const viewport = { width: innerWidth, height: innerHeight };
@@ -3254,9 +3303,7 @@ function publishRegions() {
     const notifications =
       mode === 'core' ? element.closest('.dock-notifications')?.getBoundingClientRect() : null;
     const clip =
-      element
-        .closest('#reply-slot[data-resizing], body[data-presence="portrait"] #quick-controls')
-        ?.getBoundingClientRect() ?? notifications;
+      element.closest('#reply-slot[data-resizing]')?.getBoundingClientRect() ?? notifications;
     const x = Math.max(rect.left, clip?.left ?? rect.left);
     const y = Math.max(rect.top, clip?.top ?? rect.top);
     return {
@@ -3343,31 +3390,81 @@ function publishRegions() {
     height: 1,
     enabled: false,
   };
-  const replyMotion = replyChangePending && !modal && !replyMotionPreference.matches;
-  api.setRegions({ controls, sprite, footprint, replyCollapsed, replyMotion }).catch(() => {});
+  const replyMotion = replyChangePending && !modal && animateReplyBubble();
+  if (!dragMotion?.edge)
+    api.setRegions({ controls, sprite, footprint, replyCollapsed, replyMotion }).catch(() => {});
 }
 
 function scheduleRegions() {
-  if (!regionsFrame) regionsFrame = requestAnimationFrame(publishRegions);
+  if (regionsFrame) return;
+  regionsFrame = requestAnimationFrame(() => {
+    try {
+      publishRegions();
+    } finally {
+      regionsFrame = null;
+    }
+  });
 }
 
 function startDrag(event) {
-  if (event.button !== 0 || event.target.closest('button') || spriteDrag) return;
+  if (event.button !== 0 || event.target.closest('button') || spriteDrag || dragPointer !== null)
+    return;
   if (replyNativeMotion) settleReplyPresentation(replyVisibility.hidden === true);
   dragPointer = event.pointerId;
+  dragMotion = { edge: event.currentTarget.dataset.resizeEdge, dirty: false };
   event.currentTarget.setPointerCapture(event.pointerId);
-  api.startDrag(event.currentTarget.dataset.resizeEdge).catch(() => {});
+  const motion = dragMotion;
+  api
+    .startDrag(motion.edge)
+    .then((started) => {
+      if (dragMotion === motion && !started) cancelDragFrame();
+    })
+    .catch(() => {
+      if (dragMotion === motion) cancelDragFrame();
+    });
+}
+
+function queueDragFrame(motion) {
+  if (motion.frame || motion.sending || !motion.dirty) return;
+  motion.frame = requestAnimationFrame(() => {
+    motion.frame = 0;
+    motion.dirty = false;
+    motion.sending = true;
+    api
+      .dragFrame()
+      .catch(() => {})
+      .finally(() => {
+        motion.sending = false;
+        if (dragMotion === motion) queueDragFrame(motion);
+      });
+  });
+}
+
+function moveDrag(event) {
+  if (!dragMotion || event.pointerId !== dragPointer) return;
+  dragMotion.dirty = true;
+  queueDragFrame(dragMotion);
+}
+
+function cancelDragFrame() {
+  if (dragMotion?.frame) cancelAnimationFrame(dragMotion.frame);
+  dragMotion = undefined;
+  dragPointer = null;
 }
 
 function endDrag(event) {
   if (dragPointer === null || (event.pointerId !== undefined && event.pointerId !== dragPointer))
     return;
-  dragPointer = null;
-  api.endDrag().catch(() => {});
+  cancelDragFrame();
+  api
+    .endDrag(event.type === 'pointerup')
+    .catch(() => {})
+    .finally(scheduleRegions);
 }
 
 for (const element of [elements.handle, ...document.querySelectorAll('[data-resize-edge]')]) {
   element.addEventListener('pointerdown', startDrag);
+  element.addEventListener('pointermove', moveDrag);
   element.addEventListener('pointerup', endDrag);
   element.addEventListener('pointercancel', endDrag);
   element.addEventListener('lostpointercapture', endDrag);
@@ -3567,25 +3664,25 @@ elements.messages.addEventListener('scroll', () => {
     elements.messages.scrollHeight - elements.messages.clientHeight - elements.messages.scrollTop <
     45;
 });
-const regionObserver = new ResizeObserver(() => {
-  redrawAvatar();
+const portraitPanel = document.getElementById('portrait-panel');
+const regionObserver = new ResizeObserver((entries) => {
+  if (entries.some(({ target }) => target === portraitPanel || target === inputDock))
+    portraitLayoutDirty = true;
   scheduleRegions();
 });
 let composerWidth;
 new ResizeObserver(([{ contentRect }]) => {
   if (contentRect.width === composerWidth) return;
   composerWidth = contentRect.width;
-  sizeInput();
+  composerLayoutDirty = true;
+  scheduleRegions();
 }).observe(elements.message.parentElement);
-for (const element of [
-  document.body,
-  ...document.querySelectorAll(`[data-hit-region], ${visualRegionSelector}`),
-  document.getElementById('portrait-panel'),
-  elements['sprite-region'],
-])
-  regionObserver.observe(element);
+for (const element of document.querySelectorAll(
+  `[data-hit-region], ${visualRegionSelector}, #portrait-panel, #input-dock`,
+))
+  if (element !== elements['sprite-region']) regionObserver.observe(element);
 for (const scroller of document.querySelectorAll(
-  '.dock-notifications, #process-graphs-hud, #memory-hud, #quick-controls',
+  '.dock-notifications, #process-graphs-hud, #memory-hud',
 ))
   scroller.addEventListener('scroll', scheduleRegions, { passive: true });
 document.getElementById('clip-open').addEventListener('click', () => {
@@ -3604,17 +3701,8 @@ document.getElementById('clip-close').addEventListener('click', () => {
   sizeInput();
   scheduleRegions();
 });
-let viewportWidth = innerWidth;
 window.addEventListener('resize', () => {
-  const replyResizing = Boolean(replyNativeMotion);
   paintNativeReplyMotion();
-  endSpriteDrag();
-  if (!replyResizing || innerWidth !== viewportWidth) {
-    viewportWidth = innerWidth;
-    sizeInput();
-    if (subtitleController.state.id) showSubtitles(subtitleController.state);
-  }
-  redrawAvatar();
   scheduleRegions();
 });
 document.fonts.ready.then(() => {
@@ -3642,7 +3730,7 @@ startupIntro = new StartupIntro({
     (!director || renderedFrame?.id === director.base?.frameId) &&
     elements.sprite.complete &&
     elements.sprite.naturalWidth > 0,
-  readyImage: () => portraitMouth.image(headpat.image(elements.sprite)),
+  readyImage: () => portraitMouth.image(elements.sprite),
   interrupted: () =>
     Boolean(
       activeTurnId ||
@@ -3670,7 +3758,7 @@ signalFx = new SignalFX({
   getSpriteImage: () =>
     startupIntro?.texture ??
     portraitWave.image ??
-    musicPose.image(portraitMouth.image(headpat.image(elements.sprite)), currentMusicMotion),
+    musicPose.image(portraitMouth.image(elements.sprite), currentMusicMotion),
   frame: document.getElementById('portrait-panel'),
   audioLevel: () => voicePlayer.level,
   onLayout: () => {
@@ -3680,7 +3768,6 @@ signalFx = new SignalFX({
   },
   onMovement: scheduleRegions,
   onFrame: animateCharacter,
-  windowMotion,
   text: (value) => ui.text(value),
 });
 signalFx.onGlitch = (value) => api.glitchFrame(value).catch(() => {});

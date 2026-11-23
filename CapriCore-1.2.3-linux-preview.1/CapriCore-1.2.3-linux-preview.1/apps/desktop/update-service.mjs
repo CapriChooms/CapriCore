@@ -1,0 +1,708 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import {
+  existsSync,
+  readFileSync,
+  mkdirSync,
+  mkdtempSync,
+  copyFileSync,
+  writeFileSync,
+  appendFileSync,
+  openSync,
+  closeSync,
+} from 'node:fs';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
+import { Preferences } from './preferences.mjs';
+import { writeJsonAtomic } from './storage.mjs';
+import { noLinks } from '../../packages/installer/src/policy.mjs';
+import {
+  installedUpdateVersion,
+  managedInstallation,
+  runtimeUpgradeRequired,
+} from '../../packages/updater/src/transaction.mjs';
+import {
+  listReleases,
+  listUpdateReleases,
+  githubCredential,
+} from '../../packages/updater/src/github.mjs';
+import { gitlabReleaseUrl } from '../../packages/updater/src/gitlab.mjs';
+import {
+  EXPERIMENTAL_REPOSITORY,
+  REPOSITORY,
+  compareVersions,
+  selectRelease,
+  releaseAsset,
+  releaseVersion,
+  parseVersion,
+} from '../../packages/updater/src/releases.mjs';
+import { downloadUpdate } from '../../packages/updater/src/download.mjs';
+import { stageUpdate } from '../../packages/updater/src/stage.mjs';
+import { fileHash } from '../../packages/installer/src/download.mjs';
+import { prepareUpdateHost } from '../../packages/updater/src/launcher.mjs';
+
+function isExperimentalRelease(release) {
+  // A private preview can be marked Latest on GitHub only as a regular release.
+  try {
+    return parseVersion(release.tag_name).pre.length > 0 || release.prerelease === true;
+  } catch {
+    return false;
+  }
+}
+
+const privateAccessMessage =
+  'GitHub access is unavailable for this private repository. Connect GitHub in Updates and check your Capri invitation and token approval.';
+const automaticCheckInterval = 30 * 60_000;
+
+export function validateUpdateSettings(value, automaticDefault = true) {
+  if (
+    !value ||
+    typeof value.experimental !== 'boolean' ||
+    (Object.hasOwn(value, 'automatic') && typeof value.automatic !== 'boolean') ||
+    Object.keys(value).some((key) => key !== 'experimental' && key !== 'automatic')
+  )
+    throw new Error('Invalid update settings');
+  return { experimental: value.experimental, automatic: value.automatic ?? automaticDefault };
+}
+/** Download work does not block inference. Only an explicit install request closes Capri. */
+export class UpdateService {
+  constructor({
+    root,
+    state,
+    node,
+    emit = () => {},
+    credential = githubCredential,
+    releases,
+    download = downloadUpdate,
+    stage = stageUpdate,
+    launch = spawn,
+    prepareHost = prepareUpdateHost,
+    startupTimeoutMs = 15000,
+    installSupported = true,
+    platform = process.platform,
+    arch = process.arch,
+  }) {
+    const archive = !installSupported && platform === 'linux' && arch === 'x64';
+    Object.assign(this, {
+      root,
+      node,
+      emit,
+      credential,
+      releases: releases ?? (archive ? listReleases : listUpdateReleases),
+      download,
+      stage,
+      launch,
+      prepareHost,
+      startupTimeoutMs,
+    });
+    const metadata = JSON.parse(readFileSync(path.join(root, 'config/release.json'), 'utf8'));
+    const version = parseVersion(metadata.tag);
+    this.preferences = new Preferences(
+      path.join(state, 'updates.json'),
+      { experimental: archive && version.pre.length > 0, automatic: true },
+      validateUpdateSettings,
+    );
+    this.current = archive ? metadata.tag : installedUpdateVersion(root, metadata.tag);
+    this.mode = archive ? 'archive' : installSupported ? 'installer' : 'manual';
+    if (installSupported) {
+      try {
+        managedInstallation(root);
+        this.mode = 'managed';
+      } catch {
+        /* A source checkout is never overwritten by the updater. */
+      }
+    }
+    this.value = {
+      phase: this.mode === 'manual' ? 'manual' : 'idle',
+      current: this.current,
+      mode: this.mode,
+      ...this.preferences.snapshot(),
+      ...(this.mode === 'manual' && { automatic: false, experimental: false }),
+      notification: null,
+    };
+    this.selected = null;
+    this.prepared = null;
+    this.controller = null;
+    this.handoff = false;
+    this.automaticController = null;
+    this.automaticOperation = null;
+    this.automaticChecksStarted = false;
+    this.automaticTimer = null;
+    this.startupAttempted = false;
+    this.startupSuperseded = false;
+    this.deferredTags = new Set();
+    this.closed = false;
+  }
+  snapshot() {
+    return structuredClone(this.value);
+  }
+  get assetKind() {
+    if (this.mode === 'archive') return 'linux-x64';
+    return this.mode === 'managed' ? 'source' : 'installer';
+  }
+  publish(patch) {
+    Object.assign(this.value, patch);
+    this.emit({ type: 'updates.status', ...this.snapshot() });
+    return this.snapshot();
+  }
+  busy() {
+    return (
+      Boolean(this.installOperation) ||
+      ['checking', 'downloading', 'verifying', 'installing'].includes(this.value.phase)
+    );
+  }
+  cancelAutomaticCheck() {
+    this.startupSuperseded = true;
+    this.automaticController?.abort(new Error('Automatic update check cancelled'));
+  }
+  startAutomaticChecks() {
+    if (this.mode === 'manual' || this.closed || this.automaticChecksStarted) return;
+    this.automaticChecksStarted = true;
+    this.syncAutomaticCheckTimer();
+    return this.checkOnStartup();
+  }
+  syncAutomaticCheckTimer() {
+    if (this.closed || !this.preferences.value.automatic) {
+      clearInterval(this.automaticTimer);
+      this.automaticTimer = null;
+    } else if (this.automaticChecksStarted && !this.automaticTimer) {
+      this.automaticTimer = setInterval(
+        () => void this.checkAutomatically(),
+        automaticCheckInterval,
+      );
+      this.automaticTimer.unref?.();
+    }
+  }
+  async optionalCredential() {
+    try {
+      const token = await this.credential(this.root);
+      return typeof token === 'string' && token && !/[\x00-\x20\x7f]/.test(token) ? token : null;
+    } catch {
+      // Public updates still work if a saved private-preview credential cannot be decrypted.
+      // Leave encrypted storage intact so its owner can reconnect or remove it in Settings.
+      return null;
+    }
+  }
+  async findRelease(experimental, signal, { reportPrivateFailure = false } = {}) {
+    const token = this.mode === 'archive' ? null : await this.optionalCredential();
+    signal.throwIfAborted();
+    const selection = {
+      current: this.current,
+      experimental,
+      kind: this.assetKind,
+    };
+    const publicReleases = this.releases({ token, signal, allowAnonymousFallback: true });
+    const selectPublic = (items) => {
+      const release = selectRelease(items, selection);
+      return release && { ...release, repository: REPOSITORY };
+    };
+    if (!experimental || !token) {
+      const release = selectPublic(await publicReleases);
+      if (experimental && !token && !release && reportPrivateFailure && this.mode !== 'archive')
+        throw Object.assign(new Error(privateAccessMessage), { code: 'GITHUB_ACCESS_REQUIRED' });
+      return release;
+    }
+
+    const previewSignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+    const [publicResult, previewResult] = await Promise.allSettled([
+      publicReleases,
+      this.releases({ token, signal: previewSignal, repository: EXPERIMENTAL_REPOSITORY }),
+    ]);
+    signal.throwIfAborted();
+    const publicRelease =
+      publicResult.status === 'fulfilled' ? selectPublic(publicResult.value) : null;
+    const previewRelease =
+      previewResult.status === 'fulfilled'
+        ? selectRelease(previewResult.value.filter(isExperimentalRelease), {
+            ...selection,
+            repository: EXPERIMENTAL_REPOSITORY,
+          })
+        : null;
+    if (
+      previewRelease &&
+      (!publicRelease ||
+        compareVersions(
+          releaseVersion(previewRelease, EXPERIMENTAL_REPOSITORY),
+          publicRelease.tag_name,
+        ) > 0)
+    )
+      return { ...previewRelease, repository: EXPERIMENTAL_REPOSITORY };
+    if (publicResult.status === 'rejected') throw publicResult.reason;
+    if (reportPrivateFailure && !publicRelease && previewResult.status === 'rejected') {
+      if (previewResult.reason?.code === 'GITHUB_ACCESS_REQUIRED') throw previewResult.reason;
+      throw new Error('GitHub update check failed. Try again.');
+    }
+    return publicRelease;
+  }
+  checkOnStartup() {
+    if (this.startupAttempted) return this.automaticOperation ?? Promise.resolve(this.snapshot());
+    this.startupAttempted = true;
+    if (this.startupSuperseded || this.value.phase !== 'idle')
+      return Promise.resolve(this.snapshot());
+    return this.checkAutomatically();
+  }
+  checkAutomatically() {
+    if (
+      this.closed ||
+      !this.preferences.value.automatic ||
+      this.busy() ||
+      this.value.phase === 'ready'
+    )
+      return Promise.resolve(this.snapshot());
+    if (this.automaticOperation) return this.automaticOperation;
+    const controller = new AbortController();
+    this.automaticController = controller;
+    const experimental = this.preferences.value.experimental;
+    let onAbort;
+    const cancelled = new Promise((_, reject) => {
+      onAbort = () => reject(controller.signal.reason);
+      controller.signal.addEventListener('abort', onAbort, { once: true });
+    });
+    const timer = setTimeout(
+      () => controller.abort(new Error('Automatic update check timed out')),
+      this.startupTimeoutMs,
+    );
+    timer.unref?.();
+    const probe = async () => {
+      const selected = await this.findRelease(experimental, controller.signal);
+      controller.signal.throwIfAborted();
+      if (!selected) return this.snapshot();
+      if (
+        this.selected &&
+        this.value.checkedExperimental === experimental &&
+        compareVersions(releaseVersion(selected), releaseVersion(this.selected)) <= 0
+      )
+        return this.snapshot();
+      this.selected = selected;
+      this.prepared = null;
+      return this.publish({
+        phase: 'available',
+        release: this.describeRelease(selected),
+        error: null,
+        progress: null,
+        installerRequired: false,
+        installerReason: null,
+        needsAccess: false,
+        checkedExperimental: experimental,
+        notification: this.deferredTags.has(selected.tag_name) ? null : { tag: selected.tag_name },
+      });
+    };
+    this.automaticOperation = Promise.race([probe(), cancelled])
+      .catch(() => this.snapshot())
+      .finally(() => {
+        clearTimeout(timer);
+        controller.signal.removeEventListener('abort', onAbort);
+        this.automaticController = null;
+        this.automaticOperation = null;
+      });
+    return this.automaticOperation;
+  }
+  describeRelease(selected) {
+    return {
+      tag: selected.tag_name,
+      experimental: isExperimentalRelease(selected),
+      bytes: releaseAsset(selected, this.assetKind).bytes,
+      ...(selected.repository === EXPERIMENTAL_REPOSITORY
+        ? { repository: EXPERIMENTAL_REPOSITORY }
+        : {}),
+    };
+  }
+  async history(experimental = false) {
+    if (typeof experimental !== 'boolean') throw new Error('Invalid update channel.');
+    const token = this.mode === 'archive' ? null : await this.optionalCredential();
+    const signal = AbortSignal.timeout(20000);
+    const publicRequest = this.releases({ token, signal, allowAnonymousFallback: true });
+    const previewRequest =
+      experimental && token
+        ? this.releases({ token, signal, repository: EXPERIMENTAL_REPOSITORY })
+        : Promise.resolve(null);
+    const [publicResult, previewResult] = await Promise.allSettled([publicRequest, previewRequest]);
+    if (publicResult.status === 'rejected') throw publicResult.reason;
+    const entries = new Map();
+    const add = (items, repository) => {
+      for (const release of items) {
+        try {
+          const prerelease = isExperimentalRelease(release);
+          if (release.draft || (repository === EXPERIMENTAL_REPOSITORY && !prerelease)) continue;
+          if (prerelease && !experimental) continue;
+          const asset = releaseAsset(release, this.assetKind);
+          if (this.mode === 'archive' && !asset) continue;
+          const id = repository + '@' + release.tag_name;
+          entries.set(id, {
+            release: { ...release, repository },
+            view: {
+              id,
+              tag: release.tag_name,
+              experimental: prerelease,
+              notes: typeof release.body === 'string' ? release.body.slice(0, 12000) : '',
+              update:
+                compareVersions(releaseVersion(release, repository), this.current) > 0 &&
+                Boolean(asset),
+            },
+          });
+        } catch {
+          // Ignore releases without a compatible version tag.
+        }
+      }
+    };
+    add(publicResult.value, REPOSITORY);
+    if (previewResult.status === 'fulfilled' && previewResult.value)
+      add(previewResult.value, EXPERIMENTAL_REPOSITORY);
+    this.historyEntries = entries;
+    this.historyExperimental = experimental;
+    return {
+      releases: [...entries.values()]
+        .sort((a, b) => compareVersions(releaseVersion(b.release), releaseVersion(a.release)))
+        .map(({ view }) => view),
+      previewUnavailable:
+        this.mode !== 'archive' &&
+        experimental &&
+        (previewResult.status === 'rejected' || !previewResult.value),
+    };
+  }
+  historyUrl(id) {
+    const entry = this.historyEntries?.get(id);
+    if (!entry) throw new Error('Load release history and choose a version.');
+    if (entry.release.downloadSource === 'gitlab') return gitlabReleaseUrl(entry.release.tag_name);
+    return (
+      'https://github.com/' +
+      entry.release.repository +
+      '/releases/tag/' +
+      encodeURIComponent(entry.release.tag_name)
+    );
+  }
+  archiveReleaseUrl() {
+    if (this.mode !== 'archive' || this.selected?.repository !== REPOSITORY)
+      throw new Error('Check for updates first.');
+    return `https://github.com/${REPOSITORY}/releases/tag/${encodeURIComponent(this.selected.tag_name)}`;
+  }
+  async chooseHistory(id) {
+    if (this.mode === 'manual') return this.snapshot();
+    const entry = this.historyEntries?.get(id);
+    if (!entry?.view.update) throw new Error('This version is not available as an in-app update.');
+    if (this.busy()) throw new Error('Wait for the update operation to finish.');
+    if (entry.release.repository === EXPERIMENTAL_REPOSITORY && !(await this.optionalCredential()))
+      throw new Error('Connect GitHub to access private preview versions.');
+    if (this.busy()) throw new Error('Wait for the update operation to finish.');
+    this.cancelAutomaticCheck();
+    this.selected = entry.release;
+    this.prepared = null;
+    return this.publish({
+      phase: 'available',
+      release: this.describeRelease(entry.release),
+      checkedExperimental: this.historyExperimental,
+      error: null,
+      progress: null,
+      installerRequired: false,
+      installerReason: null,
+      needsAccess: false,
+      notification: null,
+    });
+  }
+  remindLater() {
+    if (this.value.notification) this.deferredTags.add(this.value.notification.tag);
+    this.cancelAutomaticCheck();
+    return this.publish({ notification: null });
+  }
+  setSettings(value) {
+    if (this.mode === 'manual') return this.snapshot();
+    if (this.busy()) throw new Error('Wait for the update operation to finish.');
+    const previous = this.preferences.value;
+    const settings = this.preferences.set(validateUpdateSettings(value, previous.automatic));
+    const channelChanged = settings.experimental !== previous.experimental;
+    const automaticChanged = settings.automatic !== previous.automatic;
+    if (channelChanged || automaticChanged) this.cancelAutomaticCheck();
+    this.syncAutomaticCheckTimer();
+    const patch = { ...settings };
+    if (!settings.automatic) patch.notification = null;
+    if (channelChanged && settings.experimental !== this.value.checkedExperimental) {
+      this.selected = null;
+      this.prepared = null;
+      Object.assign(patch, {
+        phase: 'idle',
+        release: null,
+        progress: null,
+        error: null,
+        installerRequired: false,
+        installerReason: null,
+        needsAccess: false,
+        checkedExperimental: undefined,
+        notification: null,
+      });
+    }
+    const snapshot = this.publish(patch);
+    if (automaticChanged && settings.automatic && this.automaticChecksStarted)
+      void Promise.resolve(this.automaticOperation).then(() => this.checkAutomatically());
+    return snapshot;
+  }
+  async check(value) {
+    if (this.mode === 'manual') return this.snapshot();
+    this.cancelAutomaticCheck();
+    const experimental =
+      value === undefined
+        ? this.preferences.value.experimental
+        : validateUpdateSettings(value).experimental;
+    if (this.busy()) return this.snapshot();
+    this.controller = new AbortController();
+    this.publish({
+      phase: 'checking',
+      error: null,
+      release: null,
+      progress: null,
+      installerRequired: false,
+      installerReason: null,
+      needsAccess: false,
+      checkedExperimental: experimental,
+      notification: null,
+    });
+    this.prepared = null;
+    this.selected = null;
+    try {
+      const selected = await this.findRelease(experimental, this.controller.signal, {
+        reportPrivateFailure: true,
+      });
+      this.controller.signal.throwIfAborted();
+      this.selected = selected;
+      return this.publish({
+        phase: this.selected ? 'available' : 'current',
+        release: this.selected ? this.describeRelease(this.selected) : null,
+      });
+    } catch (error) {
+      return this.publish({
+        phase: this.controller.signal.aborted ? 'idle' : 'error',
+        error: this.controller.signal.aborted ? null : error.message,
+        needsAccess: !this.controller.signal.aborted && error.code === 'GITHUB_ACCESS_REQUIRED',
+      });
+    } finally {
+      this.controller = null;
+    }
+  }
+  async prepare() {
+    if (this.mode === 'manual' || this.mode === 'archive') return this.snapshot();
+    this.cancelAutomaticCheck();
+    if (this.busy()) return this.snapshot();
+    if (!this.selected) throw new Error('Check for updates first.');
+    this.controller = new AbortController();
+    this.publish({
+      phase: 'downloading',
+      error: null,
+      progress: null,
+      installerRequired: false,
+      installerReason: null,
+      notification: null,
+    });
+    const asset = releaseAsset(this.selected, this.assetKind);
+    try {
+      const token =
+        this.selected.downloadSource === 'gitlab' ? null : await this.optionalCredential();
+      this.controller.signal.throwIfAborted();
+      const downloadOptions = {
+        token,
+        repository: this.selected.repository ?? REPOSITORY,
+        tag: isExperimentalRelease(this.selected) ? undefined : this.selected.tag_name,
+        source: this.selected.downloadSource,
+        signal: this.controller.signal,
+        progress: (progress) => this.publish({ phase: 'downloading', progress }),
+      };
+      const folder = path.join(this.root, '.runtime/updates/downloads');
+      let archive = await this.download(asset, folder, downloadOptions);
+      this.controller.signal.throwIfAborted();
+      this.publish({ phase: 'verifying' });
+      if (this.mode === 'managed') {
+        let source, installerReason;
+        try {
+          source = await this.stage({
+            root: this.root,
+            archive,
+            asset,
+            tag: this.selected.tag_name,
+          });
+        } catch (error) {
+          this.controller.signal.throwIfAborted();
+          // Unknown future layouts use a separately verified installer. Hash,
+          // path and malformed-manifest failures never downgrade verification.
+          if (error.code !== 'UPDATE_INSTALLER_REQUIRED') throw error;
+          installerReason = 'compatibility';
+        }
+        this.controller.signal.throwIfAborted();
+        if (installerReason || runtimeUpgradeRequired(this.root, source)) {
+          installerReason ??= 'runtimes';
+          const installer = releaseAsset(this.selected, 'installer');
+          if (!installer)
+            throw new Error(
+              'This release requires its full installer, but no verified installer was published.',
+            );
+          this.publish({ phase: 'downloading', progress: null });
+          archive = await this.download(installer, folder, downloadOptions);
+          this.controller.signal.throwIfAborted();
+          const executable = path.join(path.dirname(archive), installer.sha256 + '.exe');
+          noLinks(executable);
+          copyFileSync(archive, executable);
+          this.prepared = { executable, asset: installer, archive };
+          this.publish({ installerReason });
+        } else this.prepared = { source, tag: this.selected.tag_name, asset, archive };
+      } else {
+        const executable = path.join(path.dirname(archive), asset.sha256 + '.exe');
+        noLinks(executable);
+        copyFileSync(archive, executable);
+        this.prepared = { executable, asset, archive };
+      }
+      return this.publish({
+        phase: 'ready',
+        progress: null,
+        installerRequired: Boolean(this.prepared.executable),
+      });
+    } catch (error) {
+      this.prepared = null;
+      return this.publish({
+        phase: this.controller.signal.aborted ? 'available' : 'error',
+        error: this.controller.signal.aborted ? null : error.message,
+        progress: null,
+      });
+    } finally {
+      this.controller = null;
+    }
+  }
+  cancel() {
+    this.cancelAutomaticCheck();
+    this.controller?.abort(new Error('Update cancelled'));
+    return this.snapshot();
+  }
+  async install({ parentPid, language, shutdown }) {
+    if (this.mode === 'manual' || this.mode === 'archive') return false;
+    this.cancelAutomaticCheck();
+    if (this.busy() || this.installOperation) return false;
+    if (!this.prepared || this.value.phase !== 'ready')
+      throw new Error('Download the update first.');
+    this.installOperation = true;
+    this.publish({ phase: 'installing', error: null });
+    try {
+      return await this.performInstall({ parentPid, language, shutdown });
+    } catch (error) {
+      this.publish({ phase: 'ready', error: error.message });
+      throw error;
+    } finally {
+      this.installOperation = false;
+      if (!this.handoff) this.publish({ phase: 'ready' });
+    }
+  }
+  async performInstall({ parentPid, language, shutdown }) {
+    const prepared = this.prepared;
+    if ((await fileHash(prepared.archive)) !== prepared.asset.sha256)
+      throw new Error('Update checksum verification failed. Download it again.');
+    if (prepared.executable) {
+      if ((await fileHash(prepared.executable)) !== prepared.asset.sha256)
+        throw new Error('Installer checksum verification failed.');
+      const child = this.launch(prepared.executable, [], {
+        cwd: this.root,
+        detached: true,
+        windowsHide: true,
+        stdio: 'ignore',
+      });
+      await new Promise((resolve, reject) => {
+        child.once('spawn', resolve);
+        child.once('error', reject);
+      });
+      child.unref();
+      if (this.mode === 'managed') {
+        await shutdown();
+        this.handoff = true;
+      }
+      return true;
+    }
+    this.publish({ phase: 'installing', error: null });
+    const parent = path.join(this.root, '.runtime/updates/jobs');
+    noLinks(parent);
+    mkdirSync(parent, { recursive: true });
+    const job = mkdtempSync(path.join(parent, 'update-'));
+    const file = path.join(job, 'request.json');
+    const request = {
+      schemaVersion: 1,
+      root: this.root,
+      source: prepared.source,
+      tag: prepared.tag,
+      parentPid,
+      language,
+      node: this.node,
+      ready: path.join(job, 'ready'),
+      events: path.join(job, 'events.jsonl'),
+      proceed: path.join(job, 'proceed'),
+      cancel: path.join(job, 'cancel'),
+    };
+    writeJsonAtomic(file, request);
+    const logs = path.join(this.root, 'logs');
+    noLinks(logs);
+    mkdirSync(logs, { recursive: true });
+    const output = path.join(logs, 'update-ui.stdout.log');
+    const errors = path.join(logs, 'update-ui.stderr.log');
+    noLinks(output);
+    noLinks(errors);
+    const record = (event) => {
+      try {
+        appendFileSync(
+          output,
+          JSON.stringify({ ...event, at: new Date().toISOString(), job: path.basename(job) }) +
+            '\n',
+        );
+      } catch {
+        console.error('Could not save update launch diagnostics.');
+      }
+    };
+    let child;
+    try {
+      record({ phase: 'launching', tag: prepared.tag });
+      const host = await this.prepareHost(this.root);
+      const descriptors = [];
+      try {
+        descriptors.push(openSync(output, 'a'));
+        descriptors.push(openSync(errors, 'a'));
+        child = this.launch(
+          host,
+          [path.join(prepared.source, 'packages/updater/windows/update.ps1'), file, output, errors],
+          // Detach the windowed host, never powershell.exe: PowerShell can silently
+          // exit under DETACHED_PROCESS, or share Capri's console without it.
+          { cwd: this.root, detached: true, windowsHide: true, stdio: ['ignore', ...descriptors] },
+        );
+      } finally {
+        for (const descriptor of descriptors) closeSync(descriptor);
+      }
+      await new Promise((resolve, reject) => {
+        child.once('spawn', resolve);
+        child.once('error', reject);
+      });
+      child.unref();
+      let ready = false;
+      for (let i = 0; i < 100; i++) {
+        if (child.exitCode !== null || child.signalCode) break;
+        if (existsSync(request.ready)) {
+          ready = true;
+          break;
+        }
+        await delay(200);
+      }
+      if (!ready) throw new Error('The update window could not start. Capri is still running.');
+      record({ phase: 'window-ready', pid: child.pid });
+      await shutdown();
+      writeFileSync(request.proceed, 'approved');
+      record({ phase: 'handoff-approved' });
+      this.handoff = true;
+      return true;
+    } catch (error) {
+      writeFileSync(request.cancel, 'cancelled');
+      record({
+        phase: 'failed',
+        message: error.message,
+        exitCode: child?.exitCode,
+        signal: child?.signalCode,
+      });
+      this.publish({ phase: 'ready', error: error.message });
+      throw error;
+    }
+  }
+  close() {
+    this.closed = true;
+    this.syncAutomaticCheckTimer();
+    this.cancelAutomaticCheck();
+    if (!this.handoff) this.cancel();
+  }
+}

@@ -162,10 +162,13 @@ class VoiceCompatibilityTests(unittest.TestCase):
         self.assertEqual(profiles['legacy']['backend'], 'cu124')
 
     def test_amd_matrix_is_explicit_and_hip_does_not_enter_nvidia_architecture_gate(self):
-        for name in ['AMD Radeon RX 9070 XT', 'AMD Radeon RX 7900 XTX', 'AMD Radeon RX 7700', 'AMD Radeon AI PRO R9700']:
-            self.assertTrue(selection.amd_supported([name]))
-        for name in ['AMD Radeon RX 6600', 'AMD Radeon 780M', 'AMD Radeon RX 7900 XT', 'Intel Arc A770']:
-            self.assertFalse(selection.amd_supported([name]))
+        models = json.loads((ROOT / 'config/voice-runtime.json').read_text(encoding='utf-8'))['amdWindows']['models']
+        for name in ['AMD Radeon RX 9070 XT', 'AMD Radeon RX 9070 GRE', 'AMD Radeon(TM) RX9070GRE',
+                     'AMD Radeon RX 7900 XTX', 'AMD Radeon RX 7700', 'AMD Radeon AI PRO R9700']:
+            self.assertTrue(selection.amd_supported([name], models))
+        for name in ['AMD Radeon RX 6600', 'AMD Radeon 780M', 'AMD Radeon RX 7900 XT',
+                     'AMD Radeon RX 7700 XT', 'AMD Radeon RX 9070 GRE Mobile', 'Intel Arc A770']:
+            self.assertFalse(selection.amd_supported([name], models))
         torch = self.fake_torch((12, 0), None)
         torch.version.hip = '7.2.53211'
         value, matrix = MagicMock(), MagicMock()

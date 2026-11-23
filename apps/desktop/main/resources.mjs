@@ -20,6 +20,11 @@ const rendererFiles = [
   'credits.css',
   'credits-panel.mjs',
   'credits-rays.mjs',
+  'avatar-gallery.mjs',
+  'avatar-face-expressions.mjs',
+  'avatar-face-rig.mjs',
+  'avatar-layered-blink.mjs',
+  'avatar-gallery.css',
   'settings-app.mjs',
   'audio-routing-panel.mjs',
   'settings-divider.mjs',
@@ -63,9 +68,12 @@ const rendererFiles = [
   'panel-frames.mjs',
   'crt-screen.mjs',
   'screen-geometry.mjs',
+  'reply-geometry.mjs',
   'animation-director.mjs',
   'avatar-mouth.mjs',
   'avatar-drag-tether.mjs',
+  'avatar-tether.html',
+  'avatar-tether.mjs',
   'avatar-detach.html',
   'avatar-detach.css',
   'avatar-detach.mjs',
@@ -144,6 +152,9 @@ const rendererFiles = [
   'music-listening-panel.mjs',
   'inference-privacy.mjs',
   'control-overlay.html',
+  'wild-prank.html',
+  'wild-prank.css',
+  'wild-prank.mjs',
   'chess-panel.mjs',
   'chess-arrow.mjs',
   'chess-arrow-style.mjs',
@@ -255,10 +266,21 @@ export function createDesktopResources({
     type: 'font/ttf',
   });
   resources.set('/sprite.png', { file: spriteFile, type: 'image/png' });
-  resources.set('/headpat-face.png', {
-    file: path.join(root, 'assets/default/capri-headpat.png'),
-    type: 'image/png',
-  });
+  for (const layer of ['pose', 'eyes']) {
+    resources.set(`/avatar-blink-${layer}.png`, {
+      file: path.join(root, 'assets/default', `capri-blink-${layer}.png`),
+      type: 'image/png',
+    });
+  }
+  for (const group of ['poses', 'gestures'])
+    for (const extension of ['png', 'json']) {
+      const name = `face-${group}.${extension}`;
+      resources.set('/avatar-' + name, {
+        file: path.join(root, 'assets/default', 'capri-' + name),
+        type: extension === 'png' ? 'image/png' : 'application/json; charset=utf-8',
+        asyncRead: true,
+      });
+    }
   resources.set('/capri-wave.webp', {
     file: path.join(root, 'assets/default/capri-wave.webp'),
     type: 'image/webp',

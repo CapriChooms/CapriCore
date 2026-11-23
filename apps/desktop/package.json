@@ -1,7 +1,7 @@
 {
   "name": "capri-desktop",
   "productName": "Capri",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "type": "module",
   "main": "main.mjs",
@@ -9,6 +9,7 @@
   "license": "GPL-3.0-only",
   "dependencies": {
     "diff": "9.0.0",
-    "ignore": "7.0.12"
+    "ignore": "7.0.12",
+    "koffi": "3.3.2"
   }
 }

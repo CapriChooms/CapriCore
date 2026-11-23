@@ -56,7 +56,10 @@ export function chessPage(view) {
   if (view.origin === 'https://lichess.org') {
     if (/^\/analysis(?:\/?$|\/(?:standard|fromPosition)(?:\/|$))|^\/study(?:\/|$)/.test(route))
       return { ...view };
-    const game = /^\/([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:\/(?:white|black))?\/?$/.exec(route);
+    // Lichess serves rounds under /game/ and redirects older short links.
+    const game =
+      /^\/game\/([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4}|\/(?:white|black))?\/?$/.exec(route) ??
+      /^\/([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:\/(?:white|black))?\/?$/.exec(route);
     if (game) return { ...view, game: game[1] };
   }
   return null;
@@ -125,11 +128,14 @@ export class ChessPageAccess {
         await reader.cancel().catch(() => {});
       }
       const game = JSON.parse(Buffer.concat(chunks).toString());
-      const computerSide = Number.isInteger(game.players?.white?.aiLevel)
-        ? 'w'
-        : Number.isInteger(game.players?.black?.aiLevel)
-          ? 'b'
-          : null;
+      const computerSide =
+        game.rated === true
+          ? null
+          : Number.isInteger(game.players?.white?.aiLevel)
+            ? 'w'
+            : Number.isInteger(game.players?.black?.aiLevel)
+              ? 'b'
+              : null;
       if (
         game.id !== page.game ||
         game.variant !== 'standard' ||

@@ -6,6 +6,14 @@
   "locale": "ar",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "السماح لـ Capri بتحريك مؤشر الفأرة أثناء غيابك",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "تتطلب مقالب المؤشر وصولًا كاملًا إلى الكمبيوتر. اضغط على Esc للإيقاف.",
+    "Animate the reply bubble": "تحريك فقاعة الرد",
+    "Drag lightning color": "لون البرق عند السحب",
+    "Wild desktop pranks": "مقالب سطح المكتب في الوضع الجامح",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "في الوضع الجامح، تسرق Capri أحيانًا مؤشرًا وهميًا. يعمل الماوس ولوحة المفاتيح كالمعتاد.",
+    "Preview a prank": "معاينة مقلب",
+    "Prank preview is unavailable right now.": "معاينة المقلب غير متاحة حاليًا.",
     "Automatically check for updates": "التحقق تلقائيًا من وجود تحديثات",
     "Capri’s game reactions": "ردود فعل Capri على المباراة",
     "React to game events": "ردود الفعل على أحداث اللعبة",
@@ -355,6 +363,9 @@
     "Folder": "مجلد",
     "Folder access could not be revoked.": "تعذر سحب الوصول إلى المجلد.",
     "Folder permissions could not be saved.": "تعذر حفظ أذونات المجلد.",
+    "Follow-up listening": "متابعة الاستماع",
+    "After a question": "بعد طرح سؤال",
+    "After any spoken reply": "بعد كل رد منطوق",
     "Follow-up listening time (seconds)": "وقت الاستماع المتابعة (ثواني)",
     "For example, Tamil": "على سبيل المثال، التاميلية",
     "Freeing model memory…": "جاري تحرير ذاكرة النموذج...",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "صورة النشاط الاختيارية",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "قم بتحميل صورة في وجودك الغني للتطبيق ← أصول الفن، ثم الصق مفتاح الأصل هنا. اترك هذا الحقل فارغًا للنشاط النصي فقط.",
     "Settings closed unexpectedly. Open Settings to try again.": "أُغلقت الإعدادات بشكل غير متوقع. افتح الإعدادات للمحاولة مرة أخرى.",
-    "Capri closed unexpectedly.": "أُغلق Capri بشكل غير متوقع.",
-    "The logs folder is open.": "مجلد السجلات مفتوح.",
-    "The logs folder could not be opened.": "تعذّر فتح مجلد السجلات.",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "احفظ ملف ZIP التشخيصي وراجعه، ثم أرسله إلى Overyx في رسالة خاصة على Discord.",
-    "The crash report could not be saved.": "تعذّر حفظ تقرير التعطّل.",
-    "You can try saving a report from Report a bug after restarting Capri.": "بعد إعادة تشغيل Capri، يمكنك محاولة حفظ تقرير من خيار الإبلاغ عن خطأ.",
     "Test": "اختبار",
     "Stop computer control (Esc)": "إيقاف التحكم في الكمبيوتر (Esc)",
     "Capri on the desktop": "Capri على سطح المكتب",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "اختياري: الاستماع إلى المكالمة وصوت النظام",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "عند تفعيل التنشيط بالاسم والإرسال التلقائي معًا، تُرسَل الطلبات الموجَّهة إلى Capri تلقائيًا. بخلاف ذلك، راجع النص قبل إرساله. استخدم سماعات الرأس لتجنّب ارتداد الصوت.",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "شغّل ميكروفون Capri أولًا، ثم أضف صوت النظام. يمكن لـ Capri سماعك وسماع الأشخاص في المكالمة، والاستيقاظ عندما ينطق أي منكم باسمها.",
+    "Days": "أيام",
     "Hours": "ساعات",
     "Seconds": "ثوانٍ",
     "Set up once, then choose the virtual microphone in your call app.": "أكمل الإعداد مرة واحدة، ثم اختر الميكروفون الافتراضي في تطبيق المكالمات.",
@@ -2477,7 +2483,13 @@
     "Vertical": "عمودي",
     "Horizontal": "أفقي",
     "I could not verify that YouTube opened. Check the page in the browser.": "لم أتمكن من التأكد من فتح YouTube. تحقّق من الصفحة في المتصفح.",
-    "No supported browser was found to open YouTube.": "لم يتم العثور على متصفح مدعوم لفتح YouTube."
+    "No supported browser was found to open YouTube.": "لم يتم العثور على متصفح مدعوم لفتح YouTube.",
+    "Avatar gallery": "معرض الشخصية",
+    "Poses": "الوضعيات",
+    "Expressions": "تعابير الوجه",
+    "Animations": "الرسوم المتحركة",
+    "Loop animation": "تكرار الحركة",
+    "Play animation": "تشغيل الحركة"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,9 @@
     "corrections": 7,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "idle-surprised_closed", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "idle-surprised_closed",
+    "Capri ·"
+  ]
 }

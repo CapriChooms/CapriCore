@@ -44,6 +44,7 @@ import {
 } from './policy.mjs';
 import { nodeBootstrapBytes } from './storage-estimate.mjs';
 import {
+  BUNDLED_VOICE_LOCATIONS,
   validateVoicePack,
   importVoicePack,
   cacheBundledVoicePack,
@@ -123,7 +124,15 @@ export async function install(
       readJson(path.join(sourceRoot, 'config/voice-upstream.json')).model,
     );
   const includedReference = plan.bundledVoicePack || path.join(sourceRoot, '.bundled-voice');
-  const hasIncludedReference = Boolean(plan.bundledVoicePack || existsSync(includedReference));
+  // Repair can find an older pack in the target. Let Qwen preparation verify
+  // these copies and recover the reference if the cached files are damaged.
+  const installedReference =
+    qwen &&
+    BUNDLED_VOICE_LOCATIONS.some(
+      (relative) => path.relative(path.join(plan.target, relative), includedReference) === '',
+    );
+  const hasIncludedReference =
+    !installedReference && Boolean(plan.bundledVoicePack || existsSync(includedReference));
   if (
     hasIncludedReference &&
     validateVoicePack(
@@ -259,7 +268,7 @@ export async function install(
     'voice-pack',
     'models',
   ]);
-  const command = async (file, args, options = {}) => {
+  const command = async (file, args, { onOutput, ...options } = {}) => {
     await waitWhilePaused(pauseFile, { signal, emit });
     return execute(file, args, {
       cwd: root,
@@ -267,6 +276,7 @@ export async function install(
       signal,
       timeoutMs: (downloadSteps.has(currentStep) ? 8 : 1) * 60 * 60 * 1000,
       output: (message) => {
+        if (onOutput?.(message)) return;
         if (message.startsWith('{"capriFileTransfer"')) {
           try {
             const { capriFileTransfer: file, received, total, stageFraction } = JSON.parse(message);
@@ -580,6 +590,14 @@ export async function install(
           root,
           readJson(path.join(root, 'config/voice-upstream.json')).model,
         );
+      if (qwen)
+        emit({
+          type: 'log',
+          step: 'source',
+          message: hasIncludedReference
+            ? 'The verified Capri voice pack from Setup was cached.'
+            : 'Setup did not supply a separate Capri voice pack. Qwen will check the installed profiles and recover the reference if needed.',
+        });
     });
     await step('dependencies', async () => {
       activity('installDependencies');
@@ -589,6 +607,7 @@ export async function install(
         signal,
         root,
         pauseFile,
+        onPackages: (value) => emit({ type: 'packages', step: currentStep, ...value }),
         progress: (value) => emit({ type: 'download', step: currentStep, ...value }),
         onRecovery: (message) => emit({ type: 'log', step: currentStep, message }),
         onRetry: ({ attempt, attempts, delayMs, code }) =>
@@ -598,6 +617,7 @@ export async function install(
             message: `npm connection interrupted (${code}). Retrying dependencies ${attempt}/${attempts} in ${delayMs / 1000}s; verified cached packages will be reused.`,
           }),
       });
+      emit({ type: 'fraction', step: currentStep, fraction: 0.9 });
       // Electron 45 no longer downloads its executable during npm ci. Do it
       // inside Setup, with the same pinned checksums, progress, pause and resume.
       const electronPackage = path.join(root, 'node_modules/electron');
@@ -691,6 +711,7 @@ export async function install(
             plan.voicePack,
             root,
             readJson(path.join(root, 'config/voice-upstream.json')).model,
+            { bundled: path.relative(plan.voicePack, includedReference) === '' },
           );
           const config = readJson(path.join(root, 'config/companion-voice.json'));
           writeJsonAtomic(path.join(root, 'config/companion-voice.json'), {
@@ -698,7 +719,16 @@ export async function install(
             profileDir: relative,
           });
         }
-        await prepareVoiceCatalog({ root, env, signal, download, execute });
+        await prepareVoiceCatalog({
+          root,
+          env,
+          signal,
+          pauseFile,
+          download,
+          execute,
+          onReferenceDownload: (progress) =>
+            emit({ type: 'download', step: 'voice-runtime', file: 'Capri voice pack', ...progress }),
+        });
         await ps('tools/setup/setup-qwen-tts.ps1', ['-DependenciesOnly']);
       });
       await step('voice-pack', () =>
@@ -726,6 +756,7 @@ export async function install(
           plan.voicePack,
           root,
           readJson(path.join(root, 'config/voice-upstream.json')).model,
+          { bundled: plan.voiceMode === 'bundled' },
         );
         const config = readJson(path.join(root, 'config/companion-voice.json'));
         config.profileDir = relative;

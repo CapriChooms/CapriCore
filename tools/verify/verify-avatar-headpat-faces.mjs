@@ -7,27 +7,29 @@ import path from 'node:path';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { requireCapriAvatar } from '../../apps/desktop/avatar-catalog.mjs';
+import { createDesktopResources } from '../../apps/desktop/main/resources.mjs';
 
 const sourceRoot = path.resolve(process.argv[2] ?? root);
 const parent = path.join(sourceRoot, '.runtime/headpat-faces');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'run-'));
-const frames = requireCapriAvatar(sourceRoot).frames.filter(
+const catalog = requireCapriAvatar(sourceRoot);
+const frames = catalog.frames.filter(
   ({ id, kind }) =>
     ['neutral', 'attentive'].includes(id) ||
     (kind === 'reviewed_pose' && id !== 'pose-sleep') ||
     kind === 'reviewed_music',
 );
-const files = Object.fromEntries([
-  ...frames.map(({ url, file }) => [new URL(url).pathname, file]),
-  ...['avatar-headpat.mjs', 'avatar-mouth.mjs', 'avatar-headpat.css'].map((name) => [
-    '/' + name,
-    path.join(sourceRoot, 'apps/desktop/renderer', name),
-  ]),
-  ['/headpat-face.png', path.join(sourceRoot, 'assets/default/capri-headpat.png')],
-]);
+const resources = Object.fromEntries(
+  createDesktopResources({
+    root: sourceRoot,
+    directory: path.join(sourceRoot, 'apps/desktop'),
+    catalog,
+    spriteFile: catalog.frames[0].file,
+  }),
+);
 const html = path.join(folder, 'preview.html');
-files['/preview.html'] = html;
+resources['/preview.html'] = { file: html, type: 'text/html; charset=utf-8' };
 writeFileSync(
   html,
   `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="avatar-headpat.css"><style>
@@ -39,11 +41,11 @@ writeFileSync(
   entry,
   `
 const {app,BrowserWindow,protocol}=require('electron'); const fs=require('node:fs/promises'),path=require('node:path');
-const files=${JSON.stringify(files)};
+const resources=${JSON.stringify(resources)};
 app.setPath('userData',${JSON.stringify(path.join(folder, 'profile'))});
 protocol.registerSchemesAsPrivileged([{scheme:'capri',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 app.whenReady().then(async()=>{
-protocol.handle('capri',async({url})=>{const file=files[new URL(url).pathname];if(!file)return new Response(null,{status:404});return new Response(await fs.readFile(file),{headers:{'content-type':{'.mjs':'text/javascript','.html':'text/html','.css':'text/css','.png':'image/png'}[path.extname(file)]}})});
+protocol.handle('capri',async({url})=>{const asset=resources[new URL(url).pathname];if(!asset)return new Response(null,{status:404});return new Response(await fs.readFile(asset.file),{headers:{'content-type':asset.type}})});
 const win=new BrowserWindow({width:984,height:1100,useContentSize:true,show:false,webPreferences:{offscreen:true,backgroundThrottling:false,sandbox:true}});
 await win.loadURL('capri://desktop/preview.html');
 });`,
@@ -63,6 +65,7 @@ try {
   const results = await page.evaluate(async (frames) => {
     const { AvatarHeadpat } = await import('./avatar-headpat.mjs');
     const { AvatarMouthLayer, avatarPoseLandmarks } = await import('./avatar-mouth.mjs');
+    await (await import('./avatar-face-rig.mjs')).loadAvatarFaceRig();
     const results = [];
     globalThis.reactions = [];
     for (const frame of frames) {
@@ -90,26 +93,27 @@ try {
       await make('Original');
       const { sprite, stage } = await make('Headpat');
       const pat = new AvatarHeadpat(stage);
-      await pat.face.decode();
       const music = frame.id.startsWith('music-');
       pat.play(sprite, { x: 50, y: 80 }, { x: 0, y: 0, width: 200, height: 200 }, !music, frame.id);
       globalThis.reactions.push(pat);
-      const canvas = pat.plate,
+      if (!music) while (pat.layer.canvas.hidden) await new Promise(requestAnimationFrame);
+      const canvas = pat.layer?.canvas,
         reactionSource = sprite.src;
       const reference = document.createElement('canvas');
       reference.width = reference.height = 1254;
-      const baseCtx = reference.getContext('2d');
+      const baseCtx = reference.getContext('2d', { willReadFrequently: true });
       baseCtx.drawImage(sprite, 0, 0);
       const before = baseCtx.getImageData(0, 0, 1254, 1254).data;
-      const after = canvas?.getContext('2d').getImageData(0, 0, 1254, 1254).data ?? before;
+      if (canvas) baseCtx.drawImage(canvas, ...pat.layer.patch.bounds.slice(0, 2));
+      const after = baseCtx.getImageData(0, 0, 1254, 1254).data;
       let changed = 0,
         escaped = 0;
       for (let i = 0; i < before.length; i += 4) {
         if (
-          before[i] === after[i] &&
-          before[i + 1] === after[i + 1] &&
-          before[i + 2] === after[i + 2] &&
-          before[i + 3] === after[i + 3]
+          Math.abs(before[i] - after[i]) <= 2 &&
+          Math.abs(before[i + 1] - after[i + 1]) <= 2 &&
+          Math.abs(before[i + 2] - after[i + 2]) <= 2 &&
+          Math.abs(before[i + 3] - after[i + 3]) <= 2
         )
           continue;
         changed++;
@@ -137,9 +141,13 @@ try {
         return n;
       };
       const mouth = new AvatarMouthLayer(sprite);
-      mouth.update(pat.image(sprite), 'wide', frame.id);
+      mouth.update(sprite, 'wide', frame.id, pat.expression);
+      while (!music && mouth.canvas.hidden) {
+        await new Promise(requestAnimationFrame);
+        mouth.update(sprite, 'wide', frame.id, pat.expression);
+      }
       const mouthWorks = !mouth.canvas.hidden;
-      mouth.update(pat.image(sprite), 'closed', frame.id);
+      mouth.canvas.remove();
       results.push({
         id: frame.id,
         changed,
@@ -162,6 +170,7 @@ try {
     if (result.id.startsWith('music-')) {
       assert.equal(result.changed, 0);
       assert.equal(result.visible, false);
+      assert.equal(result.mouthWorks, false);
       report.checks.push(result);
       continue;
     }

@@ -6,6 +6,14 @@
   "locale": "fa",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "اجازه بده Capri در غیاب شما نشانگر ماوس را حرکت دهد",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "شوخی با نشانگر به دسترسی کامل به رایانه نیاز دارد. برای توقف Esc را فشار دهید.",
+    "Animate the reply bubble": "متحرک‌کردن حباب پاسخ",
+    "Drag lightning color": "رنگ آذرخش هنگام کشیدن",
+    "Wild desktop pranks": "شوخی‌های حالت وحشی روی میز کار",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "در حالت وحشی، Capri گاهی یک نشانگر ساختگی را می‌دزدد. ماوس و صفحه‌کلید شما طبق معمول کار می‌کنند.",
+    "Preview a prank": "پیش‌نمایش یک شوخی",
+    "Prank preview is unavailable right now.": "پیش‌نمایش شوخی اکنون در دسترس نیست.",
     "Automatically check for updates": "بررسی خودکار به‌روزرسانی‌ها",
     "Capri’s game reactions": "واکنش‌های Capri به بازی",
     "React to game events": "واکنش به رویدادهای بازی",
@@ -355,6 +363,9 @@
     "Folder": "پوشه",
     "Folder access could not be revoked.": "دسترسی به پوشه لغو نشد.",
     "Folder permissions could not be saved.": "مجوزهای پوشه ذخیره نشد.",
+    "Follow-up listening": "ادامهٔ گوش دادن",
+    "After a question": "پس از یک سؤال",
+    "After any spoken reply": "پس از هر پاسخ گفتاری",
     "Follow-up listening time (seconds)": "زمان گوش‌دادن پس از پیگیری (ثانیه)",
     "For example, Tamil": "مثلاً، تامیلی",
     "Freeing model memory…": "آزاد کردن حافظه مدل...",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "تصویر فعالیت اختیاری",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "یک تصویر را در Rich Presence برنامه خود → دارایی‌های هنری آپلود کرده، سپس کلید دارایی آن را اینجا جایگذاری کنید. این فیلد را برای فعالیت‌های متنی خالی بگذارید.",
     "Settings closed unexpectedly. Open Settings to try again.": "تنظیمات به طور غیرمنتظره بسته شد. برای تلاش مجدد، تنظیمات را باز کنید.",
-    "Capri closed unexpectedly.": "Capri به‌طور غیرمنتظره بسته شد.",
-    "The logs folder is open.": "پوشهٔ گزارش‌ها باز است.",
-    "The logs folder could not be opened.": "پوشهٔ گزارش‌ها باز نشد.",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "فایل ZIP عیب‌یابی را ذخیره و بررسی کنید و سپس آن را در پیام خصوصی Discord برای Overyx بفرستید.",
-    "The crash report could not be saved.": "گزارش خرابی ذخیره نشد.",
-    "You can try saving a report from Report a bug after restarting Capri.": "پس از راه‌اندازی دوبارهٔ Capri می‌توانید از بخش «گزارش خطا» برای ذخیرهٔ گزارش اقدام کنید.",
     "Test": "آزمایش",
     "Stop computer control (Esc)": "توقف کنترل کامپیوتر (Esc)",
     "Capri on the desktop": "Capri روی دسکتاپ",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "اختیاری: شنیدن تماس و صدای سیستم",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "وقتی فعال‌سازی با نام و ارسال خودکار هر دو روشن باشند، درخواست‌هایی که خطاب به Capri هستند به‌طور خودکار ارسال می‌شوند. در غیر این صورت، متن را پیش از ارسال بررسی کنید. برای جلوگیری از بازخورد صوتی، از هدفون استفاده کنید.",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "ابتدا میکروفون Capri را روشن کنید و سپس صدای سیستم را اضافه کنید. Capri می‌تواند شما و افراد حاضر در تماس را بشنود و وقتی هرکسی نامش را بگوید بیدار شود.",
+    "Days": "روز",
     "Hours": "ساعت",
     "Seconds": "ثانیه",
     "Set up once, then choose the virtual microphone in your call app.": "یک بار راه‌اندازی کنید، سپس میکروفون مجازی را در برنامه تماس خود انتخاب کنید.",
@@ -2477,7 +2483,13 @@
     "Vertical": "عمودی",
     "Horizontal": "افقی",
     "I could not verify that YouTube opened. Check the page in the browser.": "نتوانستم تأیید کنم که YouTube باز شده است. صفحه را در مرورگر بررسی کن.",
-    "No supported browser was found to open YouTube.": "مرورگر پشتیبانی‌شده‌ای برای باز کردن YouTube پیدا نشد."
+    "No supported browser was found to open YouTube.": "مرورگر پشتیبانی‌شده‌ای برای باز کردن YouTube پیدا نشد.",
+    "Avatar gallery": "گالری آواتار",
+    "Poses": "حالت‌های بدن",
+    "Expressions": "حالت‌های چهره",
+    "Animations": "پویانمایی‌ها",
+    "Loop animation": "تکرار پویانمایی",
+    "Play animation": "پخش پویانمایی"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,9 @@
     "corrections": 56,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "TRANSCRIPT", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "TRANSCRIPT",
+    "Capri ·"
+  ]
 }

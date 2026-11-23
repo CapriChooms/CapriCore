@@ -264,7 +264,7 @@ export function youtubeHomeDestination(command) {
     : null;
 }
 
-/** An exact owner-supplied URL needs no model-generated tab or keyboard input. */
+/** Identify a specific owner-supplied URL for validating the model’s navigation. */
 export function explicitBrowserDestination(goal) {
   const match =
     /^(?:please\s+)?(?:open|launch|start)\s+(Google Chrome|Chrome|Microsoft Edge|Edge|Firefox|Brave|Vivaldi|Opera)\s*,?\s*(?:and\s+(?:then\s+)?|then\s+)(?:go\s+to|open|navigate\s+to|visit)\s+(?:"(https?:\/\/[^"\s]+)"|(https?:\/\/[^\s"<>]+?))\s*(?:[.!?](?=\s|$)|$)([\s\S]*)$/iu.exec(

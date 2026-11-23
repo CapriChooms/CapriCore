@@ -12,12 +12,10 @@ import {
   readdirSync,
 } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { setTimeout as delay } from 'node:timers/promises';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { writeJsonAtomic } from '../packages/runtime/src/atomic-json.mjs';
-import { updateBlocksStartup } from '../packages/runtime/src/host/update-state.mjs';
 import { sourceFiles } from '../packages/installer/src/payload.mjs';
 import {
   compareVersions,
@@ -305,87 +303,6 @@ test('an update requiring npm refuses insufficient disk space before replacing s
   assert.equal(readFileSync(path.join(plan.root, 'apps/desktop/sample.mjs'), 'utf8'), 'old source');
   assert.equal(existsSync(path.join(plan.root, '.runtime/updates/active.json')), false);
 });
-
-test('a failed npm install restores the previous dependency tree without downloading it again', async () => {
-  const plan = fixture({ modular: true });
-  put(plan.root, 'node_modules/original-package/installed.txt', 'previous version');
-  const stages = [];
-  let installs = 0;
-  await assert.rejects(
-    applyUpdate(plan, {
-      availableDisk: () => 4 * 1024 ** 3,
-      execute: async (_exe, args) => {
-        if (!args.includes('ci')) return;
-        installs++;
-        assert.equal(existsSync(path.join(plan.root, 'node_modules/original-package')), false);
-        put(plan.root, 'node_modules/new-package/partial.txt', 'partial install');
-        throw Object.assign(new Error('npm fixture failed'), { exitCode: 1 });
-      },
-      emit: (event) => stages.push(event),
-    }),
-    /restored/,
-  );
-  assert.equal(installs, 1);
-  assert.equal(
-    readFileSync(path.join(plan.root, 'node_modules/original-package/installed.txt'), 'utf8'),
-    'previous version',
-  );
-  assert.equal(existsSync(path.join(plan.root, 'node_modules/new-package')), false);
-  assert.equal(readFileSync(path.join(plan.root, 'apps/desktop/sample.mjs'), 'utf8'), 'old source');
-  assert.equal(updateBlocksStartup(plan.root), false);
-  assert.equal(existsSync(path.join(plan.root, '.runtime/updates/active.json')), false);
-  assert.ok(stages.some(({ stage, exitCode }) => stage === 'node' && exitCode === 1));
-});
-
-test(
-  'rollback can finish while the unchanged Windows launcher is locked against replacement',
-  { skip: process.platform !== 'win32', timeout: 15000 },
-  async () => {
-    const plan = fixture();
-    put(plan.root, 'Capri.exe', 'original launcher');
-    const ready = path.join(plan.root, 'lock-ready');
-    const script = `
-      $ErrorActionPreference='Stop'
-      $stream=[IO.File]::Open('Capri.exe','Open','Read','ReadWrite')
-      try {
-        [IO.File]::WriteAllText((Join-Path (Get-Location) 'lock-ready'),'ready')
-        Start-Sleep -Seconds 15
-      } finally { $stream.Dispose() }
-    `;
-    const process = spawn(
-      'powershell.exe',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
-      ],
-      { cwd: plan.root, windowsHide: true, stdio: 'ignore' },
-    );
-    try {
-      for (let i = 0; i < 50 && !existsSync(ready) && process.exitCode === null; i++)
-        await delay(100);
-      assert.ok(existsSync(ready), 'The Windows sharing-lock fixture must start');
-      await assert.rejects(
-        applyUpdate(plan, {
-          execute: async (_exe, args) => {
-            if (args.some((arg) => arg.endsWith('register.ps1')))
-              throw new Error('registration denied by Windows');
-          },
-        }),
-        /restored/,
-      );
-      assert.equal(readFileSync(path.join(plan.root, 'Capri.exe'), 'utf8'), 'original launcher');
-      assert.equal(
-        readFileSync(path.join(plan.root, 'apps/desktop/sample.mjs'), 'utf8'),
-        'old source',
-      );
-      assert.equal(updateBlocksStartup(plan.root), false);
-    } finally {
-      process.kill();
-    }
-  },
-);
 
 test('failed registration rolls back source and identity, and a retry succeeds', async () => {
   const plan = fixture();

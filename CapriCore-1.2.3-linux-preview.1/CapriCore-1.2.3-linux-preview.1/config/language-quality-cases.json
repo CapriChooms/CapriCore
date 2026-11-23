@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "description": "Project-authored held-out listening prompts. These are not training data or proof of subjective voice parity.",
+  "languages": {
+    "en": [
+      {
+        "id": "neutral",
+        "style": "neutral",
+        "text": "Hey choom, I am right here. Let us enjoy a quiet evening together."
+      },
+      {
+        "id": "warm",
+        "style": "warm",
+        "text": "You do not have to rush. I am happy to stay and listen."
+      },
+      {
+        "id": "playful",
+        "style": "playful",
+        "text": "Well, that sounds like trouble. You know I am a little curious."
+      },
+      {
+        "id": "numbers",
+        "style": "neutral",
+        "text": "The appointment is on October twenty-sixth at nine thirty in the morning."
+      },
+      {
+        "id": "music",
+        "style": "neutral",
+        "text": "I Really Want to Stay at Your House is a song by Rosa Walton."
+      }
+    ],
+    "ru": [
+      {
+        "id": "neutral",
+        "style": "neutral",
+        "text": "Эй, чумба, я рядом. Давай спокойно проведём этот вечер вместе."
+      },
+      {
+        "id": "warm",
+        "style": "warm",
+        "text": "Не торопись. Я могу просто побыть рядом и послушать тебя."
+      },
+      {
+        "id": "playful",
+        "style": "playful",
+        "text": "Звучит как маленькая авантюра. Ты же знаешь, мне немного любопытно."
+      },
+      {
+        "id": "numbers",
+        "style": "neutral",
+        "text": "Встреча назначена на двадцать шестое октября, в половине десятого утра."
+      },
+      {
+        "id": "music",
+        "style": "neutral",
+        "text": "Давай послушаем песню Розы Уолтон, а потом немного поболтаем."
+      }
+    ]
+  },
+  "requiredHumanReview": [
+    "naturalness",
+    "speakerSimilarity",
+    "pronunciation",
+    "emotion",
+    "intelligibility"
+  ],
+  "requiredConditions": ["headphones", "speakers", "noiseAndPausesForRecognition"],
+  "promotionPolicy": "Pending human review never counts as validated. Generated speech round-trip recognition is only a diagnostic, not a spontaneous-speech benchmark."
+}

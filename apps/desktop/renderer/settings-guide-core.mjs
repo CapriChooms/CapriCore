@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 export const coreGuides = {
+  'avatar-gallery': [
+    [
+      '#avatar-gallery-title',
+      [
+        'Explore Capri’s poses and animations',
+        'Select any item to preview it.',
+      ],
+      [
+        'Посмотри позы и анимации Капри',
+        'Нажми на позу, эмоцию или анимацию, чтобы увидеть её в превью.',
+      ],
+      { spotlight: '#avatar-gallery-preview' },
+    ],
+  ],
   general: [
     [
       '[data-window-action="hide"]',
@@ -283,6 +297,18 @@ export const coreGuides = {
       ],
     ],
     [
+      '#wild-desktop-pranks',
+      [
+        'Let Wild Capri play pranks',
+        'With the Wild communication style selected, Capri sometimes grabs or glitches a decoy cursor during a pause. The actual pointer and your apps keep working. Preview a prank plays it once without enabling automatic pranks.',
+      ],
+      [
+        'Разреши Капри розыгрыши в диком стиле',
+        'В диком стиле Капри иногда крадёт или раздваивает поддельный курсор во время паузы. Настоящий указатель и приложения продолжают работать. Кнопка «Предпросмотр розыгрыша» запускает эффект один раз.',
+      ],
+      { help: '#wild-pranks-preview' },
+    ],
+    [
       '#companion-conversation-mode',
       [
         'Use hands-free conversation',
@@ -296,23 +322,23 @@ export const coreGuides = {
     [
       '#companion-follow-up',
       [
-        'Answer Capri’s follow-up question',
-        'After a voice request, a question from Capri opens a listening window when she finishes speaking. The microphone needs to be on.',
+        'Continue without saying Capri again',
+        'Choose whether Capri listens again after a question or after any spoken reply. Keep the microphone and wake phrase on. A typed message or a closing phrase like “Thank you” won’t open another listening window.',
       ],
       [
-        'Ответь на встречный вопрос',
-        'Если Капри задаст вопрос в ответ на голосовую реплику, она начнёт слушать после окончания озвучки. Микрофон должен быть включён.',
+        'Продолжи разговор без повторного «Capri»',
+        'Выбери, когда Капри снова начнёт слушать: после вопроса или после любого озвученного ответа. Оставь включёнными микрофон и пробуждение по имени. После сообщения с клавиатуры или фразы вроде «Спасибо» новое окно прослушивания не откроется.',
       ],
     ],
     [
       '#companion-follow-up-seconds',
       [
         'Set the follow-up listening time',
-        'Choose how long Capri waits for your reply after asking a question, from 5 to 30 seconds.',
+        'Choose how long Capri waits for you to speak, from 5 to 30 seconds. If you stay quiet, she goes back to waiting for her name.',
       ],
       [
         'Задай время прослушивания',
-        'Выбери, сколько Капри ждёт твой ответ на вопрос, от 5 до 30 секунд.',
+        'Выбери, сколько Капри ждёт твою реплику, от 5 до 30 секунд. Если ты промолчишь, она снова будет ждать обращения по имени.',
       ],
     ],
     [
@@ -577,6 +603,17 @@ export const coreGuides = {
       ],
     ],
     [
+      '#reply-animation',
+      [
+        'Animate the reply bubble',
+        'The reply bubble opens and closes instantly by default. Enable this setting to have it slide and fade. The system’s reduced motion setting takes priority.',
+      ],
+      [
+        'Анимируй облачко с ответом',
+        'По умолчанию облачко открывается и закрывается сразу. Включи эту настройку для плавного выезда и затухания. Системная настройка уменьшения анимации имеет приоритет.',
+      ],
+    ],
+    [
       '#companion-float-enabled',
       [
         'Enable window motion',
@@ -605,8 +642,8 @@ export const coreGuides = {
     ],
     [
       '#dimming-enabled',
-      ['Dim the desktop behind Capri', 'Enable dimming to make the area behind Capri darker.'],
-      ['Затемни рабочий стол за Капри', 'Настройка затемняет участок рабочего стола за Капри.'],
+      ['Dim the desktop behind Capri', 'Darkens the backdrop of each panel, including the whole toolbar and resource monitor. The space between panels stays clear.'],
+      ['Затемни рабочий стол за Капри', 'Затемняется фон целых панелей, в том числе верхней панели и мониторинга ресурсов. Промежутки между ними остаются прозрачными.'],
     ],
     [
       '#dimming-level',

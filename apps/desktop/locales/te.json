@@ -6,6 +6,14 @@
   "locale": "te",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "మీరు దూరంగా ఉన్నప్పుడు Capri మౌస్ పాయింటర్‌ను కదిలించడానికి అనుమతించండి",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "పాయింటర్ సరదాలకు కంప్యూటర్‌పై పూర్తి ప్రాప్యత అవసరం. ఆపడానికి Esc నొక్కండి.",
+    "Animate the reply bubble": "జవాబు బుడగను యానిమేట్ చేయండి",
+    "Drag lightning color": "లాగేటప్పుడు మెరుపు రంగు",
+    "Wild desktop pranks": "వైల్డ్ మోడ్‌లో డెస్క్‌టాప్ చిలిపి పనులు",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "వైల్డ్ మోడ్‌లో Capri అప్పుడప్పుడు నకిలీ కర్సర్‌ను దొంగిలిస్తుంది. మీ మౌస్, కీబోర్డ్ యథావిధిగా పని చేస్తాయి.",
+    "Preview a prank": "చిలిపి పనిని ముందుగా చూడండి",
+    "Prank preview is unavailable right now.": "చిలిపి పని ప్రివ్యూ ప్రస్తుతం అందుబాటులో లేదు.",
     "Automatically check for updates": "అప్‌డేట్‌ల కోసం స్వయంచాలకంగా తనిఖీ చేయండి",
     "Capri’s game reactions": "ఆటకు Capri స్పందనలు",
     "React to game events": "ఆటలోని సంఘటనలకు స్పందించండి",
@@ -355,6 +363,9 @@
     "Folder": "ఫోల్డర్",
     "Folder access could not be revoked.": "ఫోల్డర్ అక్సెస్‌ను తిరస్కరించలేదు.",
     "Folder permissions could not be saved.": "ఫోల్డర్ అనుమతులను సేవ్ చేయలేదు.",
+    "Follow-up listening": "వినడం కొనసాగించు",
+    "After a question": "ప్రశ్న తర్వాత",
+    "After any spoken reply": "ప్రతి మౌఖిక సమాధానం తర్వాత",
     "Follow-up listening time (seconds)": "అనుసరణ వినిపించే సమయం (సెకన్లు)",
     "For example, Tamil": "ఉదాహరణకు, తమిళం",
     "Freeing model memory…": "మోడల్ మెమరీని విడుదల చేస్తున్నాము...",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "ఐచ్ఛిక యాక్టివిటీ చిత్రం",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "మీ అప్లికేషన్‌లో Rich Presence → Art Assetsలో ఒక చిత్రాన్ని అప్‌లోడ్ చేసి, దాని అసెట్ కీని ఇక్కడ పేస్ట్ చేయండి. యాక్టివిటీని టెక్స్ట్‌గా మాత్రమే చూపాలంటే ఈ ఫీల్డ్‌ను ఖాళీగా ఉంచండి.",
     "Settings closed unexpectedly. Open Settings to try again.": "సెట్టింగ్‌లు ఊహించని విధంగా మూసుకుపోయాయి. మళ్లీ ప్రయత్నించడానికి సెట్టింగ్‌లను తెరవండి.",
-    "Capri closed unexpectedly.": "Capri అనుకోకుండా మూసివేయబడింది.",
-    "The logs folder is open.": "లాగ్‌ల ఫోల్డర్ తెరిచి ఉంది.",
-    "The logs folder could not be opened.": "లాగ్‌ల ఫోల్డర్‌ను తెరవలేకపోయాం.",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "నిర్ధారణ ZIP ఫైల్‌ను సేవ్ చేసి పరిశీలించండి. తర్వాత Discord లో Overyx కు వ్యక్తిగత సందేశంగా పంపండి.",
-    "The crash report could not be saved.": "క్రాష్ నివేదికను సేవ్ చేయలేకపోయాం.",
-    "You can try saving a report from Report a bug after restarting Capri.": "Capri ని మళ్లీ ప్రారంభించిన తర్వాత ‘బగ్‌ను నివేదించండి’ ద్వారా నివేదికను సేవ్ చేయడానికి ప్రయత్నించండి.",
     "Test": "పరీక్షించండి",
     "Stop computer control (Esc)": "కంప్యూటర్ నియంత్రణను ఆపండి (Esc)",
     "Capri on the desktop": "డెస్క్‌టాప్‌పై Capri",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "ఐచ్ఛికం: కాల్ మరియు సిస్టమ్ ఆడియోను వినండి",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "పేరు పిలిచి సక్రియం చేయడం, ఆటోమేటిక్‌గా పంపడం రెండూ ఆన్‌లో ఉంటే, Capriని ఉద్దేశించి చెప్పే అభ్యర్థనలు ఆటోమేటిక్‌గా పంపబడతాయి. లేకపోతే, పంపే ముందు వచనాన్ని సమీక్షించండి. ఆడియో ఫీడ్‌బ్యాక్‌ను నివారించడానికి హెడ్‌ఫోన్‌లను ఉపయోగించండి.",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "ముందుగా Capri మైక్రోఫోన్‌ను ఆన్ చేసి, ఆ తర్వాత సిస్టమ్ ఆడియోను చేర్చండి. Capri మీ మాటలను, కాల్‌లో ఉన్నవారి మాటలను వినగలదు; ఎవరైనా ఆమె పేరు పలికితే మేల్కొంటుంది.",
+    "Days": "రోజులు",
     "Hours": "గంటలు",
     "Seconds": "సెకన్లు",
     "Set up once, then choose the virtual microphone in your call app.": "ఒకసారి సెటప్ చేసి, ఆ తర్వాత మీ కాల్ యాప్‌లో వర్చువల్ మైక్రోఫోన్‌ను ఎంచుకోండి.",
@@ -2477,7 +2483,13 @@
     "Vertical": "నిలువు",
     "Horizontal": "అడ్డం",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube తెరుచుకుందో లేదో నిర్ధారించలేకపోయాను. బ్రౌజర్‌లో పేజీని తనిఖీ చేయండి.",
-    "No supported browser was found to open YouTube.": "YouTube తెరవడానికి మద్దతు ఉన్న బ్రౌజర్ ఏదీ కనబడలేదు."
+    "No supported browser was found to open YouTube.": "YouTube తెరవడానికి మద్దతు ఉన్న బ్రౌజర్ ఏదీ కనబడలేదు.",
+    "Avatar gallery": "అవతార్ గ్యాలరీ",
+    "Poses": "భంగిమలు",
+    "Expressions": "ముఖ కవళికలు",
+    "Animations": "యానిమేషన్‌లు",
+    "Loop animation": "యానిమేషన్‌ను పునరావృతం చేయండి",
+    "Play animation": "యానిమేషన్ ప్లే చేయండి"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,8 @@
     "corrections": 4,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·"
+  ]
 }

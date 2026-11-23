@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'none'; img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'"
+    />
+    <link rel="stylesheet" href="avatar-composer.css" />
+    <link rel="stylesheet" href="thinking-mode.css" />
+    <title>Message Capri</title>
+  </head>
+  <body>
+    <main id="mini-composer" data-mode="compact" aria-label="Message Capri" aria-busy="true">
+      <div id="mini-actions">
+        <button
+          id="mini-keyboard"
+          type="button"
+          title="Message Capri"
+          aria-label="Message Capri"
+          aria-pressed="false"
+          disabled
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 5h18v14H3zM6 9h1m3 0h1m3 0h1m3 0h1M6 12h1m3 0h1m3 0h1m3 0h1M7 15h10" />
+          </svg>
+        </button>
+        <button
+          id="mini-menu"
+          type="button"
+          title="Show Capri"
+          aria-label="Show Capri"
+          aria-pressed="false"
+          disabled
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14" /></svg>
+        </button>
+      </div>
+      <div id="attachment-drafts" hidden>
+        <ul id="attachment-list" aria-label="Attached files"></ul>
+      </div>
+      <div class="composer">
+        <span class="prompt-mark" aria-hidden="true">⌁</span>
+        <label id="message-label" class="sr-only" for="message">Message Capri</label>
+        <textarea
+          id="message"
+          dir="auto"
+          rows="1"
+          maxlength="8000"
+          placeholder="Talk to Capri…"
+          spellcheck="false"
+          aria-describedby="composer-status"
+          disabled
+        ></textarea>
+        <button
+          id="attachment-open"
+          type="button"
+          aria-label="Attach files"
+          title="Attach files"
+          disabled
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 12v5a4 4 0 0 0 8 0V7a3 3 0 0 0-6 0v9a1 1 0 0 0 2 0V8" />
+          </svg>
+        </button>
+        <button
+          id="thinking-toggle"
+          type="button"
+          aria-label="Thinking mode: Off"
+          title="Thinking mode"
+          aria-pressed="false"
+          disabled
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path
+              d="M10 3v14M7 3a3 3 0 0 0-3 3v1a3 3 0 0 0-1 5 3 3 0 0 0 4 4h3M13 3a3 3 0 0 1 3 3v1a3 3 0 0 1 1 5 3 3 0 0 1-4 4h-3M5 8h2l1 2M15 8h-2l-1 2M6 13h2M14 13h-2"
+            />
+          </svg>
+        </button>
+        <button
+          id="internet-toggle"
+          type="button"
+          aria-label="Internet mode: Off"
+          title="Internet mode"
+          aria-pressed="false"
+          disabled
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M5 7h14M5 17h14M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18" />
+          </svg>
+        </button>
+        <button
+          id="input-microphone"
+          type="button"
+          aria-label="Enable microphone"
+          title="Enable microphone"
+          aria-pressed="false"
+          disabled
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 4l2-2h2l2 2v8l-2 2h-2l-2-2zM5 10v3l4 5h6l4-5v-3M12 18v4M8 22h8" />
+          </svg>
+          <span class="mic-live-dot" aria-hidden="true"></span>
+        </button>
+        <button id="send" type="button" aria-label="Send message" title="Send (Enter)" disabled>
+          <span class="send-arrow" aria-hidden="true">↗</span>
+          <span class="working-spinner" aria-hidden="true"></span>
+        </button>
+      </div>
+      <p
+        id="composer-status"
+        dir="auto"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        hidden
+      ></p>
+    </main>
+    <script type="module" src="avatar-composer.mjs"></script>
+  </body>
+</html>

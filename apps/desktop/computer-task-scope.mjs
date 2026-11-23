@@ -151,16 +151,16 @@ export class ComputerTaskScope {
   followWindow(view, identity, appName) {
     const bound = this.window;
     if (
-      !bound ||
+      (!bound && !appName) ||
       !identity?.startedAtTicks ||
       !identity.processId ||
       !view.window?.windowId ||
-      bound.windowId === view.window.windowId
+      bound?.windowId === view.window.windowId
     )
       return false;
     const sameInstance =
-      String(identity.processId) === String(bound.processId) &&
-      identity.startedAtTicks === bound.startedAtTicks;
+      String(identity.processId) === String(bound?.processId) &&
+      identity.startedAtTicks === bound?.startedAtTicks;
     if (appName) {
       // A mutable window title is not proof that the switch reached the named app.
       if (
@@ -203,6 +203,8 @@ export class ComputerTaskScope {
       (step.clickCount ?? 1) === 1
     )
       return '';
+    if (this.opening && !this.window && inputActions.has(step.action))
+      return 'Launch or focus the requested application and verify its window before sending input.';
     if (
       inputActions.has(step.action) &&
       (selected?.surface ||

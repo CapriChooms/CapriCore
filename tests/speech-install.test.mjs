@@ -340,7 +340,7 @@ test('speech preflight reports required and available space before downloading',
     { code: 'CAPRI_DISK_SPACE', message: /Required: .* GiB\. Available: 2\.00 GiB/ },
   );
 });
-test('non-English installation prepares the voice environment and the selected multilingual model without downloading English weights', async () => {
+test('RX 9070 GRE installs a multilingual voice without downloading English weights', async () => {
   const folder = fixture(),
     calls = [];
   const model = JSON.parse(
@@ -382,10 +382,14 @@ test('non-English installation prepares the voice environment and the selected m
     {
       root: folder,
       node: process.execPath,
-      free: () => 14 * 2 ** 30,
+      free: () => 40 * 2 ** 30,
       voiceReady: () => ready,
       ownerStamp: () => '1',
-      hardware: async () => ({ gpus: [{ vendor: 'NVIDIA' }] }),
+      hardware: async () => ({
+        platform: 'win32',
+        osRelease: '10.0.26100',
+        gpus: [{ vendor: 'amd', name: 'AMD Radeon RX 9070 GRE' }],
+      }),
       download: async () => 'verified-fixture.zip',
       releases: () => {
         throw new Error('An installed profile must not require GitHub');

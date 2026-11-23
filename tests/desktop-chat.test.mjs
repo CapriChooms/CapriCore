@@ -937,6 +937,35 @@ test('ordinary music and unqualified artist requests use an isolated plan and ve
   );
 });
 
+test('explicit Spotify controls execute once even if the model cannot plan', async () => {
+  const calls = [],
+    events = [];
+  const service = client({
+    interfaceState: () => ({ spotify: { enabled: true, prepared: true } }),
+    prepareMusic: () => assert.fail('An explicit Spotify control does not require a model plan'),
+    fetchImpl: () => assert.fail('An explicit Spotify control does not require the gateway'),
+    localMusic: async (_input, command) => {
+      calls.push(command);
+      return { ok: true, data: { playing: command.action !== 'pause' } };
+    },
+  });
+  for (const text of [
+    'Pause Spotify',
+    'Play some nice music on Spotify',
+    'Play the next track on Spotify',
+    'Предыдущий трек в Spotify',
+  ])
+    await service.send({ id: randomUUID(), text }, (event) => events.push(event));
+  assert.deepEqual(
+    calls,
+    ['pause', 'resume', 'next', 'previous'].map((action) => ({ action })),
+  );
+  assert.deepEqual(
+    events.filter((event) => event.type === 'turn.completed').map((event) => event.assistant.text),
+    ['Paused.', 'Resumed.', 'Resumed.', 'Resumed.'],
+  );
+});
+
 test('Spotify planning respects permissions, cancellation and non-music verdicts without side effects', async () => {
   let enabled = false,
     modelCalls = 0,
@@ -1644,16 +1673,12 @@ test('a classified conversation cannot inherit action tools, while the next feat
   const seen = [],
     events = [];
   const service = client({
-    requestRouter: { classify: async () => ({ mode: 'normal', reason: 'unavailable' }) },
-    computerIntent: async (text) => ({
-      intent:
-        text === 'Set a timer for ten minutes.'
-          ? 'feature'
-          : text === 'What is my favourite game?'
-            ? 'memory'
-            : 'chat',
-      usesPrevious: false,
-    }),
+    requestRouter: {
+      classify: async (text) =>
+        ['Not much, just chilling.', 'Да ничего особенного.', 'Rien de spécial.'].includes(text)
+          ? { mode: 'fast', reason: 'simple-dialogue' }
+          : { mode: 'normal', reason: 'unavailable' },
+    },
     interfaceState: () => ({ fullComputerAccess: true }),
     computerTask: () => assert.fail('Conversation and built-in features must not control the PC'),
     fetchImpl: async (_url, options) => {
@@ -1694,9 +1719,6 @@ test('ordinary local chat bypasses the tool loop and preserves previous turns an
           ? { mode: 'fast', reason: 'simple-dialogue' }
           : { mode: 'normal', reason: 'unavailable' },
     },
-    computerIntent: async (text) => ({
-      intent: text.startsWith('Set a timer') ? 'feature' : 'chat',
-    }),
     interfaceState: () => ({ fullComputerAccess: true, languages: { conversation: 'en' } }),
     prepareContext: () => ({ userToolContext: '\n\nUSER_TOOL_INSTRUCTIONS' }),
     avatarSprites: [{ id: 'attentive', pose: 'standing', expression: 'attentive' }],
@@ -1970,7 +1992,7 @@ test('a completed chat reply wrapped inside an invalid avatar marker is delivere
   let calls = 0;
   const service = client({
     externalInference: true,
-    computerIntent: async () => ({ intent: 'chat' }),
+    requestRouter: { classify: async () => ({ mode: 'fast', reason: 'simple-dialogue' }) },
     fetchImpl: async (_url, { headers }) => {
       assert.equal(headers['x-capri-tools-once'], 'dialogue');
       calls++;
@@ -2016,67 +2038,6 @@ test('a tool-free external turn does not request gateway tools and explains a pr
     assert.match(events.at(-1).message, /HTTP 413.*request is too large/u);
     assert.equal(service.diagnostics().lastFailure.httpStatus, 413);
     assert.doesNotMatch(JSON.stringify(events), /private-canary/u);
-  }
-});
-
-test('introductions, avatar questions and requests for instructions avoid the agent tool loop', async () => {
-  const prompts = [
-    "Hi, I'm Alex. What can you do?",
-    'Can I drag you?',
-    'How do I do it? Please tell me step by step.',
-  ];
-  const service = client({
-    interfaceState: () => ({ fullComputerAccess: true }),
-    requestRouter: { classify: () => assert.fail('Tool routing is unnecessary') },
-    computerIntent: () => assert.fail('No desktop action was requested'),
-    fetchImpl: () => assert.fail('The local dialogue should bypass the gateway'),
-    directLocalDialogue: async ({ messages }) => {
-      assert.match(messages[0].content, /animated desktop avatar/);
-      assert.match(messages[0].content, /drag the CAPRI header/);
-      assert.equal(messages.at(-1).content, prompts.shift());
-      return response('You can do that from my window.');
-    },
-  });
-  for (const text of [...prompts]) {
-    const events = [];
-    await service.send({ id: randomUUID(), text }, (event) => events.push(event));
-    assert.equal(events.at(-1).type, 'turn.completed');
-  }
-});
-
-test('an upstream 404 or 429 survives a generic gateway error or first-text timeout', async () => {
-  for (const status of [404, 429]) {
-    const events = [];
-    const service = client({
-      externalInference: true,
-      firstTextTimeoutMs: 40,
-      externalChatProviderRejectionSince: (startedAt) => {
-        assert.ok(Number.isFinite(startedAt));
-        return status;
-      },
-      fetchImpl: async (_url, { signal }) => {
-        if (status === 404)
-          return response('', 'data: {"error":{"message":"gateway private-canary"}}\n\n');
-        return new Promise((_, reject) => {
-          const keepAlive = setTimeout(() => reject(new Error('Test deadline exceeded')), 1000);
-          signal.addEventListener(
-            'abort',
-            () => {
-              clearTimeout(keepAlive);
-              reject(signal.reason);
-            },
-            { once: true },
-          );
-        });
-      },
-    });
-    await service.send({ id: randomUUID(), text: 'What is two plus two?' }, (event) =>
-      events.push(event),
-    );
-    assert.equal(events.at(-1).type, 'turn.failed');
-    assert.match(events.at(-1).message, new RegExp('API provider returned HTTP ' + status));
-    assert.equal(service.diagnostics().lastFailure.httpStatus, status);
-    assert.doesNotMatch(JSON.stringify(events), /private-canary/);
   }
 });
 
@@ -2228,7 +2189,6 @@ test('real tool progress grants bounded execution time and a fresh final-answer 
   const service = client({
     firstTextTimeoutMs: 25,
     toolTimeoutMs: 100,
-    prepareModel: async () => ({ conversationBudget: { firstTextTimeoutMs: 300 } }),
     fetchImpl: async (_url, { headers, signal }) => {
       assert.equal(headers['x-capri-tool-progress'], '1');
       return new Response(
@@ -2239,7 +2199,7 @@ test('real tool progress grants bounded execution time and a fresh final-answer 
             const final = setTimeout(() => {
               stream.enqueue(Buffer.from(packet('Playing your song.') + 'data: [DONE]\n\n'));
               stream.close();
-            }, 120);
+            }, 60);
             signal.addEventListener(
               'abort',
               () => {

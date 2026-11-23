@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+export const DRAG_LIGHTNING_COLOR = '#f50019';
+
 export const TELEPORT_LIGHTNING_RANGES = Object.freeze({
   teleportIntensity: { min: 0, max: 100, defaultValue: 30 },
   teleportJaggedness: { min: 0, max: 100, defaultValue: 70 },

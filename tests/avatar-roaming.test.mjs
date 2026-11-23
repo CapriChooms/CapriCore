@@ -15,10 +15,12 @@ const on = { avatarRoaming: true, avatarRoamIntervalSeconds: 30 };
 test('old settings upgrade to opt-in roaming; frequency is bounded and persists', (t) => {
   const defaults = validateCompanionSettings({ wakeSound: 'off' });
   assert.equal(defaults.avatarRoaming, false);
+  assert.equal(defaults.avatarRoamCursorPranks, false);
   assert.equal(defaults.avatarRoamMonitors, 'current');
   assert.equal(defaults.avatarRoamIntervalSeconds, 120);
   for (const value of [
     { avatarRoaming: 'yes' },
+    { avatarRoamCursorPranks: 'yes' },
     { avatarRoamMonitors: 'primary' },
     { avatarRoamIntervalSeconds: 29 },
     { avatarRoamIntervalSeconds: 1801 },
@@ -64,7 +66,7 @@ test('current or observed mode preserves the existing observation targets', () =
   assert.equal(chooseRoamingDisplay({ mode: 'current', ...options }), displays[1]);
   assert.equal(
     chooseRoamingDisplay({ mode: 'current', ...options, observed: new Set([4]) }),
-    undefined,
+    displays[0],
   );
   // Screen observation permissions do not constrain geometry-only roaming.
   assert.equal(chooseRoamingDisplay({ mode: 'any', ...options }), displays[2]);
@@ -83,6 +85,27 @@ test('changing the monitor preference invalidates a pending move and restarts th
   assert.equal(scheduler.due(follow), false);
   now = 59_000;
   assert.equal(scheduler.due(follow), true);
+});
+
+test('cursor pranks have their own opt-in and never enable avatar roaming', () => {
+  let now = 0;
+  const cursor = new AvatarRoaming({
+    now: () => now,
+    random: () => 0,
+    enabledKey: 'avatarRoamCursorPranks',
+  });
+  const avatar = new AvatarRoaming({ now: () => now, random: () => 0 });
+  const settings = { ...on, avatarRoaming: false, avatarRoamCursorPranks: true };
+  cursor.due(settings);
+  avatar.due(settings);
+  now += 30000;
+  assert.equal(avatar.due(settings), false);
+  assert.equal(cursor.due(settings), true);
+  cursor.postpone(settings);
+  assert.equal(
+    cursor.current({ ...settings, avatarRoamCursorPranks: false }, cursor.revision),
+    false,
+  );
 });
 test('enable/disable and interval changes restart the pause instead of teleporting immediately', () => {
   let now = 0;

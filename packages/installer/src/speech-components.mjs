@@ -12,7 +12,7 @@ import { estimateSpeechStorage } from './storage-estimate.mjs';
 import { runCommand } from './commands.mjs';
 import { fetchArtifact, fileHash } from './download.mjs';
 import { installationLock } from './lock.mjs';
-import { validateVoicePack, importVoicePack } from './voice-pack.mjs';
+import { BUNDLED_VOICE_LOCATIONS, validateVoicePack, importVoicePack } from './voice-pack.mjs';
 import { writeJsonAtomic } from '../../runtime/src/atomic-json.mjs';
 import { probeHardware } from '../../runtime/src/hardware/probe.mjs';
 import { listReleases, githubCredential } from '../../updater/src/github.mjs';
@@ -253,19 +253,16 @@ export async function installSpeechComponents(
           validateVoicePack(folder, expected);
           return;
         } catch {}
-        folder = [
-          path.join(root, 'data/voices/capri/en/exports/capri-en-v1'),
-          path.join(root, 'data/speech/bundled-voice'),
-          path.join(root, '.runtime/installer/bundled-voice'),
-          path.join(root, '.bundled-voice'),
-        ].find((candidate) => {
-          try {
-            validateVoicePack(candidate, expected);
-            return true;
-          } catch {
-            return false;
-          }
-        });
+        folder = BUNDLED_VOICE_LOCATIONS.map((relative) => path.join(root, relative)).find(
+          (candidate) => {
+            try {
+              validateVoicePack(candidate, expected);
+              return true;
+            } catch {
+              return false;
+            }
+          },
+        );
         if (!folder) {
           let token = null;
           try {
@@ -301,7 +298,7 @@ export async function installSpeechComponents(
             String(256 * 1024 ** 2),
           ]);
         }
-        settings.profileDir = importVoicePack(folder, root, expected);
+        settings.profileDir = importVoicePack(folder, root, expected, { bundled: true });
         writeJsonAtomic(path.join(root, 'config/companion-voice.json'), settings);
       });
       await step('voice-runtime', async () => {

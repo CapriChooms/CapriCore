@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ComputerControl } from '../apps/desktop/computer-control.mjs';
+import { computerPlanner } from '../apps/desktop/computer-planner.mjs';
 import { computerVision } from '../apps/desktop/computer-vision.mjs';
 import { cyberpunkLauncherTarget } from '../apps/desktop/steam-game-launch.mjs';
 
@@ -52,6 +53,76 @@ function fixture() {
   });
   return { state, control };
 }
+
+test('the idle planner permits only a nudge or skip and receives no desktop data', async () => {
+  let answer = { action: 'right' };
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:12345',
+    model: 'fixture',
+    fetchImpl: async (_url, { body }) => {
+      const { messages, tools } = JSON.parse(body);
+      assert.deepEqual(tools, []);
+      assert.deepEqual(
+        messages.map(({ role }) => role),
+        ['system'],
+      );
+      return Response.json({ done: true, message: { content: JSON.stringify(answer) } });
+    },
+  });
+  assert.deepEqual(await plan.idleCursor(), { action: 'right' });
+  answer = { action: 'skip' };
+  assert.deepEqual(await plan.idleCursor(), { action: 'skip' });
+  answer = { action: 'click' };
+  await assert.rejects(plan.idleCursor(), { code: 'COMPUTER_PLAN_SCHEMA' });
+});
+
+test('idle cursor uses the indicator and Escape, requires permission, and sends one fixed action', async () => {
+  const { state, control } = fixture();
+  state.allowed = false;
+  assert.equal(await control.runIdleCursor('left', () => true), false);
+  state.allowed = true;
+  assert.equal(await control.runIdleCursor('left', () => false), false);
+  assert.equal(await control.runIdleCursor('click', () => true), false);
+  state.bridge = async (command, { stillAllowed }) => {
+    assert.equal(state.registered && state.visible && stillAllowed(), true);
+    state.calls.push(command);
+    return { moved: true };
+  };
+  assert.equal(await control.runIdleCursor('right', () => true), true);
+  assert.deepEqual(state.calls, [{ action: 'idle_cursor_nudge', direction: 'right' }]);
+  assert.equal(state.registered || state.visible || control.snapshot().active, false);
+});
+
+test('idle cursor cannot be used by a chat tool and Escape interrupts it before input', async () => {
+  const { state, control } = fixture();
+  const shown = Promise.withResolvers();
+  control.showBorder = async () => shown.resolve();
+  const pending = control.runIdleCursor('left', () => true);
+  const cancelled = assert.rejects(pending, /cancelled|aborted/i);
+  await shown.promise;
+  await assert.rejects(control.execute({ action: 'observe' }), /owner-requested session/i);
+  state.escape();
+  await cancelled;
+  assert.deepEqual(state.calls, []);
+  await control.begin('Open the fixture');
+  assert.equal(control.snapshot().active, true);
+  await control.stop();
+});
+
+test('returning to the desktop after the indicator opens cancels a scheduled cursor prank', async () => {
+  const { state, control } = fixture();
+  const shown = Promise.withResolvers();
+  let idle = true;
+  control.showBorder = async () => shown.resolve();
+  const pending = control.runIdleCursor('left', () => idle);
+  const outcome = assert.rejects(pending, /cancelled|aborted/i);
+  await shown.promise;
+  idle = false;
+  assert.equal(control.supervise({ indicatorVisible: true }), false);
+  await outcome;
+  assert.deepEqual(state.calls, []);
+  assert.equal(control.snapshot().active, false);
+});
 
 test('a native input failure consumes the observation and an in-flight action excludes overlapping input', async () => {
   const { state, control } = fixture();

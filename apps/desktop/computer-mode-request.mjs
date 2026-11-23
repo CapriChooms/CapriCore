@@ -236,6 +236,36 @@ export function spotifyPlaybackCandidate(text) {
   );
 }
 
+const spotifyPlaybackControls = [
+  [
+    'pause',
+    /^(?:pause|stop|приостанови|останови)(?:\s+(?:the\s+)?(?:music|playback|музыку|воспроизведение))?$/iu,
+  ],
+  [
+    'resume',
+    /^(?:play|resume|continue|включи|поставь|продолжи|возобнови)(?:\s+(?:(?:some|any|the|good|nice|great|любую|хорошую|какую-нибудь)\s+)*(?:music|playback|музыку|воспроизведение|something|что-нибудь))?$/iu,
+  ],
+  [
+    'next',
+    /^(?:(?:play\s+(?:the\s+)?|skip\s+to\s+(?:the\s+)?)?next(?:\s+(?:song|track))?|skip(?:\s+(?:the\s+|this\s+)?(?:song|track))?|следующ(?:ий трек|ую песню)|переключи трек)$/iu,
+  ],
+  [
+    'previous',
+    /^(?:(?:play\s+(?:the\s+)?|go\s+to\s+(?:the\s+)?)?previous(?:\s+(?:song|track))?|предыдущ(?:ий трек|ую песню))$/iu,
+  ],
+];
+
+export function explicitSpotifyControl(text) {
+  const scoped = musicRequestScope(text);
+  if (scoped === null) return null;
+  const request = requestText(scoped)
+    .replace(/[.!?\s]+$/u, '')
+    .replace(/[, \t]+(?:please|пожалуйста)$/iu, '');
+  const subject = /^(.*?)\s+(?:(?:in|on|в|на)\s+)?(?:spotify|спотифа[йе])$/iu.exec(request)?.[1];
+  const match = subject && spotifyPlaybackControls.find(([, pattern]) => pattern.test(subject));
+  return match ? { action: match[0] } : null;
+}
+
 /** Only an explicit, single owner request can bypass generated tool syntax. */
 export function namedSpotifyPlay(text) {
   const scoped = musicRequestScope(text);

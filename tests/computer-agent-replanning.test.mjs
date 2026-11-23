@@ -132,17 +132,25 @@ test('an unavailable outline leaves the original goal and independent review in 
     },
     plan: async (context, { review }) => {
       assert.equal(context.originalOwnerGoal, goal);
-      assert.equal(context.taskPlan.outcomeId, 'owner-outcome');
+      assert.equal(context.taskPlan.outcomeId, undefined);
       if (review) reads++;
       return opened
         ? {
             action: 'finish',
             evidence: resultLabel,
             summary: 'Download the PDF from the publisher.',
+            verifiedCheckpoints: [{ id: 'source', evidence: resultLabel }],
           }
         : {
             action: 'click',
             targetId: context.currentObservation.targets[0].targetId,
+            plan: [
+              {
+                id: 'source',
+                label: 'Open the publisher archive',
+                successCriterion: 'The PDF is shown',
+              },
+            ],
             summary: '',
           };
     },
@@ -426,6 +434,8 @@ test('a scoped chain rejects invented web steps, restores the bound window and s
           evidence: 'Calculator',
           summary: 'Typed the draft and opened Calculator.',
         };
+      if (['1', '99'].includes(currentObservation.window.windowId))
+        return { action: 'launch', query: 'Notepad' };
       assert.equal(currentObservation.window.windowId, '11');
       if (++suggestions === 1)
         return { action: 'browser_search', query: 'Chrome', text: 'Notepad' };
@@ -483,6 +493,7 @@ test('a requested taskbar switch rebinds to the verified foreground before the n
       return { ok: true };
     },
     plan: async ({ currentObservation }, { review }) => {
+      if (foreground === '1') return { action: 'launch', query: 'Paint' };
       if (foreground === '22')
         assert.equal(currentObservation.scene, 'Notepad on the newly active monitor.');
       if (review || clicked)
@@ -528,8 +539,10 @@ test('an explicit quoted click uses a unique observed control and reports only t
         button('settings', 'Настройки'),
       ],
     }),
-    outline: async () => assert.fail('An exact click needs no model plan'),
-    plan: async () => assert.fail('An exact click needs no model input'),
+    plan: async ({ currentObservation }) => ({
+      action: 'click',
+      targetId: currentObservation.targets[1].targetId,
+    }),
     input: async (args, view) => {
       assert.equal(args.targetId, view.targets[1].targetId);
       return { ok: true };
@@ -553,7 +566,10 @@ test('a visual button takes precedence over an equally named native button from 
         button('front-dialog', 'Play', { source: 'vision', actionRole: 'button' }),
       ],
     }),
-    plan: async () => assert.fail('A uniquely confirmed exact click needs no planner call'),
+    plan: async ({ currentObservation }) => ({
+      action: 'click',
+      targetId: currentObservation.targets[1].targetId,
+    }),
     input: async (args, view) => {
       assert.equal(f.calls[0].vision, true);
       assert.equal(args.targetId, view.targets[1].targetId);
@@ -574,7 +590,10 @@ test('an ambiguous visual click does not fall through to a native control with t
         button('right', 'Play', { source: 'vision', actionRole: 'button' }),
       ],
     }),
-    plan: async () => assert.fail('Ambiguous exact clicks require the owner'),
+    plan: async ({ correction, currentObservation }) =>
+      correction
+        ? { action: 'ask_user', summary: 'Which Play button?' }
+        : { action: 'click', targetId: currentObservation.targets[0].targetId },
     input: async () => assert.fail('No click should be sent'),
   });
   assert.equal((await f.agent.run('Click “Play”')).status, 'needs_user');
@@ -694,6 +713,7 @@ test('an explicitly closed bound window is checked by Windows and never restored
           evidence: 'The verified application window is closed.',
           summary: 'Closed Paint.',
         };
+      if (foreground === '1') return { action: 'launch', query: 'Paint' };
       return { action: 'click', targetId: currentObservation.targets[0].targetId };
     },
   });

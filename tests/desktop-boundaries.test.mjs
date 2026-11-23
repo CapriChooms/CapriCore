@@ -10,36 +10,8 @@ import { createDesktopResources } from '../apps/desktop/main/resources.mjs';
 import { createIpcHandler } from '../apps/desktop/main/ipc.mjs';
 import { SETTINGS_CHANNELS } from '../apps/desktop/main/settings-channels.mjs';
 import { PointerController } from '../apps/desktop/main/pointer-controller.mjs';
-
-test('window drag doubles native polling only until release, cancellation or shutdown', ({
-  mock,
-}) => {
-  mock.timers.enable({ apis: ['setInterval'] });
-  const pointer = new PointerController({
-    window: { getBounds: () => ({ x: 0, y: 0, width: 480, height: 660 }) },
-    screen: { getCursorScreenPoint: () => ({ x: 10, y: 10 }) },
-  });
-  let samples = 0;
-  pointer.tick = () => samples++;
-  const sample = (expected) => {
-    samples = 0;
-    mock.timers.tick(32);
-    assert.equal(samples, expected);
-  };
-  pointer.start();
-  sample(2);
-  pointer.beginWindow();
-  sample(4);
-  pointer.endWindow();
-  sample(2);
-  pointer.beginWindow();
-  sample(4);
-  pointer.cancel();
-  sample(2);
-  pointer.beginWindow();
-  pointer.stop();
-  sample(0);
-});
+import { resizeWindowBounds, WINDOW_RESIZE_EDGES } from '../apps/desktop/geometry.mjs';
+import { resizeWorkspace } from '../apps/desktop/main/window-resize-surface.mjs';
 
 test('holding a transparent window does not repeatedly move it or accumulate fractional-DPI size drift', () => {
   let bounds = { x: 0, y: 0, width: 480, height: 660 },
@@ -105,6 +77,112 @@ test('resizing a transparent window by its corner holds the opposite edges and r
   pointer.tick();
   assert.deepEqual(bounds, { x: -40, y: -20, width: 1000, height: 700 });
   assert.equal(calls.length, 3);
+});
+
+test('resizing preserves the initial bounds and untouched edges of a partly off-screen window', () => {
+  const start = { x: -12, y: 20, width: 480, height: 660 };
+  const area = { x: 0, y: 0, width: 1000, height: 800 };
+  const minimum = { width: 380, height: 520 };
+  assert.deepEqual(resizeWindowBounds(start, 'e', { x: 0, y: 0 }, area, minimum), start);
+  assert.deepEqual(resizeWindowBounds(start, 's', { x: 25, y: 15 }, area, minimum), {
+    ...start,
+    height: 675,
+  });
+  assert.deepEqual(resizeWindowBounds(start, 'nw', { x: 8, y: 12 }, area, minimum), {
+    x: -4,
+    y: 32,
+    width: 472,
+    height: 648,
+  });
+});
+
+test('the temporary resize workspace contains all positions without moving the anchored edges', () => {
+  const start = { x: -1100, y: -100, width: 690, height: 550 };
+  const workArea = { x: -1280, y: -260, width: 1280, height: 950 };
+  const minimum = { width: 525, height: 235 };
+  for (const edge of WINDOW_RESIZE_EDGES) {
+    const workspace = resizeWorkspace(start, { edge, workArea, minimum });
+    for (const offset of [-1400, -1, 0, 1, 1400]) {
+      const next = resizeWindowBounds(start, edge, { x: offset, y: offset }, workArea, minimum);
+      assert.ok(next.x >= workspace.x && next.y >= workspace.y, edge);
+      assert.ok(next.x + next.width <= workspace.x + workspace.width, edge);
+      assert.ok(next.y + next.height <= workspace.y + workspace.height, edge);
+      if (!edge.includes('w')) assert.equal(next.x, start.x, edge);
+      if (!edge.includes('n')) assert.equal(next.y, start.y, edge);
+      if (!edge.includes('e')) assert.equal(next.x + next.width, start.x + start.width, edge);
+      if (!edge.includes('s')) assert.equal(next.y + next.height, start.y + start.height, edge);
+    }
+  }
+});
+
+test('a frame-driven drag applies one current cursor sample and the final release point', () => {
+  let cursor = { x: -300, y: 12 };
+  const bounds = { x: -300, y: 0, width: 600, height: 720 };
+  const frames = [];
+  const pointer = new PointerController({
+    window: { getBounds: () => bounds, isDestroyed: () => false, isVisible: () => true },
+    screen: { getCursorScreenPoint: () => cursor },
+    getRegions: () => null,
+    applyWindowBounds: (next) => frames.push(next),
+  });
+  pointer.beginWindow(undefined, true);
+  cursor = { x: -320, y: 22 };
+  pointer.tick();
+  assert.equal(frames.length, 0);
+  assert.equal(pointer.sampleWindow(), true);
+  pointer.sampleWindow();
+  assert.deepEqual(frames, [{ ...bounds, x: -320, y: 10 }]);
+  cursor = { x: -325, y: 25 };
+  pointer.endWindow(true);
+  assert.deepEqual(frames[1], { ...bounds, x: -325, y: 13 });
+  assert.equal(pointer.sampleWindow(), false);
+});
+
+test('pointer release commits the last resize sample and a stationary pointer reuses its hit test', () => {
+  let bounds = { x: 100, y: 100, width: 480, height: 600 };
+  let cursor = { x: 103, y: 105 };
+  let contentReads = 0;
+  let released;
+  const regions = {
+    controls: [{ x: 0, y: 0, width: 20, height: 20 }],
+    sprite: { x: 0, y: 0, width: 100, height: 100, enabled: false },
+  };
+  const pointer = new PointerController({
+    window: {
+      isDestroyed: () => false,
+      isVisible: () => true,
+      getBounds: () => bounds,
+      getContentBounds: () => {
+        contentReads++;
+        return bounds;
+      },
+      setBounds: (value) => {
+        bounds = value;
+      },
+      setIgnoreMouseEvents: () => {},
+    },
+    screen: { getCursorScreenPoint: () => cursor },
+    getRegions: () => regions,
+    getMask: () => null,
+    onEnd: (drag) => {
+      released = drag.last;
+    },
+  });
+  pointer.tick();
+  pointer.tick();
+  assert.equal(contentReads, 1);
+  pointer.invalidateHitTest();
+  pointer.tick();
+  assert.equal(contentReads, 2);
+  pointer.beginWindow({
+    edge: 'nw',
+    workArea: { x: 0, y: 0, width: 1000, height: 800 },
+    minimum: { width: 380, height: 520 },
+  });
+  cursor = { x: 124, y: 119 };
+  pointer.endWindow(true);
+  assert.deepEqual(bounds, { x: 121, y: 114, width: 459, height: 586 });
+  assert.deepEqual(released, bounds);
 });
 
 test('desktop resources admit only exact local allowlisted GET requests', async () => {

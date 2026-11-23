@@ -6,6 +6,14 @@
   "locale": "ta",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "நீங்கள் விலகியிருக்கும்போது Capri சுட்டியை நகர்த்த அனுமதிக்கவும்",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "சுட்டிக் குறும்புகளுக்கு கணினியின் முழு அணுகல் தேவை. நிறுத்த Esc அழுத்தவும்.",
+    "Animate the reply bubble": "பதில் குமிழை அசைவூட்டவும்",
+    "Drag lightning color": "இழுக்கும்போது மின்னலின் நிறம்",
+    "Wild desktop pranks": "கட்டுப்பாடற்ற முறையில் பணிமேடைக் குறும்புகள்",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "கட்டுப்பாடற்ற முறையில் Capri அவ்வப்போது போலிச் சுட்டியைக் கவர்ந்து செல்கிறாள். சுட்டெலியும் விசைப்பலகையும் வழக்கம்போல் இயங்கும்.",
+    "Preview a prank": "குறும்பின் முன்னோட்டத்தைப் பார்க்கவும்",
+    "Prank preview is unavailable right now.": "குறும்பின் முன்னோட்டம் தற்போது கிடைக்கவில்லை.",
     "Automatically check for updates": "புதுப்பிப்புகளைத் தானாகச் சரிபார்",
     "Capri’s game reactions": "ஆட்டத்திற்கான Capri-யின் எதிர்வினைகள்",
     "React to game events": "விளையாட்டு நிகழ்வுகளுக்கு எதிர்வினை",
@@ -355,6 +363,9 @@
     "Folder": "கோப்பு",
     "Folder access could not be revoked.": "கோப்பு அணுகலை மீள்கொள்ள முடியவில்லை.",
     "Folder permissions could not be saved.": "கோப்பு அனுமதிகளைச் சேமிக்க முடியவில்லை.",
+    "Follow-up listening": "தொடர்ந்து கேட்டல்",
+    "After a question": "கேள்விக்குப் பிறகு",
+    "After any spoken reply": "ஒவ்வொரு பேச்சுப் பதிலுக்குப் பிறகும்",
     "Follow-up listening time (seconds)": "பின்னர் கேட்டல் நேரம் (வினாடிகள்)",
     "For example, Tamil": "உதாரணமாக, தமிழ்",
     "Freeing model memory…": "மாதிரி நினைவகத்தை விடுவிக்கிறது...",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "விருப்பமான செயல்பாடு படம்",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "உங்கள் பயன்பாட்டின் வளமான இருப்பு → கலை சொத்துக்களில் ஒரு படத்தை பதிவேற்றி, அதன் சொத்து விசையை இங்கே ஒட்டவும். உரை-க்கு மட்டுமே உள்ள செயல்பாடுகளுக்கு இந்த புலத்தை காலியாக விடவும்.",
     "Settings closed unexpectedly. Open Settings to try again.": "அமைப்புகள் எதிர்பாராதவிதமாக மூடப்பட்டது. மீண்டும் முயற்சிக்க அமைப்புகளைத் திறக்கவும்.",
-    "Capri closed unexpectedly.": "Capri எதிர்பாராத விதமாக மூடப்பட்டது.",
-    "The logs folder is open.": "பதிவுகளின் கோப்புறை திறந்துள்ளது.",
-    "The logs folder could not be opened.": "பதிவுகளின் கோப்புறையைத் திறக்க முடியவில்லை.",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "கண்டறிதல் ZIP கோப்பைச் சேமித்துச் சரிபாருங்கள். பின்னர் Discord இல் Overyx க்குத் தனிச் செய்தியாக அனுப்புங்கள்.",
-    "The crash report could not be saved.": "செயலிழப்பு அறிக்கையைச் சேமிக்க முடியவில்லை.",
-    "You can try saving a report from Report a bug after restarting Capri.": "Capri ஐ மீண்டும் தொடங்கிய பின் ‘பிழையைப் புகாரளி’ வழியாக அறிக்கையைச் சேமிக்க முயலுங்கள்.",
     "Test": "சோதனை",
     "Stop computer control (Esc)": "கணினி கட்டுப்பாட்டை நிறுத்துங்கள் (Esc)",
     "Capri on the desktop": "டெஸ்க்டாப்பில் Capri",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "விருப்பத்தேர்வு: அழைப்பு மற்றும் கணினி ஒலியைக் கேள்",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "பெயர் சொல்லி இயக்குவதும் தானாக அனுப்புவதும் இயக்கப்பட்டிருந்தால், Capri-ஐ நோக்கிச் சொல்லப்படும் கோரிக்கைகள் தானாக அனுப்பப்படும். இல்லையெனில், அனுப்புவதற்கு முன் உரையைச் சரிபார்க்கவும். ஒலி பின்னூட்டத்தைத் தவிர்க்க ஹெட்ஃபோன்களைப் பயன்படுத்தவும்.",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "முதலில் Capri-யின் மைக்ரோஃபோனை இயக்கி, பின்னர் கணினி ஒலியைச் சேர்க்கவும். Capri உங்கள் குரலையும் அழைப்பில் உள்ளவர்களின் குரலையும் கேட்க முடியும்; யார் அதன் பெயரைச் சொன்னாலும் செயல்படத் தொடங்கும்.",
+    "Days": "நாட்கள்",
     "Hours": "மணிநேரங்கள்",
     "Seconds": "விநாடிகள்",
     "Set up once, then choose the virtual microphone in your call app.": "ஒருமுறை அமைத்துவிட்டு, உங்கள் அழைப்பு செயலியில் மெய்நிகர் மைக்ரோஃபோனைத் தேர்ந்தெடுக்கவும்.",
@@ -2477,7 +2483,13 @@
     "Vertical": "செங்குத்து",
     "Horizontal": "கிடைமட்டம்",
     "I could not verify that YouTube opened. Check the page in the browser.": "YouTube திறந்ததா என்பதை என்னால் உறுதிப்படுத்த முடியவில்லை. உலாவியில் பக்கத்தைச் சரிபார்க்கவும்.",
-    "No supported browser was found to open YouTube.": "YouTube ஐத் திறக்க ஆதரிக்கப்படும் உலாவி எதுவும் கிடைக்கவில்லை."
+    "No supported browser was found to open YouTube.": "YouTube ஐத் திறக்க ஆதரிக்கப்படும் உலாவி எதுவும் கிடைக்கவில்லை.",
+    "Avatar gallery": "அவதார் காட்சியகம்",
+    "Poses": "உடல் நிலைகள்",
+    "Expressions": "முகபாவனைகள்",
+    "Animations": "அசைவூட்டங்கள்",
+    "Loop animation": "அசைவூட்டத்தை மீண்டும் இயக்கு",
+    "Play animation": "அசைவூட்டத்தை இயக்கு"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,8 @@
     "corrections": 51,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·"
+  ]
 }

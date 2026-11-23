@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomUUID } from 'node:crypto';
-import { sseData } from './sse.mjs';
+import { sseData } from './chat-service.mjs';
 import { CHATGPT_RESOURCE, ChatGPTPlanError } from './chatgpt-plan-auth.mjs';
 import { chatGPTFastEffort } from './chatgpt-plan-models.mjs';
 
@@ -279,7 +279,7 @@ export async function chatGPTCompletion(auth, payload, signal, accessToken) {
       headers: {
         authorization: 'Bearer ' + accessToken,
         'content-type': 'application/json',
-        accept: payload.stream === false ? 'application/json' : 'text/event-stream',
+        accept: 'text/event-stream',
       },
       body: JSON.stringify(request),
     });

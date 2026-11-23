@@ -1,35 +1,50 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+function median(values) {
+  values.sort((a, b) => a - b);
+  const middle = Math.floor(values.length / 2);
+  return (values[middle] + values[Math.floor((values.length - 1) / 2)]) / 2;
+}
+
 export function refineBoardEdges({ width, height, data }, { x0, y0, x1, y1 }) {
   const radius = Math.max(3, Math.min(12, Math.round(Math.min(x1 - x0, y1 - y0) / 44)));
-  // At the board perimeter, alternating tile colors stop on the outer side.
   const findEdge = (estimate, length, start, end, direction, sample) => {
-    const contrast = (axis) => {
-      let difference = 0;
-      for (let tile = 0; tile < 8; tile++) {
-        const at = Math.floor(start + ((tile + 0.5) * (end - start)) / 8);
-        difference += (tile % 2 ? -1 : 1) * sample(axis, at);
-      }
-      return Math.abs(difference / 4);
-    };
-    let edge = Math.round(estimate);
-    let best = 9;
-    const first = Math.max(1, edge - radius);
-    const last = Math.min(length - 1, edge + radius);
-    let previous = first <= last ? contrast(first - 1) : 0;
-    for (let pixel = first; pixel <= last; pixel++) {
-      const current = contrast(pixel);
-      const score = (current - previous) * direction - 0.2 * Math.abs(pixel - estimate);
-      if (score > best) {
-        best = score;
-        edge = pixel;
-      }
-      previous = current;
+    const coordinates = [[], []];
+    for (let tile = 0; tile < 8; tile++) {
+      for (const fraction of [0.25, 0.5, 0.75])
+        coordinates[tile % 2].push(Math.floor(start + ((tile + fraction) * (end - start)) / 8));
     }
-    return Math.max(0, Math.min(length, edge));
+    const contrast = (pixel) =>
+      median(coordinates[0].map((at) => sample(pixel, at))) -
+      median(coordinates[1].map((at) => sample(pixel, at)));
+    const clamp = (pixel, maximum = length) => Math.max(0, Math.min(maximum, pixel));
+    const edge = clamp(Math.round(estimate));
+    const lastTileOffset = direction < 0 ? 1 : 0;
+    const interior = median(
+      [2, 4, 6].map((offset) =>
+        contrast(clamp(edge + direction * (radius + offset) - lastTileOffset, length - 1)),
+      ),
+    );
+    if (Math.abs(interior) < 16) return edge;
+    const threshold = Math.abs(interior) * 0.35;
+    const parity = Math.sign(interior);
+    const boardLine = (pixel) =>
+      pixel >= 0 && pixel < length && contrast(pixel) * parity >= threshold;
+
+    // Follow the checkerboard from the outside in. A piece or one bright line
+    // inside the board cannot win over the first sustained strip of tile colors.
+    const first = clamp(edge - direction * radius);
+    const last = clamp(edge + direction * radius);
+    for (let boundary = first; (last - boundary) * direction >= 0; boundary += direction) {
+      const pixel = boundary - lastTileOffset;
+      if (!boardLine(pixel) || boardLine(pixel - direction)) continue;
+      const neighbors = [1, 2, 3].filter((offset) => boardLine(pixel + direction * offset));
+      if (neighbors.length >= 2) return boundary;
+    }
+    return edge;
   };
-  const column = (x, y) => data[y * width + x];
-  const row = (y, x) => data[y * width + x];
+  const column = (x, y) => data[Math.max(0, Math.min(height - 1, y)) * width + x];
+  const row = (y, x) => data[y * width + Math.max(0, Math.min(width - 1, x))];
   return {
     x0: findEdge(x0, width, y0, y1, 1, column),
     y0: findEdge(y0, height, x0, x1, 1, row),

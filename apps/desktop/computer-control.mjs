@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { canClickTarget } from './computer-click-target.mjs';
 import { computerTaskCommand } from './computer-mode-request.mjs';
 import { isCyberpunkLauncherWindow, isCyberpunkPlayLabel } from './steam-game-launch.mjs';
@@ -144,15 +145,22 @@ export class ComputerControl {
   publish() {
     this.emit({ type: 'computer.control', ...this.snapshot() });
   }
+  #authorized(session) {
+    return (
+      this.allowed() &&
+      (session.idleCursor
+        ? session.idleCursor()
+        : this.canStart() && session.turn === this.currentTurn())
+    );
+  }
   /** The same owner callbacks cover chat turns and explicitly started workflows. */
   supervise({ indicatorVisible = false, escapeAvailable = true } = {}) {
     const session = this.session;
     if (!session && !indicatorVisible) return true;
     if (
       !session ||
-      !this.allowed() ||
-      !this.canStart() ||
-      session.turn !== this.currentTurn() ||
+      !this.#authorized(session) ||
+      this.now() >= session.deadline ||
       (session.ready && !escapeAvailable)
     ) {
       void this.stop();
@@ -162,15 +170,11 @@ export class ComputerControl {
   }
   requireSession() {
     const current = this.session;
+    if (current?.idleCursor)
+      throw new Error('Start a new owner-requested session before sending computer actions.');
     if (current && !current.ready)
       throw new Error('Computer control is not ready. Wait for its indicator.');
-    if (
-      !current ||
-      !this.allowed() ||
-      !this.canStart() ||
-      current.turn !== this.currentTurn() ||
-      this.now() >= current.deadline
-    ) {
+    if (!current || !this.#authorized(current) || this.now() >= current.deadline) {
       void this.stop();
       throw new Error('Computer control is stopped. Start a new owner-requested session.');
     }
@@ -186,23 +190,59 @@ export class ComputerControl {
       throw new Error('Computer control requires an active owner conversation turn.');
     if (this.blockedTurn === this.currentTurn())
       throw new Error('Computer control was stopped for this turn. Wait for a new owner request.');
-    if (this.stopping) {
-      await this.stopping;
-      return this.begin(goal, { maxSteps, signal });
-    }
     if (typeof goal !== 'string' || !goal.trim() || goal.length > 8000)
       throw new Error('Describe the owner task.');
+    if (this.session?.idleCursor || this.stopping) {
+      await this.stop({ blockTurn: false });
+      return this.begin(goal, { maxSteps, signal });
+    }
     if (this.session) {
       if (!this.session.ready) throw new Error('Wait for the current operation to finish.');
       return { ok: true, ...this.snapshot() };
     }
+    return this.#begin(goal, { maxSteps, signal });
+  }
+  async runIdleCursor(direction, permitted, signal) {
+    if (
+      !['left', 'right'].includes(direction) ||
+      this.session ||
+      this.stopping ||
+      signal?.aborted ||
+      !this.allowed() ||
+      !permitted()
+    )
+      return false;
+    const starting = this.#begin('Idle cursor prank', {
+      maxSteps: 1,
+      signal,
+      idleCursor: permitted,
+    });
+    const session = this.session;
+    try {
+      await starting;
+      const stillAllowed = () =>
+        this.session === session && this.#authorized(session) && this.now() < session.deadline;
+      await delay(350, undefined, { signal: session.controller.signal });
+      if (!stillAllowed()) return false;
+      session.pending = this.bridge(
+        { action: 'idle_cursor_nudge', direction },
+        { signal: session.controller.signal, stillAllowed },
+      );
+      const { moved } = await session.pending;
+      return moved === true && this.session === session;
+    } finally {
+      if (this.session === session) await this.stop({ blockTurn: false });
+    }
+  }
+  async #begin(goal, { maxSteps, signal, idleCursor }) {
     const session = {
       id: randomUUID(),
       turn: this.currentTurn(),
       goal,
+      idleCursor,
       maxSteps,
       steps: 0,
-      deadline: this.now() + this.timeoutMs,
+      deadline: this.now() + (idleCursor ? IDLE_CURSOR_SESSION_MS : this.timeoutMs),
       controller: new AbortController(),
       target: null,
       ready: false,
@@ -217,7 +257,8 @@ export class ComputerControl {
     if (signal?.aborted) cancelOwner();
     try {
       try {
-        if (!(await this.registerEscape(() => void this.stop()))) throw new Error();
+        if (!(await this.registerEscape(cancelOwner, { idleCursor: Boolean(idleCursor) })))
+          throw new Error();
       } catch (cause) {
         throw Object.assign(
           new Error('Escape emergency stop is unavailable. Computer control did not start.', {
@@ -244,14 +285,9 @@ export class ComputerControl {
         Promise.resolve()
           .then(() => {
             boundary.throwIfAborted();
-            if (
-              this.session !== session ||
-              !this.allowed() ||
-              !this.canStart() ||
-              session.turn !== this.currentTurn()
-            )
+            if (this.session !== session || !this.#authorized(session))
               throw new Error('Computer control cancelled.');
-            return this.showBorder();
+            return this.showBorder({ idleCursor: Boolean(idleCursor) });
           })
           .then((value) => {
             if (this.session !== session && !this.session) {
@@ -265,15 +301,10 @@ export class ComputerControl {
           .finally(() => boundary.removeEventListener('abort', abort));
         if (boundary.aborted) abort();
       });
-      if (
-        this.session !== session ||
-        !this.allowed() ||
-        !this.canStart() ||
-        session.turn !== this.currentTurn()
-      )
+      if (this.session !== session || !this.#authorized(session) || this.now() >= session.deadline)
         throw new Error('Computer control cancelled.');
       session.ready = true;
-      session.timer = setTimeout(() => void this.stop(), this.timeoutMs);
+      session.timer = setTimeout(() => void this.stop(), session.deadline - this.now());
       session.timer.unref?.();
       this.publish();
       return {
@@ -299,7 +330,7 @@ export class ComputerControl {
     if (session) {
       session.stopped = true;
       session.detachOwner?.();
-      if (blockTurn) this.blockedTurn = session.turn;
+      if (blockTurn && !session.idleCursor) this.blockedTurn = session.turn;
       clearTimeout(session.timer);
     }
     const hide = () => {
@@ -411,6 +442,7 @@ export class ComputerControl {
         const window = args.visualWindow;
         const matchingWindow =
           !window ||
+          (cyberpunkLauncher && session.steamLaunchRequested === true) ||
           ((!window.startedAtTicks ||
             (String(window.processId) === String(before.processId) &&
               window.startedAtTicks === before.startedAtTicks)) &&
@@ -1068,3 +1100,4 @@ export class ComputerControl {
     }
   }
 }
+const IDLE_CURSOR_SESSION_MS = 6000;

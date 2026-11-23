@@ -1,0 +1,17 @@
+{
+  "id": "capri-filesystem",
+  "name": "Capri Scoped Files",
+  "description": "Bounded file operations in owner-selected folders, with durable action IDs and guarded undo.",
+  "activation": { "onStartup": true },
+  "contracts": { "tools": ["filesystem_control"] },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "stateDirectory": {
+        "type": "string",
+        "description": "Optional isolated developer test state, restricted to .runtime."
+      }
+    },
+    "additionalProperties": false
+  }
+}

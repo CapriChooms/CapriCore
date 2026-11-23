@@ -1,0 +1,738 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, utimesSync } from 'node:fs';
+import path from 'node:path';
+import { inflateRawSync, crc32 } from 'node:zlib';
+import { runInNewContext } from 'node:vm';
+import { root } from '../packages/runtime/src/host/paths.mjs';
+import { createDiagnosticReport, validateReport } from '../apps/desktop/diagnostics/report.mjs';
+import { redactor } from '../apps/desktop/diagnostics/redact.mjs';
+import { diagnosticState } from '../apps/desktop/diagnostics/state.mjs';
+import { diagnosticZip } from '../apps/desktop/diagnostics/archive.mjs';
+import { VoiceService } from '../apps/desktop/voice-service.mjs';
+import { registerCompanionIpc } from '../apps/desktop/main/companion-ipc.mjs';
+import { createIpcHandler } from '../apps/desktop/main/ipc.mjs';
+import { SETTINGS_CHANNELS } from '../apps/desktop/main/settings-channels.mjs';
+import { readFileSync } from 'node:fs';
+import { ACTIVE_AVATAR_CATALOG } from '../apps/desktop/avatar-catalog.mjs';
+import { probeResourceUsage } from '../apps/desktop/diagnostics/resources.mjs';
+import { ChessDiagnostics } from '../apps/desktop/chess/diagnostics.mjs';
+import {
+  privateLog,
+  privateLogRecord,
+  writeModelSelectionLog,
+} from '../packages/runtime/src/privacy-log.mjs';
+
+const parent = path.join(root, '.runtime/diagnostic-unit');
+test('screen startup diagnostics preserve only the known stage and error class', () => {
+  const message = 'Capri screen startup failed: {"stage":"capture","name":"AbortError"}';
+  assert.deepEqual(diagnosticState({ message }).message, {
+    event: 'screen-startup-failed',
+    stage: 'capture',
+    name: 'AbortError',
+  });
+  assert.equal(
+    diagnosticState({ message: message + ' private window name' }).message,
+    '[PRIVATE TEXT OMITTED]',
+  );
+});
+mkdirSync(parent, { recursive: true });
+const fixture = () => mkdtempSync(path.join(parent, 'case-'));
+const put = (base, name, data) => {
+  const file = path.join(base, name);
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, typeof data === 'object' ? JSON.stringify(data) : data);
+};
+const unpack = (buffer) => {
+  const files = new Map();
+  let offset = 0;
+  while (buffer.readUInt32LE(offset) === 0x04034b50) {
+    assert.equal(buffer.readUInt16LE(offset + 8), 8);
+    const size = buffer.readUInt32LE(offset + 18),
+      length = buffer.readUInt16LE(offset + 26),
+      extra = buffer.readUInt16LE(offset + 28);
+    const name = buffer.subarray(offset + 30, offset + 30 + length).toString('utf8'),
+      start = offset + 30 + length + extra;
+    const data = inflateRawSync(buffer.subarray(start, start + size));
+    assert.equal(data.length, buffer.readUInt32LE(offset + 22));
+    assert.equal(crc32(data), buffer.readUInt32LE(offset + 14));
+    assert.ok(!files.has(name));
+    files.set(name, data.toString('utf8'));
+    offset = start + size;
+  }
+  assert.equal(buffer.readUInt32LE(offset), 0x02014b50);
+  assert.equal(buffer.readUInt16LE(buffer.length - 12), files.size);
+  return files;
+};
+
+test('bounded diagnostic logs preserve the latest reply failure after more than 500 events', () => {
+  const lines = Array.from({ length: 610 }, (_, i) =>
+    JSON.stringify({
+      schemaVersion: 1,
+      event: 'response-timing',
+      source: 'desktop',
+      traceId: '11111111-1111-4111-8111-111111111111',
+      stage: i === 609 ? 'failed' : 'received',
+      elapsedMs: i,
+      time: new Date(1794333000000 + i).toISOString(),
+      prompt: 'PRIVATE-LOG-CANARY',
+    }),
+  );
+  const output = privateLog(lines.join('\n'));
+  const records = output.split('\n').map((line) => JSON.parse(line));
+  assert.equal(records.length, 500);
+  assert.equal(records[0].elapsedMs, 110);
+  assert.equal(records.at(-1).stage, 'failed');
+  assert.equal(records.at(-1).elapsedMs, 609);
+  assert.equal(output.includes('PRIVATE-LOG-CANARY'), false);
+});
+
+test('Chess diagnostics keep technical events in the report and strip board and browser data', async () => {
+  const base = fixture();
+  const file = path.join(base, 'logs/chess.jsonl');
+  const log = new ChessDiagnostics(file);
+  const canary = 'PRIVATE-CHESS-DATA-255';
+  const trace = log.start('watch', { source: 'display', fen: canary });
+  trace('access', {
+    provider: 'chess-com',
+    localized: true,
+    reason: 'route_rejected',
+    url: canary,
+  });
+  trace('result', { searchMs: 275, depth: 21, move: canary, screenshot: canary });
+  await log.flush();
+  const disk = readFileSync(file, 'utf8');
+  assert.ok(!disk.includes(canary));
+  const rotated = 'logs/chess.jsonl.1';
+  put(
+    base,
+    rotated,
+    JSON.stringify({
+      ...JSON.parse(disk.trim().split('\n').at(-1)),
+      message: canary,
+      path: canary,
+      reason: canary,
+    }) + '\n',
+  );
+  for (const name of ['logs/chess.jsonl', rotated]) utimesSync(path.join(base, name), 1, 1);
+  for (let i = 0; i < 25; i++) put(base, `logs/noise-${i}.log`, 'started');
+  const options = {
+    root: base,
+    hardware: async () => ({}),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+  };
+  const report = unpack(
+    (await createDiagnosticReport({ ...options, input: { includeLogs: true } })).bytes,
+  );
+  const rows = report
+    .get('logs/chess.jsonl')
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  assert.equal(rows[1].reason, 'route_rejected');
+  assert.equal(rows[1].localized, true);
+  assert.equal(rows[2].searchMs, 275);
+  assert.equal(rows[2].traceId, rows[0].traceId);
+  assert.equal(JSON.parse(report.get(rotated)).depth, 21);
+  assert.ok(![...report.values()].join('\n').includes(canary));
+  const withoutLogs = unpack(
+    (await createDiagnosticReport({ ...options, input: { includeLogs: false } })).bytes,
+  );
+  assert.equal(withoutLogs.has('logs/chess.jsonl'), false);
+});
+
+test('diagnostic ZIP keeps the active model ID and reply flag without keys, prompts or private paths', async () => {
+  const base = fixture();
+  const model = 'nvidia/nemotron-3.5-super-vl:free';
+  const secret = 'bare-credential-canary-123456789';
+  const privateText = 'PRIVATE_CONVERSATION_CANARY_8492';
+  put(base, 'data/openclaw/gateway-token', secret);
+  put(
+    base,
+    'logs/llama-chat.stderr.log',
+    JSON.stringify({ event: 'exited', exitCode: 1, text: privateText }) + '\n' + privateText,
+  );
+  const traceId = 'fc28b5a7-2972-4af5-aad7-ea07d39f624c';
+  put(
+    base,
+    'logs/response-provider.jsonl',
+    JSON.stringify({
+      event: 'response-timing',
+      source: 'provider',
+      stage: 'provider_finished',
+      traceId,
+      promptTokens: 128,
+      loadMs: 3,
+      promptEvalMs: 17,
+      modelId: model,
+      prompt: privateText,
+      apiKey: secret,
+    }),
+  );
+  assert.equal(writeModelSelectionLog(path.join(base, 'logs'), model), true);
+  put(
+    base,
+    'logs/desktop.stdout.log',
+    JSON.stringify(
+      privateLogRecord(
+        JSON.stringify({
+          schemaVersion: 1,
+          event: 'model-selected',
+          modelId: model,
+          prompt: privateText,
+          token: secret,
+        }),
+        { service: 'desktop', stream: 'stdout' },
+      ),
+    ),
+  );
+  const report = await createDiagnosticReport({
+    root: base,
+    snapshot: {
+      inference: { provider: 'external-api', model, contextTokens: 32768 },
+      voice: {
+        ready: true,
+        language: 'en',
+        lastFailure: {
+          phase: 'synthesis',
+          code: 'CAPRI_VOICE_LANGUAGE_MISMATCH',
+          message: privateText,
+        },
+      },
+      voiceCatalog: {
+        phase: 'error',
+        modelId: 'qwen3-tts-0.6b-base',
+        lastFailure: { stage: 'dependencies', code: 'CAPRI_VOICE_PYTHON_VERSION', exitCode: 1 },
+      },
+      response: {
+        lastFailure: {
+          phase: 'model',
+          code: 'CAPRI_GATEWAY_REPORTED_ERROR',
+          receivedText: false,
+          elapsedMs: 20305,
+        },
+      },
+      inferenceTransport: {
+        activeRequests: 0,
+        lastFailure: {
+          stage: 'connect',
+          code: 'CAPRI_API_NETWORK_ERROR',
+          networkCode: 'UND_ERR_CONNECT_TIMEOUT',
+          httpStatus: 502,
+          streaming: true,
+          elapsedMs: 20305,
+        },
+      },
+      spotifyPlanning: {
+        lastFailure: {
+          phase: 'spotify-planning',
+          code: 'CAPRI_SPOTIFY_PLAN_HTTP_ERROR',
+          httpStatus: 400,
+          receivedText: false,
+          message: privateText,
+        },
+      },
+      musicListening: {
+        phase: 'listening',
+        enabled: true,
+        hearingMusic: true,
+        musicScore: 0.92,
+        speechScore: 0.03,
+        tempo: 124,
+        tempoConfidence: 0.8,
+        settings: { enabled: true, notes: true, motion: true, autoBpm: true },
+        transcript: privateText,
+      },
+      prompt: privateText,
+      messages: [{ content: privateText }],
+      apiKey: secret,
+      filePath: 'C:\\Users\\Alice\\private-document.txt',
+    },
+    input: { category: 'model', description: 'Synthetic failure ' + secret },
+    hardware: async () => ({}),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+  });
+  const files = unpack(report.bytes);
+  const runnerLog = [...files].find(([name]) => name.endsWith('llama-chat.stderr.log'))?.[1];
+  assert.match(runnerLog, /"event":"exited","exitCode":1/);
+  const session = JSON.parse(files.get('session.json'));
+  assert.equal(session.inference.model, model);
+  assert.equal(session.voice.lastFailure.code, 'CAPRI_VOICE_LANGUAGE_MISMATCH');
+  assert.ok(!JSON.stringify(session.voice).includes(privateText));
+  assert.match(files.get('REPORT.md'), /skipped text in an unsupported script before synthesis/);
+  assert.equal(session.voiceCatalog.lastFailure.stage, 'dependencies');
+  assert.equal(session.voiceCatalog.lastFailure.code, 'CAPRI_VOICE_PYTHON_VERSION');
+  assert.equal(session.voiceCatalog.lastFailure.exitCode, 1);
+  assert.equal(session.response.lastFailure.receivedText, false);
+  assert.equal(session.response.lastFailure.code, 'CAPRI_GATEWAY_REPORTED_ERROR');
+  assert.equal(session.spotifyPlanning.lastFailure.phase, 'spotify-planning');
+  assert.equal(session.spotifyPlanning.lastFailure.code, 'CAPRI_SPOTIFY_PLAN_HTTP_ERROR');
+  assert.equal(session.spotifyPlanning.lastFailure.httpStatus, 400);
+  assert(!JSON.stringify(session.spotifyPlanning).includes(privateText));
+  assert.equal(session.musicListening.phase, 'listening');
+  assert.equal(session.musicListening.tempo, 124);
+  assert.equal(session.musicListening.tempoConfidence, 0.8);
+  assert.equal(session.musicListening.transcript, '[REDACTED]');
+  assert.deepEqual(session.inferenceTransport.lastFailure, {
+    stage: 'connect',
+    code: 'CAPRI_API_NETWORK_ERROR',
+    networkCode: 'UND_ERR_CONNECT_TIMEOUT',
+    httpStatus: 502,
+    streaming: true,
+    elapsedMs: 20305,
+  });
+  assert.match(files.get('REPORT.md'), /Model ID: nvidia\/nemotron-3\.5-super-vl:free/);
+  const modelLog = [...files].find(([name]) => name.endsWith('desktop-model.jsonl'))?.[1];
+  assert.ok(modelLog, 'The dedicated model metadata log is included');
+  assert.equal(JSON.parse(modelLog).modelId, model);
+  const timingLog = [...files].find(([name]) => name.endsWith('response-provider.jsonl'))?.[1];
+  assert.ok(timingLog, 'Response timing metadata survives diagnostic ZIP export');
+  assert.deepEqual(JSON.parse(timingLog), {
+    schemaVersion: 1,
+    event: 'response-timing',
+    source: 'provider',
+    stage: 'provider_finished',
+    traceId,
+    modelId: model,
+    promptTokens: 128,
+    loadMs: 3,
+    promptEvalMs: 17,
+  });
+  const all = [...files.values()].join('\n');
+  for (const value of [secret, privateText, 'Alice', 'private-document.txt'])
+    assert.ok(!all.includes(value), value);
+});
+
+test('high system RAM and partial model offload are separate diagnostic evidence, not an attributed Capri leak', async () => {
+  const report = await createDiagnosticReport({
+    root: fixture(),
+    input: { category: 'model', includeLogs: false },
+    hardware: async () => ({ ramBytes: 16 * 2 ** 30, availableRamBytes: 0.1 * 2 ** 30 }),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+    resourceProbe: () =>
+      probeResourceUsage({
+        model: 'local-model',
+        readModels: async () => ({
+          models: [
+            {
+              name: 'local-model',
+              size: 8 * 2 ** 30,
+              size_vram: 6 * 2 ** 30,
+              context_length: 32768,
+            },
+          ],
+        }),
+        readProcess: async () => ({ ramBytes: 2 * 2 ** 30, vramBytes: 6 * 2 ** 30 }),
+      }),
+  });
+  const files = unpack(report.bytes),
+    resources = JSON.parse(files.get('resources.json'));
+  assert.equal(resources.localModels.models[0].offload, 'partial');
+  assert.equal(resources.capriProcesses.workingSetBytes, 2 * 2 ** 30);
+  assert.match(files.get('REPORT.md'), /partial GPU offload/);
+  assert.match(files.get('REPORT.md'), /does not attribute all memory use to Capri/);
+});
+
+test('reports redact credentials, structured dialogue and personal paths without corrupting JSON', () => {
+  const clean = redactor({
+    root: 'C:\\Users\\Alice\\Capri',
+    home: 'C:\\Users\\Alice',
+    secrets: ['private-bare-token-12345'],
+  });
+  const source =
+    'C:\\Users\\Alice\\Capri\\logs\\voice.log\nAuthorization: Basic auth-header-canary\nCookie: session=cookie-value-canary\npassword="a secret with spaces"\nhttps://name:credential@example.org/model?token=QUERY\nprivate-bare-token-12345';
+  const text = clean.text(source);
+  assert.equal(
+    clean.text('speech_start_token = self.hp.start * torch.ones_like(text_tokens)'),
+    'speech_start_token = self.hp.start * torch.ones_like(text_tokens)',
+  );
+  for (const secret of [
+    'Alice',
+    'auth-header-canary',
+    'cookie-value-canary',
+    'a secret with spaces',
+    'credential',
+    'QUERY',
+    'private-bare',
+  ])
+    assert.ok(!text.includes(secret), secret);
+  const json = JSON.parse(
+    clean.log(
+      JSON.stringify({
+        error: 'Authorization: Bearer abcdefg',
+        prompt: 'dialogue canary',
+        details: { token: 'opaque secret' },
+      }),
+    ),
+  );
+  assert.equal(json.event, 'failure');
+  assert.equal(json.prompt, undefined);
+  assert.equal(json.details, undefined);
+});
+
+test('exported computer-task traces preserve safe stop reasons across both privacy passes', async () => {
+  const privateText = 'PRIVATE_DISCORD_MESSAGE_AND_DESTINATION';
+  const report = await createDiagnosticReport({
+    root: fixture(),
+    input: { category: 'other', includeLogs: false },
+    snapshot: {
+      computerTask: {
+        phase: 'stopped',
+        steps: 1,
+        lastFailure: null,
+        lastOutcome: { status: 'needs_user', reason: 'discord_control_unresolved', steps: 1 },
+        actions: [
+          { action: 'launch', outcome: 'applied' },
+          { action: 'enter_text', outcome: 'discord_structured_step_required' },
+        ],
+        text: privateText,
+        goal: privateText,
+        channel: privateText,
+        draft: privateText,
+        discordPaneId: 'ab'.repeat(32),
+      },
+    },
+    hardware: async () => ({}),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+  });
+  const files = unpack(report.bytes);
+  const task = JSON.parse(files.get('session.json')).computerTask;
+  assert.equal(task.lastFailure, null);
+  assert.equal(task.lastOutcome.reason, 'discord_control_unresolved');
+  assert.equal(task.lastOutcome.status, 'needs_user');
+  assert.equal(task.actions[1].outcome, 'discord_structured_step_required');
+  assert.match(
+    files.get('REPORT.md'),
+    /computer task ended with needs_user after 1 input steps; discord_control_unresolved/,
+  );
+  const all = [...files.values()].join('\n');
+  assert(!all.includes(privateText));
+  assert(!all.includes('ab'.repeat(32)));
+});
+
+test('a useful report survives missing voice components and includes bounded redacted logs', async () => {
+  const base = fixture();
+  put(base, 'package.json', { version: '0.3.0' });
+  put(base, 'config/release.json', { tag: 'v0.3.0-preview.22' });
+  put(base, 'config/companion-voice.json', {
+    engine: 'chatterbox-turbo',
+    enabled: true,
+    profileDir: 'data/voice',
+  });
+  put(base, 'config/voice-training.json', { modelDir: 'data/speech/base' });
+  put(base, 'config/voice-upstream.json', { model: { files: ['missing.safetensors'] } });
+  put(base, 'data/speech/companion-voice-token', 'voice-secret-canary-12345');
+  put(base, 'data/desktop/transcript.json', { messages: 'history canary' });
+  put(base, 'logs/conversation-history.txt', 'history canary');
+  put(
+    base,
+    'logs/companion-voice.stderr.log',
+    'x'.repeat(300000) +
+      '\nModuleNotFoundError: missing_voice_module\n' +
+      base +
+      '\nvoice-secret-canary-12345',
+  );
+  const report = await createDiagnosticReport({
+    root: base,
+    input: {
+      category: 'voice',
+      description: 'Не работает голос',
+      steps: 'Install, enable voice, send a message',
+    },
+    snapshot: {
+      voice: { enabled: true, ready: false, lastFailure: { phase: 'synthesize' } },
+      backend: { phase: 'offline', code: 'CAPRI_SERVICE_STARTUP_TIMEOUT' },
+      startup: { stages: [{ id: 'core', state: 'running' }] },
+      response: {
+        lastFailure: { phase: 'model-loading', elapsedMs: 30000, errorName: 'TimeoutError' },
+      },
+      recognition: {
+        performance: {
+          lastFailure: {
+            code: 'ASR_START_NATIVE_CRASH',
+            startupStage: 'ASR_START_MODEL',
+          },
+        },
+      },
+      messages: 'history canary',
+      lastVoiceFailure: { message: 'Authorization: Bearer private_token' },
+    },
+    hardware: async () => ({
+      cpu: 'Fixture CPU',
+      ramBytes: 8 * 1024 ** 3,
+      gpus: [{ name: 'Fixture GPU', vramMiB: 4096 }],
+    }),
+    pythonProbe: async () => ({
+      available: true,
+      cuda: { available: false },
+      errors: ['Fixture DLL failure'],
+    }),
+    installerDirectory: null,
+  });
+  const files = unpack(report.bytes),
+    all = [...files.values()].join('\n');
+  for (const value of ['history canary', 'voice-secret-canary', base, 'private_token'])
+    assert.ok(!all.includes(value), value);
+  assert.match(files.get('REPORT.md'), /Не работает голос/);
+  assert.match(files.get('REPORT.md'), /CUDA unavailable/);
+  assert.match(files.get('REPORT.md'), /Local voice also supports CPU inference/);
+  assert.match(files.get('REPORT.md'), /missing Python module/);
+  assert.match(files.get('REPORT.md'), /last reply failed during model-loading after 30000 ms/);
+  const session = JSON.parse(files.get('session.json'));
+  assert.equal(session.backend.phase, 'offline');
+  assert.deepEqual(session.startup.stages, [{ id: 'core', state: 'running' }]);
+  assert.equal(session.voice.lastFailure.phase, 'synthesize');
+  assert.deepEqual(session.recognition.performance.lastFailure, {
+    code: 'ASR_START_NATIVE_CRASH',
+    startupStage: 'ASR_START_MODEL',
+  });
+  assert.match(files.get('system.json'), /Fixture GPU/);
+  assert.equal(JSON.parse(files.get('avatar.json')).files[0].exists, false);
+  assert.match(files.get('REPORT.md'), /Missing avatar component/);
+  const manifest = JSON.parse(files.get('manifest.json'));
+  assert.equal(manifest.inventory.length, 1);
+  assert.equal(manifest.inventory[0].truncated, true);
+  assert.equal(manifest.inventory[0].capturedBytes, 256 * 1024);
+  for (const [name, content] of files)
+    if (name.endsWith('.json')) assert.doesNotThrow(() => JSON.parse(content), name);
+});
+
+test('avatar diagnostics identify missing frames without including images or accepting paths outside the pack', async () => {
+  const base = fixture();
+  put(base, ACTIVE_AVATAR_CATALOG, {
+    schemaVersion: 2,
+    canvas: { width: 1254, height: 1254 },
+    defaultSprite: 'neutral',
+    sprites: [{ file: 'capri-neutral.png' }, { file: '../../private.txt' }],
+  });
+  put(base, 'private.txt', 'private avatar canary');
+  const report = await createDiagnosticReport({
+    root: base,
+    input: { category: 'interface', includeLogs: false },
+    snapshot: { artwork: { mode: 'fallback' } },
+    hardware: async () => ({}),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+  });
+  const files = unpack(report.bytes);
+  const artwork = JSON.parse(files.get('avatar.json'));
+  assert.equal(artwork.runtime.mode, 'fallback');
+  assert.equal(artwork.files.length, 2);
+  assert.equal(artwork.files[0].exists, true);
+  assert.equal(artwork.files[1].exists, false);
+  assert.match(files.get('REPORT.md'), /procedural fallback/);
+  assert.match(files.get('REPORT.md'), /capri-neutral\.png/);
+  assert.ok(![...files.keys()].some((name) => name.endsWith('.png')));
+  assert.ok(![...files.values()].join('').includes('private avatar canary'));
+});
+
+test('logs are optional and a linked log directory cannot read another folder', async () => {
+  const base = fixture(),
+    outside = fixture();
+  put(outside, 'private.log', 'outside canary');
+  symlinkSync(outside, path.join(base, 'logs'), process.platform === 'win32' ? 'junction' : 'dir');
+  const options = {
+    root: base,
+    hardware: async () => ({}),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+  };
+  for (const includeLogs of [true, false]) {
+    const result = await createDiagnosticReport({
+      ...options,
+      input: { description: 'Fixture', includeLogs },
+    });
+    const files = unpack(result.bytes);
+    assert.equal(
+      [...files.keys()].some((name) => name.startsWith('logs/')),
+      false,
+    );
+    assert.ok(![...files.values()].join('').includes('outside canary'));
+  }
+});
+
+test('custom voice profile names, reference paths and health prose never enter diagnostic exports', async () => {
+  const base = fixture(),
+    privateName = 'PERSONAL_VOICE_CANARY';
+  const profileDir = 'data/voices/' + privateName;
+  put(base, 'config/companion-voice.json', {
+    enabled: true,
+    engine: 'chatterbox-turbo',
+    profileDir,
+  });
+  put(base, profileDir + '/voice-profile.json', {
+    id: privateName,
+    engine: 'chatterbox-turbo',
+    language: 'en',
+    references: { neutral: { file: privateName + '.wav' } },
+  });
+  put(base, '.runtime/installer/state.json', {
+    status: 'ready',
+    failure: { unknownFutureField: privateName },
+  });
+  const report = await createDiagnosticReport({
+    root: base,
+    input: { category: 'voice', includeLogs: false },
+    hardware: async () => ({}),
+    pythonProbe: async () => ({}),
+    installerDirectory: null,
+    health: async () => ({ ready: true, profile: privateName, message: privateName }),
+  });
+  const files = unpack(report.bytes);
+  assert.equal([...files.values()].join('\n').includes(privateName), false);
+  const voice = JSON.parse(files.get('voice.json'));
+  assert.equal(voice.config.engine, 'chatterbox-turbo');
+  assert.equal(voice.profile.language, 'en');
+  assert.equal(voice.health.ready, true);
+  assert.match(files.get('REPORT.md'), /Missing voice component/);
+});
+
+test('bug reports validate bounded fields and ZIP entries before writing any file', async () => {
+  assert.equal(validateReport('legacy description').description, 'legacy description');
+  for (const value of [
+    null,
+    { category: '../voice' },
+    { description: 'x'.repeat(4001) },
+    { includeLogs: 'yes' },
+    { file: 'private' },
+  ])
+    assert.throws(() => validateReport(value));
+  await assert.rejects(diagnosticZip([{ name: '../escape', bytes: 'bad' }]));
+  await assert.rejects(
+    diagnosticZip([{ name: 'large.log', bytes: Buffer.alloc(16 * 1024 ** 2 + 1) }]),
+  );
+});
+
+test('voice diagnostics retain technical preparation failure without including dialogue', async () => {
+  const voice = new VoiceService({
+    url: 'http://127.0.0.1:8101',
+    headers: () => ({}),
+    emit: () => {},
+    fetchImpl: async () => new Response(null, { status: 503 }),
+  });
+  await voice.prepareLanguage();
+  const state = voice.diagnostics();
+  assert.equal(state.lastFailure.phase, 'prepare');
+  assert.match(state.lastFailure.message, /503/);
+  assert.equal(state.ready, false);
+  assert.equal(state.preparing, false);
+  assert.ok(!('turn' in state));
+});
+
+test('report IPC cancels before collection, serializes exports and atomically saves a ZIP', async () => {
+  const base = fixture(),
+    handlers = new Map(),
+    saved = path.join(base, 'report.zip');
+  let resolveDialog,
+    collected = 0,
+    shown = null;
+  const bytes = await diagnosticZip([{ name: 'REPORT.md', bytes: 'Synthetic diagnostic report' }]);
+  registerCompanionIpc((name, fn) => handlers.set(name, fn), {
+    root: base,
+    state: base,
+    rt: {},
+    preferences: {},
+    getWindow: () => null,
+    dialog: {
+      showSaveDialog: () =>
+        new Promise((resolve) => {
+          resolveDialog = resolve;
+        }),
+    },
+    shell: {
+      showItemInFolder: (file) => {
+        shown = file;
+      },
+    },
+    diagnosticSnapshot: () => ({ voice: { ready: false } }),
+    createReport: async ({ snapshot }) => {
+      collected++;
+      assert.equal(snapshot.voice.ready, false);
+      return { id: 'fixture', bytes, fileCount: 1 };
+    },
+  });
+  const save = handlers.get('capri:bug-report'),
+    pending = save('Synthetic description');
+  await assert.rejects(save('Second export'), /already being collected/);
+  resolveDialog({ canceled: true });
+  assert.equal(await pending, false);
+  assert.equal(collected, 0);
+  const exportReport = save({ category: 'voice', description: 'Synthetic description' });
+  resolveDialog({ canceled: false, filePath: saved });
+  const result = await exportReport;
+  assert.equal(result.saved, true);
+  assert.equal(collected, 1);
+  assert.equal(shown, saved);
+  assert.equal(unpack(readFileSync(saved)).get('REPORT.md'), 'Synthetic diagnostic report');
+});
+
+test('the Settings preload can submit a diagnostic ZIP and receive the server receipt', async (t) => {
+  const base = fixture();
+  const settingsFrame = { url: 'capri://desktop/settings.html' };
+  const companionFrame = { url: 'capri://desktop/index.html' };
+  const windowFor = (frame) => ({ isDestroyed: () => false, webContents: { mainFrame: frame } });
+  const settings = windowFor(settingsFrame);
+  const companion = windowFor(companionFrame);
+  const handlers = new Map();
+  const handle = createIpcHandler(
+    { handle: (name, callback) => handlers.set(name, callback) },
+    {
+      getWindow: () => companion,
+      url: companionFrame.url,
+      getSettingsWindow: () => settings,
+      settingsUrl: settingsFrame.url,
+      settingsChannels: SETTINGS_CHANNELS,
+    },
+  );
+  const reportId = '0123456789abcdef0123456789abcdef';
+  const bytes = await diagnosticZip([{ name: 'REPORT.md', bytes: 'Synthetic report' }]);
+  registerCompanionIpc(handle, {
+    root: base,
+    state: base,
+    createReport: async ({ input }) => {
+      assert.equal(input.description, 'Synthetic report');
+      assert.equal(input.includeLogs, false);
+      return { bytes };
+    },
+  });
+  const upload = t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, 'https://capri-core.com/api/reports/v1');
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers['content-type'], 'application/zip');
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'error');
+    assert.equal(unpack(options.body).get('REPORT.md'), 'Synthetic report');
+    return new Response(null, { status: 202, headers: { 'x-capri-report-id': reportId } });
+  });
+  const payload = { description: 'Synthetic report', includeLogs: false };
+  const send = handlers.get('capri:bug-report-send');
+  await assert.rejects(
+    send({ sender: companion.webContents, senderFrame: companionFrame }, payload),
+    /Open Report a bug in Settings/,
+  );
+  assert.throws(
+    () => send({ sender: settings.webContents, senderFrame: { ...settingsFrame } }, payload),
+    /Untrusted IPC sender/,
+  );
+  let preloadApi;
+  runInNewContext(readFileSync(new URL('../apps/desktop/preload.cjs', import.meta.url), 'utf8'), {
+    require: () => ({
+      contextBridge: { exposeInMainWorld: (_name, api) => (preloadApi = api) },
+      ipcRenderer: {
+        invoke: async (channel, input) =>
+          handlers.get(channel)(
+            { sender: settings.webContents, senderFrame: settingsFrame },
+            input,
+          ),
+      },
+    }),
+  });
+  await assert.rejects(preloadApi.sendBugReport({ title: 'Test' }), /Describe the problem/);
+  assert.equal(upload.mock.callCount(), 0);
+  assert.deepEqual(await preloadApi.sendBugReport(payload), { sent: true, reportId });
+  assert.equal(upload.mock.callCount(), 1);
+});

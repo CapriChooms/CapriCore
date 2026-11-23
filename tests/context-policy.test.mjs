@@ -83,8 +83,7 @@ test('all hardware profiles fit the full companion prompt and old managed settin
   );
   assert.equal(validateCoreSettings({ ...base, contextTokens: 16384 }).contextTokens, 32768);
   assert.equal(
-    validateCoreSettings({ ...base, contextTokens: 16384, experimentalContext: true })
-      .contextTokens,
+    validateCoreSettings({ ...base, contextTokens: 16384, experimentalContext: true }).contextTokens,
     16384,
   );
   assert.equal(

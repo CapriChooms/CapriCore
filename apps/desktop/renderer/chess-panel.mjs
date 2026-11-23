@@ -48,10 +48,10 @@ export class ChessPanel {
     this.panel.innerHTML = `
       <div class="settings-heading"><h2>Chess</h2></div>
       <div class="preferences-content chess-settings">
-        <div class="settings-card"><h3>Stockfish</h3>
+        <div id="chess-engine" class="settings-card"><h3>Stockfish</h3>
           <p id="chess-engine-status" role="status"></p>
           <progress id="chess-progress" hidden></progress>
-          <div class="settings-actions"><button id="chess-download" type="button" disabled>Download Stockfish</button>
+          <div class="settings-actions"><button id="chess-download" class="chess-engine-download" type="button" disabled>Download Stockfish</button>
           <button id="chess-cancel" type="button" hidden>Cancel download</button>
           <button id="chess-remove" type="button" hidden>Remove</button></div>
         </div>
@@ -103,8 +103,15 @@ export class ChessPanel {
           <details id="chess-preview" class="settings-disclosure" hidden><summary>Preview</summary><img id="chess-preview-image" alt="" /></details>
           <label id="chess-piece-editor" hidden><span id="chess-cell-name" data-untranslated></span><select id="chess-piece"></select></label>
           <label for="chess-turn">Side to move</label><select id="chess-turn"><option value="">Choose…</option><option value="w">White</option><option value="b">Black</option></select>
-          <div class="settings-actions"><button id="chess-analyse" type="button">Analyze position</button>
-          <button id="chess-deep" type="button">Analyze deeper</button>
+          <div id="chess-prepare-analysis" class="chess-prepare-analysis" hidden>
+            <p id="chess-analysis-engine-status" role="status"></p>
+            <div class="settings-actions">
+              <button id="chess-download-analysis" class="chess-engine-download" type="button" disabled>Download Stockfish</button>
+              <button id="chess-cancel-analysis" type="button" hidden>Cancel download</button>
+            </div>
+          </div>
+          <div class="settings-actions"><button id="chess-analyse" type="button" disabled>Analyze position</button>
+          <button id="chess-deep" type="button" disabled>Analyze deeper</button>
           <button id="chess-explain" type="button" hidden>Ask Capri about this move</button></div>
           <p id="chess-overlay-help" class="settings-help" hidden>Arrows appear automatically on supported analysis boards and in games against the site’s computer.</p>
           <pre id="chess-result" hidden></pre>
@@ -116,8 +123,11 @@ export class ChessPanel {
     const on = (id, method) => {
       this.$(id).onclick = () => this.run(method);
     };
-    on('download', async () => this.showEngine(await api('install')));
-    this.$('cancel').onclick = () => void api('cancel').catch(() => {});
+    const installEngine = async () => this.showEngine(await api('install'));
+    const cancelEngine = () => void api('cancel').catch(() => {});
+    on('download', installEngine);
+    on('download-analysis', installEngine);
+    this.$('cancel').onclick = this.$('cancel-analysis').onclick = cancelEngine;
     this.$('stop').onclick = () => {
       this.invalidate();
       void api('stop').catch(() => {});
@@ -381,15 +391,26 @@ export class ChessPanel {
     const loading = ['downloading', 'checking'].includes(value.phase);
     this.engineInstalled = value.installed;
     const number = new Intl.NumberFormat(this.ui.language, { maximumFractionDigits: 1 });
-    this.$('engine-status').textContent = loading
+    const status = loading
       ? `${number.format(value.received / 1048576)} / ${number.format(value.total / 1048576)} MiB · ${Math.floor((value.received * 100) / value.total)}%`
       : value.installed
         ? `Stockfish ${value.version} · ${this.ui.text('Installed')}`
-        : this.ui.text('Install Stockfish first');
+        : this.ui.text(
+            value.supported
+              ? 'Install Stockfish first'
+              : 'Stockfish is unavailable on this platform',
+          );
+    this.$('engine-status').textContent = status;
+    this.$('engine').toggleAttribute('data-install-required', !value.installed && value.supported);
+    this.$('prepare-analysis').hidden = value.installed;
+    this.$('analysis-engine-status').textContent = value.installed ? '' : status;
+    this.$('analyse').disabled = this.$('deep').disabled = !value.installed || loading;
     this.$('download').hidden = value.installed;
-    this.$('download').disabled = !value.supported || loading || value.installed;
+    this.$('download').disabled = this.$('download-analysis').disabled =
+      !value.supported || loading || value.installed;
     this.$('remove').hidden = !value.installed || loading;
-    this.$('cancel').hidden = !loading;
+    this.$('download-analysis').hidden = loading || !value.supported;
+    this.$('cancel').hidden = this.$('cancel-analysis').hidden = !loading;
     this.$('progress').hidden = !loading;
     this.$('progress').max = value.total || 1;
     this.$('progress').value = value.received;
@@ -436,7 +457,7 @@ export class ChessPanel {
     if (!item) return;
     if (!this.engineInstalled) {
       this.recordDecision('stockfish_missing');
-      this.message('Install Stockfish first');
+      this.message('');
     } else if (item.fen) {
       await this.analyse(false);
     } else if (item.canWait) {

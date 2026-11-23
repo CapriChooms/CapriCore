@@ -497,12 +497,12 @@ namespace Capri.Setup.Cyberpunk {
         private Point questionCenter;
         private SizeF questionHaloSize;
         private float questionReveal = 1f;
-        private const int TextFadeDuration = 235;
-        private const int ReadingPauseDuration = 1000;
+        private const int TextFadeDuration = 160;
+        private const int ReadingPauseDuration = 150;
         private const int RiseStart = TextFadeDuration + ReadingPauseDuration;
-        private const int RiseDuration = 270;
-        private const int AnswersStart = RiseStart + RiseDuration - 40;
-        private const int AnswersDuration = 255;
+        private const int RiseDuration = 180;
+        private const int AnswersStart = RiseStart + 60;
+        private const int AnswersDuration = 170;
         public bool QuestionRevealActive { get { return revealClock.IsRunning; } }
         public float QuestionTextOpacity { get; private set; }
         public float QuestionBloom { get; private set; }

@@ -15,7 +15,7 @@
       "id": "neutral",
       "pose": "idle",
       "expression": "neutral_small_smile",
-      "file": "capri-neutral.png",
+      "file": "capri-idle-relaxed.png",
       "kind": "expression",
       "canPersist": true,
       "label": "Standing · Relaxed",
@@ -31,7 +31,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "6cc8436659c5bc7cb48efb041eb6de73522680fc32468556acc9bc9c10390c56"
+      "sha256": "104e01a2267431e701380da458ff6a837b2c3985dc3464db40eedf41c1fb7aaa"
     },
     {
       "id": "annoyed",
@@ -53,7 +53,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "5d475d6010372fe9c9480e7e20a322a990e3382190c9799a58ecd72d66c9ac9f"
+      "sha256": "e9b11cccb9d42ed53256f869b2e3a50ebeb911772be625882acea7e241d8077d"
     },
     {
       "id": "attentive",
@@ -75,7 +75,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "da6170e714e33e27a4ac385dda0adb5c8eee53f8c730cff109d25a596570ec7a"
+      "sha256": "35a070efb98b25d083b06fcad4a90fa98416a2836295e3d35530730ed7ab372d"
     },
     {
       "id": "idle-blink_closed",
@@ -97,7 +97,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "c1301811e179593c26753488f7ec3d5212af979d0ba30b6b3c3e09064596200c"
+      "sha256": "0f1574e04c942a9143abbb40f074e11b33b92a97f0d0131f367e38f4e10731c5"
     },
     {
       "id": "idle-blink_half",
@@ -119,7 +119,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "bc6aa27f2c0fd9ae010c4479a372a9643bac5fd60389baf06deb48cc1068acfb"
+      "sha256": "7c7f82aeaa45a438379688428130867346c27972e1c91e308a49cef0cff5a0c5"
     },
     {
       "id": "concerned",
@@ -141,7 +141,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "171e6df0dc449b81e3c1b74efd72629043c6225918c5c88be84fb2a06a820801"
+      "sha256": "f697b7c95bbb512b616ad39b7d4c04c7709093cbfdd2b677bdc1b751dc970361"
     },
     {
       "id": "embarrassed",
@@ -163,7 +163,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "5b0a487bc7718f001132f191e7b805bec9a5949324d0ec962ac50ae334b70e33"
+      "sha256": "46d6160a26af60a04b4ad482bc28d07452db04bc90f0b8c23b1be2d0b77e9b43"
     },
     {
       "id": "idle-excited",
@@ -185,7 +185,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "8d04fef1c469d0c791634180f4f5081dbda37102ff0bcf28beaad77076a9e412"
+      "sha256": "bd050f9d909323783512ac147e3355874f73e86534fa65a0845ca332ea10bb47"
     },
     {
       "id": "flirty",
@@ -207,7 +207,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "fbd0025cc65a263d30af9c5cb4f0c9d947c4d8d255104d89488a1029ec74f4b5"
+      "sha256": "7d83479bcbe4fa82cbb08dc59a998f05eb11aa2dd9fe656fab8e24211df19da9"
     },
     {
       "id": "focused",
@@ -229,7 +229,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "53232a7c22e0d0622618af5f8b6a63f46a17ae22195f135fd8409ef5224a1a0c"
+      "sha256": "c87e6ee3e3e0bab85cfdeca608895a82c92aa8d776f5cbcb5fee9fa624a60003"
     },
     {
       "id": "happy",
@@ -251,7 +251,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "f6f200aa95df479f6ad7bc52f21b9066eec6da698be0627f6a4783c48368eabe"
+      "sha256": "b28b19690777912a77df8f3f11175a6a69e465e916295b1f7c33023c41abb170"
     },
     {
       "id": "idle-laughing",
@@ -273,7 +273,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "600f18812d0914dd8e108026483d106d2ad49285578a30410374f1411f5dcb69"
+      "sha256": "01cfe618701f7e7f4aced93b1ab012c72e188e366415347e09d5472ac218383b"
     },
     {
       "id": "idle-look_down",
@@ -295,7 +295,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "bc277f3f4572836f76311dc3d1d76dab66a198d5d0ba92bfde744f623d7e1cd9"
+      "sha256": "8b6bddbf1101d90118d6366d99ffd63b27888d007a55c3180d36b8914975674a"
     },
     {
       "id": "idle-look_left",
@@ -317,7 +317,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "42d8bc9e5073c323ffb1805fde19709589d6e7dd1be8d7cd85209e86929d1bb8"
+      "sha256": "4229e73d66c10fd20a59577258da9897c271777d4f57a3245e3ae090e7e2c73d"
     },
     {
       "id": "idle-look_right",
@@ -339,7 +339,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "71bb3812cfa8d9e7190945d7f6d223649d5bfecfd6be74036eb6c91512b192be"
+      "sha256": "e8c6afde8c310c8c7f6d6ba8cdd9bb599fdad7866bf48fe6d122247688cd9cba"
     },
     {
       "id": "idle-look_up",
@@ -361,7 +361,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "3f912238019fe5a9e5efdd3f363ed0b3ae66c1b22c18328304b71c86f64e2f81"
+      "sha256": "5f62ce861c5d3bb6764a6f9472756cd07010775c972193e9db301d2e33c773fb"
     },
     {
       "id": "idle-mouth_round",
@@ -383,7 +383,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "f7372030bfad3793ad0828563eba5e68a94b0a4fe8a0c001c26a3f47d2c69ba7"
+      "sha256": "8d015a35453bce030c27fc8d54e782e5811d5706321dd527bf649b329473311b"
     },
     {
       "id": "idle-mouth_small",
@@ -405,7 +405,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "214c6580966a8c12339416f62dd70ed8a456bc2787dcbccec279e6bd8b373ecb"
+      "sha256": "e2816a1d5452cdd24a392aced6c96d73fb55ae330438ead5ae87fa9f0ab50b5d"
     },
     {
       "id": "idle-mouth_wide",
@@ -427,7 +427,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "206af1a5703d911dcf66cc7dd47c3a31e95f838dd0d81b304e770358c8992710"
+      "sha256": "0f4226996a5e0929a2e2bb3fb3c9e02328ccc9c9fa7d719a8a8a426607fd509c"
     },
     {
       "id": "sad",
@@ -449,7 +449,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "d05e8b633f3e64ec59f8ea01d395bee5719aacc24092f93ef8b5508a937ab660"
+      "sha256": "854af0ab0ba43a5552b7525ef63dcfb15b8b1764d15763f7183d4d04855fba3e"
     },
     {
       "id": "skeptical",
@@ -471,7 +471,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "36f2074b5236aadc5e9e23c8eeafd5e475a568868dc3ee829706d9fbc1d308ab"
+      "sha256": "f7463d9f8d8189f921d2c5c56da7e871aecea8a86863bacf222f786eb37e7699"
     },
     {
       "id": "sleepy",
@@ -493,7 +493,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "cc656b2cea563558818387a7746769ca025212801e9d7742368691c83e2e6de9"
+      "sha256": "a5fa7ae3ea8d3ab8b31750e495a131a405ea6559e712d90355a816fbbb075433"
     },
     {
       "id": "smirk",
@@ -515,7 +515,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "adda0c0b80d31e5781150b784b2fb0aee42c3a421beade96cfb26945d0ca5f5c"
+      "sha256": "7e4ac87e63ef644a2aa1aafd3d2d94bbdf5a9ba89b08d689e185b8647fac8a83"
     },
     {
       "id": "idle-surprised_closed",
@@ -537,7 +537,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "a8b52fce618b6579559183334d14b2df110f3bdb71765132abde75402f97901f"
+      "sha256": "022f2fa7cdbe72e4c6017bb2f22015118686b78e1487875baf9cf438f311259b"
     },
     {
       "id": "surprised",
@@ -559,7 +559,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "2d041a5758cabf8b6d2141684ffac48081ecd8046fcb8e6c4f230e16bca37aea"
+      "sha256": "13c3967727953fb38c33505c3985df60ffdbec94b1aa166a173977675faa1a00"
     },
     {
       "id": "thinking",
@@ -581,7 +581,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "a700d83d926f38bdefb75cd73b0ead8a89c9ba81bc0ab09086290dce6bbc3009"
+      "sha256": "22468b1fafa6f0c783ae772fca21487ec3b74bf067efc08d53e6f0fa88a03e0a"
     },
     {
       "id": "idle-wink_closed",
@@ -603,7 +603,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "9487a0abf9bce685ed5e29952ab4313ee256966fb81f819a0eeebeab1faaee0e"
+      "sha256": "9c9a873d27420358f9fdfcd707f17b594f1547e7c6b1aa333b7d247cc2bbb96f"
     },
     {
       "id": "idle-wink_half",
@@ -625,7 +625,7 @@
         "width": 835,
         "height": 1052
       },
-      "sha256": "4b8b5603631860d25975e10651801b30e0073e3ae9c594aa2fccdb7dcf090420"
+      "sha256": "9c0636b2ef823021e6b8f31e9d744ac267cf615af73e8065aaf6c3385ae05728"
     }
   ],
   "actions": [
@@ -664,15 +664,15 @@
         },
         {
           "id": "idle-blink_half",
-          "ms": 90
+          "ms": 60
         },
         {
           "id": "idle-blink_closed",
-          "ms": 120
+          "ms": 80
         },
         {
           "id": "idle-blink_half",
-          "ms": 90
+          "ms": 60
         },
         {
           "id": "neutral",
@@ -722,15 +722,15 @@
         },
         {
           "id": "idle-wink_half",
-          "ms": 90
+          "ms": 60
         },
         {
           "id": "idle-wink_closed",
-          "ms": 160
+          "ms": 107
         },
         {
           "id": "idle-wink_half",
-          "ms": 90
+          "ms": 60
         },
         {
           "id": "flirty",
@@ -769,6 +769,53 @@
         {
           "id": "happy",
           "ms": 300
+        }
+      ]
+    },
+    {
+      "id": "gaze",
+      "frames": [
+        {
+          "id": "idle-look_left",
+          "ms": 650
+        },
+        {
+          "id": "idle-look_up",
+          "ms": 650
+        },
+        {
+          "id": "idle-look_right",
+          "ms": 650
+        },
+        {
+          "id": "idle-look_down",
+          "ms": 650
+        }
+      ]
+    },
+    {
+      "id": "surprise",
+      "frames": [
+        {
+          "id": "surprised",
+          "ms": 900
+        },
+        {
+          "id": "idle-surprised_closed",
+          "ms": 147
+        },
+        {
+          "id": "surprised",
+          "ms": 900
+        }
+      ]
+    },
+    {
+      "id": "sleepy",
+      "frames": [
+        {
+          "id": "sleepy",
+          "ms": 2320
         }
       ]
     }

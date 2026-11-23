@@ -6,6 +6,14 @@
   "locale": "th",
   "review": "Locally machine translated; native review welcome",
   "messages": {
+    "Let Capri move the mouse pointer while you are away": "อนุญาตให้ Capri ขยับตัวชี้เมาส์เมื่อคุณไม่อยู่",
+    "Cursor pranks require Full computer access. Press Esc to stop.": "การแกล้งขยับตัวชี้เมาส์ต้องใช้สิทธิ์เข้าถึงคอมพิวเตอร์เต็มรูปแบบ กด Esc เพื่อหยุด",
+    "Animate the reply bubble": "ทำให้กรอบคำตอบเคลื่อนไหว",
+    "Drag lightning color": "สีสายฟ้าขณะลาก",
+    "Wild desktop pranks": "การแกล้งบนเดสก์ท็อปในโหมดสุดเหวี่ยง",
+    "In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.": "ในโหมดสุดเหวี่ยง Capri จะขโมยตัวชี้ปลอมเป็นครั้งคราว เมาส์และแป้นพิมพ์ยังทำงานตามปกติ",
+    "Preview a prank": "ดูตัวอย่างการแกล้ง",
+    "Prank preview is unavailable right now.": "ขณะนี้ไม่สามารถดูตัวอย่างการแกล้งได้",
     "Automatically check for updates": "ตรวจสอบการอัปเดตโดยอัตโนมัติ",
     "Capri’s game reactions": "ปฏิกิริยาของ Capri ต่อเกม",
     "React to game events": "ตอบรับเหตุการณ์เกม",
@@ -355,6 +363,9 @@
     "Folder": "โฟลเดอร์",
     "Folder access could not be revoked.": "ไม่สามารถเพิกถอนการเข้าถึงโฟลเดอร์ได้",
     "Folder permissions could not be saved.": "ไม่สามารถบันทึกสิทธิ์การเข้าถึงโฟลเดอร์ได้",
+    "Follow-up listening": "ฟังต่อเนื่อง",
+    "After a question": "หลังถามคำถาม",
+    "After any spoken reply": "หลังตอบด้วยเสียงทุกครั้ง",
     "Follow-up listening time (seconds)": "ระยะเวลาการรับฟังตามลำดับ (วินาที)",
     "For example, Tamil": "ตัวอย่างเช่น ทมิฬ",
     "Freeing model memory…": "กำลังปล่อยหน่วยความจำของโมเดล...",
@@ -1509,12 +1520,6 @@
     "Optional activity image": "รูปภาพกิจกรรมทางเลือก",
     "Upload an image in your application's Rich Presence → Art Assets, then paste its asset key here. Leave this field empty for text-only activity.": "อัปโหลดรูปภาพใน Rich Presence ของแอปพลิเคชันของคุณ → Art Assets จากนั้นวางคีย์สินทรัพย์ที่นี่ ปล่อยช่องนี้ว่างไว้สำหรับกิจกรรมที่เป็นข้อความเท่านั้น",
     "Settings closed unexpectedly. Open Settings to try again.": "การตั้งค่าปิดลงโดยไม่คาดคิด เปิดการตั้งค่าเพื่อลองอีกครั้ง",
-    "Capri closed unexpectedly.": "Capri ปิดลงโดยไม่คาดคิด",
-    "The logs folder is open.": "เปิดโฟลเดอร์บันทึกแล้ว",
-    "The logs folder could not be opened.": "ไม่สามารถเปิดโฟลเดอร์บันทึกได้",
-    "Save and review a diagnostic ZIP, then send it to Overyx in a Discord direct message.": "บันทึกและตรวจสอบไฟล์ ZIP สำหรับวินิจฉัย จากนั้นส่งให้ Overyx ทางข้อความส่วนตัวใน Discord",
-    "The crash report could not be saved.": "ไม่สามารถบันทึกรายงานข้อขัดข้องได้",
-    "You can try saving a report from Report a bug after restarting Capri.": "หลังจากเปิด Capri ใหม่แล้ว ให้ลองบันทึกรายงานจากเมนู «รายงานข้อผิดพลาด»",
     "Test": "ทดสอบ",
     "Stop computer control (Esc)": "หยุดการควบคุมคอมพิวเตอร์ (Esc)",
     "Capri on the desktop": "Capri บนเดสก์ท็อป",
@@ -1717,6 +1722,7 @@
     "Optional: hear the call and system audio": "ไม่บังคับ: ฟังเสียงจากสายสนทนาและระบบ",
     "With wake and automatic sending enabled, requests addressed to Capri are sent automatically. Otherwise, review the text before sending. Use headphones to avoid feedback.": "เมื่อเปิดใช้ทั้งการปลุกด้วยชื่อและการส่งอัตโนมัติ คำขอที่พูดกับ Capri จะถูกส่งโดยอัตโนมัติ หากไม่ได้เปิดใช้ทั้งสองอย่าง ให้ตรวจทานข้อความก่อนส่ง ใช้หูฟังเพื่อป้องกันเสียงหอน",
     "Turn on Capri’s microphone first, then include system audio. Capri can hear you and people in the call, and wake when either says her name.": "เปิดไมโครโฟนของ Capri ก่อน แล้วจึงรวมเสียงระบบ Capri จะได้ยินคุณและคนในสายสนทนา และเริ่มรับฟังเมื่อใครคนใดคนหนึ่งเรียกชื่อเธอ",
+    "Days": "วัน",
     "Hours": "ชั่วโมง",
     "Seconds": "วินาที",
     "Set up once, then choose the virtual microphone in your call app.": "ตั้งค่าเพียงครั้งเดียว แล้วเลือกไมโครโฟนเสมือนในแอปโทรของคุณ",
@@ -2477,7 +2483,13 @@
     "Vertical": "แนวตั้ง",
     "Horizontal": "แนวนอน",
     "I could not verify that YouTube opened. Check the page in the browser.": "ฉันยืนยันไม่ได้ว่าเปิด YouTube แล้ว โปรดตรวจสอบหน้าเว็บในเบราว์เซอร์",
-    "No supported browser was found to open YouTube.": "ไม่พบเบราว์เซอร์ที่รองรับสำหรับเปิด YouTube"
+    "No supported browser was found to open YouTube.": "ไม่พบเบราว์เซอร์ที่รองรับสำหรับเปิด YouTube",
+    "Avatar gallery": "แกลเลอรีอวตาร",
+    "Poses": "ท่าทาง",
+    "Expressions": "สีหน้า",
+    "Animations": "แอนิเมชัน",
+    "Loop animation": "เล่นภาพเคลื่อนไหวซ้ำ",
+    "Play animation": "เล่นแอนิเมชัน"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
@@ -2485,5 +2497,13 @@
     "corrections": 0,
     "rejected": []
   },
-  "reviewedIdentical": ["Spotify", "Capri ·", "Amethyst", "Overdrive", "Spark", "Thunder", "Pulse"]
+  "reviewedIdentical": [
+    "Spotify",
+    "Capri ·",
+    "Amethyst",
+    "Overdrive",
+    "Spark",
+    "Thunder",
+    "Pulse"
+  ]
 }

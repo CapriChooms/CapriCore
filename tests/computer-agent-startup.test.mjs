@@ -59,7 +59,7 @@ function fixture({
   verified = true,
   ambiguous = false,
   abortLaunch = false,
-  semanticLaunch = false,
+  semanticLaunch = true,
   observationError = 'COMPUTER_APPLICATION_UNAVAILABLE',
 } = {}) {
   const calls = [],
@@ -159,8 +159,12 @@ test('a localized Steam launch or library request never becomes a browser search
       assert.equal(query, 'Steam');
       return Array.from({ length: matches }, () => ({ name: 'Steam' }));
     };
-    f.agent.plan = async () => assert.fail('A Steam client request must not run a web plan');
-    f.agent.plan.outline = f.agent.plan;
+    f.agent.plan = async ({ currentObservation }, { review }) => {
+      if (review || clicked)
+        return { action: 'finish', evidence: 'Bibliothèque', summary: 'Opened Library.' };
+      if (currentObservation.window?.windowId !== '42') return { action: 'launch', query: 'Steam' };
+      return { action: 'click', targetId: 'library' };
+    };
     const observe = f.control.execute.bind(f.control);
     let clicked = false;
     f.control.execute = async (args) => {
@@ -222,7 +226,7 @@ test('missing observations never authorize guessed clicks, ambiguous launch targ
   }
 });
 
-test('opening YouTube works without a model or an existing input window', async () => {
+test('a model-selected YouTube navigation works without an existing window', async () => {
   for (const goal of ['Open YouTube', 'Capre use full computer access and open YouTube.']) {
     const f = fixture({ ambiguous: true });
     let sent = 0;
@@ -237,7 +241,7 @@ test('opening YouTube works without a model or an existing input window', async 
       return { ok: true, navigationRequested: true, windowId: '42' };
     };
     f.control.execute = async (args) => {
-      assert.deepEqual(args, { action: 'observe', vision: false });
+      assert.equal(args.action, 'observe');
       if (!sent)
         throw Object.assign(new Error('No application.'), {
           code: 'COMPUTER_APPLICATION_UNAVAILABLE',
@@ -253,8 +257,10 @@ test('opening YouTube works without a model or an existing input window', async 
         targets: [{ browserAddress: true, untrustedValue: 'https://www.youtube.com/' }],
       };
     };
-    f.agent.plan = async () => assert.fail('A home-page request must not use a model step');
-    f.agent.plan.outline = async () => assert.fail('A home-page request must not need an outline');
+    f.agent.plan = async ({ currentObservation }) =>
+      currentObservation.observationUnavailable
+        ? { action: 'open_url', query: 'Microsoft Edge', url: 'https://www.youtube.com/' }
+        : { action: 'finish', evidence: 'YouTube', summary: 'Opened YouTube.' };
     const result = await f.agent.run(goal);
     assert.equal(result.ok, true);
     assert.equal(result.verified, true);
@@ -273,6 +279,6 @@ test('unavailable observations cannot bootstrap typing into an owner-selected ex
     { observationUnavailable: true, targets: [] },
     new AbortController().signal,
   );
-  assert.equal(result.needsWindow, true);
+  assert.equal(result.ok, false);
   assert.equal(result.inputPerformed, false);
 });

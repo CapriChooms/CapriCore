@@ -788,7 +788,9 @@ test('Spotify commands traverse the real chat, JSON planner and ChatGPT Response
       { action: 'volume', delta: -10 },
       { action: 'pause' },
     ]);
-    assert.equal(requests.length, 7);
+    // An explicit pause uses the local playback path without a planner request.
+    assert.equal(requests.length, 6);
+    assert(!requests.some((request) => request.input.at(-1).content === 'Pause Spotify'));
     assert.ok(requests.every((request) => request.input.length === 2 && !request.tools));
     assert(!JSON.stringify(requests).includes('PRIVATE-PERSONALITY-CANARY'));
     assert.equal(auth.controllers.size, 0);
@@ -947,7 +949,7 @@ test('explicit non-SSE media types remain rejected and their bodies are cancelle
     await assert.rejects(
       chatGPTCompletion(
         auth,
-        { model: 'fixture', messages: [{ role: 'user', content: 'Ready.' }], stream: true },
+        { model: 'fixture', messages: [{ role: 'user', content: 'Ready.' }], stream: false },
         AbortSignal.timeout(2000),
         accessToken,
       ),

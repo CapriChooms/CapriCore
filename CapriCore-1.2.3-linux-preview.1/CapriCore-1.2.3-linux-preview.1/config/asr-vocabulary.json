@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "wakeScore": 1.5,
+  "commandScore": 0.8,
+  "wake": { "en": ["Capri"], "ru": ["Capri", "Капри"] },
+  "commands": {
+    "en": [
+      "clip that",
+      "clip this",
+      "clip it",
+      "take a screenshot",
+      "save a screenshot",
+      "Spotify"
+    ],
+    "ru": ["Spotify"]
+  }
+}

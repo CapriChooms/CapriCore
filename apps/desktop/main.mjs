@@ -12,11 +12,12 @@ import { discordPresenceSkill } from '../../packages/skills/src/discord-presence
 import { reasoningSkill } from '../../packages/skills/src/reasoning/index.mjs';
 import { webSearchSkill } from '../../packages/skills/src/web-search/index.mjs';
 import { installCodingBridge } from './main/coding-bridge.mjs';
+import { faceAnimations, faceFrames } from './renderer/avatar-face-expressions.mjs';
 import { createMediaSkills } from './main/media-skills.mjs';
 import { createConversationSkills, createOwnerMemory } from './main/conversation-skills.mjs';
 import { createVoiceSkills } from './main/voice-skills.mjs';
 import { SkillSettings } from './main/skill-settings.mjs';
-import { skillPreferences } from '../../packages/skills/src/settings-catalog.mjs';
+import { skillPreferences, TURN_MODE_SKILLS } from '../../packages/skills/src/settings-catalog.mjs';
 import { ACTION_SKILLS } from '../../packages/skills/src/action-tools.mjs';
 import { NpuInference } from '../../packages/runtime/src/providers/npu-inference.mjs';
 import { NpuSetupService, prepareIntelNpu } from './npu-setup-service.mjs';
@@ -53,9 +54,7 @@ import {
 } from './renderer/voice-volume.mjs';
 import { ResolveAdapter } from '../../integrations/resolve/service.mjs';
 import { ComputerAgent } from './computer-agent.mjs';
-import { steamGameLauncher } from './steam-game-launch.mjs';
-import { createSteamGameTask } from './steam-game-task.mjs';
-import { computerIntentClassifier, computerPlanner } from './computer-planner.mjs';
+import { computerPlanner } from './computer-planner.mjs';
 import { spotifyPlanner } from './spotify-planner.mjs';
 import { computerVision } from './computer-vision.mjs';
 import { readSteamScreenText } from './steam-screen-text.mjs';
@@ -83,7 +82,7 @@ import {
   acknowledgeResponsePaint,
 } from '../../packages/runtime/src/response-timing.mjs';
 import { timingFetch } from '../../packages/runtime/src/response-probe.mjs';
-import { wantsVoiceFollowUp } from './voice-follow-up.mjs';
+import { endsVoiceConversation, wantsVoiceFollowUp } from './voice-follow-up.mjs';
 import { handsFreeReply } from './lemonade-dialogue.mjs';
 import { screenFormState } from './main/screen-form-state.mjs';
 import { localizedDialog } from './main/localized-dialog.mjs';
@@ -129,7 +128,7 @@ import {
   selectedScreenSource,
 } from './screen-observation.mjs';
 import { applicationId } from '../../packages/runtime/src/host/desktop-identity.mjs';
-import { PointerController, WINDOW_MOTION_INTERVAL_MS } from './main/pointer-controller.mjs';
+import { PointerController } from './main/pointer-controller.mjs';
 import { createDesktopResources } from './main/resources.mjs';
 import { createIpcHandler, settingsVersion } from './main/ipc.mjs';
 import { resourceResponse } from './main/protocol.mjs';
@@ -157,7 +156,7 @@ import {
 import { ChessPageAccess } from './chess/source.mjs';
 import { registerAccessIpc } from './main/access-ipc.mjs';
 import { registerCompanionIpc } from './main/companion-ipc.mjs';
-import { crashReporter } from './main/crash-report.mjs';
+import { WildPranks } from './main/wild-pranks.mjs';
 import { DonationWindow } from './main/donation-window.mjs';
 import { UpdateService } from './update-service.mjs';
 import { GitHubAccess, githubTokenUrl, credentialStorage } from './github-access.mjs';
@@ -240,7 +239,9 @@ import {
 import { VOICE_PREVIEWS } from './language-context.mjs';
 import {
   app,
+  BaseWindow,
   BrowserWindow,
+  WebContentsView,
   clipboard,
   ipcMain,
   Menu,
@@ -293,6 +294,7 @@ import {
   validWindowFootprint,
   visibleWindowBounds,
 } from './geometry.mjs';
+import { REPLY_SPACE, compactReplyHeight } from './renderer/reply-geometry.mjs';
 import { loadInstalledAvatar } from './avatar-catalog.mjs';
 import { matchCharacterPortrait } from './character-portraits.mjs';
 import { AvatarState } from './avatar-state.mjs';
@@ -389,7 +391,7 @@ import {
   nextSurfaceActions,
   surfaceLanding,
 } from './main/avatar-surface-landing.mjs';
-import { hangingCelActions, seatedCelActions } from './renderer/hanging-cels.mjs';
+import { hangingCelActions } from './renderer/hanging-cels.mjs';
 import { DesktopTeleportMenu } from './main/desktop-teleport-menu.mjs';
 import {
   settingsAvatarWindowId,
@@ -430,6 +432,11 @@ const callAudioDiagnostics = new CallAudioDiagnostics();
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const applicationIcon = path.join(root, 'assets/default/icon-source.png');
 const verification = process.argv.includes('--verification');
+if (verification) {
+  // Legacy visual verifiers enumerate application windows with an attached page.
+  // Include the companion BaseWindow alongside the BrowserWindow-based dialogs.
+  BrowserWindow.getAllWindows = () => BaseWindow.getAllWindows().filter((view) => view.webContents);
+}
 const verificationFolder = process.env.CAPRI_DESKTOP_VERIFICATION_DIR;
 if (
   verification &&
@@ -466,26 +473,16 @@ else {
 }
 async function initializeDesktop() {
   let window;
-  let reportDesktopCrash;
   let gpuProcessFailures = 0;
-  const gpuProcessEvents = [];
-  app.on('child-process-gone', (_event, { type, reason, exitCode, systemErrorCode }) => {
+  app.on('child-process-gone', (_event, { type, reason }) => {
     if (type !== 'GPU' || reason === 'clean-exit') return;
-    gpuProcessFailures++;
-    gpuProcessEvents.push({
-      timeMs: Date.now(),
-      gpuExitReason: reason,
-      exitCode,
-      ...(Number.isInteger(systemErrorCode) ? { systemErrorCode } : {}),
-    });
-    if (gpuProcessEvents.length > 16) gpuProcessEvents.shift();
-    if (gpuProcessFailures !== 1 || !window || window.isDestroyed()) return;
+    if (++gpuProcessFailures !== 1 || !window || window.isDestroyed()) return;
     const contents = window.webContents;
     if (contents.isDestroyed() || contents.isCrashed()) return;
     try {
       contents.send('capri:event', { type: 'window.portrait-fallback' });
     } catch {
-      // A renderer that reloads during the crash gets the fallback flag at bootstrap.
+      // If Chromium is restarting, bootstrap will apply the fallback on reload.
     }
   });
   const skillSettings = new SkillSettings(path.join(state, 'skills.json'));
@@ -495,18 +492,15 @@ async function initializeDesktop() {
   });
   const callSkill = (skillId, command, input, { source = 'host', signal } = {}) =>
     skills.call({ skillId, command, input }, { source, signal });
-  const requestComputerAccess = (enabled, { signal, source = 'chat' } = {}) =>
-    callSkill('capri.computer', 'requestAccess', enabled, { signal, source });
+  const setComposerTurnMode = (id, enabled) => {
+    skillSettings.setTurnMode(id, enabled);
+    return callSkill(id, 'setMode', enabled, { source: 'companion' });
+  };
+  const requestComputerAccess = (enabled, { signal } = {}) =>
+    callSkill('capri.computer', 'requestAccess', enabled, { signal, source: 'tool' });
   const runComputerSkill = (
     goal,
-    {
-      signal,
-      previousTask,
-      ownerRequestedCall,
-      planningEffort,
-      applicationHint,
-      source = 'chat',
-    } = {},
+    { signal, previousTask, ownerRequestedCall, planningEffort } = {},
   ) =>
     callSkill(
       'capri.computer',
@@ -515,10 +509,9 @@ async function initializeDesktop() {
         goal,
         previousTask,
         ownerRequestedCall,
-        ...(source === 'chat' && planningEffort && { planningEffort }),
-        ...(source === 'chat' && applicationHint && { applicationHint }),
+        planningEffort,
       },
-      { signal, source },
+      { signal, source: 'tool' },
     );
   configureResponseTimings(
     new ResponseTimingLog(
@@ -771,15 +764,11 @@ async function initializeDesktop() {
     vertical: { width: 380, height: 520 },
     horizontal: { width: 525, height: 235 },
   };
-  const replySpace = 132;
   let activeWindowSize = verticalSize;
   let activeWindowLayout = 'vertical';
   let activeMonitorWidth = 0;
   let replyWindowCollapsed = false;
   let replyResizeTimer;
-  function compactReplyHeight(height) {
-    return Math.min(height, Math.max(440, height - replySpace));
-  }
   function windowSize(workArea) {
     if (!replyWindowCollapsed) return activeWindowSize;
     const height = Math.min(activeWindowSize.height, workArea.height);
@@ -814,7 +803,7 @@ async function initializeDesktop() {
     startupIntro: startupIntroPack,
   });
 
-  let tray, regions, pointer, controlTimer, saveTimer, layoutSaveTimer;
+  let tray, regions, pointer, resizeSurface, controlTimer, saveTimer, layoutSaveTimer;
   let attachmentViewer;
   let windowFootprint, compactPlacement;
   let avatarDetach, avatarClickReactions, avatarComposer, wildTabs;
@@ -828,6 +817,7 @@ async function initializeDesktop() {
     avatarRoamCapture,
     avatarDesktopUpdate = false;
   const avatarRoaming = new AvatarRoaming();
+  const idleCursorRoaming = new AvatarRoaming({ enabledKey: 'avatarRoamCursorPranks' });
   let settingsHost;
   let settingsPreview = {};
   const liveCompanionSettings = () => settingsPreview.companion ?? companionPreferences.value;
@@ -948,6 +938,7 @@ async function initializeDesktop() {
     ...(verification ? { fallback: async () => null } : {}),
   });
   const updates = new UpdateService({
+    installSupported: process.platform === 'win32',
     root,
     state,
     node: nodePath,
@@ -1334,9 +1325,7 @@ async function initializeDesktop() {
     codingTask: (goal, { signal } = {}) =>
       callSkill('capri.coding', 'run', goal, { source: 'chat', signal }),
     externalInference: rt.remote.enabled,
-    enableStreaming: rt.remote?.enableStreaming ?? true,
-    externalChatProviderRejectionSince: (startedAt) =>
-      inferenceApi.chatProviderRejectionSince(startedAt),
+    externalRequestTooLargeSince: (startedAt) => inferenceApi.requestTooLargeSince(startedAt),
     firstTextTimeoutMs: responseTiming.firstTextTimeoutMs,
     timeoutMs: responseTiming.timeoutMs,
     gatewayUrl: rt.gatewayUrl,
@@ -1419,15 +1408,6 @@ async function initializeDesktop() {
       npuDialogue && !verification
         ? (user, assistant) => rememberDirectDialogue(user, assistant, 'Local NPU conversation')
         : null,
-    computerIntent: verification
-      ? null
-      : computerIntentClassifier({
-          url: rt.inferenceUrl,
-          model: settings.model,
-          modelCapabilities: settings.modelCapabilities,
-          ...inferenceOptions,
-          params: auxiliaryRunnerParams,
-        }),
     localCalculation: (input, args, signal) =>
       companionActions.execute('application_control', input.id, args, signal),
     localMusic: (input, args, signal) =>
@@ -1449,15 +1429,6 @@ async function initializeDesktop() {
       ...inferenceOptions,
       player: 'YouTube Music',
     }),
-    computerAccess: (enabled, options) => {
-      chat.assertToolAllowed('settings_control', {
-        action: 'request',
-        setting: 'fullComputerAccess',
-        value: enabled,
-      });
-      if (enabled) applicationAccess.assertAllowed('desktop_control', { action: 'run_task' });
-      return requestComputerAccess(enabled, options);
-    },
     computerTask: async (goal, options) => {
       chat.assertToolAllowed('desktop_control', { action: 'run_task' });
       applicationAccess.assertAllowed('desktop_control', { action: 'run_task' });
@@ -1507,7 +1478,6 @@ async function initializeDesktop() {
             session: contextSampler.peekSession(),
             model: settings.model,
             contextTokens: settings.contextTokens,
-            acceleration: settings.acceleration,
             emulatedX64,
             historyCharacters: store
               .snapshot()
@@ -1713,6 +1683,7 @@ async function initializeDesktop() {
     turnOrigins.set(input.id, {
       origin,
       sessionId: origin === 'microphone' ? microphone.capture?.id : null,
+      ended: origin === 'microphone' && endsVoiceConversation(input.text),
     });
     if (turnOrigins.size > 128) turnOrigins.delete(turnOrigins.keys().next().value);
     if (shuttingDown) throw new SubmissionError('shutting_down', 'Capri is shutting down');
@@ -3173,6 +3144,45 @@ async function initializeDesktop() {
       companionPreferences.value.wildCloseAiTabs
     );
   }
+  const wildPranks = new WildPranks({ BrowserWindow, screen });
+  let prankStyle;
+  function prankEnvironment() {
+    return (
+      !shuttingDown &&
+      !quitting &&
+      !sessionLocked &&
+      !musicSuspended &&
+      !computerControl.session &&
+      !controlBorder
+    );
+  }
+  function updateWildPranks() {
+    const enabled =
+      !verification &&
+      companionPreferences.value.wildDesktopPranks &&
+      companionPresent() &&
+      window.isVisible() &&
+      !window.isMinimized() &&
+      !focusMode &&
+      sleepService.phase === 'awake' &&
+      (prankStyle ??= readCommunicationStyle(rt.workspace)) === 'wild';
+    wildPranks.tick(enabled, () =>
+      prankEnvironment() &&
+      powerMonitor.getSystemIdleState(6) === 'idle' &&
+      !settingsHost?.window?.isVisible() &&
+      !interfaceBusy &&
+      !draftBusy &&
+      !currentChatTask &&
+      !chat.active &&
+      !playbackBusy &&
+      !voice.generating &&
+      !pointer?.drag &&
+      !pointer?.avatarPress &&
+      !resizeSurface?.active &&
+      !avatarDetach?.operation &&
+      !avatarDetach?.press
+    );
+  }
   function wildTabsAllowed() {
     return (
       wildTabsEnabled() &&
@@ -3306,7 +3316,6 @@ async function initializeDesktop() {
     voiceStartController,
     lastVoiceFailure = null;
   const rendererDiagnostics = [];
-  const portraitGraphicsDiagnostics = [];
   const mutedVoiceResidency = new MutedVoiceResidency({
     enabled: !verification,
     needed: () => (voice.enabled && voice.language !== 'off') || Boolean(voicePreviewRequest),
@@ -3468,7 +3477,7 @@ async function initializeDesktop() {
         break;
       case 'capri.reasoning':
       case 'capri.web-search':
-        callSkill(id, 'setMode', enabled);
+        callSkill(id, 'setMode', skillSettings.turnMode(id));
         break;
       case 'capri.coding':
         coding.setMonitoring(enabled);
@@ -3582,6 +3591,7 @@ async function initializeDesktop() {
       settingsHost?.send(event);
     if (event.type === 'confirmation.request' && settingsHost?.window?.isVisible()) return;
     if (event.type === 'companion.settings') {
+      if (!event.preview && !companionPreferences.value.wildDesktopPranks) wildPranks.tick(false);
       if (
         !event.preview &&
         microphone.setConversationMode(companionPreferences.value.conversationMode)
@@ -3592,7 +3602,10 @@ async function initializeDesktop() {
       if (!event.preview) void syncInitiative().catch(() => observer.publish('failed'));
       if (settingsPreview.companion && !event.preview)
         event = { ...event, settings: { ...event.settings, ...settingsPreview.companion } };
-      if (!event.settings.followUp) pendingFollowUp = null;
+      if (!event.settings.followUp) {
+        pendingFollowUp = null;
+        microphone.cancelContinuation();
+      }
       const display = resourceMonitorDisplay(event.settings);
       resizeCompanion(event.settings.windowLayout, companionMonitorWidth(event.settings, display));
       if (!resourceMonitorNeedsProcessLoad(display)) processLoad.stop();
@@ -3612,8 +3625,6 @@ async function initializeDesktop() {
       if (event.type === 'settings.set-portrait' && settingsPreview.portrait !== undefined)
         event = { ...event, active: settingsPreview.portrait };
     }
-    if (event.type === 'voice.generated' && pendingFollowUp?.turnId === event.turnId)
-      pendingFollowUp.generated = true;
     if (['voice.error', 'voice.cancelled'].includes(event.type)) pendingFollowUp = null;
     if (event.type === 'microphone.settings' && event.status !== 'listening' && nativeSystemCapture)
       stopNativeSystemAudio();
@@ -3676,11 +3687,24 @@ async function initializeDesktop() {
   }
 
   let pendingFollowUp = null;
-  function resumeFollowUp() {
+  function resumeFollowUp(completedTurnId) {
     const intent = pendingFollowUp;
-    if (!intent || !intent.generated || playbackBusy || !liveCompanionSettings().followUp) return;
+    const preferences = liveCompanionSettings();
+    if (
+      !intent ||
+      playbackBusy ||
+      sessionLocked ||
+      shuttingDown ||
+      quitting ||
+      !preferences.followUp ||
+      (!preferences.followUpAfterAnyReply && !intent.question) ||
+      (completedTurnId === undefined
+        ? !intent.textOnly || preferences.followUpAfterAnyReply
+        : completedTurnId !== intent.turnId)
+    )
+      return;
     pendingFollowUp = null;
-    microphone.continueListening(liveCompanionSettings().followUpSeconds * 1000, intent.sessionId);
+    microphone.continueListening(preferences.followUpSeconds * 1000, intent.sessionId);
   }
   function considerMemory(event) {
     if (!['turn.started', 'turn.completed'].includes(event.type)) return;
@@ -3792,25 +3816,32 @@ async function initializeDesktop() {
       });
     if (['turn.failed', 'turn.cancelled'].includes(event.type)) companionActions.approvals.cancel();
     if (event.type === 'turn.started') pendingFollowUp = null;
-    if (
-      event.type === 'turn.completed' &&
-      wantsVoiceFollowUp({
+    if (event.type === 'turn.completed') {
+      const preferences = liveCompanionSettings();
+      const candidate = {
         text: event.assistant?.text,
         ...turnOrigins.get(event.turnId),
-        enabled: liveCompanionSettings().followUp && !microphone.capture?.conversationMode,
+        enabled: preferences.followUp && !microphone.capture?.conversationMode,
         activeSessionId: microphone.capture?.id,
-      })
-    ) {
-      pendingFollowUp = {
-        turnId: event.turnId,
-        sessionId: microphone.capture.id,
-        generated:
+        afterAnyReply: preferences.followUpAfterAnyReply,
+      };
+      if (wantsVoiceFollowUp(candidate)) {
+        const textOnly =
           speechInstaller.busy('speech') ||
           !voice.enabled ||
           voice.language === 'off' ||
-          Boolean(voice.error),
-      };
-      if (pendingFollowUp.generated) setTimeout(resumeFollowUp, 0);
+          Boolean(voice.error);
+        pendingFollowUp = {
+          turnId: event.turnId,
+          sessionId: candidate.sessionId,
+          question: wantsVoiceFollowUp({ ...candidate, afterAnyReply: false }),
+          textOnly,
+        };
+        if (textOnly) {
+          if (preferences.followUpAfterAnyReply) pendingFollowUp = null;
+          else setTimeout(resumeFollowUp, 0);
+        }
+      }
     }
     if (!quitting && !(event.type === 'turn.started' && event.silent)) {
       try {
@@ -4019,7 +4050,7 @@ async function initializeDesktop() {
         console.error('Core startup failed:', error.code ?? '', error.message);
         if (!shuttingDown && sleepService.phase !== 'sleeping') {
           startup.end('core', true);
-          const { code, message } = coreStartupFailure(error);
+          const { code, message } = coreStartupFailure(error, { platform: process.platform });
           setBackend('offline', message, code);
         }
         throw error;
@@ -4113,6 +4144,7 @@ async function initializeDesktop() {
   }
 
   function stopHiddenCompanion() {
+    wildPranks.pause();
     if (avatarOnly) return;
     clearPerch();
     avatarClickReactions?.cancel();
@@ -4185,7 +4217,7 @@ async function initializeDesktop() {
     // Never repeatedly relaunch a crashing renderer. The tray can retry on demand.
     nextRendererRecovery = Date.now() + 60000;
     try {
-      await view.loadURL(rendererUrl);
+      await view.webContents.loadURL(rendererUrl);
       if (
         window === view &&
         !view.isDestroyed() &&
@@ -4368,25 +4400,27 @@ async function initializeDesktop() {
 
   const defaultSeat = { kind: 'seat', edge: 'top', fraction: 0.66 };
   const surfaceFrames = new Map([...dockFrames, ['focused', frameIds.get('focused')]]);
+  function ownedAvatarOverlayIds() {
+    return [avatarDetach?.overlay, avatarComposer?.window].flatMap((overlay) => {
+      if (!overlay || overlay.isDestroyed()) return [];
+      const handle = overlay.getNativeWindowHandle();
+      return [String(handle.length === 8 ? handle.readBigUInt64LE() : handle.readUInt32LE())];
+    });
+  }
   const surfaceDetector = createAvatarScreenTargetDetector({
     capturePolicy,
     screen,
     avatarWindow,
     callApplicationBridge: (command, options) => callApplicationBridge(root, command, options),
     permitted: () => Boolean(surfaceWatch()) && surfaceAvailable(),
-    ownedOverlayWindowIds: () => {
-      const overlay = avatarDetach?.overlay;
-      if (!overlay || overlay.isDestroyed()) return [];
-      const handle = overlay.getNativeWindowHandle();
-      return [String(handle.length === 8 ? handle.readBigUInt64LE() : handle.readUInt32LE())];
-    },
+    ownedOverlayWindowIds: ownedAvatarOverlayIds,
   });
   let surfaceRequest = 0;
   let lastSurfaceAction;
   let lastHangingAction;
-  let lastSurfaceClip;
+  let lastAmbientClip;
   let surfacePlayUntil = 0;
-  const desktopPerformances = [...hangingCelActions, ...seatedCelActions];
+  let nextAmbientSurface = Date.now() + 24000;
 
   function surfaceWatch() {
     const lease = capturePolicy.capture;
@@ -4426,14 +4460,44 @@ async function initializeDesktop() {
       canvas: catalog.canvas,
       frames: surfaceFrames,
     });
-    return plan && { ...plan, display };
+    return (
+      plan && {
+        ...plan,
+        display,
+        contact: plan.action === 'present' ? target.point : plan.point,
+        contactEdge: target.kind === 'window-top' ? 'top' : 'inside',
+      }
+    );
+  }
+
+  async function avatarContactVisible(record, dock, point, stillAllowed = () => true) {
+    const contact = dock.surface?.contact ?? point;
+    const { x, y } = screen.dipToScreenPoint(contact);
+    try {
+      const result = await callApplicationBridge(
+        root,
+        {
+          action: 'avatar_dock_visible',
+          ...record,
+          x: String(x),
+          y: String(y),
+          edge: dock.surface?.contactEdge ?? dock.edge,
+          ignoreProcessId: String(process.pid),
+          overlays: ownedAvatarOverlayIds(),
+        },
+        { stillAllowed },
+      );
+      return stillAllowed() && result?.visible === true;
+    } catch {
+      return false;
+    }
   }
 
   async function startSurfaceClip(action, side) {
     // This upper bound also leaves room for loading a sprite sheet on a cold start.
-    const until = (surfacePlayUntil = Date.now() + 8500);
+    surfacePlayUntil = Date.now() + 8500;
+    nextAmbientSurface = Date.now() + 24000 + Math.random() * 24000;
     const target = perch;
-    if (target) target.nextPerformanceAt = Date.now() + 17000 + Math.random() * 13000;
     const request = surfaceRequest;
     const started = await avatarDetach.playSurface(
       action,
@@ -4444,8 +4508,7 @@ async function initializeDesktop() {
         surfaceAvailable() &&
         (!target?.lease || surfaceWatch() === target.lease),
     );
-    if (started) lastSurfaceClip = action;
-    else if (surfacePlayUntil === until) surfacePlayUntil = 0;
+    if (!started) surfacePlayUntil = 0;
     return started;
   }
 
@@ -4463,49 +4526,40 @@ async function initializeDesktop() {
       (perch.dock.surface?.frame ?? avatarDockFrame(dockFrames, perch.dock));
     const localTrick =
       (currentPose?.id === 'pose-ceiling' && hanging) ||
-      (currentPose?.id === 'pose-sit-edge' && seatedCelActions.includes(action));
+      (currentPose?.id === 'pose-sit-edge' && action === 'ledge-keytar');
     if (localTrick && (!perch.lease || perch.lease === lease)) {
-      const started = await startSurfaceClip(action, perch.dock.surface?.side);
+      const started = await startSurfaceClip(action);
       if (started && hanging) lastHangingAction = action;
       if (started) return true;
     }
-    const choices = action === 'auto' ? nextSurfaceActions(lastSurfaceAction) : [action];
-    const canUseDesktop =
-      (!lease || action !== 'auto') &&
-      choices.some((choice) => desktopPerformances.includes(choice));
-    if (!lease && !canUseDesktop) return false;
+    if (!lease && !hanging) return false;
     const request = ++surfaceRequest;
     const allowed = () =>
       request === surfaceRequest &&
       surfaceAvailable() &&
       stillAllowed() &&
       (!lease || surfaceWatch() === lease);
-    const targets = lease ? await surfaceDetector.detect().catch(() => []) : [];
-    if (canUseDesktop) {
+    const targets = lease ? await surfaceDetector.detect() : [];
+    if (hanging) {
       const owner = window.getContentBounds();
       const from = avatarDetach.desktopPoint ?? {
         x: Math.round(owner.x + owner.width / 2),
         y: Math.round(owner.y + owner.height / 2),
       };
-      const current = screen.getDisplayNearestPoint(from);
-      const display =
-        displayId === undefined
-          ? current
-          : screen.getAllDisplays().find(({ id }) => id === displayId);
-      if (display) {
-        const { x, y, width } = display.workArea;
-        targets.push({
-          kind: 'desktop-edge',
-          id: 'display:' + display.id,
-          displayId: display.id,
-          bounds: { x, y, width, height: 1 },
-          point: { x: display.id === current.id ? from.x : x + width / 2, y },
-        });
-      }
+      const display = screen.getDisplayNearestPoint(from);
+      const { x, y, width } = display.workArea;
+      targets.push({
+        kind: 'desktop-edge',
+        id: 'display:' + display.id,
+        displayId: display.id,
+        bounds: { x, y, width, height: 1 },
+        point: { x: from.x, y },
+      });
     }
     if (!allowed()) return false;
     const existing = perch?.dock.surface?.targetId;
     if (existing) targets.sort((a, b) => Number(b.id === existing) - Number(a.id === existing));
+    const choices = action === 'auto' ? nextSurfaceActions(lastSurfaceAction) : [action];
     for (const choice of choices) {
       for (const target of targets) {
         if (displayId !== undefined && target.displayId !== displayId) continue;
@@ -4518,22 +4572,17 @@ async function initializeDesktop() {
           perch.dock.surface.frame.id === surface.frame.id &&
           perch.seatPoint.x === surface.point.x &&
           perch.seatPoint.y === surface.point.y;
-        if (
-          !samePose &&
-          !(await perchOn(
-            target.window,
-            targetLease,
-            { ...defaultSeat, surface },
-            undefined,
-            allowed,
-          ))
-        )
-          return false;
+        const dock = { ...defaultSeat, surface };
+        const landed = samePose
+          ? !target.window ||
+            (await avatarContactVisible(perch.record, dock, surface.point, allowed))
+          : await perchOn(target.window, targetLease, dock, undefined, allowed);
         if (!allowed()) return false;
+        if (!landed) continue;
         perch.dock.surface = surface;
         if (!(await startSurfaceClip(surface.clipId, surface.side))) return false;
         lastSurfaceAction = choice;
-        if (hangingCelActions.includes(choice)) lastHangingAction = choice;
+        if (hanging) lastHangingAction = choice;
         return true;
       }
     }
@@ -4612,9 +4661,9 @@ async function initializeDesktop() {
     if (perch !== attempt) return;
     clearPerch();
     if (!avatarDetach.available) return;
+    const frame = desktopFrame ?? frameIds.get('neutral');
     if (teleport) {
       avatarRoaming.postpone(liveCompanionSettings(), 60000);
-      const frame = desktopFrame ?? frameIds.get('neutral');
       if (
         await avatarDetach
           .hop(undefined, undefined, avatarTravelPose(frame, true))
@@ -4624,8 +4673,7 @@ async function initializeDesktop() {
       if (!avatarDetach.available) return;
     }
     avatarDetach.showParked();
-    if (desktopFrame)
-      await avatarDetach.updateFrame(desktopFrame, catalog.canvas, maskFor(desktopFrame.id));
+    if (frame) await avatarDetach.updateFrame(frame, catalog.canvas, maskFor(frame.id));
   }
 
   async function followPerch(attempt) {
@@ -4702,6 +4750,14 @@ async function initializeDesktop() {
       processId: target.processId,
       startedAtTicks: target.startedAtTicks,
     };
+    const previous = perch;
+    const canLand = () =>
+      perch === previous &&
+      canTeleport() &&
+      stillAllowed() &&
+      (!lease || capturePolicy.capture === lease);
+    if (record && (!(await avatarContactVisible(record, dock, seat, canLand)) || !canLand()))
+      return false;
     clearPerch();
     perch = {
       record,
@@ -4726,8 +4782,11 @@ async function initializeDesktop() {
         !allowed()
       )
         return false;
+      if (record && !(await avatarContactVisible(record, dock, seat, allowed))) {
+        await finishPerch(attempt);
+        return false;
+      }
       attempt.seated = true;
-      attempt.nextPerformanceAt = Date.now() + 7000 + Math.random() * 6000;
       if (attempt.seated && allowed()) {
         if (record && !surface) {
           const changed = (value) => {
@@ -4788,15 +4847,9 @@ async function initializeDesktop() {
       const text = performance
         ? success
           ? uiText('Done.', languages.value.conversation)
-          : !desktopPerformances.includes(movement.performance) &&
-              movement.performance !== 'hang-next' &&
-              !surfaceWatch()
-            ? ru
-              ? 'Включи наблюдение за экраном, чтобы я могла найти окно или строку поиска для этой сценки.'
-              : 'Turn on screen observation so I can find a window or search field for this performance.'
-            : ru
-              ? 'Не получилось занять подходящую позу для этой анимации.'
-              : 'I couldn’t get into position for that animation.'
+          : ru
+            ? 'Не нашла подходящую позу или видимое место. Для сценок у окна включи наблюдение за экраном.'
+            : 'I couldn’t find a suitable pose or visible spot. Turn on screen observation for window performances.'
         : wave
           ? uiText(
               success ? 'Done.' : 'The local core is unavailable. Reconnect to try again.',
@@ -4837,15 +4890,20 @@ async function initializeDesktop() {
     }
   }
 
-  function avatarIdleAllowed() {
-    if (!skillEnabled('capri.avatar-interaction')) return false;
+  function desktopIdleAllowed() {
     return Boolean(
-      canTeleport() &&
+      companionPresent() &&
+        (avatarOnly || !window.isMinimized()) &&
         !focusMode &&
+        !shuttingDown &&
+        !quitting &&
+        !sessionLocked &&
+        !musicSuspended &&
         !avatarDetach.operation &&
         !avatarDetach.press &&
         !pointer?.avatarPress &&
         !pointer?.drag &&
+        !resizeSurface?.active &&
         !interfaceBusy &&
         !settingsHost?.window?.isVisible() &&
         !draftBusy &&
@@ -4858,28 +4916,79 @@ async function initializeDesktop() {
         !detachedReplyHovered &&
         Date.now() >= lastSpeechUntil &&
         sleepService.phase === 'awake' &&
-        !screenObservation.snapshot().analysing &&
-        !perch?.hidden,
+        !screenObservation.snapshot().analysing,
     );
+  }
+
+  function avatarIdleAllowed() {
+    return (
+      skillEnabled('capri.avatar-interaction') &&
+      canTeleport() &&
+      !perch?.hidden &&
+      desktopIdleAllowed()
+    );
+  }
+
+  let idleCursorDecision;
+  function idleCursorAllowed() {
+    return (
+      process.platform === 'win32' &&
+      !verification &&
+      companionPreferences.value.avatarRoamCursorPranks &&
+      skillEnabled('capri.avatar-interaction') &&
+      skillEnabled('capri.computer') &&
+      fullComputerAccess.enabled &&
+      applicationAccess.enabled &&
+      !workflowTurn &&
+      !avatarDesktopUpdate &&
+      !callMicrophoneArmed &&
+      !recordingShown &&
+      !chess?.watchRun &&
+      powerMonitor.getSystemIdleState(15) === 'idle' &&
+      desktopIdleAllowed()
+    );
+  }
+
+  async function updateIdleCursor() {
+    const settings = companionPreferences.value;
+    const permitted = idleCursorAllowed();
+    if (idleCursorDecision && (!permitted || backendState.phase !== 'ready'))
+      idleCursorDecision.abort();
+    const due = idleCursorRoaming.due(settings, {
+      blocked: !permitted || backendState.phase !== 'ready' || Boolean(computerControl.session),
+    });
+    if (!due || idleCursorDecision) return;
+    idleCursorRoaming.postpone(settings);
+    const revision = idleCursorRoaming.revision;
+    const controller = new AbortController();
+    idleCursorDecision = controller;
+    const allowed = () =>
+      idleCursorRoaming.current(companionPreferences.value, revision) && idleCursorAllowed();
+    try {
+      const { action } = await planComputer.idleCursor({
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(7500)]),
+      });
+      if (action === 'left' || action === 'right')
+        await computerControl.runIdleCursor(action, allowed, controller.signal);
+    } catch (error) {
+      if (error.name !== 'AbortError' && !controller.signal.aborted && allowed())
+        console.warn('Idle cursor prank did not complete:', error.code ?? error.name);
+    } finally {
+      if (idleCursorDecision === controller) idleCursorDecision = null;
+    }
   }
 
   function avatarRoamingAllowed() {
     return (
-      liveCompanionSettings().avatarRoaming &&
-      backendState.phase === 'ready' &&
-      avatarIdleAllowed() &&
-      surfacePlayUntil <= Date.now()
+      liveCompanionSettings().avatarRoaming && avatarIdleAllowed() && surfacePlayUntil <= Date.now()
     );
   }
 
   async function playAmbientSurface(now) {
     if (
+      now < nextAmbientSurface ||
       !perch?.seated ||
-      now < perch.nextPerformanceAt ||
-      now < surfacePlayUntil ||
       perch.hidden ||
-      perch.pending ||
-      perch.updating ||
       !avatarDetach.available ||
       !surfaceAvailable() ||
       !avatarIdleAllowed() ||
@@ -4887,24 +4996,33 @@ async function initializeDesktop() {
     )
       return false;
     const frame = perch.dock.surface?.frame ?? avatarDockFrame(dockFrames, perch.dock);
-    const action = ambientSurfaceClip(frame?.id, lastSurfaceClip);
-    perch.nextPerformanceAt = now + 17000 + Math.random() * 13000;
-    return Boolean(action && (await startSurfaceClip(action, perch.dock.surface?.side)));
+    const action = ambientSurfaceClip(frame?.id, lastAmbientClip);
+    nextAmbientSurface = now + 24000 + Math.random() * 24000;
+    if (!action || !(await startSurfaceClip(action, perch.dock.surface?.side))) return false;
+    lastAmbientClip = action;
+    return true;
   }
 
   async function roamDesktopAvatar(watching, revision) {
     const mode = liveCompanionSettings().avatarRoamMonitors;
     const allowed = () =>
-      avatarRoaming.current(liveCompanionSettings(), revision) &&
-      avatarRoamingAllowed() &&
-      (!watching || capturePolicy.capture === watching);
+      avatarRoaming.current(liveCompanionSettings(), revision) && avatarRoamingAllowed();
+    const watchAllowed = () => allowed() && capturePolicy.capture === watching;
     const randomSeat = { ...defaultSeat, fraction: 0.2 + Math.random() * 0.6 };
     const windowObservation = watching?.nativeId.startsWith('window:');
     if (mode === 'current' && windowObservation) {
-      if (Math.random() < 0.4 && (await performSurface('auto', watching, allowed))) return;
-      const target = await avatarWindow({ windowId: watching.nativeId.split(':')[1] });
-      if (allowed()) await perchOn(target, watching, randomSeat, undefined, allowed);
-      return;
+      if (
+        Math.random() < 0.4 &&
+        (await performSurface('auto', watching, watchAllowed).catch(() => false))
+      )
+        return;
+      if (watchAllowed()) {
+        const target = await avatarWindow({ windowId: watching.nativeId.split(':')[1] }).catch(
+          () => null,
+        );
+        if (await perchOn(target, watching, randomSeat, undefined, watchAllowed).catch(() => false))
+          return;
+      }
     }
     const bounds = window.getBounds();
     const displays = screen.getAllDisplays();
@@ -4939,18 +5057,17 @@ async function initializeDesktop() {
     if (!display || !allowed()) return;
     // Only inspect/perch on apps with an existing screen-observation grant.
     // Purely geometric random movement does not capture or inspect the screen.
-    if (observed?.has(display.id) && Math.random() < 0.35) {
-      if (await performSurface('auto', watching, allowed, display.id)) return;
-      const target = await avatarWindow();
-      if (!allowed()) return;
+    if (observed?.has(display.id) && watchAllowed() && Math.random() < 0.35) {
+      if (await performSurface('auto', watching, watchAllowed, display.id).catch(() => false))
+        return;
+      const target = watchAllowed() ? await avatarWindow().catch(() => null) : null;
       if (
         target &&
         screen.getDisplayNearestPoint(windowDock(target)).id === display.id &&
-        (await perchOn(target, watching, randomSeat, undefined, allowed))
+        (await perchOn(target, watching, randomSeat, undefined, watchAllowed).catch(() => false))
       )
         return;
     }
-    if (Math.random() < 0.3 && (await performSurface('auto', null, allowed, display.id))) return;
     const point = randomAvatarDestination(display.workArea, bounds, avatarDetach.desktopPoint);
     if (!point) return;
     const stillAllowed = () => allowed() && screen.getDisplayNearestPoint(point).id === display.id;
@@ -5009,13 +5126,6 @@ async function initializeDesktop() {
       return;
     }
     if (await playAmbientSurface(now)) return;
-    if (
-      perch?.stopTracking &&
-      (perch.localTracking || (perch.lastNativeUpdate && desktopTeleportMenu?.session?.ready))
-    ) {
-      await followPerch(perch);
-      return;
-    }
     if (!perch) return;
     if (perch.pending) {
       await followPerch(perch);
@@ -5038,6 +5148,12 @@ async function initializeDesktop() {
         const next =
           target && current.lease === surfaceWatch() && planSurface(target, previous.action);
         if (!next || next.frame.id !== previous.frame.id) return await finishPerch(current);
+        const dock = { ...current.dock, surface: next };
+        const allowed = () =>
+          perch === current && avatarDetach.available && current.lease === surfaceWatch();
+        if (!(await avatarContactVisible(current.record, dock, next.point, allowed)))
+          return await finishPerch(current, true);
+        if (!allowed()) return;
         current.dock.surface = { ...next, side: previous.side };
         current.seatPoint = next.point;
         current.display = next.display;
@@ -5045,10 +5161,34 @@ async function initializeDesktop() {
         syncAvatarComposer(avatarComposer?.pointer);
         return;
       }
+      if (
+        current.stopTracking &&
+        (current.localTracking || (current.lastNativeUpdate && desktopTeleportMenu?.session?.ready))
+      ) {
+        if (current.hidden) return;
+        const point = current.seatPoint;
+        const allowed = () =>
+          perch === current &&
+          canTeleport() &&
+          avatarDetach.available &&
+          !avatarDetach.operation &&
+          current.seatPoint === point;
+        if (
+          !(await avatarContactVisible(current.record, current.dock, point, allowed)) &&
+          allowed()
+        )
+          await finishPerch(current, true);
+        return;
+      }
       const target = await avatarWindow(current.record);
       if (perch !== current || !canTeleport() || !avatarDetach.available) return;
       if (!target) await finishPerch(current, true);
       else {
+        const point = windowDock(target, current.dock);
+        const allowed = () => perch === current && canTeleport() && avatarDetach.available;
+        if (!(await avatarContactVisible(current.record, current.dock, point, allowed)))
+          return await finishPerch(current, true);
+        if (!allowed()) return;
         current.pending = { ...target, state: 'visible' };
         await followPerch(current);
       }
@@ -5079,7 +5219,7 @@ async function initializeDesktop() {
   }
 
   function writeWindowPreferences(alwaysOnTop) {
-    const bounds = window.getBounds();
+    const bounds = resizeSurface?.bounds ?? window.getBounds();
     // Keep the same bottom edge when the next launch restores the full portrait.
     let y = bounds.y;
     if (replyWindowCollapsed) {
@@ -5237,6 +5377,8 @@ async function initializeDesktop() {
 
   function resetPosition() {
     stopReplyWindowResize();
+    pointer?.cancel();
+    resizeSurface?.cancel();
     avatarDetach?.reset();
     compactPlacement = undefined;
     const display = screen.getPrimaryDisplay();
@@ -5247,7 +5389,9 @@ async function initializeDesktop() {
   }
 
   function companionDisplay(footprint = windowFootprint) {
-    return screen.getDisplayMatching(visibleWindowBounds(window.getBounds(), footprint));
+    return screen.getDisplayMatching(
+      visibleWindowBounds(resizeSurface?.bounds ?? window.getBounds(), footprint),
+    );
   }
 
   function resizeCompanion(layout, monitorWidth) {
@@ -5262,9 +5406,10 @@ async function initializeDesktop() {
     )
       return;
     const { workArea } = companionDisplay();
-    const current = window.getBounds();
     stopReplyWindowResize();
     pointer?.cancel();
+    resizeSurface?.cancel();
+    const current = window.getBounds();
     activeWindowSize = size;
     activeWindowLayout = layout;
     activeMonitorWidth = monitorWidth;
@@ -5287,23 +5432,23 @@ async function initializeDesktop() {
   }
 
   function syncReplyWindowSize() {
-    if (!window || window.isDestroyed() || pointer?.drag) return false;
+    if (!window || window.isDestroyed() || pointer?.drag || resizeSurface?.active) return false;
     const collapsed = activeWindowLayout === 'vertical' && regions?.replyCollapsed === true;
     if (replyWindowCollapsed === collapsed) return false;
     const { workArea } = companionDisplay();
     const bounds = window.getBounds();
     stopReplyWindowResize();
     replyWindowCollapsed = collapsed;
-    const size = windowSize(workArea);
     const expandedHeight = Math.min(activeWindowSize.height, workArea.height);
     const compactHeight = compactReplyHeight(expandedHeight);
     const height = collapsed ? compactHeight : expandedHeight;
     const next = placeInWorkArea(
       { ...bounds, y: bounds.y + bounds.height - height },
       workArea,
-      size,
+      { width: bounds.width, height },
     );
     const animated =
+      liveCompanionSettings().replyAnimation &&
       regions?.replyMotion === true &&
       expandedHeight > compactHeight &&
       bounds.height !== height &&
@@ -5324,19 +5469,15 @@ async function initializeDesktop() {
       saveWindow();
       return true;
     }
-    // Give the renderer time to prepare the reply slot, then submit intermediate
-    // bounds more frequently than the usual pointer and idle paint cadence.
-    const lead = 24;
-    const duration = 240;
-    const start = performance.now() + lead;
+    // Allow the renderer to prepare the reply slot before the first native resize.
+    const start = performance.now() + 24;
     let previous = bounds;
     const frame = () => {
       if (window !== target || target.isDestroyed()) {
         stopReplyWindowResize();
         return;
       }
-      const now = performance.now();
-      const fraction = Math.min(1, Math.max(0, (now - start) / duration));
+      const fraction = Math.min(1, Math.max(0, (performance.now() - start) / 240));
       const ease = fraction * fraction * (3 - 2 * fraction);
       const current = {
         x: Math.round(bounds.x + (next.x - bounds.x) * ease),
@@ -5347,15 +5488,13 @@ async function initializeDesktop() {
       if (Object.keys(current).some((key) => current[key] !== previous[key]))
         target.setBounds(current, false);
       previous = current;
-      if (fraction < 1) {
-        const deadline = Math.min(start + duration, now + WINDOW_MOTION_INTERVAL_MS);
-        replyResizeTimer = setTimeout(frame, Math.max(1, Math.ceil(deadline - performance.now())));
-      } else {
+      if (fraction < 1) replyResizeTimer = setTimeout(frame, 16);
+      else {
         stopReplyWindowResize();
         saveWindow();
       }
     };
-    replyResizeTimer = setTimeout(frame, lead);
+    replyResizeTimer = setTimeout(frame, 24);
     return true;
   }
 
@@ -5365,7 +5504,7 @@ async function initializeDesktop() {
     fitPreferredSize = false,
     anchor,
   } = {}) {
-    if (!window || window.isDestroyed()) return;
+    if (!window || window.isDestroyed() || pointer?.drag || resizeSurface?.active) return;
     const bounds = window.getBounds();
     display ??= companionDisplay();
     const requested =
@@ -5891,16 +6030,17 @@ async function initializeDesktop() {
       ...inferenceOptions,
       params: { ...auxiliaryRunnerParams, ...settings.generation },
     }),
-    registerEscape: async () => {
+    registerEscape: async (stop, { idleCursor } = {}) => {
+      const interrupt = idleCursor ? stop : emergencyComputerStop;
       let shortcut = false;
       try {
-        shortcut = globalShortcut.register('Escape', () => void emergencyComputerStop());
+        shortcut = globalShortcut.register('Escape', () => void interrupt());
       } catch {}
       if (!nativeEscape) return shortcut;
       try {
         const armed = await nativeEscape.start({
-          onEscape: () => void emergencyComputerStop(),
-          onFailure: () => void emergencyComputerStop(),
+          onEscape: interrupt,
+          onFailure: interrupt,
         });
         if (!armed || !nativeEscape.active)
           throw new Error('Escape emergency stop is unavailable.');
@@ -5918,9 +6058,9 @@ async function initializeDesktop() {
         globalShortcut.unregister('Escape');
       }
     },
-    showBorder: async () => {
+    showBorder: async ({ idleCursor } = {}) => {
       if (controlBorder) throw new Error('Computer control indicator is already open.');
-      avatarDetach?.reset();
+      if (!idleCursor) avatarDetach?.reset();
       const overlay = new ControlOverlay({
         BrowserWindow,
         screen,
@@ -5928,11 +6068,11 @@ async function initializeDesktop() {
         onLost: (reason) => {
           if (controlBorder !== overlay) return;
           console.warn('Computer control indicator lost:', reason);
-          return emergencyComputerStop();
+          return idleCursor ? computerControl.stop() : emergencyComputerStop();
         },
       });
       controlBorder = overlay;
-      controlWindowLayer.begin();
+      if (!idleCursor) controlWindowLayer.begin();
       overlay.configure(settingsPreview.computerAppearance ?? computerAppearance.snapshot());
       await overlay.show(
         uiText('Computer control active — press Escape to stop', languages.value.interface),
@@ -5944,7 +6084,7 @@ async function initializeDesktop() {
       try {
         overlay?.hide();
       } finally {
-        controlWindowLayer.end();
+        if (controlWindowLayer.active) controlWindowLayer.end();
       }
     },
     emit: (event) => {
@@ -5952,22 +6092,21 @@ async function initializeDesktop() {
       emit(event);
     },
   });
+  const planComputer = computerPlanner({
+    url: rt.inferenceUrl,
+    model: settings.model,
+    modelCapabilities: settings.modelCapabilities,
+    ...inferenceOptions,
+    params: { ...auxiliaryRunnerParams, ...settings.generation },
+  });
   const computerAgent = new ComputerAgent({
     onPlan: (value) => controlBorder?.plan(value),
     control: computerControl,
     applications: desktopCatalog,
     callFocusWindow: () => {
-      const focused = BrowserWindow.getFocusedWindow();
+      const focused = BaseWindow.getFocusedWindow();
       return focused === window || focused === settingsHost?.window ? focused : null;
     },
-    launchSteamGame:
-      process.platform === 'win32' && !verification
-        ? steamGameLauncher({ openExternal: (uri) => shell.openExternal(uri) })
-        : undefined,
-    steamGameTask:
-      process.platform === 'win32' && !verification
-        ? createSteamGameTask({ openExternal: (uri) => shell.openExternal(uri) })
-        : undefined,
     language: () => languages.value.conversation,
     audit: ({ lastOutcome, lastFailure, plan, actions }) =>
       markResponseTiming('computer_outcome', {
@@ -5982,13 +6121,7 @@ async function initializeDesktop() {
         completedCheckpoints: plan?.completed,
         remainingCheckpoints: plan?.remaining,
       }),
-    plan: computerPlanner({
-      url: rt.inferenceUrl,
-      model: settings.model,
-      modelCapabilities: settings.modelCapabilities,
-      ...inferenceOptions,
-      params: { ...auxiliaryRunnerParams, ...settings.generation },
-    }),
+    plan: planComputer,
     emit: (event) => {
       controlBorder?.phase(event.phase);
       chat.computerProgress();
@@ -6094,7 +6227,7 @@ async function initializeDesktop() {
         value: enabled,
       });
       if (enabled) applicationAccess.assertAllowed('desktop_control', { action: 'run_task' });
-      return requestComputerAccess(enabled, { ...options, source: 'tool' });
+      return requestComputerAccess(enabled, options);
     },
     runComputerTask: (goal, options) => {
       chat.assertToolAllowed('desktop_control', { action: 'run_task' });
@@ -7875,7 +8008,12 @@ async function initializeDesktop() {
       if (role !== 'settings') throw new Error('Open Updates in Settings.');
       return shell.openExternal(updates.historyUrl(id));
     });
-    handle('capri:update-download', () => updates.prepare());
+    handle('capri:update-download', async () => {
+      if (updates.mode !== 'archive') return updates.prepare();
+      const url = updates.archiveReleaseUrl();
+      if (!verification) await shell.openExternal(url);
+      return updates.snapshot();
+    });
     handle('capri:update-cancel', () => updates.cancel());
     handle('capri:update-install', async () => {
       assertIdle({ requireBackend: false });
@@ -7889,6 +8027,7 @@ async function initializeDesktop() {
       )
         throw new Error('Wait for the current operation to finish.');
       if (verification) throw new Error('Installing updates is disabled in desktop verification.');
+      if (updates.mode === 'manual') return false;
       const managed = updates.mode === 'managed';
       const fullInstaller = Boolean(updates.prepared?.executable);
       if (
@@ -8193,7 +8332,11 @@ async function initializeDesktop() {
       rt,
       preferences: companionPreferences,
       currentSettings: liveCompanionSettings,
-      onStyleChanged: () => void syncInitiative().catch(() => observer.publish('failed')),
+      onStyleChanged: (style) => {
+        prankStyle = style;
+        if (style !== 'wild') wildPranks.tick(false);
+        void syncInitiative().catch(() => observer.publish('failed'));
+      },
       dialog: localizedDialog(dialog, (text) => uiText(text, languages.value.interface)),
       getWindow: () => (settingsHost?.window?.isVisible() ? settingsHost.window : window),
       openDonation: () => donations.open(settingsHost?.window),
@@ -8257,7 +8400,6 @@ async function initializeDesktop() {
           ...windowGraphics,
           gpuCompositing: app.getGPUFeatureStatus().gpu_compositing?.startsWith('enabled') ?? null,
           gpuProcessFailures,
-          gpuProcessEvents: [...gpuProcessEvents],
         },
         artwork: installedAvatar.diagnostics,
         response: chat.diagnostics(),
@@ -8335,7 +8477,7 @@ async function initializeDesktop() {
               }
             : null,
         audioPlayback: { busy: playbackBusy },
-        rendererDiagnostics: [...rendererDiagnostics, ...portraitGraphicsDiagnostics],
+        rendererDiagnostics,
       }),
       voiceHealth: () =>
         nativeVoice(voice.language) && !externalTts.config.enabled
@@ -8345,14 +8487,11 @@ async function initializeDesktop() {
               timeout: 2500,
             }),
     });
-    reportDesktopCrash = crashReporter({
-      dialog,
-      openLogs: async () => !(await shell.openPath(await developerDiagnostics.folder())),
-      text: (message) => uiText(message, languages.value.interface),
-      saveReport: companionAccess.saveCrashReport,
-      enabled: () => !verification && !shuttingDown && !quitting && !sessionLocked,
-    });
     handle('capri:wild-tabs-keep', (id) => typeof id === 'string' && wildTabs.keep(id));
+    handle('capri:wild-prank-preview', (_value, { role }) =>
+      role === 'settings' &&
+      wildPranks.play(false, () => prankEnvironment() && settingsHost?.window?.isVisible()),
+    );
     handle('capri:wild-tabs-shown', (id) => typeof id === 'string' && wildTabs.shown(id));
     prepareWakeAudio = companionAccess.prepareWakeVoice;
     handle('capri:startup-intro', (action, { role }) => {
@@ -8417,6 +8556,9 @@ async function initializeDesktop() {
         sprite: catalog.canvas,
         avatars: catalog.publicSprites(),
         animation: catalog.publicAnimation(),
+        ...(role === 'settings' && {
+          avatarGallery: { ...catalog.publicGallery(), intro: startupIntroSnapshot(startupIntroPack) },
+        }),
         musicArtwork: catalog.publicMusic(),
         musicListening: musicListening.snapshot(),
         audioRouting:
@@ -8477,12 +8619,12 @@ async function initializeDesktop() {
     });
     handle('capri:thinking-mode-set', (enabled) => {
       if (typeof enabled !== 'boolean') throw new Error('Invalid thinking mode');
-      return callSkill('capri.reasoning', 'setMode', enabled, { source: 'companion' });
+      return setComposerTurnMode('capri.reasoning', enabled);
     });
     handle('capri:internet-mode-set', (enabled) => {
       if (typeof enabled !== 'boolean') throw new Error('Invalid internet mode');
       if (currentChatTask || chat.active) throw new Error('Wait for the current reply to finish.');
-      return callSkill('capri.web-search', 'setMode', enabled, { source: 'companion' });
+      return setComposerTurnMode('capri.web-search', enabled);
     });
     handle('capri:web-source-open', async (value, { role }) => {
       if (
@@ -8885,19 +9027,25 @@ async function initializeDesktop() {
       return true;
     });
     handle('capri:playback-state', (value) => {
-      if (typeof value !== 'boolean') throw new Error('Invalid playback state');
-      callAudioDiagnostics.playback(value, voice.turn?.id);
-      if (playbackBusy && !value) nativeMusicPlaybackTail = Date.now() + 600;
-      playbackBusy = value;
+      const completedTurnId = value?.completedTurnId;
+      if (
+        typeof value !== 'boolean' &&
+        (typeof completedTurnId !== 'string' || !completedTurnId || completedTurnId.length > 128)
+      )
+        throw new Error('Invalid playback state');
+      const busy = value === true;
+      callAudioDiagnostics.playback(busy, voice.turn?.id);
+      if (playbackBusy && !busy) nativeMusicPlaybackTail = Date.now() + 600;
+      playbackBusy = busy;
       for (const listener of [...reminderListeners])
         listener({ type: 'playback.state', busy: value });
       settingsHost?.send({
         type: 'settings.activity',
         chat: Boolean(chat.active || currentChatTask),
-        playback: value,
+        playback: busy,
       });
-      if (!value) resumeFollowUp();
-      if (value) screenObservation.activity();
+      if (!busy) resumeFollowUp(completedTurnId);
+      if (busy) screenObservation.activity();
       return true;
     });
     handle('capri:interface-busy', (value) => {
@@ -9308,6 +9456,18 @@ async function initializeDesktop() {
       avatarDetach?.sendMouth(shape);
       return true;
     });
+    handle('capri:avatar-face', (state, { role }) => {
+      const { expression, clip, startedAt } = state ?? {};
+      if (
+        role !== 'companion' ||
+        avatarDetach?.phase === 'attached' ||
+        (expression !== null && !Object.hasOwn(faceFrames, expression)) ||
+        (clip !== null && !Object.hasOwn(faceAnimations, clip)) ||
+        !Number.isSafeInteger(startedAt)
+      ) return false;
+      avatarDetach?.sendFace({ expression, clip, startedAt });
+      return true;
+    });
     handle('capri:avatar-status', (value, { role }) => {
       if (
         role !== 'companion' ||
@@ -9358,6 +9518,7 @@ async function initializeDesktop() {
     });
     handle('capri:dimming', changeDimming);
     handle('capri:regions', (value) => {
+      if (pointer?.drag?.resize || resizeSurface?.active) return true;
       const first = !regions;
       const previous = windowFootprint;
       regions = validateRegions(value, window.getContentBounds());
@@ -9437,25 +9598,28 @@ async function initializeDesktop() {
       return true;
     });
     handle('capri:drag-start', (edge) => {
+      if (pointer.drag || resizeSurface?.active) return false;
       stopReplyWindowResize();
-      if (edge === undefined) pointer.beginWindow();
-      else {
-        if (!WINDOW_RESIZE_EDGES.includes(edge)) throw new Error('Invalid window edge');
-        const { workArea } = companionDisplay();
-        const minimum = layoutMinimum[activeWindowLayout];
-        pointer.beginWindow({
+      clearTimeout(saveTimer);
+      if (edge === undefined) return pointer.beginWindow(undefined, true);
+      if (!WINDOW_RESIZE_EDGES.includes(edge)) throw new Error('Invalid window edge');
+      const { workArea } = companionDisplay();
+      const minimum = layoutMinimum[activeWindowLayout];
+      return pointer.beginWindow(
+        {
           edge,
           workArea,
           minimum: {
             width: minimum.width + activeMonitorWidth,
-            height: replyWindowCollapsed ? 440 : minimum.height,
+            height: replyWindowCollapsed ? compactReplyHeight(minimum.height) : minimum.height,
           },
-        });
-      }
-      return true;
+        },
+        true,
+      );
     });
-    handle('capri:drag-end', () => {
-      pointer.endWindow();
+    handle('capri:drag-frame', () => pointer.sampleWindow());
+    handle('capri:drag-end', async (released) => {
+      await pointer.endWindow(released === true);
       return true;
     });
   }
@@ -9494,20 +9658,23 @@ async function initializeDesktop() {
       : screen.getPrimaryDisplay();
     const bounds = placeInWorkArea(saved, display.workArea, size);
     windowFootprint = validWindowFootprint(footprint, bounds) ? footprint : undefined;
-    window = createSecureWindow(BrowserWindow, {
-      bounds: windowFootprint
-        ? placeVisibleInWorkArea(
-            { ...bounds, x: origin.x, y: origin.y },
-            display.workArea,
-            size,
-            windowFootprint,
-          )
-        : bounds,
-      directory,
-      verification,
-      alwaysOnTop: saved.alwaysOnTop !== false,
-      softwareRendering: windowGraphics.softwareRendering,
-    });
+    ({ window, resizeSurface } = createSecureWindow(
+      { BaseWindow, BrowserWindow, WebContentsView },
+      {
+        bounds: windowFootprint
+          ? placeVisibleInWorkArea(
+              { ...bounds, x: origin.x, y: origin.y },
+              display.workArea,
+              size,
+              windowFootprint,
+            )
+          : bounds,
+        directory,
+        verification,
+        alwaysOnTop: saved.alwaysOnTop !== false,
+        softwareRendering: windowGraphics.softwareRendering,
+      },
+    ));
     avatarDetach = new AvatarDetach({
       BrowserWindow,
       screen,
@@ -9556,6 +9723,7 @@ async function initializeDesktop() {
         const settings = liveCompanionSettings();
         const {
           avatarDragTether,
+          avatarDragTetherColor,
           avatarDragTetherIntensity,
           avatarDragTetherChaos,
           avatarDragTetherDeadZone,
@@ -9563,6 +9731,7 @@ async function initializeDesktop() {
         return {
           ...teleportEffectSettings(settings),
           avatarDragTether: avatarDragTether && settings.detachedStyle !== 'dialogue',
+          avatarDragTetherColor,
           avatarDragTetherIntensity,
           avatarDragTetherChaos,
           avatarDragTetherDeadZone,
@@ -9651,7 +9820,6 @@ async function initializeDesktop() {
           void updateSettingsPreview({}).catch((error) => console.error(error.message));
       },
       onRendererLost: () => emit({ type: 'settings.renderer-lost' }),
-      onRendererCrash: (details) => void reportDesktopCrash?.({ ...details, surface: 'settings' }),
       onError: (message) => {
         console.error(message);
         rendererDiagnostics.push({
@@ -9668,16 +9836,13 @@ async function initializeDesktop() {
           ? ({ warning: 2, error: 3 }[details.level] ?? 0)
           : details.level;
       if (level < 2 || typeof details.message !== 'string') return;
-      const diagnostics = details.message.startsWith('Capri portrait graphics: ')
-        ? portraitGraphicsDiagnostics
-        : rendererDiagnostics;
-      diagnostics.push({
+      rendererDiagnostics.push({
         at: new Date().toISOString(),
         level,
         message: details.message.slice(0, 4000),
         source: String(details.sourceId ?? details.url ?? '').slice(0, 300),
       });
-      if (diagnostics.length > 50) diagnostics.shift();
+      if (rendererDiagnostics.length > 50) rendererDiagnostics.shift();
     });
     pointer = new PointerController({
       window,
@@ -9693,21 +9858,31 @@ async function initializeDesktop() {
           return bounds;
         return placeVisibleInWorkArea(bounds, area, bounds, windowFootprint);
       },
-      onEnd: (drag) => {
+      applyWindowBounds: (bounds, drag) => {
+        if (!drag.resize) window.setPosition(bounds.x, bounds.y, false);
+        else if (resizeSurface) resizeSurface.resize(drag.bounds, drag.resize, bounds);
+        else window.setBounds(bounds, false);
+      },
+      onEnd: async (drag) => {
         if (drag.resize) {
+          const target = window;
+          const committed = !resizeSurface || (await resizeSurface.finish());
+          if (!committed || window !== target || target.isDestroyed()) return;
           const { width, height } = window.getBounds();
           if (width !== drag.bounds.width || height !== drag.bounds.height) {
             const remembered = (saved.layoutSizes ??= {});
             const base = { ...remembered[activeWindowLayout] };
             if (width !== drag.bounds.width) base.width = width - activeMonitorWidth;
             if (height !== drag.bounds.height)
-              base.height = height + (replyWindowCollapsed ? replySpace : 0);
+              base.height = height + (replyWindowCollapsed ? REPLY_SPACE : 0);
             remembered[activeWindowLayout] = base;
             activeWindowSize = preferredWindowSize(activeWindowLayout, activeMonitorWidth);
           }
         }
-        if (!syncReplyWindowSize()) clampWindow({ fitPreferredSize: true });
-        if (drag && (drag.bounds.x !== drag.last.x || drag.bounds.y !== drag.last.y)) {
+        if (!syncReplyWindowSize() && !drag.resize) clampWindow({ fitPreferredSize: true });
+        if (drag.resize) {
+          compactPlacement = undefined;
+        } else if (drag.bounds.x !== drag.last.x || drag.bounds.y !== drag.last.y) {
           compactPlacement = windowFootprint
             ? visibleWindowBounds(window.getBounds(), windowFootprint)
             : undefined;
@@ -9732,6 +9907,7 @@ async function initializeDesktop() {
       voicePreviewRequest = null;
       regions = null;
       pointer?.cancel();
+      resizeSurface?.cancel();
       chat.cancel();
       cancelVisual();
       voice.cancel();
@@ -9739,7 +9915,6 @@ async function initializeDesktop() {
       capturePolicy.clear('renderer-stopped');
       screenPreviews.clear();
       hideCompanionToTray();
-      void reportDesktopCrash?.({ ...details, surface: 'companion' });
       if (rendererRecovery) rendererRecovery.failed = true;
       else if (Date.now() >= nextRendererRecovery) void recoverCompanion(reveal);
     });
@@ -9752,8 +9927,12 @@ async function initializeDesktop() {
       chat.cancel();
       saveWindow();
     });
+    window.on('move', () => pointer.invalidateHitTest());
+    window.on('resize', () => pointer.invalidateHitTest());
+    window.on('show', () => pointer.start());
     window.on('moved', () => {
       avatarDetach.checkDisplay();
+      if (pointer.drag || resizeSurface?.active) return;
       clearTimeout(saveTimer);
       saveTimer = setTimeout(saveWindow, 350);
     });
@@ -9761,24 +9940,28 @@ async function initializeDesktop() {
       if (pointer.drag) pointer.endWindow();
       pointer.endAvatar();
     });
-    window.on('hide', () => pointer.cancel());
-    window.once('ready-to-show', () => {
+    window.on('hide', () => {
+      pointer.stop();
+      resizeSurface?.cancel();
+    });
+    const readyToShow = () => {
       if (!verification) showCompanion();
       if (!verification) publishLaunchReceipt(root, process.env.CAPRI_LAUNCH_NONCE);
       if (automaticUpdatesEnabled) void updates.startAutomaticChecks();
       console.info('Capri companion window ready.', JSON.stringify(window.getBounds()));
-    });
+    };
+    if (resizeSurface) window.webContents.once('did-finish-load', readyToShow);
+    else window.once('ready-to-show', readyToShow);
     window.webContents.on('did-stop-loading', restoreMusicListening);
-    window.loadURL(rendererUrl).catch((error) => {
+    window.webContents.loadURL(rendererUrl).catch((error) => {
       if (rendererFailed || nextRendererRecovery) return;
       console.error('Could not load companion:', error.message);
       app.quit();
     });
 
     activeMask = maskFor(avatar.currentId);
-    pointer.start();
 
-    tray = new Tray(path.join(root, 'assets/default/app.ico'));
+    tray = new Tray(process.platform === 'linux' ? applicationIcon : path.join(root, 'assets/default/app.ico'));
     tray.setToolTip(uiText('Capri desktop companion', languages.value.interface));
     tray.on('click', () => restoreCompanion());
     tray.on('balloon-click', () => {
@@ -9795,14 +9978,21 @@ async function initializeDesktop() {
         else restoreCompanion();
       });
     screen.on('display-removed', () => {
+      wildPranks.pause();
       capturePolicy.displayTopologyChanged();
+      pointer.cancel();
+      resizeSurface?.cancel();
       avatarDetach.reset();
       clampWindow({ fitPreferredSize: true });
     });
     screen.on('display-added', () => capturePolicy.displayTopologyChanged());
     screen.on('display-metrics-changed', (_event, _display, metrics) => {
-      if (metrics?.some((metric) => ['bounds', 'scaleFactor', 'rotation'].includes(metric)))
+      if (metrics?.some((metric) => ['bounds', 'scaleFactor', 'rotation'].includes(metric))) {
+        wildPranks.pause();
         capturePolicy.displayTopologyChanged();
+        pointer.cancel();
+        resizeSurface?.cancel();
+      }
       avatarDetach.reset();
       if (!pointer.drag) clampWindow({ fitPreferredSize: true });
     });
@@ -9812,6 +10002,7 @@ async function initializeDesktop() {
     app.on('second-instance', () => restoreCompanion());
     app.on('before-quit', (event) => {
       if (quitting) return;
+      wildPranks.pause();
       void callCamera.stop();
       chess?.close();
       void chessDiagnostics.flush();
@@ -10018,8 +10209,8 @@ async function initializeDesktop() {
         );
         await companionActions.start();
         if (!skillEnabled('capri.timers')) companionActions.time.suspend();
-        for (const id of ['capri.reasoning', 'capri.web-search'])
-          if (skillEnabled(id)) callSkill(id, 'setMode', true);
+        for (const id of TURN_MODE_SKILLS)
+          if (skillSettings.turnMode(id)) callSkill(id, 'setMode', true);
         installIpc();
         const preload = consumeFirstLaunchPreload(state);
         createWindow();
@@ -10042,6 +10233,7 @@ async function initializeDesktop() {
           void reminders.pump();
         });
         powerMonitor.on('lock-screen', () => {
+          wildPranks.pause();
           pendingMemoryDecision?.abort();
           recordingIndicator?.hide();
           userTools.cancel();
@@ -10061,6 +10253,7 @@ async function initializeDesktop() {
           cancelVisual();
         });
         powerMonitor.on('suspend', () => {
+          wildPranks.pause();
           musicSuspended = true;
           void callCamera.stop();
           chess?.stop();
@@ -10113,6 +10306,8 @@ async function initializeDesktop() {
             return;
           }
           void updateDesktopAvatar().catch(() => {});
+          void updateIdleCursor().catch(() => {});
+          updateWildPranks();
           syncAvatarComposer();
           if (!verification && existsSync(showFile)) {
             let launchNonce;

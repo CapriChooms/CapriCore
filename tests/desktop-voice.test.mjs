@@ -137,7 +137,7 @@ test('call voice volume ramps existing output without restarting audio or changi
   assert.equal(player.callVoiceVolume, 100);
 });
 
-test('speaker volume ramps up to twice the level or down to silence independently of the call mix', () => {
+test('speaker volume ramps to silence independently of the call mix', () => {
   const player = new VoicePlayer({ onState() {}, onError: assert.fail });
   const ramps = [];
   player.speakers.context = { state: 'running', currentTime: 3 };
@@ -151,15 +151,13 @@ test('speaker volume ramps up to twice the level or down to silence independentl
     context: player.speakers.context,
     voiceGain: { gain: { cancelAndHoldAtTime: () => assert.fail('Call gain changed') } },
   };
-  for (const value of [42, 42, 150, 200, 0]) player.setSpeakerVolume(value);
+  for (const value of [42, 42, 0]) player.setSpeakerVolume(value);
   assert.deepEqual(ramps, [
     [0.42, 3.02],
-    [1.5, 3.02],
-    [2, 3.02],
     [0, 3.02],
   ]);
   assert.equal(player.callVoiceVolume, 50);
-  for (const value of [-1, 201, '50', null, NaN])
+  for (const value of [-1, 101, '50', null, NaN])
     assert.throws(() => player.setSpeakerVolume(value), /Invalid voice volume/);
 });
 
@@ -637,14 +635,25 @@ test('PCM playback preserves order, stops immediately, and ignores old packets',
   player.finish('one');
   player.begin('two');
   assert.equal(sources[1].stopped, true);
+  assert.equal(
+    states.some(({ completedTurnId }) => completedTurnId === 'one'),
+    false,
+  );
   player.accept(packet('one', 2));
   await delay(0);
   assert.equal(sources.length, 2);
   player.accept(packet('two', 0));
   await delay(0);
   player.finish('two');
+  assert.equal(
+    states.some(({ completedTurnId }) => completedTurnId === 'two'),
+    false,
+  );
   sources[2].onended();
-  assert.equal(states.at(-1).busy, false);
+  assert.deepEqual(states.at(-1), { busy: false, completedTurnId: 'two' });
+  player.begin('silent');
+  player.finish('silent');
+  assert.deepEqual(states.at(-1), { busy: false });
 });
 
 test('voice preview effects are scoped to one speaker turn and restore the latest baseline', () => {

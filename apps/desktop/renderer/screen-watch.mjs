@@ -32,7 +32,9 @@ export class ScreenWatch {
         video: {
           width: { ideal: screenSnapshotWidth, max: screenSnapshotWidth },
           height: { ideal: screenSnapshotHeight, max: screenSnapshotHeight },
-          frameRate: { ideal: 1, max: 1 },
+          // Windows can reject a hard 1 fps ceiling. A 5 fps preference also
+          // leaves enough frames for on-demand questions between background polls.
+          frameRate: 5,
         },
       });
       if (

@@ -562,22 +562,48 @@ body[data-phase='offline'] #inference-label:enabled:not([hidden], [aria-expanded
   letter-spacing: 0;
   color: var(--meter-ink);
 }
-#inference-info {
+#inference-name {
   min-inline-size: 0;
+  overflow: clip;
 }
-#inference-track {
+.inference-name-track {
+  display: flex;
+  gap: 4px;
   inline-size: max-content;
+  --inference-scroll-direction: -1;
+}
+.inference-name-track:dir(rtl) {
+  --inference-scroll-direction: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  #inference-name[data-overflow] .inference-name-track {
+    animation: inference-name-scroll var(--inference-scroll-duration) linear infinite alternate;
+  }
+}
+@keyframes inference-name-scroll {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  88%,
+  100% {
+    transform: translateX(
+      calc(var(--inference-scroll-distance) * var(--inference-scroll-direction))
+    );
+  }
 }
 #inference-mode {
-  margin-inline-end: 0.45em;
   color: var(--ui-accent, #8ef5ed);
   font-weight: 700;
 }
 #inference-label[data-mode='api'] #inference-mode {
   color: #f1dd8b;
 }
+#inference-detail:empty {
+  display: none;
+}
 #inference-model::before {
-  content: ' · ';
+  content: '· ';
 }
 body[data-presence='core'] #inference-model {
   display: none;
@@ -899,7 +925,7 @@ body[data-crt='webgl'] #sprite-region > .avatar-wave {
   inset: 0;
   z-index: 3;
   width: 100%;
-  height: var(--reply-canvas-height, 100%);
+  height: 100%;
   pointer-events: none;
 }
 body[data-presence='core'] #subtitle-stage,
@@ -1108,8 +1134,26 @@ footer {
   .portrait-foot > span:last-child {
     display: none;
   }
+}
+@media (max-width: 440px) {
   .identity {
-    gap: 6px;
+    gap: 5px;
+  }
+  body[data-presence='portrait']:not([data-avatar-dock='compact']) #handle {
+    --toolbar-button-size: 23px;
+    --toolbar-gap: 3px;
+  }
+}
+@media (max-width: 360px) {
+  body[data-presence='portrait']:not([data-avatar-dock='compact']) #handle {
+    --toolbar-button-size: 22px;
+    --toolbar-gap: 2px;
+  }
+  #handle .identity {
+    gap: 3px;
+  }
+  #inference-label {
+    padding-inline: 3px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1291,10 +1335,10 @@ footer {
   position: absolute;
   inset: 0;
   width: 100%;
-  height: var(--reply-canvas-height, 100%);
+  height: 100%;
+  visibility: hidden;
   pointer-events: none;
   z-index: 2;
-  visibility: hidden;
 }
 body[data-crt='webgl'] #crt-screen {
   visibility: visible;
@@ -1314,7 +1358,7 @@ body[data-crt='webgl'] #sprite {
   position: absolute;
   inset: 0;
   width: 100%;
-  height: var(--reply-canvas-height, 100%);
+  height: 100%;
   z-index: 12;
   pointer-events: none;
 }
@@ -1853,7 +1897,7 @@ body[data-wake-burst='true'] #portrait-panel {
   --time-font: 650 clamp(17px, 4.8vw, 28px) / 1 ui-monospace, monospace;
   --time-accent: var(--menu-selection, var(--ui-accent, var(--cyan)));
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
   inline-size: min(100%, 360px);
   align-self: center;
@@ -2784,12 +2828,19 @@ body:not(.settings-window) #companion-settings[data-tab='support'] {
   stroke: currentColor;
   stroke-width: 1.35;
 }
-#quick-actions {
-  flex-wrap: wrap;
-}
-#quick-controls,
-#quick-actions .toolbar-group {
+#quick-actions > .toolbar-group:not(.skills-toolbar) {
   display: contents;
+}
+#quick-actions > .skills-toolbar {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-line, #8ef5ed40) transparent;
+}
+#quick-actions > .skills-toolbar:not(:has(> button:not([hidden]))) {
+  display: none;
 }
 #compact-status {
   display: none;
@@ -3644,7 +3695,6 @@ body:has(#history-panel:not([hidden])) #quick-actions {
   grid-area: 2 / 1;
   justify-self: stretch;
   align-self: stretch;
-  flex-wrap: wrap;
 }
 body:has(#history-panel:not([hidden])) #history-panel {
   grid-area: 3 / 1;
@@ -3813,17 +3863,48 @@ body[data-vertical-portrait] {
     display: flow-root;
     align-self: start;
     min-width: 0;
+    /* This row occupies exactly the height added by the native window. */
+    --reply-budget: clamp(0px, calc(100vh - var(--reply-min-compact)), var(--reply-space));
+    height: var(--reply-budget);
+    overflow: clip;
   }
 
   #subtitle-stage {
-    margin-block: clamp(4px, 1.7vh, 11px) clamp(14px, 3vh, 20px);
+    display: flex;
+    flex-direction: column;
+    margin-block: 6px 16px;
+    max-height: max(0px, calc(var(--reply-budget) - 22px));
     transition: none;
+  }
+
+  #subtitle-frame {
+    min-height: 0;
+    padding-block: 8px 9px;
+    overflow-y: auto;
+  }
+
+  #subtitle-frame[data-hit-region] {
+    pointer-events: auto;
+  }
+
+  #packet-context {
+    display: flex;
+    margin-bottom: 3px;
+  }
+
+  .packet-title {
+    margin-bottom: 3px;
+    font-size: 8px;
+  }
+
+  :is(#subtitle-text, #welcome p) {
+    font-size: 17px;
   }
 
   #portrait-panel {
     grid-row: 4;
     min-height: 0;
-    margin-block: 3px clamp(4px, 1.5vh, 10px);
+    margin-block: 3px 8px;
   }
 
   #input-dock {
@@ -3831,7 +3912,7 @@ body[data-vertical-portrait] {
   }
 
   .dock-telemetry:has(#process-graphs-hud:not([hidden])) {
-    grid-template-rows: clamp(44px, 9.1vh, 60px) 30px;
+    grid-template-rows: clamp(44px, 11vw, 60px) 30px;
   }
 }
 #subtitle-collapse {
@@ -3997,6 +4078,16 @@ body[data-horizontal-portrait] {
     border: 0;
   }
 
+  #handle .identity {
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 max-content;
+  }
+
+  #inference-label {
+    max-width: min(240px, 45vw);
+  }
+
   #quick-actions {
     flex: 0 1 auto;
     max-width: 100%;
@@ -4088,57 +4179,6 @@ body[data-horizontal-portrait] {
     align-self: end;
     justify-self: end;
     margin: 0;
-  }
-}
-
-body[data-presence='portrait'] {
-  #handle .identity {
-    gap: 4px;
-  }
-
-  #inference-label {
-    max-inline-size: 12rem;
-  }
-
-  #quick-actions {
-    flex-wrap: nowrap;
-    align-items: start;
-  }
-
-  #quick-controls {
-    display: flex;
-    min-inline-size: 0;
-    align-items: center;
-    justify-content: safe flex-end;
-    gap: var(--toolbar-gap);
-    overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--ui-line, #3d8790) transparent;
-  }
-
-  #quick-actions .settings-actions-group {
-    display: flex;
-    flex: none;
-  }
-}
-
-@media (max-width: 425px) {
-  body[data-presence='portrait'] {
-    --toolbar-button-size: 24px;
-    --toolbar-gap: 3px;
-  }
-}
-
-@media (max-width: 360px) {
-  body[data-presence='portrait'] {
-    --toolbar-button-size: 21px;
-    --toolbar-gap: 2px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #inference-track {
-    display: inline;
   }
 }
 

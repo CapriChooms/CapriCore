@@ -4,6 +4,7 @@ import test from 'node:test';
 import { validateCompanionSettings } from '../apps/desktop/companion-settings.mjs';
 import { AvatarDetach } from '../apps/desktop/main/avatar-detach.mjs';
 import { dragLightningGeometry } from '../apps/desktop/renderer/avatar-drag-tether.mjs';
+import { DRAG_LIGHTNING_COLOR } from '../apps/desktop/renderer/teleport-effects.mjs';
 
 const command = {
   from: { x: 25, y: 70 },
@@ -73,6 +74,7 @@ test('the attached tether forwards the saved lightning style to the desktop over
     avatarDragTether: true,
     avatarDragTetherIntensity: 92,
     avatarDragTetherChaos: 37,
+    avatarDragTetherColor: '#3eff90',
     teleportColor: '#80fcff',
     teleportThickness: 175,
     teleportGlow: 12,
@@ -93,7 +95,9 @@ test('the attached tether forwards the saved lightning style to the desktop over
   );
   assert.equal(command.intensity, 92);
   assert.equal(command.chaos, 37);
-  for (const key of ['Color', 'Thickness', 'Glow', 'SparkAmount', 'SparkTravel']) {
+  assert.equal(command.effects.teleportColor, '#3eff90');
+  assert.equal(settings.teleportColor, '#80fcff');
+  for (const key of ['Thickness', 'Glow', 'SparkAmount', 'SparkTravel']) {
     assert.equal(command.effects[`teleport${key}`], settings[`teleport${key}`]);
   }
 });
@@ -101,6 +105,7 @@ test('the attached tether forwards the saved lightning style to the desktop over
 test('stored older settings acquire a 30-pixel dead zone and both new controls are validated', () => {
   const previous = validateCompanionSettings({ avatarDragTetherIntensity: 72 });
   assert.equal(previous.avatarDragTetherIntensity, 72);
+  assert.equal(previous.avatarDragTetherColor, DRAG_LIGHTNING_COLOR);
   assert.equal(previous.avatarDragTetherDeadZone, 30);
   assert.equal(previous.avatarDragTetherChaos, 55);
   assert.equal(previous.avatarTapGapSeconds, 10);
@@ -111,4 +116,5 @@ test('stored older settings acquire a 30-pixel dead zone and both new controls a
   );
   assert.throws(() => validateCompanionSettings({ avatarDragTetherDeadZone: 121 }));
   assert.throws(() => validateCompanionSettings({ avatarDragTetherChaos: -1 }));
+  assert.throws(() => validateCompanionSettings({ avatarDragTetherColor: 'red' }));
 });

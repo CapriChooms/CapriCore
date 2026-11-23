@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { companionDialogueQuestion, conversationOnly } from './conversation-route.mjs';
+import { conversationOnly } from './conversation-route.mjs';
 import {
   computerModeRequest,
   dedicatedMusicRequest,
@@ -98,7 +98,6 @@ export function toolDomain(text, state, routing) {
   if (rejectsDesktopAction(value)) return 'conversation';
   if (computerAccessDiscussion(value)) return 'conversation';
   if (mentionsComputerMode(value) || computerModeRequest(value)?.run) return 'desktop';
-  if (companionDialogueQuestion(value)) return 'conversation';
   if (youtubeMusicRequest(value, state)) return 'conversation';
   if (
     /\bspotify\b|спотиф/iu.test(value) &&

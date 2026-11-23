@@ -27,7 +27,16 @@ const joinRequest = {
   channel: 'Lounge',
   channelType: 'voice',
 };
-function fixture(initial, mutate, plan = async () => assert.fail('No model required')) {
+import { discordTaskRequest } from '../apps/desktop/discord-application.mjs';
+
+function fixture(
+  initial,
+  mutate,
+  plan = async ({ originalOwnerGoal }) => ({
+    action: 'discord_task',
+    discordRequest: discordTaskRequest(originalOwnerGoal),
+  }),
+) {
   const state = { view: initial, input: [], journal: [], audit: [] };
   const control = {
     session: null,
@@ -128,7 +137,7 @@ test('multilingual structured Discord action uses the same guarded executor', as
   const result = await f.agent.run('Entra al canal de voz Lounge del servidor Friends en Discord.');
   assert.equal(result.ok, true);
   assert.equal(f.state.input.length, 1);
-  assert(planned >= 3);
+  assert.equal(planned, 1);
 });
 
 test('a combined Discord and application goal continues after verified channel joining', async () => {

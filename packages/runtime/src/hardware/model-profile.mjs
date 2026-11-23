@@ -28,15 +28,11 @@ export function profileOverrides(profile) {
     modelContextLimit: profile.contextLimit,
     thinkingDefault:
       profile.capabilities && !profile.capabilities.includes('thinking') ? 'off' : 'low',
-    skipLocalModels: profile.id === 'api',
   };
 }
 
 export function modelProfileContext(current, profile) {
-  const choices = contextChoicesFor({
-    model: profile.alias,
-    modelContextLimit: profile.contextLimit,
-  });
+  const choices = contextChoicesFor({ model: profile.alias, modelContextLimit: profile.contextLimit });
   const available =
     !current.experimentalContext &&
     choices[0] === EXPERIMENTAL_COMPANION_CONTEXT &&

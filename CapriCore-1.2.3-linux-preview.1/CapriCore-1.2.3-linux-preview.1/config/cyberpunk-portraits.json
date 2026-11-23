@@ -1,0 +1,506 @@
+[
+  {
+    "name": "Jackie Welles",
+    "source": "https://www.cyberpunk.net/bd/en/cyberpunk-2077",
+    "ratio": 1,
+    "signature": ["00000000a00500c00b0000fc00caff01810f00101e07d0d7012e", [41, 38, 38]]
+  },
+  {
+    "name": "Johnny Silverhand",
+    "source": "https://www.cyberpunk.net/bd/en/cyberpunk-2077",
+    "ratio": 1,
+    "signature": ["00280000040000400000801700e07f01d0830220e00700fe0f28", [44, 42, 41]]
+  },
+  {
+    "name": "Adam Smasher",
+    "source": "https://www.cyberpunk.net/bd/en/cyberpunk-2077",
+    "ratio": 1,
+    "signature": ["00100000f069413ffc027f5e87c01f0ee0073cfcea75f887ef4e", [43, 42, 41]]
+  },
+  {
+    "name": "Judy Álvarez",
+    "source": "https://www.cyberpunk.net/bd/en/cyberpunk-2077",
+    "ratio": 1,
+    "signature": ["002800000e0000410b00801400403f0090fd0340f10720fc0108", [43, 39, 37]]
+  },
+  {
+    "name": "Judy Álvarez",
+    "source": "https://www.cyberpunk.net/bd/en/cyberpunk-2077",
+    "ratio": 1,
+    "signature": ["002c00080e1404430b40805450403f0490fd0302f10320fc0108", [39, 37, 42]]
+  },
+  {
+    "name": "Panam Palmer",
+    "source": "https://www.cyberpunk.net/bd/en/cyberpunk-2077",
+    "ratio": 1,
+    "signature": ["002800000e0200410000801400c8ff01005a0000b400005e0128", [40, 37, 37]]
+  },
+  {
+    "name": "Panam Palmer",
+    "source": "https://www.cyberpunk.net/bd/en/cyberpunk-2077",
+    "ratio": 1,
+    "signature": ["006c00000e1200410020809400c8ff0114da0302b402405e0128", [36, 35, 42]]
+  },
+  {
+    "name": "David Martinez",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.6825,
+    "signature": ["00120000200500c01300502801f0d50b7a2f3ea41f3fc0578f68", [89, 89, 56]]
+  },
+  {
+    "name": "David Martinez",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.683036,
+    "signature": ["a0120e5021c570c0131e502821f0d50b7a2f3ea51fbfc2578f69", [84, 86, 58]]
+  },
+  {
+    "name": "Lucy (Lucyna Kushinada)",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.6825,
+    "signature": ["00900200e12f00805f0078aa001fd50b168a17809f3f40f77f68", [71, 69, 75]]
+  },
+  {
+    "name": "Lucy (Lucyna Kushinada)",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.683036,
+    "signature": ["e0904278e1af2c805f1178aa081fd5bb148a77829f3f50f77f6a", [66, 66, 78]]
+  },
+  {
+    "name": "Rebecca",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.6825,
+    "signature": ["00000000200500d02fa2801f10047e01f0ed1f14041d48450f68", [57, 62, 70]]
+  },
+  {
+    "name": "Rebecca",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.683036,
+    "signature": ["e0020c30201500d08f20801f34047f1bf0fd1f14041d4a458f69", [53, 59, 72]]
+  },
+  {
+    "name": "Maine",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.6825,
+    "signature": ["00f00300787801adfe027e7c05bcb8427f5131fc2278c0977fc8", [63, 51, 46]]
+  },
+  {
+    "name": "Maine",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.683036,
+    "signature": ["54f0030778780badfe027e5c05bcb8427f5131fc2278c0d7ffc8", [60, 49, 48]]
+  },
+  {
+    "name": "Faraday",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.6825,
+    "signature": ["00800200400700809e022cff0505290a3abc14a05a3e00b57e48", [78, 43, 41]]
+  },
+  {
+    "name": "Faraday",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.683036,
+    "signature": ["c0854aa840071e809e162cff0505290a3abc54a15a3e02b57e49", [73, 40, 44]]
+  },
+  {
+    "name": "Adam Smasher",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.6825,
+    "signature": ["42e0ffe1eb2fc2f7f842025c8125080ad62f3c801f3f80077acc", [35, 39, 45]]
+  },
+  {
+    "name": "Adam Smasher",
+    "source": "https://www.cyberpunk.net/en/edgerunners",
+    "ratio": 0.683036,
+    "signature": ["40e0ffe0eb2fc2b7f842027c8125080ad62f3c801f3f00077acc", [33, 37, 46]]
+  },
+  {
+    "name": "D",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609756,
+    "signature": ["80521c003c000080d2826efd05dcfa0a7a551fe0eb2ff0a77d92", [48, 59, 87]]
+  },
+  {
+    "name": "D",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609375,
+    "signature": ["95525f063c000a80d2866efd05dcfa0a7a559fe0eb2ff0a77d92", [45, 57, 88]]
+  },
+  {
+    "name": "Talia",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609756,
+    "signature": ["005a0006ff400142e9a3e5ff97c00f00a8ad027c4007f8187e24", [54, 46, 48]]
+  },
+  {
+    "name": "Talia",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609375,
+    "signature": ["155a040fff400b42e183e5ffb7c04f45a8ad027c5047f8187e24", [50, 44, 51]]
+  },
+  {
+    "name": "Roman Carax",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609756,
+    "signature": ["00000000a00500d00b8082a500fb7a01d0f10300a00714d7016a", [73, 72, 71]]
+  },
+  {
+    "name": "Roman Carax",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609375,
+    "signature": ["f4000816a01508d08b8382a542f97af1d0f1032aa00754d7316a", [67, 68, 73]]
+  },
+  {
+    "name": "Weak Kingsley",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609756,
+    "signature": ["00500000fa09a08794c22fe0a71f505bbdaebf5e1c7ead15d2cc", [81, 84, 84]]
+  },
+  {
+    "name": "Weak Kingsley",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609375,
+    "signature": ["0b50d001fa09a08794c22fe1a71f505bbdaebf5e1c7ead15d2cc", [79, 82, 85]]
+  },
+  {
+    "name": "Avida",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609756,
+    "signature": ["00900400a04558f6ff8786400d00091ea03d34141e3d68057e48", [49, 49, 55]]
+  },
+  {
+    "name": "Avida",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609375,
+    "signature": ["00902000a04559f6ff8796400d00095ea0bd34141e7c68057ec8", [47, 48, 56]]
+  },
+  {
+    "name": "Kiril",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609756,
+    "signature": ["00801640813fa09282422084e70f78c0a76e1550147ea03855b4", [44, 42, 42]]
+  },
+  {
+    "name": "Kiril",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609375,
+    "signature": ["408156c0813ff8d482020084e70f78c0a76c5550147ea03855b4", [41, 40, 45]]
+  },
+  {
+    "name": "Jessie",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609756,
+    "signature": ["00d01a00e80500b07f00e09f3768c10f00d0037cf80758540b68", [76, 74, 75]]
+  },
+  {
+    "name": "Jessie",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609375,
+    "signature": ["28d06a38e88554b07face09f3768c14f00d0237cf80758540f6a", [71, 70, 78]]
+  },
+  {
+    "name": "Sal Bigelow",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609756,
+    "signature": ["80d0e20060010008d69275e107c9e24fb0f00320fb07007c0168", [82, 80, 77]]
+  },
+  {
+    "name": "Sal Bigelow",
+    "source": "https://www.cyberpunk.net/en/edgerunners2",
+    "ratio": 0.609375,
+    "signature": ["bcd0ea1660010208d69675e147c9e2efb0f06321fb87027c0169", [77, 77, 79]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f5e941fefd0364fb07800700402a00005500803e000c", [58, 29, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000fd6b01fefd036cfb0700c501000a00005d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f5eb01fefd036cfb0700c101000a00005d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd036cfb0700c501000a00001d00003c0008", [60, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000fdeb01fefd036cfb0700c501000a00005d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000040101fad703fcfb070cf50f80420100fc0200f40108", [61, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000040100fed703ecfb070cf50f80420100fc0200f40108", [61, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000040140ea9782fcfb07d9f70f08821fe0fb0000080000", [65, 27, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000000000408202fcb707f9fe01f0f103f0d307703c000a", [59, 29, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000040140ea9782fcfb07d9f70f08821fe0fb0000000000", [64, 27, 32]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000fdeb41fefd034efb0720d501000a00001d00003c0008", [61, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000fdeb01fefd034efb07201500000a00001d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000fd6b01fefd0304fb07c01701400a00001d00003c0018", [60, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000fd6b01fefd0344fb07c0d701400a00001d00003c0008", [61, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd036cfb0704d701000a00001d0000bc0008", [60, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000fd6b41fefd036cfb0704d701000a00001d00003c0008", [61, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd036cfb07041701000a00001d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd036cfb07041700000a00001d0000bc0008", [60, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd036cfb07041700000a00001d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd036cfb0704d701000a00001d00003c0008", [60, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd03ecfb07041701000a00001d00003c0008", [60, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd036cfb07041701000a00001d00003c0008", [60, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b41fefd036cfb0704d701000a00001d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd032cfb0704d701000a00001d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b01fefd036cfb07041701000a00001d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56b41fefd03ecfb0704d701000a00001d00003c0008", [60, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000fd6b01fefd036cfb07041701000a00001d00003c0008", [60, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000844b01fefd036cfb0704f401000a00005d0000380008", [59, 28, 32]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000844b01fefd036cfb0704d401000a00005d0000380008", [59, 28, 31]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000844b01fefd036cfb0704f401000a00005d0000380008", [59, 28, 32]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["0000000000000000000080a407f9ff0bf0ff1f30e01700c00100", [55, 29, 32]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["0000000000000000000080a407f9ff0bf0ff1f30e01700c00100", [56, 29, 31]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000040100fed703ecfb070cf40f80020100fc0200f40108", [61, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000040100fad703ecfb070cf40f80020100fc0200f40108", [62, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56941fefd836dfb0700d501000f0080030080070004", [62, 29, 35]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000040100fed703ecfb070cf40f80020100fc0200f40108", [62, 28, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000000100e8d383fcfb05dbfe0fe0f00210d407d03f0e22", [63, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000000000000200100e05f9f70fb0ef1f00403f803f0f24", [63, 27, 31]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000000000000200100e05f9f70fb0ef1f00403f803f0f24", [63, 27, 31]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00900000fdeb41befd032cfa07d00700080000005d00803e000c", [57, 29, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800020ffe941beffa207fe10402f00000f00e00300d0070002", [59, 29, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00921420ffaf40be7f0086e202c0f70100070080e00000e00110", [57, 29, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00800000f56941fefd836dfb0700d501000f0080030080070004", [62, 29, 35]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000200500940f0082020004410012d2166cfb3f00f60f00", [56, 29, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000000100e8d383fcfb05dbfe0fe0f00210d407d03f0e22", [63, 28, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000000000408202fcb707f9fe01f0f103f0d307703c000a", [59, 29, 33]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000000000000000000000000100c0d3837cfb17f8f70f62", [61, 29, 35]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["0080a000bde941f6fd030efb07000500000f00f00200d0070002", [60, 29, 34]]
+  },
+  {
+    "name": "Capri (Capricorn)",
+    "source": "Capri desktop avatar",
+    "ratio": 1,
+    "signature": ["00000000000000408283fcfb07dbf70f00f803801400c0bf0f10", [62, 29, 35]]
+  }
+]

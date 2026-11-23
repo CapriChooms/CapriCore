@@ -37,6 +37,7 @@ class DesktopActions {
     [StructLayout(LayoutKind.Sequential)] struct InputRect { public int left,top,right,bottom; }
     [StructLayout(LayoutKind.Sequential)] struct MonitorInfo { public int size;public InputRect monitor,work;public uint flags; }
     [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr window,uint flags);
+    [DllImport("user32.dll")] static extern IntPtr MonitorFromPoint(PointerPoint point,uint flags);
     [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr monitor,ref MonitorInfo info);
     static bool Fullscreen(IntPtr window,InputRect rect){var info=new MonitorInfo();info.size=Marshal.SizeOf(info);return GetMonitorInfo(MonitorFromWindow(window,2),ref info)&&Math.Abs(rect.left-info.monitor.left)<=2&&Math.Abs(rect.top-info.monitor.top)<=2&&Math.Abs(rect.right-info.monitor.right)<=2&&Math.Abs(rect.bottom-info.monitor.bottom)<=2;}
     static Dictionary<string,object> DisplayBounds(IntPtr window){
@@ -1394,6 +1395,84 @@ class DesktopActions {
         return GetAncestor(WindowFromPoint(new PointerPoint{x=x,y=y}),2);
     }
     static bool AvatarTargetHit(IntPtr window,int x,int y) { return AvatarTargetAt(x,y)==window; }
+    [DllImport("user32.dll")] static extern bool GetLayeredWindowAttributes(IntPtr window,out uint key,out byte alpha,out uint flags);
+    static bool AvatarLayerMayCover(IntPtr window) {
+        const int layered=0x80000, transparent=0x20;
+        int style=GetWindowStyle(window,-20);
+        if((style&layered)==0)return true;
+        uint key,flags;byte alpha;
+        if(GetLayeredWindowAttributes(window,out key,out alpha,out flags)&&flags!=0)
+            return (flags&2)==0||alpha!=0;
+        // Per-pixel, click-through layers (including another avatar) can span a whole
+        // display with an empty background. Their rectangle says nothing about the hit.
+        return (style&transparent)==0;
+    }
+    static bool AvatarPointExposed(IntPtr window,int x,int y,int innerX,int innerY,HashSet<IntPtr> overlays) {
+        // Hit testing can skip windows that are visible but accept no input.
+        // Read the stack above this exact HWND and ignore only Capri's sprite.
+        var above=GetWindow(window,3); // GW_HWNDPREV
+        for(int count=0;above!=IntPtr.Zero&&count<256;count++,above=GetWindow(above,3)){
+            if(overlays.Contains(above)||!IsWindowVisible(above)||IsIconic(above))continue;
+            int cloaked;
+            if(DwmGetWindowAttribute(above,14,out cloaked,4)==0&&cloaked!=0)continue;
+            InputRect rect;
+            if(DwmGetWindowAttribute(above,9,out rect,Marshal.SizeOf(typeof(InputRect)))!=0&&
+                !GetWindowRect(above,out rect))continue;
+            if((AvatarContains(rect,x,y)||AvatarContains(rect,innerX,innerY))&&AvatarLayerMayCover(above))return false;
+        }
+        return above==IntPtr.Zero;
+    }
+    static bool AvatarContains(InputRect rect,int x,int y) {
+        return x>=rect.left&&x<rect.right&&y>=rect.top&&y<rect.bottom;
+    }
+    static object AvatarDockVisible(Dictionary<string,object> q) {
+        long handle,started;
+        uint expectedPid,ignored;
+        int x,y;
+        var edge=Text(q,"edge");
+        if(!Int64.TryParse(Text(q,"windowId"),out handle)||handle<=0||
+            !UInt32.TryParse(Text(q,"processId"),out expectedPid)||expectedPid==0||
+            !Int64.TryParse(Text(q,"startedAtTicks"),out started)||started<=0||
+            !UInt32.TryParse(Text(q,"ignoreProcessId"),out ignored)||ignored==0||
+            !Int32.TryParse(Text(q,"x"),out x)||Math.Abs((long)x)>=16777216||
+            !Int32.TryParse(Text(q,"y"),out y)||Math.Abs((long)y)>=16777216||
+            !new[]{"top","bottom","left","right","inside"}.Contains(edge))
+            throw new InvalidOperationException("Invalid avatar dock contact.");
+        var previous=DpiContext(new IntPtr(-4));
+        if(previous==IntPtr.Zero)return D("ok",true,"visible",false);
+        try{
+            var window=new IntPtr(handle);
+            uint pid;GetWindowThreadProcessId(window,out pid);
+            int cloaked;
+            InputRect bounds;
+            if(pid!=expectedPid||GetAncestor(window,2)!=window||!IsWindowVisible(window)||IsIconic(window)||
+                (DwmGetWindowAttribute(window,14,out cloaked,4)==0&&cloaked!=0)||
+                (DwmGetWindowAttribute(window,9,out bounds,Marshal.SizeOf(typeof(InputRect)))!=0&&
+                    !GetWindowRect(window,out bounds))||bounds.right-bounds.left<6||bounds.bottom-bounds.top<6)
+                return D("ok",true,"visible",false);
+            using(var process=Process.GetProcessById((int)pid)){
+                if(process.StartTime.ToUniversalTime().Ticks!=started)return D("ok",true,"visible",false);
+            }
+            // DIP round-tripping can differ from the native edge by a pixel at scaled DPI.
+            const int tolerance=3;
+            int innerX=Math.Max(bounds.left,Math.Min(bounds.right-1,x));
+            int innerY=Math.Max(bounds.top,Math.Min(bounds.bottom-1,y));
+            if(Math.Abs(x-innerX)>tolerance||Math.Abs(y-innerY)>tolerance)return D("ok",true,"visible",false);
+            switch(edge){
+                case "top": if(Math.Abs(y-bounds.top)>tolerance)return D("ok",true,"visible",false);innerY=bounds.top+3;break;
+                case "bottom": if(Math.Abs(y-bounds.bottom)>tolerance)return D("ok",true,"visible",false);innerY=bounds.bottom-4;break;
+                case "left": if(Math.Abs(x-bounds.left)>tolerance)return D("ok",true,"visible",false);innerX=bounds.left+3;break;
+                case "right": if(Math.Abs(x-bounds.right)>tolerance)return D("ok",true,"visible",false);innerX=bounds.right-4;break;
+            }
+            var overlays=AvatarTargetOverlays(q,ignored);
+            var hit=AvatarTargetAt(innerX,innerY);
+            return D("ok",true,"visible",(hit==window||overlays.Contains(hit))&&
+                AvatarPointExposed(window,x,y,innerX,innerY,overlays));
+        }catch(ArgumentException){return D("ok",true,"visible",false);}
+        catch(InvalidOperationException){return D("ok",true,"visible",false);}
+        catch(System.ComponentModel.Win32Exception){return D("ok",true,"visible",false);}
+        finally{DpiContext(previous);}
+    }
     static Dictionary<string,object> AvatarTopTarget(IntPtr window,System.Windows.Rect bounds,
         Dictionary<string,object> identity,List<System.Windows.Rect> clips,HashSet<IntPtr> overlays) {
         int top=(int)bounds.Top;
@@ -1407,8 +1486,8 @@ class DesktopActions {
             foreach(double fraction in new[]{.66,.5,.33,.18,.82}){
                 int x=left+(int)Math.Round((right-left)*fraction);
                 var covering=AvatarTargetAt(x,innerY);
-                if(covering!=window&&(!overlays.Contains(covering)||!new[]{-64,64,-112,112,-160,160}.Any(offset=>
-                    x+offset>=left&&x+offset<=right&&AvatarTargetHit(window,x+offset,innerY))))continue;
+                if((covering!=window&&!overlays.Contains(covering))||
+                    !AvatarPointExposed(window,x,top,x,innerY,overlays))continue;
                 int first=x,last=x;
                 for(int step=8;step<=40;step+=8){
                     int next=x-step;
@@ -1476,21 +1555,19 @@ class DesktopActions {
                 for(int i=0;i<clips.Count;i++){
                     var visible=System.Windows.Rect.Intersect(System.Windows.Rect.Intersect(box,bounds),clips[i]);
                     if(visible.IsEmpty||visible.Width<28||visible.Height<12)continue;
-                    int centerX=(int)Math.Floor(visible.Left+visible.Width*.5),centerY=(int)Math.Floor(visible.Top+visible.Height*.5);
+                    int centerY=(int)Math.Floor(visible.Top+visible.Height*.5);
                     int x=0,y=0;
                     bool exposed=false;
                     foreach(double fraction in new[]{.5,.18,.82,.33,.67,.08,.92}){
                         x=(int)Math.Floor(visible.Left+visible.Width*fraction);y=centerY;
-                        if(AvatarTargetHit(window,x,y)&&HitMatches(item,x,y)){exposed=true;break;}
+                        if(AvatarTargetHit(window,x,y)&&HitMatches(item,x,y)&&
+                            AvatarPointExposed(window,x,y,x,y,overlays)){exposed=true;break;}
                     }
                     if(!exposed)continue;
                     var kind=AvatarSearchKind(item,tree);
                     if(kind==null)break;
                     var id=RuntimeId(item);
                     if(id.Length<1||id.Length>230)break;
-                    // Preserve the stable center when our own avatar occludes it; another
-                    // visible point on this very element must still pass both hit tests.
-                    if(overlays.Contains(AvatarTargetAt(centerX,centerY)))x=centerX;
                     targets.Add(D("kind","search-field","searchKind",kind,"controlId",id,
                         "window",identity,"clipIndex",i,"bounds",AvatarTargetGeometry(visible),"point",D("x",x,"y",y)));
                     if(--remaining==0||targets.Count>=20)return;
@@ -1549,7 +1626,9 @@ class DesktopActions {
     static object Execute(Dictionary<string,object> q){
         string action=Text(q,"action"),app=Text(q,"app");
         if(action.StartsWith("computer_",StringComparison.Ordinal))return Computer(q,action);
+        if(action=="idle_cursor_nudge")return IdleCursorNudge(Text(q,"direction"));
         if(action=="avatar_window")return AvatarWindow(q);
+        if(action=="avatar_dock_visible")return AvatarDockVisible(q);
         if(action=="avatar_screen_targets")return AvatarScreenTargets(q);
         if(action=="catalog_discover")return DiscoverApplications(q);
         if(action=="catalog_drives")return D("ok",true,"drives",DriveInfo.GetDrives().Where(d=>d.DriveType==DriveType.Fixed&&d.IsReady).Select(d=>d.RootDirectory.FullName.ToUpperInvariant()).ToArray());
@@ -1816,8 +1895,37 @@ class DesktopActions {
     }
     [StructLayout(LayoutKind.Sequential)] struct LastInputInfo {public uint size,time;}
     [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LastInputInfo input);
-    static bool ChessInputBusy(bool requireIdle=false){
+    static bool MouseOrModifierHeld(){
         foreach(int key in new[]{1,2,4,5,6,16,17,18,27,91,92})if((GetAsyncKeyState(key)&0x8000)!=0)return true;
+        return false;
+    }
+    static object IdleCursorNudge(string direction){
+        if(direction!="left"&&direction!="right")throw new InvalidOperationException("Invalid idle cursor direction.");
+        var previous=DpiContext(new IntPtr(-4));
+        try{
+            var input=new LastInputInfo{size=(uint)Marshal.SizeOf(typeof(LastInputInfo))};
+            PointerPoint origin;
+            if(!GetLastInputInfo(ref input)||unchecked((uint)Environment.TickCount-input.time)<15000||
+               MouseOrModifierHeld()||!GetCursorPos(out origin))return D("ok",true,"moved",false);
+            var info=new MonitorInfo{size=Marshal.SizeOf(typeof(MonitorInfo))};
+            if(!GetMonitorInfo(MonitorFromPoint(origin,0),ref info))return D("ok",true,"moved",false);
+            var work=info.work;
+            if(origin.x<work.left||origin.x>=work.right||origin.y<work.top||origin.y>=work.bottom)
+                return D("ok",true,"moved",false);
+            int offset=direction=="left"?-36:36;
+            int targetX=origin.x+offset;
+            if(targetX<work.left||targetX>=work.right)targetX=origin.x-offset;
+            var latest=new LastInputInfo{size=input.size};
+            PointerPoint current;
+            bool moved=targetX>=work.left&&targetX<work.right&&
+                !MouseOrModifierHeld()&&GetLastInputInfo(ref latest)&&latest.time==input.time&&
+                GetCursorPos(out current)&&current.x==origin.x&&current.y==origin.y&&
+                SetCursorPos(targetX,origin.y);
+            return D("ok",true,"moved",moved);
+        }finally{if(previous!=IntPtr.Zero)DpiContext(previous);}
+    }
+    static bool ChessInputBusy(bool requireIdle=false){
+        if(MouseOrModifierHeld())return true;
         if(requireIdle){
             var input=new LastInputInfo{size=(uint)Marshal.SizeOf(typeof(LastInputInfo))};
             return !GetLastInputInfo(ref input)||unchecked((uint)Environment.TickCount-input.time)<500;

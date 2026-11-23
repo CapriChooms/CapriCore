@@ -117,7 +117,15 @@ def load_adapter(t3, folder, config):
     expected = json.loads(
         (ROOT / "config/voice-upstream.json").read_text(encoding="utf-8")
     )
-    if metadata["upstream"] != expected or metadata["language"] != config["language"]:
+    # The bundled pack URL and checksum describe distribution, not the model
+    # and implementation the adapter was trained against.
+    expected.pop("bundledPack", None)
+    upstream = metadata["upstream"]
+    if (
+        not isinstance(upstream, dict)
+        or {key: value for key, value in upstream.items() if key != "bundledPack"} != expected
+        or metadata["language"] != config["language"]
+    ):
         raise ValueError("Adapter belongs to a different base model or language")
     add_adapters(t3, metadata["adapter"])
     state = load_file(str(folder / "adapter.safetensors"))

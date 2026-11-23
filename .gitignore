@@ -32,5 +32,3 @@ config/*.local.json
 /.codex-remote-attachments/
 /docs/audit/*
 !/docs/audit/npm-sbom.cdx.json
-
-CapriCore-1.2.3-linux-preview.1

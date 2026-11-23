@@ -63,7 +63,11 @@ export function validateSource(files) {
   for (const name of [
     ACTIVE_AVATAR_CATALOG,
     ACTIVE_AVATAR_POSES,
-    'assets/default/capri-headpat.png',
+    'assets/default/capri-blink-pose.png',
+    'assets/default/capri-blink-eyes.png',
+    ...['poses', 'gestures'].flatMap((group) =>
+      ['png', 'json'].map((extension) => `assets/default/capri-face-${group}.${extension}`),
+    ),
     'assets/default/capri-wave.webp',
     'assets/default/hanging-cels/geometry.json',
     ...hangingCelAssetNames.map((name) => 'assets/default/hanging-cels/' + name + '.webp'),

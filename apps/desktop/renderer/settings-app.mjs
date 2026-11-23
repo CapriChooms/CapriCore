@@ -270,6 +270,7 @@ const workflows = new WorkflowsPanel({ api, ui, onError: notice });
 const coding = new CodingPanel({ api, ui, onError: notice });
 const userTools = new UserToolsPanel({ api, ui, onError: notice });
 const credits = new CreditsPanel({ ui });
+let avatarGallery;
 const developer = new DeveloperPanel({ api, ui, onError: notice });
 const discord = new DiscordPanel(shared);
 const music = new MusicListeningPanel({
@@ -1540,6 +1541,7 @@ function applyLanguage(locale) {
   settingsGuide.refresh();
   audioRouting.render();
   if (changed) speech.renderValue();
+  if (changed) avatarGallery?.translate();
   voiceApi.examples();
   voiceApi.sync();
   inference.refreshExamples();
@@ -1648,6 +1650,7 @@ for (const selector of [
   '[data-companion-group="Desktop roaming"] h3',
   '#companion-conversation-mode-label',
   '#wild-close-ai-tabs-label',
+  '#wild-desktop-pranks-label',
   '#call-camera-card .skill-display-control > span',
 ])
   appendBetaBadge(document.querySelector(selector));
@@ -1929,6 +1932,13 @@ async function navigate(id, focus = null, match = null) {
   panelLoading(true);
   try {
     if (id !== 'developer') developer.close();
+    if (id === 'avatar-gallery' && !avatarGallery) {
+      const { AvatarGallery } = await import('./avatar-gallery.mjs');
+      avatarGallery = new AvatarGallery($('avatar-gallery-panel'), ui);
+      avatarGallery.load(latest.avatarGallery, latest.musicArtwork?.notes, latest.companion);
+      avatarGallery.setVisible(settingsVisible);
+    }
+    avatarGallery?.setActive(id === 'avatar-gallery');
     if (current && id !== current) {
       if (current === 'voice') void models.voices.stopPreview();
       if (current === 'support') companion.showSupportFrame(false);
@@ -2126,6 +2136,7 @@ function show(snapshot) {
   models.show(snapshot.models);
   updates.show(snapshot.updates);
   companion.show(snapshot.companion);
+  captureDrafts(companionPanelId);
   effects.show(snapshot.voiceEffects);
   effects.availability(!snapshot.activeTurnId && snapshot.voice.language !== 'off');
   language.installed(snapshot.recognitionAvailability, snapshot.speechAvailability);
@@ -2184,6 +2195,7 @@ function event(value) {
     companion.showSupportFrame(settingsVisible && current === 'support');
     syncCameraPreview();
     credits.setVisible(value.visible === true);
+    avatarGallery?.setVisible(settingsVisible);
     developer.setVisible(value.visible === true && current === 'developer');
     if (value.visible === true && current === 'developer') void developer.refresh();
     return;

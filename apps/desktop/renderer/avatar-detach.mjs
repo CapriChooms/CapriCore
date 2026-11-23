@@ -6,6 +6,7 @@ import {
   frames,
   arrivalStart,
   prepareTeleportMotion,
+  teleportBackingSize,
   teleportViewport,
 } from './avatar-teleport-motion.mjs';
 import { TELEPORT_LIGHTNING_DEFAULTS } from './teleport-effects.mjs';
@@ -25,6 +26,13 @@ import { ReplyPages } from './reply-pages.mjs';
 import { detachedReplyLayout } from './detached-reply-layout.mjs';
 import { replyBubbleOutline } from './reply-bubble-outline.mjs';
 import { AvatarMouthLayer, avatarPoseLandmarks } from './avatar-mouth.mjs';
+import { faceAnimations, faceFrames } from './avatar-face-expressions.mjs';
+import {
+  avatarFacePose,
+  avatarFaceState,
+  composeAvatarFace,
+  loadAvatarFaceRig,
+} from './avatar-face-rig.mjs';
 import { AvatarDragTether } from './avatar-drag-tether.mjs';
 import { applyInterfaceTheme } from './interface-theme.mjs';
 import { musicAnimationReady } from './music-listening-settings.mjs';
@@ -40,6 +48,8 @@ import {
 } from './music-animation.mjs';
 
 const effect = document.getElementById('teleport-effect');
+const effectInterval = 1000 / 60;
+const trailInterval = 1000 / 30;
 const parked = document.getElementById('parked-avatar');
 const parkedImage = parked.querySelector('img');
 const stage = parked.querySelector('.avatar-pose-stage');
@@ -100,7 +110,7 @@ let replySnapshot,
   replyLayoutWidth = -1,
   replyDirty = false;
 let replyFontRevision = 0;
-const mouth = new AvatarMouthLayer(parkedImage);
+const mouth = new AvatarMouthLayer(parkedImage, { onReady: redrawMouth });
 const tether = new AvatarDragTether();
 const pat = new AvatarHeadpat(document.body, redrawMouth);
 const context = effect.getContext('2d', { alpha: true });
@@ -131,6 +141,10 @@ let movingLimbs = [];
 let motionFrame = 0;
 let lastSwing;
 let blinkTimer;
+let faceFrame = 0;
+let desktopExpression = null;
+let desktopClip = null;
+let desktopBlink = null;
 let mouthShape = 'closed';
 let music = {
   enabled: false,
@@ -162,6 +176,7 @@ const surface = new AvatarSurfacePerformance(stage, {
   onChange() {
     animatePose();
     scheduleBlink();
+    redrawMouth();
     ensureMusicAnimation();
   },
 });
@@ -171,14 +186,44 @@ let replyTurn = '',
   replyEdge;
 let replyLabels = { show: 'Show reply', hide: 'Hide reply' };
 
-function redrawMouth() {
-  if (document.body.dataset.presentation === 'dialogue') return;
-  mouth.update(
-    pat.image(parkedImage),
-    parked.hidden ? 'closed' : mouthShape,
-    frameIdFor(parkedImage.src),
+function paintFace(now) {
+  faceFrame = 0;
+  if (document.body.dataset.presentation === 'dialogue' || parked.hidden || document.hidden) return;
+  const frameId = frameIdFor(parkedImage.src);
+  const clip = [desktopClip, desktopBlink].find(
+    (item) => item && now - item.start < faceAnimations[item.id].duration,
   );
+  const running =
+    clip && avatarFacePose(frameId) && !sleeping && !surface.active && !wave.image && !motionPreference.matches &&
+    !pat.expression;
+  const expression = sleeping ? 'idle-blink_closed' : (pat.expression ?? desktopExpression);
+  mouth.update(
+    parkedImage,
+    sleeping ? 'closed' : mouthShape,
+    frameId,
+    expression,
+    running ? clip : null,
+    now,
+  );
+  if (running) faceFrame = requestAnimationFrame(paintFace);
+}
+
+function redrawMouth() {
+  if (!faceFrame) paintFace(performance.now());
   ensureMusicAnimation();
+}
+
+function setFace({ expression, clip, startedAt } = {}) {
+  if (
+    (expression !== null && !Object.hasOwn(faceFrames, expression)) ||
+    (clip !== null && !Object.hasOwn(faceAnimations, clip)) ||
+    !Number.isSafeInteger(startedAt)
+  )
+    return false;
+  desktopExpression = expression;
+  desktopClip = clip ? { id: clip, start: performance.now() - (Date.now() - startedAt) } : null;
+  redrawMouth();
+  return true;
 }
 
 function setMusic(value) {
@@ -236,7 +281,7 @@ function animateMusic(now) {
       !parked.hidden &&
       !document.hidden &&
       !musicDragging &&
-      pat.image(parkedImage) === parkedImage,
+      !pat.expression,
   );
   if (!pose) musicAnimation.reset();
   const state = musicAnimation.sample(now, {
@@ -295,7 +340,7 @@ function frameIdFor(url) {
 function setMouth(shape) {
   if (!['closed', 'small', 'round', 'wide'].includes(shape)) return false;
   mouthShape = shape;
-  if (shape !== 'closed') surface.stop();
+  if (shape !== 'closed' && avatarFacePose(frameIdFor(parkedImage.src))) surface.stop();
   redrawMouth();
   return true;
 }
@@ -324,8 +369,12 @@ function loadSprite(url, tintColor) {
   spriteTintColor = tintColor;
   spritePromise = (async () => {
     const image = await loadFrame(url);
+    const id = frameIdFor(url);
+    const pose = avatarFacePose(id);
+    const rig = pose && pose !== 'neutral' && (await loadAvatarFaceRig().catch(() => null));
+    const art = rig ? composeAvatarFace(image, rig(image, id), avatarFaceState(id)) : image;
 
-    if (!tintColor) return { image };
+    if (!tintColor) return { image, art };
     const tint = document.createElement('canvas');
     tint.width = image.naturalWidth;
     tint.height = image.naturalHeight;
@@ -334,7 +383,7 @@ function loadSprite(url, tintColor) {
     ink.globalCompositeOperation = 'source-in';
     ink.fillStyle = tintColor;
     ink.fillRect(0, 0, tint.width, tint.height);
-    return { image, tint };
+    return { image, art, tint };
   })();
   return spritePromise;
 }
@@ -639,14 +688,18 @@ function scheduleBlink() {
   if (
     parked.hidden ||
     surface.active ||
-    !rasterPose?.eyes ||
+    !avatarFacePose(frameIdFor(parkedImage.src)) ||
+    sleeping ||
     motionPreference.matches ||
     Object.hasOwn(MUSIC_POSES, frameIdFor(parkedImage.src))
   )
     return;
   blinkTimer = setTimeout(
     () => {
-      if (!pat.frameId && !pat.hearts) pat.react(parkedImage, frameIdFor(parkedImage.src), 'blink');
+      if (!pat.expression && !pat.hearts && !wave.image && !document.hidden) {
+        desktopBlink = { id: 'blink', start: performance.now() };
+        redrawMouth();
+      }
       scheduleBlink();
     },
     3300 + Math.random() * 2200,
@@ -661,6 +714,7 @@ motionPreference.addEventListener('change', () => {
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) surface.stop();
+  else redrawMouth();
   ensureMusicAnimation();
 });
 
@@ -680,6 +734,7 @@ async function park({ point, anchor, url, dock } = {}) {
   parkedImage.src = image.src;
   showPose(image.src, dock);
   parked.hidden = false;
+  redrawMouth();
   animatePose();
   scheduleBlink();
   showHud();
@@ -986,7 +1041,13 @@ function stepReply(direction) {
 function setStatus(value) {
   const { text = '', color, replyLabels: labels } = value ?? {};
   if (value !== null && (typeof text !== 'string' || !/^#[\da-f]{6}$/i.test(color))) return false;
+  const wasSleeping = sleeping;
   sleeping = value?.sleeping === true;
+  if (sleeping !== wasSleeping) {
+    desktopBlink = null;
+    redrawMouth();
+    scheduleBlink();
+  }
   document.body.dataset.sleeping = String(sleeping);
   if (sleeping) {
     surface.stop();
@@ -1032,7 +1093,7 @@ function resizeEffect() {
       ...flight,
       arrivalAnchor: flight.arrival?.anchor,
     });
-    flight.stamps ??= sandevistanStamps(flight.sprite.image, flight.sandevistan);
+    flight.stamps ??= sandevistanStamps(flight.sprite.art, flight.sandevistan);
     region = sandevistanViewport(flight.sandevistan, bounds);
   } else {
     flight.motion = prepareTeleportMotion({
@@ -1050,19 +1111,15 @@ function resizeEffect() {
     );
   }
   flight.region = region;
-  const pixelRatio = Math.min(
-    devicePixelRatio || 1,
-    2,
-    Math.sqrt(8_294_400 / (region.width * region.height)),
-  );
+  const size = teleportBackingSize(region, devicePixelRatio || 1);
   Object.assign(effect.style, {
     left: `${region.x}px`,
     top: `${region.y}px`,
     width: `${region.width}px`,
     height: `${region.height}px`,
   });
-  effect.width = Math.max(1, Math.round(region.width * pixelRatio));
-  effect.height = Math.max(1, Math.round(region.height * pixelRatio));
+  effect.width = size.width;
+  effect.height = size.height;
   const scaleX = effect.width / region.width;
   const scaleY = effect.height / region.height;
   context.setTransform(scaleX, 0, 0, scaleY, -region.x * scaleX, -region.y * scaleY);
@@ -1080,7 +1137,7 @@ function paint() {
   const { from, to, frame, sprite, anchor, arrival, arrivalSprite, motion, region } = run;
   context.clearRect(region.x, region.y, region.width, region.height);
   if (run.sandevistan) {
-    drawSandevistan(context, run.sandevistan, (frame * 1000) / fps, run.stamps, sprite.image);
+    drawSandevistan(context, run.sandevistan, (frame * 1000) / fps, run.stamps, sprite.art);
     return;
   }
   draw(context, {
@@ -1090,6 +1147,7 @@ function paint() {
     anchor,
     arrivalAnchor: arrival?.anchor,
     motion,
+    viewport: region,
     materialize: flight.park !== false,
     drawCapri(point, tint = 0) {
       const arriving = point === to && arrival;
@@ -1102,7 +1160,7 @@ function paint() {
         context.rect(x, y, width, height);
         context.clip();
       }
-      context.drawImage(image.image, left, top, scale, scale);
+      context.drawImage(image.art, left, top, scale, scale);
       if (tint > 0) {
         context.globalAlpha *= tint;
         context.drawImage(image.tint, left, top, scale, scale);
@@ -1171,6 +1229,7 @@ function lingerSandevistan(run, now) {
   const { promise, resolve } = Promise.withResolvers();
   teleportTrails.add(promise);
   parked.before(canvas);
+  let lastExposure = -1;
   function tick(time) {
     const elapsed = time - run.started;
     if (
@@ -1183,8 +1242,12 @@ function lingerSandevistan(run, now) {
       resolve();
       return;
     }
-    ink.clearRect(x, y, width, height);
-    drawSandevistan(ink, motion, elapsed, run.stamps);
+    const exposure = Math.floor((elapsed + 1) / trailInterval);
+    if (exposure > lastExposure) {
+      lastExposure = exposure;
+      ink.clearRect(x, y, width, height);
+      drawSandevistan(ink, motion, elapsed, run.stamps);
+    }
     requestAnimationFrame(tick);
   }
   tick(now);
@@ -1224,18 +1287,24 @@ async function play(startAt) {
     if (!motionPreference.matches) lingerSandevistan(run, now);
     return complete(run);
   };
-  flight.frame = Math.max(0, ((performance.now() - started) * fps) / 1000);
+  const elapsed = Math.max(0, performance.now() - started);
+  run.frame = (elapsed * fps) / 1000;
+  let lastExposure = Math.floor((elapsed + 1) / effectInterval);
   if (flight.frame >= stopAt) return settle(performance.now());
   effect.hidden = false;
   paint();
   function step(now) {
     if (flight !== run || run.completed) return;
-    const next = ((now - started) * fps) / 1000;
+    const elapsed = now - started;
+    const next = (elapsed * fps) / 1000;
     if (next >= stopAt || motionPreference.matches) {
       settle(now);
       return;
     }
-    if (next > run.frame) {
+    // Sample wall-clock motion at most once per exposure on high-refresh displays.
+    const exposure = Math.floor((elapsed + 1) / effectInterval);
+    if (exposure > lastExposure) {
+      lastExposure = exposure;
       run.frame = next;
       paint();
     }
@@ -1293,6 +1362,8 @@ function setPresentation(value) {
     musicFrame = 0;
     clearTimeout(motionFrame);
     clearTimeout(blinkTimer);
+    cancelAnimationFrame(faceFrame);
+    faceFrame = 0;
     musicNotes?.destroy();
     musicNotes = undefined;
     pat.clear();
@@ -1345,6 +1416,7 @@ globalThis.capriAvatarDetach = Object.freeze({
   cancelPlacement,
   settlePlacement,
   setMouth,
+  setFace,
   setReply,
   stepReply,
   setReplyNear,

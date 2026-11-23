@@ -3,7 +3,7 @@
 // Nothing here reads the screen, enters text, clicks, or moves a window.
 import { validateAvatarMotion, isStandingMotionFrame } from '../avatar-motion-protocol.mjs';
 import { CHANNELS, sampleCustomGesture, createRenderer } from './idle-gesture-rig.mjs';
-import { drawSurfaceGaze } from './surface-gaze.mjs';
+import { createSurfaceFacePainter } from './surface-gaze.mjs';
 import { createCelPainter, registeredCelClip } from './hanging-cels.mjs';
 
 const freeze = (value) => {
@@ -722,7 +722,8 @@ function flexHangingFingers(context, image, side, strength) {
   context.drawImage(image, x, y, width, height, x, -height, width, height);
   context.restore();
 }
-export function createScreenInteractionRenderer(canvas, { getAtlas } = {}) {
+export function createScreenInteractionRenderer(canvas, { getAtlas, faceRig, drawGestureFace } = {}) {
+  const drawFace = createSurfaceFacePainter(faceRig);
   canvas.width = canvas.height = 1254;
   const context = canvas.getContext('2d');
   if (!context) throw Error('Screen interaction requires a 2D output canvas');
@@ -779,6 +780,8 @@ export function createScreenInteractionRenderer(canvas, { getAtlas } = {}) {
       if (cel && cel.frameId === sourceFrame) {
         useCels = true;
         if (!cels.draw(image, action, elapsed)) return false;
+        if (canvas.dataset.clipFrame === 'master') drawFace(context, image, sourceFrame, cue.gaze);
+        else drawGestureFace?.(context, canvas.dataset.clipFrame, canvas.width);
         drawnChannels = null;
         canvas.avatarMotionExtent = null;
         canvas.avatarTextureRevision = ++revision;
@@ -845,7 +848,7 @@ export function createScreenInteractionRenderer(canvas, { getAtlas } = {}) {
         context.translate(-x, -y);
       }
       context.drawImage(hanging || fallback ? image : mesh, 0, 0);
-      drawSurfaceGaze(context, image, sourceFrame, cue.gaze, drawnChannels);
+      drawFace(context, image, sourceFrame, cue.gaze, fallback ? null : drawnChannels);
       if (sourceFrame === 'pose-ceiling' && (cue.leftTap || cue.rightTap)) {
         for (const side of ['left', 'right']) {
           const strength = cue[side + 'Tap'];

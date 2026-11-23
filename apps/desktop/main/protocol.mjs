@@ -40,7 +40,7 @@ export function resourceResponse(request, resources, { attachments } = {}) {
           url.pathname === '/settings.html'
             ? DESKTOP_CSP.replace(
                 'connect-src ',
-                'connect-src capri://desktop/index.html capri://desktop/hall-of-fame.json ',
+                'connect-src capri://desktop/index.html capri://desktop/capri-wave.webp capri://desktop/hall-of-fame.json ',
               )
             : ['/index.html', '/avatar-detach.html'].includes(url.pathname)
               ? DESKTOP_CSP.replace('connect-src ', 'connect-src capri://desktop/capri-wave.webp ')

@@ -50,6 +50,7 @@ import {
 import { chessArrowPath } from '../apps/desktop/renderer/chess-arrow-path.mjs';
 
 const bounds = { x: -800, y: 40, width: 800, height: 700 };
+const sampleBitmap = { getSize: () => ({ width: 1080, height: 900 }) };
 const chessMoveEvents = (...args) => chessMoveReactions(...args).flatMap(({ events }) => events);
 const token = 'A'.repeat(64);
 const view = (origin, path) => ({ origin, path, bounds, token });
@@ -968,6 +969,51 @@ test('Chess overlay admits analysis and built-in computer pages without treating
   assert.equal(requests, 2);
 });
 
+test('current Lichess game links still require server confirmation of a computer opponent', async () => {
+  const origin = 'https://lichess.org';
+  const gameId = 'AbCd1234';
+  for (const route of [
+    '/game/AbCd1234',
+    '/game/AbCd1234/black',
+    '/game/AbCd1234Wxyz',
+    '/AbCd1234',
+    '/AbCd1234Wxyz/white',
+  ])
+    assert.equal(chessPage(view(origin, route))?.game, gameId, route);
+  for (const route of [
+    '/game/AbCd1234/mini',
+    '/game/AbCd1234/black/analysis',
+    '/game/AbCd1234Wxyz/white',
+    '/game/export/AbCd1234',
+  ])
+    assert.equal(chessPage(view(origin, route)), null, route);
+
+  const signal = new AbortController().signal;
+  const game = { id: gameId, variant: 'standard', status: 'started' };
+  const results = [
+    { ...game, players: { black: { user: { title: 'BOT' } } } },
+    { ...game, rated: true, players: { black: { aiLevel: 8 } } },
+    { ...game, id: 'different', players: { black: { aiLevel: 8 } } },
+    { ...game, players: { black: { aiLevel: 8 } } },
+  ];
+  let requests = 0;
+  let route = '/game/AbCd1234';
+  const access = new ChessPageAccess({
+    inspect: async () => view(origin, route),
+    fetchImpl: async (url) => {
+      assert.equal(url, origin + '/game/export/AbCd1234?moves=false&clocks=false');
+      return Response.json(results[requests++]);
+    },
+  });
+  assert.equal(await access.allowed(signal), null);
+  assert.equal(await access.allowed(signal), null);
+  assert.equal(await access.allowed(signal), null);
+  assert.equal((await access.allowed(signal))?.computerSide, 'b');
+  route = '/game/AbCd1234Wxyz';
+  assert.equal((await access.allowed(signal))?.computerSide, 'b');
+  assert.equal(requests, 4);
+});
+
 test('Chess prefers tab identity and falls back to the verified bot window', () => {
   const first = {
     ...view('https://www.chess.com', '/play/computer'),
@@ -1018,7 +1064,7 @@ test(
       capture: {
         async afterOverlay() {},
         async frame() {
-          return { revision: 'monitor' };
+          return { revision: 'monitor', bitmap: sampleBitmap };
         },
         center: () => ({ x: 236, y: 246 }),
         inView: (_frame, _rect, view) => Boolean(view),
@@ -1113,7 +1159,7 @@ test(
   async (t) => {
     const board = new Chess();
     const rect = { x: 36, y: 46, width: 400, height: 400 };
-    const frame = { revision: 'display revision' };
+    const frame = { revision: 'display revision', bitmap: sampleBitmap };
     const initialView = view('https://lichess.org', '/analysis');
     let switched = false;
     let overlayOpen = false;
@@ -1235,6 +1281,25 @@ test('Chess snaps the far edges to the last tile and scales the four boundaries 
   });
 });
 
+test('Chess keeps an edge flush with the capture and looks past the outline on the last tiles', () => {
+  const width = 460;
+  const height = 430;
+  const data = new Float32Array(width * height).fill(38);
+  for (let y = 0; y < 400; y++) {
+    for (let x = 30; x < 430; x++) {
+      const dark = (Math.floor((x - 30) / 50) + Math.floor(y / 50)) % 2;
+      data[y * width + x] = y === 7 || y === 8 ? 150 : dark ? 130 : x >= 427 ? 170 : 224;
+    }
+  }
+  const source = { width, height, data };
+  assert.deepEqual(refineBoardEdges(source, { x0: 30, y0: 0, x1: 430, y1: 400 }), {
+    x0: 30,
+    y0: 0,
+    x1: 430,
+    y1: 400,
+  });
+});
+
 test('A tight manual Chess selection first checks for the whole board around its edges', async () => {
   const session = new ChessSession({});
   const frame = { bitmap: { getSize: () => ({ width: 720, height: 540 }) } };
@@ -1254,6 +1319,27 @@ test('A tight manual Chess selection first checks for the whole board around its
   assert.deepEqual(await session.detectSelection(frame, crop), [{ rect: crop }]);
 });
 
+test('Chess tracking recovers an edge outside the last crop and retains bounds on a fallback', async () => {
+  const session = new ChessSession({ capture: { inView: () => true } });
+  const frame = { bitmap: { getSize: () => ({ width: 720, height: 540 }) } };
+  const crop = { x: 130, y: 130, width: 300, height: 290 };
+  const full = { ...crop, y: 120, height: 300 };
+  const item = { placement: placement(new Chess().fen()), reliable: true };
+  const page = view('https://www.chess.com', '/play/computer');
+  const track = () => session.trackableBoards(frame, crop, page, 'white', undefined, 1);
+  session.detect = async (_frame, area, manual) => {
+    assert.equal(manual, false);
+    assert.ok(chessRectInside(full, area));
+    return [{ ...item, rect: full }];
+  };
+  assert.deepEqual((await track())[0].rect, full);
+  session.detect = async (_frame, area) => [{ ...item, rect: { ...full, y: area.y } }];
+  assert.deepEqual(await track(), []);
+  session.detect = async (_frame, _area, manual) =>
+    manual ? [{ ...item, rect: { ...crop, y: 132, height: 288 } }] : [];
+  assert.deepEqual((await track())[0].rect, crop);
+});
+
 test(
   'Chess rediscovers a moved bot board and analyses its new position despite changing pixels',
   {
@@ -1264,7 +1350,7 @@ test(
     const original = { x: 40, y: 60, width: 400, height: 400 };
     const relocated = { ...original, x: 560 };
     const initialView = { ...view('https://www.chess.com', '/play/computer'), hwnd: '123' };
-    const frame = { revision: 'display' };
+    const frame = { revision: 'display', bitmap: sampleBitmap };
     const refreshed = Promise.withResolvers();
     const relocatedArrow = Promise.withResolvers();
     const arrows = [];
@@ -1313,7 +1399,7 @@ test(
     });
     t.after(() => session.close());
     session.detect = async (_frame, crop) =>
-      moved && crop?.x === original.x
+      moved && crop && !chessRectInside(relocated, crop)
         ? []
         : [
             {
@@ -1373,7 +1459,7 @@ test(
         async afterOverlay() {},
         async frame() {
           if (++frames === 3) board.move('Qxd5');
-          return { revision: 'monitor' };
+          return { revision: 'monitor', bitmap: sampleBitmap };
         },
         center: () => ({ x: 236, y: 246 }),
         inView: () => true,

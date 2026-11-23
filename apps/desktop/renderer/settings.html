@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob: data:; connect-src capri://desktop/index.html capri://desktop/hall-of-fame.json capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob: data:; connect-src capri://desktop/index.html capri://desktop/capri-wave.webp capri://desktop/hall-of-fame.json capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
     />
     <title>Capri Settings</title>
     <link rel="icon" type="image/svg+xml" href="/brand/capricore.svg" />
@@ -16,6 +16,8 @@
     <link rel="stylesheet" href="chess-arrow-configurator.css" />
     <link rel="stylesheet" href="developer-panel.css" />
     <link rel="stylesheet" href="credits.css" />
+    <link rel="stylesheet" href="avatar-gallery.css" />
+    <link rel="stylesheet" href="avatar-headpat.css" />
     <script type="module" src="settings-loading.mjs"></script>
     <script type="module" src="settings-app.mjs"></script>
   </head>
@@ -112,6 +114,74 @@
         </div>
         <button id="settings-open" class="sr-only">Settings</button>
         <div id="settings-forms">
+          <section
+            id="avatar-gallery-panel"
+            class="preferences-panel"
+            aria-labelledby="avatar-gallery-title"
+            hidden
+          >
+            <h2 id="avatar-gallery-title">Avatar gallery</h2>
+            <div class="preferences-content avatar-gallery">
+              <div id="avatar-gallery-preview">
+                <div class="avatar-gallery-stage">
+                  <div class="avatar-gallery-art">
+                    <img class="avatar-gallery-poster" alt="" draggable="false" hidden />
+                    <canvas class="avatar-gallery-canvas" aria-hidden="true" hidden></canvas>
+                  </div>
+                </div>
+                <div class="avatar-gallery-caption">
+                  <h3 id="avatar-gallery-selection" data-untranslated></h3>
+                  <button id="avatar-gallery-zoom-out" type="button" aria-label="Zoom out" title="Zoom out">
+                    &minus;
+                  </button>
+                  <button id="avatar-gallery-zoom-in" type="button" aria-label="Zoom in" title="Zoom in">
+                    +
+                  </button>
+                  <button
+                    id="avatar-gallery-reset"
+                    type="button"
+                    aria-label="Reset position and zoom"
+                    title="Reset position and zoom"
+                  >
+                    &#8634;
+                  </button>
+                </div>
+                <div class="avatar-gallery-playback">
+                  <button id="avatar-gallery-play" type="button" data-untranslated hidden>
+                    Play animation
+                  </button>
+                  <button
+                    id="avatar-gallery-loop"
+                    type="button"
+                    aria-pressed="false"
+                    data-untranslated
+                    hidden
+                  >
+                    Loop animation
+                  </button>
+                </div>
+                <p id="avatar-gallery-status" class="settings-help" role="status" hidden></p>
+              </div>
+              <div id="avatar-gallery-library">
+                <div
+                  class="avatar-gallery-categories"
+                  role="group"
+                  aria-labelledby="avatar-gallery-title"
+                >
+                  <button type="button" data-gallery-category="poses" aria-pressed="true">
+                    Poses
+                  </button>
+                  <button type="button" data-gallery-category="expressions" aria-pressed="false">
+                    Expressions
+                  </button>
+                  <button type="button" data-gallery-category="animations" aria-pressed="false">
+                    Animations
+                  </button>
+                </div>
+                <div id="avatar-gallery-items" class="avatar-gallery-items"></div>
+              </div>
+            </div>
+          </section>
           <section
             id="call-audio-panel"
             class="preferences-panel"

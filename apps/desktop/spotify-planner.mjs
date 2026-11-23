@@ -103,7 +103,10 @@ export function spotifyPlanner({
         packet.message?.tool_calls?.length
       )
         throw new Error();
-      const plan = JSON.parse(packet.message?.content);
+      const content = packet.message?.content;
+      // Some external providers return a fenced JSON object even in JSON mode.
+      const fenced = /^\s*```(?:json)?[ \t]*\r?\n(\{[\s\S]*\})\s*```\s*$/iu.exec(content);
+      const plan = JSON.parse(fenced?.[1] ?? content);
       if (!matchesPlannerSchema(plan, schema)) throw new Error();
       return plan.action === 'none' ? null : youtubeMusic ? plan : validateCommand(plan);
     } catch {

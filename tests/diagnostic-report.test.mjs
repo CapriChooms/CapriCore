@@ -37,28 +37,6 @@ test('screen startup diagnostics preserve only the known stage and error class',
     '[PRIVATE TEXT OMITTED]',
   );
 });
-test('Settings diagnostics distinguish an unexpected hide from a renderer crash', () => {
-  assert.deepEqual(
-    redactor().value(
-      diagnosticState({
-        hidden: { message: 'Settings native window hidden unexpectedly' },
-        crashed: { message: 'Settings renderer stopped: crashed (exit code -1073741819)' },
-        private: { message: 'Settings renderer stopped: arbitrary private text (exit code 1)' },
-      }),
-    ),
-    {
-      hidden: { message: { event: 'settings-window-hidden' } },
-      crashed: {
-        message: {
-          event: 'settings-renderer-stopped',
-          rendererReason: 'crashed',
-          exitCode: -1073741819,
-        },
-      },
-      private: { message: { schemaVersion: 1, event: 'activity' } },
-    },
-  );
-});
 mkdirSync(parent, { recursive: true });
 const fixture = () => mkdtempSync(path.join(parent, 'case-'));
 const put = (base, name, data) => {
@@ -358,41 +336,6 @@ test('high system RAM and partial model offload are separate diagnostic evidence
   assert.match(files.get('REPORT.md'), /does not attribute all memory use to Capri/);
 });
 
-test('reports keep time and exit codes for related GPU and portrait events without raw renderer text', async () => {
-  const gpuExit = { timeMs: 1795225219000, gpuExitReason: 'crashed', exitCode: -1073741819 };
-  const portrait = {
-    event: 'texture-upload-failed',
-    timeMs: gpuExit.timeMs + 4,
-    width: 480,
-    height: 660,
-    glError: 1285,
-  };
-  const report = await createDiagnosticReport({
-    root: fixture(),
-    input: { category: 'interface', includeLogs: false },
-    snapshot: {
-      windowGraphics: { gpuProcessFailures: 1, gpuProcessEvents: [gpuExit] },
-      rendererDiagnostics: [
-        {
-          level: 2,
-          message:
-            'Capri portrait graphics: ' +
-            JSON.stringify({ ...portrait, url: 'private-renderer-canary' }),
-        },
-      ],
-    },
-    hardware: async () => ({}),
-    pythonProbe: async () => ({}),
-    installerDirectory: null,
-  });
-  const files = unpack(report.bytes);
-  const session = JSON.parse(files.get('session.json'));
-  assert.deepEqual(session.windowGraphics.gpuProcessEvents, [gpuExit]);
-  assert.deepEqual(session.rendererDiagnostics[0].message, portrait);
-  assert.ok(!files.get('session.json').includes('private-renderer-canary'));
-  assert.match(files.get('REPORT.md'), /Unexpected Electron GPU process exits: 1/);
-});
-
 test('reports redact credentials, structured dialogue and personal paths without corrupting JSON', () => {
   const clean = redactor({
     root: 'C:\\Users\\Alice\\Capri',
@@ -428,30 +371,6 @@ test('reports redact credentials, structured dialogue and personal paths without
   assert.equal(json.event, 'failure');
   assert.equal(json.prompt, undefined);
   assert.equal(json.details, undefined);
-});
-
-test('a crash ZIP includes the exit and recent technical logs without private prose', async () => {
-  const base = fixture();
-  const crash = {
-    crashSurface: 'desktop',
-    crashReason: 'process-exit',
-    timeMs: 1795225219000,
-    exitCode: -1073741819,
-  };
-  put(base, 'logs/desktop.stderr.log', 'CAPRI_DESKTOP_INIT private-crash-canary\n');
-  const report = await createDiagnosticReport({
-    root: base,
-    input: { category: 'startup', includeLogs: true },
-    snapshot: { desktopCrash: crash },
-    installerDirectory: null,
-    hardware: async () => ({}),
-    pythonProbe: async () => ({}),
-  });
-  const files = unpack(report.bytes);
-  assert.deepEqual(JSON.parse(files.get('session.json')).desktopCrash, crash);
-  assert.match(files.get('REPORT.md'), /Capri closed unexpectedly/);
-  assert.ok([...files.keys()].some((name) => name.endsWith('desktop.stderr.log')));
-  assert.ok([...files.values()].every((body) => !body.includes('private-crash-canary')));
 });
 
 test('exported computer-task traces preserve safe stop reasons across both privacy passes', async () => {

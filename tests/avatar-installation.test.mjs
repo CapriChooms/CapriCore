@@ -79,16 +79,39 @@ test('installed Capri serves the active portrait and reviewed pose PNGs', async 
     readFileSync(spriteFile),
     readFileSync(path.join(root, 'assets/default/avatar.png')),
   );
-  const headpat = resourceResponse(
-    { url: 'capri://desktop/headpat-face.png', method: 'GET' },
-    resources,
-  );
-  assert.equal(headpat.status, 200);
-  assert.equal(headpat.headers.get('content-type'), 'image/png');
-  assert.deepEqual(
-    Buffer.from(await headpat.arrayBuffer()),
-    readFileSync(path.join(root, 'assets/default/capri-headpat.png')),
-  );
+  for (const group of ['poses', 'gestures']) {
+    const request = (extension) =>
+      resourceResponse(
+        { url: `capri://desktop/avatar-face-${group}.${extension}`, method: 'GET' },
+        resources,
+      );
+    const bitmap = await request('png');
+    assert.equal(bitmap.status, 200);
+    assert.equal(bitmap.headers.get('content-type'), 'image/png');
+    const png = Buffer.from(await bitmap.arrayBuffer());
+    const size = [png.readUInt32BE(16), png.readUInt32BE(20)];
+    const registrations = await (await request('json')).json();
+    const expected =
+      group === 'poses'
+        ? catalog.desktopPoseFrames
+            .map(({ id }) => id)
+            .filter((id) => !['pose-sleep', 'music-window', 'music-floor'].includes(id))
+        : [
+            ...hangingCelAssetNames.flatMap((name) =>
+              Array.from({ length: 6 }, (_, index) => `${name}:${index}`),
+            ),
+            ...Array.from({ length: 80 }, (_, index) => `wave:${index}`),
+            ...['02-gaze', '03-arrival', '04-landing', '05-greeting', '06-wink', '07-ready'].map(
+              (id) => 'intro:' + id,
+            ),
+          ];
+    assert.deepEqual(new Set(Object.keys(registrations)), new Set(expected));
+    for (const [u, v, x, y, width, height] of Object.values(registrations)) {
+      assert(u >= 0 && v >= 0 && width > 0 && height > 0);
+      assert(u + width <= size[0] && v + height <= size[1]);
+      assert(x >= 0 && y >= 0 && x + width <= 1254 && y + height <= 1254);
+    }
+  }
   const wave = await resourceResponse(
     { url: 'capri://desktop/capri-wave.webp', method: 'GET' },
     resources,

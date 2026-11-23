@@ -2,6 +2,21 @@
   "schemaVersion": 1,
   "default": "legacy",
   "blackwellMinimumComputeMajor": 10,
+  "amdWindows": {
+    "minimumBuild": 22000,
+    "models": [
+      "RX 9070",
+      "RX 9070 XT",
+      "RX 9070 GRE",
+      "RX 9060 XT",
+      "RX 7900 XTX",
+      "RX 7700",
+      "AI PRO R9700",
+      "PRO R9700",
+      "PRO W7900",
+      "PRO W7900 Dual Slot"
+    ]
+  },
   "profiles": {
     "legacy": {
       "torch": "2.6.0+cu124",

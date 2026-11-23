@@ -116,9 +116,16 @@ test('private settings and personality validate input and restore default behavi
     { wakeSound: 'https://external' },
     { wakeVolume: Infinity },
     { followUp: 'yes' },
+    { followUpAfterAnyReply: 'yes' },
     { unknown: true },
   ])
     assert.throws(() => validateCompanionSettings(value));
+  assert.equal(validateCompanionSettings({ followUp: true }).followUpAfterAnyReply, true);
+  assert.equal(validateCompanionSettings({ followUp: false }).followUp, false);
+  assert.equal(
+    validateCompanionSettings({ followUpAfterAnyReply: false }).followUpAfterAnyReply,
+    false,
+  );
   const workspace = fixture();
   assert.equal(readPersonality(workspace), defaultPersonality());
   savePersonality(workspace, 'A playful fictional companion.');

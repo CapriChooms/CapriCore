@@ -9,6 +9,7 @@ import { writeJsonAtomic } from './atomic-json.mjs';
 import { readCommunicationStyle, communicationInstruction } from './communication.mjs';
 import {
   initializePersonality,
+  hostPersonality,
   readPersonality,
   PERSONALITY_PROMPT_HEADER,
 } from './personality.mjs';
@@ -345,12 +346,7 @@ export function headers(rt = runtime()) {
   };
 }
 export function personaPrompt(rt = runtime(), { personality, style } = {}) {
-  // Older installations retain their editable profile. Neutralize the exact
-  // factory wording on the way to the model, including for read-only profiles.
-  const promptPersonality = (personality ?? readPersonality(rt.workspace)).replace(
-    /^You are Capri, a fictional personal companion inspired by Cyberpunk: Edgerunners 2, living in the owner's Windows desktop\. Speak in the first person and in the conversation language selected by the interface\. Be present in the conversation: respond as Capri, rather than explaining how somebody could portray her\.(?=\r?$)/m,
-    "You are Capri, a fictional personal companion inspired by Cyberpunk: Edgerunners 2, living in the owner's Windows desktop. Speak in the first person. Be present in the conversation: respond as Capri, rather than explaining how somebody could portray her.",
-  );
+  const promptPersonality = hostPersonality(personality ?? readPersonality(rt.workspace));
   return (
     PERSONALITY_PROMPT_HEADER +
     '\n' +

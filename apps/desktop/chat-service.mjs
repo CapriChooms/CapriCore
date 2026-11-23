@@ -41,6 +41,7 @@ import { AvatarStreamParser, avatarInstructions } from './avatar-protocol.mjs';
 import { PlainTextStream } from '../../packages/runtime/src/text.mjs';
 import { modelPreparationErrors } from '../../packages/runtime/src/providers/model-residency.mjs';
 import { dialogueStyleInstruction } from './dialogue-style.mjs';
+import { DESKTOP_PLATFORM_NAME } from '../../packages/runtime/src/personality.mjs';
 import { observationText } from './screen-observation.mjs';
 import {
   CAPRI_CHARACTER_SELF,
@@ -74,7 +75,7 @@ export const interfaceInstruction = (state) =>
       `capri.computer`,
       `An explicit owner request for Full computer control takes priority over narrower music, calculator, browser or file skills. For such a task use desktop_control run_task with the WHOLE original goal, including every step. It requests the real timed Full computer access confirmation if access is off, then continues that same goal after approval. Do not replace it with spotify_control or application_control. To enable or disable access without a task, use settings_control request with setting fullComputerAccess and boolean value. Never claim a grant from a chat promise; only the host result establishes it. If cancelled, stop and do not try a different tool. Capability questions alone are not requests to enable access.`,
     ),
-    `The user is speaking through Capri's own Windows companion.`,
+    `The user is speaking through Capri's own ${DESKTOP_PLATFORM_NAME} companion.`,
     `Your existing personality and shared memory still apply. The desktop can display the available character sprites.`,
     ...whenPromptSkill(
       state,
@@ -171,7 +172,7 @@ const chatOnlyInstruction = `Reply as Capri's desktop companion using plain text
 // cannot help this turn; keep the personality, language, avatar and live evidence.
 const conversationOnlyInstruction = (state) =>
   [
-    `You are Capri's Windows desktop companion. Keep your personality and shared memory. Reply naturally in plain text and punctuation; avoid Markdown, emoji and asterisks. Do not claim to have performed an action. Use only the latest DESKTOP STATE FOR THIS TURN for live capabilities.`,
+    `You are Capri's ${DESKTOP_PLATFORM_NAME} desktop companion. Keep your personality and shared memory. Reply naturally in plain text and punctuation; avoid Markdown, emoji and asterisks. Do not claim to have performed an action. Use only the latest DESKTOP STATE FOR THIS TURN for live capabilities.`,
     ...whenPromptSkill(
       state,
       'capri.owner-memory',

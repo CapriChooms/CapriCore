@@ -29,4 +29,4 @@ This opens the packaged app in a temporary home, sends a message through its int
 Two optional checks use pinned Qwen 0.8B and BGE-M3 layers already present in the checkout's `data/models`. Each starts with a fresh test profile and removes its temporary model copies after shutdown.
 
 - `--local` asks “How are you?” through Capri's direct local conversation route and expects a completed reply from Qwen.
-- `--agent` sends an arithmetic question through the OpenClaw gateway and checks the answer. It returned “Seven plus five is twelve.” on an 8 GB M1 with the experimental 16K context. An earlier run at 32K timed out before producing text.
+- `--agent` sends an arithmetic question through OpenClaw with the full agent prompt and checks both the answer and the provider trace. It uses a 16K context and sets the test profile's temperature to zero. On an 8 GB M1, Qwen 0.8B answered “Seven plus five is 12.” With default sampling, the same model sometimes tried a disabled calculator skill until the gateway stopped the turn. A 32K run on this Mac timed out.

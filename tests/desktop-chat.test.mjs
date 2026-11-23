@@ -1806,6 +1806,10 @@ test('standalone greetings bypass stale agent context and complete despite a pre
   await send('Как дела?');
   assert.equal(calls.length, 3);
   for (const body of calls) {
+    const platform = process.platform === 'darwin' ? 'macOS' : 'Windows';
+    assert.ok(
+      body.messages[0].content.includes(`the character in this ${platform} desktop companion`),
+    );
     assert.equal(body.messages.length, 2);
     assert.match(body.messages[0].content, /Test persona/);
     assert.match(body.messages[0].content, /русском языке/);

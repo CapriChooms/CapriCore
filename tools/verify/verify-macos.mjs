@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import {
   constants,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -84,13 +85,20 @@ const inference = createServer();
 const ollamaPort = await listen(inference);
 await new Promise((resolve) => inference.close(resolve));
 if (real) await new Promise((resolve) => gateway.close(resolve));
+const settingsFile = path.join(support, 'config/core.local.json');
+const freshSettings = existsSync(settingsFile)
+  ? JSON.parse(readFileSync(settingsFile, 'utf8'))
+  : {};
 writeFileSync(
-  path.join(support, 'config/core.local.json'),
+  settingsFile,
   JSON.stringify({
+    ...freshSettings,
     gatewayPort: port,
     ollamaPort,
     ...(real ? { model: 'capri-qwen3.5:0.8b', upstreamModel: 'qwen3.5:0.8b' } : {}),
-    ...(mode === '--agent' ? { contextTokens: 16384, experimentalContext: true } : {}),
+    ...(mode === '--agent'
+      ? { contextTokens: 16384, experimentalContext: true, generation: { temperature: 0 } }
+      : {}),
   }),
 );
 let launched;

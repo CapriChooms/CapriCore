@@ -1142,6 +1142,11 @@ export class InferenceApi {
     const request = isLemonadeNpuEndpoint(endpoint, config.model)
       ? lemonadeNpuRequest(prepared, config.vision)
       : prepared;
+    // Honor the owner's streaming preference from API settings.
+    // When disabled, force stream: false regardless of what the client requests.
+    if (config.enableStreaming === false) {
+      request.stream = false;
+    }
     if (config.authMode === 'chatgpt') {
       if (!this.chatgpt) throw new Error('ChatGPT connection is unavailable.');
       const response = await chatGPTCompletion(

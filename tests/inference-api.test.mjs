@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdtempSync,
@@ -19,6 +20,7 @@ import {
   openRouterFreeReplyTimeoutMs,
   readApiSettings,
 } from '../apps/desktop/inference-api.mjs';
+import { CHATGPT_RESOURCE } from '../apps/desktop/chatgpt-plan-auth.mjs';
 import { spotifyPlanner } from '../apps/desktop/spotify-planner.mjs';
 import { createGatewayConfiguration } from '../packages/runtime/src/context.mjs';
 import { settings } from '../packages/runtime/src/config/settings.mjs';
@@ -37,11 +39,14 @@ const config = {
   vision: true,
   contextTokens: 32768,
 };
-async function fixture(t, fetchImpl, provider = config) {
+async function fixture(t, fetchImpl, provider = config, chatgpt) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'capri-api-'));
-  const options = { root, storage, fetchImpl };
+  const options = { root, storage, fetchImpl, chatgpt };
   const profiles = new InferenceApi(options);
-  const id = await profiles.saveProfile({ settings: provider, key });
+  const id = await profiles.saveProfile({
+    settings: provider,
+    ...(provider.authMode === 'chatgpt' ? {} : { key }),
+  });
   await profiles.selectProfile(id);
   const api = new InferenceApi(options);
   await api.start(0);
@@ -608,6 +613,114 @@ test('owner reasoning markers are one-turn controls with a bounded answer budget
   await (await send({ reasoning_effort: 'medium', max_completion_tokens: 6144 })).text();
   assert.equal(requests[5].max_tokens, 6144, 'Preserve a context-aware SDK limit.');
   assert.equal(requests[5].max_completion_tokens, undefined);
+});
+
+test('enableStreaming=false forces stream:false in upstream request for all providers', async (t) => {
+  const requests = [];
+  const { api } = await fixture(
+    t,
+    async (_, options) => {
+      requests.push(options.body ? JSON.parse(options.body) : {});
+      return Response.json({ choices: [{ message: { content: 'ok' } }] });
+    },
+    {
+      ...config,
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'vendor/model',
+      enableStreaming: false,
+    },
+  );
+  // Client asks for streaming, but owner disabled it -> upstream must get stream:false.
+  await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }], stream: true }),
+  });
+  assert.equal(requests[0].stream, false);
+
+  // Client does not ask for streaming -> upstream still gets stream:false.
+  requests.length = 0;
+  await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }] }),
+  });
+  assert.equal(requests[0].stream, false);
+});
+
+test('enableStreaming=true preserves client stream preference', async (t) => {
+  const requests = [];
+  const { api } = await fixture(
+    t,
+    async (_, options) => {
+      requests.push(options.body ? JSON.parse(options.body) : {});
+      return Response.json({ choices: [{ message: { content: 'ok' } }] });
+    },
+    {
+      ...config,
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'vendor/model',
+      enableStreaming: true,
+    },
+  );
+  await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }], stream: true }),
+  });
+  assert.equal(requests[0].stream, true);
+
+  requests.length = 0;
+  await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }], stream: false }),
+  });
+  assert.equal(requests[0].stream, false);
+
+  requests.length = 0;
+  await api.localFetch(api.url + '/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }] }),
+  });
+  assert.equal(requests[0].stream, undefined);
+});
+
+test('enableStreaming=false forces stream:false in ChatGPT upstream request', async (t) => {
+  const requests = [];
+  const chatgpt = {
+    accessToken: async () => 'test-token',
+    controllers: new Map(),
+    status: async () => ({ profiles: [] }),
+    fetchImpl: async (_url, options) => {
+      requests.push(options.body ? JSON.parse(options.body) : {});
+      return new Response(
+        'data: ' + JSON.stringify({ type: 'response.completed', response: { status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: 'ok' }] }] } }) + '\n\n',
+        { headers: { 'content-type': 'text/event-stream' } },
+      );
+    },
+  };
+  const { api } = await fixture(
+    t,
+    async () => Response.json({ choices: [{ message: { content: 'ok' } }] }),
+    {
+      ...config,
+      baseUrl: CHATGPT_RESOURCE,
+      model: 'gpt-4',
+      authMode: 'chatgpt',
+      accountId: '123e4567-e89b-12d3-a456-426614174000',
+      enableStreaming: false,
+    },
+    chatgpt,
+  );
+  api.fetchImpl = async (_url, options) => {
+    requests.push(options.body ? JSON.parse(options.body) : {});
+    return Response.json({ choices: [{ message: { content: 'ok' } }] });
+  };
+  // Client asks for streaming, but owner disabled it -> upstream must get stream:false.
+  await api.upstream(
+    { messages: [{ role: 'user', content: 'Hi' }], stream: true },
+    AbortSignal.timeout(1000),
+    { ...api.config, enableStreaming: false },
+    'test-token',
+  );
+  assert.equal(requests[0].stream, false);
 });
 
 test('saved API streams normalize multi-line events before removing reasoning and echoed credentials', async (t) => {

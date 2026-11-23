@@ -178,6 +178,20 @@ try {
     (await reply.textContent()).slice(0, 160),
   );
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  for (const action of ['hide', 'focus-mode']) {
+    await page.evaluate((action) => window.capri.windowAction(action, true), action);
+    const visibility = await launched.evaluate(({ app, BrowserWindow }) => {
+      const companion = BrowserWindow.getAllWindows().find((window) =>
+        window.webContents.getURL().endsWith('/index.html'),
+      );
+      const before = companion.isVisible();
+      // Another Capri surface can be visible while the companion itself is hidden.
+      app.emit('activate', {}, true);
+      return { before, after: companion.isVisible() };
+    });
+    assert.deepEqual(visibility, { before: false, after: true }, action);
+  }
+  console.log('PASS macOS activation restores the hidden companion and exits Focus mode');
   await page.screenshot({ path: path.join(home, 'companion.png'), omitBackground: true });
   const settings = await settingsView(launched, 'updates');
   await settings

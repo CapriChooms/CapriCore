@@ -9851,6 +9851,13 @@ async function initializeDesktop() {
 
   if (hasSingleInstanceLock) {
     app.on('second-instance', () => restoreCompanion());
+    if (process.platform === 'darwin') {
+      app.on('activate', () => {
+        if (!window || window.isDestroyed() || quitting || shuttingDown || sessionLocked) return;
+        if (focusMode || avatarOnly || !window.isVisible() || window.isMinimized())
+          restoreCompanion();
+      });
+    }
     app.on('before-quit', (event) => {
       if (quitting) return;
       void callCamera.stop();

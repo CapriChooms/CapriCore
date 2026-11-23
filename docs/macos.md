@@ -14,7 +14,7 @@ On the first local launch, Capri lists the missing models and asks before downlo
 
 ## What to try
 
-Open the companion, send a message, expand the chat history, then open Settings. Local chat uses llama.cpp with Metal on a supported Apple GPU. The app also includes the existing avatar, themes and releases panel. A Windows release in that panel links to its notes.
+Open the companion, send a message, expand the chat history, then open Settings. Click Capri in the Dock to restore the companion after hiding it or entering Focus mode. Local chat uses llama.cpp with Metal on a supported Apple GPU. The app also includes the existing avatar, themes and releases panel. A Windows release in that panel links to its notes.
 
 Native speech packs and wake-word setup, multi-display capture, desktop input, Spotify desktop control, system-audio capture and the virtual call devices still depend on Windows helpers. Intel Macs and distribution through Gatekeeper with a Developer ID signature need separate qualification.
 
@@ -24,7 +24,7 @@ Native speech packs and wake-word setup, multi-display capture, desktop input, S
 npm run verify:macos -- "/path/to/Capri.app"
 ```
 
-This opens the packaged app in a temporary home, sends a message through its interface to a loopback fixture, opens Settings and verifies the bundle signature after shutdown.
+This opens the packaged app in a temporary home, sends a message through its interface to a loopback fixture, verifies window recovery on macOS activation, opens Settings and verifies the bundle signature after shutdown.
 
 Two optional checks use pinned Qwen 0.8B and BGE-M3 layers already present in the checkout's `data/models`. Each starts with a fresh test profile and removes its temporary model copies after shutdown.
 

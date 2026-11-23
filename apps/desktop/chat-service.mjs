@@ -1,5 +1,5 @@
 import { conversationInstruction } from './language-context.mjs';
-import { sseData } from './sse.mjs';
+export { sseData } from './sse.mjs';
 import { gatewayFailure } from './errors.mjs';
 import { freemem } from 'node:os';
 import { coordinateTurn, TURN_HANDLED } from '../../packages/core/src/turn-coordinator.mjs';
@@ -1671,6 +1671,31 @@ export class ChatService {
           }
           const choice = packet.choices?.[0];
           if (directDialogue && choice?.finish_reason === 'stop') complete = true;
+          if (packet.error) {
+            if (this.npuDialogue) throw npuFailure();
+            const detail = String(packet.error.message ?? '').slice(0, 2000);
+            if (
+              /OpenClaw stopped this (?:run|turn)|\b\d{1,2} consecutive identical tool failures\b/i.test(
+                detail,
+              )
+            )
+              throw toolLoopError();
+            if (this.externalInference) {
+              const status = Number(/^API provider returned HTTP (\d{3})\b/iu.exec(detail)?.[1]);
+              if (providerRejectionMessage(status)) throw providerRejection(status);
+              if (
+                packet.error.status === 413 ||
+                /^(?:HTTP 413\b|413 (?:Request \(?:Entity \)?Too Large|Payload Too Large)\b)/iu.test(
+                  detail,
+                )
+              )
+                throw providerRejection(413);
+            }
+            const error = gatewayFailure('CAPRI_GATEWAY_REPORTED_ERROR', 'Gateway reported an error');
+            if (/compaction|context overflow|prompt too large/i.test(detail))
+              error.code = 'CONTEXT_COMPACTION_FAILED';
+            throw error;
+          }
           const delta = choice?.delta?.content;
           if (typeof delta !== 'string' || !delta) continue;
           if (!firstGatewayToken) {

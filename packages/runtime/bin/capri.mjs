@@ -84,9 +84,15 @@ try {
       );
     const { profile } = saveModelProfile({ root, rt: runtime(), id: selected, hardware });
 
-    console.log(
-      `Saved ${profile.id} locally. Next: npm run models:pull, then npm run desktop. No models were downloaded by setup.`,
-    );
+    if (selected === 'api') {
+      console.log(
+        'API mode selected. No local models will be downloaded. Please configure an API provider in Settings → API connections.',
+      );
+    } else {
+      console.log(
+        `Saved ${profile.id} locally. Next: npm run models:pull, then npm run desktop. No models were downloaded by setup.`,
+      );
+    }
   } else if (command === 'desktop') {
     const marker = await startDesktop({ wait: args.includes('--wait') });
     console.log(

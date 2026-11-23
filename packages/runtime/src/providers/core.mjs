@@ -54,14 +54,19 @@ export async function startCore(
   }
   if (!rt.remote?.enabled && !rt.nativeNpu)
     await ensureNativeLanguageModel(rt, settings, { signal });
-  const inventory = await ensureEmbeddingModel(rt, {
-    model: settings.embeddingModel,
-    inventory: await request(`${rt.ollamaUrl}/api/tags`, { signal }),
-    signal,
-  });
+  let inventory;
+  if (rt.remote?.enabled && settings.useLocalMemory === false) {
+    inventory = await request(`${rt.ollamaUrl}/api/tags`, { signal });
+  } else {
+    inventory = await ensureEmbeddingModel(rt, {
+      model: settings.embeddingModel,
+      inventory: await request(`${rt.ollamaUrl}/api/tags`, { signal }),
+      signal,
+    });
+  }
   for (const name of [
     ...(rt.remote?.enabled || rt.nativeNpu ? [] : [settings.model]),
-    settings.embeddingModel,
+    ...(rt.remote?.enabled && settings.useLocalMemory === false ? [] : [settings.embeddingModel]),
   ]) {
     if (!inventory.models.some((model) => model.name === name))
       throw Object.assign(new Error(`Model ${name} is missing. Run scripts/pull-models.mjs.`), {

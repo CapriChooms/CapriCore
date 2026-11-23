@@ -80,6 +80,7 @@ export function validateCoreSettings(value) {
     throw new Error('Invalid llama.cpp version');
   if (
     result.cpuThreads !== undefined &&
+    !(result.skipLocalModels === true && result.cpuThreads === 0) &&
     (!Number.isInteger(result.cpuThreads) || result.cpuThreads < 1 || result.cpuThreads > 16)
   )
     throw new Error('Invalid CPU thread budget');

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomUUID } from 'node:crypto';
-import { sseData } from './chat-service.mjs';
+import { sseData } from './sse.mjs';
 import { CHATGPT_RESOURCE, ChatGPTPlanError } from './chatgpt-plan-auth.mjs';
 import { chatGPTFastEffort } from './chatgpt-plan-models.mjs';
 
@@ -76,7 +76,7 @@ export function chatGPTResponsesRequest(payload) {
     model: payload.model,
     input,
     store: false,
-    stream: true,
+    stream: payload.stream ?? true,
     max_output_tokens: Math.max(
       effort === 'none' ? 64 : 1024,
       Math.min(16384, payload.max_completion_tokens ?? payload.max_tokens ?? 2048),
@@ -279,7 +279,7 @@ export async function chatGPTCompletion(auth, payload, signal, accessToken) {
       headers: {
         authorization: 'Bearer ' + accessToken,
         'content-type': 'application/json',
-        accept: 'text/event-stream',
+        accept: payload.stream === false ? 'application/json' : 'text/event-stream',
       },
       body: JSON.stringify(request),
     });

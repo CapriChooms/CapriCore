@@ -100,6 +100,12 @@
       "model": "gemma4:e2b",
       "recommendedVramGiB": 12,
       "experimental": true
+    },
+    {
+      "id": "api",
+      "ramGiB": 0,
+      "model": "api",
+      "recommendedVramGiB": 0
     }
   ]
 }

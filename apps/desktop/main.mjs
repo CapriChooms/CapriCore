@@ -8008,7 +8008,12 @@ async function initializeDesktop() {
       if (role !== 'settings') throw new Error('Open Updates in Settings.');
       return shell.openExternal(updates.historyUrl(id));
     });
-    handle('capri:update-download', () => updates.prepare());
+    handle('capri:update-download', async () => {
+      if (updates.mode !== 'archive') return updates.prepare();
+      const url = updates.archiveReleaseUrl();
+      if (!verification) await shell.openExternal(url);
+      return updates.snapshot();
+    });
     handle('capri:update-cancel', () => updates.cancel());
     handle('capri:update-install', async () => {
       assertIdle({ requireBackend: false });

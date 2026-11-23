@@ -13,4 +13,6 @@ The launcher accepts the Node executable from PATH or the absolute path in `CAPR
 
 On Ubuntu 24.04, Chromium's sandbox may require an [AppArmor profile](https://discourse.ubuntu.com/t/ubuntu-24-04-lts-noble-numbat-release-notes/39890) with `userns` for the exact path to this installation's Electron binary. Keep the Chromium sandbox enabled.
 
-Linux preview updates use a new archive. The Windows installer, Windows native desktop actions and Windows speech setup tools are outside the supported scope of this preview.
+Capri checks for Linux x86-64 releases on startup and every 30 minutes. In **Settings → Updates**, choose **Open on GitHub** to download the new archive and follow its installation instructions. Linux previews use the public repository and need no GitHub account. To get future notifications, install this preview from the GitHub release once if you are using an earlier test archive.
+
+Release assets use `Capri-<version>-linux-x86_64.tar.gz`. Each release has its own version tag. Keep the package name and include a SHA-256 digest so Capri can recognize the Linux asset. The Windows installer, Windows native desktop actions and Windows speech setup tools are outside the supported scope of this preview.

@@ -45,7 +45,12 @@ export function compareVersions(a, b) {
 }
 export function releaseAsset(release, kind = 'source') {
   const { version } = parseVersion(release.tag_name);
-  const name = kind === 'source' ? `Capri-${version}-source.zip` : `CapriSetup-${version}.exe`;
+  const name = {
+    source: `Capri-${version}-source.zip`,
+    installer: `CapriSetup-${version}.exe`,
+    'linux-x64': `Capri-${version}-linux-x86_64.tar.gz`,
+  }[kind];
+  if (typeof name !== 'string') return null;
   const asset = release.assets?.find((item) => item.name === name && item.state === 'uploaded');
   if (
     !asset ||

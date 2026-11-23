@@ -1,3 +1,4 @@
+process.env.LD_LIBRARY_PATH = [".runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/nccl/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cudnn/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cusolver/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cufft/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/nvjitlink/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cusparse/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cublas/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cuda_nvrtc/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/curand/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/nvtx/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cuda_cupti/lib:.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia/cusparselt/lib", process.env.LD_LIBRARY_PATH].filter(Boolean).join(":");
 import {
   InferenceApi,
   apiSettings,
@@ -3347,8 +3348,7 @@ async function initializeDesktop() {
     // Settings closes with its owner; release that seat before hiding either surface.
     if (perch?.localTracking) await finishPerch(perch, true);
     if (!avatarDetach.available || shuttingDown || quitting || sessionLocked) return false;
-    avatarOnly = true;
-    window.hide();
+    avatarOnly = false;
     return true;
   }
 
@@ -7927,7 +7927,7 @@ async function initializeDesktop() {
     activeMask = maskFor(avatar.currentId);
     pointer.start();
 
-    tray = new Tray(path.join(root, 'assets/default/app.ico'));
+    tray = new Tray(path.join(root, 'assets/capri/intro-v1/PNG/07-ready.png'));
     tray.setToolTip(uiText('Capri desktop companion', languages.value.interface));
     tray.on('click', () => restoreCompanion());
     tray.on('right-click', () => {

@@ -36,6 +36,21 @@ export const MODEL_CHOICES = Object.freeze([
     description:
       'Alternative multimodal model. Download size and memory use exceed its active parameter count.',
   },
+  {
+    id: 'api',
+    family: 'API',
+    model: 'api',
+    alias: 'api',
+    ramGiB: 0,
+    recommendedVramGiB: 0,
+    contextTokens: 32768,
+    contextLimit: 131072,
+    cpuThreads: 0,
+    voice: 'off',
+    capabilities: [],
+    experimental: false,
+    description: 'No local models. Use an external OpenAI-compatible API provider instead.',
+  },
 ]);
 
 export function selectModelChoice(id, hardware) {

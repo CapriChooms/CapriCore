@@ -228,6 +228,65 @@ test('switching from API uses an isolated local runtime and rolls back a failed 
   assert.equal(rt.remote.enabled, true);
 });
 
+test('fresh API setup creates core.local.json with skipLocalModels and no local model warmup', () => {
+  const base = mkdtempSync(path.join(tmpdir(), 'capri-fresh-api-setup-'));
+  const rt = runtime({
+    stateDir: path.join(base, 'data/openclaw'),
+    workspace: path.join(base, 'data/workspace'),
+  });
+  writeJsonAtomic(path.join(base, 'config/core.json'), config);
+  const gateway = createGatewayConfiguration(rt, config);
+  writeJsonAtomic(rt.configPath, gateway);
+  mkdirSync(rt.workspace, { recursive: true });
+  const change = saveModelProfile({ root: base, rt, id: 'api', hardware });
+  const saved = loadCoreSettings(path.join(base, 'config'));
+  assert.equal(saved.model, 'api');
+  assert.equal(saved.skipLocalModels, true);
+  assert.equal(saved.resourceProfile, 'api');
+  assert.equal(saved.thinkingDefault, 'off');
+  assert.equal(saved.modelCapabilities.length, 0);
+  assert.deepEqual(saved.modelContextLimit, 131072);
+  const gatewaySaved = JSON.parse(readFileSync(rt.configPath, 'utf8'));
+  assert.equal(gatewaySaved.agents.defaults.model.primary, 'ollama/api');
+  assert.equal(gatewaySaved.agents.defaults.utilityModel, '');
+  assert.equal(gatewaySaved.agents.defaults.thinkingDefault, 'off');
+  change.restore();
+});
+
+test('repeat API setup preserves existing local settings and does not drop active selection', () => {
+  const base = mkdtempSync(path.join(tmpdir(), 'capri-repeat-api-setup-'));
+  const rt = runtime({
+    stateDir: path.join(base, 'data/openclaw'),
+    workspace: path.join(base, 'data/workspace'),
+  });
+  writeJsonAtomic(path.join(base, 'config/core.json'), config);
+  const existingLocal = {
+    generation: { temperature: 0.88, repeat_last_n: 256 },
+    model: 'capri-qwen3.5:2b',
+    customFlag: 'preserve-me',
+    cpuThreads: 4,
+  };
+  writeJsonAtomic(path.join(base, 'config/core.local.json'), existingLocal);
+  const gateway = createGatewayConfiguration(rt, config);
+  writeJsonAtomic(rt.configPath, gateway);
+  mkdirSync(rt.workspace, { recursive: true });
+  const change = saveModelProfile({ root: base, rt, id: 'api', hardware });
+  const saved = loadCoreSettings(path.join(base, 'config'));
+  assert.equal(saved.model, 'api');
+  assert.equal(saved.skipLocalModels, true);
+  assert.equal(saved.generation.temperature, 0.88);
+  assert.equal(saved.generation.repeat_last_n, 256);
+  assert.equal(saved.customFlag, 'preserve-me');
+  assert.equal(saved.cpuThreads, 1);
+  const gatewaySaved = JSON.parse(readFileSync(rt.configPath, 'utf8'));
+  assert.equal(gatewaySaved.agents.defaults.model.primary, 'ollama/api');
+  change.restore();
+  assert.deepEqual(
+    JSON.parse(readFileSync(path.join(base, 'config/core.local.json'), 'utf8')),
+    existingLocal,
+  );
+});
+
 test('model catalog marks memory limits and caches the hardware probe', async () => {
   let probes = 0;
   const service = new ModelService({
@@ -242,8 +301,8 @@ test('model catalog marks memory limits and caches the hardware probe', async ()
   assert.equal(first.recommended, 'minimal');
   assert.equal(probes, 1);
   assert.deepEqual(
-    first.profiles.filter((item) => item.supported).map((item) => item.id),
-    ['minimal'],
+    first.profiles.filter((item) => item.supported).map((item) => item.id).sort(),
+    ['api', 'minimal'].sort(),
   );
   assert.equal((await service.prepare('quality')).phase, 'error');
   assert.equal(service.snapshot().current, config.model);

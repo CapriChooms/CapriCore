@@ -55,7 +55,7 @@ export function meetsProfileRam(ramGiB, requiredGiB) {
   return (
     Number.isFinite(ramGiB) &&
     Number.isFinite(requiredGiB) &&
-    requiredGiB > 0 &&
+    requiredGiB >= 0 &&
     ramGiB >= requiredGiB - reservation
   );
 }

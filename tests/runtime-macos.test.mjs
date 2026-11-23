@@ -34,7 +34,7 @@ function write(root, name, contents) {
 }
 
 test('the macOS bootstrap selects a separate absolute runtime root', () => {
-  const env = { CAPRI_MACOS_RUNTIME_ROOT: '/private/tmp/CapriCore' };
+  const env = { CAPRI_MACOS_RUNTIME_ROOT: path.join(realpathSync(tmpdir()), 'CapriCore') };
   assert.equal(runtimeRoot('/source', { env, platform: 'darwin' }), env.CAPRI_MACOS_RUNTIME_ROOT);
   for (const platform of ['linux', 'win32'])
     assert.equal(runtimeRoot('/source', { env, platform }), '/source');

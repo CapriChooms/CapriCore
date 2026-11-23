@@ -947,7 +947,7 @@ test('explicit non-SSE media types remain rejected and their bodies are cancelle
     await assert.rejects(
       chatGPTCompletion(
         auth,
-        { model: 'fixture', messages: [{ role: 'user', content: 'Ready.' }], stream: false },
+        { model: 'fixture', messages: [{ role: 'user', content: 'Ready.' }], stream: true },
         AbortSignal.timeout(2000),
         accessToken,
       ),
@@ -1066,6 +1066,40 @@ test('function-call fragments map back to Capri and an unknown tool is rejected'
     chatGPTCompletion(auth, payload, AbortSignal.timeout(2000), accessToken),
     /unsupported response/,
   );
+});
+
+test('non-streaming ChatGPT request sends stream: false to the provider', async () => {
+  let sentBody = null;
+  const wire = [
+    { type: 'response.created', response: { status: 'in_progress' } },
+    { type: 'response.output_text.delta', delta: 'Ready.' },
+    { type: 'response.completed', response: { status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: 'Ready.' }] }] } },
+  ]
+    .map((event) => 'data: ' + JSON.stringify(event) + '\n\n')
+    .join('');
+  const auth = {
+    controllers: new Map(),
+    fetchImpl: async (_url, init) => {
+      sentBody = init.body;
+      return new Response(wire, {
+        headers: { 'content-type': 'text/event-stream' },
+      });
+    },
+  };
+  const response = await chatGPTCompletion(
+    auth,
+    {
+      model: 'gpt-6.1-terra',
+      messages: [{ role: 'user', content: 'Reply with exactly: Ready.' }],
+      stream: false,
+    },
+    AbortSignal.timeout(2000),
+    accessToken,
+  );
+  const value = await response.json();
+  assert.equal(value.choices[0].message.content, 'Ready.');
+  assert.equal(JSON.parse(sentBody).stream, false);
+  assert.equal(auth.controllers.size, 0);
 });
 
 test('ChatGPT connections use their own account token, survive profile reload, and never persist it as an API key', async (t) => {

@@ -1,5 +1,6 @@
 import { conversationInstruction } from './language-context.mjs';
-export { sseData } from './sse.mjs';
+import { sseData } from './sse.mjs';
+export { sseData };
 import { gatewayFailure } from './errors.mjs';
 import { freemem } from 'node:os';
 import { coordinateTurn, TURN_HANDLED } from '../../packages/core/src/turn-coordinator.mjs';
@@ -540,8 +541,8 @@ export class ChatService {
     }
   }
 
-  send(value, emit) {
-    return withResponseTiming(value?.id, () => this.sendTurn(value, emit));
+  send(value, emit, opts = {}) {
+    return withResponseTiming(value?.id, () => this.sendTurn(value, emit, opts));
   }
 
   async prepareWebSearch(
@@ -577,7 +578,7 @@ export class ChatService {
     }
   }
 
-  async sendTurn(value, emit) {
+  async sendTurn(value, emit, { signal: externalSignal } = {}) {
     const input = validateInput(value);
     markResponseTiming('chat_started', {
       inputCharacters: input.text.length,
@@ -611,6 +612,9 @@ export class ChatService {
     if (this.recentIds.size > 400) this.recentIds.delete(this.recentIds.values().next().value);
     const controller = new AbortController();
     const startedAt = Date.now();
+    const abortSignals = [controller.signal];
+    if (externalSignal) abortSignals.push(externalSignal);
+    const boundedSignal = AbortSignal.any(abortSignals);
     let gatewayStartedAt;
     const state = this.interfaceState();
     const mediaPlayerTask = !input.mode && windowsMediaPlayerTask(input.text);
@@ -757,14 +761,14 @@ export class ChatService {
       });
     };
     const requestDeadline = (ms) =>
-      AbortSignal.any([controller.signal, firstTextDeadline.signal, AbortSignal.timeout(ms)]);
+      AbortSignal.any([boundedSignal, firstTextDeadline.signal, AbortSignal.timeout(ms)]);
     let requestSignal = requestDeadline(turnTimeoutMs);
     this.active.touchComputer = (awaitingApproval = false) => {
       // Human review is not a stalled model. The overall turn limit still applies.
       if (!requestSignal.aborted)
         armDeadline(awaitingApproval ? this.timeoutMs : this.toolTimeoutMs);
     };
-    const append = (value, factual = false) => {
+    const append = (value, factual = false, final = false) => {
       if (!value) return;
       // Withhold action narration until this local turn has a real tool result.
       // No second execution is attempted when a model merely claims success.
@@ -777,7 +781,7 @@ export class ChatService {
         clearTimeout(firstTextTimer);
         return;
       }
-      value = factual ? value : replyFilter.push(value);
+      value = factual ? value : replyFilter.push(value, final);
       const text = leading ? value.replace(/^\s+/, '') : value;
       if (!text) return;
       leading = false;
@@ -787,7 +791,7 @@ export class ChatService {
       assistant.text += text;
       emit({ type: 'turn.delta', turnId: input.id, text });
     };
-    const consume = (events) => {
+    const consume = (events, final = false) => {
       for (const event of events) {
         requestSignal.throwIfAborted();
         if (event.type === 'avatar') {
@@ -800,7 +804,7 @@ export class ChatService {
             source: 'model',
           });
         } else {
-          append(cleanText.push(coreFailure.push(event.text)));
+          append(cleanText.push(coreFailure.push(event.text, final), true), final);
         }
       }
     };
@@ -1727,6 +1731,7 @@ export class ChatService {
           chunks.push(value);
           totalSize += value.byteLength;
           if (totalSize > MAX_JSON_SIZE) {
+            await reader.cancel().catch(() => {});
             reader.releaseLock();
             throw new Error('Response exceeds size limit');
           }
@@ -1746,13 +1751,13 @@ export class ChatService {
           received += content.length;
           if (received > (this.npuDialogue && !thinking ? 6144 : MAX_OUTPUT + 2048))
             throw new Error('Response exceeds limit');
-          const visible = visibleAnswer.push(content);
+          const visible = visibleAnswer.push(content, true);
           if (modelRepeating && modelRepeating(visible)) {
             const error = gatewayFailure('CAPRI_REPLY_REPETITION', 'Local reply pattern repeated');
             firstTextDeadline.abort(error);
             throw error;
           }
-          consume(parser.push(visible));
+          consume(parser.push(visible), true);
           if (Date.now() - checkpoint > 750) {
             this.store.put(assistant);
             checkpoint = Date.now();
@@ -1850,7 +1855,7 @@ export class ChatService {
       const reason = providerRejectionMessage(providerStatus)
         ? providerRejection(providerStatus)
         : failure;
-      if (!controller.signal.aborted)
+      if (!boundedSignal.aborted)
         this.lastFailure = {
           at: new Date().toISOString(),
           phase,
@@ -1888,13 +1893,13 @@ export class ChatService {
       if (assistant.text.length + tail.length <= MAX_OUTPUT) assistant.text += tail;
       if (!controller.signal.aborted && /^[\s\[\]{}*`_,]+$/u.test(assistant.text))
         assistant.text = '';
-      assistant.status = controller.signal.aborted ? 'interrupted' : 'error';
+      assistant.status = boundedSignal.aborted ? 'interrupted' : 'error';
       this.store.put(assistant);
       emit({
-        type: controller.signal.aborted ? 'turn.cancelled' : 'turn.failed',
+        type: boundedSignal.aborted ? 'turn.cancelled' : 'turn.failed',
         turnId: input.id,
         assistant,
-        message: controller.signal.aborted
+        message: boundedSignal.aborted
           ? 'Reply stopped.'
           : spotifyStarted &&
               (requestSignal.aborted ? requestSignal.reason : error)?.name === 'TimeoutError'

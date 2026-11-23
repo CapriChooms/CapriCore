@@ -59,6 +59,11 @@ export function validateSource(files) {
     JSON.parse(readFileSync(path.join(root, 'config/companion-voice.json'), 'utf8')),
   );
   const errors = [];
+  const homeUser = RegExp.escape(userInfo().username);
+  const localWindowsHome = new RegExp(
+    String.raw`[A-Z]:[\\/]+Users[\\/]+${homeUser}(?=[\\/\s"']|$)`,
+    'iu',
+  );
   const artwork = requireCapriAvatar(root, { source: true });
   for (const name of [
     ACTIVE_AVATAR_CATALOG,
@@ -112,11 +117,10 @@ export function validateSource(files) {
       errors.push(name + ': runtime/model/media binary');
     if (/\.(?:mjs|js|cjs|py|cs|ps1|cmd|json|md|toml|ya?ml|txt)$/.test(name)) {
       const text = bytes.toString('utf8');
-      const homeUser = userInfo().username.toLowerCase();
       if (
         /[A-Z]:[\\/]+AI[ _]ASSISTANT/i.test(text) ||
         text.includes(hostname()) ||
-        (/[A-Z]:[\\/]+Users[\\/]+/i.test(text) && text.toLowerCase().includes(homeUser))
+        localWindowsHome.test(text)
       )
         errors.push(name + ': private machine path/name');
       if (hasSourceCredential(text)) errors.push(name + ': credential-like content');

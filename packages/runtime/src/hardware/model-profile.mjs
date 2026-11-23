@@ -28,7 +28,9 @@ export function profileOverrides(profile) {
     modelContextLimit: profile.contextLimit,
     thinkingDefault:
       profile.capabilities && !profile.capabilities.includes('thinking') ? 'off' : 'low',
-    ...(profile.id === 'api' ? { skipLocalModels: true } : {}),
+    ...(profile.id === 'api'
+      ? { skipLocalModels: true, setupRequired: true }
+      : {}),
   };
 }
 

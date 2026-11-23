@@ -242,6 +242,7 @@ test('fresh API setup creates core.local.json with skipLocalModels and no local 
   const saved = loadCoreSettings(path.join(base, 'config'));
   assert.equal(saved.model, 'api');
   assert.equal(saved.skipLocalModels, true);
+  assert.equal(saved.setupRequired, true);
   assert.equal(saved.resourceProfile, 'api');
   assert.equal(saved.thinkingDefault, 'off');
   assert.equal(saved.modelCapabilities.length, 0);

@@ -406,6 +406,8 @@ export class CompanionPanel {
           <section class="settings-card" data-companion-group="Hands-free conversation">
           <label id="companion-conversation-mode-label"><input type="checkbox" id="companion-conversation-mode">Hands-free conversation</label>
           <p class="settings-help" data-help-for="companion-conversation-mode-label">While the microphone is on, speech goes to the selected model, which can stay silent. Start voice commands with “Capri” to use skills.</p>
+          <label id="companion-fresh-context-label"><input type="checkbox" id="companion-fresh-context">Fresh context for every question</label>
+          <p class="settings-help" data-help-for="companion-fresh-context-label">Each question starts a new conversation: the model sees only its instructions, the personality and the current question, and cannot refer back to earlier replies. Best for quick tasks on small models. The visible history and saved memory are kept.</p>
           <label><input type="checkbox" id="companion-follow-up">Let Capri keep listening when she asks a question</label>
           <label for="companion-follow-up-seconds">Follow-up listening time (seconds)</label><input id="companion-follow-up-seconds" type="number" min="5" max="30" value="12">
           <p class="settings-help">After a voice request, a question from Capri opens Listening after she finishes speaking. Text requests never open Listening. The microphone must already be enabled.</p>
@@ -819,6 +821,7 @@ export class CompanionPanel {
       wakeVolume: Number(this.get('wake-volume').value),
       followUp: this.get('companion-follow-up').checked,
       conversationMode: this.get('companion-conversation-mode').checked,
+      freshContext: this.get('companion-fresh-context').checked,
       followUpSeconds: Number(this.get('companion-follow-up-seconds').value),
       wildCloseAiTabs: this.get('wild-close-ai-tabs').checked,
       wakeOnReminder: this.get('companion-reminder-wake').checked,
@@ -1044,6 +1047,7 @@ export class CompanionPanel {
     this.get('wake-volume').value = value.wakeVolume;
     this.get('companion-follow-up').checked = value.followUp;
     this.get('companion-conversation-mode').checked = value.conversationMode === true;
+    this.get('companion-fresh-context').checked = value.freshContext === true;
     this.get('companion-follow-up-seconds').value = value.followUpSeconds;
     this.get('wild-close-ai-tabs').checked = value.wildCloseAiTabs === true;
     this.get('companion-reminder-wake').checked = value.wakeOnReminder !== false;
@@ -1141,6 +1145,7 @@ export class CompanionPanel {
         'wake-volume',
         'companion-follow-up',
         'companion-conversation-mode',
+        'companion-fresh-context',
         'companion-follow-up-seconds',
         'wild-close-ai-tabs',
         'companion-reminder-wake',

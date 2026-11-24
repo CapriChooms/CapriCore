@@ -116,6 +116,7 @@ import { PrivateMemory } from './private-memory.mjs';
 import { privateDialogue } from './private-dialogue.mjs';
 import { TaskWorkflows } from './task-workflows.mjs';
 import { UserTools } from './user-tools.mjs';
+import { localToolsFor } from './local-tool-intent.mjs';
 import { interfaceThemeColors } from './renderer/interface-theme.mjs';
 import { FileService } from '../../integrations/filesystem/service.mjs';
 import { ReminderDelivery } from './reminder-delivery.mjs';
@@ -1334,6 +1335,7 @@ async function initializeDesktop() {
     codingTask: (goal, { signal } = {}) =>
       callSkill('capri.coding', 'run', goal, { source: 'chat', signal }),
     externalInference: rt.remote.enabled,
+    localTools: () => localToolsFor(skillEnabled('capri.user-tools'), userTools.tools),
     externalChatProviderRejectionSince: (startedAt) =>
       inferenceApi.chatProviderRejectionSince(startedAt),
     firstTextTimeoutMs: responseTiming.firstTextTimeoutMs,

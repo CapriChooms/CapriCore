@@ -29,6 +29,7 @@ import { factualActionReply, ActionReplyFilter, youtubeMusicReply } from './acti
 import { youtubeMusicRequest } from './youtube-music-request.mjs';
 import { CoreFailureStream, ToolProgressGuard, toolLoopError } from './tool-loop.mjs';
 import { desktopTurnContext, whenPromptSkill } from './turn-context.mjs';
+import { localToolInstruction, localToolIntent, servedByContext } from './local-tool-intent.mjs';
 import { reasoningEffort } from '../../packages/skills/src/settings-catalog.mjs';
 import {
   companionDialogueQuestion,
@@ -390,6 +391,7 @@ export class ChatService {
     defaultAvatarId = 'neutral',
     interfaceState = () => ({}),
     externalInference = false,
+    localTools = () => [],
     externalChatProviderRejectionSince = null,
     prepareContext = null,
     prepareModel = null,
@@ -432,6 +434,7 @@ export class ChatService {
       defaultAvatarId,
       interfaceState,
       externalInference,
+      localTools,
       externalChatProviderRejectionSince,
       prepareContext,
       prepareModel,
@@ -608,7 +611,8 @@ export class ChatService {
   }
 
   async sendTurn(value, emit) {
-    const input = validateInput(value);
+    // `let`: a turn routed to an owner tool drops the web route for this request.
+    let input = validateInput(value);
     markResponseTiming('chat_started', {
       inputCharacters: input.text.length,
       historyMessages: this.store.snapshot().length,
@@ -643,6 +647,14 @@ export class ChatService {
     const startedAt = Date.now();
     let gatewayStartedAt;
     const state = this.interfaceState();
+    // A question meant for one of the owner's tools takes the tool route. The web
+    // route and the small-talk route offer the model no tools at all.
+    const enabledTools = this.localTools();
+    const localToolNames = input.mode ? [] : localToolIntent(input.text, enabledTools);
+    const localToolTurn = localToolNames.length > 0;
+    // Already answered by a context tool: no tool schemas are needed for this turn.
+    const localContextTurn = servedByContext(localToolNames, enabledTools);
+    if (localToolTurn && input.internet === true) input = { ...input, internet: false };
     const mediaPlayerTask = !input.mode && windowsMediaPlayerTask(input.text);
     const musicRequest =
       !input.mode &&
@@ -1439,12 +1451,16 @@ export class ChatService {
           'capri.voice-calls',
         ].some((id) => interfaceState.activeSkills.has(id));
       const routedDomain = tools
-        ? codeReview
-          ? 'conversation'
-          : (toolDomain(input.text, interfaceState, routing) ??
-            (classifiedConversation || classifiedMemory || factualWithoutActions
-              ? 'conversation'
-              : null))
+        ? localToolTurn
+          ? localContextTurn
+            ? 'conversation'
+            : null
+          : codeReview
+            ? 'conversation'
+            : (toolDomain(input.text, interfaceState, routing) ??
+              (classifiedConversation || classifiedMemory || factualWithoutActions
+                ? 'conversation'
+                : null))
         : null;
       const webConversation =
         input.internet === true &&
@@ -1452,6 +1468,7 @@ export class ChatService {
       const ownerDomain = tools ? toolDomain(input.text, interfaceState) : null;
       const modelMayChooseComputer = Boolean(
         tools &&
+          !localToolTurn &&
           this.computerTask &&
           state.computerSkillEnabled !== false &&
           !input.mode &&
@@ -1496,6 +1513,7 @@ export class ChatService {
           ? 'conversation'
           : routedDomain;
       const dialogueOnly =
+        !localToolTurn &&
         !webConversation &&
         (domain === 'conversation' || !tools) &&
         !classifiedMemory &&
@@ -1553,6 +1571,7 @@ export class ChatService {
             conversationInstruction(interfaceState.languages, { compact: dialogueOnly }),
             ...(reasoningConversation ? [reasoningInstruction] : []),
             ...(input.internet === true ? [WEB_SEARCH_INSTRUCTION] : []),
+            ...(localToolTurn ? [localToolInstruction(localToolNames, localContextTurn)] : []),
           ].join('\n\n');
       const turnContext = directDialogue
         ? ''

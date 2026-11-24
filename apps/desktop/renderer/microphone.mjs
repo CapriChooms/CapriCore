@@ -1,5 +1,7 @@
 /** Capture is user-initiated and stays in memory from AudioWorklet to private IPC. */
 import { MICROPHONE_GAIN } from './speech-settings.mjs';
+// Restart capture that silently stops delivering sound.
+import { CaptureWatchdog } from './capture-watchdog.mjs';
 
 // Five seconds of 100ms PCM absorbs short UI/disk stalls without dropping words.
 const MAX_QUEUED_PACKETS = 50;
@@ -29,6 +31,19 @@ export class MicrophoneClient {
       microphoneGain: MICROPHONE_GAIN.default,
     };
     this.playbackState = { speaking: false, text: '' };
+    this.watchdog = new CaptureWatchdog();
+  }
+  /** Called every second while listening; restarts capture that stopped delivering sound. */
+  watchCapture(run) {
+    if (this.run !== run || this.state.status !== 'listening') return;
+    const verdict = this.watchdog.check();
+    if (verdict === 'ok') return;
+    this.stop(true, { keepModelWarm: verdict === 'restart' });
+    if (verdict === 'restart') void this.start();
+    else
+      this.onError(
+        'The microphone stopped delivering sound and could not be restarted. Enable the microphone to retry.',
+      );
   }
   settings(value) {
     this.state = { ...this.state, ...value };
@@ -115,6 +130,8 @@ export class MicrophoneClient {
         status: 'listening',
         enabled: true,
       });
+      this.watchdog.arm();
+      run.watch = setInterval(() => this.watchCapture(run), 1000);
       this.playback({ ...this.playbackState, outputBusy: this.loopbackPlayback });
     } catch (error) {
       if (this.run !== run) return;
@@ -240,6 +257,7 @@ export class MicrophoneClient {
   }
   capturePacket(run, value) {
     if (this.run !== run) return;
+    this.watchdog.packet();
     this.onLevel(Math.min(1, value.rms * 10));
     const native = run.systemAudio?.packets;
     const system = native?.shift();
@@ -309,7 +327,9 @@ export class MicrophoneClient {
     const run = this.run;
     this.run = null;
     this.playbackTailUntil = null;
+    this.watchdog.disarm();
     if (run) {
+      clearInterval(run.watch);
       run.queue = [];
       this.stopSystemAudio(run, false);
       if (run.worklet) {

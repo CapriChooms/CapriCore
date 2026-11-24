@@ -34,9 +34,19 @@ export async function prepareInternetSearch({ query, language, signal, search, e
         .filter((value) => value && typeof value.url === 'string')
         .map((value) => [publicWebSourceUrl(value.url), value.snippet]),
     );
+    // Entries holding a passage read from the page keep their `page` flag.
+    const pages = new Set(
+      result.sources
+        .filter((value) => value && typeof value.url === 'string' && value.page === true)
+        .map((value) => publicWebSourceUrl(value.url)),
+    );
     result = {
       ...result,
-      sources: sources.map((value) => ({ ...value, snippet: snippets.get(value.url) ?? '' })),
+      sources: sources.map((value) => ({
+        ...value,
+        snippet: snippets.get(value.url) ?? '',
+        ...(pages.has(value.url) ? { page: true } : {}),
+      })),
       ...(!sources.length ? { status: 'empty' } : {}),
     };
   }

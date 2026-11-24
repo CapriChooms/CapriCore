@@ -1259,7 +1259,8 @@ async function initializeDesktop() {
   });
   const responseTiming = responsiveness({ ...settings, availableRamBytes: freemem() });
   const emulatedX64 = windowsX64Emulation();
-  const internetSearch = new WebSearch();
+  // Open the top result pages and keep the passage that matches the question.
+  const internetSearch = new WebSearch({ readPages: true });
   const coding = new CodingService({
     root: verification ? verificationFolder : root,
     onProjectChange: (monitor) => emit({ type: 'coding.project', monitor }),

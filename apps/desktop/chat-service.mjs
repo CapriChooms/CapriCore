@@ -29,6 +29,7 @@ import { factualActionReply, ActionReplyFilter, youtubeMusicReply } from './acti
 import { youtubeMusicRequest } from './youtube-music-request.mjs';
 import { CoreFailureStream, ToolProgressGuard, toolLoopError } from './tool-loop.mjs';
 import { desktopTurnContext, whenPromptSkill } from './turn-context.mjs';
+import { turnHistory } from './fresh-context.mjs';
 import { reasoningEffort } from '../../packages/skills/src/settings-catalog.mjs';
 import {
   companionDialogueQuestion,
@@ -390,6 +391,7 @@ export class ChatService {
     defaultAvatarId = 'neutral',
     interfaceState = () => ({}),
     externalInference = false,
+    freshContext = () => false,
     externalChatProviderRejectionSince = null,
     prepareContext = null,
     prepareModel = null,
@@ -430,6 +432,7 @@ export class ChatService {
       store,
       avatarSprites,
       defaultAvatarId,
+      freshContext,
       interfaceState,
       externalInference,
       externalChatProviderRejectionSince,
@@ -469,6 +472,11 @@ export class ChatService {
     this.active = null;
     this.lastFailure = null;
     this.recentIds = new Set(store.snapshot().map((item) => item.turnId));
+  }
+
+  /** Earlier chat messages a turn may draw on; none in fresh context mode. */
+  turnHistory() {
+    return turnHistory(this.freshContext() === true, this.store.snapshot());
   }
 
   diagnostics() {
@@ -1558,7 +1566,7 @@ export class ChatService {
         ? ''
         : (smallTalk
             ? ''
-            : desktopTurnContext(interfaceState, this.store.snapshot(), {
+            : desktopTurnContext(interfaceState, this.turnHistory(), {
                 dialogueOnly,
                 includeLocalDialogue: !this.externalInference,
               })) +
@@ -1568,7 +1576,7 @@ export class ChatService {
       const directPayload = directDialogue
         ? lemonadeDialogue({
             input: { ...input, thinking: reasoningConversation },
-            history: directSmallTalk ? [] : this.store.snapshot(),
+            history: directSmallTalk ? [] : this.turnHistory(),
             persona: this.persona(),
             languages: interfaceState.languages,
             standalone: Boolean(directSmallTalk),

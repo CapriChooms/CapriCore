@@ -43,6 +43,7 @@ import { openLocalModelFolder } from './local-model-folder.mjs';
 import { isLemonadeNpuEndpoint, isLocalApiEndpoint } from './renderer/inference-endpoint.mjs';
 import { ComputerControl } from './computer-control.mjs';
 import { WebSearch } from './web-search.mjs';
+import { prepareFreshTurn } from './fresh-context.mjs';
 import { webSources } from './web-sources.mjs';
 import { visualReplyFailure } from './visual-response.mjs';
 import { NativeEscapeStop } from './native-escape-stop.mjs';
@@ -1334,6 +1335,7 @@ async function initializeDesktop() {
     codingTask: (goal, { signal } = {}) =>
       callSkill('capri.coding', 'run', goal, { source: 'chat', signal }),
     externalInference: rt.remote.enabled,
+    freshContext: () => companionPreferences.value.freshContext === true,
     externalChatProviderRejectionSince: (startedAt) =>
       inferenceApi.chatProviderRejectionSince(startedAt),
     firstTextTimeoutMs: responseTiming.firstTextTimeoutMs,
@@ -1845,6 +1847,15 @@ async function initializeDesktop() {
     if (currentChatTask || chat.active)
       throw new SubmissionError('busy', 'A reply is already in progress.');
     voicePreviewRequest = null;
+    // Fresh context mode: each question starts from an empty conversation.
+    await prepareFreshTurn({
+      enabled: () => companionPreferences.value.freshContext === true,
+      reset: async () => {
+        await metadataRpc.call('sessions.reset', { key: chatSessionKey, reason: 'new' });
+        contextSampler.invalidate();
+      },
+      onFailure: () => console.warn('Fresh context: the conversation could not be reset.'),
+    });
     const task = chat.send(input, emitChat);
     currentChatTask = task;
     try {

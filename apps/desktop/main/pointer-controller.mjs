@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { pointInRect, resizeWindowBounds, spriteDragHit, spritePressKind } from '../geometry.mjs';
+import { ignoreMouseOptions } from './mouse-forwarding.mjs';
 
 export const WINDOW_MOTION_INTERVAL_MS = 8;
 const POINTER_POLL_INTERVAL_MS = 16;
@@ -84,7 +85,7 @@ export class PointerController {
   setInteractive(interactive) {
     if (this.ignored === interactive) {
       this.ignored = !interactive;
-      this.window.setIgnoreMouseEvents(this.ignored, { forward: true });
+      this.window.setIgnoreMouseEvents(this.ignored, ignoreMouseOptions());
     }
   }
   tick() {

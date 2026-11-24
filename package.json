@@ -39,6 +39,7 @@
     "verify": "node tools/verify/verify.mjs",
     "desktop": "node packages/runtime/bin/capri.mjs desktop",
     "build:camera": "node tools/release/build-camera.mjs",
+    "build:desktop-teleport": "node scripts/build-desktop-teleport.mjs",
     "verify:desktop": "node tools/verify/verify-desktop.mjs",
     "verify:settings": "node tools/verify/verify-settings.mjs",
     "verify:desktop:real": "node tools/verify/verify-desktop.mjs --real",

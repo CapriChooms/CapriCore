@@ -179,6 +179,7 @@ const rendererFiles = [
   'microphone.mjs',
   'wake-feedback.mjs',
   'microphone-worklet.mjs',
+  'capture-watchdog.mjs',
 ];
 const types = {
   '.html': 'text/html; charset=utf-8',

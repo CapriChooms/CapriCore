@@ -1386,3 +1386,165 @@ test('the native VAC context uses its selected sink clock and stays within a mon
     else globalThis.AudioContext = previous;
   }
 });
+
+test('length-prefixed streaming synthesis emits progressive continuation chunks and falls back cleanly on 404', async () => {
+  const events = [];
+  const requestedPaths = [];
+  let failStreamWith404 = false;
+  const frame = (samples) => {
+    const payload = new Uint8Array(new Float32Array(samples).buffer);
+    const out = new Uint8Array(4 + payload.byteLength);
+    new DataView(out.buffer).setUint32(0, payload.byteLength, true);
+    out.set(payload, 4);
+    return out;
+  };
+  const eof = new Uint8Array(4);
+  const voice = new VoiceService({
+    url: 'http://127.0.0.1:8101',
+    headers: () => ({ authorization: 'private' }),
+    emit: (event) => events.push(event),
+    fetchImpl: async (url) => {
+      const pathname = new URL(url).pathname;
+      requestedPaths.push(pathname);
+      if (pathname === '/prepare') {
+        return new Response(JSON.stringify({ ready: true, tokenStreaming: true }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (pathname === '/synthesize-stream') {
+        if (failStreamWith404) return new Response(null, { status: 404 });
+        const chunk0 = frame([0.1, -0.2, 0.3]);
+        const chunk1 = frame([0.4, -0.5, 0.6]);
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              // Deliberately split across frame header boundary.
+              controller.enqueue(chunk0.subarray(0, 3));
+              controller.enqueue(chunk0.subarray(3));
+              controller.enqueue(chunk1);
+              controller.enqueue(eof);
+              controller.close();
+            },
+          }),
+          {
+            headers: {
+              'content-type': 'application/octet-stream',
+              'x-sample-rate': '24000',
+              'x-stream-framing': 'length-prefixed-f32le',
+              'x-t3-ms': '180',
+              'x-decoder-ms': '140',
+            },
+          },
+        );
+      }
+      return pcm();
+    },
+  });
+  await voice.prepareLanguage();
+  assert.equal(voice.tokenStreaming, true);
+  turn(voice, 'stream-turn', 'First complete sentence.');
+  await until(() => events.some((e) => e.type === 'voice.generated' && e.turnId === 'stream-turn'));
+  const audio = events.filter((e) => e.type === 'voice.audio');
+  assert.equal(audio.length, 2);
+  assert.equal(audio[0].sequence, 0);
+  assert.equal(audio[0].streamContinuation, undefined);
+  assert.equal(audio[1].sequence, 1);
+  assert.equal(audio[1].streamContinuation, true);
+  assert.equal(audio[0].streamGroup, audio[1].streamGroup);
+  assert.deepEqual(new Float32Array(audio[0].pcm.buffer), new Float32Array([0.1, -0.2, 0.3]));
+  assert.deepEqual(new Float32Array(audio[1].pcm.buffer), new Float32Array([0.4, -0.5, 0.6]));
+
+  // Verify automatic fallback to /synthesize if /synthesize-stream returns 404.
+  failStreamWith404 = true;
+  turn(voice, 'fallback-turn', 'Second sentence.');
+  await until(() =>
+    events.some((e) => e.type === 'voice.generated' && e.turnId === 'fallback-turn'),
+  );
+  assert.equal(voice.tokenStreaming, false);
+  assert.deepEqual(requestedPaths, [
+    '/prepare',
+    '/synthesize-stream',
+    '/synthesize-stream',
+    '/synthesize',
+  ]);
+  voice.close();
+});
+
+test('VoicePlayer schedules streamed continuation chunks sample-accurately without duplicate subtitle starts and stops all on cancel', async () => {
+  const scheduled = [];
+  const playback = [];
+  let fakeTime = 1.0;
+  const context = {
+    state: 'running',
+    get currentTime() {
+      return fakeTime;
+    },
+    destination: {},
+    createBuffer: (_ch, length, sr) => ({
+      length,
+      sampleRate: sr,
+      duration: length / sr,
+      copyToChannel() {},
+    }),
+    createBufferSource: () => {
+      const source = {
+        connect() {},
+        disconnect() {},
+        start(when) {
+          this.startedAt = when;
+          scheduled.push(this);
+        },
+        stop() {
+          this.stopped = true;
+        },
+      };
+      return source;
+    },
+  };
+  const player = new VoicePlayer({
+    onState() {},
+    onPlayback: (ev) => playback.push(ev),
+    onError: assert.fail,
+    contextFactory: () => context,
+  });
+  const halfSec = new Uint8Array(new Float32Array(12000).buffer);
+  player.begin('gapless');
+  player.accept({
+    turnId: 'gapless',
+    sequence: 0,
+    text: 'A sentence streamed in two chunks.',
+    sampleRate: 24000,
+    pcm: halfSec,
+    streamGroup: 'g0',
+  });
+  await delay(0);
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].startedAt, 1.0);
+  assert.equal(playback.filter((e) => e.type === 'started').length, 1);
+
+  // Continuation arrives while chunk 0 is still playing (fakeTime = 1.2 < 1.5).
+  fakeTime = 1.2;
+  player.accept({
+    turnId: 'gapless',
+    sequence: 1,
+    text: 'A sentence streamed in two chunks.',
+    sampleRate: 24000,
+    pcm: halfSec,
+    streamGroup: 'g0',
+    streamContinuation: true,
+  });
+  // Must be pre-scheduled synchronously at the exact sample boundary 1.5s.
+  assert.equal(scheduled.length, 2);
+  assert.equal(scheduled[1].startedAt, 1.5);
+  assert.equal(playback.filter((e) => e.type === 'started').length, 1);
+
+  // Chunk 0 ends while chunk 1 is still active -> sentence must not emit 'ended' yet.
+  scheduled[0].onended();
+  assert.equal(playback.filter((e) => e.type === 'ended').length, 0);
+  assert.ok(player.source);
+
+  // Calling stop() cancels remaining scheduled sources cleanly.
+  player.stop();
+  assert.equal(scheduled[1].stopped, true);
+  assert.equal(player.source, null);
+});

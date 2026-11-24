@@ -425,8 +425,11 @@ import {
   companionVoiceHeaders,
   startCompanionVoice,
 } from '../../integrations/voice_runtime/host.mjs';
+import { OncePerLaunch } from './microphone-on-start.mjs';
 
 const callAudioDiagnostics = new CallAudioDiagnostics();
+// The microphone is offered once per launch, not on every window reload.
+const microphoneLaunch = new OncePerLaunch();
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const applicationIcon = path.join(root, 'assets/default/icon-source.png');
 const verification = process.argv.includes('--verification');
@@ -8361,7 +8364,12 @@ async function initializeDesktop() {
     handle('capri:bootstrap', (_value, { role }) => {
       if (role === 'companion') rendererReady = true;
       const resumeMicrophone =
-        role === 'companion' && !verification && consumeMicrophoneRestart(state);
+        role === 'companion' &&
+        !verification &&
+        // Consume the restart marker first so it is always cleared, then also start
+        // listening when the owner asked for it at every launch.
+        (consumeMicrophoneRestart(state) ||
+          microphoneLaunch.take(companionPreferences.value.microphoneOnStart === true));
       return {
         attachmentVision: screenVisionAvailable,
         skills: skillSettings.snapshot(),

@@ -77,7 +77,7 @@ export class ASRWorker extends EventEmitter {
   }
   async startAttempt(safeStartup = false) {
     if (this.ready) return this.ready;
-    const python = path.join(this.root, '.runtime/asr-venv/bin/python');
+    const python = path.join(this.root, process.platform === 'linux' ? '.runtime/asr-venv/bin/python' : '.runtime/asr-venv/Scripts/python.exe');
     if (!existsSync(python)) throw asrError('ASR_START_PYTHON');
     const env = Object.fromEntries(
       ['SystemRoot', 'WINDIR', 'PATH', 'LD_LIBRARY_PATH', 'HOME', 'XDG_RUNTIME_DIR', 'TEMP', 'TMP', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA']

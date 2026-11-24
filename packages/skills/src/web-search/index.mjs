@@ -3,6 +3,7 @@ import { isRecord } from '../../../skill-sdk/src/index.mjs';
 import { enabledSetting, turnModeCommands, withTurnMode } from '../turn-mode.mjs';
 import { formatWebSearchContext } from './context.mjs';
 import { webSources, publicWebSourceUrl } from './sources.mjs';
+import { searchQuery } from './query.mjs';
 
 export const WEB_SEARCH_SKILL_ID = 'capri.web-search';
 
@@ -14,7 +15,7 @@ export async function prepareInternetSearch({ query, language, signal, search, e
   emit({ phase: 'searching' });
   let result;
   try {
-    result = await search(query, { signal, language });
+    result = await search(searchQuery(query), { signal, language });
   } catch {
     signal.throwIfAborted();
     result = { status: 'unavailable', reason: 'unavailable', sources: [] };

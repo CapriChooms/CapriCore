@@ -1,5 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { installedBreezeTts } from '../../packages/installer/src/breeze-tts-install.mjs';
+import { loadBreezeProfile } from './breeze-voice.mjs';
 import { isDeepStrictEqual } from 'node:util';
 import parakeet from '../../config/asr-model-upstream.json' with { type: 'json' };
 import detector from '../../config/asr-vad-upstream.json' with { type: 'json' };
@@ -25,6 +27,8 @@ export function speechModelsInstalled(root, language) {
     return false;
   try {
     const model = selectedVoiceModel(root, language);
+    if (model.backend === 'breeze-tts')
+      return Boolean(installedBreezeTts(root) && loadBreezeProfile(root));
     const voice = readVoiceSettings(root);
     const folder = path.resolve(root, voice.profileDir);
     if (
@@ -105,7 +109,7 @@ export function recognitionModelsInstalled(root, language, config) {
         return stat.isFile() && stat.size === bytes;
       });
     if (
-      !statSync(path.join(root, '.runtime/asr-venv/Scripts/python.exe')).isFile() ||
+      !statSync(path.join(root, '.runtime/asr-venv/bin/python')).isFile() ||
       !complete(config.vad.modelDir, Object.values(detector.files))
     )
       return false;
@@ -119,7 +123,7 @@ export function recognitionModelsInstalled(root, language, config) {
     if (kind === 'parakeet-v2') return true;
     const { whisper } = multilingual;
     return (
-      existsSync(path.join(root, '.runtime/asr-venv/Lib/site-packages/faster_whisper')) &&
+      [existsSync(path.join(root, '.runtime/asr-venv/Lib/site-packages/faster_whisper')), ...['python3.11', 'python3.12'].map((v) => existsSync(path.join(root, '.runtime/asr-venv/lib/' + v + '/site-packages/faster_whisper')))].some(Boolean) &&
       complete(whisper.directory, whisper.files)
     );
   } catch {

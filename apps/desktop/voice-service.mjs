@@ -104,6 +104,62 @@ async function readVoicePcm(response) {
   return unpacked;
 }
 
+async function readFramedVoicePcm(response, onChunk) {
+  let pending = new Uint8Array(0);
+  let totalBytes = 0;
+  let expectedLength = null;
+  let sawEof = false;
+
+  const append = (chunk) => {
+    const view =
+      chunk instanceof Uint8Array
+        ? chunk
+        : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    if (!pending.byteLength) {
+      pending = view;
+      return;
+    }
+    const merged = new Uint8Array(pending.byteLength + view.byteLength);
+    merged.set(pending, 0);
+    merged.set(view, pending.byteLength);
+    pending = merged;
+  };
+
+  for await (const chunk of response.body) {
+    append(chunk);
+    while (true) {
+      if (expectedLength === null) {
+        if (pending.byteLength < 4) break;
+        const header = new DataView(pending.buffer, pending.byteOffset, 4);
+        const frameLength = header.getUint32(0, true);
+        pending = pending.subarray(4);
+        if (frameLength === 0) {
+          sawEof = true;
+          break;
+        }
+        if (frameLength % 4 !== 0 || totalBytes + frameLength > maxPcmBytes) {
+          await response.body?.cancel();
+          throw new Error('Voice audio exceeds limit');
+        }
+        expectedLength = frameLength;
+      }
+      if (pending.byteLength < expectedLength) break;
+      const frame = new Uint8Array(expectedLength);
+      frame.set(pending.subarray(0, expectedLength));
+      pending = pending.subarray(expectedLength);
+      totalBytes += expectedLength;
+      expectedLength = null;
+      const keepGoing = onChunk(frame);
+      if (keepGoing === false) {
+        await response.body?.cancel();
+        return;
+      }
+    }
+    if (sawEof) break;
+  }
+  if (!sawEof || !totalBytes) throw new Error('Invalid PCM audio');
+}
+
 /** Turn-scoped sentence queue. Text replies never wait for synthesis. */
 export class VoiceService {
   constructor({
@@ -116,6 +172,7 @@ export class VoiceService {
     external,
     native,
     ensureReady,
+    tokenStreaming = false,
   }) {
     const endpoint = new URL(url);
     if (endpoint.protocol !== 'http:' || endpoint.hostname !== '127.0.0.1')
@@ -126,6 +183,7 @@ export class VoiceService {
     this.running = false;
     this.language = language;
     this.error = null;
+    this.tokenStreaming = Boolean(tokenStreaming);
   }
   snapshot() {
     return {
@@ -207,8 +265,14 @@ export class VoiceService {
             : `Could not prepare the selected voice model: HTTP ${response.status}`,
         );
       }
-      await response.body?.cancel();
-      if (this.prepareController === controller && this.language === language) this.setReady(true);
+      const details = response.headers?.get('content-type')?.startsWith('application/json')
+        ? await response.json().catch(() => null)
+        : null;
+      if (!details) await response.body?.cancel();
+      if (this.prepareController === controller && this.language === language) {
+        this.tokenStreaming = Boolean(details?.tokenStreaming);
+        this.setReady(true);
+      }
     } catch (error) {
       if (this.prepareController === controller && !controller.signal.aborted) {
         this.recordFailure(error, 'prepare');
@@ -419,20 +483,27 @@ export class VoiceService {
             response = await turn.native.synthesize({ text, signal: turn.controller.signal });
           } else {
             const signal = AbortSignal.any([turn.controller.signal, AbortSignal.timeout(90000)]);
+            let endpointPath = this.tokenStreaming ? '/synthesize-stream' : '/synthesize';
             do {
-              response = await this.fetchImpl(`${this.url}/synthesize`, {
+              response = await this.fetchImpl(`${this.url}${endpointPath}`, {
                 method: 'POST',
                 headers: { ...this.headers(), 'content-type': 'application/json' },
                 body: JSON.stringify({ text, language: turn.language, requestId: turn.requestId }),
                 redirect: 'error',
                 signal,
               });
+              if (response.status === 404 && endpointPath === '/synthesize-stream') {
+                await response.body?.cancel();
+                this.tokenStreaming = false;
+                endpointPath = '/synthesize';
+                continue;
+              }
               if (response.status !== 409) break;
               await response.body?.cancel();
               // Use one deadline for the sentence, including time spent waiting for the worker.
               await delay(50, undefined, { signal });
               signal.throwIfAborted();
-            } while (response.status === 409);
+            } while (true);
           }
           if (!response.ok) throw await voiceHttpFailure(response);
           if (
@@ -440,36 +511,80 @@ export class VoiceService {
             response.headers.get('x-sample-rate') !== '24000'
           )
             throw new Error('Unexpected voice audio format');
-          const pcm = await readVoicePcm(response);
-          if (this.turn !== turn || turn.controller.signal.aborted) continue;
-          turn.requestId = null;
-          if (turn.sequence === 0 && turn.timing)
-            markResponseTiming(
-              'voice_audio',
-              {
-                requestMs: Date.now() - started,
-                tokenMs: Number(response.headers.get('x-t3-ms')),
-                decoderMs: Number(response.headers.get('x-decoder-ms')),
-              },
-              { turn: turn.timing },
-            );
-          this.emit({
-            type: 'voice.timing',
-            turnId: turn.id,
-            sequence: turn.sequence,
-            elapsedMs: performance.now() - turn.started,
-            requestMs: Date.now() - started,
-            tokenMs: Number(response.headers.get('x-t3-ms')),
-            decoderMs: Number(response.headers.get('x-decoder-ms')),
-          });
-          this.emit({
-            type: 'voice.audio',
-            turnId: turn.id,
-            sequence: turn.sequence++,
-            text,
-            sampleRate: 24000,
-            pcm,
-          });
+          if (response.headers.get('x-stream-framing') === 'length-prefixed-f32le') {
+            const streamGroup = turn.requestId;
+            let chunkIndex = 0;
+            await readFramedVoicePcm(response, (pcm) => {
+              if (this.turn !== turn || turn.controller.signal.aborted) return false;
+              if (chunkIndex === 0) {
+                if (turn.sequence === 0 && turn.timing)
+                  markResponseTiming(
+                    'voice_audio',
+                    {
+                      requestMs: Date.now() - started,
+                      tokenMs: Number(response.headers.get('x-t3-ms')),
+                      decoderMs: Number(response.headers.get('x-decoder-ms')),
+                    },
+                    { turn: turn.timing },
+                  );
+                this.emit({
+                  type: 'voice.timing',
+                  turnId: turn.id,
+                  sequence: turn.sequence,
+                  elapsedMs: performance.now() - turn.started,
+                  requestMs: Date.now() - started,
+                  tokenMs: Number(response.headers.get('x-t3-ms')),
+                  decoderMs: Number(response.headers.get('x-decoder-ms')),
+                });
+              }
+              this.emit({
+                type: 'voice.audio',
+                turnId: turn.id,
+                sequence: turn.sequence++,
+                text,
+                sampleRate: 24000,
+                pcm,
+                streamGroup,
+                streamIndex: chunkIndex,
+                ...(chunkIndex > 0 ? { streamContinuation: true } : {}),
+              });
+              chunkIndex++;
+              return true;
+            });
+            if (this.turn !== turn || turn.controller.signal.aborted) continue;
+            turn.requestId = null;
+          } else {
+            const pcm = await readVoicePcm(response);
+            if (this.turn !== turn || turn.controller.signal.aborted) continue;
+            turn.requestId = null;
+            if (turn.sequence === 0 && turn.timing)
+              markResponseTiming(
+                'voice_audio',
+                {
+                  requestMs: Date.now() - started,
+                  tokenMs: Number(response.headers.get('x-t3-ms')),
+                  decoderMs: Number(response.headers.get('x-decoder-ms')),
+                },
+                { turn: turn.timing },
+              );
+            this.emit({
+              type: 'voice.timing',
+              turnId: turn.id,
+              sequence: turn.sequence,
+              elapsedMs: performance.now() - turn.started,
+              requestMs: Date.now() - started,
+              tokenMs: Number(response.headers.get('x-t3-ms')),
+              decoderMs: Number(response.headers.get('x-decoder-ms')),
+            });
+            this.emit({
+              type: 'voice.audio',
+              turnId: turn.id,
+              sequence: turn.sequence++,
+              text,
+              sampleRate: 24000,
+              pcm,
+            });
+          }
         } catch (error) {
           if (this.turn === turn && !turn.controller.signal.aborted) {
             if (

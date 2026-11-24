@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import path from 'node:path';
 import { setWindowAlwaysOnTop } from './window-topmost.mjs';
+import { ignoreMouseOptions } from './mouse-forwarding.mjs';
 /** Security choices are centralized, including for isolated verification windows. */
 export function createSecureWindow(
   BrowserWindow,
@@ -39,7 +40,7 @@ export function createSecureWindow(
   });
   setWindowAlwaysOnTop(window, Boolean(alwaysOnTop));
   window.setMenu(null);
-  window.setIgnoreMouseEvents(true, { forward: true });
+  window.setIgnoreMouseEvents(true, ignoreMouseOptions());
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   for (const event of ['will-navigate', 'will-attach-webview'])
     window.webContents.on(event, (value) => value.preventDefault());

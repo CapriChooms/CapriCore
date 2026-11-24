@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { execFile, spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
-import { promisify } from 'node:util';
 
 const key = 'HKCU\\Software\\Classes\\DesktopBackground\\shell\\Capri.Teleport';
 const windowsRoot = () => process.env.SystemRoot || 'C:\\Windows';
@@ -18,39 +16,17 @@ const runRegistry = (args) =>
 const startHelper = (helper, token) =>
   spawn(helper, ['--watch', token], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
 
+// The helper is the Rust build in native/desktop-teleport (see
+// scripts/build-desktop-teleport.mjs). The C#
+// helper it replaces installed global mouse and keyboard hooks, so every mouse
+// movement on the computer waited for it and the mouse froze whenever Capri was
+// busy. The Rust helper polls button state instead and installs no input hook.
+export const TELEPORT_HELPER = 'capri-teleport.exe';
+
 export async function prepareDesktopTeleport(root) {
-  const source = path.join(root, 'packages/installer/windows/desktop-teleport.cs');
-  const directory = path.join(root, '.runtime/desktop-teleport');
-  const digest = createHash('sha256')
-    .update(await readFile(source))
-    .digest('hex')
-    .slice(0, 16);
-  const helper = path.join(directory, 'CapriDesktopTeleport-' + digest + '.exe');
-  if (existsSync(helper)) return helper;
-  await mkdir(directory, { recursive: true });
-  const temporary = helper + '.' + randomBytes(8).toString('hex') + '.exe';
-  try {
-    await promisify(execFile)(
-      path.join(windowsRoot(), 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),
-      [
-        '/nologo',
-        '/target:winexe',
-        '/platform:x64',
-        '/optimize+',
-        '/reference:System.Windows.Forms.dll',
-        '/out:' + temporary,
-        source,
-      ],
-      { windowsHide: true, timeout: 15000 },
-    );
-    try {
-      await rename(temporary, helper);
-    } catch (error) {
-      if (!existsSync(helper)) throw error;
-    }
-  } finally {
-    await rm(temporary, { force: true });
-  }
+  const helper = path.join(root, '.runtime/desktop-teleport', TELEPORT_HELPER);
+  // No fallback to the hooked C# helper: without the Rust build the menu is off.
+  if (!existsSync(helper)) throw new Error('The desktop teleport helper is not installed.');
   return helper;
 }
 

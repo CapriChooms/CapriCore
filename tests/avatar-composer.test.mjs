@@ -267,12 +267,12 @@ test('the mini input appears near its target, fades away and immediately passes 
   const view = controller.window;
   assert.equal(controller.presentationVisible, true);
   assert.equal(view.isVisible(), true);
-  assert.deepEqual(view.mouseModes.at(-1), [false, { forward: true }]);
+  assert.deepEqual(view.mouseModes.at(-1), [false, { forward: false }]);
   screen.pointer = { x: target.x - 91, y: target.y };
   controller.sync({ visible: true, body, workArea });
   assert.equal(controller.presentationVisible, false);
   assert.equal(view.isVisible(), true, 'The native surface remains only for the CSS fade.');
-  assert.deepEqual(view.mouseModes.at(-1), [true, { forward: true }]);
+  assert.deepEqual(view.mouseModes.at(-1), [true, { forward: false }]);
   assert.equal(view.messages.at(-1)[1].composerVisible, false);
   context.mock.timers.tick(180);
   assert.equal(view.isVisible(), false);

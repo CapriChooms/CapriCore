@@ -51,6 +51,8 @@ import {
   validateVoiceVolume,
   voiceVolumeSettings,
 } from './renderer/voice-volume.mjs';
+import { appendKeepWarmLog, modelPing, startKeepWarm, voicePing } from './idle-keep-warm.mjs';
+import * as keepWarmFs from 'node:fs';
 import { ResolveAdapter } from '../../integrations/resolve/service.mjs';
 import { ComputerAgent } from './computer-agent.mjs';
 import { steamGameLauncher } from './steam-game-launch.mjs';
@@ -2454,6 +2456,22 @@ async function initializeDesktop() {
     url: rt.gatewayUrl,
     token: () => readFileSync(rt.tokenPath, 'utf8').trim(),
   });
+  // Keep the gateway, model and voice connections awake while idle. Only loopback
+  // servers are contacted; remote APIs are refused inside the ping helpers.
+  // The live settings objects are read on every round, so a saved change applies at once.
+  if (!verification) {
+    startKeepWarm({
+      idle: () =>
+        !shuttingDown && backendState.phase === 'ready' && !currentChatTask && !chat.active,
+      pings: {
+        gateway: (signal) => metadataRpc.call('health', {}, { signal }),
+        model: (signal) => modelPing(inferenceApi.config, { signal }),
+        voice: (signal) => voicePing(externalTts.config, { signal }),
+      },
+      record: (entry) =>
+        appendKeepWarmLog(path.join(root, 'logs/keep-warm.jsonl'), entry, { fs: keepWarmFs }),
+    });
+  }
   const discordPresence = new DiscordPresence({
     communityLinks: loadCommunityLinks(root),
     preferences: new Preferences(

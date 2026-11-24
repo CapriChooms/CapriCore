@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import path from 'node:path';
 import { setWindowAlwaysOnTop } from './window-topmost.mjs';
+import { stabilizeWindowBounds } from './stable-bounds.mjs';
 /** Security choices are centralized, including for isolated verification windows. */
 export function createSecureWindow(
   BrowserWindow,
@@ -37,6 +38,10 @@ export function createSecureWindow(
       autoplayPolicy: 'no-user-gesture-required',
     },
   });
+  // Keep get/set bounds round trips from growing the window at fractional
+  // display scales (see stable-bounds.mjs).
+  if (typeof window.getBounds === 'function' && typeof window.setBounds === 'function')
+    stabilizeWindowBounds(window, bounds);
   setWindowAlwaysOnTop(window, Boolean(alwaysOnTop));
   window.setMenu(null);
   window.setIgnoreMouseEvents(true, { forward: true });

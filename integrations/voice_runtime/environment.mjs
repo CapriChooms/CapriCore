@@ -8,7 +8,10 @@ function linuxVenvLibraryPaths(root) {
     path.join(root, '.runtime/voice-training-venv/lib/python3.11/site-packages/torch/lib'),
     path.join(root, '.runtime/asr-venv/lib/python3.11/site-packages/sherpa_onnx/lib'),
   ];
-  const nvidiaDir = path.join(root, '.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia');
+  const nvidiaDir = path.join(
+    root,
+    '.runtime/voice-training-venv/lib/python3.11/site-packages/nvidia',
+  );
   if (existsSync(nvidiaDir)) {
     for (const entry of readdirSync(nvidiaDir)) {
       const libDir = path.join(nvidiaDir, entry, 'lib');

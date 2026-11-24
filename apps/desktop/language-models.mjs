@@ -105,7 +105,14 @@ export function recognitionModelsInstalled(root, language, config) {
         return stat.isFile() && stat.size === bytes;
       });
     if (
-      !statSync(path.join(root, process.platform === 'linux' ? '.runtime/asr-venv/bin/python' : '.runtime/asr-venv/Scripts/python.exe')).isFile() ||
+      !statSync(
+        path.join(
+          root,
+          process.platform === 'linux'
+            ? '.runtime/asr-venv/bin/python'
+            : '.runtime/asr-venv/Scripts/python.exe',
+        ),
+      ).isFile() ||
       !complete(config.vad.modelDir, Object.values(detector.files))
     )
       return false;
@@ -119,8 +126,14 @@ export function recognitionModelsInstalled(root, language, config) {
     if (kind === 'parakeet-v2') return true;
     const { whisper } = multilingual;
     return (
-      [existsSync(path.join(root, '.runtime/asr-venv/Lib/site-packages/faster_whisper')), ...['python3.11', 'python3.12'].map((v) => existsSync(path.join(root, '.runtime/asr-venv/lib/' + v + '/site-packages/faster_whisper')))].some(Boolean) &&
-      complete(whisper.directory, whisper.files)
+      [
+        existsSync(path.join(root, '.runtime/asr-venv/Lib/site-packages/faster_whisper')),
+        ...['python3.11', 'python3.12'].map((v) =>
+          existsSync(
+            path.join(root, '.runtime/asr-venv/lib/' + v + '/site-packages/faster_whisper'),
+          ),
+        ),
+      ].some(Boolean) && complete(whisper.directory, whisper.files)
     );
   } catch {
     return false;

@@ -6,7 +6,9 @@ Only one inference may run, on the same persistent CUDA worker used for warmup.
 """
 import json
 import os
+import queue
 import secrets
+import struct
 import threading
 import time
 import traceback
@@ -15,13 +17,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import torch
 
+from integrations.multilingual import LANGUAGES, MissingSpeechModel
 from integrations.voice_training.dataset import ROOT
+
+from .catalog import selected_voice
+from .failure import inference_failure
+from .inference import VoiceCancelled, check_cancelled
 from .model import settings
 from .multilingual import VoicePool
-from integrations.multilingual import LANGUAGES, MissingSpeechModel
-from .inference import VoiceCancelled, check_cancelled
-from .failure import inference_failure
-from .catalog import selected_voice
 
 
 def load_and_warm(config, language, cancelled=None):
@@ -149,22 +152,30 @@ def serve(language='en', validate_turbo=False):
                 return
             with state_lock:
                 failure = dict(last_failure) or None
-            self.reply(200, json.dumps(dict(
-                ready=True, protocolVersion=2, multilingual=True, engine=config["engine"], profile=voice.profile["id"],
-                tokenStreaming=False,
-                sampleRate=24000, adapterSha256=voice.profile["adapterSha256"],
-                gpuAllocatedMiB=round(torch.cuda.memory_allocated() / 1024**2, 1),
-                gpuReservedMiB=round(torch.cuda.memory_reserved() / 1024**2, 1),
-                warm=True, cancellation=True,
+            streaming = bool(getattr(voice, 'supports_streaming', lambda: False)())
+            payload = {
+                'ready': True,
+                'protocolVersion': 2,
+                'multilingual': True,
+                'engine': config["engine"],
+                'profile': voice.profile["id"],
+                'tokenStreaming': streaming,
+                'sampleRate': 24000,
+                'adapterSha256': voice.profile["adapterSha256"],
+                'gpuAllocatedMiB': round(torch.cuda.memory_allocated() / 1024**2, 1),
+                'gpuReservedMiB': round(torch.cuda.memory_reserved() / 1024**2, 1),
+                'warm': True,
+                'cancellation': True,
                 **voice.health(),
-                lastInferenceFailure=failure,
-                languages=[key for key, value in LANGUAGES.items() if value['speech']],
-            )).encode())
+                'lastInferenceFailure': failure,
+                'languages': [key for key, value in LANGUAGES.items() if value['speech']],
+            }
+            self.reply(200, json.dumps(payload).encode())
 
         def do_POST(self):
             if not self.allowed():
                 return
-            if self.path not in {"/synthesize", "/cancel", "/prepare"}:
+            if self.path not in {"/synthesize", "/synthesize-stream", "/cancel", "/prepare"}:
                 self.reply(404)
                 return
             try:
@@ -210,7 +221,10 @@ def serve(language='en', validate_turbo=False):
                     active[request_id] = cancelled
                 if self.path == '/prepare':
                     worker.submit(voice.prepare, language, cancelled).result()
-                    self.reply(200, json.dumps(dict(ready=True, **voice.health())).encode())
+                    streaming = bool(getattr(voice, 'supports_streaming', lambda: False)())
+                    self.reply(200, json.dumps({'ready': True, 'tokenStreaming': streaming, **voice.health()}).encode())
+                elif self.path == '/synthesize-stream':
+                    self._handle_stream(text.strip(), cancelled, language)
                 else:
                     audio, rate = worker.submit(voice.generate, text.strip(), cancelled, language).result()
                     self.reply(200, audio, "application/octet-stream", rate, voice.last_metrics)
@@ -231,6 +245,94 @@ def serve(language='en', validate_turbo=False):
                 with state_lock:
                     active.pop(request_id, None)
                 busy.release()
+
+        def _handle_stream(self, text, cancelled, language):
+            chunk_q = queue.Queue(maxsize=8)
+
+            def _put(item):
+                while True:
+                    try:
+                        chunk_q.put(item, timeout=0.05)
+                        return
+                    except queue.Full:
+                        if cancelled.is_set():
+                            return
+
+            def _run_stream():
+                try:
+                    gen_fn = getattr(voice, 'generate_stream', None)
+                    if callable(gen_fn):
+                        for pcm_bytes, rate, meta in gen_fn(text, cancelled, language):
+                            if cancelled.is_set():
+                                raise VoiceCancelled()
+                            _put(('chunk', pcm_bytes, rate, meta))
+                    else:
+                        audio, rate = voice.generate(text, cancelled, language)
+                        _put(('chunk', audio, rate, dict(voice.last_metrics)))
+                    _put(('done', None, None, None))
+                except BaseException as exc:
+                    _put(('error', exc, None, None))
+
+            future = worker.submit(_run_stream)
+            headers_sent = False
+            try:
+                kind, payload, rate, meta = chunk_q.get()
+                if kind == 'error':
+                    raise payload
+                if kind != 'chunk':
+                    raise RuntimeError('Empty synthesized audio')
+
+                self.close_connection = True
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Connection", "close")
+                self.send_header("X-Sample-Rate", str(rate))
+                self.send_header("X-Stream-Framing", "length-prefixed-f32le")
+                if meta:
+                    for name, key in [('X-T3-Ms', 'tokenMs'), ('X-Decoder-Ms', 'decoderMs'), ('X-Synthesis-Ms', 'totalMs')]:
+                        if key in meta:
+                            self.send_header(name, str(meta[key]))
+                self.end_headers()
+                headers_sent = True
+
+                self.wfile.write(struct.pack('<I', len(payload)))
+                self.wfile.write(payload)
+                self.wfile.flush()
+
+                while True:
+                    kind, payload, _rate, _meta = chunk_q.get()
+                    if kind == 'chunk':
+                        self.wfile.write(struct.pack('<I', len(payload)))
+                        self.wfile.write(payload)
+                        self.wfile.flush()
+                    elif kind == 'done':
+                        self.wfile.write(struct.pack('<I', 0))
+                        self.wfile.flush()
+                        break
+                    elif kind == 'error':
+                        if not isinstance(payload, VoiceCancelled):
+                            failure = record_failure(payload)
+                            print(f"Voice stream failed mid-utterance: {failure['code']} ({failure['errorType']})", flush=True)
+                        break
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                cancelled.set()
+            except Exception:
+                cancelled.set()
+                if not headers_sent:
+                    raise
+            finally:
+                if not future.done():
+                    cancelled.set()
+                    while not future.done():
+                        try:
+                            chunk_q.get(timeout=0.05)
+                        except queue.Empty:
+                            pass
+                try:
+                    future.result()
+                except BaseException:
+                    pass
 
     server = ThreadingHTTPServer(("127.0.0.1", config["port"]), Handler)
     server.daemon_threads = True

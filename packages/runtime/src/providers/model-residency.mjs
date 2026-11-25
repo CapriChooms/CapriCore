@@ -16,6 +16,8 @@ export const modelPreparationErrors = Object.freeze({
     'The local model could not start on CPU. Try a smaller model or context.',
   CAPRI_LLAMA_ILLEGAL_INSTRUCTION:
     'The local engine stopped on an illegal CPU instruction. Repair the installation using Capri Setup.',
+  CAPRI_LLAMA_ACCESS_VIOLATION:
+    'The local model engine crashed. Try CPU in Model devices or repair the installation using Capri Setup.',
 });
 
 function preparationHttpError(response) {
@@ -81,7 +83,7 @@ const allocation = (resident) =>
  * inference; never replace a resident conversation KV cache or call agent tools.
  */
 export async function ensureLanguageModelReady(
-  { url, model, contextTokens, keepAlive = -1, acceleration, cpuThreads, modelCapabilities },
+  { url, model, contextTokens, keepAlive, acceleration, cpuThreads, modelCapabilities },
   { signal, requestImpl = request } = {},
 ) {
   const endpoint = new URL(url);
@@ -112,7 +114,7 @@ export async function ensureLanguageModelReady(
         ...(!modelCapabilities || modelCapabilities.includes('thinking') ? { think: false } : {}),
         truncate: false,
         shift: false,
-        keep_alive: keepAlive,
+        ...(keepAlive !== undefined && { keep_alive: keepAlive }),
         options: {
           num_ctx: contextTokens,
           num_predict: 1,

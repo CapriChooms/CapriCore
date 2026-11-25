@@ -39,6 +39,17 @@ TORCH_TLS_EOF = '''error: Failed to download `torch==2.6.0+cu124`
 
 
 class UvRetryTests(unittest.TestCase):
+    def test_installer_ignores_inherited_indexes_and_hash_bypasses(self):
+        seen = []
+        extra = dict(UV_INDEX='https://example.invalid', UV_NO_VERIFY_HASHES='1',
+                     UV_NO_BUILD_ISOLATION='1', UV_OVERRIDE='extra.txt', UV_FIND_LINKS='other')
+        retry.run_uv(['uv', 'pip', 'sync'], environ={**extra, 'UV_HTTP_TIMEOUT': '45'},
+                     run=lambda cmd, env: (seen.append(env) or (0, '')))
+        self.assertTrue(extra.keys().isdisjoint(seen[0]))
+        self.assertEqual(seen[0]['UV_NO_CONFIG'], 'true')
+        self.assertEqual(seen[0]['UV_HTTP_TIMEOUT'], '45')
+
+
     def test_reported_tls_eof_recovers_using_the_official_alternate_for_both_cuda_profiles(self):
         profiles = json.loads((ROOT / 'config/voice-runtime.json').read_text())['profiles']
         for profile, spec in profiles.items():
@@ -112,7 +123,7 @@ class UvRetryTests(unittest.TestCase):
                 self.assertEqual(parsed.hostname, 'download.pytorch.org')
                 self.assertEqual(unquote(parsed.path), f'/whl/{spec["backend"]}/{name}-{spec[name]}-cp311-cp311-win_amd64.whl')
                 self.assertRegex(parsed.fragment, r'^sha256=[a-f0-9]{64}$')
-                self.assertIn(f'{name}=={spec[name]}', (ROOT / spec['requirements']).read_text().splitlines())
+                self.assertIn(f'{name}=={spec[name]}', [line.rstrip(' ' + chr(92)) for line in (ROOT / spec['requirements']).read_text().splitlines()])
             self.assertIsNone(retry.pytorch_fallback(command, profile, reported.replace('pytorch.org/', 'pytorch.org.evil.invalid/')))
             wrong = [*command[:-1], 'cpu']
             self.assertIsNone(retry.pytorch_fallback(wrong, profile, reported))

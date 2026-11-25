@@ -2,16 +2,40 @@
 export const coreGuides = {
   'avatar-gallery': [
     [
-      '#avatar-gallery-title',
+      '.avatar-gallery-categories',
       [
         'Explore Capri’s poses and animations',
-        'Select any item to preview it.',
+        'Choose Poses, Expressions or Animations. Select an item in the list to preview it.',
       ],
       [
         'Посмотри позы и анимации Капри',
-        'Нажми на позу, эмоцию или анимацию, чтобы увидеть её в превью.',
+        'Открой «Позы», «Выражения» или «Анимации». Выбери элемент в списке, чтобы увидеть его в предпросмотре.',
       ],
-      { spotlight: '#avatar-gallery-preview' },
+      { help: '#avatar-gallery-title' },
+    ],
+    [
+      '#avatar-gallery-preview',
+      [
+        'Control the avatar preview',
+        'Drag the avatar to reposition it. Use the mouse wheel or zoom buttons to resize it. Reset position and zoom restores the initial view.',
+      ],
+      [
+        'Настрой вид в предпросмотре',
+        'Перетащи аватар, чтобы переместить его. Меняй масштаб колёсиком мыши или кнопками. Кнопка сброса вернёт исходный вид.',
+      ],
+      { help: '#avatar-gallery-zoom-in, #avatar-gallery-zoom-out, #avatar-gallery-reset' },
+    ],
+    [
+      '[data-gallery-category="animations"]',
+      [
+        'Replay or loop a preview',
+        'Select an expression or animation to play it. Use Play animation to replay it and Loop animation to keep it playing.',
+      ],
+      [
+        'Повтори или зацикли анимацию',
+        'Выбери выражение лица или анимацию для воспроизведения. Кнопка «Воспроизвести анимацию» запустит её снова, а «Зациклить анимацию» будет повторять её непрерывно.',
+      ],
+      { help: '#avatar-gallery-play, #avatar-gallery-loop' },
     ],
   ],
   general: [
@@ -286,6 +310,17 @@ export const coreGuides = {
       ],
     ],
     [
+      '#unrestricted-conversation',
+      [
+        'Choose how freely Capri speaks',
+        'Unrestricted conversation changes how freely Capri talks in character. Actions on your computer still use the permissions you grant.',
+      ],
+      [
+        'Настрой свободу общения',
+        'Режим свободного общения меняет то, как Капри отвечает в своём характере. Для действий на компьютере по-прежнему действуют выданные разрешения.',
+      ],
+    ],
+    [
       '#wild-close-ai-tabs',
       [
         'React to other AI tabs',
@@ -307,6 +342,28 @@ export const coreGuides = {
         'В диком стиле Капри иногда крадёт или раздваивает поддельный курсор во время паузы. Настоящий указатель и приложения продолжают работать. Кнопка «Предпросмотр розыгрыша» запускает эффект один раз.',
       ],
       { help: '#wild-pranks-preview' },
+    ],
+    [
+      '#companion-fresh-context',
+      [
+        'Start each question with fresh context',
+        'Earlier messages are left out of new requests. Saved memories and the visible conversation history are kept.',
+      ],
+      [
+        'Начинай каждый запрос с чистого контекста',
+        'Предыдущие сообщения не передаются модели при новом запросе. Сохранённые воспоминания и видимая история диалога остаются.',
+      ],
+    ],
+    [
+      '#companion-microphone-on-start',
+      [
+        'Choose whether the microphone starts on',
+        'Enable this to turn on voice input whenever you launch Capri. You can still switch the microphone off in the toolbar.',
+      ],
+      [
+        'Выбери, включать ли микрофон при запуске',
+        'Эта настройка включает голосовой ввод при каждом запуске Капри. Микрофон можно выключить в верхней панели.',
+      ],
     ],
     [
       '#companion-conversation-mode',
@@ -595,11 +652,22 @@ export const coreGuides = {
       '#companion-window-layout',
       [
         'Window layout',
-        'Vertical stacks the reply, portrait and message box from top to bottom. Horizontal gives you a wider, shorter window with the portrait on the left and the reply and message box on the right.',
+        'Vertical stacks the reply, portrait and message box. Horizontal puts the portrait and chat side by side. The preview updates before you save. Drag the window edges to resize either layout.',
       ],
       [
         'Компоновка окна',
-        'В вертикальной компоновке ответ, портрет и поле ввода идут сверху вниз. Горизонтальная делает окно шире и ниже, с портретом слева и перепиской справа.',
+        'В вертикальной компоновке ответ, портрет и поле ввода идут сверху вниз. В горизонтальной портрет и чат располагаются рядом. Изменение видно до сохранения. В любой компоновке окно можно растянуть за край.',
+      ],
+    ],
+    [
+      '#horizontal-monitor-position',
+      [
+        'Place the resource monitor',
+        'In the horizontal layout, place the monitor between the portrait and chat or to the right of the chat. The display menu beside the monitor also lets you hide it.',
+      ],
+      [
+        'Выбери место для мониторинга ресурсов',
+        'В горизонтальной компоновке мониторинг можно поставить между портретом и чатом или справа от чата. Чтобы скрыть его, открой меню отображения рядом с мониторингом.',
       ],
     ],
     [
@@ -642,8 +710,14 @@ export const coreGuides = {
     ],
     [
       '#dimming-enabled',
-      ['Dim the desktop behind Capri', 'Darkens the backdrop of each panel, including the whole toolbar and resource monitor. The space between panels stays clear.'],
-      ['Затемни рабочий стол за Капри', 'Затемняется фон целых панелей, в том числе верхней панели и мониторинга ресурсов. Промежутки между ними остаются прозрачными.'],
+      [
+        'Dim the desktop behind Capri',
+        'Darkens the backdrop of each panel, including the whole toolbar and resource monitor. The space between panels stays clear.',
+      ],
+      [
+        'Затемни рабочий стол за Капри',
+        'Затемняется фон целых панелей, в том числе верхней панели и мониторинга ресурсов. Промежутки между ними остаются прозрачными.',
+      ],
     ],
     [
       '#dimming-level',
@@ -663,6 +737,18 @@ export const coreGuides = {
     ],
   ],
   models: [
+    [
+      '#models-idle-unload',
+      [
+        'Choose when local models release memory',
+        'Local models load on the first request or when you press Load models in the main window. They stay in memory by default. Enable Unload models when idle and set a delay from 1 to 60 minutes to free memory after inactivity.',
+      ],
+      [
+        'Выбери, когда выгружать локальные модели',
+        'Локальные модели загружаются при первом запросе или по кнопке «Загрузить модели» в главном окне. По умолчанию они остаются в памяти. Чтобы освобождать память в простое, включи выгрузку и задай задержку от 1 до 60 минут.',
+      ],
+      { help: '#models-idle-timeout' },
+    ],
     [
       '#models-choice',
       [

@@ -2,6 +2,8 @@
 import path from 'node:path';
 import { setWindowAlwaysOnTop } from './window-topmost.mjs';
 import { WindowResizeSurface } from './window-resize-surface.mjs';
+import { ignoreMouseOptions } from './mouse-forwarding.mjs';
+import { stabilizeWindowBounds } from './stable-bounds.mjs';
 
 /** Security choices are centralized, including for isolated verification windows. */
 export function createSecureWindow(
@@ -55,7 +57,9 @@ export function createSecureWindow(
   }
   setWindowAlwaysOnTop(window, Boolean(alwaysOnTop));
   window.setMenu(null);
-  window.setIgnoreMouseEvents(true, { forward: true });
+  if (process.platform === 'win32' && window.getBounds && window.setBounds)
+    stabilizeWindowBounds(window, bounds);
+  window.setIgnoreMouseEvents(true, ignoreMouseOptions());
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   for (const event of ['will-navigate', 'will-attach-webview'])
     window.webContents.on(event, (value) => value.preventDefault());

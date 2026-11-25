@@ -8,6 +8,7 @@ import path from 'node:path';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { COMPANION_DEFAULTS } from '../../apps/desktop/companion-settings.mjs';
+import { CREDITS_TEAM } from '../../apps/desktop/credits-team.mjs';
 import { DRAG_LIGHTNING_COLOR } from '../../apps/desktop/renderer/teleport-effects.mjs';
 import { saveSettings, settingsView } from './settings-view.mjs';
 
@@ -36,7 +37,7 @@ writeFileSync(
         id: 'ui-answer',
         turnId: 'ui-turn',
         role: 'assistant',
-        text: 'A synthetic answer for checking the collapsed home frame.',
+        text: 'Ready.',
         createdAt: '2025-01-01T00:00:00.000Z',
         status: 'complete',
       },
@@ -112,6 +113,7 @@ try {
           portraitHeight: portrait.getBoundingClientRect().height,
           opacity: slot.hidden ? 0 : Number(getComputedStyle(stage).opacity),
           stageHeight: stage.getBoundingClientRect().height,
+          slotHeight: slot.getBoundingClientRect().height,
           hidden: slot.hidden,
           focused: document.activeElement.id,
         });
@@ -169,7 +171,13 @@ try {
     const heights = new Set(frames.map(({ height }) => height));
     if (vertical) {
       assert(heights.size >= 4, name + ' interpolates native heights');
-      assert(Math.abs(after.height - before.height) >= 80, name + ' changes physical size');
+      const shown = open ? after : before;
+      assert.ok(shown.slotHeight < 148, name + ' uses less than the full reply reserve');
+      assert.ok(Math.abs(shown.slotHeight - shown.stageHeight - 22) <= 1, name + ' fits the reply');
+      assert.ok(
+        Math.abs(Math.abs(after.height - before.height) - shown.slotHeight) <= 1,
+        name + ' changes physical size by the fitted reply height',
+      );
       assert(
         bounds.every(({ y, height }) => Math.abs(y + height - bounds[0].y - bounds[0].height) <= 1),
         name + ' anchors the bottom edge',
@@ -270,7 +278,7 @@ try {
       };
     }),
   );
-  assert.equal(rays.length, 3);
+  assert.equal(rays.length, CREDITS_TEAM.length);
   for (const ray of rays) {
     assert.equal(ray.layers, 1);
     assert.equal(ray.projections, 0);
@@ -296,7 +304,7 @@ try {
   await settings.screenshot({ path: path.join(folder, 'credits-rays.png') });
   report.rays = rays;
   report.checks.push(
-    'Three team names illuminate from animated glyph-based textures with shared drift, decorative accessibility and no horizontal page overflow',
+    'Team names illuminate from animated glyph-based textures with shared drift, decorative accessibility and no horizontal page overflow',
   );
   await settings.locator('#settings-window-close').click();
 

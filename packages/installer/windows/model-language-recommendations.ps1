@@ -20,6 +20,7 @@ function Get-CapriRecommendedLanguageProfiles([string]$Language,$Benchmark,$Prof
         if($profile.recommendedVramGiB -gt 4 -and $vram -lt ($profile.recommendedVramGiB-0.125)){continue}
         $ram=Get-CapriRequiredRam $profile $Hardware $Estimates $LanguageDevice
         if(-not(Test-CapriProfileRam $Hardware.ramGiB $ram)){continue}
+        if($null -ne $Hardware.availableRamGiB -and -not (Test-CapriAvailableModelRam $profile $Hardware $Estimates $LanguageDevice)){continue}
         $shown+=$profile.id
         $profile
         if($shown.Count -eq 2){break}

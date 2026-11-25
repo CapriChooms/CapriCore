@@ -48,9 +48,15 @@ test('bounded recent style guidance does not mutate or replay the transcript', (
   assert.ok(dialogueStyleInstruction(huge).length < 2000);
 });
 test('generation profile validates sampling without forwarding arbitrary settings', () => {
-  assert.deepEqual(generationParams({ temperature: 0.85, repeat_last_n: 512, seed: 417 }), {
+  const sampling = { temperature: 0.85, repeat_last_n: 512, seed: 417, num_thread: 32 };
+  assert.deepEqual(generationParams(sampling, {}), {
     temperature: 0.85,
     repeat_last_n: 512,
+  });
+  assert.deepEqual(generationParams(sampling, { cpuThreads: 1 }), {
+    temperature: 0.85,
+    repeat_last_n: 512,
+    num_thread: 1,
   });
   for (const value of [
     null,

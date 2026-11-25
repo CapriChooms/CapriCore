@@ -18,11 +18,10 @@ export const residentLanguageMatches = (entry, { model, contextTokens, accelerat
   entry.context_length >= contextTokens &&
   (acceleration !== 'cpu' || entry.size_vram === 0);
 
-/** Match the managed gateway's native Ollama runner. Changing shift reloads the
- * runner even when the model is already resident; auxiliary calls must agree.
+/** Match the managed gateway's native Ollama runner. Auxiliary calls omit a
+ * keep-alive override so they inherit the configured model residency.
  */
 export const LOCAL_RUNNER_POLICY = Object.freeze({
   shift: false,
   truncate: false,
-  keep_alive: -1,
 });

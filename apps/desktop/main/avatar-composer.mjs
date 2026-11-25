@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { fileURLToPath } from 'node:url';
+import { ignoreMouseOptions } from './mouse-forwarding.mjs';
 
 export const avatarComposerUrl = 'capri://desktop/avatar-composer.html';
 export const avatarComposerStateChannel = 'capri:avatar-composer-state';
@@ -222,7 +223,7 @@ export class AvatarComposer {
     const view = this.window;
     if (!view || view.isDestroyed() || this.mouseInteractive === visible) return;
     this.mouseInteractive = visible;
-    view.setIgnoreMouseEvents?.(!visible, { forward: true });
+    view.setIgnoreMouseEvents?.(!visible, ignoreMouseOptions());
   }
 
   update() {

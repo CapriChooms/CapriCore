@@ -17,6 +17,7 @@ import {
 } from '../../packages/runtime/src/index.mjs';
 import { loadAvatarCatalog, ACTIVE_AVATAR_CATALOG } from '../../apps/desktop/avatar-catalog.mjs';
 import { ensureDesktopIdentity } from '../../packages/runtime/src/host/desktop-identity.mjs';
+import { FULL_AVATAR_LAYOUT } from '../../apps/desktop/avatar-layout.mjs';
 
 const real = process.argv.includes('--real');
 const routing = process.argv.includes('--routing');
@@ -307,6 +308,29 @@ try {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(sprite, 0, 0);
       const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let minX = canvas.width,
+        minY = canvas.height,
+        maxX = 0,
+        maxY = 0;
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          if (pixels[(y * canvas.width + x) * 4 + 3] < 16) continue;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+      const margin = 16;
+      const outsideGrabArea = (point) => {
+        const sample = screenSample(point, lens);
+        return (
+          sample.x < box.x + (minX / canvas.width) * box.width - margin ||
+          sample.x > box.x + ((maxX + 1) / canvas.width) * box.width + margin ||
+          sample.y < box.y + (minY / canvas.height) * box.height - margin ||
+          sample.y > box.y + ((maxY + 1) / canvas.height) * box.height + margin
+        );
+      };
       const portrait = document.getElementById('portrait-panel').getBoundingClientRect();
       const lens =
         document.body.dataset.crt === 'webgl'
@@ -326,10 +350,11 @@ try {
       };
       const pick = (opaque, desiredY) => {
         let best;
-        for (let iy = 25; iy <= 70; iy++) {
-          for (let ix = 20; ix <= 80; ix++) {
+        for (let iy = 5; iy <= 95; iy++) {
+          for (let ix = 5; ix <= 95; ix++) {
             const point = { x: box.x + (box.width * ix) / 100, y: box.y + (box.height * iy) / 100 };
             if (document.elementFromPoint(point.x, point.y) !== region) continue;
+            if (!opaque && !outsideGrabArea(point)) continue;
             const samples = [0, -2, 2].flatMap((dx) =>
               [0, -2, 2].map((dy) => alpha({ x: point.x + dx, y: point.y + dy })),
             );
@@ -342,12 +367,12 @@ try {
       };
       return { start: pick(true, 50), gap: pick(false, 36) };
     });
-    assert.ok(gap && start, 'The test must reach transparent and opaque pixels in the same sprite');
+    assert.ok(gap && start, 'The test must reach outside the grab area and inside the silhouette');
     await page.mouse.move(gap.x, gap.y);
     await page.mouse.down();
     await page.mouse.move(gap.x - 25, gap.y - 50, { steps: 8 });
     await page.mouse.up();
-    assert.deepEqual(await placement(), originalPlacement);
+    assert.deepEqual(await placement(), originalPlacement, 'Clicks outside the grab area do not start a drag.');
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(start.x - 25, start.y - 50, { steps: 8 });
@@ -367,14 +392,12 @@ try {
     );
     await page.mouse.move(moved.x + moved.width / 2, moved.y + moved.height / 2);
     await page.mouse.wheel(0, -100);
-    await page.waitForFunction(
-      () => Number(document.querySelector('#sprite-region').dataset.zoom) > 1.15,
-    );
+    await page.waitForFunction(async () => (await window.capri.bootstrap()).avatarLayout.zoom > 1.15);
     await page.evaluate(() => window.capri.windowAction('reset-avatar'));
     await page.waitForFunction(
       () => Number(document.querySelector('#sprite-region').dataset.zoom) === 1.15,
     );
-    assert.deepEqual(await placement(), originalPlacement);
+    assert.deepEqual(await placement(), FULL_AVATAR_LAYOUT, 'Reset restores full-body framing.');
     assert.equal(
       await page.evaluate(() =>
         window.capri.setAvatarLayout({ x: Infinity, y: 0, zoom: 100 }).then(
@@ -385,9 +408,12 @@ try {
       false,
     );
     record(
-      'Capri starts centred and larger; only opaque pixels start dragging; wheel zoom and Settings reset stay independent of the window',
+      'Capri starts centred and larger; oversized transparent margins do not drag; wheel zoom and Settings reset stay independent of the window',
     );
   }
+
+  // History rows are only mounted while the conversation panel is open.
+  await page.locator('#history-toggle').evaluate((button) => button.click());
 
   if (real) {
     const code = `ORBIT-${randomBytes(3).toString('hex').toUpperCase()}`;
@@ -643,6 +669,9 @@ try {
           .length > count,
       beforeSubtitles,
     );
+    const history = page.locator('#history-toggle');
+    await history.click();
+    await page.locator('#history-panel').waitFor({ state: 'hidden' });
     await page.waitForSelector('#subtitle-controls:not([hidden])');
     assert.match(await page.locator('#subtitle-text').textContent(), /^Neon outside/);
     await page.locator('#subtitle-next').click();
@@ -650,7 +679,7 @@ try {
     assert.equal(await page.locator('#subtitle-pause').count(), 0);
     await page.locator('#subtitle-previous').click();
     assert.equal(await page.locator('#subtitle-text').getAttribute('data-index'), '0');
-    await page.locator('#history-toggle').click();
+    await history.click();
     assert.equal(await page.locator('#history-toggle').getAttribute('aria-expanded'), 'true');
     assert.equal(
       await page.locator('.message[data-role="assistant"] .message-text').last().textContent(),
@@ -659,7 +688,7 @@ try {
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('#history-panel').isVisible(), false);
     record(
-      'Long replies play as readable cues, support pause/back and retain the complete history',
+      'Long replies play as readable cues, support previous/next and retain the complete history',
     );
     const originalBounds = await application.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()

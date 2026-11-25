@@ -73,7 +73,7 @@ $script:russianVoiceAvailable=$script:bundledRussianVoiceAvailable
 $recommendation='minimal'
 foreach($candidate in @($manifest.profiles|Where-Object{$_.id -in @('balanced','desktop','quality')})){
     $ram=Get-CapriRequiredRam $candidate $hardware $memoryEstimates
-    if((Test-CapriProfileRam $hardware.ramGiB $ram) -and ($candidate.id -eq 'balanced' -or $hardware.vramGiB -ge ($candidate.recommendedVramGiB-0.125))){$recommendation=$candidate.id}
+    if((Test-CapriProfileRam $hardware.ramGiB $ram) -and (Test-CapriAvailableModelRam $candidate $hardware $memoryEstimates 'auto') -and ($candidate.id -eq 'balanced' -or $hardware.vramGiB -ge ($candidate.recommendedVramGiB-0.125))){$recommendation=$candidate.id}
 }
 $version=(Read-CapriJson (Join-Path $sourceRoot 'package.json')).version
 $releaseTag=(Read-CapriJson (Join-Path $sourceRoot 'config/release.json')).tag
@@ -117,7 +117,7 @@ $script:result=$null;
 $script:completionSession=$null
 $script:completionNoticeCount=0
 $script:launchOnFinish=$true
-$script:preloadOnFirstLaunch=$true
+$script:preloadOnFirstLaunch=$false
 $script:failure='';
 $script:networkAdviceShown=$false
 $script:cancelRequested=$false
@@ -2003,7 +2003,7 @@ public static class CapriSetupScrollVerification {
                 $script:fields.consent.Checked=$options.acceptDownloads
             }
             if($pageId -eq 'finish' -and $language -eq $verificationIds[0]){
-                if(-not $script:fields.preloadOnFirstLaunch.Checked){throw 'First-launch model preload must default to on.'}
+                if($script:fields.preloadOnFirstLaunch.Checked){throw 'First-launch model preload must default to off.'}
                 $script:fields.launch.Checked=$false
                 $script:fields.preloadOnFirstLaunch.Checked=$false
                 Save-CapriPage

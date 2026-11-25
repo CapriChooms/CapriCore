@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { normalizeCreditNames, validateEpithet } from '../credits-epithets.mjs';
+import { CREDITS_TEAM as TEAM } from '../credits-team.mjs';
 import { createCreditsRays } from './credits-rays.mjs';
-const TEAM = Object.freeze([
-  Object.freeze({ name: 'Overyx', role: 'Developer' }),
-  Object.freeze({ name: 'v1rch', role: 'Discord developer' }),
-  Object.freeze({ name: 'Leberrr', role: 'Discord moderator' }),
-]);
 const GITHUB_LOGIN = /^(?!.*--)[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i;
 const MAX_REGISTRY_LENGTH = 2 * 1024 * 1024;
 const rayFrameInterval = 32;
@@ -94,8 +90,9 @@ function registryData(value) {
 }
 
 export class CreditsPanel {
-  constructor({ ui }) {
+  constructor({ ui, openProfile }) {
     this.ui = ui;
+    this.openProfile = openProfile;
     this.loaded = false;
     this.loadPromise = null;
     this.supporters = [];
@@ -264,14 +261,23 @@ export class CreditsPanel {
       const card = document.createElement('li');
       card.className = 'credits-team-card';
       nameStyle(card, member.name);
-      card.dataset.tone = String([2, 0, 3][index]);
+      card.dataset.tone = String([2, 0, 3, 4, 1][index]);
       const identity = document.createElement('div');
       identity.className = 'credits-team-identity credits-drift';
       const role = document.createElement('span');
       role.className = 'credits-team-role';
       role.textContent = this.ui.text(member.role);
-      const label = gradientName(member.name, 'strong');
+      const label = gradientName(member.name, member.github ? 'a' : 'strong');
       label.classList.add('credits-team-name');
+      if (member.github) {
+        label.href = member.github;
+        label.target = '_blank';
+        label.rel = 'noopener noreferrer';
+        label.addEventListener('click', (event) => {
+          event.preventDefault();
+          this.openProfile('credits:' + member.name);
+        });
+      }
       const wrapper = document.createElement('span');
       wrapper.className = 'credits-team-light';
       wrapper.dir = 'ltr';

@@ -10,8 +10,17 @@ import { probeHardware } from '../../../packages/runtime/src/hardware/probe.mjs'
 import { redactor } from './redact.mjs';
 import { diagnosticZip } from './archive.mjs';
 import { ACTIVE_AVATAR_CATALOG } from '../avatar-catalog.mjs';
+import { loadBreezeProfile } from '../breeze-voice.mjs';
+import {
+  selectedVoiceModel,
+  voiceDataPath,
+  voiceRuntime,
+  voiceRuntimeKind,
+} from '../voice-catalog-service.mjs';
 import { diagnosticState, isDiagnosticControlValue } from './state.mjs';
 import { diagnosticModelId } from '../../../packages/runtime/src/privacy-log.mjs';
+import { readModelDevices } from '../../../packages/runtime/src/model-device-settings.mjs';
+import { installedBreezeTts } from '../../../packages/installer/src/breeze-tts-install.mjs';
 
 const run = promisify(execFile),
   KB = 1024;
@@ -102,9 +111,42 @@ const failure = (error) => ({
   error: error.message,
 });
 
-export async function probeVoiceEnvironment(root) {
-  const executable = path.join(root, '.runtime/voice-training-venv/Scripts/python.exe');
+const chatterboxPython = '.runtime/voice-training-venv/Scripts/python.exe';
+const chatterboxEngines = new Set(['turbo', 'multilingual-v3', 'tts-pt-br']);
+const localVoiceEngines = new Set([
+  ...chatterboxEngines,
+  'breeze-tts',
+  'qwen3-tts',
+  'qwen3-tts-ru-lora',
+]);
+
+function reportVoiceSelection(root, snapshot, config, health) {
+  const language = snapshot.voice?.configuredLanguage ?? snapshot.voice?.language;
+  if (language === 'off') return { engine: 'off' };
+  if (snapshot.voiceApi?.enabled === true || snapshot.voice?.source === 'api')
+    return { engine: 'external-api' };
+
+  const active = health?.activeEngine;
+  // A prepared process can lag behind the per-language preference after a model switch.
+  if (language && (snapshot.voice?.configuredLanguage || !localVoiceEngines.has(active))) {
+    try {
+      const model = selectedVoiceModel(root, language);
+      const engine = voiceRuntimeKind(model);
+      if (localVoiceEngines.has(engine)) return { engine, model };
+    } catch {
+      // The report can still include the observed engine if its selection is unreadable.
+    }
+  }
+  if (localVoiceEngines.has(active)) return { engine: active };
+  return { engine: config.engine === 'chatterbox-turbo' ? 'turbo' : 'unknown' };
+}
+
+export async function probeVoiceEnvironment(root, { runtime, checkChatterbox = true } = {}) {
   try {
+    const executable = voiceDataPath(
+      root,
+      runtime ? path.relative(root, runtime.python) : chatterboxPython,
+    );
     if (!(await lstat(executable)).isFile())
       return { available: false, error: 'Voice Python is missing' };
     const env = Object.fromEntries(
@@ -114,10 +156,14 @@ export async function probeVoiceEnvironment(root) {
     );
     const { stdout, stderr } = await run(
       executable,
-      ['-I', path.join(root, 'tools/diagnostics/voice-environment.py')],
+      [
+        '-I',
+        voiceDataPath(root, 'tools/diagnostics/voice-environment.py'),
+        ...(checkChatterbox ? [] : ['--no-chatterbox']),
+      ],
       {
         cwd: root,
-        env: { ...env, ...voiceRuntimeEnvironment(root), PYTHONUTF8: '1' },
+        env: { ...env, ...(runtime?.env ?? voiceRuntimeEnvironment(root)), PYTHONUTF8: '1' },
         windowsHide: true,
         timeout: 15000,
         maxBuffer: 512 * KB,
@@ -182,31 +228,36 @@ export async function createDiagnosticReport({
       return failure(e);
     }
   };
-  const [
-    pkg,
-    release,
-    voiceConfig,
-    training,
-    upstream,
-    hardwareInfo,
-    python,
-    healthInfo,
-    resources,
-  ] = await Promise.all([
+  const [pkg, release, voiceConfig, hardwareInfo, healthInfo, resources] = await Promise.all([
     meta('package.json'),
     meta('config/release.json'),
     meta('config/companion-voice.json'),
-    meta('config/voice-training.json'),
-    meta('config/voice-upstream.json'),
     Promise.resolve().then(hardware).catch(failure),
-    Promise.resolve()
-      .then(() => pythonProbe(root))
-      .catch(failure),
     Promise.resolve().then(health).catch(failure),
     Promise.resolve()
       .then(resourceProbe)
       .catch(() => ({ available: false })),
   ]);
+  const { engine, model } = reportVoiceSelection(root, snapshot, voiceConfig, healthInfo);
+  const turbo = engine === 'turbo';
+  const usesChatterbox = chatterboxEngines.has(engine);
+  const breeze =
+    engine === 'breeze-tts'
+      ? {
+          runtimeInstalled: Boolean(installedBreezeTts(root)),
+          profileValid: Boolean(loadBreezeProfile(root)),
+        }
+      : null;
+  const pythonCheck = Promise.resolve()
+    .then(() => {
+      if (usesChatterbox) return pythonProbe(root);
+      if (model?.backend === 'qwen3-tts') {
+        const runtime = voiceRuntime(root, model, readModelDevices(root).voice);
+        return pythonProbe(root, { runtime, checkChatterbox: false });
+      }
+      return null;
+    })
+    .catch(failure);
   const fileInfo = async (relative) => {
     try {
       if (typeof relative !== 'string' || path.isAbsolute(relative))
@@ -243,46 +294,52 @@ export async function createDiagnosticReport({
     files: avatarFiles,
   };
   let profile = null;
-  if (typeof voiceConfig.profileDir === 'string') {
+  if (turbo && typeof voiceConfig.profileDir === 'string') {
     try {
       profile = await json(root, path.join(voiceConfig.profileDir, 'voice-profile.json'));
     } catch (e) {
       warnings.push('Voice profile: ' + e.message);
     }
   }
-  const voiceFiles = await Promise.all(
-    [
-      '.runtime/voice-training-venv/Scripts/python.exe',
-      ...(voiceConfig.profileDir
-        ? [
-            'voice-profile.json',
-            'adapter.json',
-            'adapter.safetensors',
-            ...Object.values(profile?.references ?? {})
-              .map((r) => r.file)
-              .filter((f) => typeof f === 'string'),
-          ].map((f) => path.join(voiceConfig.profileDir, f))
-        : []),
-      ...(training.modelDir && upstream.model?.files
-        ? [...upstream.model.files, 'model-receipt.json'].map((f) =>
-            path.join(training.modelDir, f),
-          )
-        : []),
-    ]
-      .slice(0, 40)
-      .map(fileInfo),
-  );
-  let adapterChecksum = 'not checked';
-  try {
-    const name = path.join(voiceConfig.profileDir, 'adapter.safetensors'),
-      info = voiceFiles.find((f) => f.file === name);
-    if (info?.exists && info.bytes <= 32 * 1024 ** 2) {
-      const data = await tail(root, name, 32 * 1024 ** 2, true);
-      const digest = createHash('sha256').update(data.buffer).digest('hex');
-      adapterChecksum = digest === profile?.adapterSha256 ? 'matches profile' : 'MISMATCH';
+  let voicePaths = usesChatterbox ? [chatterboxPython] : [];
+  if (turbo) {
+    const [training, upstream] = await Promise.all([
+      meta('config/voice-training.json'),
+      meta('config/voice-upstream.json'),
+    ]);
+    if (typeof voiceConfig.profileDir === 'string') {
+      const references = Object.values(profile?.references ?? {})
+        .map((reference) => reference?.file)
+        .filter((file) => typeof file === 'string');
+      voicePaths = voicePaths.concat(
+        ['voice-profile.json', 'adapter.json', 'adapter.safetensors', ...references].map((file) =>
+          path.join(voiceConfig.profileDir, file),
+        ),
+      );
     }
-  } catch (e) {
-    adapterChecksum = 'not checked';
+    if (typeof training.modelDir === 'string' && Array.isArray(upstream.model?.files)) {
+      voicePaths = voicePaths.concat(
+        [
+          ...upstream.model.files.filter((file) => typeof file === 'string'),
+          'model-receipt.json',
+        ].map((file) => path.join(training.modelDir, file)),
+      );
+    }
+  }
+  const voiceFiles = await Promise.all(voicePaths.slice(0, 40).map(fileInfo));
+  let adapterChecksum = 'not checked';
+  if (turbo && typeof voiceConfig.profileDir === 'string') {
+    try {
+      const name = path.join(voiceConfig.profileDir, 'adapter.safetensors'),
+        info = voiceFiles.find((f) => f.file === name);
+      if (info?.exists && info.bytes <= 32 * 1024 ** 2) {
+        const data = await tail(root, name, 32 * 1024 ** 2, true);
+        const digest = createHash('sha256').update(data.buffer).digest('hex');
+        adapterChecksum = digest === profile?.adapterSha256 ? 'matches profile' : 'MISMATCH';
+      }
+    } catch {
+      adapterChecksum = 'not checked';
+    }
   }
   const installation = await meta('.capri-install.json'),
     journal = await meta('.runtime/installer/state.json');
@@ -347,27 +404,28 @@ export async function createDiagnosticReport({
       length: root.length,
     },
   };
+  const python = await pythonCheck;
   const voice = {
-    config: pick(voiceConfig, [
-      'engine',
-      'enabled',
-      'port',
-      'precision',
-      'decoderDevice',
-      'mergeAdapter',
-      'cudaGraph',
-      'cpuThreads',
-    ]),
+    config: {
+      engine: turbo ? 'chatterbox-turbo' : engine,
+      ...pick(turbo ? voiceConfig : null, [
+        'enabled',
+        'port',
+        'precision',
+        'decoderDevice',
+        'mergeAdapter',
+        'cudaGraph',
+        'cpuThreads',
+      ]),
+    },
     profile: pick(profile, ['engine', 'language']),
     files: voiceFiles.map((item, index) => ({
       ...item,
-      file:
-        item.file === '.runtime/voice-training-venv/Scripts/python.exe'
-          ? item.file
-          : `voice-component-${index}`,
+      file: item.file === chatterboxPython ? item.file : `voice-component-${index}`,
     })),
     adapterChecksum,
     python,
+    ...(breeze ? { breeze } : {}),
     health: diagnosticState(healthInfo),
   };
   if (problem.includeLogs) {
@@ -481,6 +539,13 @@ export async function createDiagnosticReport({
       `The last reply failed during ${last.phase ?? 'unknown'} after ${last.elapsedMs ?? 'unknown'} ms (${last.errorName ?? 'Error'}); see session.json for response budgets.`,
     );
   }
+  const watchStartCode = snapshot.screenCapture?.lastWatchStart?.code;
+  if (
+    typeof watchStartCode === 'string' &&
+    watchStartCode.startsWith('CAPRI_SCREEN_WATCH_') &&
+    watchStartCode !== 'CAPRI_SCREEN_WATCH_ARMED'
+  )
+    findings.push(`The last screen observation request failed before capture (${watchStartCode}).`);
   if (snapshot.artwork?.mode === 'fallback')
     findings.push('The desktop is displaying the procedural fallback instead of Capri artwork.');
   for (const item of avatarFiles.filter((f) => !f.exists))
@@ -489,8 +554,7 @@ export async function createDiagnosticReport({
     findings.push('The Capri avatar catalog could not be read; see avatar.json.');
   if (snapshot.voice?.enabled === false)
     findings.push('Voice is disabled in the current desktop session.');
-  if (snapshot.voice?.language === 'off')
-    findings.push('The selected language resolves to text-only speech.');
+  if (engine === 'off') findings.push('The selected language resolves to text-only speech.');
   const selectedResidency = resources.localModels?.models?.find((model) => model.selected);
   if (selectedResidency?.offload === 'cpu')
     findings.push('The selected local model is resident on CPU. See resources.json.');
@@ -502,11 +566,19 @@ export async function createDiagnosticReport({
     );
   for (const item of voice.files.filter((f) => !f.exists))
     findings.push('Missing voice component: ' + item.file);
-  if (python.cuda?.available === false)
+  if (breeze && !(healthInfo?.activeEngine === 'breeze-tts' && healthInfo.ready === true)) {
+    if (!breeze.runtimeInstalled)
+      findings.push('The Breeze TTS runtime or model files are missing or invalid.');
+    if (!breeze.profileValid)
+      findings.push('The imported Breeze TTS voice profile is missing or invalid.');
+  }
+  if (model?.backend === 'qwen3-tts' && python?.available === false)
+    findings.push('The selected Qwen3-TTS Python runtime could not be verified. See voice.json.');
+  if (usesChatterbox && python?.cuda?.available === false)
     findings.push(
       'The installed voice Python reports CUDA unavailable. Local voice also supports CPU inference.',
     );
-  if (python.chatterbox?.turboModulePresent === false)
+  if (turbo && python?.chatterbox?.turboModulePresent === false)
     findings.push('The installed Chatterbox Turbo Python module is missing.');
   if (adapterChecksum === 'MISMATCH')
     findings.push('The voice adapter checksum differs from its profile.');

@@ -6,7 +6,7 @@ $capriRouterRuntime = Get-CapriPythonRuntime -ProjectRoot $capriRouterRoot
 $capriRouterUv = $capriRouterRuntime.Uv
 $capriRouterBase = $capriRouterRuntime.Python
 $capriRouterPython = Ensure-CapriVirtualEnvironment -ProjectRoot $capriRouterRoot -Name 'router-venv' -Runtime $capriRouterRuntime
-& $capriRouterBase tools/setup/uv-retry.py --uv $capriRouterUv -- pip sync --python $capriRouterPython 'config/router-requirements.lock.txt'
+& $capriRouterBase tools/setup/uv-retry.py --uv $capriRouterUv -- pip sync --require-hashes --no-config --default-index https://pypi.org/simple --index-strategy first-index --python $capriRouterPython 'config/router-requirements.lock.txt'
 if ($LASTEXITCODE -ne 0) { throw 'Could not install CPU request router dependencies' }
 # Windows can terminate the native import before Python can report an exception.
 & $capriRouterPython -c 'import onnxruntime'

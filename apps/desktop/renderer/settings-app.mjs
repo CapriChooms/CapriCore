@@ -269,7 +269,10 @@ const knowledge = new KnowledgePanel({ api, ui, onError: notice });
 const workflows = new WorkflowsPanel({ api, ui, onError: notice });
 const coding = new CodingPanel({ api, ui, onError: notice });
 const userTools = new UserToolsPanel({ api, ui, onError: notice });
-const credits = new CreditsPanel({ ui });
+const credits = new CreditsPanel({
+  ui,
+  openProfile: (id) => api.communityLink(id).catch((error) => notice(error.message)),
+});
 let avatarGallery;
 const developer = new DeveloperPanel({ api, ui, onError: notice });
 const discord = new DiscordPanel(shared);
@@ -316,7 +319,7 @@ const files = new FileAccessPanel(shared),
 raw.onEvent((event) => {
   if (event.type === 'computer-access') applications.showComputerAccess(event.settings);
 });
-const initiative = new InitiativePanel(shared),
+const initiative = new InitiativePanel({ ...shared, companion }),
   speech = new SpeechPanel(shared),
   time = new TimePanel(shared);
 
@@ -561,7 +564,10 @@ function captureDrafts(panel) {
   for (const draft of drafts)
     if (
       draft.panel === panel ||
-      (!panel && draft.section === current && draft.baseline === undefined)
+      (!panel &&
+        draft.baseline === undefined &&
+        (draft.section === current ||
+          (draft.panel === companion.panel.id && current === 'initiative')))
     )
       draft.baseline = draft.read();
 }
@@ -705,7 +711,6 @@ const companionSections = new Map(
     personality: ['Conversation', 'Hands-free conversation', 'Personality'],
     dialogue: ['Saved memories', 'Memory controls'],
     'avatar-skill': [
-      'Desktop roaming',
       'Teleport effects',
       'Drag lightning',
       'Avatar click reactions',
@@ -1050,8 +1055,10 @@ $('call-voice-volume').oninput = (event) => {
 };
 $('call-voice-volume').onchange = () => void saveCallVolume();
 function showCallSetup() {
+  const skill = 'capri.voice-calls';
+  const enabled = skillState[skill]?.enabled === true;
   const ready = callAudio.callOutputReady === true && callAudio.mixingMic === true;
-  const pending = callAudioBusy || callSetupBusy || callSetup.busy === true;
+  const pending = pendingSkills.has(skill) || callAudioBusy || callSetupBusy || callSetup.busy === true;
   const phase = ready ? 'ready' : callSetup.phase === 'ready' ? 'idle' : callSetup.phase;
   const missing = phase === 'missing';
   const statuses = {
@@ -1065,15 +1072,18 @@ function showCallSetup() {
     ready: 'Connected. Your microphone and Capri can now share the call.',
     error: 'Setup could not finish. You can try again.',
   };
-  $('call-setup-status').textContent = ui.text(
-    !callAudio.supported
-      ? 'Call audio is available on Windows.'
-      : phase === 'error' && callSetup.error
-        ? callSetup.error
-        : (statuses[phase] ?? statuses.idle),
-  );
+  $('call-setup-status').textContent =
+    callAudio.supported && !enabled
+      ? `${ui.text('Voice calls')} · ${ui.text('Off')}`
+      : ui.text(
+          !callAudio.supported
+            ? 'Call audio is available on Windows.'
+            : phase === 'error' && callSetup.error
+              ? callSetup.error
+              : (statuses[phase] ?? statuses.idle),
+        );
   $('call-setup-status').dataset.phase = phase;
-  if (callSetup.defaultsWarning)
+  if (enabled && callSetup.defaultsWarning)
     $('call-setup-status').textContent +=
       ' ' +
       ui.text(
@@ -1085,11 +1095,11 @@ function showCallSetup() {
   $('call-setup-status').setAttribute('aria-busy', String(pending));
   $('call-setup-connect').hidden = ready;
   $('call-setup-connect').textContent = ui.text(missing ? 'Check again' : 'Set up automatically');
-  $('call-setup-connect').disabled = !callAudio.supported || pending;
-  $('call-setup-install-options').hidden = !missing;
+  $('call-setup-connect').disabled = !callAudio.supported || !enabled || pending;
+  $('call-setup-install-options').hidden = !missing || !enabled;
   $('call-setup-consent').disabled = pending;
   $('call-setup-install').disabled =
-    !callAudio.supported || pending || !$('call-setup-consent').checked;
+    !callAudio.supported || !enabled || pending || !$('call-setup-consent').checked;
   $('call-setup-website').disabled = pending;
   $('call-setup-license').disabled = pending;
   const inputLabel = ready || phase === 'connecting' ? callSetup.cable?.inputLabel : '';
@@ -1110,8 +1120,9 @@ async function runCallSetup(action) {
       if (callAudio.supported) callOutputs = await raw.callAudioDevices();
     }
   } catch (error) {
-    callSetup = { ...callSetup, phase: 'error', busy: false, error: error.message };
-    notice(error.message);
+    const message = error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
+    callSetup = { ...callSetup, phase: 'error', busy: false, error: message };
+    notice(message);
   } finally {
     callSetupBusy = false;
     showCallAudio();
@@ -1677,6 +1688,7 @@ function skillGlyph(icon) {
 }
 function showSkillSettings() {
   showCallCamera();
+  showCallSetup();
   const skill = SKILL_BY_SECTION[current];
   skillHeader.hidden = !skill;
   if (skill) {
@@ -2134,6 +2146,8 @@ function show(snapshot) {
   applications.showSpotify(snapshot.spotify);
   models.setConversationLanguage(snapshot.languages.conversation);
   models.show(snapshot.models);
+  if (!models.idleUnload) models.bindIdleUnload(raw);
+  models.setIdleUnload(snapshot.modelIdlePolicy);
   updates.show(snapshot.updates);
   companion.show(snapshot.companion);
   captureDrafts(companionPanelId);

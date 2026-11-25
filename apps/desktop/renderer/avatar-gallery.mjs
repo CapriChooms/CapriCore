@@ -22,6 +22,7 @@ import {
 } from './avatar-teleport-motion.mjs';
 import { AvatarWave } from './avatar-wave.mjs';
 import { drawMusicNotes, MusicAnimation, MusicPoseLayer } from './music-animation.mjs';
+import { musicRig } from './music-beat-motion.mjs';
 import { drawSandevistan, prepareSandevistan, sandevistanStamps } from './sandevistan-motion.mjs';
 import { getScreenInteraction, screenInteractionClips } from './screen-interaction-motion.mjs';
 import { drawStartupIntro } from './startup-intro-motion.mjs';
@@ -113,8 +114,12 @@ export function galleryEntries({ frames = [], clips = [], defaultId = 'neutral',
   for (const frame of poses) {
     if (avatarPoseSegments(frame.id).length)
       add('sway-' + frame.id, 'Sway · ' + frame.label, 'sway', frame.id);
-    if (frame.kind === 'reviewed_music')
-      add('dance-' + frame.id, musicTitle(frame.id), 'music', frame.id);
+    if ((clips.length || isPose(frame)) && musicRig(frame.id)) {
+      const title = frame.kind === 'reviewed_music'
+        ? musicTitle(frame.id)
+        : 'Music listening · ' + still(frame).title;
+      add('dance-' + frame.id, title, 'music', frame.id);
+    }
   }
   return {
     poses: poses.map((frame) => still(frame)),
@@ -295,6 +300,8 @@ export class AvatarGallery {
       this.endPan();
       this.surface?.dispose();
       this.surface = null;
+      this.musicPose?.clear();
+      this.musicPose = null;
       this.poster.removeAttribute('src');
       this.items.replaceChildren();
       this.cards = [];
@@ -333,6 +340,7 @@ export class AvatarGallery {
       image.loading = 'lazy';
       image.decoding = 'async';
       image.src = entry.poster.url;
+      if (entry.poster.id === 'pose-sleep') image.dataset.frame = entry.poster.id;
       const label = document.createElement('span');
       thumbnail.append(image);
       button.append(thumbnail, label);
@@ -356,10 +364,12 @@ export class AvatarGallery {
     if (entry) {
       this.selection.set(this.category, entry.id);
       this.poster.src = entry.poster.url;
+      this.poster.dataset.frame = entry.poster.id;
       if (!entry.kind && isPose(entry.poster) && this.poster.currentSrc === this.poster.src)
         this.poseFace.update(this.poster, 'closed', entry.poster.id);
     }
     this.poster.hidden = !entry;
+    if (!entry) delete this.poster.dataset.frame;
     if (reset || (detailChanged && !this.layoutAdjusted)) this.resetView();
     else this.positionArt();
     for (const card of this.cards)
@@ -369,6 +379,8 @@ export class AvatarGallery {
   }
 
   title(value) {
+    if (value.startsWith('Music listening · '))
+      return this.ui.text('Music listening') + ' · ' + this.ui.text(value.slice('Music listening · '.length));
     return value.startsWith('Sway · ')
       ? this.ui.text('Sway') + ' · ' + this.ui.text(value.slice(7))
       : this.ui.text(value);
@@ -501,7 +513,7 @@ export class AvatarGallery {
         exposure = frame;
         ctx.clearRect(0, 0, resolution, resolution);
         try {
-          paint(ctx, elapsed % duration);
+          paint(ctx, elapsed % duration, elapsed);
         } catch (error) {
           this.stop();
           this.unavailable();
@@ -594,17 +606,18 @@ export class AvatarGallery {
     }
     if (entry.kind === 'music') {
       const animation = new MusicAnimation();
-      const pose = new MusicPoseLayer();
+      const pose = this.musicPose ??= new MusicPoseLayer(resolution);
       const notes = await Promise.all(this.notes.map(({ url }) => loadImage(url)));
       source = await registeredGalleryPose(source, entry.poster.id);
+      if (!source.src) source.avatarTextureRevision ??= 1;
       return {
-        duration: 4800,
-        paint: (ctx, time) => {
-          const state = animation.sample(time, {
+        duration: (8 * 60000) / 110,
+        paint: (ctx, time, elapsed = time) => {
+          const state = animation.sample(elapsed, {
             active: true,
             tempo: 110,
             frameId: entry.poster.id,
-            wallTime: time,
+            wallTime: elapsed,
           });
           const body = pose.image(source, state);
           ctx.drawImage(body, 0, 0, resolution, resolution);

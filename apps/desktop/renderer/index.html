@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src capri://desktop/capri-wave.webp capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+      content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src capri://desktop/capri-wave.webp capri://desktop/avatar-face-poses.json capri://desktop/avatar-face-gestures.json capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
     />
     <title>Capri</title>
     <link rel="icon" type="image/svg+xml" href="/brand/capricore.svg" />
@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="cyberpunk.css" />
     <link rel="stylesheet" href="guide.css" />
     <link rel="stylesheet" href="avatar-headpat.css" />
+    <link rel="stylesheet" href="wild-prank.css" />
     <link rel="stylesheet" href="avatar-sleep.css" />
     <link rel="stylesheet" href="avatar-observation.css" />
     <link rel="stylesheet" href="update-notification.css" />
@@ -359,6 +360,12 @@
       <canvas id="frame-fx" aria-hidden="true"></canvas>
       <section id="input-dock" aria-label="Message Capri">
         <div class="dock-notifications" data-hit-region>
+          <button id="models-warm" type="button" data-hit-region hidden disabled>
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M4 9h12v8H4zM7 12v2m3-2v2m3-2v2M10 2v5m-3-3 3 3 3-3" />
+            </svg>
+            <span>Load models</span>
+          </button>
           <div id="connection-status">
             <span id="status" class="sr-only" dir="auto" role="status" aria-live="polite"
               >Starting local core…</span
@@ -964,7 +971,7 @@
           </section>
           <section class="settings-card" aria-labelledby="initiative-quiet-label">
             <label class="dimming-switch" id="initiative-quiet-label"
-              ><input id="initiative-quiet-enabled" type="checkbox" checked /> Enable quiet
+              ><input id="initiative-quiet-enabled" type="checkbox" role="switch" /> Enable quiet
               hours</label
             >
             <label class="dimming-label" for="initiative-quiet-start"
@@ -974,23 +981,18 @@
             ><input id="initiative-quiet-end" type="number" min="0" max="23" />
           </section>
           <section class="settings-card" aria-labelledby="initiative-exclusions-label">
-            <label
-              class="dimming-label"
-              for="initiative-exclusions"
-              id="initiative-exclusions-label"
-              >Exclude apps (process names, comma separated)</label
-            ><input
+            <label class="dimming-switch" id="initiative-exclusions-label">
+              <input id="initiative-exclusions-enabled" type="checkbox" role="switch" />
+              Exclude apps (process names, comma separated)
+            </label>
+            <input
               id="initiative-exclusions"
               type="text"
               maxlength="1800"
               spellcheck="false"
+              aria-labelledby="initiative-exclusions-label"
               data-untranslated
             />
-            <p class="settings-help">
-              Disable quiet hours to allow comments at any time. Fullscreen windows, excluded apps,
-              typing, user speech and active replies suppress comments. Browser-based calls cannot
-              be detected reliably; exclude your browser during calls.
-            </p>
           </section>
           <section class="settings-card" aria-labelledby="initiative-status-title">
             <h3 id="initiative-status-title">Initiative status</h3>
@@ -1003,10 +1005,6 @@
               </button>
             </div>
             <p id="initiative-status" class="settings-help" role="status">App awareness is off.</p>
-            <p class="settings-help" data-help-for="initiative-status-title">
-              Preview comments use the local model and shared history. They can affect model cache
-              and the next response time. Repeated or late comments are skipped.
-            </p>
           </section>
         </div>
       </section>

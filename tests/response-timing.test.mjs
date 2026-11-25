@@ -95,7 +95,11 @@ test('submission failure diagnostics preserve only a known technical reason', ()
 
 test('YouTube Music diagnostics report the action and player outcome without the query or track', () => {
   const start = record({ stage: 'youtube_music_start', action: 'play' });
-  const result = record({ stage: 'youtube_music_result', reason: 'control_unverified' });
+  const result = record({
+    stage: 'youtube_music_result',
+    reason: 'playing',
+    fallbackReason: 'search_input_unavailable',
+  });
   assert.deepEqual(privateLogRecord(JSON.stringify({ ...start, query: 'private' })), {
     schemaVersion: 1,
     ...start,
@@ -201,7 +205,7 @@ test('the real native gateway adapter emits correlated timings without replacing
   const { applyOpenClawCompatibility } = await import('../scripts/openclaw-compat.mjs');
   applyOpenClawCompatibility(path.resolve('.'));
   const { createOllamaStreamFn } = await import(
-    '../node_modules/openclaw/dist/stream.runtime-DVVOeOOt.mjs'
+    '../node_modules/openclaw/dist/stream.runtime-1A1YZsag.mjs'
   );
   const events = [],
     hook = Symbol.for('capri.providerTiming'),

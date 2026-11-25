@@ -31,6 +31,7 @@ jobs:
       - run: npm run release:check
       - run: npm run verify:dimming
       - run: npm run verify:languages
+      - run: node tools/localization/translate-settings-guides.mjs --check
       - run: node tools/verify/verify-companion-settings.mjs
       - run: node tools/verify/verify-spotify-settings.mjs
       - run: node tools/verify/verify-settings-lifecycle.mjs
@@ -47,7 +48,7 @@ jobs:
       # or downloading speech weights; catch index/pin failures before release.
       - run: python -m pip install uv==0.13.5
       - run: uv venv .runtime/asr-checks
-      - run: uv pip sync --python .runtime/asr-checks/Scripts/python.exe config/asr-requirements.lock.txt
+      - run: uv pip sync --require-hashes --no-config --default-index https://pypi.org/simple --python .runtime/asr-checks/Scripts/python.exe config/asr-requirements.lock.txt
       # Native VAD verification needs this 2.3 MB pinned model, not Parakeet/Whisper.
       - run: .runtime/asr-checks/Scripts/python.exe tools/setup/provision-streaming-asr.py --vad-only
       - run: .runtime/asr-checks/Scripts/python.exe -m unittest tests.asr_languages_test tests.asr_recognition_test

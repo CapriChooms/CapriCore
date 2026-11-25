@@ -65,7 +65,7 @@ test('private dialogue refuses external sharing by default and uses a direct bou
       const body = JSON.parse(options.body);
       assert.equal(body.shift, false);
       assert.equal(body.truncate, false);
-      assert.equal(body.keep_alive, -1);
+      assert.equal(body.keep_alive, undefined);
       assert.equal(body.options.num_ctx, 32768);
       return new Response(JSON.stringify({ message: { content: 'Private answer' } }));
     },

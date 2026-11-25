@@ -10,6 +10,8 @@ Capri is a Windows AI desktop companion powered by OpenClaw. Run a bundled local
 
 The public repository and releases are **CapriChooms/CapriCore**. Downloads and update checks do not require a GitHub account, invitation or token.
 
+Experimental builds are also available on Linux x86-64 and Apple Silicon. See the [Linux install guide](LINUX-PREVIEW.md), [macOS install guide](docs/macos.md), and [platform build instructions](docs/platform-previews.md).
+
 ## What's new in 1.2.2
 
 - Adjust voice output gain up to 200% in Audio settings or the voice volume menu.
@@ -48,7 +50,7 @@ License/download consent, hardware profiles, language choices, progress, cancell
 
 ## Start from source
 
-For manual local-model development on Windows 10/11 x64, install Node.js 24.22.1
+For manual local-model development on Windows 10/11 x64, install Node.js 24.22.3
 (or a compatible later 24.x), npm and the [llama.cpp Windows x64 Vulkan runtime](https://github.com/ggml-org/llama.cpp/releases/tag/b12317). Set `CAPRI_LLAMA_PATH` to the full path of `llama-server.exe` before starting Capri. Open the
 extracted or cloned folder containing **package.json** and run:
 
@@ -62,7 +64,7 @@ npm run models:pull
 npm run desktop
 ```
 
-`node --version` should show `v24.22.1` or a newer 24.x version. `npm ci` installs
+`node --version` should show `v24.22.3` or a newer 24.x version. `npm ci` installs
 the JavaScript libraries from the lockfile; wait for it to finish successfully
 before continuing. If startup reports `Cannot find module` or
 `ERR_MODULE_NOT_FOUND`, repeat `npm ci` in this folder. If `node` or `npm` is not

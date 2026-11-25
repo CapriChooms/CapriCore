@@ -26,6 +26,7 @@ export class ScreenFrameWorker {
     limit = { width: 16384, height: 16384 },
     format = 'png',
     signal,
+    aroundCapture,
   } = {}) {
     signal?.throwIfAborted();
     if (this.disposed) throw new Error('Screen capture closed');
@@ -69,7 +70,12 @@ export class ScreenFrameWorker {
     const result = this.queue.then(() => {
       signal?.throwIfAborted();
       if (this.disposed) throw new Error('Screen capture closed');
-      return this.run(request, { region, limit, format, signal });
+      const capture = () => {
+        signal?.throwIfAborted();
+        if (this.disposed) throw new Error('Screen capture closed');
+        return this.run(request, { region, limit, format, signal });
+      };
+      return aroundCapture ? aroundCapture(capture) : capture();
     });
     this.queue = result
       .catch(() => {})

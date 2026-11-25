@@ -3,22 +3,24 @@ export const INITIATIVE_DEFAULTS = {
   hourlyLimit: null,
   quietStart: 23,
   quietEnd: 9,
-  quietHoursEnabled: true,
+  quietHoursEnabled: false,
   spontaneous: true,
   returnReactions: true,
   appReactions: false,
   screenComments: false,
   watchTogether: false,
+  appExclusionsEnabled: false,
   excludedApps: ['discord', 'ms-teams', 'teams', 'zoom', 'powerpnt', 'obs64'],
 };
 export function validateInitiative(value) {
   value = value && {
     ...value,
     hourlyLimit: value.hourlyLimit ?? null,
-    quietHoursEnabled: value.quietHoursEnabled ?? value.quietStart !== value.quietEnd,
+    quietHoursEnabled: value.quietHoursEnabled ?? false,
     spontaneous: value.spontaneous ?? true,
     screenComments: value.screenComments ?? false,
     watchTogether: value.watchTogether ?? false,
+    appExclusionsEnabled: value.appExclusionsEnabled ?? false,
   };
   if (
     !value ||
@@ -36,6 +38,7 @@ export function validateInitiative(value) {
     typeof value.appReactions !== 'boolean' ||
     typeof value.screenComments !== 'boolean' ||
     typeof value.watchTogether !== 'boolean' ||
+    typeof value.appExclusionsEnabled !== 'boolean' ||
     !Array.isArray(value.excludedApps) ||
     value.excludedApps.length > 30 ||
     !value.excludedApps.every((n) => typeof n === 'string' && /^[a-z0-9_.-]{1,60}$/i.test(n))
@@ -52,11 +55,12 @@ export function validateInitiative(value) {
     appReactions: value.appReactions,
     screenComments: value.screenComments,
     watchTogether: value.watchTogether,
-    excludedApps: [...new Set(value.excludedApps.map((n) => n.toLowerCase()))],
+    appExclusionsEnabled: value.appExclusionsEnabled,
+    excludedApps: [...new Set(value.excludedApps.map(processName))],
   };
 }
 export function quietHour(settings, hour) {
-  if (settings.quietHoursEnabled === false) return false;
+  if (settings.quietHoursEnabled !== true) return false;
   const start = settings.quietStart,
     end = settings.quietEnd;
   return start === end
@@ -64,6 +68,18 @@ export function quietHour(settings, hour) {
     : start < end
       ? hour >= start && hour < end
       : hour >= start || hour < end;
+}
+
+function processName(name) {
+  return name.toLowerCase().replace(/(.+)\.exe$/u, '$1');
+}
+
+export function initiativeAppExcluded(settings, foregroundName) {
+  return Boolean(
+    settings.appExclusionsEnabled &&
+      foregroundName &&
+      settings.excludedApps.includes(processName(foregroundName)),
+  );
 }
 
 export function initiativeLimit(settings) {

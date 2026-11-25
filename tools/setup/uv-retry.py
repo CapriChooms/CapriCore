@@ -210,6 +210,18 @@ def run_uv(command, *, environ=None, run=stream_process, sleep=time.sleep,
            pytorch_profile=None, use_windows_git_trust=False):
     """Retry locked dependencies, optionally switching only the PyTorch delivery host."""
     base_env = dict(os.environ if environ is None else environ)
+    # Installer subprocesses use only the package sources and integrity policy in
+    # Capri's lock. Proxy, cache and timeout settings still work normally.
+    for name in list(base_env):
+        if name.upper() in {
+            'UV_INDEX', 'UV_EXTRA_INDEX_URL', 'UV_INDEX_URL', 'UV_DEFAULT_INDEX',
+            'UV_FIND_LINKS', 'UV_NO_INDEX', 'UV_INDEX_STRATEGY', 'UV_TORCH_BACKEND',
+            'UV_OVERRIDE', 'UV_CONSTRAINT', 'UV_BUILD_CONSTRAINT', 'UV_NO_VERIFY_HASHES',
+            'UV_INSECURE_HOST', 'UV_CONFIG_FILE', 'UV_NO_DEPS', 'UV_NO_BUILD_ISOLATION',
+            'UV_NO_BUILD_ISOLATION_PACKAGE', 'UV_REQUIRE_HASHES',
+        }:
+            del base_env[name]
+    base_env['UV_NO_CONFIG'] = 'true'
     if use_windows_git_trust:
         base_env = windows_git_trust(base_env)
     base_env['GIT_TERMINAL_PROMPT'] = '0'

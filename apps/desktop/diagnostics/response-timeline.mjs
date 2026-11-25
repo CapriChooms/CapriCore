@@ -21,6 +21,8 @@ const phases = [
   ['gateway', 'gateway_dispatch', 'gateway_first_token'],
   ['stream', 'first_delta', 'completed'],
   ['voice', 'first_delta', 'voice_audio'],
+  ['voice_wait', 'voice_queued', 'voice_synthesis'],
+  ['voice_synthesis', 'voice_synthesis', 'voice_audio'],
 ];
 
 /** Join by explicit correlation IDs only. Process elapsed clocks are never mixed. */
@@ -95,7 +97,12 @@ export function responseTimelines(input, { maximum = 40 } = {}) {
         totalMs: duration(origin, terminal),
         phases: phases.map(([id, start, end]) => ({
           id,
-          durationMs: duration(first(start), id === 'stream' ? terminal : first(end)),
+          durationMs: duration(
+            first(start),
+            id === 'stream'
+              ? terminal
+              : (first(end) ?? (id === 'voice_wait' ? first('voice_wait_expired') : null)),
+          ),
         })),
         calls,
         events: records.slice(-200).map((row) => ({

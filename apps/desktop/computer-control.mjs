@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomUUID } from 'node:crypto';
-import { setTimeout as delay } from 'node:timers/promises';
 import { canClickTarget } from './computer-click-target.mjs';
 import { computerTaskCommand } from './computer-mode-request.mjs';
 import { isCyberpunkLauncherWindow, isCyberpunkPlayLabel } from './steam-game-launch.mjs';
@@ -101,6 +100,7 @@ export class ComputerControl {
     unregisterEscape,
     showBorder,
     hideBorder,
+    showIdleLightning = () => {},
     currentTurn = () => 'owner-turn',
     emit = () => {},
     now = Date.now,
@@ -123,6 +123,7 @@ export class ComputerControl {
       unregisterEscape,
       showBorder,
       hideBorder,
+      showIdleLightning,
       currentTurn,
       emit,
       now,
@@ -143,7 +144,11 @@ export class ComputerControl {
     };
   }
   publish() {
-    this.emit({ type: 'computer.control', ...this.snapshot() });
+    this.emit({
+      type: 'computer.control',
+      ...this.snapshot(),
+      ...(this.session?.idleCursor && { idleCursor: true }),
+    });
   }
   #authorized(session) {
     return (
@@ -202,34 +207,44 @@ export class ComputerControl {
     }
     return this.#begin(goal, { maxSteps, signal });
   }
-  async runIdleCursor(direction, permitted, signal) {
-    if (
-      !['left', 'right'].includes(direction) ||
-      this.session ||
-      this.stopping ||
-      signal?.aborted ||
-      !this.allowed() ||
-      !permitted()
-    )
-      return false;
+  async runIdleCursor(permitted, signal, canFinish = permitted) {
+    if (this.session || this.stopping || signal?.aborted || !this.allowed() || !permitted())
+      return { moved: false, code: 'CAPRI_IDLE_CURSOR_CANCELLED' };
+    let dispatched = false;
     const starting = this.#begin('Idle cursor prank', {
       maxSteps: 1,
       signal,
-      idleCursor: permitted,
+      idleCursor: () => (dispatched ? canFinish() : permitted()),
     });
     const session = this.session;
     try {
       await starting;
       const stillAllowed = () =>
         this.session === session && this.#authorized(session) && this.now() < session.deadline;
-      await delay(350, undefined, { signal: session.controller.signal });
-      if (!stillAllowed()) return false;
+      if (!stillAllowed()) return { moved: false, code: 'CAPRI_IDLE_CURSOR_CANCELLED' };
+      // Windows rechecks actual input immediately before committing the single
+      // move. A programmatic pointer change must not revoke its own receipt.
+      dispatched = true;
       session.pending = this.bridge(
-        { action: 'idle_cursor_nudge', direction },
+        { action: 'idle_cursor_nudge' },
         { signal: session.controller.signal, stillAllowed },
       );
-      const { moved } = await session.pending;
-      return moved === true && this.session === session;
+      const { moved, from, to, code } = await session.pending;
+      if (moved !== true)
+        return {
+          moved: false,
+          code: /^CAPRI_IDLE_CURSOR_[A-Z_]+$/.test(code ?? '')
+            ? code
+            : 'CAPRI_IDLE_CURSOR_MOVE_UNCONFIRMED',
+        };
+      if (
+        stillAllowed() &&
+        [from, to].every((point) => Number.isInteger(point?.x) && Number.isInteger(point?.y))
+      )
+        await Promise.resolve()
+          .then(() => this.showIdleLightning({ from, to }))
+          .catch(() => {});
+      return { moved: true };
     } finally {
       if (this.session === session) await this.stop({ blockTurn: false });
     }

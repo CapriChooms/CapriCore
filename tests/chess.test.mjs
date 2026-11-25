@@ -39,6 +39,7 @@ import {
   restoreChessFrameAppearance,
 } from '../apps/desktop/renderer/chess-frame-style.mjs';
 import { ChessReactions } from '../apps/desktop/chess/reactions.mjs';
+import { reactionCandidates } from '../apps/desktop/chess/reaction-copy.mjs';
 import { chessReactionSettings } from '../apps/desktop/renderer/chess-reaction-settings.mjs';
 import {
   ARROW_ANGLED_ENDS,
@@ -117,7 +118,7 @@ test('verified chess reactions mention both moves, filter events and vary withou
   assert.equal(delivered.length, 2);
   assert.match(
     delivered[0][0],
-    /Your knight takes the queen.*opponent’s rook gives check.*rook takes the knight/iu,
+    /the queen.*our knight.*check from the opponent’s rook.*rook takes the knight/iu,
   );
   assert.notEqual(delivered[0][0], delivered[1][0]);
   settings.events.check = false;
@@ -125,7 +126,7 @@ test('verified chess reactions mention both moves, filter events and vary withou
   reactions.submit([twoMoves[1]]);
   assert.match(
     delivered.at(-1)[0],
-    /rook takes the knight|knight is off the board|rook just took the knight/iu,
+    /the knight.*the opponent’s rook|rook (?:takes|just took) the knight/iu,
   );
   assert.doesNotMatch(delivered.at(-1)[0], /check/iu);
   assert.equal(delivered.at(-1)[1], false);
@@ -145,10 +146,10 @@ test('localized Chess reactions use the current style and the verified checker',
     advantage: 'b',
   };
   for (const [style, expected] of [
-    ['neutral', /Ладья белых даёт шах.*Перевес у чёрных/iu],
-    ['romantic', /Ладья белых даёт шах.*Я теперь смотрю/iu],
-    ['business', /Ладья белых даёт шах.*У чёрных перевес/iu],
-    ['wild', /Ладья белых даёт шах.*рука на пульте/iu],
+    ['neutral', /привет, король.*шах от ладьи белых/iu],
+    ['romantic', /побудь рядом.*ладья белых даёт шах/iu],
+    ['business', /шах от ладьи белых.*сначала ответ/iu],
+    ['wild', /пинг.*ладья белых даёт шах/iu],
   ]) {
     const lines = [];
     const reactions = new ChessReactions({
@@ -163,6 +164,33 @@ test('localized Chess reactions use the current style and the verified checker',
     assert.match(lines[0], expected, style);
     assert.doesNotMatch(lines[0], /слон/iu);
   }
+});
+
+test('Chess comment names our pieces and evaluates the board from our side', () => {
+  const move = {
+    events: [{ type: 'capture', color: 'b', piece: 'r', captured: 'q', side: 'player' }],
+    advantage: 'b',
+    player: 'b',
+  };
+  const english = reactionCandidates(move, 'en', 'wild');
+  assert.match(english[0].text, /Yoink.*our rook.*queen/iu);
+  assert.ok(english.some(({ text }) => /our side has a hand on the controls/iu.test(text)));
+  assert.ok(english.every(({ text }) => !/White|Black/iu.test(text)));
+  const russian = reactionCandidates(move, 'ru', 'wild');
+  assert.match(russian[0].text, /наша ладья.*ферзя/iu);
+  assert.ok(russian.some(({ text }) => /у нас рука на пульте/iu.test(text)));
+  const lines = [];
+  const reactions = new ChessReactions({
+    preferences: () => ({ ...chessReactionSettings(), enabled: true }),
+    allowed: () => true,
+    style: () => 'wild',
+    random: () => 0,
+    deliver: (text) => lines.push(text),
+  });
+  reactions.submit([move, move, { ...move, advantage: 'w' }]);
+  assert.match(lines[0], /our side has a hand on the controls/iu);
+  assert.match(lines[0], /the opponent has a hand on the controls/iu);
+  assert.equal((lines[0].match(/our side has a hand on the controls/giu) ?? []).length, 1);
 });
 
 test('a long chain of repeated checks keeps unique wording and never loses a move', () => {
@@ -206,7 +234,7 @@ test('Chess retains fresh reactions during speech and clears stale or cancelled 
   available = true;
   reactions.drain();
   assert.equal(lines.length, 1);
-  assert.match(lines[0], /Pieces up.*opponent’s queen gives check/iu);
+  assert.match(lines[0], /Pieces up.*check from the opponent’s queen/iu);
 
   available = false;
   reactions.submit([{ events: [{ type: 'capture', side: 'player' }] }], game.signal);
@@ -989,7 +1017,7 @@ test('current Lichess game links still require server confirmation of a computer
     assert.equal(chessPage(view(origin, route)), null, route);
 
   const signal = new AbortController().signal;
-  const game = { id: gameId, variant: 'standard', status: 'started' };
+  const game = { id: gameId, variant: 'standard', status: 'started', rated: false };
   const results = [
     { ...game, players: { black: { user: { title: 'BOT' } } } },
     { ...game, rated: true, players: { black: { aiLevel: 8 } } },
@@ -1008,10 +1036,37 @@ test('current Lichess game links still require server confirmation of a computer
   assert.equal(await access.allowed(signal), null);
   assert.equal(await access.allowed(signal), null);
   assert.equal(await access.allowed(signal), null);
-  assert.equal((await access.allowed(signal))?.computerSide, 'b');
+  const activeComputer = await access.allowed(signal);
+  assert.equal(activeComputer.computerSide, 'b');
   route = '/game/AbCd1234Wxyz';
   assert.equal((await access.allowed(signal))?.computerSide, 'b');
   assert.equal(requests, 4);
+});
+
+test('Lichess computer games permit recommendations while browser auto move stays disabled', () => {
+  const page = {
+    ...chessPage(view('https://lichess.org', '/game/AbCd1234')),
+    computerSide: 'b',
+  };
+  const position = { fen: new Chess().fen() };
+  const watch = {
+    orientation: 'white',
+    position,
+    verifiedPosition: true,
+    result: { bestMove: { uci: 'e2e4' } },
+  };
+  const session = new ChessSession({
+    enabled: () => true,
+    autoMove: () => true,
+    playScreenMove: () => assert.fail('The Lichess board must not receive native input'),
+  });
+  assert.equal(session.playerColor(watch, page), 'w');
+  assert.equal(session.shouldAutoMove(watch, page), false);
+  assert.equal(session.shouldAutoMove(watch, chessPage(view(page.origin, '/analysis'))), false);
+  assert.equal(
+    session.shouldAutoMove(watch, chessPage(view('https://www.chess.com', '/play/computer'))),
+    true,
+  );
 });
 
 test('Chess prefers tab identity and falls back to the verified bot window', () => {
@@ -1497,7 +1552,7 @@ test(
     );
     assert.deepEqual(
       reactions.map(({ type, color, side, captured }) => [type, color, side, captured]),
-      [['capture', 'b', undefined, 'p']],
+      [['capture', 'b', 'opponent', 'p']],
     );
   },
 );

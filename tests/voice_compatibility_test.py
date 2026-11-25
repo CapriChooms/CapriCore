@@ -1,6 +1,7 @@
 """GPU-family selection and CUDA execution regression tests without a GPU."""
 import importlib.util
 import json
+import re
 from pathlib import Path
 import sys
 from types import SimpleNamespace as NS
@@ -16,6 +17,25 @@ spec.loader.exec_module(selection)
 
 
 class VoiceCompatibilityTests(unittest.TestCase):
+    def test_voice_lock_pins_every_distribution_and_only_reviewed_git_commits(self):
+        commits = {
+            'chatterbox-tts': 'https://github.com/resemble-ai/chatterbox.git@' +
+                json.loads((ROOT / 'config/voice-upstream.json').read_text())['source']['revision'],
+            'resemble-perth': 'https://github.com/resemble-ai/Perth.git@ff1c8ac55a976971245cdd53c18d6131ca00d993',
+        }
+        for path in (ROOT / 'config').glob('requirements-voice-*.lock'):
+            lock = path.read_text().replace(chr(92) + chr(10), ' ')
+            for line in lock.splitlines():
+                if not line or line.startswith('#'):
+                    continue
+                if ' @ git+' in line:
+                    name, source = line.split(' @ git+')
+                    self.assertEqual(source, commits[name])
+                else:
+                    self.assertRegex(line, r'(?:--hash=sha256:|#sha256=)[a-f0-9]{64}(?: |$)')
+            self.assertFalse(re.search(r'^(?:gradio|gradio-client|fastapi|starlette|uvicorn)==', lock, re.M))
+
+
     def test_installer_runtime_probe_checks_pinned_source_and_gpu_without_model_io(self):
         from integrations.voice_training import __main__ as training
 
@@ -153,7 +173,7 @@ class VoiceCompatibilityTests(unittest.TestCase):
                 self.assertFalse(cuda_preflight(torch)['kernelReady'])
 
     def test_modern_lock_changes_only_reviewed_torch_audio_and_sympy_pins(self):
-        lines = lambda name: {v for v in (ROOT / 'config' / name).read_text(encoding='utf-8').splitlines() if v and not v.startswith('#')}
+        lines = lambda name: {v.split()[0] if '==' in v else v for v in (ROOT / 'config' / name).read_text(encoding='utf-8').splitlines() if v and v[0].isalnum()}
         legacy, modern = lines('requirements-voice-training.lock'), lines('requirements-voice-blackwell.lock')
         self.assertEqual(legacy - modern, {'torch==2.6.0+cu124', 'torchaudio==2.6.0+cu124', 'sympy==1.13.1'})
         self.assertEqual(modern - legacy, {'torch==2.7.1+cu128', 'torchaudio==2.7.1+cu128', 'sympy==1.14.0'})

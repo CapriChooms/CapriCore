@@ -1,16 +1,16 @@
 {
   "openclaw": {
-    "package": "openclaw@2026.10.6",
+    "package": "openclaw@2026.10.33",
     "source": "https://github.com/openclaw/openclaw.git",
-    "sourceCommit": "ec58b6924b9a5b69764d95dff1c5c49ce00e7806"
+    "sourceCommit": "5196fbbf89838939b0c2e29c09b8829afbc0d415"
   },
   "node": {
-    "version": "24.22.1",
-    "source": "https://nodejs.org/dist/v24.22.1/"
+    "version": "24.22.3",
+    "source": "https://nodejs.org/dist/v24.22.3/"
   },
   "desktop": {
-    "runtime": "electron@45.3.1",
-    "source": "https://github.com/electron/electron/releases/tag/v45.3.1",
+    "runtime": "electron@45.5.0",
+    "source": "https://github.com/electron/electron/releases/tag/v45.5.0",
     "interface": "apps/desktop",
     "sprite": "assets/capri/sprites/v1/capri-neutral.png",
     "spriteSha256": "6cc8436659c5bc7cb48efb041eb6de73522680fc32468556acc9bc9c10390c56"
@@ -18,7 +18,9 @@
   "llama": {
     "version": "b12317",
     "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b12317",
-    "windowsArchiveSha256": "968a487604622f4194d0451d77a92b6a7cff1c29338e88841dd38472c81013ca"
+    "windowsArchiveSha256": "968a487604622f4194d0451d77a92b6a7cff1c29338e88841dd38472c81013ca",
+    "macosArm64ArchiveSha256": "ac453373fa09110df9edab032a00936dd834f85421c5333cb3a1ff9cbdc410ea",
+    "macosArm64ArchiveBytes": 16896114
   },
   "python": {
     "version": "3.11.17",

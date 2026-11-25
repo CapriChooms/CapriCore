@@ -1,35 +1,35 @@
-html,
-body {
+.wild-prank-window,
+.wild-prank-window body {
   margin: 0;
   overflow: hidden;
   background: transparent;
   pointer-events: none;
 }
 
-#prank {
+.wild-prank-effect {
   position: absolute;
   left: var(--x);
   top: var(--y);
   color: #8ffbf3;
 }
 
-#prank:not([data-variant]) {
+.wild-prank-effect:not([data-variant]) {
   visibility: hidden;
 }
 
-#prank > div {
+.wild-prank-effect > div {
   position: absolute;
   opacity: 0;
 }
 
-.cursor {
+.wild-prank-effect .cursor {
   width: 19px;
   height: 24px;
   filter: drop-shadow(0 0 4px currentColor);
 }
 
-.cursor::before,
-.cursor::after {
+.wild-prank-effect .cursor::before,
+.wild-prank-effect .cursor::after {
   position: absolute;
   inset: 0;
   content: '';
@@ -37,18 +37,18 @@ body {
   background: currentColor;
 }
 
-.cursor::after {
+.wild-prank-effect .cursor::after {
   inset: 3px;
   background: #10222a;
 }
 
-.avatar {
+.wild-prank-effect .avatar {
   width: 62px;
   height: 70px;
   margin: -44px 0 0 -20px;
 }
 
-.avatar img {
+.wild-prank-effect .avatar img {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -56,7 +56,7 @@ body {
   filter: drop-shadow(0 0 5px #ff21627a);
 }
 
-.spark {
+.wild-prank-effect .spark {
   inset: -12px auto auto -12px;
   width: 22px;
   height: 22px;
@@ -66,27 +66,49 @@ body {
   animation: spark var(--duration) ease-out both;
 }
 
-[data-variant='snatch'] .avatar {
+.wild-prank-effect[data-variant='snatch'] .avatar {
   animation: grab var(--duration) cubic-bezier(0.2, 0.75, 0.3, 1) both;
 }
 
-[data-variant='snatch'] .decoy {
+.wild-prank-effect[data-variant='snatch'] .decoy {
   animation: snatch var(--duration) ease-in-out both;
 }
 
-[data-variant='glitch'] .decoy,
-[data-variant='glitch'] .echo {
+.wild-prank-effect[data-variant='glitch'] .decoy,
+.wild-prank-effect[data-variant='glitch'] .echo {
   animation: glitch var(--duration) ease-out both;
 }
 
-[data-variant='glitch'] .echo {
+.wild-prank-effect[data-variant='glitch'] .echo {
   color: #ff3370;
   --dx: -22px;
   --dy: 21px;
 }
 
-[data-variant='glitch'] .avatar {
+.wild-prank-effect[data-variant='glitch'] .avatar {
   animation: grab var(--duration) ease-in-out both;
+}
+.wild-prank-preview {
+  position: relative;
+  block-size: 104px;
+  margin-block-start: 8px;
+  overflow: hidden;
+  background: var(--theme-background, #09171c);
+  border: 1px solid var(--theme-border, #40747b);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wild-prank-preview .wild-prank-effect[data-variant] :is(.avatar, .decoy) {
+    animation: none;
+    opacity: 1;
+  }
+  .wild-prank-preview .wild-prank-effect .decoy {
+    transform: translate(28px, 8px);
+  }
+  .wild-prank-preview .wild-prank-effect :is(.spark, .echo) {
+    animation: none;
+  }
 }
 
 @keyframes grab {

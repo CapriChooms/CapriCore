@@ -1,6 +1,6 @@
 # OpenClaw compatibility fixes
 
-These narrow fixes target the pinned OpenClaw 2026.10.6 build. They are applied by `npm ci`'s root postinstall step and checked before Gateway startup. `patches.json` contains the exact edits and SHA-256 values of the original and resulting files. Unknown versions or file contents stop preparation rather than applying a speculative patch. Review the fixes when updating OpenClaw; remove them when the upstream behavior no longer needs them.
+These fixes target the version in `patches.json`. The root `npm ci` postinstall applies them, and Gateway startup checks them again. The manifest records the exact edits and SHA-256 values before and after patching. A version or hash mismatch stops preparation. Recheck each edit when upgrading OpenClaw.
 
 The local `capri-qwen3.5:9b` alias uses the upstream GGUF weights and vision projector with the GGUF's native chat template. The installed llama-server enforces `LLAMA_ARG_THINK_BUDGET`, configured by `reasoningBudget` in `config/core.json`. This closes the thinking block at the budget and continues generation; it does not truncate the visible answer.
 
@@ -18,7 +18,7 @@ Foreground local turns use a transient output budget before SDK prompt checks: u
 
 ## One-shot conversation routing
 
-The authenticated Capri owner can send `x-capri-thinking-once: off` on a chat request. The HTTP adapter validates the agent and value after the existing authentication and session authorization, then forwards the native `thinkingOnce` option through the ingress helper. Unlike `thinking`, this option does not persist a thinking level in the shared session. Requests without the header keep their previous behavior; no tools, messages or authority scopes are changed. Other values and agents are rejected. `tests/request-router.test.mjs` checks validation, and `scripts/verify-request-routing.mjs` checks real Qwen thinking output and the unchanged session setting across alternating modes.
+The authenticated Capri owner can send `x-capri-thinking-once` or `x-capri-tools-once` on a chat request. The HTTP adapter validates the headers after existing authentication and session authorization. Thinking and tool selections apply to the current turn. The tool mask intersects existing permissions, and scoped turns skip OpenClaw's tool-definition pinning so a previous turn cannot add tools to the current provider request. `tests/request-router.test.mjs` checks validation. `tools/verify/verify-inference-api.mjs` checks tool scopes across consecutive turns in the same Gateway session.
 
 ## Validation
 

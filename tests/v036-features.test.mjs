@@ -8,9 +8,11 @@ import { root } from '../packages/runtime/src/host/paths.mjs';
 import { personaPrompt } from '../packages/runtime/src/context.mjs';
 import {
   readCommunicationStyle,
+  readCommunicationSelection,
   saveCommunicationStyle,
   COMMUNICATION_STYLES,
 } from '../packages/runtime/src/communication.mjs';
+import { lemonadeDialogue } from '../apps/desktop/lemonade-dialogue.mjs';
 import {
   savePersonality,
   initializePersonality,
@@ -77,6 +79,47 @@ test('desktop prompt previews use unsaved text and style without touching the wo
   const persisted = personaPrompt({ workspace });
   assert.match(persisted, /Saved personality\./);
   assert.match(persisted, /COMMUNICATION STYLE: business/);
+});
+test('changing style preserves older dialogue as facts without using it as assistant examples', () => {
+  const workspace = folder();
+  savePersonality(workspace, 'An editable character profile. '.repeat(180));
+  saveCommunicationStyle(workspace, 'wild');
+  const { changedAt } = readCommunicationSelection(workspace);
+  assert.ok(changedAt > 0);
+  saveCommunicationStyle(workspace, 'wild');
+  assert.equal(readCommunicationSelection(workspace).changedAt, changedAt);
+  const priorDate = new Date(changedAt - 1).toISOString();
+  const currentDate = new Date(changedAt).toISOString();
+  const { messages } = lemonadeDialogue({
+    input: { id: 'now', text: 'What did we decide?' },
+    persona: personaPrompt({ workspace }, { prioritizeStyle: true }),
+    styleChangedAt: changedAt,
+    history: [
+      { role: 'user', turnId: 'old', text: 'Where should we meet?' },
+      {
+        role: 'assistant',
+        turnId: 'old',
+        text: 'I recommend the south gate.',
+        status: 'complete',
+        createdAt: priorDate,
+      },
+      { role: 'user', turnId: 'fresh', text: 'What time?' },
+      {
+        role: 'assistant',
+        turnId: 'fresh',
+        text: 'Six. Make the clock nervous.',
+        status: 'complete',
+        createdAt: currentDate,
+      },
+    ],
+  });
+  assert.match(messages[0].content, /COMMUNICATION STYLE: wild/);
+  assert.match(messages[0].content, /takes precedence/);
+  assert.deepEqual(
+    messages.filter(({ role }) => role === 'assistant').map(({ content }) => content),
+    ['Six. Make the clock nervous.'],
+  );
+  assert.match(messages.at(-1).content, /quoted for facts only.*south gate/s);
 });
 test('only a reviewed stock personality is refreshed and its previous file is backed up', () => {
   const workspace = folder(),

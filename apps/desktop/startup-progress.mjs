@@ -25,9 +25,16 @@ const linuxCoreStartupMessages = Object.freeze({
 export function coreStartupFailure(error, { platform = 'win32' } = {}) {
   if (!Object.hasOwn(coreStartupMessages, error?.code))
     return { message: 'The local core is unavailable. Reconnect to try again.' };
-  const message =
-    (platform === 'linux' && linuxCoreStartupMessages[error.code]) || coreStartupMessages[error.code];
-  return { code: error.code, message };
+  const exitCode = error.code === 'CAPRI_SERVICE_EXITED' ? error.exitCode : undefined;
+  return {
+    code: error.code,
+    message:
+      (platform === 'linux' && linuxCoreStartupMessages[error.code]) ||
+      coreStartupMessages[error.code],
+    ...(Number.isSafeInteger(exitCode) && exitCode >= -0x80000000 && exitCode <= 0xffffffff
+      ? { exitCode: exitCode >>> 0 }
+      : {}),
+  };
 }
 
 /** Stage completion is measured; ETA is an explicitly approximate local estimate. */

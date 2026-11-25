@@ -48,6 +48,7 @@ export function releaseAsset(release, kind = 'source') {
   const name = {
     source: `Capri-${version}-source.zip`,
     installer: `CapriSetup-${version}.exe`,
+    'macos-arm64': `Capri-${version}-macOS-arm64.zip`,
     'linux-x64': `Capri-${version}-linux-x86_64.tar.gz`,
   }[kind];
   if (typeof name !== 'string') return null;
@@ -58,7 +59,7 @@ export function releaseAsset(release, kind = 'source') {
     asset.id <= 0 ||
     !Number.isSafeInteger(asset.size) ||
     asset.size <= 0 ||
-    asset.size > 512 * 1024 ** 2 ||
+    asset.size > (kind === 'macos-arm64' ? 1024 : 512) * 1024 ** 2 ||
     !/^sha256:[a-f0-9]{64}$/.test(asset.digest ?? '')
   )
     return null;

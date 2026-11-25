@@ -32,6 +32,9 @@ export const COMPANION_DEFAULTS = Object.freeze({
   followUpAfterAnyReply: true,
   followUpSeconds: 12,
   conversationMode: false,
+  microphoneOnStart: false,
+  freshContext: false,
+  unrestrictedConversation: false,
   wildCloseAiTabs: false,
   wildDesktopPranks: false,
   wakeOnReminder: true,
@@ -86,6 +89,9 @@ export function validateCompanionSettings(value) {
     typeof next.followUp !== 'boolean' ||
     typeof next.followUpAfterAnyReply !== 'boolean' ||
     typeof next.conversationMode !== 'boolean' ||
+    typeof next.microphoneOnStart !== 'boolean' ||
+    typeof next.freshContext !== 'boolean' ||
+    typeof next.unrestrictedConversation !== 'boolean' ||
     typeof next.wildCloseAiTabs !== 'boolean' ||
     typeof next.wildDesktopPranks !== 'boolean' ||
     typeof next.wakeOnReminder !== 'boolean' ||

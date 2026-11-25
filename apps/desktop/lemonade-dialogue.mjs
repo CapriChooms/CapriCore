@@ -26,24 +26,29 @@ export function lemonadeDialogue({
   webContext = '',
   standalone = false,
   avatarInstruction = '',
+  styleChangedAt = 0,
 }) {
   const assistantByTurn = new Map(
     history
       .filter((entry) => entry.role === 'assistant' && entry.status === 'complete')
-      .map((entry) => [entry.turnId, entry.text]),
+      .map((entry) => [entry.turnId, entry]),
   );
   const previous = [];
+  const earlier = [];
   let chars = 0;
   for (const owner of standalone ? [] : history.slice().reverse()) {
     if (owner.role !== 'user' || owner.turnId === input.id) continue;
-    const raw = assistantByTurn.get(owner.turnId);
-    if (!raw) continue;
-    const reply = priorReply(raw).slice(0, 1200);
+    const assistant = assistantByTurn.get(owner.turnId);
+    if (typeof assistant?.text !== 'string') continue;
+    const reply = priorReply(assistant.text).slice(0, 1200);
     const question = owner.text.slice(0, 1200);
     if (!reply || !question.trim()) continue;
     chars += question.length + reply.length;
-    if (chars > historyLimit || previous.length >= 10) break;
-    previous.unshift({ role: 'user', content: question }, { role: 'assistant', content: reply });
+    if (chars > historyLimit || previous.length / 2 + earlier.length >= 5) break;
+    if (styleChangedAt && !(Date.parse(assistant.createdAt) >= styleChangedAt))
+      earlier.unshift({ user: question, capri: reply });
+    else
+      previous.unshift({ role: 'user', content: question }, { role: 'assistant', content: reply });
   }
   return {
     messages: [
@@ -62,7 +67,15 @@ export function lemonadeDialogue({
       ...previous,
       {
         role: 'user',
-        content: input.text + (observation ? observation.slice(0, 2000) : '') + webContext,
+        content:
+          (earlier.length
+            ? 'Earlier conversation, quoted for facts only:\n' +
+              JSON.stringify(earlier) +
+              '\n\nCurrent message:\n'
+            : '') +
+          input.text +
+          (observation ? observation.slice(0, 2000) : '') +
+          webContext,
       },
     ],
     stream: true,
@@ -89,8 +102,9 @@ export async function handsFreeReply({
   model,
   request,
   signal,
+  styleChangedAt,
 }) {
-  const payload = lemonadeDialogue({ input, history, persona, languages });
+  const payload = lemonadeDialogue({ input, history, persona, languages, styleChangedAt });
   payload.messages[0].content += '\n\n' + handsFreeInstruction;
   const response = await request(
     {

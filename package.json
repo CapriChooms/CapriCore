@@ -1,6 +1,6 @@
 {
   "name": "capri",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "private": true,
   "description": "Local Windows backend for Capri, powered by OpenClaw and llama.cpp",
   "type": "module",
@@ -13,7 +13,7 @@
     "protobufjs": false
   },
   "engines": {
-    "node": ">=24.22.1 <25"
+    "node": ">=24.22.3 <25"
   },
   "dependencies": {
     "@js-temporal/polyfill": "0.5.1",
@@ -21,7 +21,7 @@
     "chess.js": "1.4.0",
     "mathjs": "15.2.0",
     "onnxruntime-web": "1.31.1",
-    "openclaw": "2026.10.6",
+    "openclaw": "2026.10.33",
     "pdfjs-dist": "6.5.438"
   },
   "overrides": {
@@ -39,6 +39,7 @@
     "verify": "node tools/verify/verify.mjs",
     "desktop": "node packages/runtime/bin/capri.mjs desktop",
     "build:camera": "node tools/release/build-camera.mjs",
+    "build:desktop-teleport": "node scripts/build-desktop-teleport.mjs",
     "verify:desktop": "node tools/verify/verify-desktop.mjs",
     "verify:settings": "node tools/verify/verify-settings.mjs",
     "verify:desktop:real": "node tools/verify/verify-desktop.mjs --real",
@@ -95,7 +96,7 @@
     "verify:installer": "node tools/verify/verify-installer.mjs"
   },
   "devDependencies": {
-    "electron": "45.3.1",
+    "electron": "45.5.0",
     "playwright-core": "1.63.0",
     "prettier": "3.6.2"
   },

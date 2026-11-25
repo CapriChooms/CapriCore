@@ -2,7 +2,7 @@
 
 Этот контур готовит записи, обучает небольшой LoRA-адаптер и позволяет сравнить его с исходной моделью. Он отделён от работающего компаньона, общей памяти и старого TTS. Личные записи и результаты запусков хранятся локально в `data/` и не поставляются с репозиторием. Текущая основа — **Chatterbox Turbo**, английская модель с нативными паралингвистическими тегами. Качество конкретного голоса определяем прослушиванием, а не размером модели или минимальным training loss.
 
-Исходники и веса закреплены в `config/voice-upstream.json`; 111 зависимостей среды — в `config/requirements-voice-training.lock`. Код и карточка весов Chatterbox указывают MIT. Сторонний набор обучения был изучен, но не используется как установленный trainer: английский словарь не расширяется, embeddings не переобучаются целиком. Здесь свой небольшой рецепт LoRA поверх официального движка. Источники: [официальный код](https://github.com/resemble-ai/chatterbox), [карточка Turbo](https://huggingface.co/ResembleAI/chatterbox-turbo), [изученный сторонний trainer](https://github.com/gokhaneraslan/chatterbox-finetuning).
+Исходники и веса закреплены в `config/voice-upstream.json`; зависимости среды закреплены в `config/requirements-voice-training.lock`. Код и карточка весов Chatterbox указывают MIT. Сторонний набор обучения был изучен, но не используется как установленный trainer: английский словарь не расширяется, embeddings не переобучаются целиком. Здесь свой небольшой рецепт LoRA поверх официального движка. Источники: [официальный код](https://github.com/resemble-ai/chatterbox), [карточка Turbo](https://huggingface.co/ResembleAI/chatterbox-turbo), [изученный сторонний trainer](https://github.com/gokhaneraslan/chatterbox-finetuning).
 
 ## Что делать с нарезкой
 

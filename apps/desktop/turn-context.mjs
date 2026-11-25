@@ -15,9 +15,13 @@ export function whenPromptSkill(state, ids, ...items) {
 export function desktopTurnContext(
   state = {},
   history = [],
-  { dialogueOnly = false, includeLocalDialogue = false } = {},
+  { dialogueOnly = false, includeLocalDialogue = false, styleChangedAt = 0 } = {},
 ) {
-  const recent = repeatedPhrasing(history);
+  const recent = repeatedPhrasing(
+    styleChangedAt
+      ? history.filter((message) => Date.parse(message.createdAt) >= styleChangedAt)
+      : history,
+  );
   // A local calculation has no gateway turn. Carry its verified result into the
   // first subsequent model request so follow-ups also work on a fresh session.
   const lastReply = history.findLast(

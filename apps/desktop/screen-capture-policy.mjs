@@ -60,11 +60,19 @@ export class ScreenCapturePolicy {
     this.monitorSampleInFlight = false;
     this.capture = null;
     this.lastStop = null;
+    this.lastWatchStart = null;
   }
   diagnostics() {
     const { source, ...state } = this.snapshot();
     // Window titles and visual content do not belong in a diagnostic report.
-    return { ...state, lastStop: this.lastStop ? { ...this.lastStop } : null };
+    return {
+      ...state,
+      lastStop: this.lastStop ? { ...this.lastStop } : null,
+      lastWatchStart: this.lastWatchStart ? { ...this.lastWatchStart } : null,
+    };
+  }
+  recordWatchStart(code) {
+    this.lastWatchStart = { code, timestampMs: this.now() };
   }
   snapshot() {
     return {

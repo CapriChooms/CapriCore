@@ -10,6 +10,7 @@ const directories = [
   'apps',
   'packages',
   'integrations',
+  'native/desktop-teleport',
   'scripts',
   'tools',
   'tests',
@@ -24,6 +25,8 @@ const rootFiles = [
   'package-lock.json',
   'pyproject.toml',
   'README.md',
+  'LINUX-PREVIEW.md',
+  'start-capri.sh',
   'ROADMAP.md',
   'LICENSE',
   'CONTRIBUTING.md',
@@ -39,7 +42,7 @@ const rootFiles = [
   '.prettierrc.json',
 ];
 export const forbiddenSource =
-  /(?:^|\/)(?:node_modules|\.runtime|\.git|\.venv|__pycache__)(?:\/|$)|^(?:data|logs|vendor|archive|release)(?:\/|$)|^docs\/audit\/(?!npm-sbom\.cdx\.json$)|^(?:apps|packages|integrations)\/[^/]+\/(?:dist|build)(?:\/|$)|\.local\.(?:json|ps1)$|\.pyc$|\.env(?:\.|$)/i;
+  /(?:^|\/)(?:node_modules|\.runtime|\.git|\.venv|__pycache__)(?:\/|$)|^(?:data|logs|vendor|archive|release)(?:\/|$)|^docs\/audit\/(?!npm-sbom\.cdx\.json$)|^(?:apps|packages|integrations)\/[^/]+\/(?:dist|build)(?:\/|$)|^native\/desktop-teleport\/target(?:\/|$)|\.local\.(?:json|ps1)$|\.pyc$|\.env(?:\.|$)/i;
 export function sourceFiles(sourceRoot = root) {
   const result = [];
   function walk(directory) {

@@ -126,6 +126,34 @@ test('a headpat preserves its current pose until the reaction ends or Capri fall
   );
 });
 
+test('music keeps the current idle pose until playback stops or the user interacts', () => {
+  const artwork = requireCapriAvatar(root);
+  const { frames, clips, autonomy } = artwork.publicAnimation();
+  const director = new AnimationDirector({
+    choices: artwork.publicSprites(),
+    frames,
+    clips,
+    settings: autonomy,
+    random: () => 0,
+  });
+  director.select('neutral', 1, 0);
+  const start = autonomy.firstActivityMs;
+  assert.equal(director.tick(start, { expanded: true }).frameId, 'pose-sit-floor');
+  const listening = { expanded: true, musicListening: true };
+  for (let elapsed = 100; elapsed <= 8000; elapsed += 100)
+    assert.equal(director.tick(start + elapsed, listening).frameId, 'pose-sit-floor');
+  assert.equal(director.tick(start + 10000, listening).frameId, 'pose-sit-floor');
+  for (let elapsed = 10250; elapsed <= 14500; elapsed += 250)
+    director.tick(start + elapsed, { expanded: true });
+  assert.equal(director.tick(start + 14600, listening).frameId, 'neutral');
+  director.select('happy', 2, start + 14700);
+  assert.equal(director.tick(start + 14700, { ...listening, active: true }).frameId, 'happy');
+  assert.equal(
+    director.tick(start + 14800, { ...listening, sleeping: true }).frameId,
+    'pose-sleep',
+  );
+});
+
 test('the live director plays the authored timelines as face motion on a stable body frame', () => {
   const seen = new Set(),
     director = create();
@@ -159,6 +187,50 @@ test('the live director plays the authored timelines as face motion on a stable 
       .map(({ id }) => id),
     ['pose-sleep', 'music-window', 'music-floor'],
   );
+});
+
+test('idle expressions change without replacing the selected pose, and yield to user activity', () => {
+  const installed = requireCapriAvatar(root);
+  const { frames, clips, autonomy } = installed.publicAnimation();
+  const director = new AnimationDirector({
+    choices: installed.publicSprites(),
+    frames,
+    clips,
+    settings: autonomy,
+    random: () => 0,
+  });
+  director.select('pose-crouch', 1, 0);
+  const idle = { expanded: true };
+  let state;
+  for (let now = 0; now <= 22000; now += 200) state = director.tick(now, idle);
+  assert.equal(state.frameId, 'pose-crouch');
+  assert.equal(state.expression, 'attentive');
+  for (let now = 22200; now <= 34000; now += 200) state = director.tick(now, idle);
+  assert.equal(state.frameId, 'pose-crouch');
+  assert.equal(state.expression, 'thinking');
+  assert.equal(director.tick(34200, { ...idle, typing: true }).expression, null);
+});
+
+test('the current pose keeps a positive music mood until the session ends', () => {
+  const installed = requireCapriAvatar(root);
+  const { frames, clips, autonomy } = installed.publicAnimation();
+  const director = new AnimationDirector({
+    choices: installed.publicSprites(),
+    frames,
+    clips,
+    settings: autonomy,
+    random: () => 0,
+  });
+  director.select('pose-sit-floor', 1, 0);
+  const music = { expanded: true, musicListening: true };
+  const first = director.tick(100, music);
+  assert.equal(first.frameId, 'pose-sit-floor');
+  assert.equal(first.expression, 'happy');
+  assert.equal(director.tick(200, { ...music, speaking: true }).expression, null);
+  assert.equal(director.tick(300, music).expression, 'happy');
+  assert.equal(director.tick(400, { expanded: true }).expression, null);
+  assert.equal(director.tick(500, music).expression, 'smirk');
+  assert.equal(director.tick(600, { ...music, sleeping: true }).frameId, 'pose-sleep');
 });
 
 test('blink, wink and surprise compress just their eyelid beats to two thirds', () => {
@@ -210,6 +282,69 @@ test('blink, wink and surprise compress just their eyelid beats to two thirds', 
       sleepy: 2320,
     },
   );
+});
+
+test('resting expressions use open eyes and reaction clips only pass through a partial closure', () => {
+  for (const id of [
+    'annoyed',
+    'concerned',
+    'embarrassed',
+    'flirty',
+    'focused',
+    'happy',
+    'sad',
+    'skeptical',
+    'smirk',
+    'thinking',
+  ]) {
+    assert.deepEqual(avatarFaceState('neutral', id, null, 0).eyelids, [0, 0], id);
+  }
+  assert.deepEqual(faceFrames.sleepy.eyelids, [1, 1]);
+
+  // The sustained parts of a smile, laugh or doze have a definite eye pose.
+  // Verify the moving lids between each pair of holds as well as the loop seam.
+  for (const [id, beats] of [
+    [
+      'excited',
+      [
+        [900, 0],
+        [970, 1],
+        [1000, 1],
+        [1100, 0],
+      ],
+    ],
+    [
+      'laugh',
+      [
+        [160, 0],
+        [270, 1],
+        [1170, 1],
+        [1290, 0],
+      ],
+    ],
+    [
+      'sleepy',
+      [
+        [210, 1],
+        [365, 0],
+        [720, 0],
+        [920, 1],
+      ],
+    ],
+  ]) {
+    const { sample, duration } = faceAnimations[id];
+    const holds = [[0, beats[0][1]], ...beats, [duration, beats.at(-1)[1]]];
+    for (let i = 1; i < holds.length; i++) {
+      const [start, from] = holds[i - 1];
+      const [end, to] = holds[i];
+      assert.deepEqual(sample(start).eyelids, [from, from], id);
+      const [left, right] = sample((start + end) / 2).eyelids;
+      assert.equal(left, right, id);
+      if (from === to) assert.equal(left, from, id);
+      else assert.ok(left > 0 && left < 1, id);
+    }
+    assert.deepEqual(sample(0).eyelids, sample(duration).eyelids, id);
+  }
 });
 
 test('new user attention preempts gaze and a new model choice supersedes a facial reaction', () => {

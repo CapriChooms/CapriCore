@@ -15,7 +15,7 @@ test('call routing sees one approved prompt and cannot call tools or access priv
       const body = JSON.parse(request.body);
       assert.equal(body.shift, false);
       assert.equal(body.truncate, false);
-      assert.equal(body.keep_alive, -1);
+      assert.equal(body.keep_alive, undefined);
       assert.equal(body.options.num_ctx, 32768);
       assert.deepEqual(body.tools, []);
       assert.deepEqual(

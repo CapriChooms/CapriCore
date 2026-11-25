@@ -189,6 +189,47 @@ test('opening the YouTube home page takes the desktop route from chat and the te
   assert.equal(f.events.at(-1).assistant.text, 'Opened the requested page.');
 });
 
+test('the model can delegate a YouTube request and an owner-authorized follow-up using their PC', async () => {
+  const first = 'Найди на ютубчике что-нибудь интересное';
+  const followUp = 'Use my PC and find something on your own flavor';
+  assert.deepEqual(computerModeRequest(followUp), { enabled: true, run: true });
+  assert.equal(ownerRequestsWeb(first), true);
+  const f = fixture({
+    interfaceState: () => ({ fullComputerAccess: true, computerSkillEnabled: true }),
+    localTools: () => [{ name: 'extract_data', mode: 'tool', keywords: ['find'] }],
+    computerTask: async (goal, { previousTask }) => {
+      f.goals.push(goal);
+      f.taskContexts.push(previousTask);
+      return { status: 'completed', steps: 1, summary: 'Found a video on YouTube.' };
+    },
+    fetchImpl: async (_url, options) => {
+      const request = JSON.parse(options.body);
+      const owner = [...f.records.values()].findLast(({ role }) => role === 'user').text;
+      assert.equal(options.headers['x-capri-tools-once'], 'desktop');
+      assert.match(request.messages[0].content, /^DESKTOP TASK:.*first response.*desktop_control/);
+      assert.equal(request.messages[1].content, owner);
+      assert.deepEqual(f.goals, owner === first ? [] : [first]);
+      f.chat.selectModelComputerTask(owner);
+      await delay(60_000, undefined, { signal: options.signal });
+    },
+  });
+  await f.send(first, { internet: true });
+  await f.send(followUp, { internet: true });
+  assert.deepEqual(f.goals, [first, followUp]);
+  assert.deepEqual(f.taskContexts, [undefined, { goal: first }]);
+});
+
+test('an explicit desktop task only presents receipts or a truthful failure if the model does not delegate', async () => {
+  const f = fixture({ fetchImpl: () => streamReply('I will open YouTube now.') });
+  await f.send('Use my PC and find something interesting on YouTube');
+  assert.deepEqual(f.goals, []);
+  assert.doesNotMatch(
+    f.events.filter(({ type }) => type === 'turn.delta').map(({ text }) => text).join(''),
+    /I will open/,
+  );
+  assert.match(f.events.at(-1).assistant.text, /did not start computer control/);
+});
+
 test('an app substitution after a direct launch uses the verified desktop route', async () => {
   const f = fixture({
     interfaceState: () => ({ fullComputerAccess: true }),

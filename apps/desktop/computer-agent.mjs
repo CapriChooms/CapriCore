@@ -7,6 +7,8 @@ import {
   ownerAppLaunch,
   mentionsDiscord,
   windowsMediaPlayerTask,
+  youtubeBrowseFollowUp,
+  youtubeBrowseRequest,
 } from './computer-mode-request.mjs';
 import { uiText } from './interface-translations.mjs';
 import { canClickTarget, hasVisualEvidence } from './computer-click-target.mjs';
@@ -696,8 +698,35 @@ export class ComputerAgent {
       let correction = '',
         failures = 0,
         observationRetries = 0,
+        reviewRetries = 0,
+        recoveringReview = false,
         pendingOutcome = null,
         lastPointer = null;
+      const reviewPlan = async (context) => {
+        this.progress('verifying', steps);
+        try {
+          const result = await this.plan(context, { signal: combined, review: true });
+          combined.throwIfAborted();
+          reviewRetries = 0;
+          return result;
+        } catch (error) {
+          combined.throwIfAborted();
+          if (
+            reviewRetries ||
+            error?.code !== 'COMPUTER_PLAN_HTTP' ||
+            ![502, 503, 504].includes(error.httpStatus)
+          )
+            throw error;
+          reviewRetries++;
+          recoveringReview = true;
+          this.taskPlan.recordOutcome({ ok: false, blocked: true });
+          this.trace.push({ action: 'observe', outcome: 'review_recovery', code: error.code });
+          correction =
+            'The independent completion review was temporarily unavailable. Use the fresh observation to verify the result or revise the remaining steps. Do not repeat input already delivered.';
+          await delay(250, undefined, { signal: combined });
+          return null;
+        }
+      };
       const deliveredClicks = new Set();
       const windowLabels = new Map();
       let changedLabels = { windowId: null, values: [] };
@@ -731,11 +760,13 @@ export class ComputerAgent {
         discordAllowed && !discordLaunchOnly && !(opening?.single && mentionsDiscord(opening.name));
       let steamGoal = opening?.section ? null : steamGameGoal(command);
       const youtubeHome = youtubeHomeDestination(command);
+      const youtubeBrowsing =
+        youtubeBrowseRequest(command) || youtubeBrowseFollowUp(goal, previousTask?.goal);
       const directDestination = youtubeHome
         ? { url: youtubeHome }
         : explicitBrowserDestination(goal);
       const scope = new ComputerTaskScope(goal, opening, {
-        web: Boolean(directDestination) || ownerRequestsWeb(goal, opening),
+        web: Boolean(directDestination) || youtubeBrowsing || ownerRequestsWeb(goal, opening),
       });
       const requestedClick = exactClickLabel(goal);
       let clickNeedsVision = false;
@@ -1153,6 +1184,9 @@ export class ComputerAgent {
             correction,
             directDestination
               ? `If the page still needs opening, choose open_url with ${directDestination.url}.`
+              : null,
+            youtubeBrowsing
+              ? 'Search on YouTube. If the owner leaves the topic to you, pick a topic or use recommendations, then identify a real video from the page. Do not stop to ask for a genre when the choice was delegated.'
               : null,
             section
               ? `Verify that the requested section “${opening.section}” is selected in the bound window.`
@@ -1613,6 +1647,25 @@ export class ComputerAgent {
           lastPointer?.key === pointer &&
           previous?.ok &&
           previous.action === step.action;
+        if (
+          recoveringReview &&
+          clickInWindow &&
+          (deliveredClicks.has(clickInWindow) ||
+            (previous?.ok &&
+              previous.action === 'click' &&
+              previous.windowId === view.window?.windowId &&
+              sameActionTarget(previous.target, selected.untrustedLabel)))
+        ) {
+          correction =
+            'That click was already delivered before the verification failure. Verify its outcome from the current observation or choose a different next step.';
+          this.taskPlan.recordOutcome({ ok: false, blocked: true });
+          if (++failures >= 3)
+            return terminal(
+              { ok: false, status: 'stalled', steps, summary: this.message('stalled') },
+              'no_progress',
+            );
+          continue;
+        }
         if (steam?.remaining && repeatsPointer) {
           correction = steam.remaining;
           if (++failures >= 3) {
@@ -1634,8 +1687,8 @@ export class ComputerAgent {
           // Do not click past the goal just because a small model fails to stop.
           // Review a proposed repeat first; legitimate repeated actions still run
           // when the independent reviewer confirms that the task is incomplete.
-          this.progress('verifying', steps);
-          const review = await this.plan(context, { signal: combined, review: true });
+          const review = await reviewPlan(context);
+          if (!review) continue;
           if (review.action === 'finish') {
             if (await this.acceptReviewedResult(review, view, combined, goal)) {
               completed = true;
@@ -1736,12 +1789,8 @@ export class ComputerAgent {
               };
             continue;
           }
-          this.progress('verifying', steps);
-          step = await this.plan(
-            { ...context, completionClaim: step.summary },
-            { signal: combined, review: true },
-          );
-          combined.throwIfAborted();
+          step = await reviewPlan({ ...context, completionClaim: step.summary });
+          if (!step) continue;
           if (step.action === 'finish' && evidenceExists(view, step.evidence)) {
             if (!(await this.acceptReviewedResult(step, view, combined, goal))) {
               correction = missingFinalProof;
@@ -1815,8 +1864,8 @@ export class ComputerAgent {
           // A small model may ask to "verify" work instead of emitting finish.
           // Review only at this explicit checkpoint, never after every mutation.
           if (steps > 0 && !section && !steam?.remaining && discordProof) {
-            this.progress('verifying', steps);
-            const review = await this.plan(context, { signal: combined, review: true });
+            const review = await reviewPlan(context);
+            if (!review) continue;
             if (
               review.action === 'finish' &&
               this.taskPlan.readyForReview() &&
@@ -2149,6 +2198,7 @@ export class ComputerAgent {
           }
         } else {
           failures = 0;
+          recoveringReview = false;
           if (!planProblem) blockedReason = null;
         }
         const appName = step.action === 'click' ? taskbarApplication(selected) : '';

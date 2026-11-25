@@ -170,7 +170,6 @@ export async function prewarmEmbedding(rt = runtime(), { signal, models } = {}) 
     body: JSON.stringify({
       model: settings.embeddingModel,
       input: 'Memory index warmup.',
-      keep_alive: settings.keepAlive ?? -1,
       options: { num_gpu: 0 },
     }),
   });
@@ -208,7 +207,6 @@ export async function prewarmModels(rt = runtime(), { signal, inventory, warmMem
               : {}),
             truncate: false,
             shift: false,
-            keep_alive: settings.keepAlive ?? -1,
             options: {
               num_ctx: settings.contextTokens,
               num_predict: 1,

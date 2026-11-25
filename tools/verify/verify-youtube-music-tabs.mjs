@@ -135,7 +135,7 @@ try {
       contentType: 'text/html',
       body: `<!doctype html><title>YouTube Music</title>
         <form action="/search">
-          <input id="input" class="style-scope ytmusic-search-box" aria-label="Search" name="q">
+          <input id="input" class="ytmusic-search-box style-scope" aria-label="Search" name="q">
         </form>
         <div id="play-pause-button" class="ytmusic-player-bar" role="group" aria-label="Player">
           <button id="button" aria-label="Pause">Pause</button>
@@ -153,12 +153,17 @@ try {
           const player = document.querySelector('#play-pause-button button');
           const result = document.querySelector('a');
           const playlist = document.querySelector('#playlist');
+          function showResults(query) {
+            playlist.hidden = !query.startsWith('lo-fi');
+            result.parentElement.hidden = !playlist.hidden;
+          }
+          const initialQuery = new URLSearchParams(location.search).get('q');
+          if (location.pathname === '/search' && initialQuery) showResults(initialQuery);
           document.querySelector('form').addEventListener('submit', (event) => {
             event.preventDefault();
             const query = document.querySelector('input').value;
             history.pushState(null, '', '/search?' + new URLSearchParams({ q: query }));
-            playlist.hidden = !query.startsWith('lo-fi');
-            result.parentElement.hidden = !playlist.hidden;
+            showResults(query);
           });
           playlist.querySelector('button').addEventListener('click', () => {
             document.querySelector('#title').textContent = 'First song from Lofi Loft';
@@ -354,6 +359,28 @@ try {
   console.log(
     'PASS playback recovered from the idle dialog and toast, used the featured card, and left unrelated dialogs alone',
   );
+
+  await music.goto(musicUrl);
+  await music.bringToFront();
+  await music.locator('#input').evaluate((input) => {
+    input.readOnly = true;
+  });
+  const fallback = new YouTubeMusicService({
+    root: fixture.path,
+    prepare: async () => helper,
+    openExternal: (url) => music.goto(url),
+  });
+  try {
+    const result = await fallback.execute('play-with-readonly-input', {
+      action: 'play',
+      query: 'lo-fi',
+    });
+    await verifyReceipt(music, result, 'playing');
+    assert.equal(result.fallbackReason, 'search_input_unavailable');
+    assert.equal(result.track, 'First song from Lofi Loft');
+  } finally {
+    fallback.close();
+  }
 
   const duplicate = await context.newPage();
   await duplicate.goto(musicUrl);

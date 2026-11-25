@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { localContextPolicy, applyLocalContextPolicy } from '../scripts/context-policy.mjs';
-import { r as applySettings } from '../node_modules/openclaw/dist/agent-settings-CZ8x5-4D.mjs';
+import { r as applySettings } from '../node_modules/openclaw/dist/agent-settings-Cd93QvEL.mjs';
 import { ensureManagedContext } from '../packages/runtime/src/config/context-policy.mjs';
 import { validateCoreSettings } from '../packages/runtime/src/config/settings.mjs';
 import { PROFILES } from '../packages/runtime/src/hardware/profiles.mjs';
@@ -136,7 +136,7 @@ test('context migration preserves custom inference options, permissions, memory 
 
 test('foreground Capri preflight skips optional memory extraction without changing session state', async () => {
   const { t: flush } = await import(
-    '../node_modules/openclaw/dist/agent-runner-memory-Dz7Z-Pdn.mjs'
+    '../node_modules/openclaw/dist/agent-runner-memory-DiaaXOec.mjs'
   );
   const entry = { sessionId: 'fixture-session', compactionCount: 3 };
   const result = await flush({

@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { ControlOverlay } from '../apps/desktop/main/control-overlay.mjs';
+import { ScreenFrameWorker } from '../apps/desktop/screen-frame-worker.mjs';
 
 const displays = [
   {
@@ -28,6 +29,7 @@ function fixture({
   monitors = displays,
   applyBounds = (bounds) => ({ ...bounds }),
   cursor = { x: 5, y: 5 },
+  idlePoint,
 } = {}) {
   const entered = deferred(),
     pending = deferred(),
@@ -37,6 +39,9 @@ function fixture({
   const screen = Object.assign(new EventEmitter(), {
     getAllDisplays: () => monitors,
     getCursorScreenPoint: () => cursor,
+    getDisplayNearestPoint: ({ x }) =>
+      monitors.find(({ bounds }) => x >= bounds.x && x < bounds.x + bounds.width),
+    screenToDipPoint: (point) => point,
   });
   const wait = (stage, value) => {
     if (stage !== blocked) return Promise.resolve(value);
@@ -52,7 +57,9 @@ function fixture({
       this.bounds = { x, y, width, height };
       this.options = options;
       this.webContents = new EventEmitter();
+      this.scripts = [];
       this.webContents.executeJavaScript = (source) => {
+        this.scripts.push(source);
         if (this.index === 1 && source.startsWith('globalThis.capriControl?.pointer('))
           pointer.resolve(JSON.parse(source.slice(source.indexOf('(') + 1, -1)));
         const stage = source.startsWith('Boolean')
@@ -107,10 +114,31 @@ function fixture({
   const overlay = new ControlOverlay({
     BrowserWindow: Window,
     screen,
+    idlePoint,
     onLost: (reason) => losses.push(reason),
   });
   return { overlay, screen, views, losses, entered, pending, pointer };
 }
+
+test('idle lightning uses only its monitor and translates the confirmed endpoints', async () => {
+  const { overlay, views } = fixture({ idlePoint: { x: -1260, y: 710 } });
+  await overlay.show('Cursor');
+  try {
+    assert.equal(views.length, 1);
+    assert.equal(overlay.tracker, undefined);
+    assert.ok(views[0].scripts.some((entry) => entry.endsWith('.idleMode()')));
+    await overlay.idleLightning({ from: { x: -1260, y: 710 }, to: { x: -1226, y: 679 } });
+    const script = views[0].scripts.find((entry) =>
+      entry.startsWith('globalThis.capriControl.idleLightning('),
+    );
+    assert.deepEqual(JSON.parse(script.slice(script.indexOf('(') + 1, -1)), {
+      from: { x: 20, y: 710 },
+      to: { x: 54, y: 679 },
+    });
+  } finally {
+    overlay.hide();
+  }
+});
 
 test('stopping during any pending initialization cancels immediately and cannot resurrect a border', async (t) => {
   for (const blocked of ['load', 'initialized', 'caption', 'configure', 'frame']) {
@@ -147,7 +175,7 @@ test('concurrent shows share one initialization and one monitor set', async () =
   await assert.rejects(f.overlay.show('Late'), /indicator closed/);
 });
 
-test('screen capture waits for the pointer to clear on each monitor and restores it on failure', async () => {
+test('screen capture waits for every overlay to suspend and restores it on failure', async () => {
   const f = fixture();
   await f.overlay.show('Fixture');
   const clear = deferred();
@@ -155,16 +183,16 @@ test('screen capture waits for the pointer to clear on each monitor and restores
   for (const view of f.views) {
     const execute = view.webContents.executeJavaScript;
     view.webContents.executeJavaScript = (source) => {
-      if (source.includes('suspendPointer')) {
+      if (source.includes('suspendCapture')) {
         calls.push('suspend ' + view.index);
         return view.index === 1 ? clear.promise : Promise.resolve();
       }
-      if (source.includes('resumePointer')) calls.push('resume ' + view.index);
+      if (source.includes('resumeCapture')) calls.push('resume ' + view.index);
       return execute(source);
     };
   }
   try {
-    const capture = f.overlay.captureWithoutPointer(() => {
+    const capture = f.overlay.captureWithoutOverlay(() => {
       assert(f.views.every((view) => view.isVisible()));
       calls.push('capture');
       throw Error('Fixture capture failed');
@@ -176,6 +204,54 @@ test('screen capture waits for the pointer to clear on each monitor and restores
   } finally {
     f.overlay.hide();
   }
+});
+
+test('closing the indicator while compositing prevents the snapshot', async () => {
+  const f = fixture();
+  await f.overlay.show('Fixture');
+  const pending = deferred();
+  f.views[0].webContents.executeJavaScript = () => pending.promise;
+  const capture = f.overlay.captureWithoutOverlay(() => assert.fail('Capture after stop'));
+  f.overlay.hide();
+  await assert.rejects(capture, /indicator closed/);
+  pending.resolve();
+  assert.ok(f.views.every((view) => view.isDestroyed()));
+});
+
+test('the overlay is suspended only while its queued full-display sample runs', async () => {
+  const worker = new ScreenFrameWorker('.');
+  const pending = deferred();
+  const started = deferred();
+  const calls = [];
+  let samples = 0;
+  worker.run = async (request) => {
+    calls.push(request.trim());
+    if (++samples === 1) {
+      started.resolve();
+      await pending.promise;
+    }
+    return { width: 1280, height: 720, bounds: displays[1].bounds };
+  };
+  const prior = worker.frame();
+  await started.promise;
+  const capture = worker.frame({
+    displayWindow: '42',
+    limit: { width: 1280, height: 720 },
+    aroundCapture: async (take) => {
+      calls.push('suspend');
+      try {
+        return await take();
+      } finally {
+        calls.push('resume');
+      }
+    },
+  });
+  await Promise.resolve();
+  assert.equal(calls.length, 1);
+  pending.resolve();
+  await prior;
+  assert.deepEqual((await capture).bounds, displays[1].bounds);
+  assert.deepEqual(calls.slice(1), ['suspend', 'foreground|42|0|0|0|0|1280|720|png', 'resume']);
 });
 
 test('one native destruction error cannot strand a visible monitor or a cursor tracker', async () => {

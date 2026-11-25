@@ -10,6 +10,16 @@ export const ELECTRON_RUNTIME_FILES = [
   'locales/en-US.pak',
 ];
 
+const framework = 'Electron.app/Contents/Frameworks/Electron Framework.framework';
+const macRuntimeFiles = [
+  'Electron.app/Contents/MacOS/Electron',
+  'Electron.app/Contents/Info.plist',
+  framework + '/Electron Framework',
+  framework + '/Resources/icudtl.dat',
+  framework + '/Resources/resources.pak',
+  framework + '/Resources/v8_context_snapshot.arm64.bin',
+];
+
 /** Inspect without requiring Electron: recent versions download lazily on require(). */
 export function electronBundleReady(packageDirectory, expectedVersion, platform = 'win32') {
   try {
@@ -22,7 +32,8 @@ export function electronBundleReady(packageDirectory, expectedVersion, platform 
       version
     )
       return false;
-    return ELECTRON_RUNTIME_FILES.every((name) => {
+    const files = platform === 'darwin' ? macRuntimeFiles : ELECTRON_RUNTIME_FILES;
+    return files.every((name) => {
       const file = name === 'electron.exe' && platform === 'linux' ? 'electron' : name;
       const entry = statSync(path.join(packageDirectory, 'dist', file));
       return entry.isFile() && entry.size > 0;

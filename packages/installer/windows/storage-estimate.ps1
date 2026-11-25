@@ -166,7 +166,7 @@ function Test-CapriInstalledPythonPackages([string]$Target,[string]$Environment,
                 $direct=Read-CapriJson $metadata.FullName
                 if($url -match '^git\+(.+)@([a-f0-9]{40})$'){
                     if($direct.url -cne $Matches[1] -or $direct.vcs_info.commit_id -cne $Matches[2]){return $false}
-                }elseif([Uri]::UnescapeDataString($direct.url) -cne [Uri]::UnescapeDataString($url)){return $false}
+                }elseif([Uri]::UnescapeDataString($direct.url) -cne [Uri]::UnescapeDataString(($url -split '#sha256=')[0])){return $false}
             }else{return $false}
             if(-not (Get-CapriEstimateFile (Join-Path $package.path 'METADATA'))){return $false}
         }

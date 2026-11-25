@@ -23,6 +23,7 @@ import { assertEmptyOwnerTemplates } from '../../packages/runtime/src/owner-memo
 import { startupIntroSourceFiles } from '../../apps/desktop/startup-intro-assets.mjs';
 import { musicArtworkSourceFiles } from '../../apps/desktop/music-artwork.mjs';
 import { hangingCelAssetNames } from '../../apps/desktop/renderer/hanging-cels.mjs';
+import { gripArt } from '../../apps/desktop/renderer/music-grip-art.mjs';
 import {
   sourceFiles,
   forbiddenSource as forbidden,
@@ -59,6 +60,11 @@ export function validateSource(files) {
     JSON.parse(readFileSync(path.join(root, 'config/companion-voice.json'), 'utf8')),
   );
   const errors = [];
+  const homeUser = RegExp.escape(userInfo().username);
+  const localWindowsHome = new RegExp(
+    `[A-Z]:[\\\\/]+Users[\\\\/]+${homeUser}(?=[\\\\/\\s"']|$)`,
+    'iu',
+  );
   const artwork = requireCapriAvatar(root, { source: true });
   for (const name of [
     ACTIVE_AVATAR_CATALOG,
@@ -70,6 +76,7 @@ export function validateSource(files) {
     ),
     'assets/default/capri-wave.webp',
     'assets/default/hanging-cels/geometry.json',
+    ...Object.keys(gripArt).map((id) => 'assets/default/music-grip-plates/' + id + '.png'),
     ...hangingCelAssetNames.map((name) => 'assets/default/hanging-cels/' + name + '.webp'),
     ...artwork.frames.map((frame) => path.relative(root, frame.file).split(path.sep).join('/')),
   ])
@@ -114,13 +121,12 @@ export function validateSource(files) {
       )
     )
       errors.push(name + ': runtime/model/media binary');
-    if (/\.(?:mjs|js|cjs|py|cs|ps1|cmd|json|md|toml|ya?ml|txt)$/.test(name)) {
+    if (/\.(?:mjs|js|cjs|py|cs|ps1|cmd|sh|json|md|toml|ya?ml|txt)$/.test(name)) {
       const text = bytes.toString('utf8');
-      const homeUser = userInfo().username.toLowerCase();
       if (
         /[A-Z]:[\\/]+AI[ _]ASSISTANT/i.test(text) ||
         text.includes(hostname()) ||
-        (/[A-Z]:[\\/]+Users[\\/]+/i.test(text) && text.toLowerCase().includes(homeUser))
+        localWindowsHome.test(text)
       )
         errors.push(name + ': private machine path/name');
       if (hasSourceCredential(text)) errors.push(name + ': credential-like content');

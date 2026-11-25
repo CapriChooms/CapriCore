@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomInt } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { COMPANION_DEFAULTS } from '../companion-settings.mjs';
 import { pointInRect, spriteDragHit, spritePressKind } from '../geometry.mjs';
 import { DRAG_LIGHTNING_COLOR, teleportLightningSettings } from '../renderer/teleport-effects.mjs';
 
 const overlayUrl = 'capri://desktop/avatar-detach.html';
+const cameraPreload = fileURLToPath(new URL('../avatar-camera-preload.cjs', import.meta.url));
 const tetherUrl = 'capri://desktop/avatar-tether.html';
 const keys = ['x', 'y', 'width', 'height'];
 const dragDistance = 5;
@@ -237,6 +239,7 @@ export class AvatarDetach {
     getPresentation = () => 'character',
     getPortraitGeometry = () => undefined,
     onReturnPlacement = () => {},
+    onCameraSourceChanged = () => {},
     timeoutMs = 5000,
   }) {
     Object.assign(this, {
@@ -258,6 +261,7 @@ export class AvatarDetach {
       getPresentation,
       getPortraitGeometry,
       onReturnPlacement,
+      onCameraSourceChanged,
       timeoutMs,
     });
     this.phase = 'attached';
@@ -272,6 +276,36 @@ export class AvatarDetach {
 
   get available() {
     return this.phase === 'detached' && !this.operation && !this.relocation;
+  }
+
+  cameraSource() {
+    const overlay = this.overlay;
+    return this.phase === 'detached' &&
+      this.presentation === 'character' &&
+      overlay &&
+      !overlay.isDestroyed() &&
+      overlay.isVisible() &&
+      overlay.webContents.getURL() === overlayUrl
+      ? overlay.webContents
+      : null;
+  }
+
+  ownsCameraSource(event) {
+    const source = this.cameraSource();
+    return (
+      source &&
+      event.sender === source &&
+      event.senderFrame === source.mainFrame &&
+      event.senderFrame?.url === overlayUrl
+    );
+  }
+
+  sendCameraState(state, preview) {
+    const contents = this.overlay?.webContents;
+    if (!contents || contents.isDestroyed?.() || contents.getURL() !== overlayUrl) return;
+    if (contents === this.cameraSource())
+      contents.send('capri:avatar-camera-state', { state, preview });
+    else contents.send('capri:avatar-camera-state', { state: null, preview: false });
   }
 
   get desktopPoint() {
@@ -360,6 +394,7 @@ export class AvatarDetach {
     const result = await this.updateParked('setPresentation', presentation);
     if (result === false) return false;
     this.presentation = presentation;
+    this.onCameraSourceChanged();
     if (this.pointerTimer) {
       this.stopPointer();
       this.startPointer();
@@ -758,6 +793,7 @@ export class AvatarDetach {
       this.watchPoseMotion(session, rendered);
       target.showInactive();
       previous?.destroy();
+      this.onCameraSourceChanged();
       this.startPointer();
       if (this.reply) this.sendReply(this.reply);
       if (this.status) this.sendStatus(this.status);
@@ -1320,6 +1356,7 @@ export class AvatarDetach {
       maximizable: false,
       hasShadow: false,
       webPreferences: {
+        ...(tetherOnly ? {} : { preload: cameraPreload }),
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
@@ -1343,9 +1380,15 @@ export class AvatarDetach {
       stackingTimer.unref?.();
       overlay.once('closed', () => clearInterval(stackingTimer));
       overlay.once('closed', lost);
-      overlay.on('show', () => this.raiseOverlay(overlay));
+      overlay.on('show', () => {
+        this.raiseOverlay(overlay);
+        if (this.overlay === overlay) this.onCameraSourceChanged();
+      });
       overlay.on('hide', () => {
-        if (this.overlay === overlay) this.stopPointer();
+        if (this.overlay === overlay) {
+          this.stopPointer();
+          this.onCameraSourceChanged();
+        }
       });
       overlay.webContents.once('render-process-gone', lost);
       overlay.webContents.once('did-finish-load', () => this.refreshTheme([overlay]));

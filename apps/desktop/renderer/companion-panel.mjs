@@ -37,6 +37,7 @@ import {
   sandevistanStamps,
 } from './sandevistan-motion.mjs';
 import { playWakeChime, playWakeSample } from './wake-feedback.mjs';
+import { playWildPrankEffect } from './wild-prank.mjs';
 const resourceDisplays = [
   {
     id: 'process-graphs',
@@ -157,7 +158,7 @@ export class CompanionPanel {
         <section data-companion-tab="support" class="support-content settings-stack">
           <section class="settings-card support-donation-card" aria-labelledby="support-donation-title">
           <div id="support-frame" aria-hidden="true" hidden></div>
-          <div class="support-art" aria-hidden="true"><div class="support-orbit"></div><div class="support-heart">♥</div><i></i><i></i><i></i><i></i><span>CAPRI / COMMUNITY LINK</span></div>
+          <div class="support-art"><div class="support-orbit" aria-hidden="true"></div><button type="button" id="support-heart" class="support-heart settings-visual-control" aria-label="Preview">♥</button><i></i><i></i><i></i><i></i><span aria-hidden="true">CAPRI / COMMUNITY LINK</span></div>
           <h3 id="support-donation-title">Help Capri grow</h3><p class="support-developer"><span>Developed by</span> <strong data-untranslated>Overyx</strong></p><p>Capri is free. If she makes your day a little brighter, you can support her development. Every contribution means a lot. Thank you for being here.</p>
           <div class="settings-actions support-links">
             <div class="support-donations" dir="ltr">
@@ -167,6 +168,7 @@ export class CompanionPanel {
           </div>
           <button type="button" class="support-donation-browser" data-community="lava-donate">Open donation in browser</button>
           <p class="settings-help">Payment methods and availability depend on Lava.top and your country.</p>
+          <div id="support-meme" role="status" data-untranslated></div>
           </section>
           <section class="settings-card" aria-labelledby="support-community-title">
           <h3 id="support-community-title">Community</h3>
@@ -406,12 +408,23 @@ export class CompanionPanel {
           <label for="communication-style">Communication style</label>
           <select id="communication-style"><option value="neutral">Neutral</option><option value="romantic">Romantic</option><option value="business">Business</option><option value="wild">Wild</option></select>
           <p class="settings-help">This style shapes Capri's next reply. Your Personality file remains editable.</p>
+          <label><input type="checkbox" id="unrestricted-conversation">Unrestricted conversation</label>
+          <p class="settings-help">Speak freely in character. Desktop actions use the permissions you grant.</p>
           <label id="wild-close-ai-tabs-label"><input type="checkbox" id="wild-close-ai-tabs">Close other AI tabs</label>
           <label id="wild-desktop-pranks-label"><input type="checkbox" id="wild-desktop-pranks">Wild desktop pranks</label>
           <p class="settings-help" data-help-for="wild-desktop-pranks-label">In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.</p>
           <button type="button" id="wild-pranks-preview">Preview a prank</button>
+          <div id="wild-pranks-stage" class="wild-prank-preview" hidden aria-hidden="true">
+            <div class="wild-prank-effect">
+              <div class="spark"></div><div class="cursor echo"></div><div class="cursor decoy"></div>
+              <div class="avatar"><img alt="" draggable="false"></div>
+            </div>
+          </div>
           </section>
           <section class="settings-card" data-companion-group="Hands-free conversation">
+          <label><input type="checkbox" id="companion-microphone-on-start">Turn on the microphone at launch</label>
+          <label><input type="checkbox" id="companion-fresh-context">Fresh context for every question</label>
+          <p class="settings-help">Each question starts without earlier messages. Saved memories and visible history are kept.</p>
           <label id="companion-conversation-mode-label"><input type="checkbox" id="companion-conversation-mode">Hands-free conversation</label>
           <p class="settings-help" data-help-for="companion-conversation-mode-label">While the microphone is on, speech goes to the selected model, which can stay silent. Start voice commands with “Capri” to use skills.</p>
           <label for="companion-follow-up">Follow-up listening</label>
@@ -443,7 +456,8 @@ export class CompanionPanel {
     this.get = (id) =>
       this.panel.querySelector('#' + id) ??
       this.reminderSettings?.querySelector('#' + id) ??
-      this.replySettings?.querySelector('#' + id);
+      this.replySettings?.querySelector('#' + id) ??
+      this.roamingSettings?.querySelector('#' + id);
     this.get('companion-close').onclick = () => this.open(false);
     this.savedMemory = new SavedMemoryPanel({
       element: this.get('saved-memory-view'),
@@ -808,6 +822,21 @@ export class CompanionPanel {
       button.onclick = () =>
         api.communityLink(button.dataset.community).catch((error) => onError(error.message));
     });
+    this.get('support-heart').onclick = () => {
+      const preview = this.get('support-meme');
+      if (!preview.firstElementChild) {
+        const image = new Image();
+        image.src = 'support-meme.png';
+        image.alt = 'Paypal me $30000';
+        image.draggable = false;
+        preview.append(image);
+      }
+      clearTimeout(this.supportMemeTimer);
+      this.supportMemeTimer = setTimeout(() => {
+        preview.replaceChildren();
+        this.supportMemeTimer = undefined;
+      }, 1000);
+    };
     this.get('support-donation-open').onclick = async ({ currentTarget: button }) => {
       if (button.disabled) return;
       button.disabled = true;
@@ -831,6 +860,9 @@ export class CompanionPanel {
       followUp: this.get('companion-follow-up').value !== 'off',
       followUpAfterAnyReply: this.get('companion-follow-up').value === 'replies',
       conversationMode: this.get('companion-conversation-mode').checked,
+      microphoneOnStart: this.get('companion-microphone-on-start').checked,
+      freshContext: this.get('companion-fresh-context').checked,
+      unrestrictedConversation: this.get('unrestricted-conversation').checked,
       followUpSeconds: Number(this.get('companion-follow-up-seconds').value),
       wildCloseAiTabs: this.get('wild-close-ai-tabs').checked,
       wildDesktopPranks: this.get('wild-desktop-pranks').checked,
@@ -900,9 +932,29 @@ export class CompanionPanel {
       await this.savePersonality();
       this.result('Personality saved.');
     });
-    action('wild-pranks-preview', async () => {
-      if (!(await api.previewWildPrank())) this.result('Prank preview is unavailable right now.');
-    });
+    this.get('wild-pranks-preview').onclick = () => {
+      const stage = this.get('wild-pranks-stage');
+      const effect = stage.firstElementChild;
+      const artwork = effect.querySelector('img');
+      if (!artwork.hasAttribute('src')) artwork.src = 'sprite.png';
+      stage.hidden = false;
+      stage.scrollIntoView({ block: 'nearest' });
+      delete effect.dataset.variant;
+      const anchorX = Math.floor(stage.clientWidth / 2);
+      const duration = 1150;
+      playWildPrankEffect(effect, {
+        anchorX,
+        anchorY: 54,
+        dx: Math.min(70, Math.max(20, anchorX - 30)),
+        dy: 20,
+        variant: 'snatch',
+        duration,
+      });
+      clearTimeout(this.prankPreviewTimer);
+      this.prankPreviewTimer = setTimeout(() => {
+        stage.hidden = true;
+      }, duration + 80);
+    };
     this.saveCommunicationStyle = async () => {
       const control = this.get('communication-style');
       control.disabled = true;
@@ -1067,6 +1119,9 @@ export class CompanionPanel {
         ? 'replies'
         : 'questions';
     this.get('companion-conversation-mode').checked = value.conversationMode === true;
+    this.get('companion-microphone-on-start').checked = value.microphoneOnStart === true;
+    this.get('companion-fresh-context').checked = value.freshContext === true;
+    this.get('unrestricted-conversation').checked = value.unrestrictedConversation === true;
     this.get('companion-follow-up-seconds').value = value.followUpSeconds;
     this.get('wild-close-ai-tabs').checked = value.wildCloseAiTabs === true;
     this.get('wild-desktop-pranks').checked = value.wildDesktopPranks === true;
@@ -1167,6 +1222,8 @@ export class CompanionPanel {
         'wake-sound',
         'wake-phrase',
         'wake-volume',
+        'companion-microphone-on-start',
+        'companion-fresh-context',
         'companion-follow-up',
         'companion-conversation-mode',
         'companion-follow-up-seconds',
@@ -1182,6 +1239,7 @@ export class CompanionPanel {
         'companion-float-enabled',
         'companion-float-amplitude',
         'companion-float-period',
+        'unrestricted-conversation',
         'memory-monitor',
         'process-graphs',
         'memory-style',
@@ -1268,6 +1326,11 @@ export class CompanionPanel {
     this.savedPersonality = text;
   }
   showSupportFrame(visible) {
+    if (!visible && this.supportMemeTimer !== undefined) {
+      clearTimeout(this.supportMemeTimer);
+      this.supportMemeTimer = undefined;
+      this.get('support-meme').replaceChildren();
+    }
     if (visible && !this.supportFrame) {
       const frame = this.get('support-frame');
       const color = getComputedStyle(frame).getPropertyValue('--support-heart-color').trim();

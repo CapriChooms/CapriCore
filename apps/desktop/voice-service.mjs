@@ -17,6 +17,7 @@ const VOICE_SPEECH_LIMIT = 'CAPRI_VOICE_SPEECH_LIMIT';
 const VOICE_LANGUAGE_WARNING =
   'The English voice cannot read this response language. Text replies remain available.';
 const VOICE_START_WARNING = 'Capri’s voice could not start. Text replies are still available.';
+const VOICE_START_WAIT_MS = 30000;
 const MAX_VOICE_SEGMENTS = 100;
 const MAX_SPLIT_SPEECH_LENGTH = 480;
 const MIN_SPEECH_RETRY_LENGTH = 160;
@@ -123,6 +124,7 @@ export class VoiceService {
     Object.assign(this, { url, headers, emit, fetchImpl, enabled, external, native, ensureReady });
     this.turn = null;
     this.ready = false;
+    this.idle = false;
     this.running = false;
     this.language = language;
     this.error = null;
@@ -131,6 +133,7 @@ export class VoiceService {
     return {
       enabled: this.enabled,
       ready: this.ready && this.language !== 'off',
+      ...(this.idle && { idle: true }),
       language: this.language,
       error: this.error,
       source: this.external?.config.enabled ? 'api' : 'local',
@@ -228,15 +231,20 @@ export class VoiceService {
       if (this.prepareController === controller) this.prepareController = null;
     }
   }
-  setReady(value) {
+  setReady(value, { idle = false } = {}) {
     this.ready = value;
+    this.idle = !value && idle;
     if (value) this.lastFailure = null;
     this.error = null;
     this.emit({ type: 'voice.settings', ...this.snapshot() });
-    if (value) this.pump().catch(() => {});
+    if (value) {
+      clearTimeout(this.turn?.startupTimer);
+      this.pump().catch(() => {});
+    }
   }
   fail(message) {
     this.ready = false;
+    this.idle = false;
     this.error = message;
     this.cancel();
     this.emit({ type: 'voice.settings', ...this.snapshot() });
@@ -245,7 +253,10 @@ export class VoiceService {
   setEnabled(value) {
     if (typeof value !== 'boolean') throw new Error('Invalid voice setting');
     this.enabled = value;
-    if (!value) this.cancel();
+    if (!value) {
+      this.idle = false;
+      this.cancel();
+    }
     this.emit({ type: 'voice.settings', ...this.snapshot() });
     return this.snapshot();
   }
@@ -256,6 +267,7 @@ export class VoiceService {
   cancel() {
     const turn = this.turn;
     if (turn) {
+      clearTimeout(turn.startupTimer);
       turn.controller.abort();
       this.turn = null;
       if (turn.requestId && !turn.external && !turn.native)
@@ -380,6 +392,20 @@ export class VoiceService {
       queued.queued = true;
       if (queued.timing)
         markResponseTiming('voice_queued', { cold: this.ready ? 0 : 1 }, { turn: queued.timing });
+      if (!this.ready) {
+        queued.startupTimer = setTimeout(() => {
+          if (this.turn !== queued || this.ready) return;
+          if (queued.timing) markResponseTiming('voice_wait_expired', {}, { turn: queued.timing });
+          // Keep warming the shared service, but never play an expired reply later.
+          this.cancel();
+          this.emit({
+            type: 'voice.warning',
+            turnId: queued.id,
+            message: 'Capri’s voice is loading…',
+          });
+        }, VOICE_START_WAIT_MS);
+        queued.startupTimer.unref();
+      }
     }
     if (this.running || !this.ready) return;
     this.running = true;

@@ -122,6 +122,45 @@ export class ModelsPanel {
         }
       };
   }
+  setIdleUnload(policy = { unloadIdle: false, idleMinutes: 5 }) {
+    if (!this.idleUnload) return;
+    this.idlePolicy = policy;
+    this.idleUnload.checked = policy.unloadIdle;
+    this.idleTimeout.value = policy.idleMinutes;
+    this.idleTimeout.disabled = !policy.unloadIdle;
+  }
+  bindIdleUnload(raw) {
+    const card = document.createElement('section');
+    card.className = 'settings-card';
+    card.innerHTML = `
+      <label><input id="models-idle-unload" type="checkbox" /> Unload models when idle</label>
+      <label for="models-idle-timeout">Idle timeout (minutes)</label>
+      <input id="models-idle-timeout" type="number" min="1" max="60" step="1" value="5" required disabled />
+      <p class="settings-help">Frees local model memory after inactivity. The next request may take longer.</p>
+    `;
+    this.panel.querySelector('.preferences-content').prepend(card);
+    const control = (this.idleUnload = card.querySelector('#models-idle-unload'));
+    const timeout = (this.idleTimeout = card.querySelector('#models-idle-timeout'));
+    const save = async () => {
+      const previous = this.idlePolicy;
+      if (!timeout.checkValidity()) {
+        this.setIdleUnload(previous);
+        return;
+      }
+      const requested = { unloadIdle: control.checked, idleMinutes: timeout.valueAsNumber };
+      control.disabled = true;
+      timeout.disabled = true;
+      try {
+        this.setIdleUnload(await raw.setModelIdleUnload(requested));
+      } catch (error) {
+        this.setIdleUnload(previous);
+        this.onError(error.message);
+      } finally {
+        control.disabled = false;
+      }
+    };
+    control.onchange = timeout.onchange = save;
+  }
   show(value) {
     if (!value) return;
     this.value = value;

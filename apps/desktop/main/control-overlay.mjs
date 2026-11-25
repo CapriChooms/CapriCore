@@ -28,9 +28,10 @@ export class ControlOverlay {
     screen,
     owner,
     url = 'capri://desktop/control-overlay.html',
+    idlePoint,
     onLost = () => {},
   }) {
-    Object.assign(this, { BrowserWindow, screen, owner, url, onLost });
+    Object.assign(this, { BrowserWindow, screen, owner, url, idlePoint, onLost });
     this.windows = [];
     this.displayWindows = new Map();
     this.closed = false;
@@ -85,19 +86,37 @@ export class ControlOverlay {
     this.planView = value;
     this.script('plan', value);
   }
-  async captureWithoutPointer(capture) {
+  async idleLightning({ from, to, effects }) {
+    const start = this.screen.screenToDipPoint(from);
+    const end = this.screen.screenToDipPoint(to);
+    const border = this.displayWindows.get(this.screen.getDisplayNearestPoint(start).id);
+    if (!border || border.isDestroyed()) return false;
+    const { x, y } = border.getBounds();
+    const local = (point) => ({ x: point.x - x, y: point.y - y });
+    return this.wait(
+      border.webContents.executeJavaScript(
+        'globalThis.capriControl.idleLightning(' +
+          JSON.stringify({ from: local(start), to: local(end), effects }) +
+          ')',
+      ),
+      border,
+    );
+  }
+  async captureWithoutOverlay(capture) {
+    this.assertOpen();
     try {
       await Promise.all(
         this.windows.map((border) =>
           this.wait(
-            border.webContents.executeJavaScript('globalThis.capriControl.suspendPointer()'),
+            border.webContents.executeJavaScript('globalThis.capriControl.suspendCapture()'),
             border,
           ),
         ),
       );
+      this.assertOpen();
       return await capture();
     } finally {
-      this.script('resumePointer');
+      this.script('resumeCapture');
     }
   }
   assertOpen(border) {
@@ -130,7 +149,9 @@ export class ControlOverlay {
   }
   async showWindows(caption) {
     try {
-      const displayIds = this.screen.getAllDisplays().map(({ id }) => id);
+      const displayIds = this.idlePoint
+        ? [this.screen.getDisplayNearestPoint(this.idlePoint).id]
+        : this.screen.getAllDisplays().map(({ id }) => id);
       if (!displayIds.length) throw Error('Computer control indicator has no display.');
       this.screen.on('display-metrics-changed', this.onDisplayMetricsChanged);
       for (const displayId of displayIds) {
@@ -182,6 +203,11 @@ export class ControlOverlay {
           ),
           border,
         );
+        if (this.idlePoint)
+          await this.wait(
+            border.webContents.executeJavaScript('globalThis.capriControl.idleMode()'),
+            border,
+          );
         await this.wait(
           border.webContents.executeJavaScript(
             'globalThis.capriControl?.configure(' + JSON.stringify(this.settings) + ')',
@@ -207,6 +233,7 @@ export class ControlOverlay {
         if (!border.isVisible()) throw Error('Computer control indicator did not become visible.');
         verifyDisplayBounds(border, currentDisplay);
       }
+      if (this.idlePoint) return;
       this.tracker = setInterval(() => {
         if (this.closed) return;
         try {

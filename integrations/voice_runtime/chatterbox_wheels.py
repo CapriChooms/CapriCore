@@ -55,7 +55,10 @@ def prepare(root, profile_name, requirements, overrides=None, *, download=downlo
         if url != alternate or not separator or not re.fullmatch(r'[a-f0-9]{64}', digest):
             raise ValueError('Invalid Chatterbox wheel source or checksum.')
         pin = f'{package}=={profile[package]}'
-        if any(lines.count(pin) != 1 for lines in locks.values()):
+        # The distributable lock pins each CUDA wheel hash. Staged requirements
+        # retain that exact digest on the local file URL.
+        hashed_pin = pin + ' ' + chr(92)
+        if any(lines.count(pin) + lines.count(hashed_pin) != 1 for lines in locks.values()):
             raise ValueError('The reviewed Chatterbox dependency pin changed.')
 
         def report(stage, received):
@@ -74,7 +77,14 @@ def prepare(root, profile_name, requirements, overrides=None, *, download=downlo
         report('download', size)
         completed += size
         for lines in locks.values():
-            lines[lines.index(pin)] = f'{package} @ {wheel.as_uri()}#sha256={digest}'
+            replacement = f'{package} @ {wheel.as_uri()}#sha256={digest}'
+            if hashed_pin in lines:
+                index = lines.index(hashed_pin)
+                if lines[index + 1].strip() != '--hash=sha256:' + digest:
+                    raise ValueError('CUDA wheel digest differs from the reviewed lock.')
+                lines[index:index + 2] = [replacement]
+            else:
+                lines[lines.index(pin)] = replacement
 
     for lock, lines in locks.items():
         with lock.open('x', encoding='utf-8') as file:

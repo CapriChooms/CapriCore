@@ -77,6 +77,58 @@ try {
       return value;
     };
   });
+  const gpu = await page.evaluate(async () => {
+    const { createRenderer } = await import('./idle-gesture-rig.mjs');
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 24;
+    const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+    const live = new Set();
+    let peak = 0;
+    const create = gl.createTexture.bind(gl),
+      remove = gl.deleteTexture.bind(gl);
+    gl.createTexture = () => {
+      const tex = create();
+      live.add(tex);
+      peak = Math.max(peak, live.size);
+      return tex;
+    };
+    gl.deleteTexture = (tex) => {
+      live.delete(tex);
+      remove(tex);
+    };
+    const renderer = createRenderer(canvas, {}, { grid: 8 });
+    const source = document.createElement('canvas');
+    source.width = source.height = 4;
+    const ctx = source.getContext('2d');
+    const urls = Array.from({ length: 18 }, (_, index) => 'fixture-artwork-' + index);
+    const draw = async (url) => {
+      ctx.fillStyle = 'rgb(' + (220 - urls.indexOf(url)) + ',0,0)';
+      ctx.fillRect(0, 0, 4, 4);
+      const image = await createImageBitmap(source);
+      try {
+        image.src = url;
+        renderer.draw(image, {});
+      } finally {
+        image.close();
+      }
+    };
+    try {
+      for (const url of urls) await draw(url);
+      const latest = [...live].at(-1);
+      await draw(urls.at(-1));
+      const reused = latest === [...live].at(-1);
+      await draw(urls[0]); // Re-upload the evicted image.
+      const rgba = new Uint8Array(4);
+      gl.readPixels(12, 12, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+      renderer.dispose();
+      renderer.dispose();
+      return { peak, retained: live.size, reused, pixel: [...rgba], error: gl.getError() };
+    } finally {
+      renderer.dispose();
+    }
+  });
+  assert.deepEqual(gpu, { peak: 12, retained: 0, reused: true, pixel: [220, 0, 0, 255], error: 0 });
+  report.checks.push('WebGL evicts, reuses and frees textures, including a redrawn evicted pose');
   const sample = async () =>
     page.evaluate(() => {
       const stage = document.querySelector('.avatar-pose-stage'),
@@ -88,13 +140,15 @@ try {
       return {
         image: document.querySelector('#parked-avatar img').src,
         rotation: Math.atan2(matrix.b, matrix.a),
+        bodyFrame: stage.hasAttribute('data-beat-body')
+          ? stage.querySelector('.avatar-beat-body')?.avatarTextureRevision
+          : null,
         axisX: Math.hypot(matrix.a, matrix.b),
         axisY: Math.hypot(matrix.c, matrix.d),
         dot: matrix.a * matrix.c + matrix.b * matrix.d,
         noteVisible: Boolean(notes && !notes.hidden),
         notePixels: notes ? notes.width * notes.height : 0,
         mouthVisible: Boolean(mouth && !mouth.hidden),
-        mouthWidth: mouth?.width,
         facePlates: document.querySelectorAll('.avatar-headpat-plate').length,
         hearts: document.querySelectorAll('.avatar-headpat-hearts i').length,
       };
@@ -135,13 +189,14 @@ try {
       Math.abs(first.axisX - 1) < 0.00001 &&
         Math.abs(first.axisY - 1) < 0.00001 &&
         Math.abs(first.dot) < 0.00001,
-      'Motion must be rigid, without stretch or shear.',
+      'The pose container must retain its scale while the mesh moves.',
     );
-    assert.notEqual(first.rotation, second.rotation);
+    assert(
+      first.bodyFrame > 0 && second.bodyFrame > first.bodyFrame,
+      'The visible pose mesh advances.',
+    );
     await page.screenshot({ path: path.join(folder, `music-${variant}.png`) });
-    report.checks.push(
-      `${variant} reviewed pose: rigid music motion and independent display-paced notes`,
-    );
+    report.checks.push(`${variant} pose mesh animates while notes move independently`);
     for (const gesture of ['headpat', 'pulse']) {
       await page.evaluate((gesture) => {
         const observed = (window.musicTapFixture = { facePlates: 0, sparks: 0 });
@@ -171,7 +226,7 @@ try {
       assert.equal(during.hearts, 4);
       assert.equal(during.facePlates, 0);
       assert(during.noteVisible && later.noteVisible);
-      assert.notEqual(during.rotation, later.rotation, 'Music keeps moving during tap hearts.');
+      assert(later.bodyFrame > during.bodyFrame, 'Music keeps moving during tap hearts.');
       assert(
         Math.abs(later.axisX - 1) < 0.00001 &&
           Math.abs(later.axisY - 1) < 0.00001 &&
@@ -189,13 +244,13 @@ try {
       );
     }
     report.checks.push(
-      `${variant} head and body taps keep music pose, rigid motion and notes with hearts only`,
+      `${variant} head and body taps add hearts and preserve the moving pose and notes`,
     );
     await page.evaluate(() => capriAvatarDetach.setMouth('wide'));
     const speaking = await sample();
     assert(
-      speaking.mouthVisible && speaking.mouthWidth < 100,
-      'Speech changes only the small registered mouth plate.',
+      !speaking.mouthVisible && speaking.bodyFrame > 0,
+      'Dedicated music artwork keeps its original resting face during speech.',
     );
     await page.evaluate(() => capriAvatarDetach.setMouth('closed'));
     for (const tempo of [60, 120]) {
@@ -238,7 +293,7 @@ try {
       report.checks.push(`${variant} measured ${tempo} BPM advances at ${observed.toFixed(2)} BPM`);
     }
   }
-  report.checks.push('separate registered speech-mouth patches on both poses');
+  report.checks.push('both dedicated music poses retain their painted face during speech');
   await page.evaluate(() =>
     capriAvatarDetach.setMusic({
       enabled: true,
@@ -269,7 +324,7 @@ try {
   // Unknown tempo stopped particle births. Allow the first newly measured beat.
   await page.waitForTimeout(1100);
   const notesOnly = await sample();
-  assert(Math.abs(notesOnly.rotation) < 1e-7);
+  assert.equal(notesOnly.bodyFrame, null);
   assert.equal(
     notesOnly.noteVisible,
     true,
@@ -287,7 +342,7 @@ try {
   );
   await page.waitForTimeout(160);
   const motionOnly = await sample();
-  assert(Math.abs(motionOnly.rotation) > 1e-7);
+  assert(motionOnly.bodyFrame > 0);
   assert.equal(motionOnly.noteVisible, false, 'Body motion can remain enabled when notes are off');
   report.checks.push('body motion and flying notes can each be disabled independently');
   await page.evaluate(() =>

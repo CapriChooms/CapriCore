@@ -385,7 +385,20 @@ try {
   });
   assert.ok(heartOffset <= 1, 'The support heart must remain centered in its orbit');
   await page.screenshot({ path: path.join(folder, 'support.png') });
+  await page.locator('#support-heart').click();
+  const meme = page.getByRole('img', { name: 'Paypal me $30000' });
+  await meme.waitFor();
+  await meme.waitFor({ state: 'detached', timeout: 1500 });
   page = await settingsView(application, 'personality');
+  const prankStage = page.locator('#wild-pranks-stage');
+  assert.equal(await prankStage.isVisible(), false);
+  await page.locator('#wild-pranks-preview').click();
+  await prankStage.waitFor();
+  await page.waitForFunction(() => {
+    const decoy = document.querySelector('#wild-pranks-stage [data-variant="snatch"] .decoy');
+    return decoy && Number(getComputedStyle(decoy).opacity) > 0.5;
+  }, undefined, { timeout: 1500 });
+  await prankStage.waitFor({ state: 'hidden', timeout: 2200 });
   await page.locator('#personality-text').fill('A warm fictional cyberpunk companion.');
   await saveSettings(page);
   await page.waitForFunction(
@@ -550,11 +563,12 @@ try {
     JSON.stringify({
       passed: true,
       checks: [
-        'support panel',
+        'support panel and temporary heart easter egg',
         'settings navigation',
         'last Settings section, per-section content scroll and sidebar scroll survive reopening and renderer recreation',
         'explicit context shortcut still focuses its control',
         'private personality save',
+        'prank preview plays in Settings and dismisses itself',
         'one Personality file for menu edits, external edits and reset',
         'wake settings',
         'external URL allowlist',

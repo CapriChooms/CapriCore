@@ -3,6 +3,7 @@ import path from 'node:path';
 import localeIndex from '../../shared/interface-locales.json' with { type: 'json' };
 import { loadStartupIntro } from '../startup-intro-assets.mjs';
 import { hangingCelAssetNames } from '../renderer/hanging-cels.mjs';
+import { gripArt } from '../renderer/music-grip-art.mjs';
 const rendererFiles = [
   'index.html',
   'minimized-chip.html',
@@ -147,6 +148,9 @@ const rendererFiles = [
   'inference-endpoint.mjs',
   'api-key.mjs',
   'music-animation.mjs',
+  'music-beat-motion.mjs',
+  'music-grip-art.mjs',
+  'music-grip-motion.mjs',
   'system-music-capture.mjs',
   'music-worklet.mjs',
   'music-listening-panel.mjs',
@@ -164,6 +168,7 @@ const rendererFiles = [
   'chess-frame-effect.mjs',
   'chess-frame-style.mjs',
   'chess-move-lightning.mjs',
+  'teleport-lightning.mjs',
   'chess-reaction-settings.mjs',
   'chess-overlay.html',
   'chess-overlay.css',
@@ -190,6 +195,7 @@ const rendererFiles = [
   'microphone.mjs',
   'wake-feedback.mjs',
   'microphone-worklet.mjs',
+  'capture-watchdog.mjs',
 ];
 const types = {
   '.html': 'text/html; charset=utf-8',
@@ -226,6 +232,7 @@ export function createDesktopResources({
   for (const name of [
     'clip-command.mjs',
     'credits-epithets.mjs',
+    'credits-team.mjs',
     'wake-phrase.mjs',
     'avatar-layout.mjs',
     'music-listening-settings.mjs',
@@ -286,10 +293,21 @@ export function createDesktopResources({
     type: 'image/webp',
     asyncRead: true,
   });
+  resources.set('/support-meme.png', {
+    file: path.join(root, 'assets/default', 'capri-support-meme.png'),
+    type: 'image/png',
+    asyncRead: true,
+  });
   for (const name of hangingCelAssetNames)
     resources.set('/hanging-cels/' + name + '.webp', {
       file: path.join(root, 'assets/default/hanging-cels', name + '.webp'),
       type: 'image/webp',
+      asyncRead: true,
+    });
+  for (const id of Object.keys(gripArt))
+    resources.set('/music-grip-plates/' + id + '.png', {
+      file: path.join(root, 'assets/default/music-grip-plates', id + '.png'),
+      type: 'image/png',
       asyncRead: true,
     });
   for (const brand of ['boosty', 'lava', 'discord', 'github', 'capricore'])

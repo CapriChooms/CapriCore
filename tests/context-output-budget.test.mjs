@@ -13,13 +13,13 @@ import { root } from '../packages/runtime/src/index.mjs';
 
 applyOpenClawCompatibility(root);
 const { r: applySettings } = await import(
-  '../node_modules/openclaw/dist/agent-settings-CZ8x5-4D.mjs'
+  '../node_modules/openclaw/dist/agent-settings-Cd93QvEL.mjs'
 );
-const { p: precheck } = await import(
-  '../node_modules/openclaw/dist/context-engine-lifecycle-CV3kXMrz.mjs'
+const { l: precheck } = await import(
+  '../node_modules/openclaw/dist/preemptive-compaction-CuIHDyof.mjs'
 );
 const { createOllamaStreamFn } = await import(
-  '../node_modules/openclaw/dist/stream.runtime-DVVOeOOt.mjs'
+  '../node_modules/openclaw/dist/stream.runtime-1A1YZsag.mjs'
 );
 
 const aliases = [
@@ -148,7 +148,7 @@ test('native preflight no longer compacts a fitting ordinary Gemma/Ministral pro
 
 test('the pinned foreground dispatcher and settings path carry the same transient budget', () => {
   const runner = readFileSync(
-    new URL('../node_modules/openclaw/dist/embedded-agent-CPls2oXD.mjs', import.meta.url),
+    new URL('../node_modules/openclaw/dist/embedded-agent-D8Zlpjxc.mjs', import.meta.url),
     'utf8',
   );
   const start = runner.indexOf(
@@ -167,11 +167,11 @@ test('the pinned foreground dispatcher and settings path carry the same transien
   assert.equal(original.maxTokens, 8192);
   for (const [file, source] of [
     [
-      'builtin-openclaw-CcrkVuBH.mjs',
+      'builtin-openclaw-BbTLAxC_.mjs',
       'model: attempt.model, agentId: attempt.agentId, thinkLevel: attempt.thinkLevel',
     ],
     [
-      'attempt-system-prompt-prepare-BIe9Jay8.mjs',
+      'agent-project-settings-BC7thQ_K.mjs',
       'model: params.model, agentId: params.agentId, thinkLevel: params.thinkLevel',
     ],
   ])

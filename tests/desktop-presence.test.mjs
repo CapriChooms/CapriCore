@@ -9,6 +9,27 @@ import {
 } from '../apps/desktop/renderer/presence-model.mjs';
 import { spriteHit, validateRegions } from '../apps/desktop/geometry.mjs';
 
+test('model readiness has its own signal and offline status takes precedence', () => {
+  const model = new PresenceModel();
+  model.phase = 'ready';
+  model.modelState = 'unloaded';
+  assert.equal(model.snapshot().state, 'unloaded');
+  assert.equal(SIGNAL_STATES.unloaded.color, '#a295ff');
+  model.modelState = 'loading';
+  assert.equal(model.snapshot().state, 'loading');
+  model.phase = 'starting';
+  assert.equal(model.snapshot().state, 'loading');
+  model.phase = 'offline';
+  assert.equal(model.snapshot().state, 'offline');
+  assert.equal(SIGNAL_STATES.offline.color, '#ff5679');
+  model.phase = 'ready';
+  model.modelState = 'failed';
+  assert.equal(model.snapshot().state, 'failed');
+  model.modelState = 'ready';
+  model.reveal();
+  assert.equal(model.snapshot().state, 'online');
+});
+
 test('presence follows text and audio independently and rejects stale text', () => {
   let clock = 0;
   const model = new PresenceModel({ now: () => clock });

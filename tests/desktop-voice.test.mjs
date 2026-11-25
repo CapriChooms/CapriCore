@@ -57,9 +57,47 @@ test('turn cancellation while voice is loading never starts stale queued speech'
   assert(!events.some((event) => event.type === 'voice.audio'));
 });
 
-test('a cold enabled voice starts on the first reply and drains it after text completion', async () => {
+test('slow cold startup expires the queued reply while keeping the voice available for the next one', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const { voice, events, requests } = service();
   voice.setReady(false);
+  const records = [];
+  const id = randomUUID();
+  configureResponseTimings({ write: (record) => records.push(record) });
+  t.after(() => {
+    voice.close();
+    configureResponseTimings(undefined);
+  });
+  withResponseTiming(id, () => turn(voice, id, 'A cold reply.'));
+  t.mock.timers.tick(29999);
+  assert.equal(voice.diagnostics().queuedSentences, 1);
+  t.mock.timers.tick(1);
+  assert.equal(voice.diagnostics().queuedSentences, 0);
+  assert.ok(events.some((event) => event.type === 'voice.warning' && event.turnId === id));
+  assert.equal(records.filter(({ stage }) => stage === 'voice_wait_expired').length, 1);
+
+  voice.setReady(true);
+  assert.equal(requests.length, 0);
+  const finished = new Promise((resolve) => {
+    const emit = voice.emit;
+    voice.emit = (event) => {
+      emit(event);
+      if (event.type === 'voice.generated' && event.turnId === 'warm') resolve();
+    };
+  });
+  turn(voice, 'warm', 'Now the voice is ready.');
+  await finished;
+  assert.deepEqual(
+    requests.map(({ text }) => text),
+    ['Now the voice is ready.'],
+  );
+});
+
+test('a cold enabled voice starts on the first reply and drains it after text completion', async () => {
+  const { voice, events, requests } = service();
+  voice.setReady(false, { idle: true });
+  assert.equal(voice.snapshot().idle, true);
+  assert.equal(voice.snapshot().enabled, true);
   let starts = 0,
     release;
   const ready = new Promise((resolve) => {
@@ -76,6 +114,7 @@ test('a cold enabled voice starts on the first reply and drains it after text co
   assert.equal(requests.length, 0);
   release();
   await until(() => events.some((event) => event.type === 'voice.generated'));
+  assert.equal(voice.snapshot().idle, undefined);
   assert.equal(requests.map(({ text }) => text).join(' '), "Hi! I'm here.");
   assert.ok(events.some((event) => event.type === 'voice.audio' && event.turnId === 'first'));
   turn(voice, 'warm', 'Ready.');
@@ -418,7 +457,7 @@ test('a classified social reply completes both streamed text and the entire spee
     persona: () => 'You are Capri.',
     store: { snapshot: () => [...records.values()], put: (value) => records.set(value.id, value) },
     interfaceState: () => ({ fullComputerAccess: true, languages: { conversation: 'en' } }),
-    computerIntent: async () => ({ intent: 'chat', usesPrevious: false }),
+    requestRouter: { classify: async () => ({ mode: 'fast', reason: 'simple-dialogue' }) },
     computerTask: () => assert.fail('Smalltalk cannot start a computer task'),
     fetchImpl: async (_url, options) => {
       assert.equal(options.headers['x-capri-tools-once'], 'dialogue');

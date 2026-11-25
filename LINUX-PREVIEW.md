@@ -1,8 +1,8 @@
-# Capri 1.2.3E2 for Linux x86-64
+# Capri 1.3.0E1 for Linux x86-64
 
-This preview is based on the Capri 1.2.3E2 source release and the [1.1.2 community port by Frkn97](https://github.com/CapriChooms/CapriCore/issues/64). It uses Electron's X11 backend with an X11 or XWayland desktop session.
+This preview is built from the shared Capri release source and the [1.1.2 community port by Frkn97](https://github.com/CapriChooms/CapriCore/issues/64). It uses Electron's X11 backend with an X11 or XWayland desktop session.
 
-Extract the archive to a writable directory. Install Node.js 24.22.1 or a newer 24.x release, npm, and the Linux libraries required by Electron. Run these commands from the directory containing `package.json`.
+Extract the archive to a writable directory. Install Node.js 24.22.3 or a newer 24.x release, npm, and the Linux libraries required by Electron. Run these commands from the directory containing `package.json`.
 
 ```sh
 npm ci

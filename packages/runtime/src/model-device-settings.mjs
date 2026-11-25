@@ -5,7 +5,7 @@ import { assertPrivatePath, writePrivateBytesAtomic } from './safe-file.mjs';
 
 export const deviceSelectionId = (value) =>
   typeof value === 'string' &&
-  /^(?:auto|cpu|(?:cuda|rocm|vulkan|npu-openvino|npu-vitis|npu-qnn):\d{1,2}:[a-f0-9]{16})$/.test(
+  /^(?:auto|cpu|(?:cuda|rocm|vulkan|metal|npu-openvino|npu-vitis|npu-qnn):\d{1,2}:[a-f0-9]{16})$/.test(
     value,
   );
 export function deviceSettingsFile(root) {
@@ -26,7 +26,7 @@ export function readModelDevices(root, fallback = {}) {
     Object.keys(value).some((key) => !['schemaVersion', 'language', 'voice'].includes(key)) ||
     !deviceSelectionId(value.language) ||
     !deviceSelectionId(value.voice) ||
-    value.voice.startsWith('npu-')
+    /^(?:metal:|npu-)/.test(value.voice)
   )
     throw Error('Invalid model device settings.');
   return value;
@@ -37,7 +37,7 @@ export function saveModelDevices(root, value) {
     Object.keys(value).some((key) => !['language', 'voice'].includes(key)) ||
     !deviceSelectionId(value.language) ||
     !deviceSelectionId(value.voice) ||
-    value.voice.startsWith('npu-')
+    /^(?:metal:|npu-)/.test(value.voice)
   )
     throw Error('Invalid model device selection.');
   const file = deviceSettingsFile(root),
@@ -75,6 +75,7 @@ export function deviceEnvironment(device) {
     device.ordinal > 63
   )
     throw Error('Invalid model device.');
+  if (device.backend === 'metal') return { CAPRI_LLAMA_DEVICE: `MTL${device.ordinal}` };
   if (device.backend === 'cuda') env.CUDA_VISIBLE_DEVICES = device.uuid || String(device.ordinal);
   else if (device.backend === 'rocm') {
     // Unset competing masks instead of an empty list (which can hide every

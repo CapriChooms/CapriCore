@@ -488,12 +488,12 @@ export class ChessSession {
     let engine;
     try {
       engine = await this.engine(signal, trace);
-      for (const { position, checked, events, moveNumber } of reactions) {
+      for (const { position, checked, events, moveNumber, player } of reactions) {
         const verified = await engine.verifyPosition(position, { signal });
         signal.throwIfAborted();
         if (checked !== undefined && checked !== verified.checked)
           throw new Error('Stockfish check state did not match the observed game');
-        facts.push({ events, checkers: verified.checkers, moveNumber });
+        facts.push({ events, checkers: verified.checkers, moveNumber, player });
       }
     } catch (error) {
       signal.throwIfAborted();
@@ -507,9 +507,10 @@ export class ChessSession {
         const line = lines?.[0];
         const score = line?.score;
         if (!score || line.depth < 8 || score.bound) continue;
-        const decisive = score.type === 'mate'
-          ? score.value !== 0
-          : score.type === 'cp' && Math.abs(score.value) >= 160;
+        const decisive =
+          score.type === 'mate'
+            ? score.value !== 0
+            : score.type === 'cp' && Math.abs(score.value) >= 160;
         if (decisive) fact.advantage = score.value > 0 ? 'w' : 'b';
         if (score.type === 'cp' && Math.abs(score.value) <= 45) fact.balanced = true;
       } catch {
@@ -521,6 +522,12 @@ export class ChessSession {
     watch.reactionController ??= new AbortController();
     this.react(facts, AbortSignal.any([signal, watch.reactionController.signal]));
     return true;
+  }
+
+  playerColor(watch, view) {
+    if (view.computerSide) return view.computerSide === 'w' ? 'b' : 'w';
+    if (chessBotPage(view)) return watch.playerColor ?? watch.orientation[0];
+    return undefined;
   }
 
   async noteGameStart(watch, view, restarted = false) {
@@ -536,7 +543,11 @@ export class ChessSession {
       return;
     const identity = view.game ?? view.windowId ?? view.token;
     if (!restarted && this.reactionGame === identity) return;
-    if (await this.announceReactions(watch, [{ position, events: [{ type: 'start' }] }]))
+    if (
+      await this.announceReactions(watch, [
+        { position, events: [{ type: 'start' }], player: this.playerColor(watch, view) },
+      ])
+    )
       this.reactionGame = identity;
   }
 
@@ -881,6 +892,7 @@ export class ChessSession {
       watch.failure = 'view_changed';
       throw new Error('The chess source changed');
     }
+    if (chessBotPage(initialView)) watch.playerColor = watch.orientation[0];
     trace('bound', { width: board.rect.width, height: board.rect.height });
     let shown = false,
       pendingBoard,
@@ -1204,6 +1216,7 @@ export class ChessSession {
               watch.position = choice.position;
               watch.pieces = placement(watch.position.fen);
               watch.orientation = choice.orientation ?? watch.orientation;
+              if (choice.newGame && chessBotPage(view)) watch.playerColor = watch.orientation[0];
               watch.verifiedPosition = true;
               watch.retryMoveAt = 0;
               if (choice.newGame) {
@@ -1222,10 +1235,9 @@ export class ChessSession {
                 (chessBotPage(view) || view.computerSide)
               ) {
                 // Board orientation can be flipped independently of the player's color.
-                const player = { b: 'w', w: 'b' }[view.computerSide];
                 await this.announceReactions(
                   watch,
-                  chessMoveReactions(previous, watch.position, player),
+                  chessMoveReactions(previous, watch.position, this.playerColor(watch, view)),
                 );
               }
             }

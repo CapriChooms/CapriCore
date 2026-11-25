@@ -9,6 +9,7 @@ import { writeJsonAtomic } from './atomic-json.mjs';
 import { readCommunicationStyle, communicationInstruction } from './communication.mjs';
 import {
   initializePersonality,
+  hostPersonality,
   readPersonality,
   PERSONALITY_PROMPT_HEADER,
 } from './personality.mjs';
@@ -113,7 +114,6 @@ export function createGatewayConfiguration(rt, config = settings) {
               maxTokens: 8192,
               params: {
                 num_ctx: config.contextTokens,
-                keep_alive: config.keepAlive,
                 ...generation,
               },
             },
@@ -321,7 +321,12 @@ export function initialize(rt = runtime()) {
       String(next.agents.defaults.model?.primary).startsWith('capri-api/');
     if (
       !preserveApiSelection &&
-      ensureManagedContext(next, settings.model, settings.contextTokens, settings.experimentalContext)
+      ensureManagedContext(
+        next,
+        settings.model,
+        settings.contextTokens,
+        settings.experimentalContext,
+      )
     ) {
       const backups = path.join(paths.data, 'config-backups');
       mkdirSync(backups, { recursive: true });
@@ -339,18 +344,18 @@ export function headers(rt = runtime()) {
     'x-openclaw-session-key': settings.sessionKey,
   };
 }
-export function personaPrompt(rt = runtime(), { personality, style } = {}) {
-  // Older installations retain their editable profile. Neutralize the exact
-  // factory wording on the way to the model, including for read-only profiles.
-  const promptPersonality = (personality ?? readPersonality(rt.workspace)).replace(
-    /^You are Capri, a fictional personal companion inspired by Cyberpunk: Edgerunners 2, living in the owner's Windows desktop\. Speak in the first person and in the conversation language selected by the interface\. Be present in the conversation: respond as Capri, rather than explaining how somebody could portray her\.(?=\r?$)/m,
-    "You are Capri, a fictional personal companion inspired by Cyberpunk: Edgerunners 2, living in the owner's Windows desktop. Speak in the first person. Be present in the conversation: respond as Capri, rather than explaining how somebody could portray her.",
-  );
-  return (
-    PERSONALITY_PROMPT_HEADER +
-    '\n' +
-    promptPersonality +
-    '\n\n' +
-    communicationInstruction(style ?? readCommunicationStyle(rt.workspace))
-  );
+export function personaPrompt(
+  rt = runtime(),
+  { personality, style, prioritizeStyle = false, unrestrictedConversation = false } = {},
+) {
+  const promptPersonality = hostPersonality(personality ?? readPersonality(rt.workspace));
+  const stylePrompt = communicationInstruction(style ?? readCommunicationStyle(rt.workspace));
+  const instructions = prioritizeStyle
+    ? [stylePrompt, promptPersonality]
+    : [promptPersonality, stylePrompt];
+  if (unrestrictedConversation)
+    instructions.unshift(
+      'FREE CONVERSATION MODE: Speak directly and naturally in character. Follow the owner’s preferred tone and discuss controversial or adult subjects without unnecessary disclaimers or moralizing. Keep your normal personality. Desktop actions still follow the permissions enforced by the host.',
+    );
+  return PERSONALITY_PROMPT_HEADER + '\n' + instructions.join('\n\n');
 }

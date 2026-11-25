@@ -38,7 +38,8 @@ import { microphoneButtonState, setMicrophoneButtonBusy } from './microphone-but
 import { CallMicrophone } from './call-microphone.mjs';
 import { SystemMusicClient } from './system-music-capture.mjs';
 import { MusicAnimation, MusicPoseLayer, MusicNotesLayer } from './music-animation.mjs';
-import { musicAnimationReady } from './music-listening-settings.mjs';
+import { syncSleepBreathing } from './music-beat-motion.mjs';
+import { musicAnimationReady, musicBreathingTempo } from './music-listening-settings.mjs';
 import { SpeechPanel } from './speech-panel.mjs';
 import { dimmingFeatherWidth, validateDimming, shadeBounds } from './dimming-settings.mjs';
 import { DimmingMask } from './dimming-mask.mjs';
@@ -57,7 +58,7 @@ import { AvatarHeadpat } from './avatar-headpat.mjs';
 import { playAvatarObservation } from './avatar-observation.mjs';
 import { showAvatarTapEffect } from './avatar-tap-effect.mjs';
 import { AvatarMouthLayer, AvatarVisemes, avatarPoseLandmarks } from './avatar-mouth.mjs';
-import { CameraFramePublisher } from './call-camera-frame.mjs';
+import { cameraBreathScale, CameraFramePublisher } from './call-camera-frame.mjs';
 import { playTeleportSound } from './avatar-teleport-sound.mjs';
 import { CRT_CURVATURE, screenSample } from './screen-geometry.mjs';
 import {
@@ -138,9 +139,14 @@ let musicState = {
   settings: { enabled: false, notes: true, motion: true },
 };
 let musicNotes, currentMusicMotion;
+let portraitBeatBody;
 const musicAnimation = new MusicAnimation(),
   musicPose = new MusicPoseLayer();
 const musicButton = document.getElementById('music-toggle');
+function updateSleepBreathing() {
+  if (elements.sprite.dataset.frame !== 'pose-sleep') return;
+  syncSleepBreathing(elements.sprite, musicBreathingTempo(musicState));
+}
 function renderMusicState() {
   const busy = ['starting', 'preparing'].includes(musicState.phase);
   musicButton.setAttribute('aria-pressed', String(musicState.enabled));
@@ -148,6 +154,7 @@ function renderMusicState() {
   musicButton.dataset.loading = String(busy);
   musicButton.disabled = musicState.supported === false;
   document.body.dataset.musicListening = String(musicAnimationReady(musicState));
+  updateSleepBreathing();
   signalFx?.invalidate();
 }
 const musicClient = new SystemMusicClient({
@@ -198,6 +205,25 @@ const confirmDialog = new ConfirmationDialog({
   },
 });
 const startupPanel = new StartupPanel(ui);
+const warmModelsButton = document.getElementById('models-warm');
+let warmingModels = false;
+let modelMemory = 'ready';
+warmModelsButton.onclick = async () => {
+  if (warmingModels || warmModelsButton.disabled) return;
+  warmingModels = true;
+  controls();
+  try {
+    await api.warmModels();
+    notice('Models loaded.');
+  } catch (error) {
+    notice(
+      String(error.message).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, ''),
+    );
+  } finally {
+    warmingModels = false;
+    controls();
+  }
+};
 const confirmationRequests = new ConfirmationRequests({
   dialog: confirmDialog,
   prepare: () => mayLeaveSettings(null),
@@ -500,6 +526,7 @@ let desktopCue;
 let desktopStatus;
 const replySlot = document.getElementById('reply-slot');
 const replyStage = elements['subtitle-stage'];
+const replyFrame = document.getElementById('subtitle-frame');
 replySlot.style.setProperty('--reply-space', REPLY_SPACE + 'px');
 replySlot.style.setProperty('--reply-min-compact', MIN_COMPACT_HEIGHT + 'px');
 const replyMotionPreference = matchMedia('(prefers-reduced-motion: reduce)');
@@ -530,16 +557,17 @@ function settleReplyPresentation(hidden) {
 function paintNativeReplyMotion() {
   if (!replyNativeMotion) return;
   const { compactHeight, expandedHeight, collapsed, animated } = replyNativeMotion;
+  const budget = expandedHeight - compactHeight;
   if (Math.abs(innerHeight - (collapsed ? compactHeight : expandedHeight)) <= 1) {
+    if (!collapsed) replySlot.style.setProperty('--reply-space', budget + 'px');
     settleReplyPresentation(collapsed);
     return;
   }
-  const budget = expandedHeight - compactHeight;
-  const occupied = Math.max(0, Math.min(budget, innerHeight - compactHeight));
+  const occupied = Math.max(0, Math.min(REPLY_SPACE, innerHeight - compactHeight));
   replySlot.style.setProperty('--reply-budget', budget + 'px');
   replySlot.style.height = occupied + 'px';
   if (animated && budget > 0)
-    replySlot.style.setProperty('--reply-reveal', String(occupied / budget));
+    replySlot.style.setProperty('--reply-reveal', String(Math.min(1, occupied / budget)));
 }
 
 function beginNativeReplyMotion(event) {
@@ -845,6 +873,8 @@ const speechPanel = new SpeechPanel({
 const initiativePanel = new InitiativePanel({
   api,
   ui,
+  companion: companionPanel,
+  saveRoaming: () => companionPanel.save(false),
   onOpen: (open) => preferencesOpened('initiative-panel', open),
   onError: notice,
 });
@@ -1076,7 +1106,7 @@ function showVoiceSettings(value) {
   button.disabled = value.language === 'off';
   button.setAttribute('aria-label', label);
   button.title =
-    !value.error && value.enabled && !value.ready && value.language !== 'off'
+    !value.error && value.enabled && !value.ready && !value.idle && value.language !== 'off'
       ? ui.text('Capri’s voice is loading…')
       : label;
   if (!value.enabled || value.error || value.language === 'off') voicePlayer.stop();
@@ -1815,11 +1845,18 @@ const portraitWave = new AvatarWave(elements['sprite-region'], {
     signalFx?.invalidate();
   },
 });
+function currentAvatarImage() {
+  return (
+    startupIntro?.texture ??
+    portraitWave.image ??
+    musicPose.image(portraitMouth.image(elements.sprite), currentMusicMotion)
+  );
+}
+
 const cameraPublisher = new CameraFramePublisher({
-  image: () =>
-    avatarDetachPhase === 'attached'
-      ? (portraitWave.image ?? portraitMouth.image(elements.sprite))
-      : elements.sprite,
+  image: currentAvatarImage,
+  breathScale: () =>
+    cameraBreathScale(elements.sprite, elements.sprite.dataset.frame === 'pose-sleep'),
   send: (frame) => api.publishCameraFrame(frame),
   sendPreview: (frame) => api.publishCameraPreview(frame),
   loadBackground: (revision) => api.callCameraBackgroundImage(revision),
@@ -1829,7 +1866,12 @@ let mouthShape = 'closed',
   desktopMouth,
   desktopFace;
 function animateCharacter(now, snapshot, reduced) {
-  if (avatarDetachPhase !== 'attached' && companionSettings?.detachedStyle === 'dialogue') return;
+  if (
+    avatarDetachPhase !== 'attached' &&
+    companionSettings?.detachedStyle === 'dialogue' &&
+    !cameraPublisher.wantsFrame
+  )
+    return;
   if (startupIntro?.active && presence.sleeping) startupIntro.cancel();
   if (startupIntro?.active) {
     musicNotes?.clear();
@@ -1851,12 +1893,13 @@ function animateCharacter(now, snapshot, reduced) {
     return;
   }
   const state = director.tick(now, {
-    expanded: detached || snapshot.expanded,
+    expanded: detached || snapshot.expanded || cameraPublisher.wantsFrame,
     active: Boolean(activeTurnId),
     typing: Boolean(elements.message.value.trim() || microphoneText),
     speaking: presence.speaking,
     dragging: Boolean(spriteDrag || dragPointer !== null),
     heldFrame: avatarDetachPhase === 'attached' ? headpat.frameId : null,
+    musicListening: musicAnimationReady(musicState),
     reduced: reduced || startupIntro?.pending,
     sleeping: presence.sleeping,
   });
@@ -1886,19 +1929,21 @@ function animateCharacter(now, snapshot, reduced) {
       now,
     );
   }
-  // Moving Capri or her window changes placement, not the current music pose.
+  const frameId = renderedFrame?.id;
   const musicActive = Boolean(
-    musicAnimationReady(musicState) &&
-      !portraitWave.image &&
+    frameId &&
+      (snapshot.expanded || cameraPublisher.wantsFrame) &&
+      frameId !== 'pose-sleep' &&
       !presence.sleeping &&
+      musicAnimationReady(musicState) &&
+      !portraitWave.image &&
       !activeTurnId &&
       !elements.message.value.trim() &&
       !microphoneText &&
       !startupIntro?.pending &&
       !headpat.frameId,
   );
-  if (musicActive && frameCatalog.has('music-floor')) {
-    state.frameId = 'music-floor';
+  if (musicActive) {
     state.activity = 'Music listening';
     state.effect = null;
   }
@@ -1910,10 +1955,30 @@ function animateCharacter(now, snapshot, reduced) {
     tempoConfidence: musicState.tempoConfidence ?? 0,
     beatAt: musicState.beatAt ?? 0,
     reduced,
-    frameId: renderedFrame?.id,
+    frameId,
   });
-  if (musicState.settings.motion === false)
-    currentMusicMotion = { ...currentMusicMotion, angle: 0, dy: 0 };
+  if (musicState.settings.motion === false || frameId === 'pose-sleep')
+    currentMusicMotion = { ...currentMusicMotion, channels: null, angle: 0, dy: 0 };
+  const spriteRegion = elements['sprite-region'];
+  if (
+    document.body.dataset.crt !== 'webgl' &&
+    !portraitWave.image &&
+    (currentMusicMotion.channels || currentMusicMotion.angle) &&
+    snapshot.expanded &&
+    elements.sprite.complete &&
+    elements.sprite.naturalWidth
+  ) {
+    const source = portraitMouth.image(elements.sprite);
+    const body = musicPose.image(source, currentMusicMotion);
+    if (body !== source && body !== portraitBeatBody) {
+      portraitBeatBody?.remove();
+      portraitBeatBody = body;
+      body.className = 'avatar-beat-body';
+      body.setAttribute('aria-hidden', 'true');
+      spriteRegion.append(body);
+    }
+    spriteRegion.toggleAttribute('data-beat-body', body !== source);
+  } else spriteRegion.removeAttribute('data-beat-body');
   if (avatarDetachPhase === 'attached' && musicState.settings.notes !== false)
     musicNotes?.update(currentMusicMotion, {
       rect: elements.sprite.getBoundingClientRect(),
@@ -1997,6 +2062,7 @@ function animateCharacter(now, snapshot, reduced) {
         avatars.get(state.choiceId)?.expression ?? frame.expression;
       elements.sprite.dataset.frame = frame.id;
       elements.sprite.dataset.framePose = frame.pose;
+      updateSleepBreathing();
       if (avatarDetachButton.disabled && !avatarDetachPending) updateAvatarDetachButton();
       const activity =
         frameCatalog.get(state.activity)?.label ??
@@ -2139,6 +2205,11 @@ function controls() {
   thinkingMode.setReady(ready);
   syncSleepingVisual();
   presence.phase = backend.phase;
+  const preparingModels =
+    !startupPanel.value?.finished &&
+    startupPanel.value?.stages.some(({ id, state }) => id === 'models' && state === 'running');
+  const modelLoading = warmingModels || preparingModels || modelMemory === 'loading';
+  presence.modelState = modelLoading ? 'loading' : modelMemory;
   presence.typing =
     document.activeElement === elements.message && Boolean(elements.message.value.trim());
   const busy =
@@ -2168,11 +2239,26 @@ function controls() {
       busy || attachmentComposer.pending || !ready || backend.phase !== 'ready';
     if (attachmentComposer.items.length && backend.phase !== 'ready') elements.send.disabled = true;
   }
-  elements.reconnect.hidden = backend.phase !== 'offline' || busy;
+  elements.reconnect.hidden = !['offline', 'downloading-models'].includes(backend.phase) || busy;
+  const hideModelButton =
+    !ready || backend.phase !== 'ready' || (modelMemory === 'ready' && !modelLoading);
+  if (warmModelsButton.hidden !== hideModelButton) {
+    warmModelsButton.hidden = hideModelButton;
+    scheduleRegions();
+  }
+  warmModelsButton.disabled = hideModelButton || busy || modelLoading;
+  const modelButtonLabel = ui.text(modelLoading ? 'Preparing language models…' : 'Load models');
+  const modelButtonText = warmModelsButton.querySelector('span');
+  if (modelButtonText.textContent !== modelButtonLabel)
+    modelButtonText.textContent = modelButtonLabel;
   elements.status.classList.toggle('sr-only', elements.reconnect.hidden);
   if (!elements.reconnect.hidden) {
     const label = ui.text(
-      backend.code === 'CAPRI_LOCAL_MODEL_SETUP_REQUIRED' ? 'Language model' : 'Reconnect',
+      downloadingModels
+        ? 'Pause download'
+        : backend.code === 'CAPRI_LOCAL_MODEL_SETUP_REQUIRED'
+          ? 'Language model'
+          : 'Reconnect',
     );
     if (elements.reconnect.textContent !== label) elements.reconnect.textContent = label;
   }
@@ -2493,14 +2579,10 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'music.status') {
-    const wasHearingMusic = musicState.hearingMusic;
     const wasReady = musicAnimationReady(musicState);
     musicState = { ...musicState, ...event };
     musicClient.setState(event);
     renderMusicState();
-    // Decode while BPM is being acquired, without selecting a music pose yet.
-    if (!wasHearingMusic && musicState.hearingMusic)
-      frameImages?.get('music-floor').catch(() => {});
     if (!wasReady && musicAnimationReady(musicState) && ready)
       animateCharacter(
         performance.now(),
@@ -2661,6 +2743,11 @@ function onEvent(event) {
     scheduleRegions();
     return;
   }
+  if (event.type === 'models.memory') {
+    modelMemory = event.state;
+    controls();
+    return;
+  }
   if (event.type === 'open-models') {
     modelsPanel.open(true).catch((error) => notice(error.message));
     return;
@@ -2686,6 +2773,7 @@ function onEvent(event) {
   }
   if (event.type === 'startup.progress') {
     startupPanel.update(event);
+    controls();
     scheduleRegions();
     return;
   }
@@ -2814,7 +2902,7 @@ function onEvent(event) {
   }
   if (event.type === 'computer.control') {
     const stop = document.getElementById('computer-control-stop');
-    stop.hidden = !event.active;
+    stop.hidden = !event.active || event.idleCursor;
     stop.onclick = () => window.capri.stopComputerControl();
     sizeInput();
     scheduleRegions();
@@ -2940,6 +3028,7 @@ function onEvent(event) {
     return;
   }
   if (event.type === 'call-camera.preview') {
+    cameraPublisher.setSourceActive(!event.detached);
     cameraPublisher.setPreview(event.enabled);
     return;
   }
@@ -3291,10 +3380,14 @@ function publishRegions() {
     redrawAvatar();
   }
   const replyCollapsed = verticalPortrait && replyHidden && !modal;
-  const reply = document.getElementById('subtitle-frame');
-  reply.toggleAttribute(
+  // Include both margins around the frame so the tail cannot touch the portrait.
+  const replySpace =
+    verticalPortrait && !replyHidden && !modal
+      ? Math.min(REPLY_SPACE, replyFrame.scrollHeight + 22)
+      : undefined;
+  replyFrame.toggleAttribute(
     'data-hit-region',
-    homePortrait && !replyHidden && reply.scrollHeight > reply.clientHeight + 1,
+    homePortrait && !replyHidden && replyFrame.scrollHeight > replyFrame.clientHeight + 1,
   );
   const fitBackdrop = compact || replyHidden || windowLayout === 'horizontal';
   const viewport = { width: innerWidth, height: innerHeight };
@@ -3392,7 +3485,9 @@ function publishRegions() {
   };
   const replyMotion = replyChangePending && !modal && animateReplyBubble();
   if (!dragMotion?.edge)
-    api.setRegions({ controls, sprite, footprint, replyCollapsed, replyMotion }).catch(() => {});
+    api
+      .setRegions({ controls, sprite, footprint, replyCollapsed, replyMotion, replySpace })
+      .catch(() => {});
 }
 
 function scheduleRegions() {
@@ -3755,10 +3850,7 @@ signalFx = new SignalFX({
   canvas: document.getElementById('signal-fx'),
   model: presence,
   sprite: elements.sprite,
-  getSpriteImage: () =>
-    startupIntro?.texture ??
-    portraitWave.image ??
-    musicPose.image(portraitMouth.image(elements.sprite), currentMusicMotion),
+  getSpriteImage: currentAvatarImage,
   frame: document.getElementById('portrait-panel'),
   audioLevel: () => voicePlayer.level,
   onLayout: () => {
@@ -3819,6 +3911,7 @@ try {
   screenPanel.visionBlocked = Boolean(inference?.remote && !inference.vision);
   applicationsPanel.showSpotify(snapshot.spotify);
   modelsPanel.show(snapshot.models);
+  modelMemory = snapshot.modelMemory ?? 'ready';
   // A check can finish while the renderer loads its locale after bootstrap.
   const updateStatus = updatesPanel.value ?? snapshot.updates;
   updatesPanel.show(updateStatus);

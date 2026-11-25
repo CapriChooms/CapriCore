@@ -59,6 +59,9 @@ export function speechModelsInstalled(root, language) {
       if (!directory.startsWith(path.join(path.resolve(root), 'data/speech') + path.sep))
         return false;
       const receipt = JSON.parse(readFileSync(path.join(directory, 'model-receipt.json'), 'utf8'));
+      // The reference pack's download receipt is separate from the base model.
+      delete upstream.bundledPack;
+      delete receipt.upstream?.bundledPack;
       return (
         isDeepStrictEqual(receipt.upstream, upstream) &&
         Array.isArray(upstream.model?.files) &&

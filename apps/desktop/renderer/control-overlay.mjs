@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { ControlTaskChain } from './control-task-chain.mjs';
+import { clearTeleportBolt, playTeleportBolt, teleportBoltMotion } from './teleport-lightning.mjs';
 const taskChain = new ControlTaskChain(document.getElementById('control-task-chain'));
+const teleportCanvas = document.getElementById('control-teleport');
 // Thin edge-only procedural effects. The central content is never tinted.
 const canvas = document.getElementById('control-effects');
 const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
 let settings = { enabled: true, intensity: 50, theme: 'capri', cursor: true };
 let pointer = null,
-  pointerSuspended = false,
+  captureSuspended = false,
   previousPointer = null,
   phase = 'observing',
   pulseAt = -10000;
@@ -19,6 +21,7 @@ const trail = [],
 const resize = () => {
   width = innerWidth;
   height = innerHeight;
+  if (document.body.hasAttribute('data-idle-cursor')) return;
   const scale = Math.min(devicePixelRatio || 1, 2);
   canvas.width = Math.round(width * scale);
   canvas.height = Math.round(height * scale);
@@ -43,6 +46,7 @@ function line(points, color, alpha = 1, weight = 1) {
 }
 function render(now) {
   frame = requestAnimationFrame(render);
+  if (captureSuspended) return;
   if (now - lastFrame < (reduce.matches ? 250 : 33)) return;
   lastFrame = now;
   // Clear only the strips and pointer area we use, rather than every 4K pixel.
@@ -169,7 +173,7 @@ function render(now) {
   }
   ctx.shadowBlur = 0;
   while (trail.length && now - trail[0].at > 350) trail.shift();
-  if (settings.cursor && pointer && !pointerSuspended) {
+  if (settings.cursor && pointer) {
     const color = colors[2],
       pulse = Math.max(0, 1 - (now - pulseAt) / 450);
     for (const item of trail) {
@@ -235,6 +239,27 @@ function render(now) {
   ctx.globalAlpha = 1;
 }
 globalThis.capriControl = Object.freeze({
+  idleMode() {
+    document.body.dataset.idleCursor = '';
+    cancelAnimationFrame(frame);
+    canvas.width = canvas.height = 1;
+  },
+  idleLightning({ from, to, effects }) {
+    if (!document.body.hasAttribute('data-idle-cursor')) return false;
+    const motion = teleportBoltMotion(
+      from,
+      to,
+      { width, height },
+      {
+        scale: 38,
+        reducedFlash: reduce.matches,
+        effects,
+      },
+    );
+    return new Promise((onFinish) => {
+      if (!playTeleportBolt(teleportCanvas, motion, { speed: 1.8, onFinish })) onFinish(false);
+    });
+  },
   plan(value) {
     taskChain.update(value);
   },
@@ -243,20 +268,22 @@ globalThis.capriControl = Object.freeze({
     document.body.dataset.theme = settings.theme;
   },
   pointer(value) {
-    if (pointer && !pointerSuspended) trail.push({ ...pointer, at: performance.now() });
+    if (pointer && !captureSuspended) trail.push({ ...pointer, at: performance.now() });
     if (trail.length > 12) trail.shift();
     pointer = value;
   },
-  suspendPointer() {
-    pointerSuspended = true;
+  suspendCapture() {
+    captureSuspended = true;
+    document.body.dataset.captureSuspended = '';
     if (previousPointer) ctx.clearRect(previousPointer.x - 100, previousPointer.y - 100, 200, 200);
     for (const item of trail) ctx.clearRect(item.x - 30, item.y - 30, 60, 60);
     previousPointer = null;
     trail.length = 0;
     return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   },
-  resumePointer() {
-    pointerSuspended = false;
+  resumeCapture() {
+    delete document.body.dataset.captureSuspended;
+    captureSuspended = false;
   },
   pulse(action) {
     phase = action;
@@ -271,6 +298,7 @@ addEventListener(
   'pagehide',
   () => {
     cancelAnimationFrame(frame);
+    clearTeleportBolt(teleportCanvas);
     taskChain.clear();
   },
   { once: true },

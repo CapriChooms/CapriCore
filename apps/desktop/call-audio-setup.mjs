@@ -21,6 +21,8 @@ const setupFailures = new Set([
   'output-unavailable',
   'cable-required',
   'setup-unavailable',
+  'skill-disabled',
+  'window-unavailable',
   'install-failed',
   'timeout',
   'cancelled',
@@ -71,6 +73,8 @@ const setupFailureMessages = new Map([
   ['Call microphone setup was cancelled.', 'cancelled'],
 ]);
 
+export const isCallSetupFailure = (value) => setupFailures.has(value);
+
 /** Fixed diagnostic vocabulary; endpoint names, IDs and raw errors never pass through. */
 export function callSetupDiagnosticState(value = {}) {
   return {
@@ -80,7 +84,7 @@ export function callSetupDiagnosticState(value = {}) {
     lastFailure:
       value?.lastFailure == null
         ? null
-        : setupFailures.has(value.lastFailure)
+        : isCallSetupFailure(value.lastFailure)
           ? value.lastFailure
           : 'unknown',
   };
@@ -145,6 +149,20 @@ export class CallAudioSetup {
   progress(value) {
     if (this.state.busy) this.publish({ phase: value.phase });
   }
+  unavailable(reason, error) {
+    if (this.state.busy) return this.snapshot();
+    this.lastFailure = reason;
+    this.cableFound = false;
+    this.state = { phase: 'error', busy: false, error };
+    this.emit(this.snapshot());
+    return this.snapshot();
+  }
+  onSkillEnabled() {
+    if (this.lastFailure !== 'skill-disabled') return;
+    this.lastFailure = null;
+    this.state = { phase: 'idle', busy: false };
+    this.emit(this.snapshot());
+  }
   async run(install = false) {
     if (this.state.busy) throw new Error('Virtual microphone setup is already running.');
     if (!this.available()) {
@@ -158,6 +176,7 @@ export class CallAudioSetup {
     try {
       let cable = virtualCallCable(await this.devices());
       this.cableFound = Boolean(cable);
+      if (!this.available()) throw new Error('Open Voice calls in Settings to finish connecting.');
       if (!cable && !install) {
         this.publish({ phase: 'missing' });
         this.publish({ busy: false });
@@ -178,6 +197,8 @@ export class CallAudioSetup {
           if (cable) break;
           await this.wait(500);
         }
+        if (!this.available())
+          throw new Error('Open Voice calls in Settings to finish connecting.');
         if (!cable) {
           this.publish({ phase: 'reboot' });
           this.publish({ busy: false });

@@ -5,8 +5,7 @@ import { callTaskRequest } from './call-computer-task.mjs';
 import { youtubeHomeDestination } from './browser-search-state.mjs';
 import { steamGameCommand } from './steam-task-state.mjs';
 
-// Fast paths for common requests. Ambiguous and other-language requests can use
-// the desktop intent classifier without starting an ordinary chat turn.
+// Recognize owner wording so the model can be offered the appropriate tools.
 const russianMode = String.raw`(?:режим\s+)?полн(?:ого|ое|ый|ом|ым)\s+(?:управлени[ея]|доступ[а]?)\s+(?:ко?\s+)?(?:(?:всему|моим|моему|моего|всего)\s+)*(?:компьютер(?:ом|у|а)?|пк)`;
 const englishMode = String.raw`(?:full\s+(?:computer|pc|desktop)\s+(?:control|access)|full\s+(?:control|access)\s+(?:of|to|over)\s+(?:(?:my|the|this|entire|whole)\s+)*(?:computer|pc|desktop)|computer\s+control)(?:\s+mode)?`;
 const mode = String.raw`(?:${russianMode}|${englishMode})`;
@@ -78,7 +77,7 @@ export const rejectsDesktopAction = (text) =>
 const recoveredMode =
   /^(?:useful\s+(?:computer|pc|desktop)\s+(?:access|control)|use\s+my\s+(?:computer|pc|desktop)\s+via\s+full\s+access|используй\s+(?:(?:мой|этот)\s+)?(?:компьютер|пк)(?=\s*[,.:;]|\s+и\s))(?=\s|[,.:;!?]|$)/iu;
 const personalComputer =
-  /^(?:use\s+(?:my|the|this)\s+(?:computer|pc|desktop)(?:\s+to\s+|\s*[,;:]\s*)|(?:используй|использовать)\s+(?:мой|этот)\s+(?:компьютер|пк)\s*,?\s*чтобы\s+)/iu;
+  /^(?:use\s+(?:my|the|this)\s+(?:computer|pc|desktop)(?:\s+(?:to|and(?:\s+then)?)\s+|\s*[,;:]\s*)|(?:используй|использовать)\s+(?:мой|этот)\s+(?:компьютер|пк)\s*,?\s*чтобы\s+)/iu;
 const personalComputerCommand = (request) => {
   const match = personalComputer.exec(request);
   if (!match) return null;
@@ -87,6 +86,24 @@ const personalComputerCommand = (request) => {
     ? task
     : null;
 };
+export function youtubeBrowseRequest(text) {
+  const value = requestText(text).replace(/"[^"\n]*"|“[^”\n]*”|«[^»\n]*»/gu, '');
+  return (
+    /^(?:find|search|pick|choose|найди|поищи|подбери|выбери)\s/iu.test(value) &&
+    /(?:\b(?:on|in)\s+(?:the\s+)?youtube\b|(?:^|\s)(?:на|в)\s+(?:youtube(?!\p{L})|ютуб\p{L}*))/iu.test(value) &&
+    !/(?:\byoutube\s+music\b|ютуб[-\s]+музык)/iu.test(value)
+  );
+}
+
+/** A direct request to browse on the PC can refer to the immediately preceding YouTube request. */
+export function youtubeBrowseFollowUp(text, previous) {
+  const task = personalComputerCommand(requestText(text));
+  return Boolean(
+    previous &&
+    youtubeBrowseRequest(previous) &&
+    /^(?:find|search for|choose|pick)\s+(?:something|anything)(?:\s+(?:interesting|for me|on your own|you (?:like|recommend)).*)?[.!?]*$/iu.test(task ?? ''),
+  );
+}
 const launchPrefix =
   /^(?:open|launch|start|открой|открыть|запусти|запустить|abre|abrir|inicia|iniciar|lanza|lanzar|ouvre|ouvrez|ouvrir|lance|lancez|lancer|démarre|démarrez|démarrer)\s+/iu;
 const chainSeparator =
@@ -497,6 +514,7 @@ export function computerModeRequest(text, { fullComputerAccess = false } = {}) {
   if (dedicatedMusicRequest(value)) return null;
   if (fullComputerAccess) {
     if (youtubeHomeDestination(computerTaskCommand(value))) return { enabled: true, run: true };
+    if (youtubeBrowseRequest(computerTaskCommand(value))) return { enabled: true, run: true };
     if (authorizedDiscordCommand(text)) return { enabled: true, run: true };
     if (exactClickLabel(text)) return { enabled: true, run: true };
     if (cyberpunkSteamLaunch(value) || edgerunnersTeaserRequest(value))

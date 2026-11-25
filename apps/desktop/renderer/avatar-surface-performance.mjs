@@ -80,6 +80,7 @@ export class AvatarSurfacePerformance {
             this.renderer.setAction(action, time, options);
             const channels = sampleScreenInteraction(action, time, options);
             if (this.renderer.draw(image, channels, { bounds: entry.bounds })) {
+              this.canvas.avatarTextureRevision = (this.canvas.avatarTextureRevision ?? 0) + 1;
               this.canvas.hidden = false;
               this.stage.dataset.surfacePerformance = action;
             }

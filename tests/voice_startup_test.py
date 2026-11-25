@@ -15,6 +15,7 @@ from integrations.voice_runtime.initialization import initialization_threads
 from integrations.voice_runtime.model import settings
 from integrations.voice_training.backend import load_engine
 from integrations.voice_training.low_memory import load_decoder_cpu
+from integrations.voice_training.provision import verify_model_metadata
 
 
 class TinyDecoder(nn.Module):
@@ -138,6 +139,25 @@ class VoiceStartupTests(unittest.TestCase):
 
     def test_unpinned_source_is_rejected_before_native_loading(self):
         self.load_with_verification(unpinned=True)
+
+    def test_republished_reference_pack_does_not_invalidate_pinned_base_weights(self):
+        upstream = {'source': {'revision': 'source'}, 'model': {'revision': 'base', 'files': ['tts']},
+                    'bundledPack': {'url': 'new'}}
+        receipt = {'upstream': {**upstream, 'bundledPack': {'url': 'old'}}, 'files': {'tts': 'a' * 64}}
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'config').mkdir()
+            lock = {'revision': 'base', 'files': {'tts': {'sha256': 'a' * 64}}}
+            (root / 'config/voice-model-download.json').write_text(json.dumps(lock))
+            file = root / 'model-receipt.json'
+            file.write_text(json.dumps(receipt))
+            with patch('integrations.voice_training.provision.ROOT', root), \
+                 patch('integrations.voice_training.provision.verify_source', return_value=upstream):
+                self.assertEqual(verify_model_metadata({'modelPath': root}), receipt)
+                receipt['files']['tts'] = 'b' * 64
+                file.write_text(json.dumps(receipt))
+                with self.assertRaisesRegex(ValueError, 'pinned download'):
+                    verify_model_metadata({'modelPath': root})
 
 
 if __name__ == '__main__':

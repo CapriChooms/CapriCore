@@ -1626,7 +1626,7 @@ class DesktopActions {
     static object Execute(Dictionary<string,object> q){
         string action=Text(q,"action"),app=Text(q,"app");
         if(action.StartsWith("computer_",StringComparison.Ordinal))return Computer(q,action);
-        if(action=="idle_cursor_nudge")return IdleCursorNudge(Text(q,"direction"));
+        if(action=="idle_cursor_nudge")return IdleCursorNudge();
         if(action=="avatar_window")return AvatarWindow(q);
         if(action=="avatar_dock_visible")return AvatarDockVisible(q);
         if(action=="avatar_screen_targets")return AvatarScreenTargets(q);
@@ -1899,29 +1899,43 @@ class DesktopActions {
         foreach(int key in new[]{1,2,4,5,6,16,17,18,27,91,92})if((GetAsyncKeyState(key)&0x8000)!=0)return true;
         return false;
     }
-    static object IdleCursorNudge(string direction){
-        if(direction!="left"&&direction!="right")throw new InvalidOperationException("Invalid idle cursor direction.");
+    static bool TryIdleCursorTarget(PointerPoint origin,InputRect bounds,Random random,out PointerPoint target){
+        target=origin;
+        for(int attempt=0;attempt<40;attempt++){
+            double angle=random.NextDouble()*2*Math.PI, distance=20+random.NextDouble()*80;
+            int dx=(int)Math.Round(Math.Cos(angle)*distance), dy=(int)Math.Round(Math.Sin(angle)*distance);
+            int squared=dx*dx+dy*dy;
+            if(squared<400||squared>10000)continue;
+            int x=origin.x+dx, y=origin.y+dy;
+            if(x<bounds.left||x>=bounds.right||y<bounds.top||y>=bounds.bottom)continue;
+            target=new PointerPoint{x=x,y=y};
+            return true;
+        }
+        return false;
+    }
+    static object IdleCursorNudge(){
         var previous=DpiContext(new IntPtr(-4));
         try{
             var input=new LastInputInfo{size=(uint)Marshal.SizeOf(typeof(LastInputInfo))};
             PointerPoint origin;
             if(!GetLastInputInfo(ref input)||unchecked((uint)Environment.TickCount-input.time)<15000||
-               MouseOrModifierHeld()||!GetCursorPos(out origin))return D("ok",true,"moved",false);
+               MouseOrModifierHeld()||!GetCursorPos(out origin))
+                return D("ok",true,"moved",false,"code","CAPRI_IDLE_CURSOR_INPUT_IN_USE");
             var info=new MonitorInfo{size=Marshal.SizeOf(typeof(MonitorInfo))};
-            if(!GetMonitorInfo(MonitorFromPoint(origin,0),ref info))return D("ok",true,"moved",false);
-            var work=info.work;
-            if(origin.x<work.left||origin.x>=work.right||origin.y<work.top||origin.y>=work.bottom)
-                return D("ok",true,"moved",false);
-            int offset=direction=="left"?-36:36;
-            int targetX=origin.x+offset;
-            if(targetX<work.left||targetX>=work.right)targetX=origin.x-offset;
+            if(!GetMonitorInfo(MonitorFromPoint(origin,0),ref info))
+                return D("ok",true,"moved",false,"code","CAPRI_IDLE_CURSOR_NO_MONITOR");
+            PointerPoint target;
+            // A pointer resting on the taskbar is still on its monitor.
+            if(!TryIdleCursorTarget(origin,info.monitor,new Random(),out target))
+                return D("ok",true,"moved",false,"code","CAPRI_IDLE_CURSOR_NO_DESTINATION");
             var latest=new LastInputInfo{size=input.size};
             PointerPoint current;
-            bool moved=targetX>=work.left&&targetX<work.right&&
-                !MouseOrModifierHeld()&&GetLastInputInfo(ref latest)&&latest.time==input.time&&
-                GetCursorPos(out current)&&current.x==origin.x&&current.y==origin.y&&
-                SetCursorPos(targetX,origin.y);
-            return D("ok",true,"moved",moved);
+            if(MouseOrModifierHeld()||!GetLastInputInfo(ref latest)||latest.time!=input.time||
+               !GetCursorPos(out current)||current.x!=origin.x||current.y!=origin.y)
+                return D("ok",true,"moved",false,"code","CAPRI_IDLE_CURSOR_INPUT_IN_USE");
+            if(!SetCursorPos(target.x,target.y)||!GetCursorPos(out current)||current.x!=target.x||current.y!=target.y)
+                return D("ok",true,"moved",false,"code","CAPRI_IDLE_CURSOR_MOVE_UNCONFIRMED");
+            return D("ok",true,"moved",true,"from",D("x",origin.x,"y",origin.y),"to",D("x",current.x,"y",current.y));
         }finally{if(previous!=IntPtr.Zero)DpiContext(previous);}
     }
     static bool ChessInputBusy(bool requireIdle=false){

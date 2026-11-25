@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 const messages = {
-  manual: 'Use the Linux preview archive to update Capri.',
+  manual: 'Use the preview archive for your platform to update Capri.',
   idle: 'Check GitHub for a newer version of Capri.',
   checking: 'Checking for updates...',
   available: 'A new version is available.',
@@ -35,7 +35,7 @@ export class UpdatesPanel {
           <p class="settings-help" id="updates-preserve">Your history, memory, models and personal settings are kept. Capri restarts only when you choose to install.</p>
           <p class="settings-help" id="updates-source" hidden>This is a development checkout. The downloaded installer creates or updates a separate managed installation.</p>
           <p class="settings-help" id="updates-full" hidden>The full installer will open; select your current installation folder to keep your data.</p>
-          <p class="settings-help" id="updates-archive" hidden>Use the Linux preview archive to update Capri.</p>
+          <p class="settings-help" id="updates-archive" hidden>Use the preview archive for your platform to update Capri.</p>
           <p class="settings-help" id="updates-verified">Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.</p>
         </section>
         <section class="settings-card">
@@ -268,7 +268,7 @@ export class UpdatesPanel {
     if (!open) this.get('token').value = '';
     if (open) {
       this.show(await this.api.updateStatus());
-      if (this.value?.mode !== 'archive' && this.api.githubStatus)
+      if (!['archive', 'manual'].includes(this.value?.mode) && this.api.githubStatus)
         this.showAccess(await this.api.githubStatus());
       this.ui.apply(this.ui.language);
     }

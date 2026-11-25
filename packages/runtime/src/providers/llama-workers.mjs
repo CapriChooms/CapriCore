@@ -50,6 +50,8 @@ function modelPaths(root, model) {
 const bounded = (value, fallback, min, max) =>
   Number.isInteger(value) && value >= min && value <= max ? value : fallback;
 const illegalInstruction = 'CAPRI_LLAMA_ILLEGAL_INSTRUCTION';
+const accessViolation = 'CAPRI_LLAMA_ACCESS_VIOLATION';
+const embeddingIdleSeconds = 90;
 
 async function workerFailure(error, worker, signal) {
   signal.throwIfAborted();
@@ -58,6 +60,10 @@ async function workerFailure(error, worker, signal) {
   if (Number.isInteger(exitCode) && exitCode >>> 0 === 0xc000001d)
     return Object.assign(new Error('The local engine stopped on an illegal CPU instruction.'), {
       code: illegalInstruction,
+    });
+  if (Number.isInteger(exitCode) && exitCode >>> 0 === 0xc0000005)
+    return Object.assign(new Error('The local engine exited with a native access violation.'), {
+      code: accessViolation,
     });
   return error;
 }
@@ -72,6 +78,7 @@ export class LlamaWorkers {
     startupTimeoutMs = 160000,
     automaticGpuStartupTimeoutMs = 75000,
     canRetryIllegalInstruction = false,
+    idlePolicy,
   }) {
     Object.assign(this, {
       root,
@@ -82,6 +89,7 @@ export class LlamaWorkers {
       startupTimeoutMs,
       automaticGpuStartupTimeoutMs,
       canRetryIllegalInstruction,
+      idlePolicy,
     });
     this.slots = {
       chat: { queue: Promise.resolve() },
@@ -209,8 +217,9 @@ export class LlamaWorkers {
     try {
       return await this.open(model, role, options, signal, allowGpu, baseline);
     } catch (error) {
-      if (error.code !== illegalInstruction || baseline || !this.canRetryIllegalInstruction)
-        throw error;
+      const compatibleRetry =
+        error.code === illegalInstruction || (!allowGpu && error.code === accessViolation);
+      if (!compatibleRetry || baseline || !this.canRetryIllegalInstruction) throw error;
       this.baselineModes.add(allowGpu);
       return this.open(model, role, options, signal, allowGpu, true);
     }
@@ -284,28 +293,51 @@ export class LlamaWorkers {
           }
         }
       } finally {
-        const keep = this.keepAlive(input.keep_alive);
+        slot.requestedKeepAlive = input.keep_alive;
+        const keep = this.keepAlive(slot.requestedKeepAlive, role);
         if (keep === 0) await this.stopSlot(slot);
-        else if (slot.worker && keep > 0 && !this.shutdown.signal.aborted) {
-          const timer = setTimeout(() => {
-            void this.enqueue(role, (current) =>
-              current.timer === timer && current.worker === worker
-                ? this.stopSlot(current)
-                : undefined,
-            ).catch(() => {});
-          }, keep * 1000);
-          slot.timer = timer;
-          timer.unref();
-        }
+        else this.armIdle(role, slot, keep);
       }
     });
   }
-  keepAlive(value) {
+  armIdle(role, slot, seconds) {
+    clearTimeout(slot.timer);
+    slot.timer = undefined;
+    if (!slot.worker || seconds <= 0 || this.shutdown.signal.aborted) return;
+    const worker = slot.worker;
+    const timer = setTimeout(() => {
+      void this.enqueue(role, (current) =>
+        current.timer === timer && current.worker === worker ? this.stopSlot(current) : undefined,
+      ).catch(() => {});
+    }, seconds * 1000);
+    slot.timer = timer;
+    timer.unref();
+  }
+  refreshIdlePolicy() {
+    return Promise.all(
+      Object.keys(this.slots).map((role) =>
+        this.enqueue(role, (slot) => {
+          if (slot.requestedKeepAlive === undefined)
+            this.armIdle(role, slot, this.keepAlive(undefined, role));
+        }),
+      ),
+    );
+  }
+  keepAlive(value, role) {
     if (typeof value === 'string') {
       const match = /^(\d{1,5})(s|m|h)$/.exec(value);
       if (match) value = Number(match[1]) * { s: 1, m: 60, h: 3600 }[match[2]];
     }
-    return bounded(value, this.config.keepAlive, -1, 86400);
+    if (this.idlePolicy) {
+      const { unloadIdle, idleMinutes } = this.idlePolicy();
+      return bounded(value, unloadIdle ? idleMinutes * 60 : -1, -1, 86400);
+    }
+    const configured = this.config.keepAlive;
+    const idle =
+      role === 'embedding' && !(configured >= 0 && configured < embeddingIdleSeconds)
+        ? embeddingIdleSeconds
+        : configured;
+    return bounded(value, idle, -1, 86400);
   }
   list() {
     return Object.values(this.slots).flatMap(({ worker }) =>

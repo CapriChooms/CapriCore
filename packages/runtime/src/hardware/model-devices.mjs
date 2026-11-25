@@ -17,7 +17,7 @@ const validName = (name) =>
   !/[\x00-\x1f\x7f]/.test(name);
 export function modelDevice(backend, ordinal, name, extra = {}) {
   if (
-    !['cuda', 'rocm', 'vulkan'].includes(backend) ||
+    !['cuda', 'rocm', 'vulkan', 'metal'].includes(backend) ||
     !Number.isInteger(ordinal) ||
     ordinal < 0 ||
     ordinal > 63 ||
@@ -37,10 +37,12 @@ export function modelDevice(backend, ordinal, name, extra = {}) {
   };
 }
 export function parseLlamaDevices(text, backend) {
-  const prefix = { cuda: 'CUDA', rocm: 'ROCm', vulkan: 'Vulkan' }[backend];
+  const prefix = { cuda: 'CUDA', rocm: 'ROCm', vulkan: 'Vulkan', metal: 'MTL' }[backend];
   if (!prefix || typeof text !== 'string' || text.length > 65536) return [];
   return text.split(/\r?\n/).flatMap((line) => {
-    const match = /^\s*(CUDA|ROCm|Vulkan)(\d+): (.+) \((\d+) MiB, \d+ MiB free\)\s*$/.exec(line);
+    const match = /^\s*(CUDA|ROCm|Vulkan|MTL)(\d+): (.+) \((\d+) MiB, \d+ MiB free\)\s*$/.exec(
+      line,
+    );
     if (!match || match[1] !== prefix) return [];
     const value = modelDevice(backend, Number(match[2]), match[3], {
       totalBytes: Number(match[4]) * 1024 ** 2,
@@ -61,7 +63,8 @@ export async function probeLanguageDevices(ollama, { runImpl = run } = {}) {
         maxBuffer: 65536,
         encoding: 'utf8',
       });
-      return parseLlamaDevices(result.stdout + '\n' + result.stderr, 'vulkan');
+      const devices = result.stdout + '\n' + result.stderr;
+      return [...parseLlamaDevices(devices, 'vulkan'), ...parseLlamaDevices(devices, 'metal')];
     } catch {
       return [];
     }

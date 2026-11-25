@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { diagnosticModelId, privateLogRecord } from '../../../packages/runtime/src/privacy-log.mjs';
+import { isCallSetupFailure } from '../call-audio-setup.mjs';
 
 const PRIVATE_FIELD =
   /(?:prompt|transcript|utterance|messages|history|personality|content|goal|query|parameters|arguments|clipboard|windowTitle|caption|fileName|filePath|executable|url|token|secret|password|headers|environment|recording|screenshot|image|audioData|text)/i;
@@ -146,6 +147,17 @@ const screenStartupFailure =
 // destinations, message text or model-provided prose under these field names.
 const CONTROL_VALUES = {
   id: new Set(['core', 'models', 'recognition', 'voice']),
+  source: new Set(['api']),
+  activeEngine: new Set(['turbo', 'multilingual-v3', 'tts-pt-br']),
+  computeDevice: new Set(['cuda:0']),
+  decoderDevice: new Set(['cuda:0']),
+  decoderReason: new Set([
+    'configured-cpu',
+    'configured-cuda',
+    'available-vram',
+    'vram-reserve',
+    'cuda-oom',
+  ]),
   phase: new Set(['offline', 'model-loading', 'prepare', 'synthesize']),
   state: new Set(['running']),
   action: new Set([
@@ -175,6 +187,7 @@ const CONTROL_VALUES = {
   outcome: new Set([
     'applied',
     'not_applied',
+    'review_recovery',
     'invalid_arguments',
     'preflight_rejected',
     'discord_dispatched',
@@ -234,6 +247,7 @@ const CONTROL_VALUES = {
 };
 
 export function isDiagnosticControlValue(key, value) {
+  if (key === 'lastFailure') return isCallSetupFailure(value);
   return (
     typeof value === 'string' &&
     Object.hasOwn(CONTROL_VALUES, key) &&
@@ -271,7 +285,7 @@ export function diagnosticState(value, key = '', depth = 0) {
     )
       return value;
     if (
-      /^(?:language|interface|conversation|speech)$/.test(key) &&
+      /^(?:language|configuredLanguage|interface|conversation|speech)$/.test(key) &&
       /^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(value)
     )
       return value;

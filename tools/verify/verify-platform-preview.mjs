@@ -1,0 +1,272 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import {
+  constants,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
+import path from 'node:path';
+import { _electron } from 'playwright-core';
+import { macSupportRoot, prepareMacRuntime } from '../release/macos-runtime.mjs';
+import { settingsView } from './settings-view.mjs';
+
+const [target, mode] = process.argv.slice(2);
+const mac = process.platform === 'darwin';
+if (
+  (!mac && (process.platform !== 'linux' || target)) ||
+  (mac && (!target?.endsWith('.app') || (mode && !['--local', '--agent'].includes(mode))))
+)
+  throw new Error(
+    'Provide the absolute path to Capri.app on macOS. Run without arguments on Linux.',
+  );
+const root = path.resolve(import.meta.dirname, '../..');
+const app = mac ? realpathSync(target) : null;
+const resources = mac ? path.join(app, 'Contents/Resources/capri') : root;
+const reports = path.join(root, '.runtime/platform-verification');
+mkdirSync(reports, { recursive: true });
+const home = mkdtempSync(path.join(reports, 'home-'));
+const support = mac ? macSupportRoot(home) : home;
+if (mac) prepareMacRuntime(resources, support);
+else mkdirSync(path.join(support, 'config'));
+const fixture = mac ? path.join(support, '.runtime/fixture') : path.join(home, 'fixture');
+mkdirSync(fixture);
+const real = Boolean(mode);
+const node = mac ? path.join(app, 'Contents/Helpers/node') : process.execPath;
+const prompt = mode === '--local' ? 'How are you?' : 'What is seven plus five? Answer in digits.';
+const token = 'CAPRI_PLATFORM_STREAM_OK';
+const requests = [];
+const gateway = createServer(async (req, res) => {
+  if (req.url === '/v1/models') {
+    res.writeHead(200, { 'content-type': 'application/json' }).end('{"data":[]}');
+    return;
+  }
+  if (req.url !== '/v1/chat/completions' || req.method !== 'POST') {
+    res.writeHead(404).end();
+    return;
+  }
+  const body = [];
+  for await (const chunk of req) body.push(chunk);
+  requests.push(JSON.parse(Buffer.concat(body)));
+  res.writeHead(200, { 'content-type': 'text/event-stream' });
+  const delta = JSON.stringify({ choices: [{ delta: { content: token } }] });
+  res.end('data: ' + delta + '\n\ndata: [DONE]\n\n');
+});
+
+// Exercise the packaged main entry, bundled Node and fresh settings. Only
+// published model layers are taken from the source checkout for the real run.
+if (real) {
+  const pins = JSON.parse(readFileSync(path.join(resources, 'config/llama-models.json')));
+  for (const name of ['bge-m3:latest', 'qwen3.5:0.8b']) {
+    const [model, tag] = name.split(':');
+    const blobs = path.join('data/models/blobs');
+    mkdirSync(path.join(support, blobs), { recursive: true });
+    for (const { digest } of pins[name].layers) {
+      const file = path.join(blobs, digest.replace(':', '-'));
+      copyFileSync(path.join(root, file), path.join(support, file), constants.COPYFILE_FICLONE);
+    }
+    const manifests = path.join(support, 'data/models/manifests/registry.ollama.ai/library', model);
+    mkdirSync(manifests, { recursive: true });
+    writeFileSync(path.join(manifests, tag), JSON.stringify(pins[name]));
+  }
+}
+const listen = async (server) => {
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  return server.address().port;
+};
+const port = await listen(gateway);
+const inference = createServer();
+const ollamaPort = await listen(inference);
+await new Promise((resolve) => inference.close(resolve));
+if (real) await new Promise((resolve) => gateway.close(resolve));
+const settingsFile = path.join(support, 'config/core.local.json');
+const freshSettings = existsSync(settingsFile)
+  ? JSON.parse(readFileSync(settingsFile, 'utf8'))
+  : {};
+writeFileSync(
+  settingsFile,
+  JSON.stringify({
+    ...freshSettings,
+    gatewayPort: port,
+    ollamaPort,
+    ...(real ? { model: 'capri-qwen3.5:0.8b', upstreamModel: 'qwen3.5:0.8b' } : {}),
+    ...(mode === '--agent'
+      ? { contextTokens: 16384, experimentalContext: true, generation: { temperature: 0 } }
+      : {}),
+  }),
+);
+let launched;
+try {
+  console.log('Isolated test profile:', home);
+  launched = await _electron.launch({
+    executablePath: mac
+      ? path.join(app, 'Contents/MacOS/Capri')
+      : createRequire(import.meta.url)('electron'),
+    args: [
+      ...(mac
+        ? ['--use-mock-keychain']
+        : ['--ozone-platform=x11', path.join(root, 'apps/desktop/main.mjs')]),
+      ...(real ? [] : ['--verification']),
+    ],
+    env: {
+      ...process.env,
+      CAPRI_NODE_PATH: node,
+      HOME: home,
+      TMPDIR: process.env.TMPDIR || (mac ? '/private/tmp' : '/tmp'),
+      LANG: 'en_US.UTF-8',
+      ...(real
+        ? {}
+        : {
+            CAPRI_DESKTOP_VERIFICATION_DIR: fixture,
+            CAPRI_DESKTOP_VERIFICATION_PORT: String(port),
+            CAPRI_DESKTOP_VERIFICATION_SKIP_START: '1',
+          }),
+    },
+    timeout: 60000,
+  });
+  launched.process().stderr.on('data', (data) => {
+    const line = data.toString();
+    if (/startup failed|Unable to load preload|Failed to load/i.test(line))
+      console.error(line.trim());
+  });
+  const page = await launched.firstWindow();
+  await page.waitForSelector('#message', { state: 'attached' });
+  const profile = await launched.evaluate(({ app }) => ({
+    packaged: app.isPackaged,
+    data: app.getPath('userData'),
+  }));
+  assert.equal(profile.packaged, mac);
+  assert.ok(profile.data.startsWith(home + path.sep), profile.data);
+  await page.waitForFunction(() => document.body.dataset.phase === 'ready', null, {
+    timeout: 180000,
+  });
+  await page.waitForFunction(() => {
+    const img = document.querySelector('#sprite');
+    return img?.complete && img.naturalWidth > 0;
+  });
+  console.log('PASS companion ready and avatar loaded');
+  if (await page.locator('#guide-close').isVisible()) await page.locator('#guide-close').click();
+  await page.evaluate(() => {
+    window.capri.onEvent((event) => {
+      if (event.type === 'turn.failed') document.body.dataset.testTurnError = event.message;
+    });
+  });
+  await page.locator('#message').fill(prompt);
+  if (mac) {
+    await page.locator('#message').press('Enter');
+  } else {
+    // The fixture has no physical keyboard focus. Exercise the visible Send
+    // control and confirm the composer actually submitted the text.
+    await page.locator('#send').click({ timeout: 15000 });
+  }
+  if (!(await page.locator('#history-panel').isVisible()))
+    await page.locator('#history-toggle').click();
+  const response = page
+    .locator(
+      '.message[data-role="assistant"][data-status="complete"], .message[data-role="assistant"][data-status="error"]',
+    )
+    .last();
+  try {
+    await response.waitFor({ timeout: real ? 240000 : 45000 });
+  } catch (error) {
+    console.error('Fixture received chat requests:', requests.length);
+    console.error('Renderer notices:', await page.locator('[role="alert"]').allTextContents());
+    throw error;
+  }
+  assert.equal(
+    await response.getAttribute('data-status'),
+    'complete',
+    (await page.locator('body').getAttribute('data-test-turn-error')) || 'Assistant turn failed',
+  );
+  const reply = response.locator('.message-text');
+  assert.match(
+    await reply.textContent(),
+    mode === '--local' ? /\p{L}/u : real ? /\b(?:12|twelve)\b/i : new RegExp(token),
+  );
+  if (!real)
+    assert.ok(
+      requests.some(({ messages }) => messages.some((m) => String(m.content).includes(prompt))),
+    );
+  console.log(
+    'PASS packaged avatar and',
+    real ? 'local Qwen reply:' : 'fixture reply:',
+    (await reply.textContent()).slice(0, 160),
+  );
+  assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  if (mac) {
+    for (const action of ['hide', 'focus-mode']) {
+      await page.evaluate((action) => window.capri.windowAction(action, true), action);
+      const visibility = await launched.evaluate(({ app, BrowserWindow }) => {
+        const companion = BrowserWindow.getAllWindows().find((window) =>
+          window.webContents.getURL().endsWith('/index.html'),
+        );
+        const before = companion.isVisible();
+        // Another Capri surface can be visible while the companion itself is hidden.
+        app.emit('activate', {}, true);
+        return { before, after: companion.isVisible() };
+      });
+      assert.deepEqual(visibility, { before: false, after: true }, action);
+    }
+    console.log('PASS macOS activation restores the hidden companion and exits Focus mode');
+  }
+  await page.screenshot({ path: path.join(home, 'companion.png'), omitBackground: true });
+  const settings = await settingsView(launched, 'updates');
+  await settings
+    .getByText('Use the preview archive for your platform to update Capri.', { exact: false })
+    .waitFor({ state: 'visible' });
+  assert.equal(await settings.locator('#updates-install').isVisible(), false);
+  console.log('PASS native Settings, platform archive updates and isolated profile');
+} finally {
+  if (launched) {
+    const deadline = setTimeout(() => launched.process().kill(), 45000);
+    try {
+      await launched.close();
+    } finally {
+      clearTimeout(deadline);
+    }
+  }
+  if (gateway.listening) await new Promise((resolve) => gateway.close(resolve));
+  if (real) {
+    execFileSync(node, [path.join(resources, 'packages/runtime/bin/core.mjs'), 'stop'], {
+      env: {
+        HOME: home,
+        PATH: '/usr/bin:/bin',
+        CAPRI_MACOS_RUNTIME_ROOT: support,
+        CAPRI_NODE_PATH: node,
+      },
+      timeout: 60000,
+      stdio: 'inherit',
+    });
+    rmSync(path.join(support, 'data/models'), { recursive: true, force: true });
+  }
+}
+if (real) {
+  const transcript = JSON.parse(readFileSync(path.join(support, 'data/desktop/transcript.json')));
+  const answer = transcript.messages.findLast((message) => message.role === 'assistant');
+  assert.equal(answer.status, 'complete');
+  if (mode === '--local') {
+    assert.equal(answer.localDialogue, true);
+  } else {
+    const events = readFileSync(path.join(support, 'logs/response-provider.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+      .filter((event) => event.traceId === answer.turnId);
+    assert.ok(events.some((event) => event.stage === 'provider_finished'));
+    assert.ok(events.some((event) => event.stage === 'gateway_finished' && event.status === 200));
+  }
+}
+if (mac) {
+  execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);
+  console.log('PASS bundle signature after launch and shutdown');
+}

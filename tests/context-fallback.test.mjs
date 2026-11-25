@@ -10,17 +10,20 @@ const previousVitest = process.env.VITEST;
 process.env.VITEST = '1';
 let native;
 try {
-  await import('../node_modules/openclaw/dist/builtin-openclaw-CcrkVuBH.mjs');
+  await import('../node_modules/openclaw/dist/builtin-openclaw-BbTLAxC_.mjs');
   native = globalThis[Symbol.for('openclaw.compactionSafeguardTestApi')];
 } finally {
   if (previousVitest === undefined) delete process.env.VITEST;
   else process.env.VITEST = previousVitest;
 }
-const { g: fitCompactionSummary } = await import(
-  '../node_modules/openclaw/dist/agent-core-DlqC-il7.mjs'
-);
+const {
+  b: fitCompactionSummary,
+  k: extractCurrentCompactionUserRequest,
+  O: extractCompactionMessageText,
+  x: formatRequiredAskContext,
+} = await import('../node_modules/openclaw/dist/agent-core-Cc7DUrPI.mjs');
 const source = readFileSync(
-  new URL('../node_modules/openclaw/dist/builtin-openclaw-CcrkVuBH.mjs', import.meta.url),
+  new URL('../node_modules/openclaw/dist/builtin-openclaw-BbTLAxC_.mjs', import.meta.url),
   'utf8',
 );
 const implementation = source.slice(
@@ -81,6 +84,10 @@ function runner({
       if (reason) cancellations.push(reason + (error?.stack ? '\n' + error.stack : ''));
     },
     computeFileLists: () => ({ readFiles: [], modifiedFiles: [] }),
+    collectToolFailures: () => [],
+    formatToolFailuresSection: () => '',
+    readWorkspaceContextForSummary: async () => undefined,
+    buildStructuredFallbackSummary: (summary) => summary,
     getCompactionSafeguardRuntime: () => ({
       capriLocalCompaction: local,
       qualityGuardEnabled: true,
@@ -92,12 +99,9 @@ function runner({
     buildCompactionSummaryHeaders: () => ({}),
     recordSessionModelUsage: () => {},
     resolveSummaryReserveTokens: (value) => value,
-    extractLatestUserAsk: (items) => items.findLast((m) => m.role === 'user')?.content ?? '',
-    extractMessageText: (m) =>
-      typeof m.content === 'string'
-        ? m.content
-        : (m.content ?? []).map((b) => b.text ?? '').join('\n'),
-    formatRequiredAskContext: (value) => value,
+    extractCurrentCompactionUserRequest,
+    extractCompactionMessageText,
+    formatRequiredAskContext,
     appendSummarySection: (summary, section) =>
       !section ? summary : !summary.trim() ? section.trimStart() : summary + section,
     formatErrorMessage: (error) => error.message,
@@ -170,9 +174,10 @@ test('native compaction recovers the reported malformed-summary loop and keeps a
   assert.ok(fixture.logs.some((text) => text.includes('local compaction recovered')));
 });
 
-test('compaction keeps native rejection for other agents and cannot ignore cancellation or impossible budgets', async () => {
+test('Capri recovery leaves the upstream degraded path to other agents and preserves history on cancellation or impossible budgets', async () => {
   const foreign = runner({ local: false });
-  assert.equal((await foreign.run()).cancel, true);
+  assert.equal((await foreign.run()).compaction?.details.qualityDegraded, true);
+  assert.ok(!foreign.logs.some((text) => text.includes('local compaction recovered')));
   const impossible = runner({ summaryBudget: 1 });
   assert.equal((await impossible.run()).cancel, true);
   const controller = new AbortController();

@@ -5,6 +5,50 @@ import {
   CAMERA_FRAME_BYTES,
   CAMERA_BACKGROUND_COLOR,
 } from '../call-camera-protocol.mjs';
+import { avatarPoseSegments, avatarPoseSwing } from '../avatar-pose-motion.mjs';
+
+const artworkSize = 1254;
+
+function drawCharacter(context, image, x, y, width, height, motion) {
+  if (!motion) {
+    context.drawImage(image, x, y, width, height);
+    return;
+  }
+  context.save();
+  context.translate(x, y);
+  context.scale(width / artworkSize, height / artworkSize);
+  context.save();
+  context.beginPath();
+  context.rect(0, 0, artworkSize, artworkSize);
+  for (const {
+    bounds: [left, top, right, bottom],
+  } of motion.segments)
+    context.rect(left, top, right - left, bottom - top);
+  context.clip('evenodd');
+  context.drawImage(image, 0, 0, artworkSize, artworkSize);
+  context.restore();
+  for (const segment of motion.segments) {
+    const {
+      bounds: [left, top, right, bottom],
+      pivot: [px, py],
+    } = segment;
+    context.save();
+    context.translate(px, py);
+    context.rotate((avatarPoseSwing(motion.now, segment) * Math.PI) / 180);
+    context.translate(-px, -py);
+    context.beginPath();
+    context.rect(left, top - 5, right - left, bottom - top + 5);
+    context.clip();
+    context.drawImage(image, 0, 0, artworkSize, artworkSize);
+    context.restore();
+  }
+  context.restore();
+}
+
+export function cameraPoseMotion(id, now = Date.now()) {
+  const segments = avatarPoseSegments(id);
+  return segments.length ? { segments, now, key: `${id}:${Math.floor(now / (1000 / 12))}` } : null;
+}
 
 export function cameraI420(rgba, pixels, width, height) {
   const size = width * height;
@@ -37,9 +81,19 @@ export function cameraI420(rgba, pixels, width, height) {
 
 export class CameraFramePublisher {
   color = CAMERA_BACKGROUND_COLOR;
+  sourceActive = true;
 
-  constructor({ image, send, sendPreview, loadBackground }) {
+  constructor({
+    image,
+    breathScale = () => 1,
+    poseMotion = () => null,
+    send,
+    sendPreview,
+    loadBackground,
+  }) {
     this.image = image;
+    this.breathScale = breathScale;
+    this.poseMotion = poseMotion;
     this.send = send;
     this.sendPreview = sendPreview;
     this.loadBackground = loadBackground;
@@ -58,8 +112,18 @@ export class CameraFramePublisher {
     this.update();
   }
 
+  setSourceActive(active) {
+    if (this.sourceActive === active) return;
+    this.sourceActive = active;
+    this.update();
+  }
+
+  get wantsFrame() {
+    return Boolean(this.sourceActive && (this.state?.enabled || this.previewEnabled));
+  }
+
   update() {
-    if (!this.state?.enabled && !this.previewEnabled) {
+    if (!this.wantsFrame) {
       this.stop();
       return;
     }
@@ -137,21 +201,31 @@ export class CameraFramePublisher {
     const height = image?.naturalHeight ?? image?.height;
     if (!width || !height || image.complete === false) return;
     const revision = image.avatarTextureRevision ?? image.currentSrc ?? null;
-    const changed = this.previous?.image !== image || this.previous?.revision !== revision;
+    const breath = this.breathScale();
+    const motion = this.poseMotion(image);
+    const changed =
+      this.previous?.image !== image ||
+      this.previous?.revision !== revision ||
+      this.previous?.breath !== breath ||
+      this.previous?.motion !== (motion?.key ?? null);
     if (changed) {
       const scale = Math.min((CAMERA_WIDTH - 28) / width, (CAMERA_HEIGHT - 18) / height);
+      const fittedHeight = height * scale;
+      const stretchedHeight = fittedHeight * breath;
       const context = this.context;
       context.fillStyle = this.color;
       context.fillRect(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
       if (this.backgroundBitmap) context.drawImage(this.backgroundBitmap, 0, 0);
-      context.drawImage(
+      drawCharacter(
+        context,
         image,
         (CAMERA_WIDTH - width * scale) / 2,
-        (CAMERA_HEIGHT - height * scale) / 2,
+        (CAMERA_HEIGHT - fittedHeight) / 2 - (stretchedHeight - fittedHeight) * 0.93,
         width * scale,
-        height * scale,
+        stretchedHeight,
+        motion,
       );
-      this.previous = { image, revision };
+      this.previous = { image, revision, breath, motion: motion?.key ?? null };
     }
     void this.publishPreview();
     if (!this.frame || this.pending) return;
@@ -171,4 +245,10 @@ export class CameraFramePublisher {
       this.pending = false;
     }
   }
+}
+
+export function cameraBreathScale(sprite, sleeping) {
+  if (!sleeping) return 1;
+  const { transform } = getComputedStyle(sprite);
+  return transform === 'none' ? 1 : new DOMMatrixReadOnly(transform).d;
 }

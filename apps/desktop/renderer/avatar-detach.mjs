@@ -21,6 +21,7 @@ import { AvatarHeadpat } from './avatar-headpat.mjs';
 import { playAvatarObservation } from './avatar-observation.mjs';
 import { AvatarWave } from './avatar-wave.mjs';
 import { AvatarSurfacePerformance } from './avatar-surface-performance.mjs';
+import { cameraBreathScale, CameraFramePublisher, cameraPoseMotion } from './call-camera-frame.mjs';
 import { showAvatarTapEffect } from './avatar-tap-effect.mjs';
 import { ReplyPages } from './reply-pages.mjs';
 import { detachedReplyLayout } from './detached-reply-layout.mjs';
@@ -35,13 +36,15 @@ import {
 } from './avatar-face-rig.mjs';
 import { AvatarDragTether } from './avatar-drag-tether.mjs';
 import { applyInterfaceTheme } from './interface-theme.mjs';
-import { musicAnimationReady } from './music-listening-settings.mjs';
+import { musicAnimationReady, musicBreathingTempo } from './music-listening-settings.mjs';
 import { SIGNAL_STATES } from './presence-model.mjs';
 import { avatarGripPose, avatarGripSwing } from '../avatar-grip-rig.mjs';
 import { avatarSeatHinge, avatarSeatSwing } from '../avatar-body-regions.mjs';
 import { avatarPoseSegments, avatarPoseSwing } from '../avatar-pose-motion.mjs';
+import { musicRig, syncSleepBreathing } from './music-beat-motion.mjs';
 import {
   MusicAnimation,
+  MusicPoseLayer,
   MusicNotesLayer,
   MUSIC_NOTE_ASSETS,
   MUSIC_POSES,
@@ -156,8 +159,10 @@ let music = {
 };
 let musicFrame = 0,
   musicNotes,
-  musicDragging = false;
+  musicDragging = false,
+  cameraMusic = null;
 const musicAnimation = new MusicAnimation();
+const beatBody = new MusicPoseLayer();
 let sleeping = false;
 const wave = new AvatarWave(parked, {
   canPlay: () => !parked.hidden && !flight && document.body.dataset.presentation !== 'dialogue',
@@ -180,6 +185,36 @@ const surface = new AvatarSurfacePerformance(stage, {
     ensureMusicAnimation();
   },
 });
+window.addEventListener('pagehide', () => {
+  surface.dispose();
+  beatBody.clear();
+}, { once: true });
+const cameraApi = globalThis.capriAvatarCamera;
+if (cameraApi) {
+  const cameraPublisher = new CameraFramePublisher({
+    image: () => {
+      if (parked.hidden || flight || document.body.dataset.presentation === 'dialogue') return null;
+      if (!surface.canvas.hidden) return surface.canvas;
+      return wave.image ?? beatBody.image(mouth.image(parkedImage), cameraMusic);
+    },
+    breathScale: () => cameraBreathScale(parkedImage, parked.dataset.poseFrame === 'pose-sleep'),
+    poseMotion: (image) =>
+      poseMotion.hasAttribute('data-active') && image === mouth.image(parkedImage)
+        ? cameraPoseMotion(parked.dataset.poseFrame)
+        : null,
+    send: cameraApi.publishFrame,
+    sendPreview: cameraApi.publishPreview,
+    loadBackground: cameraApi.backgroundImage,
+  });
+  const unsubscribeCamera = cameraApi.onState(({ state, preview }) => {
+    cameraPublisher.setState(state);
+    cameraPublisher.setPreview(preview);
+  });
+  window.addEventListener('pagehide', () => {
+    unsubscribeCamera();
+    cameraPublisher.stop();
+  }, { once: true });
+}
 let replyTurn = '',
   replyCollapsed = false,
   replyNear = false,
@@ -269,8 +304,16 @@ function ensureMusicAnimation() {
 function animateMusic(now) {
   musicFrame = 0;
   const id = frameIdFor(parkedImage.src),
-    pose = MUSIC_POSES[id];
+    pose = musicRig(id);
   const reduced = motionPreference.matches;
+  if (id === 'pose-sleep') {
+    cameraMusic = null;
+    musicAnimation.reset();
+    stage.removeAttribute('data-beat-body');
+    musicNotes?.clear();
+    syncSleepBreathing(parkedImage, musicBreathingTempo(music));
+    return;
+  }
   const allowed = Boolean(
     pose &&
       musicAnimationReady(music) &&
@@ -294,13 +337,23 @@ function animateMusic(now) {
     reduced,
     frameId: id,
   });
-  if (pose) {
-    stage.style.transformOrigin = `${(pose.anchor[0] / 1254) * 100}% ${(pose.anchor[1] / 1254) * 100}%`;
-    stage.style.transform = music.motion && state.active ? `rotate(${state.angle}deg)` : '';
-  } else {
-    stage.style.transform = '';
-    stage.style.transformOrigin = '';
+  cameraMusic = allowed && music.motion ? state : null;
+  let showBody = false;
+  if (pose && music.motion && state.active && !gripPose && !surface.active &&
+    !sleeping && !pat.expression && !wave.image && !flight && !musicDragging &&
+    !parked.hidden && !document.hidden && parkedImage.complete && parkedImage.naturalWidth) {
+    const source = mouth.image(parkedImage);
+    const body = beatBody.image(source, state);
+    if (body !== source) {
+      if (stage.lastElementChild !== body) {
+        stage.querySelector('.avatar-beat-body')?.remove();
+        body.className = 'avatar-beat-body';
+        stage.append(body);
+      }
+      showBody = true;
+    }
   }
+  stage.toggleAttribute('data-beat-body', showBody);
   if (
     !music.notes ||
     reduced ||
@@ -792,6 +845,7 @@ async function setFrame(value) {
       }
     }
     if (poseChanged || placementChanged) positionHud();
+    ensureMusicAnimation();
     return parkedState();
   } catch {
     return false;
@@ -1356,6 +1410,7 @@ function setPresentation(value) {
   const changed = document.body.dataset.presentation !== value;
   document.body.dataset.presentation = value;
   if (changed && value === 'dialogue') {
+    cameraMusic = null;
     surface.stop();
     wave.stop();
     cancelAnimationFrame(musicFrame);
@@ -1367,7 +1422,9 @@ function setPresentation(value) {
     musicNotes?.destroy();
     musicNotes = undefined;
     pat.clear();
-    stage.style.transform = '';
+    stage.removeAttribute('data-beat-body');
+    stage.querySelector('.avatar-beat-body')?.remove();
+    beatBody.clear();
   } else if (changed) {
     redrawMouth();
     animatePose();

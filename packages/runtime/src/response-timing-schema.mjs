@@ -31,6 +31,7 @@ const stages = new Set([
   'first_paint',
   'voice_text',
   'voice_queued',
+  'voice_wait_expired',
   'voice_synthesis',
   'voice_audio',
   'completed',
@@ -149,6 +150,8 @@ const youtubeMusicResults = new Set([
   'browser_open_failed',
   'playback_unverified',
   'control_unavailable',
+  'tab_control_unavailable',
+  'search_input_unavailable',
   'control_unverified',
   'error',
 ]);
@@ -233,8 +236,11 @@ export function responseTimingRecord(value) {
     result.reason = value.reason;
   if (value.stage === 'youtube_music_start' && youtubeMusicActions.has(value.action))
     result.action = value.action;
-  if (value.stage === 'youtube_music_result' && youtubeMusicResults.has(value.reason))
-    result.reason = value.reason;
+  if (value.stage === 'youtube_music_result') {
+    if (youtubeMusicResults.has(value.reason)) result.reason = value.reason;
+    if (['tab_control_unavailable', 'search_input_unavailable'].includes(value.fallbackReason))
+      result.fallbackReason = value.fallbackReason;
+  }
   if (value.stage === 'computer_outcome') {
     if (computerReasons.has(value.reason)) result.reason = value.reason;
     if (computerPhases.has(value.phase)) result.phase = value.phase;

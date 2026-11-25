@@ -19,6 +19,7 @@ function mouthOnJaw(points) {
 
 const mouths = {
   smile,
+  softSmile: mouthOnJaw([-10, -1, -3, 2, 2, 1, 7, 0, 10, -2, 7, 3, 1, 4, -5, 4, -10, -1]),
   flat: mouthOnJaw([-11, 2, -7, 0, 1, 0, 6, 0, 11, 0, 6, 2, 0, 2.4, -7, 2.4, -11, 2]),
   frown: mouthOnJaw([-13, 4, -8, -2, 0, -3, 7, -4, 13, 2, 6, 1.3, 0, 0.3, -9, 2, -13, 4]),
   concerned: mouthOnJaw([-12, 2, -7, -2, 0, -2, 5, -2, 9, 3, 5, 2, 0, 0.9, -6, 2, -12, 2]),
@@ -43,16 +44,16 @@ export const speechMouths = { small: mouths.small, round: mouths.round, wide: mo
 
 export const faceFrames = {
   neutral: face([0, 0]),
-  annoyed: face([0.43, 0.3], 'frown', [1, 1.2]),
+  annoyed: face([0, 0], 'frown', [0, -1]),
   attentive: face([0, 0], 'pressed', [0, -0.7]),
   'idle-blink_closed': face([1, 1]),
   'idle-blink_half': face([0.58, 0.58]),
-  concerned: face([0.07, 0.12], 'concerned', [0.6, 1]),
-  embarrassed: face([0.08, 0.28], 'pressed', [-2.2, 1.5]),
+  concerned: face([0, 0], 'concerned', [0.6, 1]),
+  embarrassed: face([0, 0], 'pressed', [-3.4, 2.2]),
   'idle-excited': face([0, 0], 'grin', [0, -0.5]),
-  flirty: { ...face([0.35, 0], 'smirk', [1.2, 0]), wink: true },
-  focused: face([0.19, 0.24], 'flat', [1, 0.4]),
-  happy: face([0.46, 0.41], 'happy', [0, -1.25], 8.5),
+  flirty: face([0, 0], 'smirk', [2.6, -2.4]),
+  focused: face([0, 0], 'flat', [0, 0]),
+  happy: face([0, 0], 'happy', [0, -1.25], 8.5),
   'idle-laughing': face([1, 1], 'laugh', [0, 0], 15),
   'idle-look_down': face([0, 0], 'smile', [0, 4.75]),
   'idle-look_left': face([0, 0], 'smile', [-5.5, 0.3]),
@@ -61,22 +62,22 @@ export const faceFrames = {
   'idle-mouth_round': face([0, 0], 'round'),
   'idle-mouth_small': face([0, 0], 'small'),
   'idle-mouth_wide': face([0, 0], 'wide'),
-  sad: face([0.12, 0.21], 'frown', [-1.6, 2.3]),
-  skeptical: face([0.54, 0.07], 'flat', [1.4, 0]),
-  sleepy: face([0.66, 0.6], 'smile', [0, 1]),
-  smirk: face([0.56, 0], 'smirk', [0, 0.8]),
+  sad: face([0, 0], 'frown', [-1.8, 3.5]),
+  skeptical: face([0, 0], 'flat', [4.4, -0.6]),
+  sleepy: face([1, 1], 'softSmile', [0, 0], 2),
+  smirk: face([0, 0], 'smirk', [-2.3, 0.8]),
   'idle-surprised_closed': face([1, 1], 'surprise'),
   surprised: face([0, 0], 'surprise'),
-  thinking: face([0.03, 0.11], 'flat', [1.8, -2.8]),
+  thinking: face([0, 0], 'flat', [1.8, -2.8]),
   'idle-wink_closed': { ...face([1, 0], 'smirk', [1.2, 0]), wink: true },
   'idle-wink_half': { ...face([0.64, 0], 'smirk', [1.2, 0]), wink: true },
 };
 
 const clamp = (value) => Math.min(1, Math.max(0, value));
+const smoothStep = (t) => t * t * (3 - 2 * t);
 
 function blendFace(from, to, progress) {
-  const t = clamp(progress);
-  const ease = t * t * (3 - 2 * t);
+  const ease = smoothStep(clamp(progress));
   const blend = (a, b) => a + (b - a) * ease;
   const pair = (a, b) => a.map((value, index) => blend(value, b[index]));
   return {
@@ -104,14 +105,25 @@ function timeline(keyframes) {
 }
 
 const animate = (keys) => timeline(keys.map(([ms, frame]) => [ms, faceFrames[frame]]));
+// Mouth and gaze keep their own rhythm while the eyelids move in one continuous beat.
+function withEyeClosure(clip, start, closed, reopen, end) {
+  const ramp = (ms, a, b) => smoothStep(clamp((ms - a) / (b - a)));
+  return {
+    duration: clip.duration,
+    sample(ms) {
+      const lid = ramp(ms, start, closed) - ramp(ms, reopen, end);
+      return { ...clip.sample(ms), eyelids: [lid, lid] };
+    },
+  };
+}
 const blinkKeys = (start, keys) =>
   keys.map(([offset, frame]) => [start + blinkOffset(offset), frame]);
-const closedLaugh = face([1, 1], 'laugh', [0, 0], 15);
-const laughBreath = face([0.91, 0.94], 'happy', [0, 0], 13);
-const livelyGrin = face([0.14, 0.19], 'grin', [0, -0.65], 3.2);
-const excitedSquint = face([0.57, 0.5], 'happy', [0, 0], 9);
-const dozing = face([1, 1], 'smile');
-const almostAsleep = face([0.91, 0.89], 'smile', [0, 1]);
+const closedLaugh = faceFrames['idle-laughing'];
+const laughBreath = face([1, 1], 'happy', [0, 0], 13);
+const livelyGrin = face([0, 0], 'grin', [0, -0.65], 3.2);
+const excitedSmile = face([0, 0], 'happy', [0, 0], 9);
+const drowsyGlance = face([0, 0], 'softSmile', [0, 3.2]);
+const dozing = face([1, 1], 'softSmile');
 const sleepy = faceFrames.sleepy;
 const winkOpen = { ...face([0, 0], 'smirk', [1.2, 0]), wink: true };
 
@@ -165,36 +177,49 @@ export const faceAnimations = {
     [1780, 'surprised'],
     [2020, 'neutral'],
   ]),
-  laugh: timeline([
-    [0, faceFrames.smirk],
-    [300, closedLaugh],
-    [490, laughBreath],
-    [665, closedLaugh],
-    [835, laughBreath],
-    [990, closedLaugh],
-    [1135, laughBreath],
-    [1370, faceFrames.happy],
-    [1660, faceFrames.happy],
-    [1820, faceFrames.smirk],
-  ]),
-  excited: timeline([
-    [0, faceFrames.happy],
-    [265, faceFrames['idle-excited']],
-    [460, livelyGrin],
-    [630, faceFrames['idle-excited']],
-    [830, livelyGrin],
-    [985, excitedSquint],
-    [1160, faceFrames['idle-excited']],
-    [1490, faceFrames['idle-excited']],
-    [1820, faceFrames.happy],
-  ]),
+  laugh: withEyeClosure(
+    timeline([
+      [0, faceFrames.smirk],
+      [300, closedLaugh],
+      [490, laughBreath],
+      [665, closedLaugh],
+      [835, laughBreath],
+      [990, closedLaugh],
+      [1135, laughBreath],
+      [1370, faceFrames.happy],
+      [1660, faceFrames.happy],
+      [1820, faceFrames.smirk],
+    ]),
+    160,
+    270,
+    1170,
+    1290,
+  ),
+  excited: withEyeClosure(
+    timeline([
+      [0, faceFrames.happy],
+      [265, faceFrames['idle-excited']],
+      [460, livelyGrin],
+      [630, faceFrames['idle-excited']],
+      [830, livelyGrin],
+      [985, excitedSmile],
+      [1160, faceFrames['idle-excited']],
+      [1490, faceFrames['idle-excited']],
+      [1820, faceFrames.happy],
+    ]),
+    900,
+    970,
+    1000,
+    1100,
+  ),
   sleepy: timeline([
     [0, sleepy],
-    [380, sleepy],
-    [800, almostAsleep],
+    [210, sleepy],
+    [365, drowsyGlance],
+    [720, drowsyGlance],
+    [920, dozing],
     [1050, dozing],
     [1430, dozing],
-    [1660, almostAsleep],
     [1940, sleepy],
     [2320, sleepy],
   ]),

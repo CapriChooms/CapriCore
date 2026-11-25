@@ -85,7 +85,8 @@ export class ChessPageAccess {
       browserProbe: observation?.probe,
     };
     const decide = (reason, extra) => onDecision?.({ ...details, ...extra, reason });
-    if (!page?.game || this.games.has(page.game)) {
+    const cached = page?.game && this.games.get(page.game);
+    if (!page?.game || cached) {
       decide(
         page?.game
           ? 'game_already_verified'
@@ -95,7 +96,8 @@ export class ChessPageAccess {
               ? 'route_rejected'
               : 'no_browser_view',
       );
-      return page?.game ? { ...page, computerSide: this.games.get(page.game) } : page;
+      if (!page?.game) return page;
+      return { ...page, computerSide: cached.computerSide };
     }
     try {
       const reply = await this.fetchImpl(
@@ -128,14 +130,10 @@ export class ChessPageAccess {
         await reader.cancel().catch(() => {});
       }
       const game = JSON.parse(Buffer.concat(chunks).toString());
+      const whiteAI = Number.isInteger(game.players?.white?.aiLevel);
+      const blackAI = Number.isInteger(game.players?.black?.aiLevel);
       const computerSide =
-        game.rated === true
-          ? null
-          : Number.isInteger(game.players?.white?.aiLevel)
-            ? 'w'
-            : Number.isInteger(game.players?.black?.aiLevel)
-              ? 'b'
-              : null;
+        game.rated === false && whiteAI !== blackAI ? (whiteAI ? 'w' : 'b') : null;
       if (
         game.id !== page.game ||
         game.variant !== 'standard' ||
@@ -145,7 +143,7 @@ export class ChessPageAccess {
         return null;
       }
       if (this.games.size >= 16) this.games.delete(this.games.keys().next().value);
-      this.games.set(page.game, computerSide);
+      this.games.set(page.game, { computerSide });
       decide('game_allowed');
       return { ...page, computerSide };
     } catch {

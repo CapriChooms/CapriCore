@@ -40,7 +40,6 @@ export function computerVision({ url, model, params, modelCapabilities, fetchImp
       body: JSON.stringify({
         model,
         stream: false,
-        keep_alive: -1,
         truncate: false,
         shift: false,
         ...(!modelCapabilities || modelCapabilities.includes('thinking') ? { think: false } : {}),

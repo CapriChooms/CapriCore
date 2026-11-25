@@ -460,6 +460,7 @@ test('a useful report survives missing voice components and includes bounded red
       },
       messages: 'history canary',
       lastVoiceFailure: { message: 'Authorization: Bearer private_token' },
+      callAudio: { setup: { phase: 'error', lastFailure: 'skill-disabled' } },
     },
     hardware: async () => ({
       cpu: 'Fixture CPU',
@@ -486,6 +487,7 @@ test('a useful report survives missing voice components and includes bounded red
   assert.equal(session.backend.phase, 'offline');
   assert.deepEqual(session.startup.stages, [{ id: 'core', state: 'running' }]);
   assert.equal(session.voice.lastFailure.phase, 'synthesize');
+  assert.equal(session.callAudio.setup.lastFailure, 'skill-disabled');
   assert.deepEqual(session.recognition.performance.lastFailure, {
     code: 'ASR_START_NATIVE_CRASH',
     startupStage: 'ASR_START_MODEL',
@@ -589,6 +591,75 @@ test('custom voice profile names, reference paths and health prose never enter d
   assert.equal(voice.profile.language, 'en');
   assert.equal(voice.health.ready, true);
   assert.match(files.get('REPORT.md'), /Missing voice component/);
+});
+
+test('voice reports do not attribute Chatterbox files to other engines or text-only mode', async (t) => {
+  for (const [engine, voice, health, selection] of [
+    ['breeze-tts', { language: 'en', source: 'local' }, { activeEngine: 'breeze-tts' }],
+    ['external-api', { language: 'en', source: 'api' }, { activeEngine: 'turbo' }],
+    ['off', { language: 'off', source: 'local' }, { activeEngine: 'turbo' }],
+    [
+      'breeze-tts',
+      { configuredLanguage: 'en', language: 'off', source: 'local' },
+      { activeEngine: 'turbo' },
+      'breeze-tts-2-q4-k',
+    ],
+    [
+      'qwen3-tts',
+      { configuredLanguage: 'en', language: 'off', source: 'local' },
+      { ready: false },
+      'qwen3-tts-0.6b-base',
+    ],
+  ]) {
+    await t.test(selection ?? engine, async () => {
+      const base = fixture();
+      put(base, 'config/companion-voice.json', {
+        engine: 'chatterbox-turbo',
+        profileDir: 'data/voice',
+      });
+      put(base, 'config/voice-training.json', { modelDir: 'data/speech/base' });
+      put(base, 'config/voice-upstream.json', { model: { files: ['missing.safetensors'] } });
+      if (selection)
+        put(base, 'data/speech/voice-selections.json', {
+          schemaVersion: 1,
+          languages: { en: selection },
+        });
+      const pythonProbes = [];
+      const report = await createDiagnosticReport({
+        root: base,
+        input: { category: 'voice', includeLogs: false },
+        snapshot: { voice },
+        hardware: async () => ({}),
+        pythonProbe: async (_root, options) => {
+          pythonProbes.push(options);
+          return { available: false, code: 'ENOENT' };
+        },
+        installerDirectory: null,
+        health: async () => ({ ready: true, ...health }),
+      });
+      const files = unpack(report.bytes);
+      const diagnostics = JSON.parse(files.get('voice.json'));
+      assert.equal(diagnostics.config.engine, engine);
+      assert.deepEqual(diagnostics.files, []);
+      assert.doesNotMatch(files.get('REPORT.md'), /Missing voice component|Chatterbox Turbo/);
+      if (engine === 'qwen3-tts') {
+        assert.equal(pythonProbes.length, 1);
+        assert.equal(
+          pythonProbes[0].runtime.python,
+          path.join(base, '.runtime/qwen-tts-venv/Scripts/python.exe'),
+        );
+        assert.equal(pythonProbes[0].checkChatterbox, false);
+        assert.match(files.get('REPORT.md'), /Qwen3-TTS Python runtime could not be verified/);
+      } else {
+        assert.deepEqual(pythonProbes, []);
+      }
+      if (selection && engine === 'breeze-tts') {
+        assert.deepEqual(diagnostics.breeze, { runtimeInstalled: false, profileValid: false });
+        assert.match(files.get('REPORT.md'), /Breeze TTS voice profile is missing or invalid/);
+        assert.doesNotMatch(files.get('REPORT.md'), /text-only speech/);
+      }
+    });
+  }
 });
 
 test('bug reports validate bounded fields and ZIP entries before writing any file', async () => {

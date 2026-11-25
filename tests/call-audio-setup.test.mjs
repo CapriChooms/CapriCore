@@ -97,6 +97,18 @@ test('missing cable requires a separate explicit install action', async () => {
   assert.equal(f.installs.length, 1);
 });
 
+test('a disabled skill is reported separately and clears the setup error when enabled', async () => {
+  const f = fixture();
+  const result = f.setup.unavailable('skill-disabled', 'Call output is off.');
+  assert.equal(result.error, 'Call output is off.');
+  assert.equal(f.setup.diagnostics().lastFailure, 'skill-disabled');
+  assert.equal(f.installs.length, 0);
+  f.setup.onSkillEnabled();
+  assert.deepEqual(f.setup.snapshot(), { phase: 'idle', busy: false, ready: false });
+  assert.equal(f.setup.diagnostics().lastFailure, null);
+  assert.equal((await f.setup.run()).phase, 'ready');
+});
+
 test('Steam-only devices are missing until a separate explicit VB-CABLE installation is requested', async () => {
   const f = fixture();
   f.setDevices(steamPair);

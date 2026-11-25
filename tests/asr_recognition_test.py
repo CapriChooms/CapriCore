@@ -1,4 +1,5 @@
 import threading
+import time
 import unittest
 from types import SimpleNamespace
 
@@ -32,6 +33,39 @@ class VAD:
 
 
 class RecognitionTests(unittest.TestCase):
+    def test_idle_queue_releases_decoder_and_reloads_for_live_capture(self):
+        delivered = threading.Event()
+        decoding = threading.Event()
+        finish = threading.Event()
+        reloads = []
+
+        def recognize(*_args, **_kwargs):
+            decoding.set()
+            if not finish.wait(1):
+                raise RuntimeError('decode stalled')
+            return {'text': 'ready'}
+
+        def reload():
+            reloads.append(True)
+            return SimpleNamespace(recognize=recognize)
+
+        queue = RecognitionQueue(SimpleNamespace(recognize=recognize), self.fail,
+                                 reload_recognizer=reload, idle_seconds=.02)
+        self.addCleanup(queue.close)
+        until = time.monotonic() + 1
+        while queue.recognizer is not None and time.monotonic() < until:
+            threading.Event().wait(.01)
+        self.assertIsNone(queue.recognizer)
+        session = SimpleNamespace(lock=threading.Lock(), alive=True, utterance=1, revision=0,
+                                  attention=True, deliver=lambda *_: delivered.set(), stop=lambda: None)
+        self.assertTrue(queue.submit(session, ('final', 1, 0, np.ones(16))))
+        self.assertTrue(decoding.wait(1))
+        threading.Event().wait(.04)
+        self.assertIsNotNone(queue.recognizer)
+        finish.set()
+        self.assertTrue(delivered.wait(1))
+        self.assertEqual(reloads, [True])
+
     def test_timed_address_removal_does_not_depend_on_its_final_spelling(self):
         result = {'text': 'Copy, leave that.', 'boundaries': [
             {'start': 0, 'end': 5, 'startSample': 1600, 'endSample': 9600},

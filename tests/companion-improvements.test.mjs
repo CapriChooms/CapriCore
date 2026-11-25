@@ -31,6 +31,23 @@ import { StartupPanel } from '../apps/desktop/renderer/startup-panel.mjs';
 import { MicrophoneService } from '../apps/desktop/microphone-service.mjs';
 import { EventEmitter } from 'node:events';
 import { pullModel } from '../packages/runtime/src/providers/pull-model.mjs';
+import { personaPrompt } from '../packages/runtime/src/context.mjs';
+
+test('unrestricted conversation is an opt-in personality preference', () => {
+  const workspace = {};
+  const options = { personality: 'Capri', style: 'wild' };
+  assert.equal(validateCompanionSettings({}).unrestrictedConversation, false);
+  assert.equal(
+    validateCompanionSettings({ unrestrictedConversation: true }).unrestrictedConversation,
+    true,
+  );
+  assert.throws(() => validateCompanionSettings({ unrestrictedConversation: 'true' }));
+  assert.doesNotMatch(personaPrompt(workspace, options), /FREE CONVERSATION MODE/);
+  const prompt = personaPrompt(workspace, { ...options, unrestrictedConversation: true });
+  assert.match(prompt, /FREE CONVERSATION MODE/);
+  assert.match(prompt, /COMMUNICATION STYLE: wild/);
+  assert.match(prompt, /permissions enforced by the host/);
+});
 
 test('core startup keeps repair guidance and a stable code without leaking raw errors', () => {
   const error = { code: 'CAPRI_MEMORY_MODEL_MISSING', message: 'private model path' };
@@ -44,6 +61,11 @@ test('core startup keeps repair guidance and a stable code without leaking raw e
   );
   assert.deepEqual(coreStartupFailure({ ...error, code: 'unrecognized' }), {
     message: 'The local core is unavailable. Reconnect to try again.',
+  });
+  assert.deepEqual(coreStartupFailure({ code: 'CAPRI_SERVICE_EXITED', exitCode: -1073741819 }), {
+    code: 'CAPRI_SERVICE_EXITED',
+    message: 'Capri could not start.',
+    exitCode: 0xc0000005,
   });
 });
 

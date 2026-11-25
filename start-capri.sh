@@ -13,9 +13,15 @@ if [[ -z "${DISPLAY:-}" ]]; then
 fi
 
 node_path="${CAPRI_NODE_PATH:-$(command -v node || true)}"
+node_version=$(<.node-version)
 if [[ "$node_path" != /* || ! -x "$node_path" ]] ||
-   ! "$node_path" -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); process.exit(major === 24 && (minor > 22 || (minor === 22 && patch >= 1)) ? 0 : 1)'; then
-  printf 'Install Node.js 24.22.1 or a newer 24.x release and add node to PATH.\n' >&2
+   ! "$node_path" -e '
+     const [major, minor, patch] = process.versions.node.split(".").map(Number);
+     const [minimumMajor, minimumMinor, minimumPatch] = process.argv[1].split(".").map(Number);
+     process.exit(major === minimumMajor &&
+       (minor > minimumMinor || (minor === minimumMinor && patch >= minimumPatch)) ? 0 : 1);
+   ' "$node_version"; then
+  printf 'Install Node.js %s or a newer release in the same major series and add node to PATH.\n' "$node_version" >&2
   exit 1
 fi
 export CAPRI_NODE_PATH="$node_path"

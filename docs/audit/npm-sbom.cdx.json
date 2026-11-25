@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:bff0efed-66a9-401f-8bef-cc2745dd9ccf",
+  "serialNumber": "urn:uuid:bc66a27b-9a44-4ad3-955c-84dd0415a593",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-08T20:33:38.725Z",
+    "timestamp": "2026-11-24T21:06:14.805Z",
     "lifecycles": [
       {
         "phase": "pre-build"
@@ -19,13 +19,13 @@
       }
     ],
     "component": {
-      "bom-ref": "capri@1.0.1",
+      "bom-ref": "capri@1.2.0",
       "type": "library",
       "name": "capri",
-      "version": "1.0.1",
+      "version": "1.2.0",
       "scope": "required",
-      "description": "Local Windows backend for Capri, powered by OpenClaw and Ollama",
-      "purl": "pkg:npm/capri@1.0.1",
+      "description": "Local Windows backend for Capri, powered by OpenClaw and llama.cpp",
+      "purl": "pkg:npm/capri@1.2.0",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -44,13 +44,13 @@
   },
   "components": [
     {
-      "bom-ref": "capri-desktop@1.0.1",
+      "bom-ref": "capri-desktop@1.2.0",
       "type": "library",
       "name": "capri-desktop",
-      "version": "1.0.1",
+      "version": "1.2.0",
       "scope": "required",
       "description": "Local Windows companion for Capri Core",
-      "purl": "pkg:npm/capri-desktop@1.0.1",
+      "purl": "pkg:npm/capri-desktop@1.2.0",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -487,23 +487,23 @@
       ]
     },
     {
-      "bom-ref": "@earendil-works/pi-tui@1.0.0",
+      "bom-ref": "@earendil-works/pi-tui@1.0.3",
       "type": "library",
       "name": "@earendil-works/pi-tui",
-      "version": "1.0.0",
+      "version": "1.0.3",
       "scope": "required",
-      "purl": "pkg:npm/%40earendil-works/pi-tui@1.0.0",
+      "purl": "pkg:npm/%40earendil-works/pi-tui@1.0.3",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-1.0.0.tgz"
+          "url": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-1.0.3.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "26c4fb9179e9640d983ad42ee91cab8b2c443b47892333f27e21f4f5b1fe38b379facd7c1d89306940ffb4192386749f32eebfe740903d16096a0cd23fa1dd3f"
+          "content": "0bb6fc63eee2cfefe83c465426e6efe8d3e6dccff8ce2ab48634368e1a8c3690707177aa0cc60a2f61583fdd2dd9be52d48a067368a8e3b763e599480b52195a"
         }
       ],
       "licenses": [
@@ -1454,23 +1454,23 @@
       ]
     },
     {
-      "bom-ref": "@hono/node-server@2.1.5",
+      "bom-ref": "@hono/node-server@2.1.11",
       "type": "library",
       "name": "@hono/node-server",
-      "version": "2.1.5",
+      "version": "2.1.11",
       "scope": "required",
-      "purl": "pkg:npm/%40hono/node-server@2.1.5",
+      "purl": "pkg:npm/%40hono/node-server@2.1.11",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@hono/node-server/-/node-server-2.1.5.tgz"
+          "url": "https://registry.npmjs.org/@hono/node-server/-/node-server-2.1.11.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "3203ff234e8676fb22943b29324fea991ce993c2ce512b4fea31406d2462e345b4f43868c949fe323edec8a2023ea7982b26ce8d514b548010cefbb56df21aed"
+          "content": "2b32b3f6f978befaf5be02c76a68fe839ba89dbae3e4dc0074edf2cce4ba71dd878c02d578e81381e64ec80ccdc5e8db91f38e3c872fb9ffd383c975a4414ba2"
         }
       ],
       "licenses": [
@@ -2434,23 +2434,23 @@
       ]
     },
     {
-      "bom-ref": "@modelcontextprotocol/sdk@1.32.0",
+      "bom-ref": "@modelcontextprotocol/sdk@1.32.1",
       "type": "library",
       "name": "@modelcontextprotocol/sdk",
-      "version": "1.32.0",
+      "version": "1.32.1",
       "scope": "required",
-      "purl": "pkg:npm/%40modelcontextprotocol/sdk@1.32.0",
+      "purl": "pkg:npm/%40modelcontextprotocol/sdk@1.32.1",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.32.0.tgz"
+          "url": "https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.32.1.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "f01be25ff84ae0677678bd4a753c26d207e5e1ddf076812b5b425dd3487a9e899402d93a209939bf040973a91f5ad253ccde4e115fe5808889288f1f88318094"
+          "content": "d83744f92243b732c4116cd8d598d8ed0f9570f85c5752a2b03df3238bb45d9ca4b6c8c7ba6d66c1b308f896ae954062d8e664f8a2408b6b8f5f3c627213e477"
         }
       ],
       "licenses": [
@@ -2826,23 +2826,23 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/ai@2026.10.6",
+      "bom-ref": "@openclaw/ai@2026.10.33",
       "type": "library",
       "name": "@openclaw/ai",
-      "version": "2026.10.6",
+      "version": "2026.10.33",
       "scope": "required",
-      "purl": "pkg:npm/%40openclaw/ai@2026.10.6",
+      "purl": "pkg:npm/%40openclaw/ai@2026.10.33",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/ai/-/ai-2026.10.6.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/ai/-/ai-2026.10.33.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "712b1f9b30a4bf717718b364c19f6f2f64152e7ac1495d12e21defe6ee3cb60a547facbf8afca1aefd21a243c7a56340a5098b4c60005c284a9144efcc0838b6"
+          "content": "208a270109f3be40a63c71ceb2c55bda9e9a0c5ae22ff1fa000e828462df38d0741127872242b6b5ce731b31835b718a1a3934fdf5126a5bbd7e6fac04110713"
         }
       ],
       "licenses": [
@@ -2854,23 +2854,23 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/fs-safe@0.25.0",
+      "bom-ref": "@openclaw/fs-safe@0.26.7",
       "type": "library",
       "name": "@openclaw/fs-safe",
-      "version": "0.25.0",
+      "version": "0.26.7",
       "scope": "required",
-      "purl": "pkg:npm/%40openclaw/fs-safe@0.25.0",
+      "purl": "pkg:npm/%40openclaw/fs-safe@0.26.7",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/fs-safe/-/fs-safe-0.25.0.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe/-/fs-safe-0.26.7.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "ffc5f37d6d33ba557504fce39e40fbbd11b5daed2ee75ef0d34ac8b801a65b8194d3b7f16ad61290b1dcd466850925ff5ae2f018fce8c633d22ae465a01a6b21"
+          "content": "0d5755683b2ec02d42b3e9b34a073c4408c33a8d0d6b9e0972182247d81a389c2fca32ca6afe4ed78d94f34a50c25debc95feea16c125fa78bf82884061983ed"
         }
       ],
       "licenses": [
@@ -2882,23 +2882,23 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/fs-safe-darwin-arm64@0.25.0",
+      "bom-ref": "@openclaw/fs-safe-darwin-arm64@0.26.7",
       "type": "library",
       "name": "@openclaw/fs-safe-darwin-arm64",
-      "version": "0.25.0",
+      "version": "0.26.7",
       "scope": "optional",
-      "purl": "pkg:npm/%40openclaw/fs-safe-darwin-arm64@0.25.0",
+      "purl": "pkg:npm/%40openclaw/fs-safe-darwin-arm64@0.26.7",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/fs-safe-darwin-arm64/-/fs-safe-darwin-arm64-0.25.0.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-darwin-arm64/-/fs-safe-darwin-arm64-0.26.7.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "7edc01ebf70ce1b7565e7da907051210be00e599d7e6387a6843c1852e50dd877f6d0809c962054cdbf8fa40bee10aee7ee5f6d3f545fe42233f2bb5ed170332"
+          "content": "c82ca996db79e42de1795f9e4d69daeea4b2f4100a3b38f915f326ff6584a75c9c3c400008608273b2a50754bd96d79cebe1ef6e38e730e9bfbd7b664090b1c3"
         }
       ],
       "licenses": [
@@ -2910,23 +2910,23 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/fs-safe-darwin-x64@0.25.0",
+      "bom-ref": "@openclaw/fs-safe-darwin-x64@0.26.7",
       "type": "library",
       "name": "@openclaw/fs-safe-darwin-x64",
-      "version": "0.25.0",
+      "version": "0.26.7",
       "scope": "optional",
-      "purl": "pkg:npm/%40openclaw/fs-safe-darwin-x64@0.25.0",
+      "purl": "pkg:npm/%40openclaw/fs-safe-darwin-x64@0.26.7",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/fs-safe-darwin-x64/-/fs-safe-darwin-x64-0.25.0.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-darwin-x64/-/fs-safe-darwin-x64-0.26.7.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "1c5000cad12bd0c378cd9c282e2bf7a0b98338915c85a9d41e5e608b9610c8f4ea7fbfc2d0012e3dc475fa03f4756a6e71c0849aec62bca137d32ae2c3e59453"
+          "content": "910ef430084eea79efe156c196d2f7bf3c6e18a8dfd108ffeb3f0ab397c8e43477ef1e379ae281bdbea31300984cef711e53fad0cbaca3655b242080bb8da6f6"
         }
       ],
       "licenses": [
@@ -2938,23 +2938,79 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/fs-safe-linux-arm64-gnu@0.25.0",
+      "bom-ref": "@openclaw/fs-safe-freebsd-arm64@0.26.7",
+      "type": "library",
+      "name": "@openclaw/fs-safe-freebsd-arm64",
+      "version": "0.26.7",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/fs-safe-freebsd-arm64@0.26.7",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-freebsd-arm64/-/fs-safe-freebsd-arm64-0.26.7.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "645bae9502673680eafb9851b13d35876d4abec2247e162e1f3eaf6bbc26ac0be58c1bcfccdbe82e0c5eb86d5e4e7267959470dabc43581ede3215bf3493655e"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/fs-safe-freebsd-x64@0.26.7",
+      "type": "library",
+      "name": "@openclaw/fs-safe-freebsd-x64",
+      "version": "0.26.7",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/fs-safe-freebsd-x64@0.26.7",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-freebsd-x64/-/fs-safe-freebsd-x64-0.26.7.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "8e1f1b2dac0e4d26c69e42ced7d965f129a3dcaa2defa0d14318c99522df680b0f0efb7b2fd9e4e44b81a807a65acfe7fa061f244690a4b3cf14e7e2279783af"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/fs-safe-linux-arm64-gnu@0.26.7",
       "type": "library",
       "name": "@openclaw/fs-safe-linux-arm64-gnu",
-      "version": "0.25.0",
+      "version": "0.26.7",
       "scope": "optional",
-      "purl": "pkg:npm/%40openclaw/fs-safe-linux-arm64-gnu@0.25.0",
+      "purl": "pkg:npm/%40openclaw/fs-safe-linux-arm64-gnu@0.26.7",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/fs-safe-linux-arm64-gnu/-/fs-safe-linux-arm64-gnu-0.25.0.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-linux-arm64-gnu/-/fs-safe-linux-arm64-gnu-0.26.7.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "ec2a5aed3eece774e93cc1f751ce620774aacc79ad6bf8ec53edb1add0714e4fd9b5cd9b2b2db584f95aa0423f21331d5cbd4bd1b631691be5233a091fee972b"
+          "content": "dc02d11ae659062fb2de454710534b3a83a463b67929f583b0931519180045e7718090ae8315bd228148c88ef6d82230212750f7257f013db781a571ba5dc925"
         }
       ],
       "licenses": [
@@ -2966,23 +3022,23 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/fs-safe-linux-arm64-musl@0.25.0",
+      "bom-ref": "@openclaw/fs-safe-linux-arm64-musl@0.26.7",
       "type": "library",
       "name": "@openclaw/fs-safe-linux-arm64-musl",
-      "version": "0.25.0",
+      "version": "0.26.7",
       "scope": "optional",
-      "purl": "pkg:npm/%40openclaw/fs-safe-linux-arm64-musl@0.25.0",
+      "purl": "pkg:npm/%40openclaw/fs-safe-linux-arm64-musl@0.26.7",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/fs-safe-linux-arm64-musl/-/fs-safe-linux-arm64-musl-0.25.0.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-linux-arm64-musl/-/fs-safe-linux-arm64-musl-0.26.7.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "f5979304d87538a092099cdcd4d7b848df7a225140d6aac7b35c9c94ff2fc425c55c68244c5c97db1c19f2a2ee38da1d3c37b389fa95c733faead1afc8141a77"
+          "content": "cd726266b1d95c5301ed55a70d93cfe5f6bb11e4d4f998a1bcbc65f315381dc5ada010c95c6f631b3f42757bb21a5cde82adb6817445443cbe1cdc87b9008a67"
         }
       ],
       "licenses": [
@@ -2994,23 +3050,23 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/fs-safe-linux-x64-gnu@0.25.0",
+      "bom-ref": "@openclaw/fs-safe-linux-x64-gnu@0.26.7",
       "type": "library",
       "name": "@openclaw/fs-safe-linux-x64-gnu",
-      "version": "0.25.0",
+      "version": "0.26.7",
       "scope": "optional",
-      "purl": "pkg:npm/%40openclaw/fs-safe-linux-x64-gnu@0.25.0",
+      "purl": "pkg:npm/%40openclaw/fs-safe-linux-x64-gnu@0.26.7",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/fs-safe-linux-x64-gnu/-/fs-safe-linux-x64-gnu-0.25.0.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-linux-x64-gnu/-/fs-safe-linux-x64-gnu-0.26.7.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "fce30b79cd8da58b814670de7b168ac0912480806b50eefc03148406aa09a40cdb67d7e82efb70c721323997ea9d3aedac7c246353c2f9e6cd3106d90e3e99ee"
+          "content": "71b50f2bb6056cd9a72c31afc5bcd87af6fe417578ef876d0939bbf09eb0beadee3e240e3a75a9791ef47a374bab3e318e1c1cdcae6c21ed1a30c1561b519089"
         }
       ],
       "licenses": [
@@ -3022,23 +3078,23 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/fs-safe-linux-x64-musl@0.25.0",
+      "bom-ref": "@openclaw/fs-safe-linux-x64-musl@0.26.7",
       "type": "library",
       "name": "@openclaw/fs-safe-linux-x64-musl",
-      "version": "0.25.0",
+      "version": "0.26.7",
       "scope": "optional",
-      "purl": "pkg:npm/%40openclaw/fs-safe-linux-x64-musl@0.25.0",
+      "purl": "pkg:npm/%40openclaw/fs-safe-linux-x64-musl@0.26.7",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/fs-safe-linux-x64-musl/-/fs-safe-linux-x64-musl-0.25.0.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-linux-x64-musl/-/fs-safe-linux-x64-musl-0.26.7.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "5905e5eb37ea4b89db5b00ec331edc007d2323cb03f0344bae02efda9ca033b94f81b5f9cd50bb9b3f2b788eb7daac982411d86e0d25f85ca6354934631a1c16"
+          "content": "7e38ac785df63039849476816d0a8111123907a770232db72a7274c21d05437b30f44ef50c2a62cb46bda9c46f1271d26ed31975854bbbb708212634d8cac893"
         }
       ],
       "licenses": [
@@ -3050,23 +3106,359 @@
       ]
     },
     {
-      "bom-ref": "@openclaw/fs-safe-win32-x64-msvc@0.25.0",
+      "bom-ref": "@openclaw/fs-safe-win32-arm64-msvc@0.26.7",
       "type": "library",
-      "name": "@openclaw/fs-safe-win32-x64-msvc",
-      "version": "0.25.0",
+      "name": "@openclaw/fs-safe-win32-arm64-msvc",
+      "version": "0.26.7",
       "scope": "optional",
-      "purl": "pkg:npm/%40openclaw/fs-safe-win32-x64-msvc@0.25.0",
+      "purl": "pkg:npm/%40openclaw/fs-safe-win32-arm64-msvc@0.26.7",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@openclaw/fs-safe-win32-x64-msvc/-/fs-safe-win32-x64-msvc-0.25.0.tgz"
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-win32-arm64-msvc/-/fs-safe-win32-arm64-msvc-0.26.7.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "3b87032aac28c274a11bf2ef871aeb425e6c6bd0fc5920934f9d6fce6ba08bc74075718bc1a11afaab694962447c0d8163dad05b7a218a91c43bddae3b9d866f"
+          "content": "ecedf753273b0c7847349f67241b21941f9944121d99f270d0d863a1d0e68fa4cc7e604f9d116520ab8a2f11c99fdab337eb70a332fb2208b2757acb81696a45"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/fs-safe-win32-x64-msvc@0.26.7",
+      "type": "library",
+      "name": "@openclaw/fs-safe-win32-x64-msvc",
+      "version": "0.26.7",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/fs-safe-win32-x64-msvc@0.26.7",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/fs-safe-win32-x64-msvc/-/fs-safe-win32-x64-msvc-0.26.7.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a7e59adc168425a5cf931114009e153897571a27235156b71234468d5b252d2773bb664eb1a9e2db6fd0c971b2f46c2c3eb6ce0d25f251ee3a57a00eb202d9a3"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe",
+      "version": "0.4.2",
+      "scope": "required",
+      "purl": "pkg:npm/%40openclaw/proc-safe@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe/-/proc-safe-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "436c97c18a7b8b94a56215ce07adbffc42422063701f8afc49bb3c42300cba097b0d74d6dbf17aa87a7d629228acd2d28bcf1b10a1b994b5f8f24b5a630c3114"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-darwin-arm64@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-darwin-arm64",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-darwin-arm64@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-darwin-arm64/-/proc-safe-darwin-arm64-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "01821805402f26ffe9f5d14da65ba26a79d3e3db7b06419bd4c062a0bec81b8b199531e87e4e3f4ec6504718b46290ce4dd7fd47a38677fde8685ef8e9eac924"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-darwin-x64@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-darwin-x64",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-darwin-x64@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-darwin-x64/-/proc-safe-darwin-x64-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "9d6bc63ba45fd79241236333c9ebd2053d4d378a1479402a3fb3f93aa073c26df14018e99a47b3607ba87ca004681ecb9e2582455b9f0383695a1b280910537a"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-freebsd-arm64@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-freebsd-arm64",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-freebsd-arm64@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-freebsd-arm64/-/proc-safe-freebsd-arm64-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f8c62e2e641ca1bbdba11d0e0976dd739380f599bac37b6b6b35b15c28fef30bc5937d439fe431c642df68f953ed49286dfee386be21164ba33ce8f2cbf44a43"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-freebsd-x64@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-freebsd-x64",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-freebsd-x64@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-freebsd-x64/-/proc-safe-freebsd-x64-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c83c989806ff1e52e0251d0ed435b14207379956d55b628de41e26cd67995d73604500b3b1b3bd9fc3931e30bf4d7eb98a256fc585b300408de1ac0a373e3fef"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-linux-arm64-gnu@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-linux-arm64-gnu",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-linux-arm64-gnu@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-linux-arm64-gnu/-/proc-safe-linux-arm64-gnu-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "4b1040630bc385a04d7ea7142da6eae01ede8d3fb81cc1ef032839117699dc0953af24f6e7adeefc52881d5c73f83b10e87be463bf4971876fb7d7bbd3be8795"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-linux-arm64-musl@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-linux-arm64-musl",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-linux-arm64-musl@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-linux-arm64-musl/-/proc-safe-linux-arm64-musl-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "b9b50c6c2195f8a848b91a713f2a50ca079ae38c3717f5ebe7aa7ccb65defece527319e07ae9b7bc04b9895332e251772b8be6fb996fee4d69af3f76b245da90"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-linux-x64-gnu@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-linux-x64-gnu",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-linux-x64-gnu@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-linux-x64-gnu/-/proc-safe-linux-x64-gnu-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "6d073a9aa95c7229151f50c867f8832545bd84290e366cb993a2af38acf66f1c148fddbc46ad40b64348a832cc8ad6acecd73b709b85c588c7babd8e2f8b8b8c"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-linux-x64-musl@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-linux-x64-musl",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-linux-x64-musl@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-linux-x64-musl/-/proc-safe-linux-x64-musl-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c247829576c50e323b0c07d929c534e2cda6dd42acb03d29e717fddebe8a74f3b4e6b67cd11f45e4ed60206c48ae008551c8fcb72922881a1fc5d9a1e744f85b"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-win32-arm64-msvc@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-win32-arm64-msvc",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-win32-arm64-msvc@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-win32-arm64-msvc/-/proc-safe-win32-arm64-msvc-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "8b604305c5f99db4408c278b963ed9f99f57068d191707b9a32a02e4ce9a2485899cef1ecaf162c5287a1902489b8efe4c761da92b8aa06aee129ac9b7731a33"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@openclaw/proc-safe-win32-x64-msvc@0.4.2",
+      "type": "library",
+      "name": "@openclaw/proc-safe-win32-x64-msvc",
+      "version": "0.4.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40openclaw/proc-safe-win32-x64-msvc@0.4.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@openclaw/proc-safe-win32-x64-msvc/-/proc-safe-win32-x64-msvc-0.4.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "2bd6ffb57996165ecb0f20270bd8f692577216cd5d1f76536cc6a8b505e7dc198d958eef9f3514979444f80bf0c335cd428e137c2ce7c5f53cb985af960759b7"
         }
       ],
       "licenses": [
@@ -3106,23 +3498,23 @@
       ]
     },
     {
-      "bom-ref": "@opentelemetry/semantic-conventions@1.43.0",
+      "bom-ref": "@opentelemetry/semantic-conventions@1.45.0",
       "type": "library",
       "name": "@opentelemetry/semantic-conventions",
-      "version": "1.43.0",
+      "version": "1.45.0",
       "scope": "required",
-      "purl": "pkg:npm/%40opentelemetry/semantic-conventions@1.43.0",
+      "purl": "pkg:npm/%40opentelemetry/semantic-conventions@1.45.0",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@opentelemetry/semantic-conventions/-/semantic-conventions-1.43.0.tgz"
+          "url": "https://registry.npmjs.org/@opentelemetry/semantic-conventions/-/semantic-conventions-1.45.0.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "7926164e6eb6d2d4e4e3910a49e75a50bf0c15823c856d7ae21217b20207cb1bb75686d40777c50aee6dd2141bcba3a85913ec1b52a42941b633951a7622e256"
+          "content": "68e3f8e666dc38a6d056f1567d09a0a0e3d3f11da2c1b6db825f379380ae8c657d06b26116bdea1b9e4c169c05b3860b69ba6e5b71e1cd463d790c4f943a9a67"
         }
       ],
       "licenses": [
@@ -3386,6 +3778,398 @@
       ]
     },
     {
+      "bom-ref": "@resvg/resvg-js@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js",
+      "version": "2.6.2",
+      "scope": "required",
+      "purl": "pkg:npm/%40resvg/resvg-js@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js/-/resvg-js-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c416898ac87939e1a69e20e3f5c5b93d16bf3ed9ae554df38aaadbaf9c498fdd356433784e8b2b55a359a4488b640c5d7e78407bbb90ed01567e33def5df4ad9"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-android-arm-eabi@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-android-arm-eabi",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-android-arm-eabi@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-android-arm-eabi/-/resvg-js-android-arm-eabi-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "16b2626eb024eafdbd79a6c83e071350c3d7884cfcb2cac093b4d7c6c899cf0c3d5134356792806c526cf99d04cfe5594d882713921026a05ca1288c79bb4f1c"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-android-arm64@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-android-arm64",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-android-arm64@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-android-arm64/-/resvg-js-android-arm64-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "55c38a7b31219b656acd7a5c209a084eebd44bf7dc8c8c39340ff0ded8f35b2ce6be809d77e41722acb71411ae95674296fa7883e21f51e9a282b90b4e14a301"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-darwin-arm64@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-darwin-arm64",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-darwin-arm64@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-darwin-arm64/-/resvg-js-darwin-arm64-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "9e6a24d8b9c077a9cb50a235e9a101f7274c0ba2e27628aada6d671010d1d4b69a3fb146b38009f74a83adac57f825a556e465bcd8f26094cdbfca858ed2fdf8"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-darwin-x64@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-darwin-x64",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-darwin-x64@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-darwin-x64/-/resvg-js-darwin-x64-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "1889f264b8e05837ec553ebe487c50551c0dcd5d00b80d6ea86b0e016fb4b61e7a27b361e9b1c72971c15b352b8a1c4c7ad7050e640c017d6d6757d90d8491b3"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-linux-arm-gnueabihf@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-linux-arm-gnueabihf",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-linux-arm-gnueabihf@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-linux-arm-gnueabihf/-/resvg-js-linux-arm-gnueabihf-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "608577bbf47dcc96e9a934cdc1364ce7fa1c59eb43286b2ba34496a7bd1e18433d795d8c7ab5b20516674088335376019d2050d51731459bd8fd4c701127d923"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-linux-arm64-gnu@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-linux-arm64-gnu",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-linux-arm64-gnu@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-linux-arm64-gnu/-/resvg-js-linux-arm64-gnu-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "cdcd819494a29bb611e0564343c394a09839868958cdd89831ea1b6fda49b860e27462fd29952fed26e20f813ca19a20b58638d946446a9eddaa4918b80f75a6"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-linux-arm64-musl@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-linux-arm64-musl",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-linux-arm64-musl@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-linux-arm64-musl/-/resvg-js-linux-arm64-musl-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "de1ddd2cf58d812b03e2540124f6f87fe92f74e4891dae4f8d3615b161f12d4cc7e081532540279ae5a9c382aac90dcd039402ca1c384d68319378d1910c442a"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-linux-x64-gnu@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-linux-x64-gnu",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-linux-x64-gnu@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-linux-x64-gnu/-/resvg-js-linux-x64-gnu-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "21551ef9c9087ab03bc4c679d1db80673c1fd54ee48507b6134429531bb930124d6a8e51a82d33c15fd99bdeb9bf0e83de0185525ee3e26fa8263b9b055a1fb7"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-linux-x64-musl@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-linux-x64-musl",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-linux-x64-musl@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-linux-x64-musl/-/resvg-js-linux-x64-musl-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "50e7fcdefa93ce86103bd499d1f3e5d99205b4d233fd1affcbeed7f17457d599c162c43fb536fe723f5313e28739d9a54c5071858cd590fda5441c82cea8b88d"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-win32-arm64-msvc@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-win32-arm64-msvc",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-win32-arm64-msvc@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-win32-arm64-msvc/-/resvg-js-win32-arm64-msvc-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "ec2fd14a009afbbbea67ba806c8b5f89a016872452a03e25e014006d50ea451b11818f92fa1812de29f4471afb228aca529184ebd5f8f2aebf9ce02e4c943179"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-win32-ia32-msvc@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-win32-ia32-msvc",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-win32-ia32-msvc@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-win32-ia32-msvc/-/resvg-js-win32-ia32-msvc-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "85aaf868f025be39cb722978d000bbed80c893a96831ac2e27014834433b9f4a59be2c0c90cbe36f65b9662aec34e658e1a0dba39b4bc74c0d311129e41ae4fb"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@resvg/resvg-js-win32-x64-msvc@2.6.2",
+      "type": "library",
+      "name": "@resvg/resvg-js-win32-x64-msvc",
+      "version": "2.6.2",
+      "scope": "optional",
+      "purl": "pkg:npm/%40resvg/resvg-js-win32-x64-msvc@2.6.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@resvg/resvg-js-win32-x64-msvc/-/resvg-js-win32-x64-msvc-2.6.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "657b5886d52be5249a06b503abb0e2ca338526a0552ff74e04decdfea9a2fe93b42208965bf7ffb9ede76efbbd8e8584e5a00a0e8233cbf0b1b18d2cbb01a8b1"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@scoriiu/fenshot@0.1.5",
+      "type": "library",
+      "name": "@scoriiu/fenshot",
+      "version": "0.1.5",
+      "scope": "required",
+      "purl": "pkg:npm/%40scoriiu/fenshot@0.1.5",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@scoriiu/fenshot/-/fenshot-0.1.5.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "678c500bce15218629e091aa23fa07a3a1c7ca4cca748296e3f428a4531c9abd1c0c5710751589d82d8f52760186533407051460d36b5612fe863cf635b28df7"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
       "bom-ref": "@sec-ant/readable-stream@0.4.1",
       "type": "library",
       "name": "@sec-ant/readable-stream",
@@ -3554,23 +4338,23 @@
       ]
     },
     {
-      "bom-ref": "@trycua/cua-driver@0.32.0",
+      "bom-ref": "@trycua/cua-driver@0.33.4",
       "type": "library",
       "name": "@trycua/cua-driver",
-      "version": "0.32.0",
+      "version": "0.33.4",
       "scope": "required",
-      "purl": "pkg:npm/%40trycua/cua-driver@0.32.0",
+      "purl": "pkg:npm/%40trycua/cua-driver@0.33.4",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@trycua/cua-driver/-/cua-driver-0.32.0.tgz"
+          "url": "https://registry.npmjs.org/@trycua/cua-driver/-/cua-driver-0.33.4.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "960e77032a763ee23b45d23b36f1deac3ed8f3f1334999dfc4790177d136c5e8b75e43f8b5c99969502ed74a8af639008614d3230cf4c02ea97b82090f36b5f0"
+          "content": "5ddb431eb40ac2ff7b2bcbd9d3d8e641fa114203877f9fa0e27aac588fa24c18e005d11b7f386739e27aa7f60e9486cb757c32250c68b60643f6b12c15f9bc8c"
         }
       ],
       "licenses": [
@@ -3582,23 +4366,23 @@
       ]
     },
     {
-      "bom-ref": "@trycua/cua-driver-darwin-arm64@0.32.0",
+      "bom-ref": "@trycua/cua-driver-darwin-arm64@0.33.4",
       "type": "library",
       "name": "@trycua/cua-driver-darwin-arm64",
-      "version": "0.32.0",
+      "version": "0.33.4",
       "scope": "optional",
-      "purl": "pkg:npm/%40trycua/cua-driver-darwin-arm64@0.32.0",
+      "purl": "pkg:npm/%40trycua/cua-driver-darwin-arm64@0.33.4",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@trycua/cua-driver-darwin-arm64/-/cua-driver-darwin-arm64-0.32.0.tgz"
+          "url": "https://registry.npmjs.org/@trycua/cua-driver-darwin-arm64/-/cua-driver-darwin-arm64-0.33.4.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "c125305cc8ff2893e2f92132dcf7eb37de29da38bc4ce948c509f890fc3c186d0db6256ab5f74e03b90e7232d965e789753952febd0f28a960846fb926b0bd3d"
+          "content": "5d4ee29e8975011a50cbbc5a01642edcaee39e5a8672638fef78cc350162924f793be4b15c8ee29245d083a7e5acd9d4248559327231a209b332a0f94742f794"
         }
       ],
       "licenses": [
@@ -3608,23 +4392,23 @@
       ]
     },
     {
-      "bom-ref": "@trycua/cua-driver-darwin-x64@0.32.0",
+      "bom-ref": "@trycua/cua-driver-darwin-x64@0.33.4",
       "type": "library",
       "name": "@trycua/cua-driver-darwin-x64",
-      "version": "0.32.0",
+      "version": "0.33.4",
       "scope": "optional",
-      "purl": "pkg:npm/%40trycua/cua-driver-darwin-x64@0.32.0",
+      "purl": "pkg:npm/%40trycua/cua-driver-darwin-x64@0.33.4",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@trycua/cua-driver-darwin-x64/-/cua-driver-darwin-x64-0.32.0.tgz"
+          "url": "https://registry.npmjs.org/@trycua/cua-driver-darwin-x64/-/cua-driver-darwin-x64-0.33.4.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "f50eb56bb5c748fc9cb93d1f4d0b664d3f9f6d791510bd3988781a46ff8eb581d3cb3246d4a5694e39ed26c4a5690803ecd565d6e01aa6e999f60326beb3a1b9"
+          "content": "bf2939d4c2767c722f5c86e579cdff47ae1b5a01ba8935db1d6df0de9c42569c0f58b9e669e79f62f4876a69bd02df64e6c9c6d7945856d7627720e31aa23a50"
         }
       ],
       "licenses": [
@@ -3634,23 +4418,23 @@
       ]
     },
     {
-      "bom-ref": "@trycua/cua-driver-linux-arm64-gnu@0.32.0",
+      "bom-ref": "@trycua/cua-driver-linux-arm64-gnu@0.33.4",
       "type": "library",
       "name": "@trycua/cua-driver-linux-arm64-gnu",
-      "version": "0.32.0",
+      "version": "0.33.4",
       "scope": "optional",
-      "purl": "pkg:npm/%40trycua/cua-driver-linux-arm64-gnu@0.32.0",
+      "purl": "pkg:npm/%40trycua/cua-driver-linux-arm64-gnu@0.33.4",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@trycua/cua-driver-linux-arm64-gnu/-/cua-driver-linux-arm64-gnu-0.32.0.tgz"
+          "url": "https://registry.npmjs.org/@trycua/cua-driver-linux-arm64-gnu/-/cua-driver-linux-arm64-gnu-0.33.4.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "1377c97496277e0b856c42bd551aaa5674fcc8c6592934b1673d3c92617b0c05e728d43b99f41376a35e0b5a82af1e49b884723e9eddc8109341d50056a10068"
+          "content": "fa8ab90cedca768cfa71721dcba9a324ad62d4b0d791e8c05b6053e431597bce5945ab7bc1a26aa64e4107486337b82a592f6887c9626498d1c571d3b7e673ad"
         }
       ],
       "licenses": [
@@ -3660,23 +4444,23 @@
       ]
     },
     {
-      "bom-ref": "@trycua/cua-driver-linux-x64-gnu@0.32.0",
+      "bom-ref": "@trycua/cua-driver-linux-x64-gnu@0.33.4",
       "type": "library",
       "name": "@trycua/cua-driver-linux-x64-gnu",
-      "version": "0.32.0",
+      "version": "0.33.4",
       "scope": "optional",
-      "purl": "pkg:npm/%40trycua/cua-driver-linux-x64-gnu@0.32.0",
+      "purl": "pkg:npm/%40trycua/cua-driver-linux-x64-gnu@0.33.4",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@trycua/cua-driver-linux-x64-gnu/-/cua-driver-linux-x64-gnu-0.32.0.tgz"
+          "url": "https://registry.npmjs.org/@trycua/cua-driver-linux-x64-gnu/-/cua-driver-linux-x64-gnu-0.33.4.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "6ebefc5b04e87d31cc02aec76602940d8be32d766c2c5dad517e652a7889db40fa197ab8d66e4f1da92e141440245bc0eb001da68a9913b4ecaccc6715bc8ca2"
+          "content": "69486b3829a6ff2a5cc17073dcb2a399993d878dccdd2611ef9c78dc30f510cd8eb96452c1b53e3782a7efc2da6d52edf587a1a63faad69cccfa3ca475e570dc"
         }
       ],
       "licenses": [
@@ -3686,23 +4470,23 @@
       ]
     },
     {
-      "bom-ref": "@trycua/cua-driver-win32-arm64-msvc@0.32.0",
+      "bom-ref": "@trycua/cua-driver-win32-arm64-msvc@0.33.4",
       "type": "library",
       "name": "@trycua/cua-driver-win32-arm64-msvc",
-      "version": "0.32.0",
+      "version": "0.33.4",
       "scope": "optional",
-      "purl": "pkg:npm/%40trycua/cua-driver-win32-arm64-msvc@0.32.0",
+      "purl": "pkg:npm/%40trycua/cua-driver-win32-arm64-msvc@0.33.4",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@trycua/cua-driver-win32-arm64-msvc/-/cua-driver-win32-arm64-msvc-0.32.0.tgz"
+          "url": "https://registry.npmjs.org/@trycua/cua-driver-win32-arm64-msvc/-/cua-driver-win32-arm64-msvc-0.33.4.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "1ebc401065937f920ee4fb9d1bc6a90945b7c272454d89c20317d1e0f283cd158170575cfdf10f5b84b7aab60bee2f12b7c80b3e83d26ac3a00262e6d889f105"
+          "content": "685a18e3e441a0a42ca818f99b31c08ce8ca8557ff9515c6a920eb049b725d0b1c41e9db5d1aa9a886fbabb7365ab32b69f12180215b1d867fd1ffb385213239"
         }
       ],
       "licenses": [
@@ -3712,23 +4496,23 @@
       ]
     },
     {
-      "bom-ref": "@trycua/cua-driver-win32-x64-msvc@0.32.0",
+      "bom-ref": "@trycua/cua-driver-win32-x64-msvc@0.33.4",
       "type": "library",
       "name": "@trycua/cua-driver-win32-x64-msvc",
-      "version": "0.32.0",
+      "version": "0.33.4",
       "scope": "optional",
-      "purl": "pkg:npm/%40trycua/cua-driver-win32-x64-msvc@0.32.0",
+      "purl": "pkg:npm/%40trycua/cua-driver-win32-x64-msvc@0.33.4",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@trycua/cua-driver-win32-x64-msvc/-/cua-driver-win32-x64-msvc-0.32.0.tgz"
+          "url": "https://registry.npmjs.org/@trycua/cua-driver-win32-x64-msvc/-/cua-driver-win32-x64-msvc-0.33.4.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "80e70c36374be36cf5421445cfc64c2247e6b0b5aab2a13bd910a13bd3528fd79e1fc5cd2b7d51299bfe28e3610b17cbf47ab5b1f336760a33437deac4589895"
+          "content": "5f0ebad491fcdffed62f3a2942c017d4ee780b25afdfc4a749c3dcd8acaab5953873741eefa5a3cd05b4ced8532043f0539e32cb4514eac7300cbaba58daa8cf"
         }
       ],
       "licenses": [
@@ -4158,23 +4942,23 @@
       ]
     },
     {
-      "bom-ref": "acorn@8.18.0",
+      "bom-ref": "acorn@8.19.0",
       "type": "library",
       "name": "acorn",
-      "version": "8.18.0",
+      "version": "8.19.0",
       "scope": "required",
-      "purl": "pkg:npm/acorn@8.18.0",
+      "purl": "pkg:npm/acorn@8.19.0",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/acorn/-/acorn-8.18.0.tgz"
+          "url": "https://registry.npmjs.org/acorn/-/acorn-8.19.0.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "946abef72af5fc6b8059a558207463befc921b9ff855f288bc2f045b14ad3dd70387f29aec51b7b703fabf8779064adabd48a584802c1b8423f37b74d8b5943d"
+          "content": "a09940dd78919bb0b293aa850f6267f1a93d07b8d2cb4ab2d340033b7fbc7694f42d28c58a1418bf80b4d8b142498255dd0dfbc58c30472e66f88a48894cea5b"
         }
       ],
       "licenses": [
@@ -4797,6 +5581,34 @@
         {
           "license": {
             "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "chess.js@1.4.0",
+      "type": "library",
+      "name": "chess.js",
+      "version": "1.4.0",
+      "scope": "required",
+      "purl": "pkg:npm/chess.js@1.4.0",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/chess.js/-/chess.js-1.4.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "041260aebb4a40ecc52e89d1d25fa4eb803df0d2de98fc0db02b24c1bfb6f5b470a1b51ae224e6e7513593018f6d65c071f7436b5f2769deafa4f3ca3d66abab"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-2-Clause"
           }
         }
       ]
@@ -5726,12 +6538,12 @@
       ]
     },
     {
-      "bom-ref": "electron@45.3.1",
+      "bom-ref": "electron@45.5.0",
       "type": "library",
       "name": "electron",
-      "version": "45.3.1",
+      "version": "45.5.0",
       "scope": "optional",
-      "purl": "pkg:npm/electron@45.3.1",
+      "purl": "pkg:npm/electron@45.5.0",
       "properties": [
         {
           "name": "cdx:npm:package:development",
@@ -5741,13 +6553,13 @@
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/electron/-/electron-45.3.1.tgz"
+          "url": "https://registry.npmjs.org/electron/-/electron-45.5.0.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "d6861abb6078457176ec37f67f3beb143268cbc00e4959604ba824968eb090b67f41625e9890891e4638faeb9a72f48552d47c2229a22ee90b345a183f47e68c"
+          "content": "ac14340b3bb542bb6bb3a17282aed0b5f720921a6defd4b294c91a15bd4086d5c8b5dc61d16ab71114283df05810261ff85c69b4089728267ba7e1ffdfd09620"
         }
       ],
       "licenses": [
@@ -5853,23 +6665,23 @@
       ]
     },
     {
-      "bom-ref": "encodeurl@2.0.0",
+      "bom-ref": "encodeurl@2.0.3",
       "type": "library",
       "name": "encodeurl",
-      "version": "2.0.0",
+      "version": "2.0.3",
       "scope": "required",
-      "purl": "pkg:npm/encodeurl@2.0.0",
+      "purl": "pkg:npm/encodeurl@2.0.3",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/encodeurl/-/encodeurl-2.0.0.tgz"
+          "url": "https://registry.npmjs.org/encodeurl/-/encodeurl-2.0.3.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "4349fd1d18b89ba26e188575785966bc907b644571bbddc8accca232c182d25acc24c5b3460c7a586aaec9f4206556f7d6f8468179df98f34d5e6c673a4441ae"
+          "content": "988b5e60e36211f738c567f6175597a2f87573c9e9cd2d34bcd7a250f770145f909552678be80dbe9425b4b3108686fcadec3f6d659cfdb193b94af41141add3"
         }
       ],
       "licenses": [
@@ -6306,23 +7118,23 @@
       ]
     },
     {
-      "bom-ref": "express-rate-limit@8.7.1",
+      "bom-ref": "express-rate-limit@8.7.5",
       "type": "library",
       "name": "express-rate-limit",
-      "version": "8.7.1",
+      "version": "8.7.5",
       "scope": "required",
-      "purl": "pkg:npm/express-rate-limit@8.7.1",
+      "purl": "pkg:npm/express-rate-limit@8.7.5",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/express-rate-limit/-/express-rate-limit-8.7.1.tgz"
+          "url": "https://registry.npmjs.org/express-rate-limit/-/express-rate-limit-8.7.5.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "d855dbaa4ca08a5de66625f312d33422313f501981368b7427518456b253e096ebbf0392a04b6ab4efb01db88c4042d67b578dbc7a18460d9d9233a277ee8990"
+          "content": "c22fafdfc731d84a83d099e113f7bbe28e6d16a29650e00f149220c848aa27cbf630da68380037908da15d8388f9833e1c4e72a9b740955c66d86a8e21e60e80"
         }
       ],
       "licenses": [
@@ -6665,6 +7477,34 @@
         {
           "license": {
             "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "flatbuffers@25.9.23",
+      "type": "library",
+      "name": "flatbuffers",
+      "version": "25.9.23",
+      "scope": "required",
+      "purl": "pkg:npm/flatbuffers@25.9.23",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/flatbuffers/-/flatbuffers-25.9.23.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "308d6ab3b2e8e12cb0d043b3525d318ecda5b287aa164bb8e0aa6781f21db87058bf39bc876fbb2bc60c421d49b55555ad4be12e9370a958b80c445e8142613d"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
           }
         }
       ]
@@ -7179,6 +8019,34 @@
       ]
     },
     {
+      "bom-ref": "guid-typescript@1.0.9",
+      "type": "library",
+      "name": "guid-typescript",
+      "version": "1.0.9",
+      "scope": "required",
+      "purl": "pkg:npm/guid-typescript@1.0.9",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/guid-typescript/-/guid-typescript-1.0.9.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "63c4f8bd88447f024e4dba2e444bc6fb75c3b23afc137908afbb9ff8967405896816cb6d88753459fbc0355b11ed3c4d5096bf5a90a7c3f227a3fa7e0de06105"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ]
+    },
+    {
       "bom-ref": "has-symbols@1.1.0",
       "type": "library",
       "name": "has-symbols",
@@ -7263,23 +8131,23 @@
       ]
     },
     {
-      "bom-ref": "hono@4.13.13",
+      "bom-ref": "hono@4.13.21",
       "type": "library",
       "name": "hono",
-      "version": "4.13.13",
+      "version": "4.13.21",
       "scope": "required",
-      "purl": "pkg:npm/hono@4.13.13",
+      "purl": "pkg:npm/hono@4.13.21",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/hono/-/hono-4.13.13.tgz"
+          "url": "https://registry.npmjs.org/hono/-/hono-4.13.21.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "090e3a53466400699b4ffe14c5dcf3189a5a70fd8878a818e1ae7fb4e23d00005ba4e31f2bbdfdc1f0d79afd6eb0293edd190a8f5850cb8fdf8e18b06b6c65ac"
+          "content": "87d52c82ea9f564e248d4c0bbd0a473a639a2695b5d23cfd969f1bbca5146b4e30246fdf69b28506a5d9d3a0fa2c569e29066d5194557a0d207e44d312c5fb33"
         }
       ],
       "licenses": [
@@ -7655,23 +8523,23 @@
       ]
     },
     {
-      "bom-ref": "ip-address@10.7.4",
+      "bom-ref": "ip-address@10.7.6",
       "type": "library",
       "name": "ip-address",
-      "version": "10.7.4",
+      "version": "10.7.6",
       "scope": "required",
-      "purl": "pkg:npm/ip-address@10.7.4",
+      "purl": "pkg:npm/ip-address@10.7.6",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/ip-address/-/ip-address-10.7.4.tgz"
+          "url": "https://registry.npmjs.org/ip-address/-/ip-address-10.7.6.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "0d604c2b278cdb90fbd27ac889392042d879f7f1be9da28e4dea7a86e17d8fe1a678adc3303eb466fc60e5de6a427cfedfc007828bba79a9f62c4097fa5aca0e"
+          "content": "d342d890ce9bc882daf5e408c7aaa869708ce34c532dde7a019e2fc9a3d6dd84f26f8f556583e8e71b2202ae2db90e78187e11ee055d612709d41ec1efb3ee4e"
         }
       ],
       "licenses": [
@@ -7963,23 +8831,23 @@
       ]
     },
     {
-      "bom-ref": "jose@6.2.13",
+      "bom-ref": "jose@6.2.18",
       "type": "library",
       "name": "jose",
-      "version": "6.2.13",
+      "version": "6.2.18",
       "scope": "required",
-      "purl": "pkg:npm/jose@6.2.13",
+      "purl": "pkg:npm/jose@6.2.18",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/jose/-/jose-6.2.13.tgz"
+          "url": "https://registry.npmjs.org/jose/-/jose-6.2.18.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "ed3220d74644d71f3661e76237e95cacf36f18c2a07bdc851d00fe421a3f6fccb669d7ee814dc0b2fbc77f15747f3c859654fa97dc428dfe11598f60fd9f4f25"
+          "content": "768578b61530824af27091f8c8b7aac13188219a611e5fa993b08f45eb8c2216219dc9a0cdd928f3931a086e184054f1a8c16bd7fa041f7dad66e28aa2f70312"
         }
       ],
       "licenses": [
@@ -12224,23 +13092,23 @@
       ]
     },
     {
-      "bom-ref": "object-inspect@1.13.4",
+      "bom-ref": "object-inspect@1.14.0",
       "type": "library",
       "name": "object-inspect",
-      "version": "1.13.4",
+      "version": "1.14.0",
       "scope": "required",
-      "purl": "pkg:npm/object-inspect@1.13.4",
+      "purl": "pkg:npm/object-inspect@1.14.0",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/object-inspect/-/object-inspect-1.13.4.tgz"
+          "url": "https://registry.npmjs.org/object-inspect/-/object-inspect-1.14.0.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "5baee22e5e09d845c41936df78709f7eb8c37e2b6f2c0360d14957df01545124f1f762974457a0307515812a84fb0be101b8b85aa8c683d733cac4d5d84a5b7b"
+          "content": "215807365a7f8f0417dbbd7e5f3a2af4b64d4d65f164af9c10eac604e0715cd6e7edf6a99d9f93b3a4d532034eb807b3c06db076d9cc5fdeed4cf2ba5449ee39"
         }
       ],
       "licenses": [
@@ -12336,23 +13204,79 @@
       ]
     },
     {
-      "bom-ref": "openai@7.27.0",
+      "bom-ref": "onnxruntime-common@1.31.1",
       "type": "library",
-      "name": "openai",
-      "version": "7.27.0",
+      "name": "onnxruntime-common",
+      "version": "1.31.1",
       "scope": "required",
-      "purl": "pkg:npm/openai@7.27.0",
+      "purl": "pkg:npm/onnxruntime-common@1.31.1",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/openai/-/openai-7.27.0.tgz"
+          "url": "https://registry.npmjs.org/onnxruntime-common/-/onnxruntime-common-1.31.1.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "403a3516f9d10d99f5e58c0654e853f6fa72ca90e22e986477fedae267144567f9ba932811eb6003aa380c978823e659902ea6e83be58a50b08a2dfeca70dc4f"
+          "content": "17e9e760d890b66349f7957a47f8ac049aa2569740342aec30483539a17e0646e5dc602dcd62d1ecd835ecb77442d62d609ca8b4e1cf2733909f563a3cb663a6"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "onnxruntime-web@1.31.1",
+      "type": "library",
+      "name": "onnxruntime-web",
+      "version": "1.31.1",
+      "scope": "required",
+      "purl": "pkg:npm/onnxruntime-web@1.31.1",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.31.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e46787f9b590f87c4cd74cfb7ab1a5b16aabcabc0c6d2be6ff5b6422c2934f8f20d1f235f555d5542e37e6de2ded5b0f75241e4bb366b993d7ad0ef793cd9447"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "openai@7.28.0",
+      "type": "library",
+      "name": "openai",
+      "version": "7.28.0",
+      "scope": "required",
+      "purl": "pkg:npm/openai@7.28.0",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/openai/-/openai-7.28.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "1d26387c52df9501987b692f3b46ad9bafc6ce10fad60a7288e65952f3b89e9b4c521b81d6da362b7c3016916a73981f10ad12c72208162bb5c84d8cb7281670"
         }
       ],
       "licenses": [
@@ -12364,23 +13288,23 @@
       ]
     },
     {
-      "bom-ref": "openclaw@2026.10.6",
+      "bom-ref": "openclaw@2026.10.33",
       "type": "library",
       "name": "openclaw",
-      "version": "2026.10.6",
+      "version": "2026.10.33",
       "scope": "required",
-      "purl": "pkg:npm/openclaw@2026.10.6",
+      "purl": "pkg:npm/openclaw@2026.10.33",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/openclaw/-/openclaw-2026.10.6.tgz"
+          "url": "https://registry.npmjs.org/openclaw/-/openclaw-2026.10.33.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "8d2a503dad89c39ac6d09d860b4ee3f7ea87b55608ba81e381c714f3c25e4bea7bd7cf2c0429ef2097ae6a234f1e3d73b1692e1dc06fe38dd0884521eeaaf1c0"
+          "content": "38c26fb3b7d2c013c110d7de8214c32a8daec50dabeb39081f529c61ebd2118e826b70d312e9db7ee3e5484fa59af399166c8b2de7de420728544c6a115ec879"
         }
       ],
       "licenses": [
@@ -12804,23 +13728,275 @@
       ]
     },
     {
-      "bom-ref": "pkce-challenge@5.0.1",
+      "bom-ref": "pg@8.23.1",
       "type": "library",
-      "name": "pkce-challenge",
-      "version": "5.0.1",
+      "name": "pg",
+      "version": "8.23.1",
       "scope": "required",
-      "purl": "pkg:npm/pkce-challenge@5.0.1",
+      "purl": "pkg:npm/pg@8.23.1",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/pkce-challenge/-/pkce-challenge-5.0.1.tgz"
+          "url": "https://registry.npmjs.org/pg/-/pg-8.23.1.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "c10d1bfd6e05af4d6ab691e5a92aaca5c8f712106f8a6b1d8742a51e11fc1d166732c11ad1e6b67d350b397392f5c710af7a26f86706464e1efa2b2b65657ca9"
+          "content": "68bf7a00700db568cf2c338baa7871fa7829f7e50aec44c453c549ac3086bec4928bf9862dc598b12e877ab83b96668125ee2ec2b7eab1aee04c415a4a2cc3a1"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "pg-cloudflare@1.4.1",
+      "type": "library",
+      "name": "pg-cloudflare",
+      "version": "1.4.1",
+      "scope": "optional",
+      "purl": "pkg:npm/pg-cloudflare@1.4.1",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pg-cloudflare/-/pg-cloudflare-1.4.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e8f41bb05599729f44989130cb97064362daf80316a4fe3a9606dbf17f94fd7b07214c1e603342a5eb8a724e51c4bd8c755162ee4adb6c48b99d7e1987b261ad"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "pg-connection-string@2.14.1",
+      "type": "library",
+      "name": "pg-connection-string",
+      "version": "2.14.1",
+      "scope": "required",
+      "purl": "pkg:npm/pg-connection-string@2.14.1",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.14.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a91de418d3c12e908db73d1ebdb280d18fcc4455f0492753fa94c9bd8a7f6d74dc45e65bbd7d64cc5d08c93735427c6a17b0196ce78184d2fc47999841957f30"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "pg-int8@1.0.1",
+      "type": "library",
+      "name": "pg-int8",
+      "version": "1.0.1",
+      "scope": "required",
+      "purl": "pkg:npm/pg-int8@1.0.1",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "582b5a6d2eadddcf129290c15256f59233acee5ebac6c19d2a920f66c838c11f81dfebbd500ba6da8752b05f6d9efc60f348786712d6332e294633ac148a90a7"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "pg-pool@3.14.0",
+      "type": "library",
+      "name": "pg-pool",
+      "version": "3.14.0",
+      "scope": "required",
+      "purl": "pkg:npm/pg-pool@3.14.0",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pg-pool/-/pg-pool-3.14.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "80ab4f9057503d4dc392ca2854b8bd2ec8d9c6bb015192296beeda571f8b579a4d8742b33f86657ae776a68f82a27af16ee5c6049e877deafa85d829201a416b"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "pg-protocol@1.16.1",
+      "type": "library",
+      "name": "pg-protocol",
+      "version": "1.16.1",
+      "scope": "required",
+      "purl": "pkg:npm/pg-protocol@1.16.1",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pg-protocol/-/pg-protocol-1.16.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a7d54e14c88707f65b2404deb5b83ef7d3f1b2c4d5490467cae3d243aee6375fb52813a365a67cdd943396d9f13e12704ac0b79f0563275d0354995eadb1732e"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "pg-types@2.2.0",
+      "type": "library",
+      "name": "pg-types",
+      "version": "2.2.0",
+      "scope": "required",
+      "purl": "pkg:npm/pg-types@2.2.0",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a9300096b12c97cb383a211063af700ef70c21d40deb0773e688d088ecba61132eca7c5e9ce3743b9a02a4923a96c85ceac720018f2abc9d8e9ffa7e09763418"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "pgpass@1.0.5",
+      "type": "library",
+      "name": "pgpass",
+      "version": "1.0.5",
+      "scope": "required",
+      "purl": "pkg:npm/pgpass@1.0.5",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "15d5bdaff8d066149ea21b35677b08d72c4540d16f31c9e67ee8f85813144f13ab0322cc693704d5a00c0624e56cc35a5ef04242e562d11ee177cb9d0d23fbba"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkce-challenge@5.0.2",
+      "type": "library",
+      "name": "pkce-challenge",
+      "version": "5.0.2",
+      "scope": "required",
+      "purl": "pkg:npm/pkce-challenge@5.0.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pkce-challenge/-/pkce-challenge-5.0.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "bc2739e3eab221f282e5ed94376f0064a125c2a8cb20d822215dd1288f290eef774e368026807742b80ccc4068bb2f3238ab175577408a73b5400ac97fdc7958"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "platform@1.3.6",
+      "type": "library",
+      "name": "platform",
+      "version": "1.3.6",
+      "scope": "required",
+      "purl": "pkg:npm/platform@1.3.6",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/platform/-/platform-1.3.6.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "7e759596351c853ae8e9188216f09705b36125cd8d8a337ba084316f0b322f46ee5893c6f39bfcd5e8651c8f5f5eb26c30d813a1f12858841e0a52a983114bae"
         }
       ],
       "licenses": [
@@ -12877,6 +14053,118 @@
         {
           "alg": "SHA-512",
           "content": "e34416e586a504d7d0a39c916268b0ed8cfa4ca295af787af7bd01d9813eddf429b1672b6e3d4fcc9831789d7d0d142384c6ca3c8b8c63cac569773c9a8a2557"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "postgres-array@2.0.0",
+      "type": "library",
+      "name": "postgres-array",
+      "version": "2.0.0",
+      "scope": "required",
+      "purl": "pkg:npm/postgres-array@2.0.0",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postgres-array/-/postgres-array-2.0.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "56966b52a53903af5e4325b6739080d63b4b79c0ac37653f6c3e958a5ac50d6ab9fb95081153bb9dacd2dd311c1dfd73b8f60efeca86bd4bd6eb683ce915d9b8"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "postgres-bytea@1.0.1",
+      "type": "library",
+      "name": "postgres-bytea",
+      "version": "1.0.1",
+      "scope": "required",
+      "purl": "pkg:npm/postgres-bytea@1.0.1",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postgres-bytea/-/postgres-bytea-1.0.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e7ee47a979ec64f13ae4825948c919b544404597a57a5da85d410ef2b1fcdd54bf8711f9befd6e1eab8f839c19b3cc8c01f76ff7bd4853e91c3d47338bb35505"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "postgres-date@1.0.7",
+      "type": "library",
+      "name": "postgres-date",
+      "version": "1.0.7",
+      "scope": "required",
+      "purl": "pkg:npm/postgres-date@1.0.7",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postgres-date/-/postgres-date-1.0.7.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "b2e0e68cb55083bf2730ad94678e788401be3805be1d03d9ea7fbe4cd0d45fe2f4fae5252f2c27a3124a0e8bb9d599becd30a3ac297436ae89f42e613fdbcafd"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "postgres-interval@1.2.0",
+      "type": "library",
+      "name": "postgres-interval",
+      "version": "1.2.0",
+      "scope": "required",
+      "purl": "pkg:npm/postgres-interval@1.2.0",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postgres-interval/-/postgres-interval-1.2.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f5985728cfebc37e74375a2fb961db1b19c687f48d278727c4788cd2bc44e15378d70b20f0ff335a7f61bff6ee2b4d113f85af94ecabfd10438a9b72c556e465"
         }
       ],
       "licenses": [
@@ -13234,23 +14522,23 @@
       ]
     },
     {
-      "bom-ref": "qs@6.16.1",
+      "bom-ref": "qs@6.17.1",
       "type": "library",
       "name": "qs",
-      "version": "6.16.1",
+      "version": "6.17.1",
       "scope": "required",
-      "purl": "pkg:npm/qs@6.16.1",
+      "purl": "pkg:npm/qs@6.17.1",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/qs/-/qs-6.16.1.tgz"
+          "url": "https://registry.npmjs.org/qs/-/qs-6.17.1.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "e4fc7a27badf1c1006521350ddeb3863370e741070d120dc56d4e126697845d9cac38b4ab367a903490f67e2bc5fe5a21e4b53f7744755c43fdf29b96930a0b6"
+          "content": "8dddc23a468a5601945be647c841c21bd6c7ed1a1a6a25ae320cec2018d43158cb01a5865a9a14015c258d5bc11f146eff6a841e769d2c666b92eb585013d024"
         }
       ],
       "licenses": [
@@ -13514,23 +14802,23 @@
       ]
     },
     {
-      "bom-ref": "router@2.2.0",
+      "bom-ref": "router@2.3.0",
       "type": "library",
       "name": "router",
-      "version": "2.2.0",
+      "version": "2.3.0",
       "scope": "required",
-      "purl": "pkg:npm/router@2.2.0",
+      "purl": "pkg:npm/router@2.3.0",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/router/-/router-2.2.0.tgz"
+          "url": "https://registry.npmjs.org/router/-/router-2.3.0.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "9cb4eb50a9b653288beeb9616a9bbf665e3917036091919a0a965b2076a30d883094908eccb4a4f9c20f027b04a95f79e468c82c99ca6dd402d6754fcfe80061"
+          "content": "6e9a3045f1a310f7bcb7d47a7c92338709b2086017c0abf1054b20266f9b26e93075c5a65176cca3ba76db0eda6264013d04d430da8c577f585f490ca2edf3f3"
         }
       ],
       "licenses": [
@@ -14018,6 +15306,34 @@
       ]
     },
     {
+      "bom-ref": "split2@4.2.0",
+      "type": "library",
+      "name": "split2",
+      "version": "4.2.0",
+      "scope": "required",
+      "purl": "pkg:npm/split2@4.2.0",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/split2/-/split2-4.2.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "51c8dc24e5a49eb36417a3cb5fcdea70733a28781528d915eb663c6b9b980d5bfdc9d19057000730aa877498ded554d6a658c6d1662908386b09d00e607e135a"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ]
+    },
+    {
       "bom-ref": "sqlite-vec@0.1.9",
       "type": "library",
       "name": "sqlite-vec",
@@ -14144,23 +15460,23 @@
       ]
     },
     {
-      "bom-ref": "standardwebhooks@1.1.1",
+      "bom-ref": "standardwebhooks@1.3.0",
       "type": "library",
       "name": "standardwebhooks",
-      "version": "1.1.1",
+      "version": "1.3.0",
       "scope": "required",
-      "purl": "pkg:npm/standardwebhooks@1.1.1",
+      "purl": "pkg:npm/standardwebhooks@1.3.0",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/standardwebhooks/-/standardwebhooks-1.1.1.tgz"
+          "url": "https://registry.npmjs.org/standardwebhooks/-/standardwebhooks-1.3.0.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "6c26d7f5913216458fb11cfb065dcdb90509a219b01927afff286beef85a18f95ce007c8aeca4845ae9c3d306e23522d9ab4c327877f4b6842b1f7b8faf4069d"
+          "content": "e56f6c9078ea026d9d940f705af8254cffa85f8ec95f89455d593568957bf931b5b27bd347841769580fb1c133bcec3d191ade79abccc1ba8478bf8c1a16470a"
         }
       ],
       "licenses": [
@@ -14597,23 +15913,23 @@
       ]
     },
     {
-      "bom-ref": "typebox@1.3.34",
+      "bom-ref": "typebox@1.3.35",
       "type": "library",
       "name": "typebox",
-      "version": "1.3.34",
+      "version": "1.3.35",
       "scope": "required",
-      "purl": "pkg:npm/typebox@1.3.34",
+      "purl": "pkg:npm/typebox@1.3.35",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/typebox/-/typebox-1.3.34.tgz"
+          "url": "https://registry.npmjs.org/typebox/-/typebox-1.3.35.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "c1b9f3ad75c35bcc441470d966cda3a3532485a62528063815186905cd7ed8b1757d95411825c674b12103f67f3416e0cc93057de33c9bb7a528f6bff8ac5a51"
+          "content": "80d71a00aba1ff82690c71f2a3d01f5ceb709695543081e185d241118fb5c7aae744507dbac186a3a41f9f001a7556ceec9e80a6d019c06b22d5930439b212de"
         }
       ],
       "licenses": [
@@ -15157,6 +16473,34 @@
       ]
     },
     {
+      "bom-ref": "xtend@4.0.2",
+      "type": "library",
+      "name": "xtend",
+      "version": "4.0.2",
+      "scope": "required",
+      "purl": "pkg:npm/xtend@4.0.2",
+      "properties": [],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "2ca614d620172575200179fd5118e2bbe3168725171ecbdfa7b99cb989bd75250a2b4fc28edad4c050310fcdbf98259bb4bb068c521a774c08b28778ceb4c011"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
       "bom-ref": "y18n@5.0.8",
       "type": "library",
       "name": "y18n",
@@ -15381,12 +16725,78 @@
       ]
     },
     {
-      "bom-ref": "@capri/runtime@1.0.1",
+      "bom-ref": "@capri/core@1.2.0",
+      "type": "library",
+      "name": "@capri/core",
+      "version": "1.2.0",
+      "scope": "required",
+      "purl": "pkg:npm/%40capri/core@1.2.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        }
+      ],
+      "externalReferences": [],
+      "licenses": [
+        {
+          "license": {
+            "id": "GPL-3.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@capri/runtime@1.2.0",
       "type": "library",
       "name": "@capri/runtime",
-      "version": "1.0.1",
+      "version": "1.2.0",
       "scope": "required",
-      "purl": "pkg:npm/%40capri/runtime@1.0.1",
+      "purl": "pkg:npm/%40capri/runtime@1.2.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        }
+      ],
+      "externalReferences": [],
+      "licenses": [
+        {
+          "license": {
+            "id": "GPL-3.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@capri/skill-sdk@1.2.0",
+      "type": "library",
+      "name": "@capri/skill-sdk",
+      "version": "1.2.0",
+      "scope": "required",
+      "purl": "pkg:npm/%40capri/skill-sdk@1.2.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        }
+      ],
+      "externalReferences": [],
+      "licenses": [
+        {
+          "license": {
+            "id": "GPL-3.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@capri/skills@1.2.0",
+      "type": "library",
+      "name": "@capri/skills",
+      "version": "1.2.0",
+      "scope": "required",
+      "purl": "pkg:npm/%40capri/skills@1.2.0",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -15405,34 +16815,53 @@
   ],
   "dependencies": [
     {
-      "ref": "capri@1.0.1",
+      "ref": "capri@1.2.0",
       "dependsOn": [
-        "@capri/runtime@1.0.1",
-        "capri-desktop@1.0.1",
+        "@capri/runtime@1.2.0",
+        "capri-desktop@1.2.0",
+        "@capri/skill-sdk@1.2.0",
+        "@capri/core@1.2.0",
+        "@capri/skills@1.2.0",
         "@js-temporal/polyfill@0.5.1",
+        "@scoriiu/fenshot@0.1.5",
+        "chess.js@1.4.0",
         "mathjs@15.2.0",
-        "openclaw@2026.10.6",
+        "onnxruntime-web@1.31.1",
+        "openclaw@2026.10.33",
         "pdfjs-dist@6.5.438",
-        "electron@45.3.1",
+        "electron@45.5.0",
         "playwright-core@1.63.0",
         "prettier@3.6.2"
       ]
     },
     {
-      "ref": "capri-desktop@1.0.1",
-      "dependsOn": []
+      "ref": "capri-desktop@1.2.0",
+      "dependsOn": [
+        "diff@9.0.0",
+        "ignore@7.0.12",
+        "koffi@3.3.2"
+      ]
     },
     {
       "ref": "@agentclientprotocol/sdk@1.7.0",
-      "dependsOn": ["zod@4.6.6"]
+      "dependsOn": [
+        "zod@4.6.6"
+      ]
     },
     {
       "ref": "@anthropic-ai/sdk@0.131.0",
-      "dependsOn": ["zod@4.6.6", "json-schema-to-ts@3.1.1", "standardwebhooks@1.1.1"]
+      "dependsOn": [
+        "zod@4.6.6",
+        "json-schema-to-ts@3.1.1",
+        "standardwebhooks@1.3.0"
+      ]
     },
     {
       "ref": "@babel/code-frame@8.0.6",
-      "dependsOn": ["@babel/helper-validator-identifier@8.0.6", "js-tokens@10.0.0"]
+      "dependsOn": [
+        "@babel/helper-validator-identifier@8.0.6",
+        "js-tokens@10.0.0"
+      ]
     },
     {
       "ref": "@babel/generator@8.0.6",
@@ -15459,7 +16888,9 @@
     },
     {
       "ref": "@babel/parser@8.0.6",
-      "dependsOn": ["@babel/types@8.0.8"]
+      "dependsOn": [
+        "@babel/types@8.0.8"
+      ]
     },
     {
       "ref": "@babel/runtime@7.29.10",
@@ -15467,7 +16898,11 @@
     },
     {
       "ref": "@babel/template@8.0.0",
-      "dependsOn": ["@babel/code-frame@8.0.6", "@babel/parser@8.0.6", "@babel/types@8.0.8"]
+      "dependsOn": [
+        "@babel/code-frame@8.0.6",
+        "@babel/parser@8.0.6",
+        "@babel/types@8.0.8"
+      ]
     },
     {
       "ref": "@babel/traverse@8.0.6",
@@ -15483,7 +16918,10 @@
     },
     {
       "ref": "@babel/types@8.0.8",
-      "dependsOn": ["@babel/helper-string-parser@8.0.8", "@babel/helper-validator-identifier@8.0.6"]
+      "dependsOn": [
+        "@babel/helper-string-parser@8.0.8",
+        "@babel/helper-validator-identifier@8.0.6"
+      ]
     },
     {
       "ref": "@borewit/text-codec@0.2.2",
@@ -15491,7 +16929,10 @@
     },
     {
       "ref": "@clack/core@1.5.1",
-      "dependsOn": ["fast-wrap-ansi@0.2.2", "sisteransi@1.0.5"]
+      "dependsOn": [
+        "fast-wrap-ansi@0.2.2",
+        "sisteransi@1.0.5"
+      ]
     },
     {
       "ref": "@clack/prompts@1.8.1",
@@ -15503,8 +16944,11 @@
       ]
     },
     {
-      "ref": "@earendil-works/pi-tui@1.0.0",
-      "dependsOn": ["get-east-asian-width@1.6.0", "marked@18.0.11"]
+      "ref": "@earendil-works/pi-tui@1.0.3",
+      "dependsOn": [
+        "get-east-asian-width@1.6.0",
+        "marked@18.0.11"
+      ]
     },
     {
       "ref": "@electron-internal/extract-zip@1.0.6",
@@ -15633,7 +17077,7 @@
     {
       "ref": "@google/genai@2.27.0",
       "dependsOn": [
-        "@modelcontextprotocol/sdk@1.32.0",
+        "@modelcontextprotocol/sdk@1.32.1",
         "google-auth-library@10.9.1",
         "p-retry@4.6.2",
         "protobufjs@7.6.6",
@@ -15642,7 +17086,10 @@
     },
     {
       "ref": "@grammyjs/transformer-throttler@1.2.1",
-      "dependsOn": ["grammy@1.46.0", "bottleneck@2.19.5"]
+      "dependsOn": [
+        "grammy@1.46.0",
+        "bottleneck@2.19.5"
+      ]
     },
     {
       "ref": "@grammyjs/types@5.0.0",
@@ -15658,16 +17105,23 @@
       ]
     },
     {
-      "ref": "@hono/node-server@2.1.5",
-      "dependsOn": ["hono@4.13.13"]
+      "ref": "@hono/node-server@2.1.11",
+      "dependsOn": [
+        "hono@4.13.21"
+      ]
     },
     {
       "ref": "@isaacs/fs-minipass@4.0.1",
-      "dependsOn": ["minipass@7.1.3"]
+      "dependsOn": [
+        "minipass@7.1.3"
+      ]
     },
     {
       "ref": "@jridgewell/gen-mapping@0.4.0-beta.0",
-      "dependsOn": ["@jridgewell/sourcemap-codec@1.6.0", "@jridgewell/trace-mapping@0.3.31"]
+      "dependsOn": [
+        "@jridgewell/sourcemap-codec@1.6.0",
+        "@jridgewell/trace-mapping@0.3.31"
+      ]
     },
     {
       "ref": "@jridgewell/resolve-uri@3.1.2",
@@ -15679,11 +17133,16 @@
     },
     {
       "ref": "@jridgewell/trace-mapping@0.3.31",
-      "dependsOn": ["@jridgewell/resolve-uri@3.1.2", "@jridgewell/sourcemap-codec@1.6.0"]
+      "dependsOn": [
+        "@jridgewell/resolve-uri@3.1.2",
+        "@jridgewell/sourcemap-codec@1.6.0"
+      ]
     },
     {
       "ref": "@js-temporal/polyfill@0.5.1",
-      "dependsOn": ["jsbi@4.3.2"]
+      "dependsOn": [
+        "jsbi@4.3.2"
+      ]
     },
     {
       "ref": "@koromix/koffi-android-arm64@3.3.2",
@@ -15803,16 +17262,16 @@
     {
       "ref": "@mistralai/mistralai@2.7.0",
       "dependsOn": [
-        "@opentelemetry/semantic-conventions@1.43.0",
+        "@opentelemetry/semantic-conventions@1.45.0",
         "ws@8.22.0",
         "zod@4.6.6",
         "zod-to-json-schema@3.25.2"
       ]
     },
     {
-      "ref": "@modelcontextprotocol/sdk@1.32.0",
+      "ref": "@modelcontextprotocol/sdk@1.32.1",
       "dependsOn": [
-        "@hono/node-server@2.1.5",
+        "@hono/node-server@2.1.11",
         "ajv@8.20.0",
         "ajv-formats@3.0.1",
         "content-type@1.0.5",
@@ -15821,11 +17280,11 @@
         "eventsource@3.0.7",
         "eventsource-parser@3.1.1",
         "express@5.2.1",
-        "express-rate-limit@8.7.1",
-        "hono@4.13.13",
-        "jose@6.2.13",
+        "express-rate-limit@8.7.5",
+        "hono@4.13.21",
+        "jose@6.2.18",
         "json-schema-typed@8.0.2",
-        "pkce-challenge@5.0.1",
+        "pkce-challenge@5.0.2",
         "raw-body@3.0.2",
         "zod@4.6.6",
         "zod-to-json-schema@3.25.2"
@@ -15896,63 +17355,135 @@
       "dependsOn": []
     },
     {
-      "ref": "@openclaw/ai@2026.10.6",
+      "ref": "@openclaw/ai@2026.10.33",
       "dependsOn": [
         "@anthropic-ai/sdk@0.131.0",
         "@google/genai@2.27.0",
         "@mistralai/mistralai@2.7.0",
-        "openai@7.27.0",
+        "openai@7.28.0",
         "partial-json@0.1.7",
-        "typebox@1.3.34"
+        "typebox@1.3.35"
       ]
     },
     {
-      "ref": "@openclaw/fs-safe@0.25.0",
+      "ref": "@openclaw/fs-safe@0.26.7",
       "dependsOn": [
-        "@openclaw/fs-safe-darwin-arm64@0.25.0",
-        "@openclaw/fs-safe-darwin-x64@0.25.0",
-        "@openclaw/fs-safe-linux-arm64-gnu@0.25.0",
-        "@openclaw/fs-safe-linux-arm64-musl@0.25.0",
-        "@openclaw/fs-safe-linux-x64-gnu@0.25.0",
-        "@openclaw/fs-safe-linux-x64-musl@0.25.0",
-        "@openclaw/fs-safe-win32-x64-msvc@0.25.0",
+        "@openclaw/fs-safe-darwin-arm64@0.26.7",
+        "@openclaw/fs-safe-darwin-x64@0.26.7",
+        "@openclaw/fs-safe-freebsd-arm64@0.26.7",
+        "@openclaw/fs-safe-freebsd-x64@0.26.7",
+        "@openclaw/fs-safe-linux-arm64-gnu@0.26.7",
+        "@openclaw/fs-safe-linux-arm64-musl@0.26.7",
+        "@openclaw/fs-safe-linux-x64-gnu@0.26.7",
+        "@openclaw/fs-safe-linux-x64-musl@0.26.7",
+        "@openclaw/fs-safe-win32-arm64-msvc@0.26.7",
+        "@openclaw/fs-safe-win32-x64-msvc@0.26.7",
         "jszip@3.10.2"
       ]
     },
     {
-      "ref": "@openclaw/fs-safe-darwin-arm64@0.25.0",
+      "ref": "@openclaw/fs-safe-darwin-arm64@0.26.7",
       "dependsOn": []
     },
     {
-      "ref": "@openclaw/fs-safe-darwin-x64@0.25.0",
+      "ref": "@openclaw/fs-safe-darwin-x64@0.26.7",
       "dependsOn": []
     },
     {
-      "ref": "@openclaw/fs-safe-linux-arm64-gnu@0.25.0",
+      "ref": "@openclaw/fs-safe-freebsd-arm64@0.26.7",
       "dependsOn": []
     },
     {
-      "ref": "@openclaw/fs-safe-linux-arm64-musl@0.25.0",
+      "ref": "@openclaw/fs-safe-freebsd-x64@0.26.7",
       "dependsOn": []
     },
     {
-      "ref": "@openclaw/fs-safe-linux-x64-gnu@0.25.0",
+      "ref": "@openclaw/fs-safe-linux-arm64-gnu@0.26.7",
       "dependsOn": []
     },
     {
-      "ref": "@openclaw/fs-safe-linux-x64-musl@0.25.0",
+      "ref": "@openclaw/fs-safe-linux-arm64-musl@0.26.7",
       "dependsOn": []
     },
     {
-      "ref": "@openclaw/fs-safe-win32-x64-msvc@0.25.0",
+      "ref": "@openclaw/fs-safe-linux-x64-gnu@0.26.7",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/fs-safe-linux-x64-musl@0.26.7",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/fs-safe-win32-arm64-msvc@0.26.7",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/fs-safe-win32-x64-msvc@0.26.7",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe@0.4.2",
+      "dependsOn": [
+        "@openclaw/proc-safe-darwin-arm64@0.4.2",
+        "@openclaw/proc-safe-darwin-x64@0.4.2",
+        "@openclaw/proc-safe-freebsd-arm64@0.4.2",
+        "@openclaw/proc-safe-freebsd-x64@0.4.2",
+        "@openclaw/proc-safe-linux-arm64-gnu@0.4.2",
+        "@openclaw/proc-safe-linux-arm64-musl@0.4.2",
+        "@openclaw/proc-safe-linux-x64-gnu@0.4.2",
+        "@openclaw/proc-safe-linux-x64-musl@0.4.2",
+        "@openclaw/proc-safe-win32-arm64-msvc@0.4.2",
+        "@openclaw/proc-safe-win32-x64-msvc@0.4.2"
+      ]
+    },
+    {
+      "ref": "@openclaw/proc-safe-darwin-arm64@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-darwin-x64@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-freebsd-arm64@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-freebsd-x64@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-linux-arm64-gnu@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-linux-arm64-musl@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-linux-x64-gnu@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-linux-x64-musl@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-win32-arm64-msvc@0.4.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@openclaw/proc-safe-win32-x64-msvc@0.4.2",
       "dependsOn": []
     },
     {
       "ref": "@openclaw/proxyline@0.4.0",
-      "dependsOn": ["undici@8.12.2"]
+      "dependsOn": [
+        "undici@8.12.2"
+      ]
     },
     {
-      "ref": "@opentelemetry/semantic-conventions@1.43.0",
+      "ref": "@opentelemetry/semantic-conventions@1.45.0",
       "dependsOn": []
     },
     {
@@ -15973,7 +17504,9 @@
     },
     {
       "ref": "@protobufjs/fetch@1.1.1",
-      "dependsOn": ["@protobufjs/aspromise@1.1.2"]
+      "dependsOn": [
+        "@protobufjs/aspromise@1.1.2"
+      ]
     },
     {
       "ref": "@protobufjs/float@1.0.2",
@@ -15990,6 +17523,77 @@
     {
       "ref": "@protobufjs/utf8@1.1.2",
       "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js@2.6.2",
+      "dependsOn": [
+        "@resvg/resvg-js-android-arm-eabi@2.6.2",
+        "@resvg/resvg-js-android-arm64@2.6.2",
+        "@resvg/resvg-js-darwin-arm64@2.6.2",
+        "@resvg/resvg-js-darwin-x64@2.6.2",
+        "@resvg/resvg-js-linux-arm-gnueabihf@2.6.2",
+        "@resvg/resvg-js-linux-arm64-gnu@2.6.2",
+        "@resvg/resvg-js-linux-arm64-musl@2.6.2",
+        "@resvg/resvg-js-linux-x64-gnu@2.6.2",
+        "@resvg/resvg-js-linux-x64-musl@2.6.2",
+        "@resvg/resvg-js-win32-arm64-msvc@2.6.2",
+        "@resvg/resvg-js-win32-ia32-msvc@2.6.2",
+        "@resvg/resvg-js-win32-x64-msvc@2.6.2"
+      ]
+    },
+    {
+      "ref": "@resvg/resvg-js-android-arm-eabi@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-android-arm64@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-darwin-arm64@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-darwin-x64@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-linux-arm-gnueabihf@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-linux-arm64-gnu@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-linux-arm64-musl@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-linux-x64-gnu@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-linux-x64-musl@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-win32-arm64-msvc@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-win32-ia32-msvc@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@resvg/resvg-js-win32-x64-msvc@2.6.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@scoriiu/fenshot@0.1.5",
+      "dependsOn": [
+        "onnxruntime-web@1.31.1"
+      ]
     },
     {
       "ref": "@sec-ant/readable-stream@0.4.1",
@@ -16009,47 +17613,50 @@
     },
     {
       "ref": "@tokenizer/inflate@0.4.1",
-      "dependsOn": ["debug@4.4.3", "token-types@6.1.2"]
+      "dependsOn": [
+        "debug@4.4.3",
+        "token-types@6.1.2"
+      ]
     },
     {
       "ref": "@tokenizer/token@0.3.0",
       "dependsOn": []
     },
     {
-      "ref": "@trycua/cua-driver@0.32.0",
+      "ref": "@trycua/cua-driver@0.33.4",
       "dependsOn": [
         "@ubjs/core@0.31.0-3",
         "@ubjs/node@0.31.0-3",
-        "@trycua/cua-driver-darwin-arm64@0.32.0",
-        "@trycua/cua-driver-darwin-x64@0.32.0",
-        "@trycua/cua-driver-linux-arm64-gnu@0.32.0",
-        "@trycua/cua-driver-linux-x64-gnu@0.32.0",
-        "@trycua/cua-driver-win32-arm64-msvc@0.32.0",
-        "@trycua/cua-driver-win32-x64-msvc@0.32.0"
+        "@trycua/cua-driver-darwin-arm64@0.33.4",
+        "@trycua/cua-driver-darwin-x64@0.33.4",
+        "@trycua/cua-driver-linux-arm64-gnu@0.33.4",
+        "@trycua/cua-driver-linux-x64-gnu@0.33.4",
+        "@trycua/cua-driver-win32-arm64-msvc@0.33.4",
+        "@trycua/cua-driver-win32-x64-msvc@0.33.4"
       ]
     },
     {
-      "ref": "@trycua/cua-driver-darwin-arm64@0.32.0",
+      "ref": "@trycua/cua-driver-darwin-arm64@0.33.4",
       "dependsOn": []
     },
     {
-      "ref": "@trycua/cua-driver-darwin-x64@0.32.0",
+      "ref": "@trycua/cua-driver-darwin-x64@0.33.4",
       "dependsOn": []
     },
     {
-      "ref": "@trycua/cua-driver-linux-arm64-gnu@0.32.0",
+      "ref": "@trycua/cua-driver-linux-arm64-gnu@0.33.4",
       "dependsOn": []
     },
     {
-      "ref": "@trycua/cua-driver-linux-x64-gnu@0.32.0",
+      "ref": "@trycua/cua-driver-linux-x64-gnu@0.33.4",
       "dependsOn": []
     },
     {
-      "ref": "@trycua/cua-driver-win32-arm64-msvc@0.32.0",
+      "ref": "@trycua/cua-driver-win32-arm64-msvc@0.33.4",
       "dependsOn": []
     },
     {
-      "ref": "@trycua/cua-driver-win32-x64-msvc@0.32.0",
+      "ref": "@trycua/cua-driver-win32-x64-msvc@0.33.4",
       "dependsOn": []
     },
     {
@@ -16058,7 +17665,9 @@
     },
     {
       "ref": "@types/node@26.6.5",
-      "dependsOn": ["undici-types@8.9.0"]
+      "dependsOn": [
+        "undici-types@8.9.0"
+      ]
     },
     {
       "ref": "@types/retry@0.12.0",
@@ -16115,14 +17724,19 @@
     },
     {
       "ref": "abort-controller@3.0.0",
-      "dependsOn": ["event-target-shim@5.0.1"]
+      "dependsOn": [
+        "event-target-shim@5.0.1"
+      ]
     },
     {
       "ref": "accepts@2.0.0",
-      "dependsOn": ["mime-types@3.0.2", "negotiator@1.1.0"]
+      "dependsOn": [
+        "mime-types@3.0.2",
+        "negotiator@1.1.0"
+      ]
     },
     {
-      "ref": "acorn@8.18.0",
+      "ref": "acorn@8.19.0",
       "dependsOn": []
     },
     {
@@ -16140,7 +17754,9 @@
     },
     {
       "ref": "ajv-formats@3.0.1",
-      "dependsOn": ["ajv@8.20.0"]
+      "dependsOn": [
+        "ajv@8.20.0"
+      ]
     },
     {
       "ref": "ansi-regex@5.0.1",
@@ -16148,7 +17764,9 @@
     },
     {
       "ref": "ansi-styles@4.3.0",
-      "dependsOn": ["color-convert@2.0.1"]
+      "dependsOn": [
+        "color-convert@2.0.1"
+      ]
     },
     {
       "ref": "asn1.js@5.4.1",
@@ -16184,7 +17802,7 @@
         "http-errors@2.0.1",
         "iconv-lite@0.7.3",
         "on-finished@2.4.2",
-        "qs@6.16.1",
+        "qs@6.17.1",
         "raw-body@3.0.2",
         "type-is@2.1.0"
       ]
@@ -16203,7 +17821,9 @@
     },
     {
       "ref": "brace-expansion@5.0.12",
-      "dependsOn": ["balanced-match@4.0.4"]
+      "dependsOn": [
+        "balanced-match@4.0.4"
+      ]
     },
     {
       "ref": "buffer-equal-constant-time@1.0.1",
@@ -16219,11 +17839,17 @@
     },
     {
       "ref": "call-bind-apply-helpers@1.0.2",
-      "dependsOn": ["es-errors@1.3.0", "function-bind@1.1.2"]
+      "dependsOn": [
+        "es-errors@1.3.0",
+        "function-bind@1.1.2"
+      ]
     },
     {
       "ref": "call-bound@1.0.4",
-      "dependsOn": ["call-bind-apply-helpers@1.0.2", "get-intrinsic@1.3.0"]
+      "dependsOn": [
+        "call-bind-apply-helpers@1.0.2",
+        "get-intrinsic@1.3.0"
+      ]
     },
     {
       "ref": "camelcase@5.3.1",
@@ -16231,6 +17857,10 @@
     },
     {
       "ref": "chalk@6.0.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "chess.js@1.4.0",
       "dependsOn": []
     },
     {
@@ -16243,11 +17873,17 @@
     },
     {
       "ref": "cliui@8.0.1",
-      "dependsOn": ["string-width@4.2.3", "strip-ansi@6.0.1", "wrap-ansi@7.0.0"]
+      "dependsOn": [
+        "string-width@4.2.3",
+        "strip-ansi@6.0.1",
+        "wrap-ansi@7.0.0"
+      ]
     },
     {
       "ref": "color-convert@2.0.1",
-      "dependsOn": ["color-name@1.1.4"]
+      "dependsOn": [
+        "color-name@1.1.4"
+      ]
     },
     {
       "ref": "color-name@1.1.4",
@@ -16283,7 +17919,10 @@
     },
     {
       "ref": "cors@2.8.6",
-      "dependsOn": ["object-assign@4.1.1", "vary@1.1.2"]
+      "dependsOn": [
+        "object-assign@4.1.1",
+        "vary@1.1.2"
+      ]
     },
     {
       "ref": "croner@10.0.1",
@@ -16291,7 +17930,11 @@
     },
     {
       "ref": "cross-spawn@7.0.6",
-      "dependsOn": ["path-key@3.1.1", "shebang-command@2.0.0", "which@2.0.2"]
+      "dependsOn": [
+        "path-key@3.1.1",
+        "shebang-command@2.0.0",
+        "which@2.0.2"
+      ]
     },
     {
       "ref": "css-select@7.0.0",
@@ -16317,7 +17960,9 @@
     },
     {
       "ref": "debug@4.4.3",
-      "dependsOn": ["ms@2.1.3"]
+      "dependsOn": [
+        "ms@2.1.3"
+      ]
     },
     {
       "ref": "decamelize@1.2.0",
@@ -16341,7 +17986,11 @@
     },
     {
       "ref": "dom-serializer@3.1.1",
-      "dependsOn": ["domelementtype@3.0.0", "domhandler@6.0.1", "entities@8.1.0"]
+      "dependsOn": [
+        "domelementtype@3.0.0",
+        "domhandler@6.0.1",
+        "entities@8.1.0"
+      ]
     },
     {
       "ref": "domelementtype@3.0.0",
@@ -16349,11 +17998,17 @@
     },
     {
       "ref": "domhandler@6.0.1",
-      "dependsOn": ["domelementtype@3.0.0"]
+      "dependsOn": [
+        "domelementtype@3.0.0"
+      ]
     },
     {
       "ref": "domutils@4.0.2",
-      "dependsOn": ["dom-serializer@3.1.1", "domelementtype@3.0.0", "domhandler@6.0.1"]
+      "dependsOn": [
+        "dom-serializer@3.1.1",
+        "domelementtype@3.0.0",
+        "domhandler@6.0.1"
+      ]
     },
     {
       "ref": "dotenv@18.0.5",
@@ -16361,18 +18016,24 @@
     },
     {
       "ref": "dunder-proto@1.0.1",
-      "dependsOn": ["call-bind-apply-helpers@1.0.2", "es-errors@1.3.0", "gopd@1.2.0"]
+      "dependsOn": [
+        "call-bind-apply-helpers@1.0.2",
+        "es-errors@1.3.0",
+        "gopd@1.2.0"
+      ]
     },
     {
       "ref": "ecdsa-sig-formatter@1.0.11",
-      "dependsOn": ["safe-buffer@5.2.1"]
+      "dependsOn": [
+        "safe-buffer@5.2.1"
+      ]
     },
     {
       "ref": "ee-first@1.1.1",
       "dependsOn": []
     },
     {
-      "ref": "electron@45.3.1",
+      "ref": "electron@45.5.0",
       "dependsOn": [
         "@electron-internal/extract-zip@1.0.6",
         "@electron/get@5.1.0",
@@ -16381,7 +18042,9 @@
     },
     {
       "ref": "@types/node@24.19.2",
-      "dependsOn": ["undici-types@7.24.6"]
+      "dependsOn": [
+        "undici-types@7.24.6"
+      ]
     },
     {
       "ref": "undici-types@7.24.6",
@@ -16392,7 +18055,7 @@
       "dependsOn": []
     },
     {
-      "ref": "encodeurl@2.0.0",
+      "ref": "encodeurl@2.0.3",
       "dependsOn": []
     },
     {
@@ -16413,7 +18076,9 @@
     },
     {
       "ref": "es-object-atoms@1.1.2",
-      "dependsOn": ["es-errors@1.3.0"]
+      "dependsOn": [
+        "es-errors@1.3.0"
+      ]
     },
     {
       "ref": "esbuild@0.28.2",
@@ -16468,7 +18133,9 @@
     },
     {
       "ref": "eventsource@3.0.7",
-      "dependsOn": ["eventsource-parser@3.1.1"]
+      "dependsOn": [
+        "eventsource-parser@3.1.1"
+      ]
     },
     {
       "ref": "eventsource-parser@3.1.1",
@@ -16502,7 +18169,7 @@
         "cookie-signature@1.2.2",
         "debug@4.4.3",
         "depd@2.0.0",
-        "encodeurl@2.0.0",
+        "encodeurl@2.0.3",
         "escape-html@1.0.3",
         "etag@1.8.1",
         "finalhandler@2.1.1",
@@ -16514,9 +18181,9 @@
         "once@1.4.0",
         "parseurl@1.3.3",
         "proxy-addr@2.0.8",
-        "qs@6.16.1",
+        "qs@6.17.1",
         "range-parser@1.3.0",
-        "router@2.2.0",
+        "router@2.3.0",
         "send@1.2.1",
         "serve-static@2.2.1",
         "statuses@2.0.2",
@@ -16525,8 +18192,12 @@
       ]
     },
     {
-      "ref": "express-rate-limit@8.7.1",
-      "dependsOn": ["express@5.2.1", "debug@4.4.3", "ip-address@10.7.4"]
+      "ref": "express-rate-limit@8.7.5",
+      "dependsOn": [
+        "express@5.2.1",
+        "debug@4.4.3",
+        "ip-address@10.7.6"
+      ]
     },
     {
       "ref": "extend@3.0.2",
@@ -16546,7 +18217,9 @@
     },
     {
       "ref": "fast-string-width@3.0.2",
-      "dependsOn": ["fast-string-truncated-width@3.0.3"]
+      "dependsOn": [
+        "fast-string-truncated-width@3.0.3"
+      ]
     },
     {
       "ref": "fast-uri@3.1.9",
@@ -16554,15 +18227,22 @@
     },
     {
       "ref": "fast-wrap-ansi@0.2.2",
-      "dependsOn": ["fast-string-width@3.0.2"]
+      "dependsOn": [
+        "fast-string-width@3.0.2"
+      ]
     },
     {
       "ref": "fetch-blob@3.2.0",
-      "dependsOn": ["node-domexception@1.0.0", "web-streams-polyfill@3.3.3"]
+      "dependsOn": [
+        "node-domexception@1.0.0",
+        "web-streams-polyfill@3.3.3"
+      ]
     },
     {
       "ref": "figures@6.1.0",
-      "dependsOn": ["is-unicode-supported@2.1.0"]
+      "dependsOn": [
+        "is-unicode-supported@2.1.0"
+      ]
     },
     {
       "ref": "file-type@22.1.1",
@@ -16577,7 +18257,7 @@
       "ref": "finalhandler@2.1.1",
       "dependsOn": [
         "debug@4.4.3",
-        "encodeurl@2.0.0",
+        "encodeurl@2.0.3",
         "escape-html@1.0.3",
         "on-finished@2.4.2",
         "parseurl@1.3.3",
@@ -16586,11 +18266,20 @@
     },
     {
       "ref": "find-up@4.1.0",
-      "dependsOn": ["locate-path@5.0.0", "path-exists@4.0.0"]
+      "dependsOn": [
+        "locate-path@5.0.0",
+        "path-exists@4.0.0"
+      ]
+    },
+    {
+      "ref": "flatbuffers@25.9.23",
+      "dependsOn": []
     },
     {
       "ref": "formdata-polyfill@4.0.10",
-      "dependsOn": ["fetch-blob@3.2.0"]
+      "dependsOn": [
+        "fetch-blob@3.2.0"
+      ]
     },
     {
       "ref": "forwarded@0.2.0",
@@ -16610,11 +18299,19 @@
     },
     {
       "ref": "gaxios@7.3.1",
-      "dependsOn": ["extend@3.0.2", "https-proxy-agent@7.0.6", "node-fetch@3.3.2"]
+      "dependsOn": [
+        "extend@3.0.2",
+        "https-proxy-agent@7.0.6",
+        "node-fetch@3.3.2"
+      ]
     },
     {
       "ref": "gcp-metadata@8.1.2",
-      "dependsOn": ["gaxios@7.3.1", "google-logging-utils@1.1.3", "json-bigint@1.0.0"]
+      "dependsOn": [
+        "gaxios@7.3.1",
+        "google-logging-utils@1.1.3",
+        "json-bigint@1.0.0"
+      ]
     },
     {
       "ref": "get-caller-file@2.0.5",
@@ -16641,11 +18338,17 @@
     },
     {
       "ref": "get-proto@1.0.1",
-      "dependsOn": ["dunder-proto@1.0.1", "es-object-atoms@1.1.2"]
+      "dependsOn": [
+        "dunder-proto@1.0.1",
+        "es-object-atoms@1.1.2"
+      ]
     },
     {
       "ref": "get-stream@9.0.1",
-      "dependsOn": ["@sec-ant/readable-stream@0.4.1", "is-stream@4.0.1"]
+      "dependsOn": [
+        "@sec-ant/readable-stream@0.4.1",
+        "is-stream@4.0.1"
+      ]
     },
     {
       "ref": "google-auth-library@10.9.1",
@@ -16681,7 +18384,13 @@
     },
     {
       "ref": "node-fetch@2.7.0",
-      "dependsOn": ["whatwg-url@5.0.0"]
+      "dependsOn": [
+        "whatwg-url@5.0.0"
+      ]
+    },
+    {
+      "ref": "guid-typescript@1.0.9",
+      "dependsOn": []
     },
     {
       "ref": "has-symbols@1.1.0",
@@ -16689,19 +18398,23 @@
     },
     {
       "ref": "hasown@2.0.4",
-      "dependsOn": ["function-bind@1.1.2"]
+      "dependsOn": [
+        "function-bind@1.1.2"
+      ]
     },
     {
       "ref": "highlight.js@11.12.0",
       "dependsOn": []
     },
     {
-      "ref": "hono@4.13.13",
+      "ref": "hono@4.13.21",
       "dependsOn": []
     },
     {
       "ref": "hosted-git-info@10.1.1",
-      "dependsOn": ["lru-cache@11.5.3"]
+      "dependsOn": [
+        "lru-cache@11.5.3"
+      ]
     },
     {
       "ref": "html-escaper@3.0.3",
@@ -16709,7 +18422,12 @@
     },
     {
       "ref": "htmlparser2@12.0.0",
-      "dependsOn": ["domelementtype@3.0.0", "domhandler@6.0.1", "domutils@4.0.2", "entities@8.1.0"]
+      "dependsOn": [
+        "domelementtype@3.0.0",
+        "domhandler@6.0.1",
+        "domutils@4.0.2",
+        "entities@8.1.0"
+      ]
     },
     {
       "ref": "http_ece@1.2.0",
@@ -16727,7 +18445,10 @@
     },
     {
       "ref": "https-proxy-agent@7.0.6",
-      "dependsOn": ["agent-base@7.1.4", "debug@4.4.3"]
+      "dependsOn": [
+        "agent-base@7.1.4",
+        "debug@4.4.3"
+      ]
     },
     {
       "ref": "human-signals@8.0.1",
@@ -16735,7 +18456,9 @@
     },
     {
       "ref": "iconv-lite@0.7.3",
-      "dependsOn": ["safer-buffer@2.1.2"]
+      "dependsOn": [
+        "safer-buffer@2.1.2"
+      ]
     },
     {
       "ref": "ieee754@1.2.1",
@@ -16758,7 +18481,7 @@
       "dependsOn": []
     },
     {
-      "ref": "ip-address@10.7.4",
+      "ref": "ip-address@10.7.6",
       "dependsOn": []
     },
     {
@@ -16802,7 +18525,7 @@
       "dependsOn": []
     },
     {
-      "ref": "jose@6.2.13",
+      "ref": "jose@6.2.18",
       "dependsOn": []
     },
     {
@@ -16819,11 +18542,16 @@
     },
     {
       "ref": "json-bigint@1.0.0",
-      "dependsOn": ["bignumber.js@9.3.1"]
+      "dependsOn": [
+        "bignumber.js@9.3.1"
+      ]
     },
     {
       "ref": "json-schema-to-ts@3.1.1",
-      "dependsOn": ["@babel/runtime@7.29.10", "ts-algebra@2.0.0"]
+      "dependsOn": [
+        "@babel/runtime@7.29.10",
+        "ts-algebra@2.0.0"
+      ]
     },
     {
       "ref": "json-schema-traverse@1.0.0",
@@ -16839,7 +18567,12 @@
     },
     {
       "ref": "jszip@3.10.2",
-      "dependsOn": ["lie@3.3.0", "pako@1.0.11", "readable-stream@2.3.8", "setimmediate@1.0.5"]
+      "dependsOn": [
+        "lie@3.3.0",
+        "pako@1.0.11",
+        "readable-stream@2.3.8",
+        "setimmediate@1.0.5"
+      ]
     },
     {
       "ref": "jwa@2.0.1",
@@ -16851,7 +18584,10 @@
     },
     {
       "ref": "jws@4.0.1",
-      "dependsOn": ["jwa@2.0.1", "safe-buffer@5.2.1"]
+      "dependsOn": [
+        "jwa@2.0.1",
+        "safe-buffer@5.2.1"
+      ]
     },
     {
       "ref": "koffi@3.3.2",
@@ -16884,7 +18620,9 @@
     },
     {
       "ref": "lie@3.3.0",
-      "dependsOn": ["immediate@3.0.6"]
+      "dependsOn": [
+        "immediate@3.0.6"
+      ]
     },
     {
       "ref": "linkedom@0.18.13",
@@ -16898,7 +18636,11 @@
     },
     {
       "ref": "dom-serializer@2.0.0",
-      "dependsOn": ["domelementtype@2.3.0", "domhandler@5.0.3", "entities@4.5.0"]
+      "dependsOn": [
+        "domelementtype@2.3.0",
+        "domhandler@5.0.3",
+        "entities@4.5.0"
+      ]
     },
     {
       "ref": "entities@4.5.0",
@@ -16910,11 +18652,17 @@
     },
     {
       "ref": "domhandler@5.0.3",
-      "dependsOn": ["domelementtype@2.3.0"]
+      "dependsOn": [
+        "domelementtype@2.3.0"
+      ]
     },
     {
       "ref": "domutils@3.2.2",
-      "dependsOn": ["dom-serializer@2.0.0", "domelementtype@2.3.0", "domhandler@5.0.3"]
+      "dependsOn": [
+        "dom-serializer@2.0.0",
+        "domelementtype@2.3.0",
+        "domhandler@5.0.3"
+      ]
     },
     {
       "ref": "entities@7.0.1",
@@ -16922,11 +18670,18 @@
     },
     {
       "ref": "htmlparser2@10.1.0",
-      "dependsOn": ["domelementtype@2.3.0", "domhandler@5.0.3", "domutils@3.2.2", "entities@7.0.1"]
+      "dependsOn": [
+        "domelementtype@2.3.0",
+        "domhandler@5.0.3",
+        "domutils@3.2.2",
+        "entities@7.0.1"
+      ]
     },
     {
       "ref": "locate-path@5.0.0",
-      "dependsOn": ["p-locate@4.1.0"]
+      "dependsOn": [
+        "p-locate@4.1.0"
+      ]
     },
     {
       "ref": "long@5.3.2",
@@ -16972,7 +18727,9 @@
     },
     {
       "ref": "mime-types@3.0.2",
-      "dependsOn": ["mime-db@1.54.0"]
+      "dependsOn": [
+        "mime-db@1.54.0"
+      ]
     },
     {
       "ref": "minimalistic-assert@1.0.1",
@@ -16980,7 +18737,9 @@
     },
     {
       "ref": "minimatch@10.2.6",
-      "dependsOn": ["brace-expansion@5.0.12"]
+      "dependsOn": [
+        "brace-expansion@5.0.12"
+      ]
     },
     {
       "ref": "minimist@1.2.8",
@@ -16992,7 +18751,9 @@
     },
     {
       "ref": "minizlib@3.1.0",
-      "dependsOn": ["minipass@7.1.3"]
+      "dependsOn": [
+        "minipass@7.1.3"
+      ]
     },
     {
       "ref": "ms@2.1.3",
@@ -17000,7 +18761,9 @@
     },
     {
       "ref": "negotiator@1.1.0",
-      "dependsOn": ["content-type@2.1.0"]
+      "dependsOn": [
+        "content-type@2.1.0"
+      ]
     },
     {
       "ref": "node-domexception@1.0.0",
@@ -17008,11 +18771,19 @@
     },
     {
       "ref": "node-edge-tts@1.2.10",
-      "dependsOn": ["https-proxy-agent@7.0.6", "ws@8.22.0", "yargs@17.7.3"]
+      "dependsOn": [
+        "https-proxy-agent@7.0.6",
+        "ws@8.22.0",
+        "yargs@17.7.3"
+      ]
     },
     {
       "ref": "node-fetch@3.3.2",
-      "dependsOn": ["data-uri-to-buffer@4.0.1", "fetch-blob@3.2.0", "formdata-polyfill@4.0.10"]
+      "dependsOn": [
+        "data-uri-to-buffer@4.0.1",
+        "fetch-blob@3.2.0",
+        "formdata-polyfill@4.0.10"
+      ]
     },
     {
       "ref": "npm@12.2.2",
@@ -17089,7 +18860,10 @@
     },
     {
       "ref": "npm-run-path@6.0.0",
-      "dependsOn": ["path-key@4.0.0", "unicorn-magic@0.3.0"]
+      "dependsOn": [
+        "path-key@4.0.0",
+        "unicorn-magic@0.3.0"
+      ]
     },
     {
       "ref": "path-key@4.0.0",
@@ -17119,11 +18893,19 @@
     },
     {
       "ref": "http-proxy-agent@9.1.0",
-      "dependsOn": ["agent-base@9.0.0", "debug@4.4.3", "proxy-agent-negotiate@1.1.0"]
+      "dependsOn": [
+        "agent-base@9.0.0",
+        "debug@4.4.3",
+        "proxy-agent-negotiate@1.1.0"
+      ]
     },
     {
       "ref": "https-proxy-agent@9.1.0",
-      "dependsOn": ["agent-base@9.0.0", "debug@4.4.3", "proxy-agent-negotiate@1.1.0"]
+      "dependsOn": [
+        "agent-base@9.0.0",
+        "debug@4.4.3",
+        "proxy-agent-negotiate@1.1.0"
+      ]
     },
     {
       "ref": "@npmcli/arborist@10.0.4",
@@ -17181,7 +18963,9 @@
     },
     {
       "ref": "@npmcli/fs@6.0.0",
-      "dependsOn": ["semver@7.8.6"]
+      "dependsOn": [
+        "semver@7.8.6"
+      ]
     },
     {
       "ref": "@npmcli/git@8.0.0",
@@ -17198,11 +18982,16 @@
     },
     {
       "ref": "@npmcli/installed-package-contents@5.0.0",
-      "dependsOn": ["npm-bundled@6.0.0", "npm-normalize-package-bin@6.0.0"]
+      "dependsOn": [
+        "npm-bundled@6.0.0",
+        "npm-normalize-package-bin@6.0.0"
+      ]
     },
     {
       "ref": "npm-bundled@6.0.0",
-      "dependsOn": ["npm-normalize-package-bin@6.0.0"]
+      "dependsOn": [
+        "npm-normalize-package-bin@6.0.0"
+      ]
     },
     {
       "ref": "npm-normalize-package-bin@6.0.0",
@@ -17249,11 +19038,15 @@
     },
     {
       "ref": "@npmcli/promise-spawn@10.0.1",
-      "dependsOn": ["which@7.0.0"]
+      "dependsOn": [
+        "which@7.0.0"
+      ]
     },
     {
       "ref": "@npmcli/query@5.0.0",
-      "dependsOn": ["postcss-selector-parser@7.1.6"]
+      "dependsOn": [
+        "postcss-selector-parser@7.1.6"
+      ]
     },
     {
       "ref": "@npmcli/redact@5.0.0",
@@ -17271,7 +19064,9 @@
     },
     {
       "ref": "@sigstore/bundle@5.0.0",
-      "dependsOn": ["@sigstore/protobuf-specs@0.5.1"]
+      "dependsOn": [
+        "@sigstore/protobuf-specs@0.5.1"
+      ]
     },
     {
       "ref": "@sigstore/core@4.0.1",
@@ -17294,7 +19089,10 @@
     },
     {
       "ref": "@sigstore/tuf@5.0.0",
-      "dependsOn": ["@sigstore/protobuf-specs@0.5.1", "tuf-js@6.0.0"]
+      "dependsOn": [
+        "@sigstore/protobuf-specs@0.5.1",
+        "tuf-js@6.0.0"
+      ]
     },
     {
       "ref": "@sigstore/verify@4.1.0",
@@ -17310,7 +19108,10 @@
     },
     {
       "ref": "@tufjs/models@5.0.0",
-      "dependsOn": ["@tufjs/canonical-json@2.0.0", "minimatch@10.2.5"]
+      "dependsOn": [
+        "@tufjs/canonical-json@2.0.0",
+        "minimatch@10.2.5"
+      ]
     },
     {
       "ref": "abbrev@5.0.0",
@@ -17399,11 +19200,17 @@
     },
     {
       "ref": "fs-minipass@3.0.3",
-      "dependsOn": ["minipass@7.1.3"]
+      "dependsOn": [
+        "minipass@7.1.3"
+      ]
     },
     {
       "ref": "glob@13.0.6",
-      "dependsOn": ["minimatch@10.2.5", "minipass@7.1.3", "path-scurry@2.0.2"]
+      "dependsOn": [
+        "minimatch@10.2.5",
+        "minipass@7.1.3",
+        "path-scurry@2.0.2"
+      ]
     },
     {
       "ref": "http-cache-semantics@4.3.0",
@@ -17430,7 +19237,9 @@
     },
     {
       "ref": "is-cidr@7.0.0",
-      "dependsOn": ["cidr-regex@6.0.0"]
+      "dependsOn": [
+        "cidr-regex@6.0.0"
+      ]
     },
     {
       "ref": "isexe@4.0.0",
@@ -17458,7 +19267,10 @@
     },
     {
       "ref": "libnpmaccess@11.0.0",
-      "dependsOn": ["npm-package-arg@14.0.0", "npm-registry-fetch@20.0.1"]
+      "dependsOn": [
+        "npm-package-arg@14.0.0",
+        "npm-registry-fetch@20.0.1"
+      ]
     },
     {
       "ref": "libnpmdiff@9.0.4",
@@ -17492,11 +19304,16 @@
     },
     {
       "ref": "libnpmfund@8.0.4",
-      "dependsOn": ["@npmcli/arborist@10.0.4"]
+      "dependsOn": [
+        "@npmcli/arborist@10.0.4"
+      ]
     },
     {
       "ref": "libnpmorg@9.0.0",
-      "dependsOn": ["aproba@2.1.0", "npm-registry-fetch@20.0.1"]
+      "dependsOn": [
+        "aproba@2.1.0",
+        "npm-registry-fetch@20.0.1"
+      ]
     },
     {
       "ref": "libnpmpack@10.0.4",
@@ -17522,11 +19339,16 @@
     },
     {
       "ref": "libnpmsearch@10.0.0",
-      "dependsOn": ["npm-registry-fetch@20.0.1"]
+      "dependsOn": [
+        "npm-registry-fetch@20.0.1"
+      ]
     },
     {
       "ref": "libnpmteam@9.0.0",
-      "dependsOn": ["aproba@2.1.0", "npm-registry-fetch@20.0.1"]
+      "dependsOn": [
+        "aproba@2.1.0",
+        "npm-registry-fetch@20.0.1"
+      ]
     },
     {
       "ref": "libnpmversion@9.0.0",
@@ -17561,27 +19383,42 @@
     },
     {
       "ref": "minimatch@10.2.5",
-      "dependsOn": ["brace-expansion@5.0.12"]
+      "dependsOn": [
+        "brace-expansion@5.0.12"
+      ]
     },
     {
       "ref": "minipass-collect@2.0.1",
-      "dependsOn": ["minipass@7.1.3"]
+      "dependsOn": [
+        "minipass@7.1.3"
+      ]
     },
     {
       "ref": "minipass-fetch@6.0.0",
-      "dependsOn": ["minipass@7.1.3", "minipass-sized@2.0.0", "minizlib@3.1.0", "iconv-lite@0.7.3"]
+      "dependsOn": [
+        "minipass@7.1.3",
+        "minipass-sized@2.0.0",
+        "minizlib@3.1.0",
+        "iconv-lite@0.7.3"
+      ]
     },
     {
       "ref": "minipass-flush@1.0.6",
-      "dependsOn": ["minipass@7.1.3"]
+      "dependsOn": [
+        "minipass@7.1.3"
+      ]
     },
     {
       "ref": "minipass-pipeline@1.2.4",
-      "dependsOn": ["minipass@3.3.6"]
+      "dependsOn": [
+        "minipass@3.3.6"
+      ]
     },
     {
       "ref": "minipass@3.3.6",
-      "dependsOn": ["yallist@4.0.0"]
+      "dependsOn": [
+        "yallist@4.0.0"
+      ]
     },
     {
       "ref": "yallist@4.0.0",
@@ -17589,7 +19426,9 @@
     },
     {
       "ref": "minipass-sized@2.0.0",
-      "dependsOn": ["minipass@7.1.3"]
+      "dependsOn": [
+        "minipass@7.1.3"
+      ]
     },
     {
       "ref": "mute-stream@4.0.0",
@@ -17616,7 +19455,9 @@
     },
     {
       "ref": "nopt@10.0.1",
-      "dependsOn": ["abbrev@5.0.0"]
+      "dependsOn": [
+        "abbrev@5.0.0"
+      ]
     },
     {
       "ref": "npm-audit-report@8.0.0",
@@ -17624,7 +19465,9 @@
     },
     {
       "ref": "npm-install-checks@9.0.0",
-      "dependsOn": ["semver@7.8.6"]
+      "dependsOn": [
+        "semver@7.8.6"
+      ]
     },
     {
       "ref": "npm-package-arg@14.0.0",
@@ -17637,11 +19480,17 @@
     },
     {
       "ref": "npm-packlist@11.3.0",
-      "dependsOn": ["glob@13.0.6", "ignore-walk@9.0.0", "proc-log@7.0.0"]
+      "dependsOn": [
+        "glob@13.0.6",
+        "ignore-walk@9.0.0",
+        "proc-log@7.0.0"
+      ]
     },
     {
       "ref": "ignore-walk@9.0.0",
-      "dependsOn": ["minimatch@10.2.5"]
+      "dependsOn": [
+        "minimatch@10.2.5"
+      ]
     },
     {
       "ref": "npm-pick-manifest@12.0.0",
@@ -17654,7 +19503,10 @@
     },
     {
       "ref": "npm-profile@13.0.1",
-      "dependsOn": ["npm-registry-fetch@20.0.1", "proc-log@7.0.0"]
+      "dependsOn": [
+        "npm-registry-fetch@20.0.1",
+        "proc-log@7.0.0"
+      ]
     },
     {
       "ref": "npm-registry-fetch@20.0.1",
@@ -17709,11 +19561,17 @@
     },
     {
       "ref": "path-scurry@2.0.2",
-      "dependsOn": ["lru-cache@11.5.2", "minipass@7.1.3"]
+      "dependsOn": [
+        "lru-cache@11.5.2",
+        "minipass@7.1.3"
+      ]
     },
     {
       "ref": "postcss-selector-parser@7.1.6",
-      "dependsOn": ["cssesc@3.0.0", "util-deprecate@1.0.2"]
+      "dependsOn": [
+        "cssesc@3.0.0",
+        "util-deprecate@1.0.2"
+      ]
     },
     {
       "ref": "proc-log@7.0.0",
@@ -17733,7 +19591,9 @@
     },
     {
       "ref": "promzard@4.0.0",
-      "dependsOn": ["read@6.0.0"]
+      "dependsOn": [
+        "read@6.0.0"
+      ]
     },
     {
       "ref": "proxy-agent-negotiate@1.1.0",
@@ -17745,7 +19605,9 @@
     },
     {
       "ref": "read@6.0.0",
-      "dependsOn": ["mute-stream@4.0.0"]
+      "dependsOn": [
+        "mute-stream@4.0.0"
+      ]
     },
     {
       "ref": "safer-buffer@2.1.2",
@@ -17776,11 +19638,18 @@
     },
     {
       "ref": "socks@2.8.9",
-      "dependsOn": ["ip-address@10.7.5", "smart-buffer@4.2.0"]
+      "dependsOn": [
+        "ip-address@10.7.5",
+        "smart-buffer@4.2.0"
+      ]
     },
     {
       "ref": "socks-proxy-agent@10.1.0",
-      "dependsOn": ["agent-base@9.0.0", "debug@4.4.3", "socks@2.8.9"]
+      "dependsOn": [
+        "agent-base@9.0.0",
+        "debug@4.4.3",
+        "socks@2.8.9"
+      ]
     },
     {
       "ref": "spdx-exceptions@2.5.0",
@@ -17788,7 +19657,10 @@
     },
     {
       "ref": "spdx-expression-parse@4.0.0",
-      "dependsOn": ["spdx-exceptions@2.5.0", "spdx-license-ids@3.0.23"]
+      "dependsOn": [
+        "spdx-exceptions@2.5.0",
+        "spdx-license-ids@3.0.23"
+      ]
     },
     {
       "ref": "spdx-license-ids@3.0.23",
@@ -17796,7 +19668,9 @@
     },
     {
       "ref": "ssri@14.0.0",
-      "dependsOn": ["minipass@7.1.3"]
+      "dependsOn": [
+        "minipass@7.1.3"
+      ]
     },
     {
       "ref": "supports-color@10.2.2",
@@ -17822,11 +19696,16 @@
     },
     {
       "ref": "tinyglobby@0.2.17",
-      "dependsOn": ["fdir@6.5.0", "picomatch@4.0.5"]
+      "dependsOn": [
+        "fdir@6.5.0",
+        "picomatch@4.0.5"
+      ]
     },
     {
       "ref": "fdir@6.5.0",
-      "dependsOn": ["picomatch@4.0.5"]
+      "dependsOn": [
+        "picomatch@4.0.5"
+      ]
     },
     {
       "ref": "picomatch@4.0.5",
@@ -17838,7 +19717,11 @@
     },
     {
       "ref": "tuf-js@6.0.0",
-      "dependsOn": ["@gar/promise-retry@1.0.3", "@tufjs/models@5.0.0", "debug@4.4.3"]
+      "dependsOn": [
+        "@gar/promise-retry@1.0.3",
+        "@tufjs/models@5.0.0",
+        "debug@4.4.3"
+      ]
     },
     {
       "ref": "undici@6.29.1",
@@ -17858,11 +19741,15 @@
     },
     {
       "ref": "which@7.0.0",
-      "dependsOn": ["isexe@4.0.0"]
+      "dependsOn": [
+        "isexe@4.0.0"
+      ]
     },
     {
       "ref": "write-file-atomic@8.0.0",
-      "dependsOn": ["signal-exit@4.1.0"]
+      "dependsOn": [
+        "signal-exit@4.1.0"
+      ]
     },
     {
       "ref": "yallist@5.0.0",
@@ -17870,14 +19757,16 @@
     },
     {
       "ref": "nth-check@3.0.1",
-      "dependsOn": ["boolbase@2.0.0"]
+      "dependsOn": [
+        "boolbase@2.0.0"
+      ]
     },
     {
       "ref": "object-assign@4.1.1",
       "dependsOn": []
     },
     {
-      "ref": "object-inspect@1.13.4",
+      "ref": "object-inspect@1.14.0",
       "dependsOn": []
     },
     {
@@ -17886,18 +19775,41 @@
     },
     {
       "ref": "on-finished@2.4.2",
-      "dependsOn": ["ee-first@1.1.1"]
+      "dependsOn": [
+        "ee-first@1.1.1"
+      ]
     },
     {
       "ref": "once@1.4.0",
-      "dependsOn": ["wrappy@1.0.2"]
+      "dependsOn": [
+        "wrappy@1.0.2"
+      ]
     },
     {
-      "ref": "openai@7.27.0",
-      "dependsOn": ["undici@8.12.2", "ws@8.22.0", "zod@4.6.6"]
+      "ref": "onnxruntime-common@1.31.1",
+      "dependsOn": []
     },
     {
-      "ref": "openclaw@2026.10.6",
+      "ref": "onnxruntime-web@1.31.1",
+      "dependsOn": [
+        "flatbuffers@25.9.23",
+        "guid-typescript@1.0.9",
+        "long@5.3.2",
+        "onnxruntime-common@1.31.1",
+        "platform@1.3.6",
+        "protobufjs@7.6.6"
+      ]
+    },
+    {
+      "ref": "openai@7.28.0",
+      "dependsOn": [
+        "undici@8.12.2",
+        "ws@8.22.0",
+        "zod@4.6.6"
+      ]
+    },
+    {
+      "ref": "openclaw@2026.10.33",
       "dependsOn": [
         "@agentclientprotocol/sdk@1.7.0",
         "@anthropic-ai/sdk@0.131.0",
@@ -17906,20 +19818,22 @@
         "@babel/traverse@8.0.6",
         "@clack/core@1.5.1",
         "@clack/prompts@1.8.1",
-        "@earendil-works/pi-tui@1.0.0",
+        "@earendil-works/pi-tui@1.0.3",
         "@google/genai@2.27.0",
         "@grammyjs/transformer-throttler@1.2.1",
         "@homebridge/ciao@1.3.12",
         "@lydell/node-pty@1.2.0-beta.15",
         "@mistralai/mistralai@2.7.0",
-        "@modelcontextprotocol/sdk@1.32.0",
+        "@modelcontextprotocol/sdk@1.32.1",
         "@mozilla/readability@0.6.0",
-        "@openclaw/ai@2026.10.6",
-        "@openclaw/fs-safe@0.25.0",
+        "@openclaw/ai@2026.10.33",
+        "@openclaw/fs-safe@0.26.7",
+        "@openclaw/proc-safe@0.4.2",
         "@openclaw/proxyline@0.4.0",
+        "@resvg/resvg-js@2.6.2",
         "@silvia-odwyer/photon-node@0.3.4",
-        "@trycua/cua-driver@0.32.0",
-        "acorn@8.18.0",
+        "@trycua/cua-driver@0.33.4",
+        "acorn@8.19.0",
         "chalk@6.0.1",
         "chrome-devtools-mcp@1.10.1",
         "clawpdf@0.3.2",
@@ -17942,23 +19856,23 @@
         "jiti@2.7.0",
         "json5@2.2.3",
         "jszip@3.10.2",
-        "koffi@3.3.2",
         "kysely@0.29.6",
         "linkedom@0.18.13",
         "minimatch@10.2.6",
         "node-edge-tts@1.2.10",
         "npm@12.2.2",
-        "openai@7.27.0",
+        "openai@7.28.0",
         "p-limit@7.3.3",
         "p-map@7.0.8",
         "partial-json@0.1.7",
+        "pg@8.23.1",
         "playwright-core@1.63.0",
         "qrcode@1.5.4",
         "rastermill@0.4.0",
         "semver@7.8.5",
         "tar@7.5.22",
         "tslog@5.2.0",
-        "typebox@1.3.34",
+        "typebox@1.3.35",
         "undici@8.12.2",
         "web-push@3.6.7",
         "web-tree-sitter@0.27.0",
@@ -17991,45 +19905,50 @@
         "@esbuild/win32-arm64@0.28.2",
         "@esbuild/win32-ia32@0.28.2",
         "@esbuild/win32-x64@0.28.2",
-        "@koromix/koffi-android-arm64@3.3.2",
-        "@koromix/koffi-android-x64@3.3.2",
-        "@koromix/koffi-darwin-arm64@3.3.2",
-        "@koromix/koffi-darwin-x64@3.3.2",
-        "@koromix/koffi-freebsd-arm64@3.3.2",
-        "@koromix/koffi-freebsd-ia32@3.3.2",
-        "@koromix/koffi-freebsd-x64@3.3.2",
-        "@koromix/koffi-linux-arm@3.3.2",
-        "@koromix/koffi-linux-arm64@3.3.2",
-        "@koromix/koffi-linux-ia32@3.3.2",
-        "@koromix/koffi-linux-loong64@3.3.2",
-        "@koromix/koffi-linux-ppc64@3.3.2",
-        "@koromix/koffi-linux-riscv64@3.3.2",
-        "@koromix/koffi-linux-x64@3.3.2",
-        "@koromix/koffi-openbsd-arm64@3.3.2",
-        "@koromix/koffi-openbsd-ia32@3.3.2",
-        "@koromix/koffi-openbsd-x64@3.3.2",
-        "@koromix/koffi-win32-arm64@3.3.2",
-        "@koromix/koffi-win32-ia32@3.3.2",
-        "@koromix/koffi-win32-x64@3.3.2",
         "@lydell/node-pty-darwin-arm64@1.2.0-beta.15",
         "@lydell/node-pty-darwin-x64@1.2.0-beta.15",
         "@lydell/node-pty-linux-arm64@1.2.0-beta.15",
         "@lydell/node-pty-linux-x64@1.2.0-beta.15",
         "@lydell/node-pty-win32-arm64@1.2.0-beta.15",
         "@lydell/node-pty-win32-x64@1.2.0-beta.15",
-        "@openclaw/fs-safe-darwin-arm64@0.25.0",
-        "@openclaw/fs-safe-darwin-x64@0.25.0",
-        "@openclaw/fs-safe-linux-arm64-gnu@0.25.0",
-        "@openclaw/fs-safe-linux-arm64-musl@0.25.0",
-        "@openclaw/fs-safe-linux-x64-gnu@0.25.0",
-        "@openclaw/fs-safe-linux-x64-musl@0.25.0",
-        "@openclaw/fs-safe-win32-x64-msvc@0.25.0",
-        "@trycua/cua-driver-darwin-arm64@0.32.0",
-        "@trycua/cua-driver-darwin-x64@0.32.0",
-        "@trycua/cua-driver-linux-arm64-gnu@0.32.0",
-        "@trycua/cua-driver-linux-x64-gnu@0.32.0",
-        "@trycua/cua-driver-win32-arm64-msvc@0.32.0",
-        "@trycua/cua-driver-win32-x64-msvc@0.32.0",
+        "@openclaw/fs-safe-darwin-arm64@0.26.7",
+        "@openclaw/fs-safe-darwin-x64@0.26.7",
+        "@openclaw/fs-safe-freebsd-arm64@0.26.7",
+        "@openclaw/fs-safe-freebsd-x64@0.26.7",
+        "@openclaw/fs-safe-linux-arm64-gnu@0.26.7",
+        "@openclaw/fs-safe-linux-arm64-musl@0.26.7",
+        "@openclaw/fs-safe-linux-x64-gnu@0.26.7",
+        "@openclaw/fs-safe-linux-x64-musl@0.26.7",
+        "@openclaw/fs-safe-win32-arm64-msvc@0.26.7",
+        "@openclaw/fs-safe-win32-x64-msvc@0.26.7",
+        "@openclaw/proc-safe-darwin-arm64@0.4.2",
+        "@openclaw/proc-safe-darwin-x64@0.4.2",
+        "@openclaw/proc-safe-freebsd-arm64@0.4.2",
+        "@openclaw/proc-safe-freebsd-x64@0.4.2",
+        "@openclaw/proc-safe-linux-arm64-gnu@0.4.2",
+        "@openclaw/proc-safe-linux-arm64-musl@0.4.2",
+        "@openclaw/proc-safe-linux-x64-gnu@0.4.2",
+        "@openclaw/proc-safe-linux-x64-musl@0.4.2",
+        "@openclaw/proc-safe-win32-arm64-msvc@0.4.2",
+        "@openclaw/proc-safe-win32-x64-msvc@0.4.2",
+        "@resvg/resvg-js-android-arm-eabi@2.6.2",
+        "@resvg/resvg-js-android-arm64@2.6.2",
+        "@resvg/resvg-js-darwin-arm64@2.6.2",
+        "@resvg/resvg-js-darwin-x64@2.6.2",
+        "@resvg/resvg-js-linux-arm-gnueabihf@2.6.2",
+        "@resvg/resvg-js-linux-arm64-gnu@2.6.2",
+        "@resvg/resvg-js-linux-arm64-musl@2.6.2",
+        "@resvg/resvg-js-linux-x64-gnu@2.6.2",
+        "@resvg/resvg-js-linux-x64-musl@2.6.2",
+        "@resvg/resvg-js-win32-arm64-msvc@2.6.2",
+        "@resvg/resvg-js-win32-ia32-msvc@2.6.2",
+        "@resvg/resvg-js-win32-x64-msvc@2.6.2",
+        "@trycua/cua-driver-darwin-arm64@0.33.4",
+        "@trycua/cua-driver-darwin-x64@0.33.4",
+        "@trycua/cua-driver-linux-arm64-gnu@0.33.4",
+        "@trycua/cua-driver-linux-x64-gnu@0.33.4",
+        "@trycua/cua-driver-win32-arm64-msvc@0.33.4",
+        "@trycua/cua-driver-win32-x64-msvc@0.33.4",
         "@ubjs/node-darwin-arm64@0.31.0-3",
         "@ubjs/node-darwin-x64@0.31.0-3",
         "@ubjs/node-linux-arm64-gnu@0.31.0-3",
@@ -18052,15 +19971,21 @@
     },
     {
       "ref": "p-limit@7.3.3",
-      "dependsOn": ["yocto-queue@1.2.2"]
+      "dependsOn": [
+        "yocto-queue@1.2.2"
+      ]
     },
     {
       "ref": "p-locate@4.1.0",
-      "dependsOn": ["p-limit@2.3.0"]
+      "dependsOn": [
+        "p-limit@2.3.0"
+      ]
     },
     {
       "ref": "p-limit@2.3.0",
-      "dependsOn": ["p-try@2.2.0"]
+      "dependsOn": [
+        "p-try@2.2.0"
+      ]
     },
     {
       "ref": "p-map@7.0.8",
@@ -18068,7 +19993,10 @@
     },
     {
       "ref": "p-retry@4.6.2",
-      "dependsOn": ["@types/retry@0.12.0", "retry@0.13.1"]
+      "dependsOn": [
+        "@types/retry@0.12.0",
+        "retry@0.13.1"
+      ]
     },
     {
       "ref": "p-try@2.2.0",
@@ -18104,10 +20032,65 @@
     },
     {
       "ref": "pdfjs-dist@6.5.438",
-      "dependsOn": ["@napi-rs/canvas@1.1.0"]
+      "dependsOn": [
+        "@napi-rs/canvas@1.1.0"
+      ]
     },
     {
-      "ref": "pkce-challenge@5.0.1",
+      "ref": "pg@8.23.1",
+      "dependsOn": [
+        "pg-connection-string@2.14.1",
+        "pg-pool@3.14.0",
+        "pg-protocol@1.16.1",
+        "pg-types@2.2.0",
+        "pgpass@1.0.5",
+        "pg-cloudflare@1.4.1"
+      ]
+    },
+    {
+      "ref": "pg-cloudflare@1.4.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pg-connection-string@2.14.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pg-int8@1.0.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pg-pool@3.14.0",
+      "dependsOn": [
+        "pg@8.23.1"
+      ]
+    },
+    {
+      "ref": "pg-protocol@1.16.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pg-types@2.2.0",
+      "dependsOn": [
+        "pg-int8@1.0.1",
+        "postgres-array@2.0.0",
+        "postgres-bytea@1.0.1",
+        "postgres-date@1.0.7",
+        "postgres-interval@1.2.0"
+      ]
+    },
+    {
+      "ref": "pgpass@1.0.5",
+      "dependsOn": [
+        "split2@4.2.0"
+      ]
+    },
+    {
+      "ref": "pkce-challenge@5.0.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "platform@1.3.6",
       "dependsOn": []
     },
     {
@@ -18119,12 +20102,32 @@
       "dependsOn": []
     },
     {
+      "ref": "postgres-array@2.0.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postgres-bytea@1.0.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postgres-date@1.0.7",
+      "dependsOn": []
+    },
+    {
+      "ref": "postgres-interval@1.2.0",
+      "dependsOn": [
+        "xtend@4.0.2"
+      ]
+    },
+    {
       "ref": "prettier@3.6.2",
       "dependsOn": []
     },
     {
       "ref": "pretty-ms@9.3.1",
-      "dependsOn": ["parse-ms@4.0.0"]
+      "dependsOn": [
+        "parse-ms@4.0.0"
+      ]
     },
     {
       "ref": "process-nextick-args@2.0.1",
@@ -18152,19 +20155,34 @@
     },
     {
       "ref": "proxy-addr@2.0.8",
-      "dependsOn": ["forwarded@0.2.0", "ipaddr.js@1.9.1"]
+      "dependsOn": [
+        "forwarded@0.2.0",
+        "ipaddr.js@1.9.1"
+      ]
     },
     {
       "ref": "qrcode@1.5.4",
-      "dependsOn": ["dijkstrajs@1.0.3", "pngjs@5.0.0", "yargs@15.4.1"]
+      "dependsOn": [
+        "dijkstrajs@1.0.3",
+        "pngjs@5.0.0",
+        "yargs@15.4.1"
+      ]
     },
     {
       "ref": "cliui@6.0.0",
-      "dependsOn": ["string-width@4.2.3", "strip-ansi@6.0.1", "wrap-ansi@6.2.0"]
+      "dependsOn": [
+        "string-width@4.2.3",
+        "strip-ansi@6.0.1",
+        "wrap-ansi@6.2.0"
+      ]
     },
     {
       "ref": "wrap-ansi@6.2.0",
-      "dependsOn": ["ansi-styles@4.3.0", "string-width@4.2.3", "strip-ansi@6.0.1"]
+      "dependsOn": [
+        "ansi-styles@4.3.0",
+        "string-width@4.2.3",
+        "strip-ansi@6.0.1"
+      ]
     },
     {
       "ref": "y18n@4.0.3",
@@ -18188,11 +20206,17 @@
     },
     {
       "ref": "yargs-parser@18.1.3",
-      "dependsOn": ["camelcase@5.3.1", "decamelize@1.2.0"]
+      "dependsOn": [
+        "camelcase@5.3.1",
+        "decamelize@1.2.0"
+      ]
     },
     {
-      "ref": "qs@6.16.1",
-      "dependsOn": ["es-define-property@1.0.1", "side-channel@1.1.1"]
+      "ref": "qs@6.17.1",
+      "dependsOn": [
+        "es-define-property@1.0.1",
+        "side-channel@1.1.1"
+      ]
     },
     {
       "ref": "range-parser@1.3.0",
@@ -18200,11 +20224,18 @@
     },
     {
       "ref": "rastermill@0.4.0",
-      "dependsOn": ["@silvia-odwyer/photon-node@0.3.4"]
+      "dependsOn": [
+        "@silvia-odwyer/photon-node@0.3.4"
+      ]
     },
     {
       "ref": "raw-body@3.0.2",
-      "dependsOn": ["bytes@3.1.2", "http-errors@2.0.1", "iconv-lite@0.7.3", "unpipe@1.0.0"]
+      "dependsOn": [
+        "bytes@3.1.2",
+        "http-errors@2.0.1",
+        "iconv-lite@0.7.3",
+        "unpipe@1.0.0"
+      ]
     },
     {
       "ref": "readable-stream@2.3.8",
@@ -18239,7 +20270,7 @@
       "dependsOn": []
     },
     {
-      "ref": "router@2.2.0",
+      "ref": "router@2.3.0",
       "dependsOn": [
         "debug@4.4.3",
         "depd@2.0.0",
@@ -18264,7 +20295,7 @@
       "ref": "send@1.2.1",
       "dependsOn": [
         "debug@4.4.3",
-        "encodeurl@2.0.0",
+        "encodeurl@2.0.3",
         "escape-html@1.0.3",
         "etag@1.8.1",
         "fresh@2.0.0",
@@ -18278,7 +20309,12 @@
     },
     {
       "ref": "serve-static@2.2.1",
-      "dependsOn": ["encodeurl@2.0.0", "escape-html@1.0.3", "parseurl@1.3.3", "send@1.2.1"]
+      "dependsOn": [
+        "encodeurl@2.0.3",
+        "escape-html@1.0.3",
+        "parseurl@1.3.3",
+        "send@1.2.1"
+      ]
     },
     {
       "ref": "set-blocking@2.0.0",
@@ -18294,7 +20330,9 @@
     },
     {
       "ref": "shebang-command@2.0.0",
-      "dependsOn": ["shebang-regex@3.0.0"]
+      "dependsOn": [
+        "shebang-regex@3.0.0"
+      ]
     },
     {
       "ref": "shebang-regex@3.0.0",
@@ -18304,7 +20342,7 @@
       "ref": "side-channel@1.1.1",
       "dependsOn": [
         "es-errors@1.3.0",
-        "object-inspect@1.13.4",
+        "object-inspect@1.14.0",
         "side-channel-list@1.0.1",
         "side-channel-map@1.0.1",
         "side-channel-weakmap@1.0.2"
@@ -18312,7 +20350,10 @@
     },
     {
       "ref": "side-channel-list@1.0.1",
-      "dependsOn": ["es-errors@1.3.0", "object-inspect@1.13.4"]
+      "dependsOn": [
+        "es-errors@1.3.0",
+        "object-inspect@1.14.0"
+      ]
     },
     {
       "ref": "side-channel-map@1.0.1",
@@ -18320,7 +20361,7 @@
         "call-bound@1.0.4",
         "es-errors@1.3.0",
         "get-intrinsic@1.3.0",
-        "object-inspect@1.13.4"
+        "object-inspect@1.14.0"
       ]
     },
     {
@@ -18329,7 +20370,7 @@
         "call-bound@1.0.4",
         "es-errors@1.3.0",
         "get-intrinsic@1.3.0",
-        "object-inspect@1.13.4",
+        "object-inspect@1.14.0",
         "side-channel-map@1.0.1"
       ]
     },
@@ -18343,7 +20384,14 @@
     },
     {
       "ref": "source-map-support@0.5.21",
-      "dependsOn": ["buffer-from@1.1.2", "source-map@0.6.1"]
+      "dependsOn": [
+        "buffer-from@1.1.2",
+        "source-map@0.6.1"
+      ]
+    },
+    {
+      "ref": "split2@4.2.0",
+      "dependsOn": []
     },
     {
       "ref": "sqlite-vec@0.1.9",
@@ -18376,8 +20424,11 @@
       "dependsOn": []
     },
     {
-      "ref": "standardwebhooks@1.1.1",
-      "dependsOn": ["@stablelib/base64@1.0.1", "fast-sha256@1.3.0"]
+      "ref": "standardwebhooks@1.3.0",
+      "dependsOn": [
+        "@stablelib/base64@1.0.1",
+        "fast-sha256@1.3.0"
+      ]
     },
     {
       "ref": "statuses@2.0.2",
@@ -18385,15 +20436,23 @@
     },
     {
       "ref": "string_decoder@1.1.1",
-      "dependsOn": ["safe-buffer@5.1.2"]
+      "dependsOn": [
+        "safe-buffer@5.1.2"
+      ]
     },
     {
       "ref": "string-width@4.2.3",
-      "dependsOn": ["emoji-regex@8.0.0", "is-fullwidth-code-point@3.0.0", "strip-ansi@6.0.1"]
+      "dependsOn": [
+        "emoji-regex@8.0.0",
+        "is-fullwidth-code-point@3.0.0",
+        "strip-ansi@6.0.1"
+      ]
     },
     {
       "ref": "strip-ansi@6.0.1",
-      "dependsOn": ["ansi-regex@5.0.1"]
+      "dependsOn": [
+        "ansi-regex@5.0.1"
+      ]
     },
     {
       "ref": "strip-final-newline@4.0.0",
@@ -18401,11 +20460,15 @@
     },
     {
       "ref": "strtok3@10.6.2",
-      "dependsOn": ["@tokenizer/token@0.3.0"]
+      "dependsOn": [
+        "@tokenizer/token@0.3.0"
+      ]
     },
     {
       "ref": "sumchecker@3.0.1",
-      "dependsOn": ["debug@4.4.3"]
+      "dependsOn": [
+        "debug@4.4.3"
+      ]
     },
     {
       "ref": "tiny-emitter@2.1.0",
@@ -18417,7 +20480,11 @@
     },
     {
       "ref": "token-types@6.1.2",
-      "dependsOn": ["@borewit/text-codec@0.2.2", "@tokenizer/token@0.3.0", "ieee754@1.2.1"]
+      "dependsOn": [
+        "@borewit/text-codec@0.2.2",
+        "@tokenizer/token@0.3.0",
+        "ieee754@1.2.1"
+      ]
     },
     {
       "ref": "tr46@0.0.3",
@@ -18437,10 +20504,14 @@
     },
     {
       "ref": "type-is@2.1.0",
-      "dependsOn": ["content-type@2.1.0", "media-typer@1.1.1", "mime-types@3.0.2"]
+      "dependsOn": [
+        "content-type@2.1.0",
+        "media-typer@1.1.1",
+        "mime-types@3.0.2"
+      ]
     },
     {
-      "ref": "typebox@1.3.34",
+      "ref": "typebox@1.3.35",
       "dependsOn": []
     },
     {
@@ -18499,11 +20570,16 @@
     },
     {
       "ref": "whatwg-url@5.0.0",
-      "dependsOn": ["tr46@0.0.3", "webidl-conversions@3.0.1"]
+      "dependsOn": [
+        "tr46@0.0.3",
+        "webidl-conversions@3.0.1"
+      ]
     },
     {
       "ref": "which@2.0.2",
-      "dependsOn": ["isexe@2.0.0"]
+      "dependsOn": [
+        "isexe@2.0.0"
+      ]
     },
     {
       "ref": "which-command@0.1.0",
@@ -18515,7 +20591,11 @@
     },
     {
       "ref": "wrap-ansi@7.0.0",
-      "dependsOn": ["ansi-styles@4.3.0", "string-width@4.2.3", "strip-ansi@6.0.1"]
+      "dependsOn": [
+        "ansi-styles@4.3.0",
+        "string-width@4.2.3",
+        "strip-ansi@6.0.1"
+      ]
     },
     {
       "ref": "wrappy@1.0.2",
@@ -18523,6 +20603,10 @@
     },
     {
       "ref": "ws@8.22.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "xtend@4.0.2",
       "dependsOn": []
     },
     {
@@ -18563,10 +20647,24 @@
     },
     {
       "ref": "zod-to-json-schema@3.25.2",
-      "dependsOn": ["zod@4.6.6"]
+      "dependsOn": [
+        "zod@4.6.6"
+      ]
     },
     {
-      "ref": "@capri/runtime@1.0.1",
+      "ref": "@capri/core@1.2.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "@capri/runtime@1.2.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "@capri/skill-sdk@1.2.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "@capri/skills@1.2.0",
       "dependsOn": []
     }
   ]

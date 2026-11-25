@@ -1,5 +1,6 @@
 /** All geometry is in Electron's device-independent pixels. */
 import { screenSample } from './renderer/screen-geometry.mjs';
+import { REPLY_SPACE } from './renderer/reply-geometry.mjs';
 import { avatarBodyPartAt } from './avatar-body-regions.mjs';
 export function placeInWorkArea(saved, workArea, size, margin = 16) {
   const width = Math.min(size.width, workArea.width);
@@ -201,6 +202,11 @@ export function validateRegions(value, bounds) {
   if (value.replyCollapsed !== undefined) {
     if (typeof value.replyCollapsed !== 'boolean') throw new Error('Invalid reply window state');
     regions.replyCollapsed = value.replyCollapsed;
+  }
+  if (value.replySpace !== undefined) {
+    if (!Number.isInteger(value.replySpace) || value.replySpace < 1 || value.replySpace > REPLY_SPACE)
+      throw new Error('Invalid reply window space');
+    regions.replySpace = value.replySpace;
   }
   if (value.replyMotion !== undefined) {
     if (typeof value.replyMotion !== 'boolean') throw new Error('Invalid reply motion preference');

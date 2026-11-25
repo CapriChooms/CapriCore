@@ -59,7 +59,7 @@ export class SettingsWindow {
     onBusy,
     onError,
     onRendererLost = () => {},
-    idleCloseMs = 60000,
+    idleCloseMs = 2500,
   }) {
     Object.assign(this, {
       BrowserWindow,

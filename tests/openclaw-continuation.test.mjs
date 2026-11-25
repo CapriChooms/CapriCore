@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(
-  new URL('../node_modules/openclaw/dist/embedded-agent-CPls2oXD.mjs', import.meta.url),
+  new URL('../node_modules/openclaw/dist/embedded-agent-D8Zlpjxc.mjs', import.meta.url),
   'utf8',
 );
 const start = source.indexOf('\tconst continuationPrompt = ');

@@ -82,7 +82,10 @@ export class UpdateService {
     platform = process.platform,
     arch = process.arch,
   }) {
-    const archive = !installSupported && platform === 'linux' && arch === 'x64';
+    this.archiveKind = !installSupported
+      ? { 'linux:x64': 'linux-x64', 'darwin:arm64': 'macos-arm64' }[platform + ':' + arch]
+      : null;
+    const archive = Boolean(this.archiveKind);
     Object.assign(this, {
       root,
       node,
@@ -137,7 +140,7 @@ export class UpdateService {
     return structuredClone(this.value);
   }
   get assetKind() {
-    if (this.mode === 'archive') return 'linux-x64';
+    if (this.mode === 'archive') return this.archiveKind;
     return this.mode === 'managed' ? 'source' : 'installer';
   }
   publish(patch) {
@@ -243,6 +246,7 @@ export class UpdateService {
   }
   checkAutomatically() {
     if (
+      this.mode === 'manual' ||
       this.closed ||
       !this.preferences.value.automatic ||
       this.busy() ||
@@ -336,6 +340,7 @@ export class UpdateService {
               experimental: prerelease,
               notes: typeof release.body === 'string' ? release.body.slice(0, 12000) : '',
               update:
+                this.mode !== 'manual' &&
                 compareVersions(releaseVersion(release, repository), this.current) > 0 &&
                 Boolean(asset),
             },

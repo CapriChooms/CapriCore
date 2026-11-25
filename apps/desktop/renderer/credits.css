@@ -135,14 +135,17 @@
   animation-play-state: paused !important;
 }
 #credits-panel .credits-team {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   column-gap: 15px;
   row-gap: 22px;
   padding: 9px 0 13px;
   list-style: none;
 }
 #credits-panel .credits-team-card {
+  flex: 0 0 calc((100% - 30px) / 3);
+  min-inline-size: 0;
   position: relative;
   isolation: isolate;
   text-align: center;
@@ -185,6 +188,17 @@
   letter-spacing: inherit;
   -webkit-text-stroke: 0.6px #fff;
   text-shadow: 0 0 5px color-mix(in srgb, var(--name-glow) 40%, transparent);
+}
+#credits-panel a.credits-team-name {
+  text-decoration: none;
+}
+#credits-panel a.credits-team-name:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--name-glow);
+}
+#credits-panel a.credits-team-name:focus-visible {
+  outline: 1px solid var(--credits-accent);
+  outline-offset: 3px;
 }
 #credits-panel .credits-team-role {
   display: block;
@@ -263,6 +277,7 @@
   font-size: 15px;
   font-weight: 650;
   line-height: 1.6;
+  text-align: center;
 }
 #credits-panel .credits-future-note {
   margin-block-start: 14px;
@@ -376,7 +391,10 @@
   cursor: pointer;
 }
 @container (max-width: 335px) {
-  #credits-panel :is(.credits-team, .credits-future-grid) {
+  #credits-panel .credits-team-card {
+    flex-basis: 100%;
+  }
+  #credits-panel .credits-future-grid {
     grid-template-columns: minmax(0, 1fr);
   }
   #credits-panel .credits-supporters {

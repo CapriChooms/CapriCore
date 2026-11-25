@@ -35,6 +35,7 @@ test('a profile and Python alone cannot advertise an English voice without adapt
   put(profileDir + '/references/neutral.wav');
   put('config/voice-training.json', { modelDir });
   const upstream = {
+    bundledPack: { url: 'https://example.com/new-pack.zip' },
     model: {
       repository: 'fixture',
       revision: 'pinned',
@@ -46,7 +47,7 @@ test('a profile and Python alone cannot advertise an English voice without adapt
   put(modelDir + '/tokenizer.json');
   assert.equal(speechModelsInstalled(folder, 'en'), false, 'download receipt is required');
   const receipt = {
-    upstream,
+    upstream: { ...upstream, bundledPack: { url: 'https://example.com/old-pack.zip' } },
     files: { 'model.safetensors': 'a'.repeat(64), 'tokenizer.json': 'b'.repeat(64) },
   };
   put(modelDir + '/model-receipt.json', receipt);

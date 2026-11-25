@@ -118,14 +118,31 @@ try {
       return triangles;
     });
     const angle = ([a, , b]) => Math.atan2(b[1] - a[1], b[0] - a[0]);
-    const sides = (points) =>
-      points.map(([px, py], i) =>
-        Math.hypot(px - points[(i + 1) % 3][0], py - points[(i + 1) % 3][1]),
-      );
+    const localShape = ([a, tip, b]) => {
+      const width = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const cos = (b[0] - a[0]) / width,
+        sin = (b[1] - a[1]) / width;
+      const dx = tip[0] - (a[0] + b[0]) / 2,
+        dy = tip[1] - (a[1] + b[1]) / 2;
+      return [width, dx * cos + dy * sin, dy * cos - dx * sin];
+    };
     for (const [i, open] of phases[0].entries()) {
-      const original = sides(open);
-      if (phases.some((phase) => sides(phase[i]).some((v, j) => Math.abs(v - original[j]) > 1e-6)))
-        throw Error('Lash changed size during a blink');
+      const original = localShape(open);
+      // Left lashes stay rigid. Right lashes meet their mirrored counterparts
+      // at full closure, while following the tangent of their own eyelid.
+      const target = localShape(phases[0][i % 2]);
+      if (i >= 2) target[1] *= -1;
+      for (const [step, phase] of phases.entries()) {
+        const t = step / (phases.length - 1);
+        const travel = t * t * (3 - 2 * t);
+        const actual = localShape(phase[i]);
+        if (
+          actual.some(
+            (v, j) => Math.abs(v - (original[j] + (target[j] - original[j]) * travel)) > 1e-6,
+          )
+        )
+          throw Error('Unexpected lash shape at closure ' + t);
+      }
       if (Math.abs(angle(phases.at(-1)[i]) - angle(open)) < 0.06)
         throw Error('Lash did not rotate with its lid');
     }

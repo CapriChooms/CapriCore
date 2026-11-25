@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { COMMUNITY_LINKS } from '../apps/desktop/community-links.mjs';
+import { galleryEntries } from '../apps/desktop/renderer/avatar-gallery.mjs';
+import { requireCapriAvatar } from '../apps/desktop/avatar-catalog.mjs';
+import { fileURLToPath } from 'node:url';
 import { FAQ_KEYS, faqContent } from '../apps/desktop/renderer/faq-content.mjs';
 import { SETTINGS_SECTIONS } from '../apps/desktop/renderer/settings-registry.mjs';
 import {
@@ -62,6 +65,16 @@ test('skill names, descriptions and visibility controls are in the source catalo
     'Show button in the message bar',
   ];
   for (const label of labels) assert.equal(source[label], label);
+});
+
+test('every bundled pose and animation shown in Avatar gallery has a source label', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const catalog = requireCapriAvatar(root).publicGallery();
+  const gallery = galleryEntries({ ...catalog, intro: { frames: [{}] } });
+  for (const { title } of Object.values(gallery).flat()) {
+    const parts = /^(?:Music listening|Sway) · /.test(title) ? title.split(' · ', 2) : [title];
+    for (const part of parts) assert.equal(source[part], part, title);
+  }
 });
 
 test('the FAQ ships localized questions and answers with supported destinations', () => {
@@ -189,7 +202,8 @@ test('locale-aware validation rejects cross-language contamination but preserves
     'उपलब्ध नहीं — {device}',
   );
   assert.throws(
-    () => validateLocaleTranslation('Unavailable — {device}', 'उपलब्ध नहीं — {device} ({उपकरण})', 'hi'),
+    () =>
+      validateLocaleTranslation('Unavailable — {device}', 'उपलब्ध नहीं — {device} ({उपकरण})', 'hi'),
     /Changed placeholders/,
   );
 });

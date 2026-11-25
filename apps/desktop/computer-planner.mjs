@@ -1340,25 +1340,5 @@ export function computerPlanner({ url, model, params = {}, modelCapabilities, fe
       },
       signal,
     );
-  decide.idleCursor = ({ signal } = {}) =>
-    requestPlan(
-      {
-        numPredict: 48,
-        format: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['action'],
-          properties: { action: { type: 'string', enum: ['left', 'right', 'skip'] } },
-        },
-        messages: [
-          {
-            role: 'system',
-            content:
-              'The owner opted in to occasional cursor pranks while away. The system is idle. Choose a tiny left or right mouse pointer nudge, or skip. You have no other actions. Reply with only JSON: {"action":"left"}, {"action":"right"} or {"action":"skip"}.',
-          },
-        ],
-      },
-      signal,
-    );
   return decide;
 }

@@ -716,14 +716,21 @@ static class YouTubeMusic
 
     static AutomationElement SearchField(Tab tab)
     {
-        var field = tab.Document.FindFirst(TreeScope.Descendants, new AndCondition(
+        var candidates = tab.Document.FindAll(TreeScope.Descendants, new AndCondition(
             new OrCondition(
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit),
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ComboBox)),
-            new PropertyCondition(AutomationElement.AutomationIdProperty, "input"),
-            new PropertyCondition(AutomationElement.ClassNameProperty, "style-scope ytmusic-search-box")));
-        return field != null && !field.Current.IsOffscreen && !field.Current.IsPassword &&
-            field.Current.IsEnabled && Inside(field, tab.Document) ? field : null;
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "input")));
+        if (candidates.Count > 16) return null;
+        AutomationElement field = null;
+        foreach (AutomationElement candidate in candidates) {
+            var info = candidate.Current;
+            if (info.IsOffscreen || info.IsPassword || !info.IsEnabled ||
+                !Classes(candidate, "ytmusic-search-box") || !Inside(candidate, tab.Document)) continue;
+            if (field != null) return null;
+            field = candidate;
+        }
+        return field;
     }
 
     static string SubmitSearch(Tab tab, string query)
@@ -747,14 +754,15 @@ static class YouTubeMusic
             }
         }
         object pattern;
-        if (field == null || !field.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) return "control_unavailable";
+        if (field == null) return "control_unavailable";
+        if (!field.TryGetCurrentPattern(ValuePattern.Pattern, out pattern)) return "search_input_unavailable";
         var previousWindow = GetForegroundWindow();
         bool keysSent = false, submitted = false;
         try {
             if (previousWindow != tab.Window) SetForegroundWindow(tab.Window);
-            if (!FocusControl(tab, field)) return "control_unavailable";
+            if (!FocusControl(tab, field)) return "search_input_unavailable";
             var value = (ValuePattern)pattern;
-            if (value.Current.IsReadOnly) return "control_unavailable";
+            if (value.Current.IsReadOnly) return "search_input_unavailable";
             value.SetValue(query);
             var timer = Stopwatch.StartNew();
             while (value.Current.Value != query && timer.ElapsedMilliseconds < 600) Thread.Sleep(35);
@@ -783,7 +791,7 @@ static class YouTubeMusic
         if (!waitForSearch) {
             string status;
             tab = FindExisting(binding, true, out status);
-            if (tab == null) return Reply(false, status);
+            if (tab == null) return Reply(false, status == "control_unavailable" ? "tab_control_unavailable" : status);
             // A toast does not block the search. Leave the search field focused
             // until the query is submitted, then acknowledge any early warning.
             if (play) handledPrompt = ContinueWatching(tab, false);
@@ -796,8 +804,8 @@ static class YouTubeMusic
                 bool incomplete;
                 var tabs = Tabs(search, binding, out incomplete);
                 if (binding != null) tabs.RemoveAll(candidate => candidate.Binding != binding);
-                tab = PreferVisible(tabs);
-                if (tab == null && tabs.Count > 0) return Reply(false, "ambiguous_tab");
+                if (tabs.Count > 1) return Reply(false, "ambiguous_tab");
+                if (tabs.Count == 1) tab = tabs[0];
             }
             if (tab != null) {
                 var searchUrl = CurrentUrl(tab);

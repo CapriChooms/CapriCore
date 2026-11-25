@@ -11,6 +11,9 @@ export const SIGNAL_STATES = Object.freeze({
   speaking: { label: 'SPEAKING', color: '#f4ed75' },
   online: { label: 'ONLINE', color: '#8ef5ed' },
   offline: { label: 'OFFLINE', color: '#ff5679' },
+  unloaded: { label: 'MODELS UNLOADED', color: '#a295ff' },
+  loading: { label: 'LOADING MODELS', color: '#f4ed75' },
+  failed: { label: 'MODEL LOAD FAILED', color: '#ff5679' },
   stopping: { label: 'DISCONNECTING', color: '#ff5679' },
   sleeping: { label: 'GOING TO SLEEP', color: '#a295ff' },
   asleep: { label: 'SLEEPING', color: '#a295ff' },
@@ -20,6 +23,7 @@ export class PresenceModel {
   constructor({ now = () => performance.now(), idleMs = 45000 } = {}) {
     Object.assign(this, { now, idleMs });
     this.phase = 'starting';
+    this.modelState = 'ready';
     this.turnId = null;
     this.hasText = false;
     this.voiceBusy = false;
@@ -122,9 +126,15 @@ export class PresenceModel {
       this.now() - this.lastActivity >= this.idleMs
     )
       this.expanded = false;
+    const runtimeState =
+      this.phase === 'starting' && this.modelState === 'loading'
+        ? 'loading'
+        : this.phase === 'ready'
+          ? this.modelState
+          : this.phase;
     const state =
-      this.phase !== 'ready'
-        ? this.phase
+      runtimeState !== 'ready'
+        ? runtimeState
         : this.speaking
           ? 'speaking'
           : this.turnId

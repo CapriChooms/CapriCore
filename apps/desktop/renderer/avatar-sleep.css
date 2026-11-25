@@ -39,9 +39,12 @@
 
 @media (prefers-reduced-motion: no-preference) {
   #sprite[data-frame='pose-sleep'],
-  #parked-avatar[data-pose-frame='pose-sleep'] .avatar-portrait > img {
+  #parked-avatar[data-pose-frame='pose-sleep'] .avatar-portrait > img,
+  .avatar-gallery-thumbnail > img[data-frame='pose-sleep'],
+  .avatar-gallery-art:not([data-gallery-playing])
+    > .avatar-gallery-poster[data-frame='pose-sleep'] {
     transform-origin: 50% 93%;
-    animation: avatar-sleep-breathe 6.4s ease-in-out infinite;
+    animation: avatar-sleep-breathe 4800ms ease-in-out infinite;
   }
 
   .avatar-dreams i {

@@ -159,6 +159,23 @@ try {
   const text = await panel.textContent();
   for (const person of [...roster.team.map(({ name }) => name), ...roster.supporters])
     assert(text.includes(person), 'Missing credit: ' + person);
+  assert.deepEqual(
+    await panel.locator('#credits-community-helpers .credits-name-gradient').allTextContents(),
+    roster.communityHelpers,
+  );
+  assert.deepEqual(
+    await panel.locator('.credits-team').evaluate((list) => {
+      const center = (list.getBoundingClientRect().left + list.getBoundingClientRect().right) / 2;
+      const rows = new Map();
+      for (const card of list.children) {
+        const { left, right } = card.getBoundingClientRect();
+        const row = rows.get(card.offsetTop) ?? { left, right };
+        rows.set(card.offsetTop, { left: Math.min(row.left, left), right: Math.max(row.right, right) });
+      }
+      return [...rows.values()].map(({ left, right }) => Math.round((left + right) / 2 - center));
+    }),
+    [0, 0],
+  );
   const aliases = await panel.locator('.credits-supporter').evaluateAll((nodes) =>
     nodes.map((node) => ({
       name: node.querySelector('.credits-name-gradient').textContent,
@@ -179,6 +196,25 @@ try {
       roster.epithets[name.toLowerCase()],
     );
   }
+  await application.evaluate(({ shell }) => {
+    globalThis.openedCreditProfiles = [];
+    shell.openExternal = async (url) => globalThis.openedCreditProfiles.push(url);
+  });
+  const profileNames = ['Overyx', 'Frkn97', 'lattelix'];
+  const team = panel.locator('#credits-team');
+  assert.equal(await team.getByRole('link').count(), profileNames.length);
+  await settings.emulateMedia({ reducedMotion: 'reduce' });
+  for (const name of profileNames) {
+    const link = team.getByRole('link', { name, exact: true });
+    assert.equal(await link.getAttribute('href'), 'https://github.com/' + name);
+    await link.click();
+  }
+  await settings.emulateMedia({ reducedMotion: 'no-preference' });
+  assert.deepEqual(
+    await application.evaluate(() => globalThis.openedCreditProfiles),
+    profileNames.map((name) => 'https://github.com/' + name),
+  );
+  report.checks.push('Linked team names open the expected GitHub profiles in the system browser');
   report.checks.push(
     'Every nickname has its saved unique adjective/noun epithet; team roles stay present',
   );

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { exactApplications } from './application-target.mjs';
+import { youtubeBrowseRequest } from './computer-mode-request.mjs';
 
 const browserActions = new Set(['open_url', 'browser_search', 'browser_input']);
 const inputActions = new Set([
@@ -64,7 +65,7 @@ export function ownerRequestsWeb(goal, opening) {
     )
   )
     return true;
-  if (/^(?:youtube|netflix)$/iu.test(opening?.name ?? '')) return true;
+  if (/^(?:youtube|netflix)$/iu.test(opening?.name ?? '') || youtubeBrowseRequest(goal)) return true;
   if (opening) return false;
   return /\b(?:search|look up|find (?:where|how|the official)|chrome|edge|firefox|youtube|netflix)\b|^\s*in\s+[^,]{1,180}\btab\s*,|\bfind\b[^.!?]{0,180}\b(?:where|how)\b[^.!?]{0,100}\b(?:download|buy|get|order)\b|(?:^|\s)(?:поищи|найди где|найди как|найди официальный)|\b(?:cherche|recherche|busca)\b/iu.test(
     source,

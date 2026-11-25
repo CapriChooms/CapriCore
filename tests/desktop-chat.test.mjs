@@ -19,6 +19,7 @@ import { clearSavedMemory } from '../apps/desktop/memory-controls.mjs';
 import { TranscriptStore } from '../apps/desktop/storage.mjs';
 import { CapriCore } from '../packages/core/src/index.mjs';
 import { root } from '../packages/runtime/src/index.mjs';
+import { communicationInstruction } from '../packages/runtime/src/communication.mjs';
 import { ACTION_SKILLS, registerActionToolSkills } from '../packages/skills/src/action-tools.mjs';
 import { calculate } from '../integrations/desktop-actions/calculator.mjs';
 import { ApplicationService } from '../integrations/desktop-actions/service.mjs';
@@ -53,6 +54,36 @@ function client(options = {}) {
     ...options,
   });
 }
+
+test('the gateway turn takes the new style immediately without replacing the conversation', async () => {
+  let style = 'business',
+    changedAt = 0;
+  const requests = [];
+  const service = client({
+    persona: () => communicationInstruction(style),
+    styleChangedAt: () => changedAt,
+    fetchImpl: async (_url, options) => {
+      requests.push({
+        key: options.headers['x-openclaw-session-key'],
+        body: JSON.parse(options.body),
+      });
+      return response(requests.length === 1 ? 'Keep the configuration.' : 'You got it!');
+    },
+  });
+  await service.send({ id: randomUUID(), text: 'The repair worked.' }, () => {});
+  style = 'wild';
+  changedAt = Date.now();
+  await service.send({ id: randomUUID(), text: 'It was a tricky one.' }, () => {});
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].key, requests[0].key);
+  assert.match(requests[0].body.messages[0].content, /COMMUNICATION STYLE: business/);
+  assert.match(requests[1].body.messages[0].content, /COMMUNICATION STYLE: wild/);
+  assert.match(
+    requests[1].body.messages[0].content,
+    /Earlier assistant messages reflect conversation facts/,
+  );
+  assert.ok(service.store.snapshot().some(({ text }) => text === 'Keep the configuration.'));
+});
 
 test('the YouTube Music chat path verifies dedicated receipts without touching Spotify or the gateway', async () => {
   const youtubeMusic = { enabled: true, preferred: true };
@@ -2037,6 +2068,23 @@ test('a tool-free external turn does not request gateway tools and explains a pr
     );
     assert.match(events.at(-1).message, /HTTP 413.*request is too large/u);
     assert.equal(service.diagnostics().lastFailure.httpStatus, 413);
+    assert.doesNotMatch(JSON.stringify(events), /private-canary/u);
+  }
+});
+
+test('external chat preserves provider HTTP 404 without exposing its response body', async () => {
+  for (const error of [
+    { status: 404, message: 'private-canary' },
+    { message: 'API provider returned HTTP 404. private-canary' },
+  ]) {
+    const events = [];
+    const service = client({
+      externalInference: true,
+      fetchImpl: async () => response('', `data: ${JSON.stringify({ error })}\n\n`),
+    });
+    await service.send({ id: randomUUID(), text: 'Hello' }, (event) => events.push(event));
+    assert.match(events.at(-1).message, /HTTP 404.*base URL.*model ID/u);
+    assert.equal(service.diagnostics().lastFailure.httpStatus, 404);
     assert.doesNotMatch(JSON.stringify(events), /private-canary/u);
   }
 });

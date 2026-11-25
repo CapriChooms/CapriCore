@@ -2,10 +2,40 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { registerScreenIpc } from '../apps/desktop/main/screen-ipc.mjs';
+import { ScreenCapturePolicy } from '../apps/desktop/screen-capture-policy.mjs';
+import { diagnosticState } from '../apps/desktop/diagnostics/state.mjs';
 import { createIpcHandler } from '../apps/desktop/main/ipc.mjs';
 import { mkdtempSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { root } from '../packages/runtime/src/host/paths.mjs';
+
+test('screen observation diagnostics retain one startup outcome without source identifiers', async () => {
+  let now = 500;
+  const handlers = new Map();
+  const capturePolicy = new ScreenCapturePolicy({
+    now: () => now,
+    sources: async () => [{ id: 'window:7:0', name: 'private window title' }],
+  });
+  registerScreenIpc((name, fn) => handlers.set(name, fn), {
+    capturePolicy,
+    screenPreviews: new Map(),
+  });
+  const start = handlers.get('capri:screen-watch-prepare');
+  assert.throws(() => start({ sourceId: 'private stale token' }), /available screen source/);
+  assert.deepEqual(diagnosticState(capturePolicy.diagnostics()).lastWatchStart, {
+    code: 'CAPRI_SCREEN_WATCH_SELECTION_UNAVAILABLE',
+    timestampMs: 500,
+  });
+  const [source] = await capturePolicy.discover();
+  now = 600;
+  start({ sourceId: source.id });
+  const diagnostics = diagnosticState(capturePolicy.diagnostics());
+  assert.deepEqual(diagnostics.lastWatchStart, {
+    code: 'CAPRI_SCREEN_WATCH_ARMED',
+    timestampMs: 600,
+  });
+  assert.doesNotMatch(JSON.stringify(diagnostics), /private|window:7:0/u);
+});
 
 test('a delayed observation stop remains bound to its own capture ID', () => {
   const handlers = new Map(),

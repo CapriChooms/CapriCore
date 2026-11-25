@@ -275,11 +275,13 @@ export async function applyUpdate(
     for (const [lock, venv] of [
       ['config/asr-requirements.lock.txt', 'asr-venv'],
       ['config/router-requirements.lock.txt', 'router-venv'],
+      ['config/npu-requirements.lock.txt', 'npu-openvino'],
     ]) {
       const python = path.join(root, '.runtime', venv, 'Scripts/python.exe');
-      if (changed.has(lock) && existsSync(python)) {
+      if (changed.has(lock) && existsSync(python) && existsSync(path.join(root, lock))) {
         emit({ phase: 'dependencies' });
-        await command(uv, [
+        const bootstrap = path.join(root, 'tools/setup/uv-retry.py');
+        await command(python, [bootstrap, '--uv', uv, '--',
           'pip',
           'sync',
           '--python',
@@ -287,6 +289,10 @@ export async function applyUpdate(
           path.join(root, lock),
           '--default-index',
           'https://pypi.org/simple',
+          '--no-config',
+          '--index-strategy', 'first-index',
+          // Rollback can restore a pre-hash ASR lock.
+          ...(readFileSync(path.join(root, lock), 'utf8').includes('--hash=sha256:') ? ['--require-hashes'] : []),
         ]);
       }
     }
@@ -294,6 +300,8 @@ export async function applyUpdate(
       [
         'config/requirements-voice-training.lock',
         'config/requirements-voice-blackwell.lock',
+        'config/requirements-voice-amd.lock',
+        'config/voice-build-requirements.lock.txt',
         'config/voice-blackwell-overrides.txt',
         'config/voice-runtime.json',
         'tools/setup/setup-voice-training.ps1',

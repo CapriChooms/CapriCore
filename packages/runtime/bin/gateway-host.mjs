@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { root } from '../src/host/paths.mjs';
+import { root, resourceRoot } from '../src/host/paths.mjs';
 
 // Closing the supported stdin host lifeline asks OpenClaw to drain and release
 // SQLite ownership cleanly. SIGTERM alone force-kills Node on Windows.
@@ -13,6 +13,8 @@ if (existsSync(stopFile)) unlinkSync(stopFile);
 const child = spawn(
   process.execPath,
   [
+    '--optimize-for-size',
+    '--max-semi-space-size=8',
     '--import',
     pathToFileURL(path.join(root, 'packages/runtime/bin/response-timing-preload.mjs')).href,
     path.join(root, 'node_modules/openclaw/openclaw.mjs'),
@@ -31,6 +33,9 @@ const child = spawn(
       NODE_DISABLE_COMPILE_CACHE: '1',
       OPENCLAW_GATEWAY_HOST_LIFELINE: 'stdin',
       OPENCLAW_NO_RESPAWN: '1',
+      // OpenClaw enables Bonjour by default on Mac, even for a loopback-only gateway.
+      ...(process.platform === 'darwin' &&
+        root !== resourceRoot && { OPENCLAW_DISABLE_BONJOUR: '1' }),
     },
     windowsHide: true,
     stdio: ['pipe', 'inherit', 'inherit'],

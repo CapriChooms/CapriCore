@@ -68,6 +68,8 @@ if (check) {
     for (const source of strings.filter((value) => Object.hasOwn(messages, value))) {
       try {
         const translated = messages[source];
+        if (translated === source && source.length > 22)
+          throw new Error('Guide text is still in English');
         if (
           JSON.stringify(placeholders(source).sort()) !==
           JSON.stringify(placeholders(String(translated)).sort())
@@ -90,7 +92,7 @@ if (check) {
   process.exit();
 }
 const protectedText =
-  /\{[a-zA-Z]\w*\}|[\w./-]+\.(?:md|json|exe|cmd|mjs|wav)\b|\b(?:Capri|CAPRI|Spotify|YouTube|Discord|GitHub|Windows|OpenClaw|Ollama|Qwen|NVIDIA|AMD|Intel|CUDA|CPU|GPU|RAM|VRAM|GiB|GB|MB|API|FEN|PGN|Stockfish|Chess|OBS|TTS|ASR|MCP)\b|\d+(?:[.,]\d+)*/g;
+  /\{[a-zA-Z]\w*\}|[\w./-]+\.(?:md|json|exe|cmd|mjs|wav)\b|\b(?:Capri Camera|Capri|CAPRI|Spotify|YouTube|Discord|GitHub|Windows|OpenClaw|Ollama|Qwen|NVIDIA|AMD|Intel|CUDA|CPU|GPU|RAM|VRAM|GiB|GB|MB|API|FEN|PGN|Stockfish|Chess|OBS|TTS|ASR|MCP)\b|\d+(?:[.,]\d+)*/g;
 const provider = process.argv.includes('--provider=bing') ? 'bing' : 'google';
 let bingSession;
 async function bingTranslate(locale, query) {

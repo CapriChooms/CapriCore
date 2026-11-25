@@ -43,9 +43,16 @@ const asrError = (code, startupStage) =>
 
 /** An owned CPU worker over private stdio, never a renderer-accessible server. */
 export class ASRWorker extends EventEmitter {
-  constructor({ root, spawnImpl = spawn, language = 'en' }) {
+  constructor({
+    root,
+    spawnImpl = spawn,
+    language = 'en',
+    deferModel = false,
+    unloadIdle = false,
+    idleSeconds = 300,
+  }) {
     super();
-    Object.assign(this, { root, spawnImpl, language });
+    Object.assign(this, { root, spawnImpl, language, deferModel, unloadIdle, idleSeconds });
     this.child = null;
     this.pending = new Map();
     this.requestId = 0;
@@ -98,6 +105,11 @@ export class ASRWorker extends EventEmitter {
       throw asrError('ASR_START_CONFIG');
     Object.assign(env, { HF_HUB_OFFLINE: '1', TOKENIZERS_PARALLELISM: 'false' });
     env.CAPRI_ASR_LANGUAGE = this.language;
+    if (this.deferModel) env.CAPRI_ASR_DEFER_MODEL = '1';
+    if (this.unloadIdle) {
+      env.CAPRI_ASR_UNLOAD_IDLE = '1';
+      env.CAPRI_ASR_IDLE_SECONDS = String(this.idleSeconds);
+    }
     const child = (this.child = this.spawnImpl(
       python,
       [
@@ -337,11 +349,14 @@ export class ASRWorker extends EventEmitter {
     const request = ++this.requestId,
       child = this.child;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(request);
-        reject(new Error('Recognition timed out'));
-        this.close();
-      }, 15000);
+      const timer = setTimeout(
+        () => {
+          this.pending.delete(request);
+          reject(new Error('Recognition timed out'));
+          this.close();
+        },
+        command.type === 'warm-model' ? 60000 : 15000,
+      );
       this.pending.set(request, { resolve, reject, timer });
       child.stdin.write(JSON.stringify({ ...command, request }) + '\n', (error) => {
         if (error && this.pending.has(request)) {
@@ -351,6 +366,13 @@ export class ASRWorker extends EventEmitter {
         }
       });
     });
+  }
+  setIdleUnload(enabled, idleSeconds = this.idleSeconds) {
+    this.unloadIdle = enabled;
+    this.idleSeconds = idleSeconds;
+    if (this.child && this.ready)
+      return this.send({ type: 'idle-policy', enabled, idleSeconds }).then(() => true);
+    return Promise.resolve(false);
   }
   close() {
     this.startupGeneration++;

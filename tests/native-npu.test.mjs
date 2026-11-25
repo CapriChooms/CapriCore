@@ -171,6 +171,38 @@ test('native inference streams over private IPC and keeps cloud/API mode out of 
     { code: 'CAPRI_NPU_INPUT_INVALID' },
   );
 });
+test('the selected idle timeout releases a resident NPU model and disabling it cancels the timer', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { root, config } = fixture(t);
+  const native = new NpuInference({
+    root,
+    config,
+    Worker: class {
+      async request() {
+        return { ready: true };
+      }
+      stop() {
+        this.onStop?.();
+      }
+    },
+  });
+  t.after(() => native.stop());
+  await native.ready();
+  assert.equal(native.resident, true);
+  native.setIdleUnload(true, 60);
+  t.mock.timers.tick(59000);
+  assert.equal(native.resident, true);
+  native.setIdleUnload(false);
+  t.mock.timers.tick(300000);
+  assert.equal(native.resident, true);
+  native.setIdleUnload(true, 120);
+  t.mock.timers.tick(119999);
+  assert.equal(native.resident, true);
+  t.mock.timers.tick(1);
+  assert.equal(native.resident, false);
+  assert.equal(native.loaded, null);
+});
+
 test('real worker returns a safe missing-runtime error without SDK paths or prompts', async (t) => {
   const root = path.resolve('.'),
     python = path.join(root, '.runtime/python/cpython-3.11.17-windows-x86_64-none/python.exe');

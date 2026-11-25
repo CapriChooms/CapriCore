@@ -304,7 +304,7 @@ try {
   assert.equal(fading.interactive, false);
   assert.equal(fading.nativeVisible, true, 'Native hiding must wait for the CSS transition.');
   const lastIgnore = fading.calls.filter((item) => item.method === 'setIgnoreMouseEvents').at(-1);
-  assert.deepEqual(lastIgnore.args, [true, { forward: true }]);
+  assert.deepEqual(lastIgnore.args, [true, { forward: false }]);
   await page.waitForTimeout(60);
   const fadingOpacity = await page.evaluate(() =>
     Number(getComputedStyle(document.querySelector('#mini-composer')).opacity),

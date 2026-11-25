@@ -18,7 +18,6 @@ const protectedCommands = {
   'capri.coding': ['run'],
   'capri.computer': ['run'],
   'capri.avatar-interaction': ['react'],
-  'capri.initiative': ['test'],
   'capri.attachment-viewer': ['open'],
   'capri.applications': ['execute'],
   'capri.calculator': ['calculate'],

@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { setTimeout as delay } from 'node:timers/promises';
 import { ensureLanguageModelReady } from '../packages/runtime/src/providers/model-residency.mjs';
 import { MutedVoiceResidency } from '../apps/desktop/voice-residency.mjs';
 
@@ -209,4 +210,41 @@ test('preview/unmute wins a startup race, large-memory policy stays warm and unl
   service.stop = async () => {};
   assert.equal(await service.release(), true);
   assert.equal(service.diagnostics().lastError, null);
+});
+
+test('idle TTS leaves voice enabled and waits for active playback before releasing', async () => {
+  let ready = true;
+  let playback = true;
+  let stops = 0;
+  let idleDelay = 10;
+  const delays = [];
+  const capable = new MutedVoiceResidency({
+    enabled: true,
+    needed: () => true,
+    resident: () => ready,
+    cancel: () => {
+      ready = false;
+      capable.scheduleIdle();
+    },
+    starting: () => null,
+    stop: async () => stops++,
+    idleEligible: () => ready,
+    idleBusy: () => playback,
+    idleMs: () => {
+      delays.push(idleDelay);
+      return idleDelay;
+    },
+  });
+  capable.scheduleIdle();
+  await delay(25);
+  assert.equal(stops, 0);
+  assert.equal(ready, true);
+  playback = false;
+  idleDelay = 25;
+  capable.scheduleIdle();
+  for (let i = 0; i < 20 && !stops; i++) await delay(10);
+  assert.equal(ready, false);
+  assert.equal(stops, 1);
+  assert.equal(delays.at(-1), 25);
+  assert.equal(capable.needed(), true);
 });

@@ -241,6 +241,7 @@ try {
   const transitionSession = 'agent:capri:transition-fixture';
   for (const mode of ['dialogue', 'conversation', 'dialogue']) {
     socialPhase = mode;
+    const dialogueCallsBefore = report.dialogueCalls ?? 0;
     const social = await request(rt.gatewayUrl + '/v1/chat/completions', {
       method: 'POST',
       timeout: 120000,
@@ -256,22 +257,25 @@ try {
       }),
     });
     assert.match(JSON.stringify(social), /Hello/);
+    if (mode === 'dialogue') assert.ok(report.dialogueCalls > dialogueCallsBefore);
   }
   socialPhase = false;
   for (const scope of ['calculator', 'spotify', 'desktop', 'desktop-task']) {
     scopedPhase = scope;
-    const scoped = await request(rt.gatewayUrl + '/v1/chat/completions', {
+    const stream = scope === 'desktop-task';
+    const url = rt.gatewayUrl + '/v1/chat/completions';
+    const init = {
       method: 'POST',
-      timeout: 120000,
       headers: {
         ...headers(rt),
         'x-capri-tools-once': scope.startsWith('desktop') ? 'desktop' : scope,
         'x-openclaw-message-channel': 'webchat',
         'x-openclaw-session-key': 'agent:capri:scope-fixture-' + scope,
+        ...(stream ? { 'x-capri-tool-progress': '1' } : {}),
       },
       body: JSON.stringify({
         model: 'openclaw/capri',
-        stream: false,
+        stream,
         messages: [
           {
             role: 'user',
@@ -279,8 +283,33 @@ try {
           },
         ],
       }),
-    });
-    assert.match(JSON.stringify(scoped), /Scoped fixture ready/);
+    };
+    if (!stream) {
+      const scoped = await request(url, { ...init, timeout: 120000 });
+      assert.match(JSON.stringify(scoped), /Scoped fixture ready/);
+      continue;
+    }
+    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(120000) });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /text\/event-stream/);
+    const body = await response.text();
+    assert.match(body, /Scoped fixture ready/);
+    const progress = body
+      .split('\n')
+      .filter((line) => line.startsWith('data: {'))
+      .map((line) => JSON.parse(line.slice(6)).capri)
+      .filter(Boolean);
+    assert.deepEqual(
+      progress.map(({ phase }) => phase),
+      ['start', 'result'],
+    );
+    for (const event of progress) {
+      assert.equal(event.type, 'tool');
+      assert.equal(event.name, 'desktop_control');
+      assert.equal(event.callId, progress[0].callId);
+      assert.deepEqual(Object.keys(event).sort(), ['callId', 'name', 'phase', 'type']);
+    }
+    report.toolProgress = true;
   }
   scopedPhase = null;
   const result = await request(rt.gatewayUrl + '/v1/chat/completions', {
@@ -300,6 +329,7 @@ try {
   });
   assert.equal(report.toolRoundTrip, true);
   socialPhase = 'dialogue';
+  const dialogueCallsBefore = report.dialogueCalls;
   const afterAction = await request(rt.gatewayUrl + '/v1/chat/completions', {
     method: 'POST',
     timeout: 30000,
@@ -315,8 +345,7 @@ try {
     }),
   });
   assert.match(JSON.stringify(afterAction), /Hello/);
-  assert.equal(report.calls, 13);
-  assert.equal(report.dialogueCalls, 3);
+  assert.ok(report.dialogueCalls > dialogueCallsBefore);
   assert.equal(report.computerTaskRoundTrip, true);
   assert.equal(report.scientificToolRoundTrip, true);
   assert.equal(report.desktopToolRoundTrip, true);

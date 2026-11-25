@@ -165,6 +165,102 @@ test('an unavailable outline leaves the original goal and independent review in 
   );
 });
 
+test('a transient post-click review failure refreshes the observation without replaying input', async () => {
+  let clicked = false;
+  let reviews = 0;
+  let firstReviewObservation;
+  let attemptedReplay = false;
+  const evidence = 'Trail map available';
+  const f = fixture({
+    view: () => ({
+      window: { windowId: '1', untrustedTitle: 'Trail association' },
+      targets: [button('open', 'Open map'), ...(clicked ? [button('proof', evidence)] : [])],
+    }),
+    input: async ({ action }) => {
+      assert.equal(action, 'click');
+      assert.equal(clicked, false, 'Delivered clicks may not be replayed during recovery');
+      clicked = true;
+      return { ok: true };
+    },
+    plan: async ({ currentObservation, taskPlan, correction }, { review }) => {
+      if (review && ++reviews === 1) {
+        firstReviewObservation = currentObservation.observationId;
+        throw Object.assign(new Error('Computer planning HTTP 502'), {
+          code: 'COMPUTER_PLAN_HTTP',
+          httpStatus: 502,
+        });
+      }
+      if (!clicked || (firstReviewObservation && !attemptedReplay && !review)) {
+        if (clicked) {
+          attemptedReplay = true;
+          assert.notEqual(currentObservation.observationId, firstReviewObservation);
+          assert.equal(taskPlan.needsRevision, true);
+          assert.match(correction, /already delivered/);
+        }
+        return { action: 'click', targetId: currentObservation.targets[0].targetId };
+      }
+      return { action: 'finish', evidence, summary: 'The trail map is visible.' };
+    },
+  });
+  assert.equal(
+    (await f.agent.run('Find the archived trail map and tell me where I can download it.')).ok,
+    true,
+  );
+  assert.equal(reviews, 2);
+  assert.equal(f.calls.filter(({ action }) => action === 'click').length, 1);
+  assert.ok(f.agent.diagnostics().actions.some(({ outcome }) => outcome === 'review_recovery'));
+});
+
+test('a persistently unavailable reviewer stops after one fresh observation retry', async () => {
+  let reviews = 0;
+  const f = fixture({
+    view: () => ({
+      window: { windowId: '1', untrustedTitle: 'Trail map available' },
+      targets: [],
+    }),
+    plan: async (_context, { review }) => {
+      if (review) {
+        reviews++;
+        throw Object.assign(new Error('Computer planning HTTP 502'), {
+          code: 'COMPUTER_PLAN_HTTP',
+          httpStatus: 502,
+        });
+      }
+      return { action: 'finish', evidence: 'Trail map available', summary: 'Map found.' };
+    },
+  });
+  const result = await f.agent.run('Find the archived trail map.');
+  assert.equal(result.ok, false);
+  assert.equal(result.steps, 0);
+  assert.equal(reviews, 2);
+  assert.equal(f.agent.diagnostics().lastFailure.httpStatus, 502);
+});
+
+test('owner cancellation during a transient review failure cannot start a retry', async () => {
+  const controller = new AbortController();
+  let reviews = 0;
+  const f = fixture({
+    view: () => ({ window: { windowId: '1', untrustedTitle: 'Trail map available' } }),
+    plan: async (_context, { review }) => {
+      if (review) {
+        reviews++;
+        setImmediate(() => controller.abort());
+        throw Object.assign(new Error('Computer planning HTTP 502'), {
+          code: 'COMPUTER_PLAN_HTTP',
+          httpStatus: 502,
+        });
+      }
+      return { action: 'finish', evidence: 'Trail map available', summary: 'Map found.' };
+    },
+  });
+  await assert.rejects(f.agent.run('Find the archived trail map.', { signal: controller.signal }), {
+    name: 'AbortError',
+  });
+  assert.equal(reviews, 1);
+  assert.equal(f.calls.filter(({ action }) => action === 'observe').length, 1);
+  assert.equal(f.control.session, null);
+});
+
 test('a text provider that rejects structured output gets one prompt-format fallback with validation', async () => {
   const formats = [];
   const outline = {

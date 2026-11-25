@@ -1,6 +1,7 @@
 """Bounded JSON-line IPC; microphone samples are never written to a file."""
 import base64
 import json
+import os
 import sys
 import threading
 
@@ -13,6 +14,15 @@ output_lock = threading.Lock()
 def emit(value):
     with output_lock:
         print(json.dumps(value, ensure_ascii=True, separators=(',', ':')), flush=True)
+
+
+def warm_model(queue, request):
+    try:
+        queue.warm()
+    except Exception:
+        emit(dict(type='error', request=request, code='ASR_START_MODEL'))
+    else:
+        emit(dict(type='ack', request=request))
 
 
 def run():
@@ -34,7 +44,13 @@ def run():
         detector = SpeechDetector(config)
         stage = 'ASR_START_MODEL'
         emit(dict(type='startup-stage', code=stage))
-        queue = RecognitionQueue(Recognizer(config), emit)
+        # Keep the detector and session alive when only the full decoder is idle.
+        def load():
+            return Recognizer(config)
+        queue = RecognitionQueue(None if os.getenv('CAPRI_ASR_DEFER_MODEL') == '1' else load(), emit,
+                                 reload_recognizer=load,
+                                 idle_seconds=int(os.getenv('CAPRI_ASR_IDLE_SECONDS', '45'))
+                                 if os.getenv('CAPRI_ASR_UNLOAD_IDLE') == '1' else 0)
     except Exception:
         # Configuration and model exceptions can contain installation paths.
         emit(dict(type='startup-error', code=stage))
@@ -89,6 +105,13 @@ def run():
                 if len(raw) % 4 or len(raw) > 12800:
                     raise ValueError('Invalid PCM packet')
                 session.accept(np.frombuffer(raw, dtype='<f4'), finish=kind == 'finish')
+            elif kind == 'idle-policy':
+                if type(command.get('enabled')) is not bool:
+                    raise ValueError('Invalid idle policy')
+                queue.set_idle_unload(command['enabled'], command.get('idleSeconds', 45))
+            elif kind == 'warm-model':
+                queue.executor.submit(warm_model, queue, request)
+                continue
             elif kind == 'quit':
                 if queue:
                     queue.stop(session)

@@ -18,6 +18,7 @@ import {
 import { writeFile, rename, unlink } from 'node:fs/promises';
 import { createDiagnosticReport, validateReport } from '../diagnostics/report.mjs';
 import { COMMUNITY_LINKS, loadCommunityLinks } from '../community-links.mjs';
+import { creditProfile } from '../credits-team.mjs';
 import { validateCompanionSettings } from '../companion-settings.mjs';
 export { COMMUNITY_LINKS } from '../community-links.mjs';
 import {
@@ -41,13 +42,17 @@ export function registerCompanionIpc(handle, deps) {
     emit({ type: 'companion.settings', settings: next });
     return next;
   });
-  handle('capri:community-link', async (id) => {
+  handle('capri:community-link', async (id, context) => {
+    const profile = context?.role === 'settings' && creditProfile(id);
+    if (profile) return shell.openExternal(profile);
     if (!Object.hasOwn(COMMUNITY_LINKS, id)) throw new Error('Unknown community link');
     await shell.openExternal(links[id]);
   });
-  handle('capri:donation-open', (_value, { role }) =>
-    role === 'settings' ? deps.openDonation() : false,
-  );
+  handle('capri:donation-open', async (_value, { role }) => {
+    if (role !== 'settings') return false;
+    await shell.openExternal(links['lava-donate']);
+    return true;
+  });
   handle('capri:personality-get', () => ({
     text: readPersonality(rt.workspace),
     original: defaultPersonality(),
@@ -129,6 +134,7 @@ export function registerCompanionIpc(handle, deps) {
     if (preparing) throw new Error('The wake voice is already being prepared.');
     preparing = true;
     try {
+      deps.onWakeVoicePreparation?.(true);
       await deps.prepareVoice();
       const { phrase, language, text } = selected;
       const request = { text, language, requestId: `wake:${randomUUID()}` };
@@ -163,6 +169,7 @@ export function registerCompanionIpc(handle, deps) {
       return true;
     } finally {
       preparing = false;
+      deps.onWakeVoicePreparation?.(false);
     }
   };
   handle('capri:wake-prepare', () => prepareWakeVoice());

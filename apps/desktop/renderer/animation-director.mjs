@@ -1,6 +1,9 @@
 import { faceAnimations, faceFrames } from './avatar-face-expressions.mjs';
 
 const faceReactions = { surprised: 'surprise', sleepy: 'sleepy' };
+const idleExpressions = ['attentive', 'thinking', 'smirk', 'happy', 'skeptical', 'sleepy'];
+const musicExpressions = ['happy', 'smirk', 'idle-excited'];
+const moodDelay = 12000;
 
 /** Local visual autonomy. No generated dialogue, network calls or keyword guessing. */
 export class AnimationDirector {
@@ -18,6 +21,7 @@ export class AnimationDirector {
     this.nextBlink = 0;
     this.lastTick = null;
     this.lookNext = false;
+    this.nextMood = Infinity;
   }
   select(id, revision, now) {
     const choice = this.choices.get(id);
@@ -25,6 +29,7 @@ export class AnimationDirector {
     this.semantic = choice;
     this.revision = revision;
     this.base = this.choices.get(choice.returnTo ?? choice.id);
+    this.idleMood = null;
     this.sequence = null;
     if (choice.animation || Object.hasOwn(faceReactions, id))
       this.play(choice.animation ?? faceReactions[id], now, 'reaction');
@@ -35,6 +40,8 @@ export class AnimationDirector {
   attend(now, interrupt = false) {
     this.lastAttention = now;
     this.nextActivity = now + this.settings.firstActivityMs;
+    this.nextMood = now + Math.max(this.settings.firstActivityMs, moodDelay);
+    this.idleMood = null;
     if (interrupt || this.sequence?.kind === 'ambient') this.sequence = null;
   }
   react(id, now, duration) {
@@ -78,6 +85,10 @@ export class AnimationDirector {
     }
     this.play('gaze', now, 'ambient');
   }
+  chooseMood(choices, previous) {
+    const options = choices.filter((id) => id !== previous && this.frames.has(id));
+    return options[Math.floor(this.random() * options.length)] ?? null;
+  }
   tick(
     now,
     {
@@ -89,6 +100,7 @@ export class AnimationDirector {
       reduced = false,
       dragging = false,
       heldFrame = null,
+      musicListening = false,
     } = {},
   ) {
     const gap = this.lastTick === null ? 0 : Math.max(0, now - this.lastTick);
@@ -96,10 +108,28 @@ export class AnimationDirector {
       if (this.sequence) this.sequence.start += gap;
       this.nextActivity += gap;
       this.nextBlink += gap;
+      this.nextMood += gap;
     }
-    const dt = Math.min(1000, gap);
+    const dt = gap > 1000 ? 0 : gap;
     this.lastTick = now;
     if (this.revision < 0) return null;
+    const attentive = active || typing || speaking;
+    if (!musicListening) this.musicMood = null;
+    if (attentive || sleeping || dragging || heldFrame || !expanded || musicListening) {
+      this.nextMood = now + Math.max(this.settings.firstActivityMs, moodDelay);
+      this.idleMood = null;
+    } else if (this.settings.enabled && now >= this.nextMood) {
+      this.idleMood = this.chooseMood(idleExpressions, this.idleMood ?? this.base.frameId);
+      this.nextMood = now + Math.max(this.settings.activityGapMs, moodDelay) + this.random() * 7000;
+    }
+    if (musicListening && !this.musicMood && expanded && !sleeping && !attentive) {
+      this.musicMood = this.chooseMood(musicExpressions, this.lastMusicMood);
+      this.lastMusicMood = this.musicMood;
+    }
+    this.expressionOverride =
+      attentive || sleeping || dragging || heldFrame || !expanded
+        ? null
+        : (this.musicMood ?? this.idleMood);
     if (sleeping) {
       this.sequence = null;
       this.reaction = null;
@@ -112,8 +142,14 @@ export class AnimationDirector {
       this.nextActivity = now + this.settings.firstActivityMs;
       return this.result(this.base.frameId);
     }
-    if (dragging || heldFrame) {
-      if (this.sequence) this.sequence.start += dt;
+    if (dragging || heldFrame || musicListening) {
+      if (musicListening && this.sequence?.kind === 'ambient' && this.sequence.face)
+        this.sequence = null;
+      if (
+        this.sequence &&
+        (dragging || heldFrame || (this.sequence.kind === 'ambient' && this.sequence.frames))
+      )
+        this.sequence.start += dt;
       this.nextActivity = now + this.settings.firstActivityMs;
     }
     if (this.reaction && (now >= this.reaction.until || active || typing)) this.reaction = null;
@@ -147,10 +183,11 @@ export class AnimationDirector {
             this.sequence.effect?.onFrame === frame.id
               ? { ...this.sequence.effect, progress: Math.max(0, age / frame.ms) }
               : null;
-          return this.result(frame.id, this.sequence.id, effect, {
-            id: 'gaze',
-            start: this.sequence.start + 450,
-          });
+          const clip =
+            musicListening && this.sequence.kind === 'ambient'
+              ? null
+              : { id: 'gaze', start: this.sequence.start + 450 };
+          return this.result(frame.id, this.sequence.id, effect, clip);
         }
         age -= frame.ms;
       }
@@ -175,7 +212,9 @@ export class AnimationDirector {
       activity,
       effect,
       clip,
-      expression: Object.hasOwn(faceFrames, this.base.frameId) ? this.base.frameId : null,
+      expression:
+        (activity !== 'reaction' && this.expressionOverride) ||
+        (Object.hasOwn(faceFrames, this.base.frameId) ? this.base.frameId : null),
     };
   }
 }

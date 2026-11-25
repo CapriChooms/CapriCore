@@ -10,6 +10,131 @@ import {
 import { avatarPoseLandmarks } from '../apps/desktop/renderer/avatar-mouth.mjs';
 import { avatarBodyPartAt } from '../apps/desktop/avatar-body-regions.mjs';
 import { AvatarDetach } from '../apps/desktop/main/avatar-detach.mjs';
+import { requireCapriAvatar } from '../apps/desktop/avatar-catalog.mjs';
+import { root } from '../packages/runtime/src/index.mjs';
+import {
+  CHANNELS,
+  POSE_RIGS,
+  deformPoint,
+  motionExtent,
+} from '../apps/desktop/renderer/idle-gesture-rig.mjs';
+import {
+  beatPoseChannels,
+  musicRig,
+  syncSleepBreathing,
+} from '../apps/desktop/renderer/music-beat-motion.mjs';
+import { musicBreathingTempo } from '../apps/desktop/music-listening-settings.mjs';
+import { galleryEntries } from '../apps/desktop/renderer/avatar-gallery.mjs';
+import { gripArt } from '../apps/desktop/renderer/music-grip-art.mjs';
+import { gripSkeleton } from '../apps/desktop/renderer/music-grip-motion.mjs';
+import { PNG } from 'pngjs';
+import { readFileSync } from 'node:fs';
+
+test('sleep breathing follows four musical beats and returns to 12.5 breaths per minute in silence', () => {
+  const rates = [];
+  const animation = {
+    animationName: 'avatar-sleep-breathe',
+    currentTime: 500,
+    playbackRate: 1,
+    updatePlaybackRate(rate) {
+      this.playbackRate = rate;
+      rates.push(rate);
+    },
+  };
+  const sprite = { getAnimations: () => [animation] };
+  const listening = { enabled: true, hearingMusic: true, tempo: 120, tempoConfidence: 1 };
+  syncSleepBreathing(sprite, musicBreathingTempo(listening));
+  syncSleepBreathing(sprite, musicBreathingTempo(listening));
+  syncSleepBreathing(sprite, musicBreathingTempo({ ...listening, hearingMusic: false }));
+  assert.deepEqual(rates, [2.4, 1]);
+  assert.equal(animation.currentTime, 500);
+  assert.equal(musicBreathingTempo({ ...listening, settings: { motion: false } }), 0);
+  assert.equal(musicBreathingTempo({ ...listening, tempoConfidence: 0.1 }), 0);
+});
+
+test('both anchored arms retain their lengths through each layered beat cycle', () => {
+  const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  for (const [id, { arms }] of Object.entries(gripArt)) {
+    for (let sample = 0; sample < 96; sample++) {
+      const { limbs } = gripSkeleton(id, beatPoseChannels(id, sample / 24));
+      for (const [i, { wrist, elbow, shoulder }] of arms.entries()) {
+        assert.ok(Math.abs(distance(wrist, limbs[i].elbow) - distance(wrist, elbow)) < 1e-7, id);
+        assert.ok(
+          Math.abs(distance(limbs[i].elbow, limbs[i].shoulder) - distance(elbow, shoulder)) < 1e-7,
+          id,
+        );
+      }
+    }
+  }
+});
+
+test('the exposed hair beneath both ceiling arms and the crossed wall locks has continuous colour', () => {
+  const plate = (id) =>
+    PNG.sync.read(
+      readFileSync(new URL('../assets/default/music-grip-plates/' + id + '.png', import.meta.url)),
+    );
+  const ceiling = plate('pose-ceiling'),
+    wall = plate('pose-dock-right');
+  const pixel = (img, x, y) =>
+    img.data.subarray(4 * (y * img.width + x), 4 * (y * img.width + x + 1));
+  for (const [cx, y] of [
+    [500, 155],
+    [502, 215],
+    [515, 295],
+    [756, 169],
+    [743, 235],
+    [735, 288],
+  ]) {
+    for (let x = cx - 9; x <= cx + 9; x++) {
+      const [r, , , a] = pixel(ceiling, x, y);
+      assert.ok(r >= 240 && a >= 245, 'Dark or transparent stripe under a raised arm');
+    }
+  }
+  for (const x of [802, 815, 851]) {
+    const [r, g, , a] = pixel(wall, x, 466);
+    assert.ok(r > 145 && g < 15 && a >= 245, 'The red wall lock has a gap');
+  }
+  assert.equal(pixel(wall, 834, 479)[3], 0, 'The gap between the two locks stays open');
+});
+
+test('every installed pose has a four-beat loop with a fixed contact and a bounded silhouette', () => {
+  const { poses, animations } = galleryEntries(requireCapriAvatar(root).publicGallery());
+  const loops = animations.filter(({ kind }) => kind === 'music');
+  assert.deepEqual(loops.map(({ poster }) => poster.id).sort(), poses.map(({ id }) => id).sort());
+  for (const { id } of poses) {
+    const rig = POSE_RIGS[musicRig(id)];
+    const values = [];
+    for (let step = 0; step < 48; step++) {
+      const beat = step / 12;
+      const motion = beatPoseChannels(id, beat);
+      const repeated = beatPoseChannels(id, beat + 4);
+      for (const key of Object.keys(motion).filter((key) => key !== 'pose'))
+        assert.ok(Math.abs(motion[key] - repeated[key]) < 1e-10, id + ' ' + key);
+      const channels = { ...CHANNELS, ...motion };
+      const contact = deformPoint(...rig.anchor, channels);
+      assert.ok(Math.hypot(contact[0] - rig.anchor[0], contact[1] - rig.anchor[1]) < 0.01, id);
+      const bounds = motionExtent(channels);
+      assert.ok(bounds.x > 2 && bounds.y > 2 && bounds.right < 1252 && bounds.bottom < 1252, id);
+      const [x, y] = id === 'pose-sleep' ? [515, 865] : [rig.neck[0], rig.neck[1] - 150];
+      values.push(deformPoint(x, y, channels));
+    }
+    assert.ok(
+      values.some(([x, y]) => Math.hypot(x - values[0][0], y - values[0][1]) > 4),
+      id,
+    );
+    const clock = new MusicAnimation();
+    clock.sample(0, { active: true, frameId: id, tempo: 80, wallTime: 0 });
+    const held = clock.sample(500, { active: true, frameId: id, tempo: 80, wallTime: 500 });
+    const next = clock.sample(510, { active: true, frameId: id, tempo: 80, wallTime: 510 });
+    assert.ok(held.channels, id);
+    assert.equal(next.channels, held.channels, id);
+    assert.equal(
+      clock.sample(600, { active: true, reduced: true, frameId: id }).channels,
+      null,
+      id,
+    );
+  }
+});
 
 test('music drawings stay on twos while independent particles advance at the display clock', () => {
   const animation = new MusicAnimation();

@@ -13,6 +13,7 @@ export const blinkOffset = (ms) => ms / 1.5;
 const clamp = (value) => Math.max(0, Math.min(1, value));
 const ease = (value) => value * value * (3 - 2 * value);
 const mix = (from, to, amount) => from + (to - from) * amount;
+const closingLidScale = 1.4;
 
 export function layeredBlinkPose(time) {
   const ramp = (start, duration) => ease(clamp((time - start) / duration));
@@ -141,7 +142,7 @@ function registerContour(commands, seam, smooth, preserveWidth = false) {
   });
 }
 
-function registerLash([a, tip, b], contour, side) {
+function registerLash([a, tip, b], contour, side, mirror) {
   const cx = (a[0] + b[0]) / 2;
   const cy = (a[1] + b[1]) / 2;
   const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
@@ -149,31 +150,33 @@ function registerLash([a, tip, b], contour, side) {
     sin = Math.sin(angle);
   const dx = tip[0] - cx,
     dy = tip[1] - cy;
-  const half = Math.hypot(b[0] - a[0], b[1] - a[1]) / 2;
-  return {
-    contour,
-    side,
-    cx,
+  const open = {
+    position: (cx - contour[0].x) / (contour.at(-1).x - contour[0].x),
     baseWidth: b[0] - a[0],
-    vertices: [
-      [-half, 0],
-      [dx * cos + dy * sin, -dx * sin + dy * cos],
-      [half, 0],
-    ],
+    half: Math.hypot(b[0] - a[0], b[1] - a[1]) / 2,
+    tipX: dx * cos + dy * sin,
+    tipY: -dx * sin + dy * cos,
   };
+  // Reverse the along-lid coordinate in the local frame of the tilted eye.
+  const closed = mirror ? { ...mirror, position: 1 - mirror.position, tipX: -mirror.tipX } : open;
+  return { contour, side, open, closed };
 }
 
-function registerEye(eye, preserveWidth) {
+function registerEye(eye, preserveWidth, mirrorEye) {
   const top = registerContour(eye.upper, eye.seam, eye.smoothUpper, preserveWidth);
   const bottom = registerContour(eye.lower, eye.seam, eye.smoothLower, preserveWidth);
   return {
     ...eye,
     top,
     bottom,
-    lashes: [registerLash(eye.lashes[0], top, -1), registerLash(eye.lashes[1], bottom, 1)],
+    lashes: [
+      registerLash(eye.lashes[0], top, -1, mirrorEye?.lashes[0].open),
+      registerLash(eye.lashes[1], bottom, 1, mirrorEye?.lashes[1].open),
+    ],
   };
 }
-const registered = sockets.map((eye) => registerEye(eye, false));
+const leftEye = registerEye(sockets[0], false);
+const registered = [leftEye, registerEye(sockets[1], false, leftEye)];
 const winkingEye = registerEye(sockets[0], true);
 
 function lidPoint(point, closure, lift, retractCorner) {
@@ -201,21 +204,20 @@ function outline(eye, closure, halfWidth = 0, lift = 0, upperOnly = false) {
   return path;
 }
 
-function paintLashes(context, eye, closure, lift) {
+function paintLashes(context, eye, closure, lift, thickness) {
   const retractCorner = ease(clamp(closure / 0.47));
   context.fillStyle = blinkPalette.ink;
-  for (const { vertices, contour, side, cx: restX, baseWidth } of eye.lashes) {
-    // Mount the rigid lash on the tangent of the visible outer rim. A fixed
+  const travel = ease(closure);
+  for (const { open, closed, contour, side } of eye.lashes) {
+    // Mount the lash on the tangent of the visible outer rim. A fixed
     // screen-space angle leaves a corner poking through a fully closed lid.
-    const weight = Math.sin((closure * Math.PI) / 2) * (1 + 0.15 * closure ** 4);
-    const thickness = eye.thickness * weight;
     const cap = thickness * 0.48 * ease(clamp((closure - 0.5) / 0.3));
     const first = contour[0],
       last = contour.at(-1);
     const cx = mix(
       lidPoint(first, closure, lift, retractCorner)[0],
       lidPoint(last, closure, lift, retractCorner)[0],
-      (restX - first.x) / (last.x - first.x),
+      mix(open.position, closed.position, travel),
     );
     const heightAt = (x) => {
       let last;
@@ -228,6 +230,7 @@ function paintLashes(context, eye, closure, lift) {
       }
       return last[1];
     };
+    const baseWidth = mix(open.baseWidth, closed.baseWidth, travel);
     const a = heightAt(cx - baseWidth / 2),
       b = heightAt(cx + baseWidth / 2);
     const angle = Math.atan2(b - a, baseWidth);
@@ -235,9 +238,12 @@ function paintLashes(context, eye, closure, lift) {
       sin = Math.sin(angle);
     const cy = (a + b) / 2 - side * 0.45;
     context.beginPath();
-    vertices.forEach(([u, v], i) =>
-      context[i ? 'lineTo' : 'moveTo'](cx + cos * u - sin * v, cy + sin * u + cos * v),
-    );
+    const half = mix(open.half, closed.half, travel);
+    const u = mix(open.tipX, closed.tipX, travel);
+    const v = mix(open.tipY, closed.tipY, travel);
+    context.moveTo(cx - cos * half, cy - sin * half);
+    context.lineTo(cx + cos * u - sin * v, cy + sin * u + cos * v);
+    context.lineTo(cx + cos * half, cy + sin * half);
     context.closePath();
     context.fill();
   }
@@ -355,17 +361,23 @@ export function prepareLayeredBlink(poseLayer, eyesLayer) {
           context.restore();
         }
         if (!layer || layer === 'face' || layer === 'lids') {
+          const weight =
+            closingLidScale * Math.sin((closure * Math.PI) / 2) * (1 + 0.15 * closure ** 4);
+          const thickness = eye.thickness * weight;
           if (closure > 0) {
-            const weight = Math.sin((closure * Math.PI) / 2) * (1 + 0.15 * closure ** 4);
-            const band = outline(eye, closure, eye.thickness * weight, lift);
-            if (closure < 0.965) band.addPath(outline(eye, closure, -0.17 * weight, lift));
+            const band = outline(eye, closure, thickness, lift);
+            // Ease the last slit into the seam so it disappears continuously.
+            const slit = 1 - ease(clamp((closure - 0.9) / 0.08));
+            if (slit > 0)
+              band.addPath(outline(eye, mix(1, closure, slit), -0.17 * weight * slit, lift));
             context.fillStyle = blinkPalette.ink;
             context.fill(band, 'evenodd');
           }
           if (closure < 0.92) {
             // Stroke inward from the socket, including its steep corners, so the
             // rim stays continuous and cannot spill into the hair or green face.
-            const rim = 1 - ease(closure / 0.92);
+            const rim =
+              (1 - ease(closure / 0.92)) * mix(1, closingLidScale, ease(clamp(closure / 0.16)));
             context.save();
             context.clip(aperture);
             context.strokeStyle = blinkPalette.ink;
@@ -377,7 +389,7 @@ export function prepareLayeredBlink(poseLayer, eyesLayer) {
             context.stroke(outline(eye, closure, 0, lift, true));
             context.restore();
           }
-          paintLashes(context, eye, closure, lift);
+          paintLashes(context, eye, closure, lift, thickness);
         }
         context.restore();
       });

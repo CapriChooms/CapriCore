@@ -1,5 +1,6 @@
 import { spawn, execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createRequire } from 'node:module';
 import {
   existsSync,
   readFileSync,
@@ -19,6 +20,21 @@ import { waitFor } from '../http.mjs';
 import { assertPrivatePath } from '../safe-file.mjs';
 import { privateLogRecord } from '../privacy-log.mjs';
 const execFileAsync = promisify(execFile);
+const require = createRequire(import.meta.url);
+let darwinProcessUsage;
+
+function darwinProcessStartedAt(pid) {
+  darwinProcessUsage ??= require('koffi')
+    .load('/usr/lib/libproc.dylib')
+    .func('int proc_pid_rusage(int pid, int flavor, void *buffer)');
+  // Darwin <sys/resource.h>, rusage_info_v0: UUID, eight uint64 counters,
+  // then the full-resolution Mach start and exit times. PID reuse changes the start time.
+  const startOffset = 16 + 8 * 8;
+  const usage = Buffer.alloc(startOffset + 2 * 8);
+  if (darwinProcessUsage(pid, 0, usage) !== 0) return null;
+  const start = usage.readBigUInt64LE(startOffset);
+  return start > 0n ? start.toString() : null;
+}
 
 export function markerPath(name) {
   if (!/^[a-z0-9-]{1,64}$/i.test(name)) throw new Error('Invalid managed process name');
@@ -32,8 +48,9 @@ function systemPowerShell() {
 }
 
 export function processStartedAt(pid) {
-  if (!Number.isInteger(pid) || pid < 1) return null;
+  if (!Number.isInteger(pid) || pid < 1 || pid > 0x7fffffff) return null;
   try {
+    if (process.platform === 'darwin') return darwinProcessStartedAt(pid);
     if (process.platform === 'win32')
       return execFileSync(
         systemPowerShell(),

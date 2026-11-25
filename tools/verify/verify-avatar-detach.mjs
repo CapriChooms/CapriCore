@@ -242,7 +242,7 @@ try {
           contextIsolation,
           nodeIntegration,
           sandbox,
-          preload: Boolean(preload),
+          preload: preload?.split(/[\\/]/).at(-1),
           hwnd: String(native.length === 8 ? native.readBigUInt64LE() : native.readUInt32LE()),
         };
       },
@@ -271,7 +271,7 @@ try {
   assert.equal(parked.contextIsolation, true);
   assert.equal(parked.nodeIntegration, false);
   assert.equal(parked.sandbox, true);
-  assert.equal(parked.preload, false);
+  assert.equal(parked.preload, 'avatar-camera-preload.cjs');
   assertInside(parked.bounds, parked.workArea);
   if (process.platform === 'win32')
     assert.equal(extendedWindowStyle(parked.hwnd) & 0x20, 0x20, 'WS_EX_TRANSPARENT');
@@ -429,6 +429,7 @@ try {
   ]);
   const detachedToolbar = await page.locator('#handle').boundingBox();
   assert.ok(detachedToolbar.y > 70, 'The detached toolbar should follow the bottom dock');
+  assert.equal(await page.locator('#compact-status').boundingBox(), null);
   await page.waitForFunction(
     () => {
       const shade = document.getElementById('window-shade').getBoundingClientRect();

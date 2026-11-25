@@ -795,7 +795,7 @@ export function createScreenInteractionRenderer(canvas, { getAtlas, faceRig, dra
       const hanging = sourceFrame === 'pose-ceiling';
       if (!hanging && !rigUnavailable) {
         try {
-          renderer ??= createRenderer(mesh, {}, { grid: 112 });
+          renderer ??= createRenderer(mesh, {}, { grid: navigator.hardwareConcurrency <= 4 ? 64 : 112 });
           renderer.draw(image, channels, { bounds });
         } catch {
           renderer?.dispose();

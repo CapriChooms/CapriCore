@@ -60,6 +60,7 @@ const rendererFiles = [
   'signal-fx.mjs',
   'glitch-settings.mjs',
   'interface-theme.mjs',
+  'avatar-colors.mjs',
   'panel-frames.mjs',
   'crt-screen.mjs',
   'screen-geometry.mjs',

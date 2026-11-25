@@ -697,6 +697,7 @@ const companionSections = new Map(
       'Visual glitch',
       'Interface theme',
       'Portrait',
+      'Capri colors',
       'Desktop presentation',
       'System resource usage',
     ],

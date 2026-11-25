@@ -15,6 +15,7 @@ import {
   THEME_DEFAULTS,
   validateInterfaceTheme,
 } from './interface-theme.mjs';
+import { AVATAR_COLOR_DEFAULTS, validateAvatarColors } from './avatar-colors.mjs';
 import {
   DEFAULT_RESOURCE_GRAPHS,
   DEFAULT_RESOURCE_METERS,
@@ -251,6 +252,17 @@ export class CompanionPanel {
               .join('')}
           </div>
           </section>
+          <section class="settings-card" data-companion-group="Capri colors">
+          <h3>Capri colors</h3>
+          <p class="settings-help">Recolor Capri herself. Each part keeps its shading, outlines and stars.</p>
+          <label class="general-toggle"><input id="avatar-colors-enabled" type="checkbox" role="switch"><span>Custom colors</span><span class="general-switch-track" aria-hidden="true"></span></label>
+          <div class="teleport-color-control">
+            <label class="drag-lightning-control" for="avatar-color-green"><span>Green body</span><input id="avatar-color-green" type="color" value="${AVATAR_COLOR_DEFAULTS.greenBody}"></label>
+            <label class="drag-lightning-control" for="avatar-color-red"><span>Red body</span><input id="avatar-color-red" type="color" value="${AVATAR_COLOR_DEFAULTS.redBody}"></label>
+            <label class="drag-lightning-control" for="avatar-color-hair"><span>Hair</span><input id="avatar-color-hair" type="color" value="${AVATAR_COLOR_DEFAULTS.hair}"></label>
+          </div>
+          <div class="settings-actions"><button type="button" id="avatar-colors-reset">Original colors</button></div>
+          </section>
           <section class="settings-card" data-companion-group="System resource usage">
           <h3>System resource usage</h3>
           <p class="settings-help" id="resource-metric-limit">Select up to four metrics for each display mode.</p>
@@ -467,6 +479,20 @@ export class CompanionPanel {
       applyInterfaceTheme(theme);
     };
     this.previewTheme = previewTheme;
+    // Capri colors: the pickers follow the switch.
+    this.avatarColorControls = () => {
+      const enabled = this.get('avatar-colors-enabled').checked;
+      for (const id of ['avatar-color-green', 'avatar-color-red', 'avatar-color-hair'])
+        this.get(id).disabled = !enabled;
+    };
+    this.get('avatar-colors-enabled').addEventListener('change', this.avatarColorControls);
+    this.get('avatar-colors-reset').addEventListener('click', () => {
+      this.get('avatar-colors-enabled').checked = false;
+      this.get('avatar-color-green').value = AVATAR_COLOR_DEFAULTS.greenBody;
+      this.get('avatar-color-red').value = AVATAR_COLOR_DEFAULTS.redBody;
+      this.get('avatar-color-hair').value = AVATAR_COLOR_DEFAULTS.hair;
+      this.avatarColorControls();
+    });
     this.get('theme-preset').addEventListener('input', previewTheme);
     this.get('theme-panel-linked').addEventListener('input', previewTheme);
     this.get('theme-background-brightness').addEventListener('input', previewTheme);
@@ -851,6 +877,7 @@ export class CompanionPanel {
       avatarSnapRadius: this.get('avatar-snap-radius').valueAsNumber,
       avatarTapGapSeconds: this.get('avatar-tap-gap').valueAsNumber,
       interfaceTheme: this.themeDraft(),
+      avatarColors: this.avatarColorsDraft(),
     });
     this.save = async (prepareWake = true) => {
       const settings = await api.setCompanionSettings(this.readSettings());
@@ -1094,6 +1121,12 @@ export class CompanionPanel {
     this.get('avatar-snap-radius').value = value.avatarSnapRadius ?? 36;
     this.get('avatar-tap-gap').value = value.avatarTapGapSeconds ?? 10;
     this.avatarEffectControls();
+    const avatarColors = validateAvatarColors(value.avatarColors);
+    this.get('avatar-colors-enabled').checked = avatarColors.enabled;
+    this.get('avatar-color-green').value = avatarColors.greenBody;
+    this.get('avatar-color-red').value = avatarColors.redBody;
+    this.get('avatar-color-hair').value = avatarColors.hair;
+    this.avatarColorControls();
     const theme = validateInterfaceTheme(value.interfaceTheme);
     this.get('theme-preset').value = theme.preset;
     this.get('theme-background-brightness').value = theme.backgroundBrightness;
@@ -1110,6 +1143,14 @@ export class CompanionPanel {
     }
     this.previewTheme();
     this.savedSettings = this.settingsDraft();
+  }
+  avatarColorsDraft() {
+    return validateAvatarColors({
+      enabled: this.get('avatar-colors-enabled').checked,
+      greenBody: this.get('avatar-color-green').value,
+      redBody: this.get('avatar-color-red').value,
+      hair: this.get('avatar-color-hair').value,
+    });
   }
   themeDraft() {
     const theme = {

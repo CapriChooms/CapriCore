@@ -133,6 +133,7 @@ import { PointerController, WINDOW_MOTION_INTERVAL_MS } from './main/pointer-con
 import { createDesktopResources } from './main/resources.mjs';
 import { createIpcHandler, settingsVersion } from './main/ipc.mjs';
 import { resourceResponse } from './main/protocol.mjs';
+import { AvatarRecolor } from './main/avatar-recolor.mjs';
 import { registerScreenIpc } from './main/screen-ipc.mjs';
 import { ChessCapture } from './chess/capture.mjs';
 import { ChessDiagnostics, chessUiDecisions } from './chess/diagnostics.mjs';
@@ -10012,8 +10013,16 @@ async function initializeDesktop() {
           },
           { useSystemPicker: false },
         );
+        // Sprites are served in the owner's chosen Capri colors.
+        const avatarRecolor = new AvatarRecolor({
+          getColors: () => liveCompanionSettings().avatarColors,
+          image: nativeImage,
+        });
         protocol.handle('capri', (req) =>
-          resourceResponse(req, allowedResources, { attachments: attachmentHistory }),
+          resourceResponse(req, allowedResources, {
+            attachments: attachmentHistory,
+            transform: (pathname, bytes) => avatarRecolor.transform(pathname, bytes),
+          }),
         );
         await companionActions.start();
         if (!skillEnabled('capri.timers')) companionActions.time.suspend();

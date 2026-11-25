@@ -3,6 +3,7 @@ import { GLITCH_DEFAULTS, validateGlitchSettings } from './renderer/glitch-setti
 import { MOTION_DEFAULTS, validateMotionSettings } from './renderer/motion-settings.mjs';
 import { TELEPORT_EFFECT_DEFAULTS, validTeleportEffect } from './renderer/teleport-effects.mjs';
 import { THEME_DEFAULTS, validateInterfaceTheme } from './renderer/interface-theme.mjs';
+import { AVATAR_COLOR_DEFAULTS, validateAvatarColors } from './renderer/avatar-colors.mjs';
 import {
   DEFAULT_RESOURCE_GRAPHS,
   DEFAULT_RESOURCE_METERS,
@@ -46,6 +47,7 @@ export const COMPANION_DEFAULTS = Object.freeze({
   avatarDragTetherChaos: 55,
   avatarDragTetherDeadZone: 30,
   interfaceTheme: THEME_DEFAULTS,
+  avatarColors: AVATAR_COLOR_DEFAULTS,
 });
 export function validateCompanionSettings(value) {
   if (
@@ -62,6 +64,7 @@ export function validateCompanionSettings(value) {
   // Older profiles stored this preference. Button feedback is now always on.
   delete next.buttonFeedback;
   next.interfaceTheme = validateInterfaceTheme(next.interfaceTheme);
+  next.avatarColors = validateAvatarColors(next.avatarColors);
   next.graphMetrics = validateResourceMetrics(next.graphMetrics);
   next.meterMetrics = validateResourceMetrics(next.meterMetrics);
   validateGlitchSettings(next);

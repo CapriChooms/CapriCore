@@ -949,7 +949,7 @@ async function initializeDesktop() {
     ...(verification ? { fallback: async () => null } : {}),
   });
   const updates = new UpdateService({
-    inAppUpdates: process.platform !== 'darwin',
+    installSupported: process.platform === 'win32',
     root,
     state,
     node: nodePath,
@@ -7904,9 +7904,15 @@ async function initializeDesktop() {
       if (role !== 'settings') throw new Error('Open Updates in Settings.');
       return shell.openExternal(updates.historyUrl(id));
     });
-    handle('capri:update-download', () => updates.prepare());
+    handle('capri:update-download', async () => {
+      if (updates.mode !== 'archive') return updates.prepare();
+      const url = updates.archiveReleaseUrl();
+      if (!verification) await shell.openExternal(url);
+      return updates.snapshot();
+    });
     handle('capri:update-cancel', () => updates.cancel());
     handle('capri:update-install', async () => {
+      if (updates.mode === 'archive' || updates.mode === 'manual') return false;
       assertIdle({ requireBackend: false });
       if (
         models.busy() ||
@@ -9851,6 +9857,13 @@ async function initializeDesktop() {
 
   if (hasSingleInstanceLock) {
     app.on('second-instance', () => restoreCompanion());
+    if (process.platform === 'darwin') {
+      app.on('activate', () => {
+        if (!window || window.isDestroyed() || quitting || shuttingDown || sessionLocked) return;
+        if (focusMode || avatarOnly || !window.isVisible() || window.isMinimized())
+          restoreCompanion();
+      });
+    }
     app.on('before-quit', (event) => {
       if (quitting) return;
       void callCamera.stop();

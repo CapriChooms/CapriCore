@@ -61,6 +61,13 @@ const gateway = createServer(async (req, res) => {
 // Exercise the packaged main entry, bundled Node and fresh settings. Only
 // published model layers are taken from the source checkout for the real run.
 if (real) {
+  // Keep public release polling out of local model verification.
+  const desktopState = path.join(support, 'data/desktop');
+  mkdirSync(desktopState, { recursive: true });
+  writeFileSync(
+    path.join(desktopState, 'updates.json'),
+    JSON.stringify({ schemaVersion: 1, settings: { automatic: false, experimental: false } }),
+  );
   const pins = JSON.parse(readFileSync(path.join(resources, 'config/llama-models.json')));
   for (const name of ['bge-m3:latest', 'qwen3.5:0.8b']) {
     const [model, tag] = name.split(':');
@@ -178,13 +185,30 @@ try {
     (await reply.textContent()).slice(0, 160),
   );
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  for (const action of ['hide', 'focus-mode']) {
+    await page.evaluate((action) => window.capri.windowAction(action, true), action);
+    const visibility = await launched.evaluate(({ app, BrowserWindow }) => {
+      const companion = BrowserWindow.getAllWindows().find((window) =>
+        window.webContents.getURL().endsWith('/index.html'),
+      );
+      const before = companion.isVisible();
+      // Another Capri surface can be visible while the companion itself is hidden.
+      app.emit('activate', {}, true);
+      return { before, after: companion.isVisible() };
+    });
+    assert.deepEqual(visibility, { before: false, after: true }, action);
+  }
+  console.log('PASS macOS activation restores the hidden companion and exits Focus mode');
   await page.screenshot({ path: path.join(home, 'companion.png'), omitBackground: true });
   const settings = await settingsView(launched, 'updates');
-  await settings
-    .getByText('To update this macOS build', { exact: false })
-    .waitFor({ state: 'visible' });
+  const archiveHelp = settings.locator('#updates-archive');
+  await archiveHelp.waitFor({ state: 'visible' });
+  assert.equal(
+    await archiveHelp.textContent(),
+    'Use the preview archive for your platform to update Capri.',
+  );
   assert.equal(await settings.locator('#updates-install').isVisible(), false);
-  console.log('PASS native Settings, manual macOS updates and isolated profile');
+  console.log('PASS native Settings, macOS archive updates and isolated profile');
 } finally {
   if (launched) {
     const deadline = setTimeout(() => launched.process().kill(), 45000);

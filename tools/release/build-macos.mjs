@@ -169,9 +169,9 @@ export function buildMacApp({ llamaArchive } = {}) {
     );
   const template = path.join(dist, 'Electron.app');
   binary('/usr/bin/lipo', [
+    path.join(template, 'Contents/MacOS/Electron'),
     '-verify_arch',
     'arm64',
-    path.join(template, 'Contents/MacOS/Electron'),
   ]);
   const nodeHome = path.resolve(realpathSync(process.execPath), '../..');
   const release = path.join(root, 'release');

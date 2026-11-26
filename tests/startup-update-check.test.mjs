@@ -33,10 +33,13 @@ function release(tag = 'v0.5.3', { prerelease = false, draft = false } = {}) {
     })),
   };
 }
-function fixture({ experimental = false, ...overrides } = {}) {
+function fixture({ experimental = false, installedTag = 'v0.5.2', ...overrides } = {}) {
   const installRoot = mkdtempSync(path.join(parent, 'case-'));
   mkdirSync(path.join(installRoot, 'config'));
-  writeFileSync(path.join(installRoot, 'config/release.json'), JSON.stringify({ tag: 'v0.5.2' }));
+  writeFileSync(
+    path.join(installRoot, 'config/release.json'),
+    JSON.stringify({ tag: installedTag }),
+  );
   const state = path.join(installRoot, 'data/desktop');
   mkdirSync(state, { recursive: true });
   if (experimental)
@@ -70,10 +73,12 @@ function fixture({ experimental = false, ...overrides } = {}) {
   return { service: new UpdateService(options), options, state, events, calls };
 }
 
-test('manual macOS updates list public release notes without offering the Windows installer', async () => {
+test('unsupported platform can read public notes without preparing or installing updates', async () => {
   let requests = 0;
   const { service, calls } = fixture({
-    inAppUpdates: false,
+    installSupported: false,
+    platform: 'linux',
+    arch: 'arm64',
     releases: async ({ token }) => {
       requests++;
       assert.equal(token, null);
@@ -87,13 +92,68 @@ test('manual macOS updates list public release notes without offering the Window
   const history = await service.history();
   const [entry] = history.releases;
   assert.equal(entry.update, false);
-  await assert.rejects(service.chooseHistory(entry.id));
-  await assert.rejects(service.prepare());
-  await assert.rejects(service.install({}));
+  assert.equal((await service.chooseHistory(entry.id)).mode, 'manual');
+  assert.equal((await service.prepare()).mode, 'manual');
+  assert.equal(await service.install({}), false);
   assert.equal(requests, 1);
   assert.equal(calls.credentials, 0);
   assert.equal(calls.downloads, 0);
   service.close();
+});
+
+test('archive updates select the latest verified asset for the current OS and CPU', async (t) => {
+  const platformRelease = (tag, filename, size = 123) => {
+    const item = release(tag, { prerelease: tag.includes('-') });
+    item.assets = [{ ...item.assets[0], name: filename, size }];
+    return item;
+  };
+  const linux = platformRelease('v1.3.1-experimental.2', 'Capri-1.3.1-linux-x86_64.tar.gz');
+  const mac = platformRelease('v1.3.0-experimental.2', 'Capri-1.3.0-macOS-arm64.zip', 580_000_000);
+  const legacy = platformRelease('v1.2.2-macos-preview.1', 'Capri-1.2.2-macOS-arm64-Dock-test.zip');
+  const unsigned = platformRelease('v1.4.0', 'Capri-1.4.0-macOS-arm64.zip');
+  delete unsigned.assets[0].digest;
+  for (const [platform, arch, target, history] of [
+    ['darwin', 'arm64', mac, [mac, legacy]],
+    ['linux', 'x64', linux, [linux]],
+  ]) {
+    await t.test(`${platform}:${arch}`, async () => {
+      const { service, calls } = fixture({
+        installedTag: 'v1.2.2-experimental.1',
+        installSupported: false,
+        platform,
+        arch,
+        releases: async ({ token, repository }) => {
+          assert.equal(token, null);
+          assert.equal(repository, undefined);
+          return [release('v1.9.0'), unsigned, linux, mac, legacy];
+        },
+      });
+      try {
+        assert.equal(service.snapshot().experimental, true);
+        const startup = await service.startAutomaticChecks();
+        assert.equal(startup.mode, 'archive');
+        assert.deepEqual(startup.notification, { tag: target.tag_name });
+        assert.equal(startup.release.bytes, target.assets[0].size);
+        assert.equal(
+          service.archiveReleaseUrl(),
+          `https://github.com/CapriChooms/CapriCore/releases/tag/${target.tag_name}`,
+        );
+        assert.deepEqual(
+          (await service.history(true)).releases.map(({ tag }) => tag),
+          history.map(({ tag_name }) => tag_name),
+        );
+        assert.equal((await service.history(false)).releases.length, 0);
+        assert.equal((await service.prepare()).phase, 'available');
+        assert.equal(await service.install({}), false);
+        assert.equal(calls.credentials, 0);
+        assert.equal(calls.downloads, 0);
+        assert.equal((await service.check({ experimental: false })).phase, 'current');
+        assert.throws(() => service.archiveReleaseUrl(), /Check for updates/);
+      } finally {
+        service.close();
+      }
+    });
+  }
 });
 
 test('startup checks find public releases without a readable usable credential', async (t) => {

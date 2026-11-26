@@ -20,6 +20,16 @@ const macRuntimeFiles = [
   framework + '/Resources/v8_context_snapshot.arm64.bin',
 ];
 
+export function sourceElectronExecutable(packageDirectory, platform) {
+  const name =
+    platform === 'darwin'
+      ? 'Electron.app/Contents/MacOS/Electron'
+      : platform === 'linux'
+        ? 'electron'
+        : 'electron.exe';
+  return path.join(packageDirectory, 'dist', name);
+}
+
 /** Inspect without requiring Electron: recent versions download lazily on require(). */
 export function electronBundleReady(packageDirectory, expectedVersion, platform = 'win32') {
   try {
@@ -34,7 +44,11 @@ export function electronBundleReady(packageDirectory, expectedVersion, platform 
       return false;
     const files = platform === 'darwin' ? macRuntimeFiles : ELECTRON_RUNTIME_FILES;
     return files.every((name) => {
-      const entry = statSync(path.join(packageDirectory, 'dist', name));
+      const file =
+        name === 'electron.exe'
+          ? sourceElectronExecutable(packageDirectory, platform)
+          : path.join(packageDirectory, 'dist', name);
+      const entry = statSync(file);
       return entry.isFile() && entry.size > 0;
     });
   } catch {

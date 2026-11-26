@@ -16,10 +16,42 @@ import { pathToFileURL } from 'node:url';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { processStartedAt } from '../packages/runtime/src/host/processes.mjs';
 import { superviseDesktopExit } from '../packages/runtime/src/desktop-launcher.mjs';
+import {
+  electronBundleReady,
+  sourceElectronExecutable,
+} from '../packages/runtime/src/host/electron-bundle.mjs';
 import { randomUUID } from 'node:crypto';
 
 const parent = path.join(root, '.runtime/desktop-launcher-tests');
 mkdirSync(parent, { recursive: true });
+
+test('Linux source launch uses the native Electron binary and checks its distribution files', () => {
+  const electron = mkdtempSync(path.join(parent, 'electron-'));
+  const dist = path.join(electron, 'dist');
+  const version = '45.3.1';
+  mkdirSync(path.join(dist, 'locales'), { recursive: true });
+  writeFileSync(path.join(electron, 'package.json'), JSON.stringify({ version }));
+  writeFileSync(path.join(dist, 'version'), version);
+  for (const file of [
+    'icudtl.dat',
+    'resources.pak',
+    'v8_context_snapshot.bin',
+    'locales/en-US.pak',
+  ])
+    writeFileSync(path.join(dist, file), 'fixture');
+  assert.equal(sourceElectronExecutable(electron, 'linux'), path.join(dist, 'electron'));
+  assert.equal(sourceElectronExecutable(electron, 'win32'), path.join(dist, 'electron.exe'));
+  assert.equal(
+    sourceElectronExecutable(electron, 'darwin'),
+    path.join(dist, 'Electron.app/Contents/MacOS/Electron'),
+  );
+  writeFileSync(path.join(dist, 'electron.exe'), 'Windows fixture');
+  assert.equal(electronBundleReady(electron, version, 'linux'), false);
+  writeFileSync(path.join(dist, 'electron'), 'Linux fixture');
+  assert.equal(electronBundleReady(electron, version, 'linux'), true);
+  writeFileSync(path.join(dist, 'v8_context_snapshot.bin'), '');
+  assert.equal(electronBundleReady(electron, version, 'linux'), false);
+});
 
 test('desktop supervision distinguishes abnormal termination, clean quit and an existing instance', async () => {
   const reported = [];

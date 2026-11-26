@@ -55,6 +55,24 @@ test('the prompt drops the old factory language cue without changing the stored 
   assert.ok(personaPrompt({ workspace }, { personality: quoted }).includes(quoted));
 });
 
+test('factory introductions identify the current desktop while custom Windows references survive', () => {
+  const workspace = folder();
+  const host = process.platform === 'darwin' ? 'macOS' : 'Windows';
+  const shipped = readFileSync(path.join(root, 'config/workspace/PERSONALITY.md'), 'utf8');
+  const custom = 'I remember a Windows desktop at school.';
+  const file = path.join(workspace, 'PERSONALITY.md');
+  for (const previous of ['Windows', 'macOS']) {
+    const existing =
+      shipped.replace("owner's Windows desktop", `owner's ${previous} desktop`) + '\n' + custom;
+    writeFileSync(file, existing);
+    const prompt = personaPrompt({ workspace });
+    assert.ok(prompt.includes(`owner's ${host} desktop`));
+    assert.ok(prompt.includes(custom));
+    assert.equal(readFileSync(file, 'utf8'), existing);
+  }
+  assert.ok(defaultPersonality().includes(`owner's ${host} desktop`));
+});
+
 test('upgrade replaces only the exact factory example and preserves custom text, memory and history', () => {
   for (const ending of ['\n', '\r\n']) {
     const parent = folder(),

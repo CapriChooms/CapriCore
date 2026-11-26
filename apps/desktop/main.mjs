@@ -12,6 +12,7 @@ import { discordPresenceSkill } from '../../packages/skills/src/discord-presence
 import { reasoningSkill } from '../../packages/skills/src/reasoning/index.mjs';
 import { webSearchSkill } from '../../packages/skills/src/web-search/index.mjs';
 import { installCodingBridge } from './main/coding-bridge.mjs';
+import { prepareMacModels } from './main/macos-models.mjs';
 import { createMediaSkills } from './main/media-skills.mjs';
 import { createConversationSkills, createOwnerMemory } from './main/conversation-skills.mjs';
 import { createVoiceSkills } from './main/voice-skills.mjs';
@@ -262,6 +263,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   root,
+  resourceRoot,
   nodePath,
   llamaPath,
   settings,
@@ -428,7 +430,7 @@ import {
 
 const callAudioDiagnostics = new CallAudioDiagnostics();
 const directory = path.dirname(fileURLToPath(import.meta.url));
-const applicationIcon = path.join(root, 'assets/default/icon-source.png');
+const applicationIcon = path.join(resourceRoot, 'assets/default/icon-source.png');
 const verification = process.argv.includes('--verification');
 const verificationFolder = process.env.CAPRI_DESKTOP_VERIFICATION_DIR;
 if (
@@ -447,6 +449,8 @@ const windowGraphics = configureWindowGraphics(app, graphicsFile);
 // initializing owner files. A duplicate must only notify the current owner.
 app.setName(verification ? 'Capri Verification' : 'Capri');
 if (process.platform === 'win32') app.setAppUserModelId(applicationId(verification ? state : root));
+for (const folder of ['profile', 'crashes'])
+  mkdirSync(path.join(state, folder), { recursive: true, mode: 0o700 });
 app.setPath('userData', path.join(state, 'profile'));
 app.setPath('sessionData', path.join(state, 'profile'));
 app.setPath('crashDumps', path.join(state, 'crashes'));
@@ -621,9 +625,6 @@ async function initializeDesktop() {
   });
   if (!Number.isInteger(rt.gatewayPort) || rt.gatewayPort < 1024 || rt.gatewayPort > 65535)
     throw new Error('Invalid local Gateway port');
-  mkdirSync(state, { recursive: true });
-  for (const folder of ['profile', 'crashes'])
-    mkdirSync(path.join(state, folder), { recursive: true });
   initialize(rt);
 
   const rendererUrl = 'capri://desktop/index.html';
@@ -637,9 +638,9 @@ async function initializeDesktop() {
           void teleportToCursor(screen.screenToDipPoint(point)).catch(() => {});
         })
       : null;
-  const installedAvatar = loadInstalledAvatar(root);
+  const installedAvatar = loadInstalledAvatar(resourceRoot);
   const { catalog } = installedAvatar;
-  const startupIntroPack = catalog.animated ? loadStartupIntro(root) : null;
+  const startupIntroPack = catalog.animated ? loadStartupIntro(resourceRoot) : null;
   const startupIntroGate = new StartupIntroGate({
     enabled: Boolean(startupIntroPack),
     available: () =>
@@ -807,7 +808,7 @@ async function initializeDesktop() {
     };
   }
   const allowedResources = createDesktopResources({
-    root,
+    root: resourceRoot,
     directory,
     catalog,
     spriteFile,
@@ -948,6 +949,7 @@ async function initializeDesktop() {
     ...(verification ? { fallback: async () => null } : {}),
   });
   const updates = new UpdateService({
+    installSupported: process.platform === 'win32',
     root,
     state,
     node: nodePath,
@@ -1253,7 +1255,8 @@ async function initializeDesktop() {
   const clipJobs = new Map();
   const requestRouter = new RequestRouter({
     root,
-    ...(verification && process.env.CAPRI_DESKTOP_VERIFICATION_ROUTER !== '1'
+    ...(process.platform === 'darwin' ||
+    (verification && process.env.CAPRI_DESKTOP_VERIFICATION_ROUTER !== '1')
       ? { config: { schemaVersion: 1, enabled: false, timeoutMs: 150 } }
       : {}),
   });
@@ -3293,7 +3296,8 @@ async function initializeDesktop() {
       observer,
       prepare: ensureAwareness,
       enabled: Boolean(
-        (wildEnabled || (skillEnabled('capri.initiative') && settings.level !== 'off')) &&
+        process.platform === 'win32' &&
+          (wildEnabled || (skillEnabled('capri.initiative') && settings.level !== 'off')) &&
           companionPresent() &&
           !shuttingDown &&
           !verification &&
@@ -3992,6 +3996,27 @@ async function initializeDesktop() {
       if (preload && !(rt.remote.enabled && inferenceStartup.value.skipLocalModelOnApi))
         void requestRouter.start(); // API startup does not eagerly load the optional CPU classifier.
       try {
+        if (process.platform === 'darwin' && app.isPackaged && !verification) {
+          const prepared = await prepareMacModels({
+            root,
+            settings,
+            localChat: !rt.remote.enabled && !rt.nativeNpu,
+            signal: controller.signal,
+            confirm: (options) => dialog.showMessageBox(window, options),
+            progress: (message, fraction) => {
+              if (window && !window.isDestroyed()) window.setProgressBar(fraction);
+              if (message !== backendState.message) setBackend('downloading-models', message);
+            },
+          }).finally(() => {
+            if (window && !window.isDestroyed()) window.setProgressBar(-1);
+          });
+          if (!prepared) {
+            setBackend('offline', 'Model download deferred. Select Reconnect to download.');
+            return;
+          }
+          if (backendState.phase === 'downloading-models')
+            setBackend('starting', 'Starting local core…');
+        }
         await mutedVoiceResidency.release();
         await inferenceApi.start(rt.gatewayPort + 2);
         if (rt.remote.enabled && !remoteGatewayStarted) {
@@ -4018,7 +4043,8 @@ async function initializeDesktop() {
         console.error('Core startup failed:', error.code ?? '', error.message);
         if (!shuttingDown && sleepService.phase !== 'sleeping') {
           startup.end('core', true);
-          const { code, message } = coreStartupFailure(error);
+          const { code, message } =
+            error.code === 'CAPRI_MAC_MODEL_SETUP' ? error : coreStartupFailure(error);
           setBackend('offline', message, code);
         }
         throw error;
@@ -5382,6 +5408,10 @@ async function initializeDesktop() {
   }
 
   function queueDesktopRelaunch() {
+    if (process.platform === 'darwin') {
+      app.relaunch();
+      return;
+    }
     const launcher = path.join(root, 'Capri.exe');
     app.relaunch(
       existsSync(launcher)
@@ -7874,9 +7904,15 @@ async function initializeDesktop() {
       if (role !== 'settings') throw new Error('Open Updates in Settings.');
       return shell.openExternal(updates.historyUrl(id));
     });
-    handle('capri:update-download', () => updates.prepare());
+    handle('capri:update-download', async () => {
+      if (updates.mode !== 'archive') return updates.prepare();
+      const url = updates.archiveReleaseUrl();
+      if (!verification) await shell.openExternal(url);
+      return updates.snapshot();
+    });
     handle('capri:update-cancel', () => updates.cancel());
     handle('capri:update-install', async () => {
+      if (updates.mode === 'archive' || updates.mode === 'manual') return false;
       assertIdle({ requireBackend: false });
       if (
         models.busy() ||
@@ -9342,6 +9378,14 @@ async function initializeDesktop() {
     });
     handle('capri:reconnect', async () => {
       if (chat.active) throw new Error('Wait for the current reply to finish.');
+      if (backendState.phase === 'downloading-models') {
+        backendController?.abort(
+          Object.assign(new Error('Model download paused. Select Reconnect to resume.'), {
+            code: 'CAPRI_MAC_MODEL_SETUP',
+          }),
+        );
+        return backendState;
+      }
       if (backendState.code === 'CAPRI_LOCAL_MODEL_SETUP_REQUIRED') {
         await settingsHost.open('models');
         return backendState;
@@ -9777,7 +9821,11 @@ async function initializeDesktop() {
     activeMask = maskFor(avatar.currentId);
     pointer.start();
 
-    tray = new Tray(path.join(root, 'assets/default/app.ico'));
+    tray = new Tray(
+      process.platform === 'darwin'
+        ? nativeImage.createFromPath(applicationIcon).resize({ width: 18, height: 18 })
+        : path.join(resourceRoot, 'assets/default/app.ico'),
+    );
     tray.setToolTip(uiText('Capri desktop companion', languages.value.interface));
     tray.on('click', () => restoreCompanion());
     tray.on('balloon-click', () => {
@@ -9809,6 +9857,13 @@ async function initializeDesktop() {
 
   if (hasSingleInstanceLock) {
     app.on('second-instance', () => restoreCompanion());
+    if (process.platform === 'darwin') {
+      app.on('activate', () => {
+        if (!window || window.isDestroyed() || quitting || shuttingDown || sessionLocked) return;
+        if (focusMode || avatarOnly || !window.isVisible() || window.isMinimized())
+          restoreCompanion();
+      });
+    }
     app.on('before-quit', (event) => {
       if (quitting) return;
       void callCamera.stop();
@@ -10020,7 +10075,10 @@ async function initializeDesktop() {
         for (const id of ['capri.reasoning', 'capri.web-search'])
           if (skillEnabled(id)) callSkill(id, 'setMode', true);
         installIpc();
-        const preload = consumeFirstLaunchPreload(state);
+        const preload = consumeFirstLaunchPreload(
+          state,
+          process.platform === 'darwin' && app.isPackaged ? settings.preloadModels : true,
+        );
         createWindow();
         coding.setMonitoring(skillEnabled('capri.coding'));
         if (inferenceApi.config.setupRequired)

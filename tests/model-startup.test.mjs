@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, realpathSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { responsiveness } from '../packages/runtime/src/hardware/responsiveness.mjs';
@@ -12,7 +12,7 @@ import {
   startModelServices,
 } from '../apps/desktop/model-startup.mjs';
 
-test('first-launch warmup defaults on and an explicit opt-out is consumed once', (t) => {
+test('first-launch warmup honors a single explicit choice and then the configured default', (t) => {
   const state = mkdtempSync(path.join(tmpdir(), 'capri-first-launch-'));
   const file = path.join(state, 'first-start.json');
   t.after(() => {
@@ -20,16 +20,21 @@ test('first-launch warmup defaults on and an explicit opt-out is consumed once',
     rmdirSync(state);
   });
   assert.equal(consumeFirstLaunchPreload(state), true);
+  assert.equal(consumeFirstLaunchPreload(state, false), false);
+  writeFileSync(file, JSON.stringify({ schemaVersion: 1, preloadModels: true }));
+  assert.equal(consumeFirstLaunchPreload(state, false), true);
+  assert.equal(consumeFirstLaunchPreload(state, false), false);
   writeFileSync(file, JSON.stringify({ schemaVersion: 1, preloadModels: false }));
   assert.equal(consumeFirstLaunchPreload(state), false);
   assert.equal(existsSync(file), false);
   assert.equal(consumeFirstLaunchPreload(state), true);
   writeFileSync(file, JSON.stringify({ schemaVersion: 1, preloadModels: 'false' }));
   assert.equal(consumeFirstLaunchPreload(state), true);
+  assert.equal(consumeFirstLaunchPreload(state, false), false);
 });
 
 test('a microphone restart marker only resumes once, within two minutes', (t) => {
-  const state = mkdtempSync(path.join(tmpdir(), 'capri-microphone-restart-'));
+  const state = mkdtempSync(path.join(realpathSync(tmpdir()), 'capri-microphone-restart-'));
   const file = path.join(state, 'microphone-restart.json');
   t.after(() => {
     rmSync(file, { force: true });

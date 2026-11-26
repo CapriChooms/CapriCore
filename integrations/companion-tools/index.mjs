@@ -2,6 +2,7 @@
 import { readFileSync, lstatSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { runtimeRoot } from '../../packages/runtime/src/host/paths.mjs';
 import path from 'node:path';
 import { TIME_SCHEMA } from '../../packages/runtime/src/time/service.mjs';
 export const SETTINGS_SCHEMA = {
@@ -155,7 +156,7 @@ export default {
     const source = api.source?.startsWith('file:')
       ? fileURLToPath(api.source)
       : (api.source ?? fileURLToPath(import.meta.url));
-    const root = path.resolve(path.dirname(source), '../..');
+    const root = runtimeRoot(path.resolve(path.dirname(source), '../..'));
     const endpointRoot = api.pluginConfig?.endpointRoot
       ? path.resolve(root, api.pluginConfig.endpointRoot)
       : root;

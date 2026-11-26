@@ -23,8 +23,31 @@ export const LLAMA_VULKAN_FILES = Object.freeze([
   'libomp.dll',
 ]);
 
+// The filenames are the @rpath dependencies of the official b12317 arm64 server.
+export const LLAMA_METAL_FILES = Object.freeze([
+  'llama-server',
+  'libllama-server-impl.dylib',
+  'libllama-common.0.dylib',
+  'libmtmd.0.dylib',
+  'libllama.0.dylib',
+  'libggml.0.dylib',
+  'libggml-base.0.dylib',
+  'libggml-cpu.0.dylib',
+  'libggml-blas.0.dylib',
+  'libggml-metal.0.dylib',
+  'libggml-rpc.0.dylib',
+]);
+
+export function bundledLlamaPath(runtimeRoot, version, platform = process.platform) {
+  const directory = platform === 'darwin' ? 'metal' : 'vulkan';
+  const executable = platform === 'darwin' ? 'llama-server' : 'llama-server.exe';
+  return path.join(runtimeRoot, '.runtime', `llama-${version}-${directory}`, executable);
+}
+
 export function llamaBundleReady(executable) {
-  return LLAMA_VULKAN_FILES.every((name) => {
+  const files =
+    path.basename(executable) === 'llama-server' ? LLAMA_METAL_FILES : LLAMA_VULKAN_FILES;
+  return files.every((name) => {
     try {
       const info = lstatSync(noLinks(path.join(path.dirname(executable), name)));
       return info.isFile() && info.size > 0;

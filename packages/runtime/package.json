@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "exports": "./src/index.mjs",
+  "dependencies": {
+    "koffi": "3.3.2"
+  },
   "bin": {
     "capri": "./bin/capri.mjs"
   },

@@ -38,6 +38,8 @@ On Windows 10 22H2/11 x64, run the **CapriSetup** executable for your release, o
 For a first installation, complete this wizard before opening **Capri.exe**. Use
 the same wizard and installation folder to repair missing runtimes or dependencies.
 
+**Apple Silicon developers** can build a local Capri.app from this checkout. See the [macOS build and feature notes](docs/macos.md).
+
 **Upgrading an existing installation.** Open **Settings → Updates** in Capri. You can also run the latest installer and select your current Capri folder to update the runtime while keeping local data, compatible downloaded models and settings.
 
 For voice replies on a supported GPU, choose your **Conversation language** and the included **Capri · Chatterbox** voice. Setup installs English or the matching multilingual voice. The CPU Qwen3-TTS option is separate and BETA. No separate voice ZIP, destination folder, recording or training is needed for the included reference. Add or prepare voices later in **Settings → Language model → Voice models**. [Voice installation guide](docs/voice-installation.md), [release packaging](docs/voice-distribution.md).

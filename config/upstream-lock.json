@@ -18,7 +18,9 @@
   "llama": {
     "version": "b12317",
     "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b12317",
-    "windowsArchiveSha256": "968a487604622f4194d0451d77a92b6a7cff1c29338e88841dd38472c81013ca"
+    "windowsArchiveSha256": "968a487604622f4194d0451d77a92b6a7cff1c29338e88841dd38472c81013ca",
+    "macosArm64ArchiveSha256": "ac453373fa09110df9edab032a00936dd834f85421c5333cb3a1ff9cbdc410ea",
+    "macosArm64ArchiveBytes": 16896114
   },
   "python": {
     "version": "3.11.17",

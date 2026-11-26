@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 const messages = {
+  manual: 'Use the preview archive for your platform to update Capri.',
   idle: 'Check GitHub for a newer version of Capri.',
   checking: 'Checking for updates...',
   available: 'A new version is available.',
@@ -34,16 +35,17 @@ export class UpdatesPanel {
           <p class="settings-help" id="updates-preserve">Your history, memory, models and personal settings are kept. Capri restarts only when you choose to install.</p>
           <p class="settings-help" id="updates-source" hidden>This is a development checkout. The downloaded installer creates or updates a separate managed installation.</p>
           <p class="settings-help" id="updates-full" hidden>The full installer will open; select your current installation folder to keep your data.</p>
-          <p class="settings-help">Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.</p>
+          <p class="settings-help" id="updates-archive" hidden>Use the preview archive for your platform to update Capri.</p>
+          <p class="settings-help" id="updates-verified">Updates come from CapriChooms/CapriCore on GitHub and are checked with SHA-256 before installation.</p>
         </section>
         <section class="settings-card">
           <label class="update-channel"><input id="updates-experimental" type="checkbox">Include experimental updates</label>
-          <p class="settings-help">Experimental builds in the private repository are available to Lava.top subscribers with GitHub access.</p>
-          <div class="settings-actions">
+          <p class="settings-help" id="updates-private-help">Experimental builds in the private repository are available to Lava.top subscribers with GitHub access.</p>
+          <div class="settings-actions" id="updates-private-actions">
             <button type="button" id="updates-lava" data-untranslated>Lava.top</button>
             <button type="button" id="updates-boosty" data-untranslated>Boosty</button>
           </div>
-          <p class="settings-help">Experimental versions may contain unfinished features and bugs. Stable updates are selected by default.</p>
+          <p class="settings-help" id="updates-stable-default">Experimental versions may contain unfinished features and bugs. Stable updates are selected by default.</p>
         </section>
         <section class="settings-card">
           <h3>Release history</h3>
@@ -56,7 +58,7 @@ export class UpdatesPanel {
             <button id="updates-release-page" type="button" hidden>Open on GitHub</button>
           </div>
         </section>
-        <section class="settings-card github-access-card">
+        <section class="settings-card github-access-card" id="updates-access-card">
           <h3 data-untranslated>GitHub</h3><p class="settings-help">Public updates do not require a GitHub account or token.</p><p id="updates-access-status" class="settings-help" role="status"></p>
           <details id="updates-access-details"><summary><span>Connect GitHub for private updates</span> <code data-untranslated>CapriChooms/Capri</code></summary>
             <label for="updates-token">GitHub access token</label><input id="updates-token" type="password" maxlength="255" autocomplete="new-password" spellcheck="false" dir="ltr" data-untranslated placeholder="ghp_… / github_pat_…">
@@ -83,7 +85,7 @@ export class UpdatesPanel {
       const selected = selectedVersion();
       this.get('changelog').hidden = !selected;
       this.get('changelog').textContent = selected?.notes || this.ui.text('No release notes.');
-      this.get('select').hidden = !selected?.update;
+      this.get('select').hidden = !selected?.update || this.value?.mode === 'manual';
       this.get('release-page').hidden = !selected;
     };
     this.get('version').onchange = showVersion;
@@ -204,11 +206,13 @@ export class UpdatesPanel {
     if (!value) return;
     for (const id of ['automatic', 'experimental']) {
       const input = this.get(id);
+      input.disabled = value.mode === 'manual';
       const pending =
         this.deferDrafts && !resetSettings && this.value && input.checked !== this.value[id];
       if (!pending) input.checked = value[id];
     }
     this.value = value;
+    const archive = value.mode === 'archive';
     const busy = ['checking', 'downloading', 'verifying', 'installing'].includes(value.phase);
     this.get('current').textContent = value.current;
     const currentChannel =
@@ -222,10 +226,20 @@ export class UpdatesPanel {
       : '';
     this.get('error').textContent = currentChannel && value.error ? this.ui.text(value.error) : '';
     if (value.needsAccess) this.get('access-details').open = true;
-    this.get('check').disabled = busy;
+    this.get('check').disabled = busy || value.mode === 'manual';
     this.get('download').hidden =
       !currentChannel || !value.release || busy || value.phase === 'ready';
     this.get('download').disabled = busy;
+    this.get('download').textContent = this.ui.text(archive ? 'Open on GitHub' : 'Download update');
+    this.get('archive').hidden = !archive;
+    for (const id of [
+      'verified',
+      'private-help',
+      'private-actions',
+      'stable-default',
+      'access-card',
+    ])
+      this.get(id).hidden = archive;
     this.get('cancel').hidden = !['checking', 'downloading'].includes(value.phase);
     this.get('cancel').disabled = false;
     this.get('install').hidden = !currentChannel || value.phase !== 'ready';
@@ -254,7 +268,8 @@ export class UpdatesPanel {
     if (!open) this.get('token').value = '';
     if (open) {
       this.show(await this.api.updateStatus());
-      if (this.api.githubStatus) this.showAccess(await this.api.githubStatus());
+      if (!['archive', 'manual'].includes(this.value?.mode) && this.api.githubStatus)
+        this.showAccess(await this.api.githubStatus());
       this.ui.apply(this.ui.language);
     }
     return true;

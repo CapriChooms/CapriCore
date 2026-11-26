@@ -1,4 +1,6 @@
 import test from 'node:test';
+import os from 'node:os';
+import { syncBuiltinESMExports } from 'node:module';
 import assert from 'node:assert/strict';
 import {
   sourceFiles,
@@ -17,6 +19,24 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { root, findExecutable } from '../packages/runtime/src/host/paths.mjs';
 import { musicArtworkSourceFiles } from '../apps/desktop/music-artwork.mjs';
+
+test('source export distinguishes a runner identifier from a Windows home path', (t) => {
+  // The diagnostic fixture contains an Alice home path and an unrelated runnerLog identifier.
+  const files = sourceFiles();
+  const username = t.mock.method(os, 'userInfo', () => ({ username: 'runner' }));
+  try {
+    syncBuiltinESMExports();
+    assert.doesNotThrow(() => validateSource(files));
+    username.mock.mockImplementation(() => ({ username: 'ALICE' }));
+    assert.throws(
+      () => validateSource(files),
+      /tests\/diagnostic-report\.test\.mjs: private machine path/,
+    );
+  } finally {
+    username.mock.restore();
+    syncBuiltinESMExports();
+  }
+});
 
 test('source export rejects bare Hugging Face credentials while allowing format documentation', () => {
   const canary = 'hf_' + 'SyntheticCredentialCanary'.repeat(2);

@@ -10,8 +10,28 @@ export const ELECTRON_RUNTIME_FILES = [
   'locales/en-US.pak',
 ];
 
+const framework = 'Electron.app/Contents/Frameworks/Electron Framework.framework';
+const macRuntimeFiles = [
+  'Electron.app/Contents/MacOS/Electron',
+  'Electron.app/Contents/Info.plist',
+  framework + '/Electron Framework',
+  framework + '/Resources/icudtl.dat',
+  framework + '/Resources/resources.pak',
+  framework + '/Resources/v8_context_snapshot.arm64.bin',
+];
+
+export function sourceElectronExecutable(packageDirectory, platform) {
+  const name =
+    platform === 'darwin'
+      ? 'Electron.app/Contents/MacOS/Electron'
+      : platform === 'linux'
+        ? 'electron'
+        : 'electron.exe';
+  return path.join(packageDirectory, 'dist', name);
+}
+
 /** Inspect without requiring Electron: recent versions download lazily on require(). */
-export function electronBundleReady(packageDirectory, expectedVersion) {
+export function electronBundleReady(packageDirectory, expectedVersion, platform = 'win32') {
   try {
     const version = JSON.parse(
       readFileSync(path.join(packageDirectory, 'package.json'), 'utf8'),
@@ -22,8 +42,13 @@ export function electronBundleReady(packageDirectory, expectedVersion) {
       version
     )
       return false;
-    return ELECTRON_RUNTIME_FILES.every((name) => {
-      const entry = statSync(path.join(packageDirectory, 'dist', name));
+    const files = platform === 'darwin' ? macRuntimeFiles : ELECTRON_RUNTIME_FILES;
+    return files.every((name) => {
+      const file =
+        name === 'electron.exe'
+          ? sourceElectronExecutable(packageDirectory, platform)
+          : path.join(packageDirectory, 'dist', name);
+      const entry = statSync(file);
       return entry.isFile() && entry.size > 0;
     });
   } catch {

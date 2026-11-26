@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import path from 'node:path';
 
+export const DEFAULT_BROWSER = 'Default browser';
+
 /** Routing hints only. The native bridge verifies executable branding and identity. */
 export function browserExecutableCandidate(app, { explicit = false } = {}) {
   const name = path.basename(app.executable ?? '').toLowerCase();

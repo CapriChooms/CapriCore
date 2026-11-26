@@ -37,6 +37,7 @@ export function desktopTurnContext(
       : null;
   const skill = (id, fields) => whenPromptSkill(state, `capri.${id}`, fields)[0];
   const value = {
+    ...(state.avatarSelf ? { capriAvatar: state.avatarSelf } : {}),
     ...(!dialogueOnly
       ? {
           ...skill('microphone', {

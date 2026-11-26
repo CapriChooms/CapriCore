@@ -55,7 +55,10 @@ import {
   youtubeWatchRequirement,
   youtubeWatchVerified,
   youtubeHomeDestination,
+  youtubePageOpen,
+  YOUTUBE_HOME_URL,
 } from './browser-search-state.mjs';
+import { DEFAULT_BROWSER } from './browser-identity.mjs';
 
 const signature = (view) =>
   createHash('sha256')
@@ -70,6 +73,8 @@ const signature = (view) =>
     .digest('hex');
 
 const BROWSER_LOAD_TIMEOUT_MS = 20000;
+const currentTabRequested = (goal) =>
+  /\b(?:current|same|this) tab\b|(?:текущ|этой|той же)\p{L}*\s+вкладк/iu.test(goal);
 const startupFailures = new Map([
   ['COMPUTER_INDICATOR_BOUNDS_FAILED', 'indicator_bounds_failed'],
   ['COMPUTER_ESCAPE_UNAVAILABLE', 'escape_unavailable'],
@@ -441,12 +446,9 @@ export class ComputerAgent {
       : searching
         ? browserSearchUrl(step.text, youtubeSearch ? 'youtube' : 'google')
         : step.text;
-    const reuseTab = /\b(?:current|same|this) tab\b|(?:текущ|этой|той же)\p{L}*\s+вкладк/iu.test(
-      goal,
-    );
     if (
       (searching || navigating) &&
-      (ownerTitle || reuseTab || (searching && requiresPageSearch(goal)))
+      (ownerTitle || currentTabRequested(goal) || (searching && requiresPageSearch(goal)))
     )
       return {
         ok: false,
@@ -731,7 +733,12 @@ export class ComputerAgent {
       const windowLabels = new Map();
       let changedLabels = { windowId: null, values: [] };
       const discordLaunchOnly = discordAllowed ? discordLaunchBeforeBrowser(goal) : null;
-      const parsedOpening = ownerAppLaunch(goal);
+      const youtubeHome = youtubeHomeDestination(command);
+      const youtubeBrowsing =
+        youtubeBrowseRequest(command) || youtubeBrowseFollowUp(goal, previousTask?.goal);
+      const youtubeDirectEntry = youtubeBrowsing && !currentTabRequested(goal);
+      const youtubeEntryInstruction = `If YouTube is not open, choose open_url for ${YOUTUBE_HOME_URL} using "${DEFAULT_BROWSER}" unless the owner named a browser. Do not add a separate browser-launch or focus step. Once there, use the actual page to find videos.`;
+      const parsedOpening = youtubeHome || youtubeBrowsing ? null : ownerAppLaunch(goal);
       const mediaPlayer = windowsMediaPlayerTask(goal);
       const steamOnly = !parsedOpening?.section && explicitSteamGame(command);
       let opening = steamOnly
@@ -759,9 +766,6 @@ export class ComputerAgent {
       const discordProofRequired =
         discordAllowed && !discordLaunchOnly && !(opening?.single && mentionsDiscord(opening.name));
       let steamGoal = opening?.section ? null : steamGameGoal(command);
-      const youtubeHome = youtubeHomeDestination(command);
-      const youtubeBrowsing =
-        youtubeBrowseRequest(command) || youtubeBrowseFollowUp(goal, previousTask?.goal);
       const directDestination = youtubeHome
         ? { url: youtubeHome }
         : explicitBrowserDestination(goal);
@@ -840,7 +844,8 @@ export class ComputerAgent {
         } catch (error) {
           combined.throwIfAborted();
           const openedWebsite =
-            youtubeHome && history.findLast((item) => item.ok && item.navigationRequested);
+            (youtubeHome || youtubeDirectEntry) &&
+            history.findLast((item) => item.ok && item.navigationRequested);
           if (
             openedWebsite &&
             performance.now() - openedWebsite.submittedAt < BROWSER_LOAD_TIMEOUT_MS &&
@@ -858,7 +863,7 @@ export class ComputerAgent {
           const canStartWithoutObservation =
             error.code === 'COMPUTER_APPLICATION_UNAVAILABLE' ||
             (['COMPUTER_FOREGROUND_CHANGED', 'COMPUTER_OBSERVATION_CHANGED'].includes(error.code) &&
-              (opening || directDestination));
+              (opening || directDestination || youtubeDirectEntry));
           if (canStartWithoutObservation && !steps && !history.length) {
             // An app launch does not need an unrelated window to be open first.
             // This is NOT an input target: only a launch/direct URL or owner help
@@ -978,6 +983,7 @@ export class ComputerAgent {
                     [
                       steamGoal &&
                         `For the Steam portion of the request, open the Library, locate "${steamGoal.name}", and verify its title in the main game pane. ${steamGoal.play ? 'Then use the Play button in that pane and verify that exact game is running.' : ''}`,
+                      youtubeDirectEntry && youtubeEntryInstruction,
                       issue,
                     ]
                       .filter(Boolean)
@@ -1054,6 +1060,7 @@ export class ComputerAgent {
             this.trace.push({ action: 'launch', outcome: 'checkpoint_verified' });
         }
         const pendingSearch = history.findLast((s) => s.ok && s.navigationRequested);
+        const youtubeEntryPending = youtubeDirectEntry && !pendingSearch && !youtubePageOpen(view);
         if (pendingSearch && !pendingSearch.navigationVerified) {
           const status = pendingSearch.navigationUrl
             ? browserNavigationState(view, pendingSearch)
@@ -1154,6 +1161,7 @@ export class ComputerAgent {
         const context = {
           originalOwnerGoal: goal,
           webAllowed: scope.web,
+          ...(youtubeEntryPending && { browserEntryUrl: YOUTUBE_HOME_URL }),
           ...(opening && !scope.web ? { requestedApplication: opening.name } : {}),
           discordTaskAllowed: discordAllowed,
           ...(previousTask ? { previousOwnerTaskForReferencesOnly: previousTask } : {}),
@@ -1182,11 +1190,12 @@ export class ComputerAgent {
             storeProgress,
             navigationCorrection,
             correction,
+            youtubeEntryPending ? youtubeEntryInstruction : null,
             directDestination
               ? `If the page still needs opening, choose open_url with ${directDestination.url}.`
               : null,
             youtubeBrowsing
-              ? 'Search on YouTube. If the owner leaves the topic to you, pick a topic or use recommendations, then identify a real video from the page. Do not stop to ask for a genre when the choice was delegated.'
+              ? 'Browse on YouTube in the browser. If the owner leaves the topic to you, choose a topic or use the feed. Recommend actual videos visible on the page, using their titles as evidence. If several videos were requested, include several observed titles in the final reply. Start playback only if the owner asked for it.'
               : null,
             section
               ? `Verify that the requested section “${opening.section}” is selected in the bound window.`
@@ -1236,6 +1245,21 @@ export class ComputerAgent {
           continue;
         }
         combined.throwIfAborted();
+        if (
+          youtubeEntryPending &&
+          (!['open_url', 'observe', 'wait', 'ask_user'].includes(step.action) ||
+            (step.action === 'open_url' && !sameNavigationUrl(step.url, YOUTUBE_HOME_URL)))
+        ) {
+          correction = youtubeEntryInstruction;
+          this.trace.push({ action: step.action, outcome: 'website_entry_required' });
+          this.taskPlan.recordOutcome({ ok: false, blocked: true });
+          if (++failures >= 3)
+            return terminal(
+              { ok: false, status: 'incomplete', steps, summary: this.message('unverified') },
+              'website_entry_required',
+            );
+          continue;
+        }
         const launcherClick =
           inLauncher &&
           launcherTarget &&
@@ -2184,7 +2208,7 @@ export class ComputerAgent {
           if (++failures >= 3) {
             this.lastFailure = {
               phase: 'acting',
-              reason: 'not_applied',
+              reason: result?.focused === false ? 'focus_denied' : 'not_applied',
               action: step.action,
               steps,
               at: Date.now(),

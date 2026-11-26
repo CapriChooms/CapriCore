@@ -105,7 +105,7 @@ export class CreditsPanel {
     this.animateTeamRays = this.animateTeamRays.bind(this);
     this.rayMotion = matchMedia('(prefers-reduced-motion: reduce)');
     this.rayColors = matchMedia('(forced-colors: active)');
-    this.rayMotion.addEventListener('change', () => this.syncTeamRays());
+    this.rayMotion.addEventListener('change', () => this.paintTeamRays());
     this.rayColors.addEventListener('change', () => this.paintTeamRays());
     this.rayResize = new ResizeObserver(() => this.paintTeamRays());
     this.panel = document.createElement('section');
@@ -261,7 +261,7 @@ export class CreditsPanel {
       const card = document.createElement('li');
       card.className = 'credits-team-card';
       nameStyle(card, member.name);
-      card.dataset.tone = String([2, 0, 3, 4, 1][index]);
+      card.dataset.tone = String([2, 5, 0, 3, 4, 1][index] ?? card.dataset.tone);
       const identity = document.createElement('div');
       identity.className = 'credits-team-identity credits-drift';
       const role = document.createElement('span');
@@ -298,7 +298,7 @@ export class CreditsPanel {
       const elapsed = this.teamRayTime(performance.now());
       for (const { rays } of this.teamNames) {
         rays.measure();
-        rays.paint(elapsed);
+        rays.paint(elapsed, !this.rayMotion.matches);
       }
     }
     this.syncTeamRays();
@@ -313,7 +313,6 @@ export class CreditsPanel {
   canAnimateTeamRays() {
     return (
       this.canShowTeamRays() &&
-      !this.scrolling &&
       !this.rayMotion.matches &&
       this.teamNames.some(({ card }) => !this.motionObserver || card.hasAttribute('data-in-view'))
     );

@@ -827,7 +827,7 @@ export class CompanionPanel {
       if (!preview.firstElementChild) {
         const image = new Image();
         image.src = 'support-meme.png';
-        image.alt = 'Paypal me $30000';
+        image.alt = 'Paypal me $3000';
         image.draggable = false;
         preview.append(image);
       }
@@ -1339,7 +1339,7 @@ export class CompanionPanel {
         color,
         inset: -4,
         speed: 0.4,
-        scrollport: frame.closest('#companion'),
+        bakeBloom: true,
         // The section gutter and part of the panel padding are available for the effect.
         getOutsetLimit: () =>
           Math.floor(Number.parseFloat(getComputedStyle(section).paddingInlineStart)) + 8,

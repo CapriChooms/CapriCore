@@ -29,6 +29,36 @@ function fixture(bridge = async () => ({ ok: true }), options = {}) {
   };
 }
 
+test('the system browser opens HTTP(S) destinations only with current full computer access', async () => {
+  let fullAccess = false;
+  const opened = [];
+  const { catalog } = fixture(() => assert.fail('Default browser should use the OS handler'), {
+    fullAccess: () => fullAccess,
+    openDefaultBrowser: (url) => opened.push(url),
+  });
+  const args = { action: 'open_url', query: 'Default browser', url: 'https://www.youtube.com/' };
+  const approvals = { propose: ({ execute }) => execute() };
+  try {
+    await assert.rejects(
+      catalog.execute('denied', args, approvals),
+      /requires full computer access/,
+    );
+    fullAccess = true;
+    await assert.rejects(
+      catalog.execute('invalid', { ...args, url: 'file:///C:/test' }, approvals),
+      /Only HTTP and HTTPS/,
+    );
+    assert.deepEqual(await catalog.execute('allowed', args, approvals), {
+      ok: true,
+      navigationRequested: true,
+      windowVerified: false,
+    });
+    assert.deepEqual(opened, [args.url]);
+  } finally {
+    await catalog.close();
+  }
+});
+
 test('packaged Start apps launch by a discovered identity and lose that capability after revocation', async () => {
   const packageId = 'Microsoft.WindowsNotepad_8wekyb3d8bbwe!App';
   let fullAccess = true;

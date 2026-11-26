@@ -117,7 +117,7 @@ test('the model request and the settings panel are wired to the mode', () => {
   assert.match(main, /async function submitVisualTurn[\s\S]+?await resetFreshContext\(signal\)/);
   assert.match(
     main,
-    /sessions\.reset', \{ key: chatSessionKey, reason: 'new' \}, \{ signal \}\);\s+contextSampler\.invalidate/,
+    /sessions\.reset',\s*\{ key: chatSessionKey, reason: 'new' \},\s*\{ signal \},?\s*\);\s+contextSampler\.invalidate/,
   );
   const panel = source('renderer/companion-panel.mjs');
   assert.match(panel, /<input type="checkbox" id="companion-fresh-context">/);

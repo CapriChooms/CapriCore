@@ -13,6 +13,7 @@ import { reasoningSkill } from '../../packages/skills/src/reasoning/index.mjs';
 import { webSearchSkill } from '../../packages/skills/src/web-search/index.mjs';
 import { installCodingBridge } from './main/coding-bridge.mjs';
 import { faceAnimations, faceFrames } from './renderer/avatar-face-expressions.mjs';
+import { describeOwnAvatar } from './avatar-awareness.mjs';
 import { prepareMacModels } from './main/macos-models.mjs';
 import { createMediaSkills } from './main/media-skills.mjs';
 import { createConversationSkills, createOwnerMemory } from './main/conversation-skills.mjs';
@@ -735,6 +736,7 @@ async function initializeDesktop() {
       .filter((frame) => frame.kind !== 'effect')
       .map((frame) => [frame.id, frame]),
   );
+  const avatarFramesByUrl = new Map(catalog.frames.map((frame) => [frame.url, frame]));
   function maskFor(id, artwork = frameIds.get(id)) {
     if (masks.has(id)) {
       const value = masks.get(id);
@@ -833,8 +835,47 @@ async function initializeDesktop() {
   let avatarComposerPicking = false;
   let perch,
     desktopFrame,
+    portraitFace,
     avatarRoamCapture,
     avatarDesktopUpdate = false;
+  function currentAvatarContext() {
+    const phase = avatarDetach?.phase ?? 'attached';
+    let mode = 'hidden';
+    let frame, face;
+    if (phase === 'detached') {
+      const overlay = avatarDetach.overlay;
+      if (overlay && !overlay.isDestroyed() && overlay.isVisible()) {
+        mode = avatarDetach.presentation === 'character' ? 'desktop' : 'dialogue';
+        frame = avatarFramesByUrl.get(avatarDetach.session?.spriteUrl);
+        face = avatarDetach.face;
+      }
+    } else if (phase !== 'attached') {
+      mode = 'moving';
+    } else if (
+      rendererReady &&
+      window &&
+      !window.isDestroyed() &&
+      window.isVisible() &&
+      !window.isMinimized()
+    ) {
+      mode = regions?.sprite.enabled ? 'portrait' : regions?.footprint ? 'compact' : 'hidden';
+      frame = desktopFrame;
+      face = portraitFace;
+    }
+    const elapsed = Date.now() - (face?.startedAt ?? 0);
+    const activity =
+      elapsed >= 0 && elapsed < (faceAnimations[face?.clip]?.duration ?? 0)
+        ? face.clip
+        : undefined;
+    return describeOwnAvatar({
+      mode,
+      frame,
+      expression: face?.expression ?? frame?.expression,
+      activity,
+      placement: perch?.seated && !perch.hidden && perch.record ? 'window' : 'display',
+      character: catalog.animated,
+    });
+  }
   const avatarRoaming = new AvatarRoaming();
   const idleCursorRoaming = new AvatarRoaming({ enabledKey: 'avatarRoamCursorPranks' });
   let settingsHost;
@@ -1448,6 +1489,7 @@ async function initializeDesktop() {
     avatarSprites: catalog.publicSprites(),
     defaultAvatarId: catalog.defaultId,
     interfaceState: () => ({
+      avatarSelf: currentAvatarContext(),
       reasoningEffort: skillSettings.preferences.value['capri.reasoning']?.effort,
       activeSkills: new Set(
         Object.entries(skillSettings.snapshot())
@@ -1995,6 +2037,7 @@ async function initializeDesktop() {
         persona: chat.persona(),
         styleChangedAt: readCommunicationSelection(rt.workspace).changedAt,
         languages: liveLanguages(),
+        avatarSelf: currentAvatarContext(),
         model: rt.nativeNpu
           ? nativeNpu.model
           : rt.remote.enabled
@@ -6210,6 +6253,7 @@ async function initializeDesktop() {
   );
   const desktopCatalog = new DesktopCatalog({
     fullAccess: () => fullComputerAccess.enabled && applicationAccess.enabled,
+    openDefaultBrowser: (url) => shell.openExternal(url),
     accessAllowed: () => applicationAccess.enabled,
     accessSignal: () => applicationAccess.signal,
     currentTurn: () => chat.active?.id ?? null,
@@ -9846,13 +9890,16 @@ async function initializeDesktop() {
       const { expression, clip, startedAt } = state ?? {};
       if (
         role !== 'companion' ||
-        avatarDetach?.phase === 'attached' ||
+        !avatarDetach ||
+        !['attached', 'detached'].includes(avatarDetach.phase) ||
         (expression !== null && !Object.hasOwn(faceFrames, expression)) ||
         (clip !== null && !Object.hasOwn(faceAnimations, clip)) ||
         !Number.isSafeInteger(startedAt)
       )
         return false;
-      avatarDetach?.sendFace({ expression, clip, startedAt });
+      const face = { expression, clip, startedAt };
+      if (avatarDetach.phase === 'attached') portraitFace = face;
+      else avatarDetach.sendFace(face);
       return true;
     });
     handle('capri:avatar-status', (value, { role }) => {
@@ -9992,14 +10039,23 @@ async function initializeDesktop() {
       }
       return true;
     });
-    handle('capri:drag-start', (edge) => {
+    handle('capri:drag-start', (request) => {
       if (pointer.drag || resizeSurface?.active) return false;
       stopReplyWindowResize();
       clearTimeout(saveTimer);
-      if (edge === undefined) return pointer.beginWindow(undefined, true);
+      if (request === undefined) return pointer.beginWindow(undefined, true);
+      const edge = request?.edge;
       if (!WINDOW_RESIZE_EDGES.includes(edge)) throw new Error('Invalid window edge');
       const { workArea } = companionDisplay();
       const minimum = layoutMinimum[activeWindowLayout];
+      const content = window.getContentBounds();
+      const origin = request.origin;
+      const pressedAt =
+        Number.isFinite(origin?.x) &&
+        Number.isFinite(origin.y) &&
+        pointInRect(origin, { ...content, x: 0, y: 0 })
+          ? { x: content.x + origin.x, y: content.y + origin.y }
+          : undefined;
       return pointer.beginWindow(
         {
           edge,
@@ -10009,7 +10065,10 @@ async function initializeDesktop() {
             height: fittedReplyHeight(minimum.height, replyWindowSpace),
           },
         },
-        true,
+        // Moving the native host can interrupt Chromium's pointer-move events.
+        // Sample the screen cursor during Windows resize until the grip releases.
+        !resizeSurface,
+        pressedAt,
       );
     });
     handle('capri:drag-frame', () => pointer.sampleWindow());
@@ -10256,8 +10315,11 @@ async function initializeDesktop() {
         return placeVisibleInWorkArea(bounds, area, bounds, windowFootprint);
       },
       applyWindowBounds: (bounds, drag) => {
-        if (!drag.resize) window.setPosition(bounds.x, bounds.y, false);
-        else if (resizeSurface) resizeSurface.resize(drag.bounds, drag.resize, bounds);
+        if (!drag.resize) {
+          // Position-only moves can round the native content size at fractional scale.
+          if (resizeSurface) window.setContentBounds(bounds);
+          else window.setPosition(bounds.x, bounds.y, false);
+        } else if (resizeSurface) resizeSurface.resize(drag.bounds, drag.resize, bounds);
         else window.setBounds(bounds, false);
       },
       onEnd: async (drag) => {
@@ -10296,6 +10358,7 @@ async function initializeDesktop() {
       console.warn('Companion renderer stopped:', details.reason, details.exitCode);
       rendererFailed = true;
       rendererReady = false;
+      portraitFace = undefined;
       attachmentDrafts.clear();
       resetCallAudio();
       draftBusy = false;

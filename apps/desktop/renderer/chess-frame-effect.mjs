@@ -8,7 +8,6 @@ import {
 import { drawSpark, getSparkAtlas } from './spark-atlas.mjs';
 
 const frameInterval = 1000 / 60;
-const scrollSettleTime = 120;
 const flashCount = 5;
 const emberCore = '#ffffff';
 const chessPalette = {
@@ -308,13 +307,20 @@ function drawEdge(context, { segments, length, inset, line, palette }) {
 export class ChessFrameEffect {
   constructor(
     element,
-    { color, inset = -CHESS_FRAME_OUTSET, strokeInset, getOutsetLimit, speed = 1, scrollport } = {},
+    {
+      color,
+      inset = -CHESS_FRAME_OUTSET,
+      strokeInset,
+      getOutsetLimit,
+      speed = 1,
+      bakeBloom = false,
+    } = {},
   ) {
     this.element = element;
     this.getOutsetLimit = getOutsetLimit;
     this.speed = speed;
     this.strokeInset = strokeInset;
-    this.bakeBloom = Boolean(scrollport);
+    this.bakeBloom = bakeBloom;
     element.style.inset = `${inset}px`;
     this.style = DEFAULT_CHESS_FRAME;
     this.palette = framePalette(color);
@@ -343,23 +349,10 @@ export class ChessFrameEffect {
     this.intersection.observe(element);
     this.motion.addEventListener('change', this.update);
     document.addEventListener('visibilitychange', this.update);
-    const pauseForScroll = () => {
-      if (element.hidden || document.hidden || !this.intersecting || this.motion.matches) return;
-      // Keep the painted frame visible and let the compositor scroll it without new canvas uploads.
-      cancelAnimationFrame(this.animation);
-      clearTimeout(this.scrollTimer);
-      this.scrollTimer = setTimeout(() => {
-        this.scrollTimer = undefined;
-        this.update();
-      }, scrollSettleTime);
-    };
-    scrollport?.addEventListener('scroll', pauseForScroll, { passive: true });
     window.addEventListener(
       'pagehide',
       () => {
         cancelAnimationFrame(this.animation);
-        clearTimeout(this.scrollTimer);
-        scrollport?.removeEventListener('scroll', pauseForScroll);
         this.resize.disconnect();
         this.intersection.disconnect();
         this.motion.removeEventListener('change', this.update);
@@ -380,10 +373,6 @@ export class ChessFrameEffect {
   setVisible(visible) {
     if (this.element.hidden === !visible) return;
     this.element.hidden = !visible;
-    if (!visible) {
-      clearTimeout(this.scrollTimer);
-      this.scrollTimer = undefined;
-    }
     this.update();
   }
 
@@ -402,7 +391,7 @@ export class ChessFrameEffect {
       canvas.hidden = this.motion.matches;
       base.style.opacity = String((this.style.opacity / 100) * (this.motion.matches ? 1 : 0.72));
     }
-    if (!this.motion.matches && !this.scrollTimer) {
+    if (!this.motion.matches) {
       this.nextPaint = undefined;
       this.animation = requestAnimationFrame(this.tick);
     }

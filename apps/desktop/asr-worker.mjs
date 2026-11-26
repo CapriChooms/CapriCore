@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { LANGUAGE_PACKS } from './renderer/language-settings.mjs';
 
@@ -25,6 +25,24 @@ const startupRepair =
 const nativeStartupStages = ['ASR_START_DEPENDENCIES', 'ASR_START_MODEL'];
 const canRecoverStartup = (error) =>
   error.code === 'ASR_START_NATIVE_CRASH' && error.startupStage === 'ASR_START_MODEL';
+
+const asrEnvironment = (root) => path.join(root, '.runtime/asr-venv');
+
+export function asrPython(root) {
+  return path.join(
+    asrEnvironment(root),
+    process.platform === 'linux' ? 'bin/python' : 'Scripts/python.exe',
+  );
+}
+
+export function asrSitePackages(root) {
+  const environment = asrEnvironment(root);
+  if (process.platform !== 'linux') return path.join(environment, 'Lib/site-packages');
+  const config = readFileSync(path.join(environment, 'pyvenv.cfg'), 'utf8');
+  const version = /^(?:version|version_info)\s*=\s*(\d+\.\d+)(?:\.|\s|$)/m.exec(config)?.[1];
+  if (!version) throw Error('The ASR virtual environment has no Python version');
+  return path.join(environment, 'lib', 'python' + version, 'site-packages');
+}
 
 const asrError = (code, startupStage) =>
   Object.assign(
@@ -84,7 +102,7 @@ export class ASRWorker extends EventEmitter {
   }
   async startAttempt(safeStartup = false) {
     if (this.ready) return this.ready;
-    const python = path.join(this.root, '.runtime/asr-venv/Scripts/python.exe');
+    const python = asrPython(this.root);
     if (!existsSync(python)) throw asrError('ASR_START_PYTHON');
     const env = Object.fromEntries(
       ['SystemRoot', 'WINDIR', 'PATH', 'TEMP', 'TMP', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA']

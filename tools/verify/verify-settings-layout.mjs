@@ -88,8 +88,10 @@ verifyLayout: try {
       const context = sparks.getContext('2d');
       const clear = context.clearRect.bind(context);
       window.supportFramePaints = 0;
+      window.supportFramePaintTimes = [];
       context.clearRect = (...args) => {
         window.supportFramePaints++;
+        window.supportFramePaintTimes.push(performance.now());
         return clear(...args);
       };
     });
@@ -97,25 +99,34 @@ verifyLayout: try {
     const scroll = await settings.locator('#companion').evaluate(async (pane) => {
       const limit = pane.scrollHeight - pane.clientHeight;
       if (limit < 16) throw new Error('Support scroll test requires overflowing content');
-      const painted = new Promise((resolve) => {
-        pane.addEventListener('scroll', () => resolve(window.supportFramePaints), { once: true });
-      });
-      pane.scrollTop += pane.scrollTop < 16 ? 16 : -16;
-      const during = await painted;
-      // Let the compositor advance while the last sparks frame stays in place.
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      return { during, after: window.supportFramePaints };
+      const radius = Math.min(30, limit);
+      const start = performance.now();
+      for (let step = 1; performance.now() - start < 500; step++) {
+        const sweep = step % 20;
+        pane.scrollTop = radius * (1 - Math.abs(sweep - 10) / 10);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      const paints = window.supportFramePaintTimes.filter((time) => time >= start);
+      const timeline = [start, ...paints, performance.now()];
+      return {
+        paints: paints.length,
+        maxGap: Math.max(...timeline.slice(1).map((time, index) => time - timeline[index])),
+      };
     });
-    assert.equal(scroll.after, scroll.during, 'sparks stop repainting during scrolling');
+    assert(
+      scroll.paints >= 12 && scroll.maxGap < 110,
+      `Sparks keep painting while scrolling: ${JSON.stringify(scroll)}`,
+    );
     assert.equal(await settings.locator('#support-frame').isVisible(), true);
-    await settings.waitForFunction((paints) => window.supportFramePaints > paints, scroll.after);
     await settings.screenshot({ path: path.join(folder, 'support-scroll.png') });
     await settingsView(application, 'updates');
     await settings.locator('#support-frame').waitFor({ state: 'hidden' });
     const hiddenPaints = await settings.evaluate(() => window.supportFramePaints);
     await settings.waitForTimeout(180);
     assert.equal(await settings.evaluate(() => window.supportFramePaints), hiddenPaints);
-    console.log('PASS Support scroll and frame lifecycle. Screenshot: ' + folder);
+    console.log(
+      'PASS Support scroll and frame lifecycle. ' + JSON.stringify({ ...scroll, folder }),
+    );
     break verifyLayout;
   }
   if (supportOnly)

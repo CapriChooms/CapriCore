@@ -32,7 +32,10 @@ test(
       'tools/setup/prepare-desktop-identity.ps1',
       'packages/runtime/src/host/desktop-identity.mjs',
       'packages/runtime/src/host/paths.mjs',
+      'packages/runtime/src/host/llama-bundle.mjs',
       'packages/runtime/src/atomic-json.mjs',
+      'packages/runtime/src/huggingface/artifacts.mjs',
+      'packages/runtime/src/huggingface/transport.mjs',
     ]) {
       const target = path.join(fixture, name);
       mkdirSync(path.dirname(target), { recursive: true });

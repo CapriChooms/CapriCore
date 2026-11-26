@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 export const CREDITS_TEAM = Object.freeze([
-  Object.freeze({ name: 'Overyx', role: 'Developer', github: 'https://github.com/Overyx' }),
+  Object.freeze({ name: 'Overyx', role: 'Main developer', github: 'https://github.com/Overyx' }),
+  Object.freeze({ name: 'Hastur-Dev', role: 'Developer', github: 'https://github.com/hastur-dev' }),
   Object.freeze({ name: 'v1rch', role: 'Discord developer' }),
   Object.freeze({ name: 'Leberrr', role: 'Discord moderator' }),
   Object.freeze({

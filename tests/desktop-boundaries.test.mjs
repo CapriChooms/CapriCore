@@ -174,11 +174,19 @@ test('pointer release commits the last resize sample and a stationary pointer re
   pointer.invalidateHitTest();
   pointer.tick();
   assert.equal(contentReads, 2);
-  pointer.beginWindow({
-    edge: 'nw',
-    workArea: { x: 0, y: 0, width: 1000, height: 800 },
-    minimum: { width: 380, height: 520 },
-  });
+  // A quick first movement may already be visible to Electron when IPC starts the resize.
+  cursor = { x: 114, y: 112 };
+  pointer.beginWindow(
+    {
+      edge: 'nw',
+      workArea: { x: 0, y: 0, width: 1000, height: 800 },
+      minimum: { width: 380, height: 520 },
+    },
+    false,
+    { x: 103, y: 105 },
+  );
+  pointer.tick();
+  assert.deepEqual(bounds, { x: 111, y: 107, width: 469, height: 593 });
   cursor = { x: 124, y: 119 };
   pointer.endWindow(true);
   assert.deepEqual(bounds, { x: 121, y: 114, width: 459, height: 586 });

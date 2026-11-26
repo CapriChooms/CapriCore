@@ -57,6 +57,9 @@
     "uv": {
       "version": "0.13.5",
       "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-pc-windows-msvc.zip",
+      "mirrors": [
+        "https://gh-proxy.org/https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-pc-windows-msvc.zip"
+      ],
       "sha256": "a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a",
       "bytes": 15264056,
       "directory": "uv"

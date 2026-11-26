@@ -173,11 +173,13 @@
   pointer-events: none;
   user-select: none;
 }
-#credits-panel .credits-ray-sheet {
+#credits-panel :is(.credits-ray-sheet, .credits-spark-sheet) {
   position: absolute;
   inset: 0;
   inline-size: 100%;
   block-size: 100%;
+}
+#credits-panel .credits-ray-sheet {
   opacity: 0.7;
   mask-image: radial-gradient(ellipse closest-side, #000 38%, #000b 72%, transparent);
 }
@@ -443,6 +445,9 @@
   will-change: auto !important;
 }
 @media (prefers-reduced-motion: reduce) {
+  #credits-panel .credits-spark-sheet {
+    display: none;
+  }
   #credits-panel *,
   #credits-panel *::before,
   #credits-panel *::after {

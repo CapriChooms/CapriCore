@@ -83,7 +83,7 @@ try {
     const image = document.querySelector('#support-meme img');
     return image?.complete && image.naturalWidth > 0;
   });
-  assert.equal(await meme.getAttribute('alt'), 'Paypal me $30000');
+  assert.equal(await meme.getAttribute('alt'), 'Paypal me $3000');
   const memeWidth = await meme.evaluate((image) => image.offsetWidth);
   assert.ok(memeWidth > 0 && memeWidth <= 210);
   assert.deepEqual(await opened(), []);

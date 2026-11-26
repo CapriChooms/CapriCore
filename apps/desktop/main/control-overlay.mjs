@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /** Transparent, click-through indicators over the entire area of each monitor. */
+import { release } from 'node:os';
 import { computerPreferences } from '../computer-preferences.mjs';
 
+// Earlier Windows releases can black out the entire overlay rectangle instead.
+const supportsCaptureExclusion =
+  process.platform === 'win32' && Number(release().split('.').at(-1)) >= 19041;
 const sameBounds = (a, b) => ['x', 'y', 'width', 'height'].every((key) => a[key] === b[key]);
 
 function verifyDisplayBounds(border, { bounds: expected, scaleFactor }) {
@@ -30,8 +34,17 @@ export class ControlOverlay {
     url = 'capri://desktop/control-overlay.html',
     idlePoint,
     onLost = () => {},
+    excludeFromCapture = supportsCaptureExclusion,
   }) {
-    Object.assign(this, { BrowserWindow, screen, owner, url, idlePoint, onLost });
+    Object.assign(this, {
+      BrowserWindow,
+      screen,
+      owner,
+      url,
+      idlePoint,
+      onLost,
+      excludeFromCapture,
+    });
     this.windows = [];
     this.displayWindows = new Map();
     this.closed = false;
@@ -104,6 +117,22 @@ export class ControlOverlay {
   }
   async captureWithoutOverlay(capture) {
     this.assertOpen();
+    if (this.excludeFromCapture) {
+      // The overlay stays visible on the monitor. Apply exclusion only during
+      // this read so other screen recorders can include it between reads.
+      const borders = this.windows;
+      const restore = [];
+      try {
+        for (const border of borders) {
+          this.assertOpen(border);
+          restore.push(border);
+          border.setContentProtection(true);
+        }
+        return await capture();
+      } finally {
+        for (const border of restore) if (!border.isDestroyed()) border.setContentProtection(false);
+      }
+    }
     try {
       await Promise.all(
         this.windows.map((border) =>

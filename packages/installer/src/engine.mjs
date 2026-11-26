@@ -4,7 +4,6 @@ import {
   existsSync,
   readFileSync,
   copyFileSync,
-  statSync,
   unlinkSync,
   writeFileSync,
   renameSync,
@@ -12,7 +11,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { sourceFiles } from './payload.mjs';
+import { verifySetupPayload } from './payload.mjs';
 import { requireCapriAvatar } from '../../../apps/desktop/avatar-catalog.mjs';
 import {
   LANGUAGE_DEFAULTS,
@@ -532,26 +531,7 @@ export async function install(
       activity('checkSource');
       activateCameraBundle = await prepareBundledCamera(sourceRoot, root, signal);
       requireCapriAvatar(sourceRoot, { source: true });
-      const files = sourceFiles(sourceRoot).map((name) => {
-        const file = path.join(sourceRoot, name),
-          info = statSync(file);
-        if (!info.isFile() || info.size > 20 * 1024 ** 2)
-          throw new Error('Invalid source payload file: ' + name);
-        return {
-          path: name,
-          bytes: info.size,
-          sha256: createHash('sha256').update(readFileSync(file)).digest('hex'),
-        };
-      });
-      if (existsSync(path.join(sourceRoot, 'SOURCE_MANIFEST.json'))) {
-        const pinned = readJson(path.join(sourceRoot, 'SOURCE_MANIFEST.json'), 2 * 1024 ** 2).files;
-        const expected = new Map(pinned.map((item) => [item.path, item.sha256]));
-        if (expected.size !== files.length)
-          throw new Error('Source payload file list differs from its manifest');
-        for (const file of files)
-          if (expected.get(file.path) !== file.sha256)
-            throw new Error('Source payload checksum mismatch: ' + file.path);
-      }
+      const files = await verifySetupPayload(sourceRoot, signal);
       activity('copySource');
       let processed = 0;
       for (const file of files) {

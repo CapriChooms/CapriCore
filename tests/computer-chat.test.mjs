@@ -21,6 +21,7 @@ import {
   mentionsDiscord,
   ownerAppLaunch,
   ownerAppLaunchFollowUp,
+  youtubeBrowseRequest,
 } from '../apps/desktop/computer-mode-request.mjs';
 import { steamGameGoal } from '../apps/desktop/steam-task-state.mjs';
 import { ownerRequestsWeb } from '../apps/desktop/computer-task-scope.mjs';
@@ -187,6 +188,49 @@ test('opening the YouTube home page takes the desktop route from chat and the te
   await f.send('Open YouTube', { mode: 'computer' });
   assert.deepEqual(f.goals, [spoken, 'Open YouTube']);
   assert.equal(f.events.at(-1).assistant.text, 'Opened the requested page.');
+});
+
+test('YouTube browsing delegates the original owner goal despite model capitalization', async () => {
+  const goal = 'Open youtube and find some good videos to watch';
+  const f = fixture({
+    interfaceState: () => ({ fullComputerAccess: f.access.enabled, computerSkillEnabled: true }),
+    fetchImpl: async (_url, options) => {
+      assert.equal(options.headers['x-capri-tools-once'], 'desktop');
+      assert.throws(
+        () => f.chat.selectModelComputerTask('Open YouTube and play something'),
+        /exact latest owner message/,
+      );
+      f.chat.selectModelComputerTask('Open YouTube and find some good videos to watch');
+      await delay(60_000, undefined, { signal: options.signal });
+    },
+  });
+  const grant = f.access.configure(true);
+  await waitForApproval(f);
+  assert.equal(f.accept(), true);
+  await grant;
+  const grantEvents = f.dialogs.length;
+  await f.send(goal);
+  assert.deepEqual(f.goals, [goal]);
+  assert.equal(f.events.at(-1).assistant.computerTask.status, 'completed');
+  assert.equal(f.dialogs.length, grantEvents);
+});
+
+test('YouTube browsing recognizes open-then-find without treating discussion or music as navigation', () => {
+  for (const command of [
+    'Open youtube and find some good videos to watch',
+    'Please go to youtube.com, then pick a video about space.',
+    'Открой YouTube и подбери интересные видео.',
+    'Find an interesting video on YouTube.',
+  ])
+    assert.equal(youtubeBrowseRequest(command), true, command);
+  for (const command of [
+    'Do not open YouTube and find a video.',
+    'How do I open YouTube and find a video?',
+    'Open YouTube Music and search for Believer.',
+    'Open YouTube.',
+    'Paste "Open YouTube and find a video" into Notepad.',
+  ])
+    assert.equal(youtubeBrowseRequest(command), false, command);
 });
 
 test('the model can delegate a YouTube request and an owner-authorized follow-up using their PC', async () => {

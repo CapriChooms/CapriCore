@@ -7,6 +7,8 @@ const coreStartupMessages = Object.freeze({
     'Your saved data has been preserved. Repair Capri with the installer and try again.',
   CAPRI_GATEWAY_RUNTIME_MISSING:
     'Your saved data has been preserved. Repair Capri with the installer and try again.',
+  CAPRI_GATEWAY_STORAGE_MIGRATION_FAILED:
+    "Capri couldn't upgrade its saved conversation database. Reconnect to try again.",
   CAPRI_MEMORY_MODEL_MISSING:
     'Your saved data has been preserved. Repair Capri with the installer and try again.',
   CAPRI_LOCAL_LANGUAGE_MODEL_MISSING: 'Choose a language model in Settings → Language model.',

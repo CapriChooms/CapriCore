@@ -12,6 +12,7 @@ import { applyOpenClawCompatibility } from './openclaw-compat.mjs';
 import { waitForOwnedService } from '../host/readiness.mjs';
 import { gpuBudget } from '../hardware/gpu-budget.mjs';
 import { applyDependencySecurityPatches } from './dependency-security.mjs';
+import { migrateGatewayStorage } from './gateway-storage.mjs';
 import { migrateLanguageDevice, probeLanguageDevices } from '../hardware/model-devices.mjs';
 import { readModelDevices, modelsShareDevice } from '../model-device-settings.mjs';
 
@@ -169,6 +170,7 @@ export async function startGateway(rt = runtime(), { signal } = {}) {
         { code: 'CAPRI_SERVICE_PORT_OCCUPIED' },
       );
     }
+    await migrateGatewayStorage(rt, { signal });
     signal?.throwIfAborted();
     owner = await launch(
       rt.logPrefix,

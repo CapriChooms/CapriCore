@@ -117,10 +117,12 @@ test('a replacement invite updates presence and Support together without forward
     await assert.rejects(open(id), /Unknown community link/);
   assert.equal(opened.length, 8);
   await open('credits:Overyx', { role: 'settings' });
+  await open('credits:Hastur-Dev', { role: 'settings' });
   await open('credits:Frkn97', { role: 'settings' });
   await open('credits:lattelix', { role: 'settings' });
   assert.deepEqual(opened.slice(8), [
     'https://github.com/Overyx',
+    'https://github.com/hastur-dev',
     'https://github.com/Frkn97',
     'https://github.com/lattelix',
   ]);

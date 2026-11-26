@@ -88,9 +88,17 @@ const personalComputerCommand = (request) => {
 };
 export function youtubeBrowseRequest(text) {
   const value = requestText(text).replace(/"[^"\n]*"|“[^”\n]*”|«[^»\n]*»/gu, '');
+  const findVideo = /^(?:find|search|pick|choose|найди|поищи|подбери|выбери)\s/iu;
+  const [opening, followUp] = value.split(
+    /\s*[,;:]\s*(?:(?:and|then|и|затем|потом)\s+)?|\s+(?:and(?:\s+then)?|then|и|затем|потом)\s+/iu,
+    2,
+  );
+  if (followUp && youtubeHomeDestination(opening) && findVideo.test(followUp)) return true;
   return (
-    /^(?:find|search|pick|choose|найди|поищи|подбери|выбери)\s/iu.test(value) &&
-    /(?:\b(?:on|in)\s+(?:the\s+)?youtube\b|(?:^|\s)(?:на|в)\s+(?:youtube(?!\p{L})|ютуб\p{L}*))/iu.test(value) &&
+    findVideo.test(value) &&
+    /(?:\b(?:on|in)\s+(?:the\s+)?youtube\b|(?:^|\s)(?:на|в)\s+(?:youtube(?!\p{L})|ютуб\p{L}*))/iu.test(
+      value,
+    ) &&
     !/(?:\byoutube\s+music\b|ютуб[-\s]+музык)/iu.test(value)
   );
 }

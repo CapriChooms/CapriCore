@@ -36,10 +36,10 @@ export class PointerController {
     this.avatarPress = null;
     this.ignored = true;
   }
-  beginWindow(resize, frameDriven = false) {
+  beginWindow(resize, frameDriven = false, pressedAt) {
     if (this.drag) return false;
     this.endAvatar();
-    const cursor = this.screen.getCursorScreenPoint();
+    const cursor = pressedAt ?? this.screen.getCursorScreenPoint();
     const bounds = this.window.getBounds();
     this.drag = {
       cursor,

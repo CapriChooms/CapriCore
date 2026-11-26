@@ -64,28 +64,30 @@ test('cancelling an existing archive checksum keeps the cache and avoids any net
   }
 });
 
-test('the configured llama.cpp archive switches to its mirror after a connection reset', async () => {
-  const config = JSON.parse(readFileSync(path.join(root, 'config/installer.json'), 'utf8'));
-  const { url, mirrors } = config.artifacts.llama;
-  assert.ok(mirrors?.length, 'the installer must provide a fallback for llama.cpp');
-  const base = folder();
-  const sources = [];
-  const file = await fetchArtifact(spec({ url, mirrors }), base, {
-    pauseFile: path.join(base, 'pause'),
-    onSource: (source) => sources.push(source),
-    fetchImpl: async (source) => {
-      if (source.href === url)
-        throw new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } });
-      assert.equal(source.href, mirrors[0]);
-      return response();
-    },
+for (const name of ['llama', 'uv']) {
+  test(`the configured ${name} archive switches to its mirror after a connection reset`, async () => {
+    const config = JSON.parse(readFileSync(path.join(root, 'config/installer.json'), 'utf8'));
+    const { url, mirrors } = config.artifacts[name];
+    assert.ok(mirrors?.length, `the installer must provide a fallback for ${name}`);
+    const base = folder();
+    const sources = [];
+    const file = await fetchArtifact(spec({ url, mirrors }), base, {
+      pauseFile: path.join(base, 'pause'),
+      onSource: (source) => sources.push(source),
+      fetchImpl: async (source) => {
+        if (source.href === url)
+          throw new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } });
+        assert.equal(source.href, mirrors[0]);
+        return response();
+      },
+    });
+    assert.deepEqual(readFileSync(file), data);
+    assert.deepEqual(sources, [
+      { index: 0, host: new URL(url).hostname },
+      { index: 1, host: new URL(mirrors[0]).hostname },
+    ]);
   });
-  assert.deepEqual(readFileSync(file), data);
-  assert.deepEqual(sources, [
-    { index: 0, host: new URL(url).hostname },
-    { index: 1, host: new URL(mirrors[0]).hostname },
-  ]);
-});
+}
 
 for (const resumable of modes) {
   const options = (base, more = {}) => ({

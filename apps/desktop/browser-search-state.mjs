@@ -256,12 +256,22 @@ export const browserSearchUrl = (text, site = 'google') =>
     : 'https://www.google.com/search?q=') + encodeURIComponent(text.trim());
 
 /** A single home-page request. Leave in-site actions and tab selections to the task executor. */
+export const YOUTUBE_HOME_URL = 'https://www.youtube.com/';
+
 export function youtubeHomeDestination(command) {
   return /^(?:open|visit|go\s+to|открой|перейди\s+на|abre|ouvre|ouvrez)\s+(?:youtube|ютуб|(?:www\.)?youtube\.com)[.!?]*$/iu.test(
     command.trim(),
   )
-    ? 'https://www.youtube.com/'
+    ? YOUTUBE_HOME_URL
     : null;
+}
+
+export function youtubePageOpen(view) {
+  const address = observedBrowserAddress(view);
+  if (!address || address.focused) return false;
+  const value = address.untrustedValue ?? '';
+  const url = URL.parse(/^[a-z]+:\/\//iu.test(value) ? value : 'https://' + value);
+  return ['https://www.youtube.com', 'https://youtube.com'].includes(url?.origin);
 }
 
 /** Identify a specific owner-supplied URL for validating the model’s navigation. */

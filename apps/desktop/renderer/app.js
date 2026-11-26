@@ -214,7 +214,6 @@ warmModelsButton.onclick = async () => {
   controls();
   try {
     await api.warmModels();
-    notice('Models loaded.');
   } catch (error) {
     notice(
       String(error.message).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, ''),
@@ -1864,7 +1863,7 @@ const cameraPublisher = new CameraFramePublisher({
 window.addEventListener('pagehide', () => cameraPublisher.stop(), { once: true });
 let mouthShape = 'closed',
   desktopMouth,
-  desktopFace;
+  reportedAvatarFace;
 function animateCharacter(now, snapshot, reduced) {
   if (
     avatarDetachPhase !== 'attached' &&
@@ -1904,31 +1903,27 @@ function animateCharacter(now, snapshot, reduced) {
     sleeping: presence.sleeping,
   });
   if (!state) return;
-  const clip = reduced ? null : state.clip;
-  if (detached) {
-    const remoteClip = clip?.id === 'blink' ? null : clip;
-    const key = [state.expression, remoteClip?.id, remoteClip?.start].join(':');
-    if (key !== desktopFace) {
-      desktopFace = key;
-      api
-        .avatarFace({
-          expression: state.expression,
-          clip: remoteClip?.id ?? null,
-          startedAt: remoteClip ? Date.now() - Math.round(now - remoteClip.start) : 0,
-        })
-        .catch(() => {});
-    }
-  } else {
-    desktopFace = undefined;
-    portraitMouth.update(
-      elements.sprite,
-      mouthShape,
-      renderedFrame?.id,
-      presence.sleeping ? 'idle-blink_closed' : (headpat.expression ?? state.expression),
-      presence.sleeping || headpat.expression ? null : clip,
-      now,
-    );
+  const expression = detached
+    ? state.expression
+    : presence.sleeping
+      ? 'idle-blink_closed'
+      : (headpat.expression ?? state.expression);
+  const clip =
+    reduced || (!detached && (presence.sleeping || headpat.expression)) ? null : state.clip;
+  const sharedClip = clip?.id === 'blink' ? null : clip;
+  const faceKey = [avatarDetachPhase, expression, sharedClip?.id, sharedClip?.start].join(':');
+  if (faceKey !== reportedAvatarFace) {
+    reportedAvatarFace = faceKey;
+    api
+      .avatarFace({
+        expression,
+        clip: sharedClip?.id ?? null,
+        startedAt: sharedClip ? Date.now() - Math.round(now - sharedClip.start) : 0,
+      })
+      .catch(() => {});
   }
+  if (!detached)
+    portraitMouth.update(elements.sprite, mouthShape, renderedFrame?.id, expression, clip, now);
   const frameId = renderedFrame?.id;
   const musicActive = Boolean(
     frameId &&
@@ -3509,8 +3504,9 @@ function startDrag(event) {
   dragMotion = { edge: event.currentTarget.dataset.resizeEdge, dirty: false };
   event.currentTarget.setPointerCapture(event.pointerId);
   const motion = dragMotion;
+  const origin = motion.edge ? { x: event.clientX, y: event.clientY } : undefined;
   api
-    .startDrag(motion.edge)
+    .startDrag(motion.edge, origin)
     .then((started) => {
       if (dragMotion === motion && !started) cancelDragFrame();
     })

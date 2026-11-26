@@ -36,12 +36,16 @@ test('the shipped roster is a static public snapshot with only approved fields',
   assert(configured.supporters.length > 0);
   assert.deepEqual(configured.supporters, normalizeSupporters(configured.supporters));
   assert.deepEqual(configured.team, [
-    { name: 'Overyx', role: 'Developer' },
+    { name: 'Overyx', role: 'Main developer' },
+    { name: 'Hastur-Dev', role: 'Developer' },
     { name: 'v1rch', role: 'Discord developer' },
     { name: 'Leberrr', role: 'Discord moderator' },
     { name: 'Frkn97', role: 'Linux port developer' },
     { name: 'lattelix', role: 'macOS port developer' },
   ]);
+  assert(!configured.communityHelpers.includes('Hastur-Dev'));
+  assert(configured.communityHelpers.includes('untoasted_bread'));
+  assert(validateEpithet(configured.epithets.untoasted_bread));
 });
 
 test('public usernames are case-insensitively deduplicated and naturally sorted', () => {

@@ -13,6 +13,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { ChatService, sseData, validateInput } from '../apps/desktop/chat-service.mjs';
+import { AVATAR_REPLY_INSTRUCTION, describeOwnAvatar } from '../apps/desktop/avatar-awareness.mjs';
 import { CompanionActions } from '../apps/desktop/companion-actions.mjs';
 import { createOwnerMemory } from '../apps/desktop/main/conversation-skills.mjs';
 import { clearSavedMemory } from '../apps/desktop/memory-controls.mjs';
@@ -83,6 +84,59 @@ test('the gateway turn takes the new style immediately without replacing the con
     /Earlier assistant messages reflect conversation facts/,
   );
   assert.ok(service.store.snapshot().some(({ text }) => text === 'Keep the configuration.'));
+});
+
+test('desktop replies see the avatar at submission through the gateway and direct local model', async () => {
+  const hanging = describeOwnAvatar({
+    mode: 'desktop',
+    frame: { pose: 'ceiling_feet' },
+    placement: 'display',
+    expression: 'smirk',
+    activity: 'wink',
+    character: true,
+  });
+  const compact = describeOwnAvatar({
+    mode: 'compact',
+    frame: { pose: 'ceiling_feet' },
+    expression: 'smirk',
+    character: true,
+  });
+  assert.match(hanging.appearance, /bright red hair/);
+  assert.match(hanging.pose, /upside down by the feet.*top edge of the screen/);
+  assert.equal(hanging.action, 'Winking');
+  assert.equal(compact.pose, undefined);
+  assert.equal(compact.expression, undefined);
+  for (const direct of [false, true]) {
+    let avatar = hanging;
+    const requests = [];
+    const reply = async (payload) => {
+      requests.push(payload);
+      return response('I like the view from up here.');
+    };
+    const service = client({
+      interfaceState: () => ({ avatarSelf: avatar, modelToolsAvailable: false }),
+      ...(direct
+        ? { npuDialogue: reply, fetchImpl: () => assert.fail('Direct dialogue used the gateway') }
+        : { fetchImpl: (_url, options) => reply(JSON.parse(options.body)) }),
+    });
+    const first = { id: randomUUID(), text: 'How do you keep your hair like that up there?' };
+    await service.send(first, (event) => {
+      if (event.type === 'turn.started') avatar = compact;
+    });
+    const next = { id: randomUUID(), text: 'Are you still hanging there?' };
+    await service.send(next, () => {});
+    assert.equal(requests.length, 2);
+    assert.ok(requests[0].messages[0].content.includes(AVATAR_REPLY_INSTRUCTION));
+    assert.deepEqual(turnState(requests[0].messages.at(-1).content).capriAvatar, hanging);
+    assert.deepEqual(turnState(requests[1].messages.at(-1).content).capriAvatar, compact);
+    assert.deepEqual(
+      service.store
+        .snapshot()
+        .filter(({ role }) => role === 'user')
+        .map(({ text }) => text),
+      [first.text, next.text],
+    );
+  }
 });
 
 test('the YouTube Music chat path verifies dedicated receipts without touching Spotify or the gateway', async () => {

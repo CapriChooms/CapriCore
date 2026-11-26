@@ -3,6 +3,10 @@
   "team": [
     {
       "name": "Overyx",
+      "role": "Main developer"
+    },
+    {
+      "name": "Hastur-Dev",
       "role": "Developer"
     },
     {
@@ -22,15 +26,15 @@
       "role": "macOS port developer"
     }
   ],
-  "majorSupporters": ["ChilledT", "Trenton Gregory", "Daniel Rodriguez", "Legat", "Joan_P"],
+  "majorSupporters": ["Legat", "ChilledT", "Trenton Gregory", "Daniel Rodriguez", "Joan_P"],
   "communityHelpers": [
-    "Hastur-Dev",
     "KiRaS",
     "phosparad",
     "Rofls",
     "lollabby",
     "Keiron",
-    "Eddy Narouille"
+    "Eddy Narouille",
+    "untoasted_bread"
   ],
   "supporters": [
     "1b3urself-cloud",
@@ -1384,6 +1388,7 @@
     "thierrytomazzette19-ai": "Luminous Astrolabe",
     "tyler722405": "Electric Moon",
     "umaaleatoria990-ai": "Copper Prism",
+    "untoasted_bread": "Amber Wayfarer",
     "wetaf01": "Emerald Equinox",
     "xyp9ks": "Steady Asteroid",
     "yakov-fz": "Wondrous Pulsar",

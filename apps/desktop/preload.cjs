@@ -275,7 +275,8 @@ contextBridge.exposeInMainWorld(
     setAvatarLayout: (value) => ipcRenderer.invoke('capri:avatar-layout', value),
     startAvatarDrag: (value) => ipcRenderer.invoke('capri:avatar-drag-start', value),
     endAvatarDrag: (value) => ipcRenderer.invoke('capri:avatar-drag-end', value),
-    startDrag: (edge) => ipcRenderer.invoke('capri:drag-start', edge),
+    startDrag: (edge, origin) =>
+      ipcRenderer.invoke('capri:drag-start', edge === undefined ? undefined : { edge, origin }),
     dragFrame: () => ipcRenderer.invoke('capri:drag-frame'),
     endDrag: (released) => ipcRenderer.invoke('capri:drag-end', released),
     onEvent: (callback) => {

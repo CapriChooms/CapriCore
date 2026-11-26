@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { writeJsonAtomic } from './storage.mjs';
 import { callApplicationBridge } from '../../integrations/desktop-actions/service.mjs';
 import { exactApplications, matchingApplications } from './application-target.mjs';
-import { browserExecutableCandidate } from './browser-identity.mjs';
+import { browserExecutableCandidate, DEFAULT_BROWSER } from './browser-identity.mjs';
 
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const idValid = (id) => typeof id === 'string' && /^[a-f0-9-]{36}$/.test(id);
@@ -42,6 +42,16 @@ function executable(file) {
   // Launching a fixed local .exe does not modify its file or other hard links.
   return regular(file, true).file;
 }
+
+function webAddress(value) {
+  if (typeof value !== 'string' || value.length > 2048 || /[\x00-\x20\x7f]/.test(value))
+    throw new Error('Choose a complete HTTP or HTTPS web address.');
+  const url = URL.parse(value);
+  if (!url) throw new Error('Choose a complete HTTP or HTTPS web address.');
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
+    throw new Error('Only HTTP and HTTPS web pages without embedded credentials are supported.');
+  return url.href;
+}
 /** Owner-selected executables only. Native controls are short-lived inspection capabilities. */
 export class DesktopCatalog {
   constructor({
@@ -56,6 +66,7 @@ export class DesktopCatalog {
     accessAllowed = () => true,
     accessSignal = () => null,
     currentTurn = () => null,
+    openDefaultBrowser,
   }) {
     Object.assign(this, {
       root,
@@ -69,6 +80,7 @@ export class DesktopCatalog {
       accessAllowed,
       accessSignal,
       currentTurn,
+      openDefaultBrowser,
     });
     mkdirSync(state, { recursive: true });
     this.file = path.join(state, 'app-catalog.json');
@@ -499,6 +511,30 @@ export class DesktopCatalog {
           };
         }),
       };
+    if (args.action === 'open_url' && args.query === DEFAULT_BROWSER && !args.appId) {
+      if (!this.fullAccess() || !this.openDefaultBrowser)
+        throw new Error('Opening the default browser requires full computer access.');
+      const url = webAddress(args.url);
+      return approvals.propose({
+        title: 'Open this web page?',
+        detail: DEFAULT_BROWSER + '\n\n' + url,
+        kind: 'browser',
+        voice: false,
+        execute: () =>
+          this.operation(
+            id,
+            args,
+            async () => {
+              signal?.throwIfAborted();
+              if (!this.fullAccess()) throw new Error('Full computer access is off.');
+              await this.openDefaultBrowser(url);
+              // Windows accepted navigation. The agent still needs to observe the loaded URL.
+              return { ok: true, navigationRequested: true, windowVerified: false };
+            },
+            signal,
+          ),
+      });
+    }
     if (args.query || (typeof args.appId === 'string' && !idValid(args.appId))) {
       const matches = await this.findApplications(args.query || args.appId, signal, {
         exact: ['launch', 'browser_input', 'open_url'].includes(args.action),
@@ -645,27 +681,12 @@ export class DesktopCatalog {
     if (args.action === 'open_url') {
       const app = this.allowed(args.appId, 'launch');
       this.allowed(app.id, 'text');
-      if (
-        typeof args.url !== 'string' ||
-        args.url.length > 2048 ||
-        /[\x00-\x20\x7f]/.test(args.url)
-      )
-        throw new Error('Choose a complete HTTP or HTTPS web address.');
-      let url;
-      try {
-        url = new URL(args.url);
-      } catch {
-        throw new Error('Choose a complete HTTP or HTTPS web address.');
-      }
-      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
-        throw new Error(
-          'Only HTTP and HTTPS web pages without embedded credentials are supported.',
-        );
+      const url = webAddress(args.url);
       if (!browserExecutableCandidate(app, { explicit: true }))
         throw new Error('Choose a supported browser executable.');
       return approvals.propose({
         title: 'Open this web page?',
-        detail: app.name + '\n\n' + url.href,
+        detail: app.name + '\n\n' + url,
         kind: 'browser',
         voice: false,
         execute: () =>
@@ -675,7 +696,7 @@ export class DesktopCatalog {
             () =>
               this.bridge(
                 this.root,
-                { action: 'browser_open', executable: app.executable, url: url.href },
+                { action: 'browser_open', executable: app.executable, url },
                 {
                   signal,
                   stillAllowed: () =>

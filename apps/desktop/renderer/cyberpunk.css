@@ -4289,19 +4289,19 @@ body[data-horizontal-portrait] {
 }
 
 .window-resize {
-  --resize-edge: 6px;
-  --resize-corner: 11px;
+  --resize-edge: 12px;
+  --resize-corner: 17px;
   position: fixed;
   z-index: 13;
-  inset: 8px 18px 4px;
+  inset: 4px 12px;
   display: none;
   grid-template-columns: var(--resize-corner) minmax(0, 1fr) var(--resize-corner);
-  grid-template-rows: var(--resize-corner) minmax(0, 1fr) var(--resize-corner);
+  grid-template-rows: 15px minmax(0, 1fr) var(--resize-corner);
   pointer-events: none;
 }
 @media (max-width: 380px) {
   .window-resize {
-    inset-inline: 10px;
+    inset-inline: 4px;
   }
 }
 body[data-window-resizable] .window-resize {
@@ -4311,13 +4311,14 @@ body[data-window-resizable] .window-resize {
   /* Keep the edge hit-testable in Windows' transparent native window. */
   background: rgb(0 0 0 / 1.2%);
   pointer-events: auto;
+  touch-action: none;
 }
 .window-resize > div:is(:hover, :active) {
   background: var(--ui-grid, #8ef5ed24);
 }
 [data-resize-edge='n'] {
   grid-area: 1 / 2;
-  height: var(--resize-edge);
+  height: 10px;
   cursor: ns-resize;
 }
 [data-resize-edge='s'] {

@@ -47,6 +47,7 @@ import { CAPRI_CHARACTER_SELF, CAPRI_SCREEN_SELF } from './screen-identity.mjs';
 import { cyberpunkLoreContext } from './cyberpunk-lore.mjs';
 import { uiText } from './interface-translations.mjs';
 import { lemonadeDialogue } from './lemonade-dialogue.mjs';
+import { AVATAR_REPLY_INSTRUCTION } from './avatar-awareness.mjs';
 import { ownerNoteRequest, recallOwnerNote, saveOwnerNote } from './owner-notes.mjs';
 import {
   prepareInternetSearch,
@@ -1274,7 +1275,8 @@ export class ChatService {
           const applyContext = (prepared) => {
             markResponseTiming('context_ready');
             requestSignal.throwIfAborted();
-            interfaceState = { ...this.interfaceState(), ...prepared };
+            // Use the pose the owner saw before the UI changed to thinking or speaking.
+            interfaceState = { ...this.interfaceState(), ...prepared, avatarSelf: state.avatarSelf };
             tools = interfaceState.modelToolsAvailable !== false;
           };
           return context?.then
@@ -1379,7 +1381,12 @@ export class ChatService {
         let selected = false;
         this.active.selectComputerTask = (goal) => {
           requestSignal.throwIfAborted();
-          if (typeof goal !== 'string' || goal.trim() !== input.text.trim())
+          // Models sometimes capitalize a name while copying. Check that this
+          // is the same request, then execute the untouched owner input below.
+          if (
+            typeof goal !== 'string' ||
+            goal.trim().toLowerCase() !== input.text.trim().toLowerCase()
+          )
             throw new Error('Use the exact latest owner message as the computer task goal.');
           if (!selected) {
             selected = true;
@@ -1469,6 +1476,7 @@ export class ChatService {
                   !dialogueOnly || Boolean(interfaceState.microphone && interfaceState.followUp),
                 compact: dialogueOnly,
               }),
+              ...(state.avatarSelf ? [AVATAR_REPLY_INSTRUCTION] : []),
               ...(dialogueOnly ? [] : [dialogueStyleInstruction([])]),
               ...(tools && !webConversation && domain !== 'conversation'
                 ? [toolInstruction(interfaceState)]
@@ -1488,7 +1496,7 @@ export class ChatService {
         directDialogue || desktopToolRequired
           ? ''
           : (smallTalk
-              ? ''
+              ? desktopTurnContext({ avatarSelf: state.avatarSelf }, [], { dialogueOnly: true })
               : desktopTurnContext(interfaceState, this.turnHistory(fresh), {
                   dialogueOnly,
                   includeLocalDialogue: !this.externalInference,
@@ -1503,6 +1511,7 @@ export class ChatService {
             history: directSmallTalk ? [] : this.turnHistory(fresh),
             persona: this.persona(),
             languages: interfaceState.languages,
+            avatarSelf: state.avatarSelf,
             standalone: Boolean(directSmallTalk),
             ...(!this.npuDialogue && !directSmallTalk && this.avatarSprites.length > 0
               ? { avatarInstruction: avatarInstructions(this.avatarSprites, { compact: true }) }

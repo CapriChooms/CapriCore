@@ -1728,6 +1728,114 @@ test('YouTube search only verifies the requested loaded results, never a draft o
   assert.equal(browserPageState(view), null);
 });
 
+test('opening YouTube and finding videos uses the verified browser page for recommendations', async () => {
+  const home = 'https://www.youtube.com/';
+  const titles = ['Why rivers meander', 'A tour of the night sky'];
+  let address = '';
+  let attemptedFocus = false;
+  const f = fixture(async (context) => {
+    assert.equal(context.webAllowed, true);
+    assert.match(context.correction, /Browse on YouTube in the browser/);
+    if (!address) {
+      assert.equal(context.browserEntryUrl, home);
+      if (!attemptedFocus) {
+        attemptedFocus = true;
+        return { action: 'launch', query: 'Google Chrome' };
+      }
+      return { action: 'open_url', query: 'Default browser', url: home };
+    }
+    assert.deepEqual(
+      context.currentObservation.targets
+        .filter(({ pageContent }) => pageContent)
+        .map(({ untrustedLabel }) => untrustedLabel),
+      titles,
+    );
+    return { action: 'finish', evidence: titles[0], summary: titles.join(' and ') };
+  });
+  const execute = f.control.execute.bind(f.control);
+  f.control.execute = async (args, signal) => {
+    const result = await execute(args, signal);
+    if (result.window) {
+      result.window = {
+        windowId: '123',
+        untrustedTitle: address ? 'YouTube - Google Chrome' : 'New Tab',
+      };
+      result.targets = address
+        ? [
+            { browserAddress: true, focused: false, untrustedValue: address },
+            ...titles.map((untrustedLabel, index) => ({
+              targetId: 'video-' + index,
+              pageContent: true,
+              role: 'ControlType.Hyperlink',
+              untrustedLabel,
+            })),
+          ]
+        : [];
+    }
+    return result;
+  };
+  f.agent.applications.findApplications = () => assert.fail('YouTube is a browser destination');
+  f.agent.applications.execute = async (_id, args, approvals) =>
+    approvals.propose({
+      execute: async () => {
+        assert.equal(args.action, 'open_url');
+        assert.equal(args.query, 'Default browser');
+        assert.equal(args.url, home);
+        address = args.url;
+        return { ok: true, navigationRequested: true, windowVerified: false };
+      },
+    });
+  const result = await f.agent.run('Find some good videos to watch on youtube');
+  assert.equal(result.status, 'completed');
+  assert.equal(result.verified, true);
+  assert.equal(result.steps, 1);
+  assert.equal(result.summary, titles.join(' and '));
+  assert(f.calls.every(({ action }) => action === 'observe'));
+});
+
+test('YouTube entry offers the default browser and the official address as a single navigation step', () => {
+  const home = 'https://www.youtube.com/';
+  const schema = computerActionSchema({ browserEntryUrl: home, webAllowed: true }, {});
+  const actions = schema.anyOf.map(({ properties }) => properties.action.const);
+  assert.deepEqual(actions, ['open_url', 'observe', 'wait', 'ask_user']);
+  const { properties } = schema.anyOf[0];
+  assert(properties.query.enum.includes('Default browser'));
+  assert.deepEqual(properties.url.enum, [home]);
+});
+
+test('review accepts a list of observed video titles and rejects a list with an invented title', async () => {
+  const titles = ['Why rivers meander', 'A tour of the night sky'];
+  let answer = titles.join('; ');
+  const plan = computerPlanner({
+    url: 'http://127.0.0.1:11434',
+    model: 'fixture',
+    fetchImpl: async () =>
+      Response.json({
+        done: true,
+        message: { content: JSON.stringify({ complete: true, evidence: answer, summary: answer }) },
+      }),
+  });
+  const state = {
+    originalOwnerGoal: 'Find some good videos to watch on youtube',
+    currentObservation: {
+      window: { untrustedTitle: 'YouTube - Google Chrome' },
+      targets: titles.map((untrustedLabel, i) => ({
+        targetId: 'video-' + i,
+        pageContent: true,
+        role: 'ControlType.Hyperlink',
+        untrustedLabel,
+      })),
+    },
+  };
+  assert.deepEqual(await plan(state, { review: true }), {
+    action: 'finish',
+    evidence: titles[0],
+    summary: answer,
+  });
+  answer = titles[0] + '; An invented video';
+  await assert.rejects(plan(state, { review: true }), { code: 'COMPUTER_PLAN_SCHEMA' });
+});
+
 test('accepted browser navigation can bind to a late window only after native URL proof', () => {
   const query = 'Capri QA';
   const url = browserSearchUrl(query, 'youtube');

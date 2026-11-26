@@ -30,6 +30,7 @@ function fixture({
   applyBounds = (bounds) => ({ ...bounds }),
   cursor = { x: 5, y: 5 },
   idlePoint,
+  excludeFromCapture = false,
 } = {}) {
   const entered = deferred(),
     pending = deferred(),
@@ -76,6 +77,9 @@ function fixture({
     }
     setIgnoreMouseEvents() {}
     setAlwaysOnTop() {}
+    setContentProtection(value) {
+      this.contentProtected = value;
+    }
     loadURL() {
       return wait('load');
     }
@@ -115,10 +119,27 @@ function fixture({
     BrowserWindow: Window,
     screen,
     idlePoint,
+    excludeFromCapture,
     onLost: (reason) => losses.push(reason),
   });
   return { overlay, screen, views, losses, entered, pending, pointer };
 }
+
+test('native capture exclusion keeps the frame visible and restores recording after a failed read', async () => {
+  const { overlay, views } = fixture({ excludeFromCapture: true });
+  await overlay.show('Active');
+  try {
+    const take = () => {
+      assert(views.every((view) => view.isVisible() && view.contentProtected));
+      throw Error('Fixture capture failed');
+    };
+    await assert.rejects(overlay.captureWithoutOverlay(take), /Fixture capture failed/);
+    assert(views.every((view) => view.isVisible() && view.contentProtected === false));
+    assert(views.every((view) => !view.scripts.some((script) => /suspendCapture/.test(script))));
+  } finally {
+    overlay.hide();
+  }
+});
 
 test('idle lightning uses only its monitor and translates the confirmed endpoints', async () => {
   const { overlay, views } = fixture({ idlePoint: { x: -1260, y: 710 } });

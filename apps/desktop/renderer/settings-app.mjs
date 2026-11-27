@@ -234,6 +234,8 @@ companion = new CompanionPanel({
 });
 const models = new ModelsPanel(shared),
   updates = new UpdatesPanel({ ...shared, deferDrafts: true });
+// Bind before the search index is built, so its controls are searchable like the rest.
+models.bindIdleUnload(raw);
 const inference = new InferencePanel({ api, ui, onError: notice });
 const voiceApi = new ExternalTtsPanel({ api, ui });
 const audioRouting = new AudioRoutingPanel({
@@ -2150,7 +2152,6 @@ function show(snapshot) {
   applications.showSpotify(snapshot.spotify);
   models.setConversationLanguage(snapshot.languages.conversation);
   models.show(snapshot.models);
-  if (!models.idleUnload) models.bindIdleUnload(raw);
   models.setIdleUnload(snapshot.modelIdlePolicy);
   updates.show(snapshot.updates);
   companion.show(snapshot.companion);

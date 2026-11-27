@@ -86,6 +86,7 @@ export class SettingsWindow {
     this.docked = true;
     this.section = null;
     this.pendingEvents = new Map();
+    this.draftWaiters = [];
     this.helpRevision = 0;
     this.presentationRevision = 0;
     this.nextRendererRecovery = -Infinity;
@@ -557,12 +558,28 @@ export class SettingsWindow {
         this.pendingEvents.delete(this.pendingEvents.keys().next().value);
     }
   }
+  /**
+   * Restarting destroys this renderer, so unsaved drafts must be settled first. Shows the
+   * Settings Save/Discard prompt and resolves true when the user saved or discarded (or
+   * there was nothing to settle), false when they stayed or Settings went away first.
+   */
+  confirmDrafts() {
+    if (!this.window?.isVisible() || !this.ready) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      this.draftWaiters.push(resolve);
+      this.send({ type: 'settings.drafts-check' });
+    });
+  }
+  settleDrafts(proceed) {
+    for (const resolve of this.draftWaiters.splice(0)) resolve(proceed === true);
+  }
   hide({ releaseWhenIdle = false } = {}) {
     clearTimeout(this.recoveryTimer);
     clearTimeout(this.recoveryTimeout);
     this.presentationRevision++;
     this.surfacePending = null;
     this.requested = false;
+    this.settleDrafts(false);
     this.window?.hide();
     this.window?.webContents.setBackgroundThrottling(true);
     this.onBusy(false);
@@ -593,6 +610,7 @@ export class SettingsWindow {
     clearTimeout(this.recoveryTimer);
     clearTimeout(this.recoveryTimeout);
     this.presentationRevision++;
+    this.settleDrafts(false);
     this.hideHelp(false, true);
     this.helpWindow?.destroy();
     this.helpWindow = null;

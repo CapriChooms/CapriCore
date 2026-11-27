@@ -5978,6 +5978,7 @@ async function initializeDesktop() {
       return;
     }
     if (choice === 'restart') {
+      if (!(await settingsHost.confirmDrafts())) return;
       try {
         await shutdownForRestart('Preparing to restart Capri...');
         queueDesktopRelaunch();
@@ -7310,6 +7311,11 @@ async function initializeDesktop() {
     handle('capri:settings-rendered', (_value, { role }) => {
       if (role !== 'settings') throw new Error('Settings frame required');
       settingsHost.rendered();
+      return true;
+    });
+    handle('capri:settings-drafts-settled', (proceed, { role }) => {
+      if (role !== 'settings') throw new Error('Settings frame required');
+      settingsHost?.settleDrafts(proceed === true);
       return true;
     });
     handle('capri:window-action', async ({ action, value } = {}, { role }) => {

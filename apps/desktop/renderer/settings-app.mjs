@@ -125,6 +125,25 @@ const confirmationRequests = new ConfirmationRequests({
   },
   respond: (value) => raw.confirmAction(value),
 });
+// Restarting Capri waits on this window's Save/Discard bar. Settling tells main whether to go ahead.
+function settleRestart(proceed) {
+  void raw.settingsDraftsSettled(proceed).catch(() => {});
+}
+async function checkDraftsForRestart() {
+  await Promise.allSettled([...writes]);
+  if (applyingDraft || resettingSettings || busy || document.querySelector('dialog[open]')) {
+    notice('Finish the open Settings change before restarting Capri.');
+    settleRestart(false);
+    return;
+  }
+  if (!syncDraftActions().length) {
+    settleRestart(true);
+    return;
+  }
+  closeRequested = true;
+  syncDraftActions();
+  $('settings-apply').focus({ preventScroll: true });
+}
 async function close() {
   if (settingsGuide.active) {
     settingsGuide.close();
@@ -234,6 +253,8 @@ companion = new CompanionPanel({
 });
 const models = new ModelsPanel(shared),
   updates = new UpdatesPanel({ ...shared, deferDrafts: true });
+// Bind before the search index is built, so its controls are searchable like the rest.
+models.bindIdleUnload(raw);
 const inference = new InferencePanel({ api, ui, onError: notice });
 const voiceApi = new ExternalTtsPanel({ api, ui });
 const audioRouting = new AudioRoutingPanel({
@@ -624,6 +645,8 @@ async function finishClose() {
   await models.voices.stopPreview();
   clearTimeout(previewTimer);
   await previewTail.catch(() => {});
+  // Settled before the hide, so a pending restart proceeds rather than cancelling.
+  settleRestart(true);
   await raw.closeSettings();
   lastPreview = undefined;
 }
@@ -659,6 +682,7 @@ async function resolveDrafts(save) {
   }
   if (resolved) {
     if (save) {
+      settleRestart(true);
       $('settings-window-close').focus({ preventScroll: true });
       void queuePreview(true).catch((error) => notice(error.message));
     } else await finishClose();
@@ -668,6 +692,7 @@ async function resolveDrafts(save) {
   }
 }
 $('settings-stay').onclick = () => {
+  if (closeRequested) settleRestart(false);
   closeRequested = false;
   syncDraftActions();
   $('settings-window-close').focus({ preventScroll: true });
@@ -1958,6 +1983,7 @@ async function navigate(id, focus = null, match = null) {
     if (current && id !== current) {
       if (current === 'voice') void models.voices.stopPreview();
       if (current === 'support') companion.showSupportFrame(false);
+      if (closeRequested) settleRestart(false);
       closeRequested = false;
       notice();
     }
@@ -2150,7 +2176,6 @@ function show(snapshot) {
   applications.showSpotify(snapshot.spotify);
   models.setConversationLanguage(snapshot.languages.conversation);
   models.show(snapshot.models);
-  if (!models.idleUnload) models.bindIdleUnload(raw);
   models.setIdleUnload(snapshot.modelIdlePolicy);
   updates.show(snapshot.updates);
   companion.show(snapshot.companion);
@@ -2314,6 +2339,10 @@ function event(value) {
     // A shortcut can reopen Settings before the previous pane finishes painting.
     if (busy) pendingNavigation = value;
     else void navigate(value.section, value.focus);
+    return;
+  }
+  if (value.type === 'settings.drafts-check') {
+    void checkDraftsForRestart();
     return;
   }
   if (value.type === 'settings.close-request') {
@@ -2492,6 +2521,7 @@ async function previewInterfaceLanguage(locale) {
 for (const name of ['input', 'change', 'click'])
   document.addEventListener(name, (event) => {
     if (!event.target.closest('.preferences-panel') || applyingDraft || resettingSettings) return;
+    if (closeRequested) settleRestart(false);
     closeRequested = false;
     syncDraftActions();
     if (event.target.id === 'language-interface') {

@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ComputerAgent } from '../apps/desktop/computer-agent.mjs';
+import { browserSearchUrl, YOUTUBE_HOME_URL } from '../apps/desktop/browser-search-state.mjs';
 import {
   computerActionSchema,
   computerPlanner,
@@ -109,6 +110,130 @@ function fixture({ view, plan, outline, onPlan, input = async () => ({ ok: true 
   return { agent, control, calls, applicationCalls, contexts };
 }
 
+test('the reported YouTube request recovers from a missing browser and verifies Marmok results', async () => {
+  const goal = 'Use my pc and open youtube with some good wideos from marmok.';
+  const titles = ['Marmok — Funny Game Moments', 'Marmok — Gaming Highlights'];
+  let page = '',
+    draft = '',
+    choices = 0,
+    reviewed = false;
+  const f = fixture({
+    view: () => ({
+      window: { windowId: '1', untrustedTitle: page ? 'YouTube — Marmok' : 'Windows' },
+      targets: page
+        ? [
+            address(page),
+            {
+              key: 'search',
+              untrustedLabel: 'Search',
+              browserSearch: true,
+              editable: true,
+              focused: page === YOUTUBE_HOME_URL && Boolean(draft),
+              untrustedValue: draft,
+            },
+            ...(page === YOUTUBE_HOME_URL
+              ? []
+              : titles.map((title, i) =>
+                  button('video' + i, title, { role: 'ControlType.Hyperlink', pageContent: true }),
+                )),
+          ]
+        : [],
+    }),
+    application: async ({ action, query, url }) => {
+      assert.equal(action, 'open_url');
+      assert.equal(url, YOUTUBE_HOME_URL);
+      if (query === 'Google Chrome') return { ok: false, error: { code: 'missing_app_id' } };
+      assert.equal(query, 'Default browser');
+      page = url;
+      return { ok: true, navigationRequested: true, windowVerified: false };
+    },
+    input: async (args) => {
+      if (args.action === 'enter_text') {
+        assert.equal(page, YOUTUBE_HOME_URL);
+        assert.equal(args.text, 'Marmok');
+        draft = args.text;
+      } else {
+        assert.equal(args.action, 'press_keys');
+        assert.deepEqual(args.keys, ['ENTER']);
+        page = browserSearchUrl(draft, 'youtube');
+      }
+      return { ok: true };
+    },
+    plan: async (context, { review }) => {
+      assert.equal(context.originalOwnerGoal, goal);
+      assert.equal(context.webAllowed, true);
+      if (!page) {
+        assert.equal(context.browserEntryUrl, YOUTUBE_HOME_URL);
+        if (++choices === 1)
+          return { action: 'launch', query: 'youtube with some good wideos from marmok' };
+        if (choices === 2)
+          return { action: 'open_url', query: 'Google Chrome', url: YOUTUBE_HOME_URL };
+        assert.equal(context.taskPlan.needsRevision, true);
+        assert.match(context.correction, /No input was sent.*Default browser/);
+        return { action: 'open_url', query: 'Default browser', url: YOUTUBE_HOME_URL };
+      }
+      assert.equal(context.youtubeRecommendations, true);
+      if (!draft)
+        return {
+          action: 'enter_text',
+          targetId: context.currentObservation.targets[1].targetId,
+          text: 'Marmok',
+        };
+      if (page === YOUTUBE_HOME_URL) return { action: 'press_keys', keys: ['ENTER'] };
+      if (review) reviewed = true;
+      return { action: 'finish', evidence: titles[0], summary: titles.join('\n') };
+    },
+  });
+  f.agent.applications.findApplications = () =>
+    assert.fail('YouTube must not enter local application lookup');
+  const result = await f.agent.run(goal);
+  assert.equal(result.verified, true);
+  assert.equal(result.steps, 3);
+  assert.equal(reviewed, true);
+  assert.equal(page, browserSearchUrl('Marmok', 'youtube'));
+  assert.deepEqual(
+    f.applicationCalls.map(({ query }) => query),
+    ['Google Chrome', 'Default browser'],
+  );
+});
+
+test('an unsuccessful native app lookup permits the observed taskbar route of the same app', async () => {
+  let active = false,
+    lookupCount = 0;
+  const f = fixture({
+    view: () => ({
+      window: { windowId: active ? '22' : '11', untrustedTitle: active ? 'Notepad' : 'Windows' },
+      targets: active ? [] : [button('pinned', 'Notepad', { surface: 'taskbar' })],
+    }),
+    input: async ({ action }, _view, control) => {
+      assert.equal(action, 'click');
+      active = true;
+      control.session.target = {
+        executable: 'C:/Windows/System32/notepad.exe',
+        processId: 27,
+        startedAtTicks: '100',
+      };
+      return { ok: true };
+    },
+    plan: async ({ correction, taskPlan, currentObservation, webAllowed }) => {
+      assert.equal(webAllowed, false);
+      if (active) return { action: 'finish', evidence: 'Notepad', summary: 'Notepad is open.' };
+      if (!taskPlan.needsRevision) return { action: 'launch', query: 'Notepad' };
+      assert.match(correction, /No input was sent.*taskbar button/);
+      return { action: 'click', targetId: currentObservation.targets[0].targetId };
+    },
+  });
+  f.agent.applications.findApplications = async () => {
+    lookupCount++;
+    return [];
+  };
+  const result = await f.agent.run('Open Notepad');
+  assert.equal(result.verified, true);
+  assert.equal(result.steps, 1);
+  assert.equal(lookupCount, 1);
+  assert.equal(f.applicationCalls.length, 0);
+});
+
 test('an unavailable outline leaves the original goal and independent review in the action loop', async () => {
   const goal = 'Find the archived trail map and tell me where I can download it.';
   const resultLabel = 'Publisher archive: trail map PDF';
@@ -132,17 +257,25 @@ test('an unavailable outline leaves the original goal and independent review in 
     },
     plan: async (context, { review }) => {
       assert.equal(context.originalOwnerGoal, goal);
-      assert.equal(context.taskPlan.outcomeId, 'owner-outcome');
+      assert.equal(context.taskPlan.outcomeId, undefined);
       if (review) reads++;
       return opened
         ? {
             action: 'finish',
             evidence: resultLabel,
             summary: 'Download the PDF from the publisher.',
+            verifiedCheckpoints: [{ id: 'source', evidence: resultLabel }],
           }
         : {
             action: 'click',
             targetId: context.currentObservation.targets[0].targetId,
+            plan: [
+              {
+                id: 'source',
+                label: 'Open the publisher archive',
+                successCriterion: 'The PDF is shown',
+              },
+            ],
             summary: '',
           };
     },
@@ -155,6 +288,102 @@ test('an unavailable outline leaves the original goal and independent review in 
   assert.ok(
     f.agent.diagnostics().actions.some(({ outcome }) => outcome === 'incremental_fallback'),
   );
+});
+
+test('a transient post-click review failure refreshes the observation without replaying input', async () => {
+  let clicked = false;
+  let reviews = 0;
+  let firstReviewObservation;
+  let attemptedReplay = false;
+  const evidence = 'Trail map available';
+  const f = fixture({
+    view: () => ({
+      window: { windowId: '1', untrustedTitle: 'Trail association' },
+      targets: [button('open', 'Open map'), ...(clicked ? [button('proof', evidence)] : [])],
+    }),
+    input: async ({ action }) => {
+      assert.equal(action, 'click');
+      assert.equal(clicked, false, 'Delivered clicks may not be replayed during recovery');
+      clicked = true;
+      return { ok: true };
+    },
+    plan: async ({ currentObservation, taskPlan, correction }, { review }) => {
+      if (review && ++reviews === 1) {
+        firstReviewObservation = currentObservation.observationId;
+        throw Object.assign(new Error('Computer planning HTTP 502'), {
+          code: 'COMPUTER_PLAN_HTTP',
+          httpStatus: 502,
+        });
+      }
+      if (!clicked || (firstReviewObservation && !attemptedReplay && !review)) {
+        if (clicked) {
+          attemptedReplay = true;
+          assert.notEqual(currentObservation.observationId, firstReviewObservation);
+          assert.equal(taskPlan.needsRevision, true);
+          assert.match(correction, /already delivered/);
+        }
+        return { action: 'click', targetId: currentObservation.targets[0].targetId };
+      }
+      return { action: 'finish', evidence, summary: 'The trail map is visible.' };
+    },
+  });
+  assert.equal(
+    (await f.agent.run('Find the archived trail map and tell me where I can download it.')).ok,
+    true,
+  );
+  assert.equal(reviews, 2);
+  assert.equal(f.calls.filter(({ action }) => action === 'click').length, 1);
+  assert.ok(f.agent.diagnostics().actions.some(({ outcome }) => outcome === 'review_recovery'));
+});
+
+test('a persistently unavailable reviewer stops after one fresh observation retry', async () => {
+  let reviews = 0;
+  const f = fixture({
+    view: () => ({
+      window: { windowId: '1', untrustedTitle: 'Trail map available' },
+      targets: [],
+    }),
+    plan: async (_context, { review }) => {
+      if (review) {
+        reviews++;
+        throw Object.assign(new Error('Computer planning HTTP 502'), {
+          code: 'COMPUTER_PLAN_HTTP',
+          httpStatus: 502,
+        });
+      }
+      return { action: 'finish', evidence: 'Trail map available', summary: 'Map found.' };
+    },
+  });
+  const result = await f.agent.run('Find the archived trail map.');
+  assert.equal(result.ok, false);
+  assert.equal(result.steps, 0);
+  assert.equal(reviews, 2);
+  assert.equal(f.agent.diagnostics().lastFailure.httpStatus, 502);
+});
+
+test('owner cancellation during a transient review failure cannot start a retry', async () => {
+  const controller = new AbortController();
+  let reviews = 0;
+  const f = fixture({
+    view: () => ({ window: { windowId: '1', untrustedTitle: 'Trail map available' } }),
+    plan: async (_context, { review }) => {
+      if (review) {
+        reviews++;
+        setImmediate(() => controller.abort());
+        throw Object.assign(new Error('Computer planning HTTP 502'), {
+          code: 'COMPUTER_PLAN_HTTP',
+          httpStatus: 502,
+        });
+      }
+      return { action: 'finish', evidence: 'Trail map available', summary: 'Map found.' };
+    },
+  });
+  await assert.rejects(f.agent.run('Find the archived trail map.', { signal: controller.signal }), {
+    name: 'AbortError',
+  });
+  assert.equal(reviews, 1);
+  assert.equal(f.calls.filter(({ action }) => action === 'observe').length, 1);
+  assert.equal(f.control.session, null);
 });
 
 test('a text provider that rejects structured output gets one prompt-format fallback with validation', async () => {
@@ -426,6 +655,8 @@ test('a scoped chain rejects invented web steps, restores the bound window and s
           evidence: 'Calculator',
           summary: 'Typed the draft and opened Calculator.',
         };
+      if (['1', '99'].includes(currentObservation.window.windowId))
+        return { action: 'launch', query: 'Notepad' };
       assert.equal(currentObservation.window.windowId, '11');
       if (++suggestions === 1)
         return { action: 'browser_search', query: 'Chrome', text: 'Notepad' };
@@ -483,6 +714,7 @@ test('a requested taskbar switch rebinds to the verified foreground before the n
       return { ok: true };
     },
     plan: async ({ currentObservation }, { review }) => {
+      if (foreground === '1') return { action: 'launch', query: 'Paint' };
       if (foreground === '22')
         assert.equal(currentObservation.scene, 'Notepad on the newly active monitor.');
       if (review || clicked)
@@ -528,8 +760,10 @@ test('an explicit quoted click uses a unique observed control and reports only t
         button('settings', 'Настройки'),
       ],
     }),
-    outline: async () => assert.fail('An exact click needs no model plan'),
-    plan: async () => assert.fail('An exact click needs no model input'),
+    plan: async ({ currentObservation }) => ({
+      action: 'click',
+      targetId: currentObservation.targets[1].targetId,
+    }),
     input: async (args, view) => {
       assert.equal(args.targetId, view.targets[1].targetId);
       return { ok: true };
@@ -553,7 +787,10 @@ test('a visual button takes precedence over an equally named native button from 
         button('front-dialog', 'Play', { source: 'vision', actionRole: 'button' }),
       ],
     }),
-    plan: async () => assert.fail('A uniquely confirmed exact click needs no planner call'),
+    plan: async ({ currentObservation }) => ({
+      action: 'click',
+      targetId: currentObservation.targets[1].targetId,
+    }),
     input: async (args, view) => {
       assert.equal(f.calls[0].vision, true);
       assert.equal(args.targetId, view.targets[1].targetId);
@@ -574,7 +811,10 @@ test('an ambiguous visual click does not fall through to a native control with t
         button('right', 'Play', { source: 'vision', actionRole: 'button' }),
       ],
     }),
-    plan: async () => assert.fail('Ambiguous exact clicks require the owner'),
+    plan: async ({ correction, currentObservation }) =>
+      correction
+        ? { action: 'ask_user', summary: 'Which Play button?' }
+        : { action: 'click', targetId: currentObservation.targets[0].targetId },
     input: async () => assert.fail('No click should be sent'),
   });
   assert.equal((await f.agent.run('Click “Play”')).status, 'needs_user');
@@ -694,6 +934,7 @@ test('an explicitly closed bound window is checked by Windows and never restored
           evidence: 'The verified application window is closed.',
           summary: 'Closed Paint.',
         };
+      if (foreground === '1') return { action: 'launch', query: 'Paint' };
       return { action: 'click', targetId: currentObservation.targets[0].targetId };
     },
   });

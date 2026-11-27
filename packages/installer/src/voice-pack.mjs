@@ -5,6 +5,7 @@ import {
   readFileSync,
   copyFileSync,
   mkdirSync,
+  mkdtempDisposableSync,
   renameSync,
   unlinkSync,
   constants,
@@ -14,6 +15,17 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { noLinks, readJson } from './policy.mjs';
 import russian from '../../../config/qwen-ru-voice.json' with { type: 'json' };
+
+const voiceExports = 'data/voices/capri/en/exports/';
+const bundledRevisions = 'data/speech/voice-pack-revisions/';
+const bundledVoiceId = 'capri-en-v1';
+export const BUNDLED_VOICE_PROFILE = voiceExports + bundledVoiceId;
+export const BUNDLED_VOICE_LOCATIONS = [
+  BUNDLED_VOICE_PROFILE,
+  'data/speech/bundled-voice',
+  '.runtime/installer/bundled-voice',
+  '.bundled-voice',
+];
 
 export function validateRussianVoicePack(source) {
   noLinks(source);
@@ -123,23 +135,100 @@ export function validateVoicePack(folder, expectedModel) {
   readJson(path.join(folder, profile.adapterConfig));
   return { profile, entries };
 }
-export function importVoicePack(folder, root, expectedModel) {
-  const pack = validateVoicePack(folder, expectedModel);
-  const relative = 'data/voices/capri/en/exports/' + pack.profile.id;
-  for (const entry of pack.entries) {
-    const source = path.join(folder, entry.file);
-    const target = path.join(root, relative, entry.file);
-    noLinks(target);
-    if (existsSync(target)) {
-      if (!sameVoiceFile(source, target))
-        throw new Error(
-          'A different voice pack already uses this ID. Existing voice data was preserved.',
-        );
-      continue;
+export const voiceModelPins = (upstream) =>
+  Object.fromEntries(Object.entries(upstream ?? {}).filter(([key]) => key !== 'bundledPack'));
+
+export function isBundledVoiceProfile(relative) {
+  const prefix = bundledRevisions + bundledVoiceId + '-';
+  return (
+    relative === BUNDLED_VOICE_PROFILE ||
+    (typeof relative === 'string' &&
+      relative.startsWith(prefix) &&
+      /^[0-9a-f]{24}(?:-[1-9]\d*)?$/.test(relative.slice(prefix.length)))
+  );
+}
+
+const sha256 = (data) => createHash('sha256').update(data).digest('hex');
+const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+function voiceFileDigest(folder, name) {
+  const file = path.join(folder, name);
+  noLinks(file);
+  const info = lstatSync(file);
+  if (!info.isFile() || info.size > 200 * 1024 ** 2) throw new Error('Invalid voice pack file');
+  if (!name.endsWith('.json')) return sha256(readFileSync(file));
+  let data = readJson(file);
+  // The release archive's URL and checksum can change with identical model and voice data.
+  if (name === 'adapter.json' && isObject(data?.upstream))
+    data = { ...data, upstream: voiceModelPins(data.upstream) };
+  return sha256(
+    JSON.stringify(data, (_key, value) =>
+      isObject(value)
+        ? Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((key) => [key, value[key]]),
+          )
+        : value,
+    ),
+  );
+}
+
+function matchesPack(folder, files) {
+  try {
+    return files.every(({ file, digest }) => voiceFileDigest(folder, file) === digest);
+  } catch {
+    // A damaged or unreadable older export occupies its path and stays untouched.
+    return false;
+  }
+}
+
+/** Caller owns the installation lock. Publish only a complete, validated directory. */
+export function importVoicePack(folder, root, expectedModel, { bundled = false } = {}) {
+  const { entries, profile } = validateVoicePack(folder, expectedModel);
+  const files = entries.map(({ file, hash }) => ({
+    file,
+    digest: hash ?? voiceFileDigest(folder, file),
+  }));
+  const base = voiceExports + profile.id;
+  noLinks(path.join(root, voiceExports));
+  let relative = base;
+  if (lstatSync(path.join(root, relative), { throwIfNoEntry: false })) {
+    if (matchesPack(path.join(root, relative), files)) return relative;
+    const fingerprint = sha256(
+      JSON.stringify(files.sort((a, b) => a.file.localeCompare(b.file, 'en'))),
+    );
+    const revision =
+      (bundled && profile.id === bundledVoiceId ? bundledRevisions : voiceExports) +
+      profile.id +
+      '-' +
+      fingerprint.slice(0, 24);
+    relative = revision;
+    noLinks(path.dirname(path.join(root, revision)));
+    for (
+      let number = 2;
+      lstatSync(path.join(root, relative), { throwIfNoEntry: false });
+      number++
+    ) {
+      if (matchesPack(path.join(root, relative), files)) return relative;
+      relative = revision + '-' + number;
     }
+  }
+  const destination = path.join(root, relative);
+  noLinks(destination);
+  const parent = path.dirname(destination);
+  mkdirSync(parent, { recursive: true });
+  using staging = mkdtempDisposableSync(path.join(parent, '.voice-import-'));
+  const payload = path.join(staging.path, 'pack');
+  for (const { file } of files) {
+    const source = path.join(folder, file);
+    const target = path.join(payload, file);
+    noLinks(source);
     mkdirSync(path.dirname(target), { recursive: true });
     copyFileSync(source, target, constants.COPYFILE_EXCL);
   }
+  if (!matchesPack(payload, files)) throw new Error('The voice pack changed during import.');
+  renameSync(payload, destination);
   return relative;
 }
 

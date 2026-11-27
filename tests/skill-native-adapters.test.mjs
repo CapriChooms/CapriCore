@@ -45,6 +45,11 @@ test('computer skill keeps access approval and task execution behind distinct ho
   assert.throws(() => call('run', { goal: 'Open a fixture' }, 'settings'), {
     code: 'skill_access_denied',
   });
+  for (const [command, input] of [
+    ['requestAccess', true],
+    ['run', { goal: 'Open a fixture' }],
+  ])
+    assert.throws(() => call(command, input, 'chat'), { code: 'skill_access_denied' });
   assert.deepEqual(operations, []);
   assert.equal(call('setAccess', true, 'settings').enabled, true);
   assert.equal(call('requestAccess', true, 'tool').enabled, false);
@@ -57,12 +62,12 @@ test('computer skill keeps access approval and task execution behind distinct ho
         ownerRequestedCall: true,
         planningEffort: 'high',
       },
-      'chat',
+      'tool',
     ).status,
     'cancelled',
   );
   const signal = AbortSignal.abort();
-  assert.throws(() => call('run', { goal: 'Open a fixture' }, 'chat', signal), {
+  assert.throws(() => call('run', { goal: 'Open a fixture' }, 'tool', signal), {
     name: 'AbortError',
   });
   assert.deepEqual(operations, [

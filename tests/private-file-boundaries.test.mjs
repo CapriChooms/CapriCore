@@ -23,15 +23,12 @@ test('private data and approval files stay inaccessible even through installatio
     );
     assert.throws(
       () => permissions.target(id, 'data/desktop/user-tools.json', true),
-      /dedicated controls/,
+      id === INSTALLATION_SCOPE_ID ? /read-only/ : /dedicated controls/,
     );
     assert.throws(
       () => permissions.target(id, 'data/desktop/user-tools.json.pending.tmp', true),
-      /dedicated controls/,
+      id === INSTALLATION_SCOPE_ID ? /read-only/ : /dedicated controls/,
     );
-    assert.equal(
-      permissions.target(id, 'new-work.txt', true).path,
-      path.join(root, 'new-work.txt'),
-    );
+    assert.throws(() => permissions.target(id, 'new-work.txt', true), /read-only/);
   }
 });

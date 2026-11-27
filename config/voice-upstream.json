@@ -6,6 +6,11 @@
     "directory": "vendor/chatterbox-voice",
     "license": "MIT"
   },
+  "bundledPack": {
+    "url": "https://github.com/CapriChooms/CapriCore/releases/download/v1.2.2/capri-en-v1.zip",
+    "bytes": 12522081,
+    "sha256": "0bae63a24f3541dd8945de7ff16f04d250e45f941f9fface358a0ed76ebe71e4"
+  },
   "model": {
     "repository": "ResembleAI/chatterbox-turbo",
     "revision": "749d1c1a46eb10492095d68fbcf55691ccf137cd",

@@ -57,9 +57,47 @@ test('turn cancellation while voice is loading never starts stale queued speech'
   assert(!events.some((event) => event.type === 'voice.audio'));
 });
 
-test('a cold enabled voice starts on the first reply and drains it after text completion', async () => {
+test('slow cold startup expires the queued reply while keeping the voice available for the next one', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const { voice, events, requests } = service();
   voice.setReady(false);
+  const records = [];
+  const id = randomUUID();
+  configureResponseTimings({ write: (record) => records.push(record) });
+  t.after(() => {
+    voice.close();
+    configureResponseTimings(undefined);
+  });
+  withResponseTiming(id, () => turn(voice, id, 'A cold reply.'));
+  t.mock.timers.tick(29999);
+  assert.equal(voice.diagnostics().queuedSentences, 1);
+  t.mock.timers.tick(1);
+  assert.equal(voice.diagnostics().queuedSentences, 0);
+  assert.ok(events.some((event) => event.type === 'voice.warning' && event.turnId === id));
+  assert.equal(records.filter(({ stage }) => stage === 'voice_wait_expired').length, 1);
+
+  voice.setReady(true);
+  assert.equal(requests.length, 0);
+  const finished = new Promise((resolve) => {
+    const emit = voice.emit;
+    voice.emit = (event) => {
+      emit(event);
+      if (event.type === 'voice.generated' && event.turnId === 'warm') resolve();
+    };
+  });
+  turn(voice, 'warm', 'Now the voice is ready.');
+  await finished;
+  assert.deepEqual(
+    requests.map(({ text }) => text),
+    ['Now the voice is ready.'],
+  );
+});
+
+test('a cold enabled voice starts on the first reply and drains it after text completion', async () => {
+  const { voice, events, requests } = service();
+  voice.setReady(false, { idle: true });
+  assert.equal(voice.snapshot().idle, true);
+  assert.equal(voice.snapshot().enabled, true);
   let starts = 0,
     release;
   const ready = new Promise((resolve) => {
@@ -76,6 +114,7 @@ test('a cold enabled voice starts on the first reply and drains it after text co
   assert.equal(requests.length, 0);
   release();
   await until(() => events.some((event) => event.type === 'voice.generated'));
+  assert.equal(voice.snapshot().idle, undefined);
   assert.equal(requests.map(({ text }) => text).join(' '), "Hi! I'm here.");
   assert.ok(events.some((event) => event.type === 'voice.audio' && event.turnId === 'first'));
   turn(voice, 'warm', 'Ready.');
@@ -137,7 +176,7 @@ test('call voice volume ramps existing output without restarting audio or changi
   assert.equal(player.callVoiceVolume, 100);
 });
 
-test('speaker volume ramps up to twice the level or down to silence independently of the call mix', () => {
+test('speaker volume ramps to silence independently of the call mix', () => {
   const player = new VoicePlayer({ onState() {}, onError: assert.fail });
   const ramps = [];
   player.speakers.context = { state: 'running', currentTime: 3 };
@@ -151,15 +190,13 @@ test('speaker volume ramps up to twice the level or down to silence independentl
     context: player.speakers.context,
     voiceGain: { gain: { cancelAndHoldAtTime: () => assert.fail('Call gain changed') } },
   };
-  for (const value of [42, 42, 150, 200, 0]) player.setSpeakerVolume(value);
+  for (const value of [42, 42, 0]) player.setSpeakerVolume(value);
   assert.deepEqual(ramps, [
     [0.42, 3.02],
-    [1.5, 3.02],
-    [2, 3.02],
     [0, 3.02],
   ]);
   assert.equal(player.callVoiceVolume, 50);
-  for (const value of [-1, 201, '50', null, NaN])
+  for (const value of [-1, 101, '50', null, NaN])
     assert.throws(() => player.setSpeakerVolume(value), /Invalid voice volume/);
 });
 
@@ -273,11 +310,11 @@ test('voice HTTP failures retain a safe backend code while excluding response te
       ),
   );
   turn(voice, 'failure-code', 'A complete sentence.');
-  await until(() => events.some((e) => e.type === 'voice.error'));
+  await until(() => events.some((e) => e.type === 'voice.warning'));
   const value = voice.diagnostics();
   assert.equal(value.lastFailure.code, 'CAPRI_VOICE_SPEECH_LIMIT');
   assert.equal(value.lastFailure.httpStatus, 503);
-  assert.match(events.find((e) => e.type === 'voice.error').message, /Voice is still ready/);
+  assert.match(events.find((e) => e.type === 'voice.warning').message, /Voice is still ready/);
   assert.equal(voice.ready, true);
   assert(!JSON.stringify(value).includes('private transcript fixture'));
   assert(!JSON.stringify(value).includes('private token fixture'));
@@ -294,7 +331,7 @@ test('a generation limit affects one reply, and a subsequent turn speaks without
       : pcm(),
   );
   turn(voice, 'limited', 'A complete sentence.');
-  await until(() => events.some((e) => e.type === 'voice.error'));
+  await until(() => events.some((e) => e.type === 'voice.warning'));
   fail = false;
   turn(voice, 'next', 'Hello again.');
   await until(() => events.some((e) => e.type === 'voice.audio' && e.turnId === 'next'));
@@ -347,11 +384,12 @@ test('local speech recovery does not repeatedly split a chunk that still hits th
       }),
   );
   turn(voice, 'repeat-limit', phrase);
-  await until(() => events.some(({ type }) => type === 'voice.error'));
+  await until(() => events.some(({ type }) => type === 'voice.generated'));
   const sent = requests.filter(({ text }) => text).map(({ text }) => text);
-  assert.equal(sent.length, 2);
+  assert.equal(sent.length, 3);
   assert.equal(sent[0], phrase);
-  assert.ok(sent[1].length < phrase.length);
+  assert.ok(sent.slice(1).every((chunk) => chunk.length < phrase.length));
+  assert.equal(events.filter(({ type }) => type === 'voice.warning').length, 1);
   assert.equal(voice.diagnostics().lastFailure.code, 'CAPRI_VOICE_SPEECH_LIMIT');
   assert.equal(voice.ready, true);
 });
@@ -363,14 +401,34 @@ test('a local synthesis timeout keeps the installed voice ready for the next rep
     return pcm();
   });
   turn(voice, 'timed-out', 'A complete sentence.');
-  await until(() => events.some((e) => e.type === 'voice.error'));
-  assert.match(events.find((e) => e.type === 'voice.error').message, /Voice is still ready/);
+  await until(() => events.some((e) => e.type === 'voice.warning'));
+  assert.match(events.find((e) => e.type === 'voice.warning').message, /Voice is still ready/);
   assert.equal(voice.diagnostics().lastFailure.name, 'TimeoutError');
   assert.equal(voice.ready, true);
   fail = false;
   turn(voice, 'after-timeout', 'Hello again.');
   await until(() => events.some((e) => e.type === 'voice.audio' && e.turnId === 'after-timeout'));
   voice.cancel();
+});
+
+test('a failed local sentence preserves earlier audio and lets the next sentence finish', async () => {
+  for (const timeout of [false, true]) {
+    const { voice, events } = service((options) => {
+      const { text } = JSON.parse(options.body);
+      if (text !== 'The middle sentence.') return pcm();
+      if (timeout) throw new DOMException('Timed out', 'TimeoutError');
+      return Response.json({ code: 'CAPRI_VOICE_SPEECH_LIMIT' }, { status: 503 });
+    });
+    turn(voice, 'partial', 'The first sentence. The middle sentence. The last sentence.');
+    await until(() => events.some(({ type }) => ['voice.generated', 'voice.error'].includes(type)));
+    assert.deepEqual(
+      events.filter(({ type }) => type === 'voice.audio').map(({ text }) => text),
+      ['The first sentence.', 'The last sentence.'],
+    );
+    assert.equal(events.filter(({ type }) => type === 'voice.warning').length, 1);
+    assert.ok(!events.some(({ type }) => ['voice.cancelled', 'voice.error'].includes(type)));
+    assert.ok(events.some(({ type }) => type === 'voice.generated'));
+  }
 });
 
 test('oversized backend error bodies cannot enter voice diagnostics', async () => {
@@ -420,7 +478,7 @@ test('a classified social reply completes both streamed text and the entire spee
     persona: () => 'You are Capri.',
     store: { snapshot: () => [...records.values()], put: (value) => records.set(value.id, value) },
     interfaceState: () => ({ fullComputerAccess: true, languages: { conversation: 'en' } }),
-    computerIntent: async () => ({ intent: 'chat', usesPrevious: false }),
+    requestRouter: { classify: async () => ({ mode: 'fast', reason: 'simple-dialogue' }) },
     computerTask: () => assert.fail('Smalltalk cannot start a computer task'),
     fetchImpl: async (_url, options) => {
       assert.equal(options.headers['x-capri-tools-once'], 'dialogue');
@@ -637,40 +695,59 @@ test('PCM playback preserves order, stops immediately, and ignores old packets',
   player.finish('one');
   player.begin('two');
   assert.equal(sources[1].stopped, true);
+  assert.equal(
+    states.some(({ completedTurnId }) => completedTurnId === 'one'),
+    false,
+  );
   player.accept(packet('one', 2));
   await delay(0);
   assert.equal(sources.length, 2);
   player.accept(packet('two', 0));
   await delay(0);
   player.finish('two');
+  assert.equal(
+    states.some(({ completedTurnId }) => completedTurnId === 'two'),
+    false,
+  );
   sources[2].onended();
-  assert.equal(states.at(-1).busy, false);
+  assert.deepEqual(states.at(-1), { busy: false, completedTurnId: 'two' });
+  player.begin('silent');
+  player.finish('silent');
+  assert.deepEqual(states.at(-1), { busy: false });
 });
 
 test('voice preview effects are scoped to one speaker turn and restore the latest baseline', () => {
   const player = new VoicePlayer({ onState() {}, onError: assert.fail });
   const configurations = [];
-  const effects = () => ({
-    configure: ({ preset }) => configurations.push(preset),
+  const effects = (output) => ({
+    configure: ({ pitch }) => configurations.push([output, pitch]),
     reset() {},
     speaking() {},
   });
-  player.speakers.effects = effects();
-  player.callOutput = { available: true, effects: effects() };
-  player.begin('draft', { effects: VOICE_EFFECT_PRESETS.holographic });
-  player.setEffects(VOICE_EFFECT_PRESETS.radio);
-  assert.deepEqual(configurations, ['holographic', 'radio']);
+  player.speakers.effects = effects('speakers');
+  player.callOutput = { available: true, effects: effects('call') };
+  const preview = { ...VOICE_EFFECT_PRESETS.holographic, preset: 'custom', pitch: 4 };
+  const saved = { ...VOICE_EFFECT_PRESETS.radio, preset: 'custom', pitch: -3 };
+  player.begin('draft', { effects: preview });
+  player.setEffects(saved);
+  assert.deepEqual(configurations, [
+    ['speakers', 4],
+    ['call', -3],
+  ]);
   player.finish('different-turn');
-  assert.equal(player.turnEffects.preset, 'holographic');
+  assert.deepEqual(player.turnEffects, preview);
   player.finish('draft');
   assert.equal(player.turnEffects, null);
-  assert.deepEqual(configurations, ['holographic', 'radio', 'radio']);
-  player.begin('cancelled', { effects: VOICE_EFFECT_PRESETS.synthetic });
+  assert.deepEqual(configurations.at(-1), ['speakers', -3]);
+  player.begin('cancelled', { effects: { ...preview, pitch: 2 } });
   player.stop();
-  assert.deepEqual(configurations.slice(-2), ['synthetic', 'radio']);
-  player.begin('call', { call: true, effects: VOICE_EFFECT_PRESETS.cybernetic });
+  assert.deepEqual(configurations.slice(-2), [
+    ['speakers', 2],
+    ['speakers', -3],
+  ]);
+  player.begin('call', { call: true, effects: preview });
   assert.equal(player.turnEffects, null);
-  assert.equal(configurations.at(-1), 'radio');
+  assert.deepEqual(configurations.at(-1), ['speakers', -3]);
 });
 
 test('local voice keeps the newest exact sink and drops an unplugged sink without default playback', async () => {

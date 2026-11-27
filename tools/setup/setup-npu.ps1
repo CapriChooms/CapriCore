@@ -5,5 +5,5 @@ if ([Environment]::OSVersion.Version.Build -lt 22621) { throw 'The current OpenV
 . (Join-Path $ProjectRoot 'tools/setup/python-runtime.ps1')
 $pythonRuntime = Get-CapriPythonRuntime -ProjectRoot $ProjectRoot -Version '3.12.12'
 $python = Ensure-CapriVirtualEnvironment -ProjectRoot $ProjectRoot -Name 'npu-openvino' -Runtime $pythonRuntime
-& $pythonRuntime.Python (Join-Path $ProjectRoot 'tools/setup/uv-retry.py') --uv $pythonRuntime.Uv -- pip install --python $python 'openvino==2026.4.0' 'openvino-tokenizers==2026.4.0.0' 'openvino-genai==2026.4.0.0'
+& $pythonRuntime.Python (Join-Path $ProjectRoot 'tools/setup/uv-retry.py') --uv $pythonRuntime.Uv -- pip sync --require-hashes --no-config --default-index https://pypi.org/simple --index-strategy first-index --python $python (Join-Path $ProjectRoot 'config/npu-requirements.lock.txt')
 if ($LASTEXITCODE -ne 0) { throw 'Native NPU dependencies could not be installed. Check the connection and retry.' }

@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { GLITCH_DEFAULTS, validateGlitchSettings } from './renderer/glitch-settings.mjs';
 import { MOTION_DEFAULTS, validateMotionSettings } from './renderer/motion-settings.mjs';
-import { TELEPORT_EFFECT_DEFAULTS, validTeleportEffect } from './renderer/teleport-effects.mjs';
+import {
+  DRAG_LIGHTNING_COLOR,
+  TELEPORT_EFFECT_DEFAULTS,
+  validTeleportEffect,
+} from './renderer/teleport-effects.mjs';
 import { THEME_DEFAULTS, validateInterfaceTheme } from './renderer/interface-theme.mjs';
 import {
   DEFAULT_RESOURCE_GRAPHS,
@@ -15,6 +19,7 @@ export const COMPANION_DEFAULTS = Object.freeze({
   windowLayout: 'vertical',
   horizontalMonitorPosition: 'between',
   expandOnReply: true,
+  replyAnimation: false,
   replyAutoHide: true,
   replyAutoHideSeconds: 8,
   detachedStyle: 'character',
@@ -24,9 +29,14 @@ export const COMPANION_DEFAULTS = Object.freeze({
   wakePhrase: 'Listening.',
   wakeVolume: 0.7,
   followUp: true,
+  followUpAfterAnyReply: true,
   followUpSeconds: 12,
   conversationMode: false,
+  microphoneOnStart: false,
+  freshContext: false,
+  unrestrictedConversation: false,
   wildCloseAiTabs: false,
+  wildDesktopPranks: false,
   wakeOnReminder: true,
   memoryMonitor: true,
   processGraphs: true,
@@ -39,9 +49,11 @@ export const COMPANION_DEFAULTS = Object.freeze({
   avatarTapGapSeconds: 10,
   avatarSnapRadius: 36,
   avatarRoaming: false,
+  avatarRoamCursorPranks: false,
   avatarRoamMonitors: 'current',
   avatarRoamIntervalSeconds: 120,
   avatarDragTether: true,
+  avatarDragTetherColor: DRAG_LIGHTNING_COLOR,
   avatarDragTetherIntensity: 45,
   avatarDragTetherChaos: 55,
   avatarDragTetherDeadZone: 30,
@@ -75,10 +87,16 @@ export function validateCompanionSettings(value) {
     next.wakeVolume < 0 ||
     next.wakeVolume > 1 ||
     typeof next.followUp !== 'boolean' ||
+    typeof next.followUpAfterAnyReply !== 'boolean' ||
     typeof next.conversationMode !== 'boolean' ||
+    typeof next.microphoneOnStart !== 'boolean' ||
+    typeof next.freshContext !== 'boolean' ||
+    typeof next.unrestrictedConversation !== 'boolean' ||
     typeof next.wildCloseAiTabs !== 'boolean' ||
+    typeof next.wildDesktopPranks !== 'boolean' ||
     typeof next.wakeOnReminder !== 'boolean' ||
     typeof next.expandOnReply !== 'boolean' ||
+    typeof next.replyAnimation !== 'boolean' ||
     typeof next.replyAutoHide !== 'boolean' ||
     typeof next.minimizedChip !== 'boolean' ||
     !['character', 'dialogue'].includes(next.detachedStyle) ||
@@ -97,7 +115,10 @@ export function validateCompanionSettings(value) {
     next.avatarSnapRadius < 12 ||
     next.avatarSnapRadius > 100 ||
     typeof next.avatarDragTether !== 'boolean' ||
+    typeof next.avatarDragTetherColor !== 'string' ||
+    !/^#[\da-f]{6}$/i.test(next.avatarDragTetherColor) ||
     typeof next.avatarRoaming !== 'boolean' ||
+    typeof next.avatarRoamCursorPranks !== 'boolean' ||
     !['current', 'any', 'pointer'].includes(next.avatarRoamMonitors) ||
     !Number.isInteger(next.avatarRoamIntervalSeconds) ||
     next.avatarRoamIntervalSeconds < 30 ||

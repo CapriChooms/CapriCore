@@ -55,9 +55,14 @@ def gpu_inventory():
     return [], 'NVIDIA inventory failed'
 
 
-def amd_supported(names):
-    # Exact published ROCm 7.2.1 Windows Radeon matrix; no unsupported gfx spoofing.
-    return any(re.search(r'\b(?:RX (?:9070(?: XT)?|9060 XT|7900 XTX|7700)|(?:AI )?PRO (?:R9700|W7900(?: Dual Slot)?))\b', str(name), re.I) for name in names)
+def amd_supported(names, models):
+    supported = {re.sub(r'\s+', '', model).upper() for model in models}
+    for name in names:
+        compact = re.sub(r'\s+', '', name).upper()
+        model = re.sub(r'^(?:AMD)?(?:RADEON(?:\(TM\)|[®™])?)?', '', compact)
+        if model in supported:
+            return True
+    return False
 
 
 def amd_inventory():
@@ -80,7 +85,7 @@ def main():
     amd = []
     if profile == 'amd' or (profile == 'legacy' and not devices and args.profile == 'auto'):
         amd = amd_inventory()
-        if amd_supported(amd):
+        if amd_supported(amd, spec['amdWindows']['models']):
             profile = 'amd'
     print(json.dumps({'profile': profile, **spec['profiles'][profile], 'devices': devices,
                       'warning': warning, **({'amdAdapterCount': len(amd)} if profile == 'amd' else {})}), flush=True)

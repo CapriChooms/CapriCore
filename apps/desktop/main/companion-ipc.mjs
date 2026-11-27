@@ -15,10 +15,10 @@ import {
   readCommunicationStyle,
   saveCommunicationStyle,
 } from '../../../packages/runtime/src/communication.mjs';
+import { writeFile, rename, unlink } from 'node:fs/promises';
 import { createDiagnosticReport, validateReport } from '../diagnostics/report.mjs';
-import { saveDiagnosticReport } from '../diagnostics/save.mjs';
-import { crashReportInput } from './crash-report.mjs';
 import { COMMUNITY_LINKS, loadCommunityLinks } from '../community-links.mjs';
+import { creditProfile } from '../credits-team.mjs';
 import { validateCompanionSettings } from '../companion-settings.mjs';
 export { COMMUNITY_LINKS } from '../community-links.mjs';
 import {
@@ -42,13 +42,17 @@ export function registerCompanionIpc(handle, deps) {
     emit({ type: 'companion.settings', settings: next });
     return next;
   });
-  handle('capri:community-link', async (id) => {
+  handle('capri:community-link', async (id, context) => {
+    const profile = context?.role === 'settings' && creditProfile(id);
+    if (profile) return shell.openExternal(profile);
     if (!Object.hasOwn(COMMUNITY_LINKS, id)) throw new Error('Unknown community link');
     await shell.openExternal(links[id]);
   });
-  handle('capri:donation-open', (_value, { role }) =>
-    role === 'settings' ? deps.openDonation() : false,
-  );
+  handle('capri:donation-open', async (_value, { role }) => {
+    if (role !== 'settings') return false;
+    await shell.openExternal(links['lava-donate']);
+    return true;
+  });
   handle('capri:personality-get', () => ({
     text: readPersonality(rt.workspace),
     original: defaultPersonality(),
@@ -130,6 +134,7 @@ export function registerCompanionIpc(handle, deps) {
     if (preparing) throw new Error('The wake voice is already being prepared.');
     preparing = true;
     try {
+      deps.onWakeVoicePreparation?.(true);
       await deps.prepareVoice();
       const { phrase, language, text } = selected;
       const request = { text, language, requestId: `wake:${randomUUID()}` };
@@ -164,6 +169,7 @@ export function registerCompanionIpc(handle, deps) {
       return true;
     } finally {
       preparing = false;
+      deps.onWakeVoicePreparation?.(false);
     }
   };
   handle('capri:wake-prepare', () => prepareWakeVoice());
@@ -181,14 +187,14 @@ export function registerCompanionIpc(handle, deps) {
   snapshot.prepareWakeVoice = prepareWakeVoice;
   handle('capri:reset-context', () => deps.resetContext());
   handle('capri:reset-memory', () => deps.resetMemory());
-  const createReport = async (input, extraSnapshot) => {
+  const createReport = async (input) => {
     if (input.includeLogs) await deps.prepareDiagnosticLogs?.();
     return (deps.createReport ?? createDiagnosticReport)({
       root: deps.diagnosticRoot ?? root,
       state,
       rt,
       input,
-      snapshot: { ...deps.diagnosticSnapshot?.(), ...extraSnapshot },
+      snapshot: deps.diagnosticSnapshot?.() ?? {},
       resourceProbe: deps.diagnosticResources,
       health: deps.verification
         ? async () => ({
@@ -226,21 +232,33 @@ export function registerCompanionIpc(handle, deps) {
       collectingReport = false;
     }
   });
-  const saveReport = async (input, owner, extraSnapshot) => {
+  handle('capri:bug-report', async (value) => {
+    const input = validateReport(value);
     if (collectingReport) throw new Error('A diagnostic report is already being collected.');
     collectingReport = true;
+    let temporary;
     try {
-      return await saveDiagnosticReport({
-        dialog,
-        shell,
-        owner,
-        createReport: () => createReport(input, extraSnapshot),
+      const destination = await dialog.showSaveDialog(getWindow(), {
+        title: 'Save and review bug report',
+        defaultPath: `capri-diagnostics-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`,
+        filters: [{ name: 'Diagnostic ZIP archive', extensions: ['zip'] }],
       });
+      if (destination.canceled) return false;
+      const report = await createReport(input);
+      temporary = destination.filePath + '.' + randomUUID() + '.tmp';
+      await writeFile(temporary, report.bytes, { flag: 'wx' });
+      await rename(temporary, destination.filePath);
+      shell.showItemInFolder?.(destination.filePath);
+      return {
+        saved: true,
+        reportId: report.id,
+        files: report.fileCount,
+        bytes: report.bytes.length,
+      };
     } finally {
+      if (temporary) await unlink(temporary).catch(() => {});
       collectingReport = false;
     }
-  };
-  handle('capri:bug-report', (value) => saveReport(validateReport(value), getWindow()));
-  snapshot.saveCrashReport = (desktopCrash) => saveReport(crashReportInput, null, { desktopCrash });
+  });
   return snapshot;
 }

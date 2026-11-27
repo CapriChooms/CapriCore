@@ -39,6 +39,8 @@ const discord = (targets = []) => ({
 const branch = (schema, action) =>
   schema.anyOf.find((entry) => entry.properties.action.const === action);
 
+import { discordTaskRequest } from '../apps/desktop/discord-application.mjs';
+
 function fixture({
   initial = discord(),
   plan = async () => ({ action: 'ask_user', summary: 'Choose a chat.' }),
@@ -300,7 +302,10 @@ test('multiple current composers do not enter a retry or send to an arbitrary vi
 test('the full current-chat agent launches Discord and sends the exact owner message once with fresh proof', async () => {
   const f = fixture({
     initial: { window: { windowId: 'desktop' }, targets: [] },
-    plan: async () => assert.fail('An exact current-chat request uses the guarded native task'),
+    plan: async ({ originalOwnerGoal }) => ({
+      action: 'discord_task',
+      discordRequest: discordTaskRequest(originalOwnerGoal),
+    }),
     mutate(args, state) {
       const field = state.view.targets.find((entry) => entry.editable);
       if (args.action === 'enter_text') {
@@ -351,7 +356,10 @@ test('a current-chat request with an existing draft needs the owner without a cr
   field.untrustedValueSha256 = hash(field.untrustedValue);
   const f = fixture({
     initial: discord([field]),
-    plan: async () => assert.fail('The native task must preserve the existing draft'),
+    plan: async ({ originalOwnerGoal }) => ({
+      action: 'discord_task',
+      discordRequest: discordTaskRequest(originalOwnerGoal),
+    }),
   });
   const result = await f.agent.run('Write hi in the right chat in Discord.');
   assert.equal(result.status, 'needs_user');

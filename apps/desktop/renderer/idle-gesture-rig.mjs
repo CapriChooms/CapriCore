@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { avatarPoseSegments } from '../avatar-pose-motion.mjs';
 // Independently authored pose rig. Original PNG pixels remain unchanged.
 export const CHANNELS = Object.freeze({
   lean: 0,
@@ -124,6 +125,7 @@ export const POSE_RIGS = Object.freeze({
     legPivot: [500, 800],
   },
   ceiling_hands: {
+    freeLimbs: avatarPoseSegments('pose-ceiling'),
     bounds: [208, 75, 836, 1102],
     neck: [620, 470],
     body: [625, 660],
@@ -143,6 +145,7 @@ export const POSE_RIGS = Object.freeze({
     grip: 'top',
   },
   wall_left: {
+    freeLimbs: avatarPoseSegments('pose-dock-left'),
     bounds: [219, 76, 815, 1101],
     neck: [589, 451],
     body: [530, 620],
@@ -154,6 +157,7 @@ export const POSE_RIGS = Object.freeze({
     grip: 'left',
   },
   wall_right: {
+    freeLimbs: avatarPoseSegments('pose-dock-right'),
     bounds: [212, 75, 831, 1103],
     neck: [606, 432],
     body: [700, 610],
@@ -487,6 +491,13 @@ export function deformPoint(x, y, channels) {
       leg = rot(x, y, ...r.legPivot, c.legSwing);
     q = [q[0] + (leg[0] - x) * lw, q[1] + (leg[1] - y) * lw];
   }
+  if (r.freeLimbs && c.legSwing) {
+    for (const { bounds: [left, top, right, bottom], pivot, amplitude } of r.freeLimbs) {
+      if (x < left || x > right || y < top || y > bottom) continue;
+      const follow = smooth(top, top + 35, y);
+      q = rot(...q, ...pivot, c.legSwing * amplitude * follow);
+    }
+  }
   return q;
 }
 const extentPointCache = new Map();
@@ -590,27 +601,27 @@ export function fitChannelsToCanvas(channels, { padding = 3, bounds, points } = 
   }
   return best;
 }
-export function imageSupportPoints(image) {
+export function imageSupportPoints(image, size = 1254) {
   try {
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 1254;
+    canvas.width = canvas.height = size;
     const context = canvas.getContext('2d', { willReadFrequently: true });
-    context.drawImage(image, 0, 0, 1254, 1254);
-    const data = context.getImageData(0, 0, 1254, 1254).data,
-      top = new Int32Array(1254).fill(-1),
-      bottom = new Int32Array(1254).fill(-1),
+    context.drawImage(image, 0, 0, size, size);
+    const data = context.getImageData(0, 0, size, size).data,
+      top = new Int32Array(size).fill(-1),
+      bottom = new Int32Array(size).fill(-1),
       points = [];
     let firstRow = -1,
       lastRow = -1,
-      minX = 1254,
+      minX = size,
       maxX = -1,
       minPoint = null,
       maxPoint = null;
-    for (let y = 0; y < 1254; y++) {
+    for (let y = 0; y < size; y++) {
       let first = -1,
         last = -1;
-      for (let x = 0; x < 1254; x++)
-        if (data[(y * 1254 + x) * 4 + 3] > 2) {
+      for (let x = 0; x < size; x++)
+        if (data[(y * size + x) * 4 + 3] > 2) {
           if (first < 0) first = x;
           last = x;
           if (top[x] < 0) top[x] = y;
@@ -633,16 +644,24 @@ export function imageSupportPoints(image) {
         if (y % 4 === 0) points.push([first, y], [last, y]);
       }
     }
-    for (let x = 0; x < 1254; x++)
+    for (let x = 0; x < size; x++)
       if (top[x] >= 0 && (x % 4 === 0 || x === minX || x === maxX || bottom[x] === lastRow))
         points.push([x, top[x]], [x, bottom[x]]);
     if (minPoint) points.push(minPoint, maxPoint);
+    if (size !== 1254) {
+      // Include the outer edge of each sampled pixel when testing the silhouette.
+      const scale = 1254 / size;
+      return points.length ? points.flatMap(([x, y]) => [
+        [x * scale, y * scale], [(x + 1) * scale, (y + 1) * scale],
+        [(x + 1) * scale, y * scale], [x * scale, (y + 1) * scale],
+      ]) : null;
+    }
     return points.length ? points : null;
   } catch {
     return null;
   }
 }
-export function createRenderer(canvas, images = {}, { grid = 180 } = {}) {
+export function createRenderer(canvas, images = {}, { grid = 180, preboundedStream = false } = {}) {
   const gl = canvas.getContext('webgl', {
     alpha: true,
     antialias: true,
@@ -657,25 +676,30 @@ export function createRenderer(canvas, images = {}, { grid = 180 } = {}) {
     const s = gl.createShader(type);
     gl.shaderSource(s, source);
     gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw Error(gl.getShaderInfoLog(s));
-    return s;
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      const message = gl.getShaderInfoLog(s);
+      gl.deleteShader(s);
+      gl.deleteProgram(program);
+      throw Error(message);
+    }
+    gl.attachShader(program, s);
+    gl.deleteShader(s);
   };
   const program = gl.createProgram();
-  gl.attachShader(
-    program,
-    shader(
-      gl.VERTEX_SHADER,
-      'attribute vec2 a_position;attribute vec2 a_uv;varying vec2 v_uv;void main(){gl_Position=vec4(a_position.x/627.0-1.0,1.0-a_position.y/627.0,0.,1.);v_uv=a_uv;}',
-    ),
+  shader(
+    gl.VERTEX_SHADER,
+    'attribute vec2 a_position;attribute vec2 a_uv;varying vec2 v_uv;void main(){gl_Position=vec4(a_position.x/627.0-1.0,1.0-a_position.y/627.0,0.,1.);v_uv=a_uv;}',
   );
-  gl.attachShader(
-    program,
-    shader(
-      gl.FRAGMENT_SHADER,
-      'precision mediump float;varying vec2 v_uv;uniform sampler2D u_image;void main(){vec4 color=texture2D(u_image,v_uv);gl_FragColor=vec4(color.rgb*color.a,color.a);}',
-    ),
+  shader(
+    gl.FRAGMENT_SHADER,
+    'precision mediump float;varying vec2 v_uv;uniform sampler2D u_image;void main(){vec4 color=texture2D(u_image,v_uv);gl_FragColor=vec4(color.rgb*color.a,color.a);}',
   );
   gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const message = gl.getProgramInfoLog(program);
+    gl.deleteProgram(program);
+    throw Error(message);
+  }
   gl.useProgram(program);
   const points = [],
     uv = [],
@@ -705,46 +729,66 @@ export function createRenderer(canvas, images = {}, { grid = 180 } = {}) {
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-  const cache = new WeakMap(),
-    allTextures = [],
-    textureSupport = new Map();
-  const textureFor = (img) => {
-    const key = img.currentSrc || img.src || null,
-      old = cache.get(img);
-    if (old && key && old.key === key) return old.tex;
-    const tex = old?.tex || gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    if (!old) {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      allTextures.push(tex);
-    }
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-    textureSupport.set(tex, imageSupportPoints(img));
-    cache.set(img, { tex, key });
-    return tex;
-  };
-  const textures = {};
-  for (const [key, img] of Object.entries(images)) textures[key] = textureFor(img);
-  let disposed = false,
+  // The decoded-image cache and WebGL have independent lifetimes. Key static artwork
+  // by its URL, mutable canvases by identity, and keep the music stream in one slot.
+  const textures = new Map();
+  let streamInput,
+    disposed = false,
     lastKey = null,
     lastTexture = null,
     lastExtent = null,
     lastChannels = null;
-  function paint(channels, texture, force = false, bounds = null) {
+  const textureFor = (img) => {
+    const url = img.currentSrc || img.src;
+    const key = url || img;
+    const revision = url || img.avatarTextureRevision;
+    let entry = preboundedStream ? streamInput : textures.get(key);
+    if (entry && !preboundedStream) {
+      textures.delete(key);
+      textures.set(key, entry);
+    }
+    if (
+      entry &&
+      revision != null &&
+      entry.revision === revision &&
+      (!preboundedStream || entry.image === img)
+    )
+      return entry;
+    if (!entry) {
+      if (!preboundedStream && textures.size >= 12) {
+        const oldest = textures.keys().next().value;
+        gl.deleteTexture(textures.get(oldest).tex);
+        textures.delete(oldest);
+      }
+      entry = { tex: gl.createTexture() };
+      gl.bindTexture(gl.TEXTURE_2D, entry.tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      if (preboundedStream) streamInput = entry;
+      else textures.set(key, entry);
+    } else gl.bindTexture(gl.TEXTURE_2D, entry.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    entry.revision = revision;
+    if (preboundedStream) entry.image = img;
+    else entry.support = imageSupportPoints(img, url ? 1254 : 128);
+    lastKey = null;
+    return entry;
+  };
+  function paint(channels, entry, force = false, bounds = null) {
     if (disposed) return;
+    const texture = entry.tex;
     let c = { ...CHANNELS, ...channels };
     const key =
       canvas.width + ':' + canvas.height + ':' + JSON.stringify(c) + ':' + JSON.stringify(bounds);
     if (!force && key === lastKey && texture === lastTexture) return;
     lastKey = key;
     lastTexture = texture;
-    const support = textureSupport.get(texture);
-    c = fitChannelsToCanvas(c, { bounds, points: support });
+    const support = entry.support;
+    if (!preboundedStream) c = fitChannelsToCanvas(c, { bounds, points: support });
     lastChannels = c;
-    lastExtent = motionExtent(c, { points: support });
+    lastExtent = preboundedStream ? null : motionExtent(c, { points: support });
     canvas.avatarMotionExtent = lastExtent;
     for (let i = 0; i < points.length; i += 2) {
       const q = deformPoint(points[i], points[i + 1], c);
@@ -767,19 +811,32 @@ export function createRenderer(canvas, images = {}, { grid = 180 } = {}) {
       return lastChannels;
     },
     render(channels = {}) {
-      paint(channels, textures[channels.expression] || textures.neutral);
+      const img = images[channels.expression] || images.neutral;
+      if (!disposed && img) paint(channels, textureFor(img));
     },
     draw(image, channels, { bounds } = {}) {
-      if (!disposed) paint(channels, textureFor(image), !(image.currentSrc || image.src), bounds);
+      if (!disposed)
+        paint(
+          channels,
+          textureFor(image),
+          preboundedStream || !(image.currentSrc || image.src),
+          bounds,
+        );
     },
     clear() {
+      if (disposed) return;
       lastKey = null;
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
     },
     dispose() {
+      if (disposed) return;
       disposed = true;
-      for (const t of allTextures) gl.deleteTexture(t);
+      images = {};
+      for (const entry of textures.values()) gl.deleteTexture(entry.tex);
+      textures.clear();
+      if (streamInput) gl.deleteTexture(streamInput.tex);
+      streamInput = lastTexture = lastExtent = lastChannels = null;
       gl.deleteBuffer(positionBuffer);
       gl.deleteBuffer(uvBuffer);
       gl.deleteBuffer(indexBuffer);

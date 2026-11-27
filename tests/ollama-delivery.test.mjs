@@ -6,7 +6,7 @@ import { applyOpenClawCompatibility } from '../scripts/openclaw-compat.mjs';
 
 applyOpenClawCompatibility(root);
 const { createOllamaStreamFn, buildAssistantMessage } = await import(
-  '../node_modules/openclaw/dist/stream.runtime-DVVOeOOt.mjs'
+  '../node_modules/openclaw/dist/stream.runtime-1A1YZsag.mjs'
 );
 const model = {
   id: 'capri-qwen3.5:9b',

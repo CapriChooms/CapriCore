@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { once } from 'node:events';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -282,9 +282,10 @@ async function nativeRequest(worker, endpoint, body, signal) {
   return response;
 }
 
-export function createLlamaBridge({ store, workers, config, version, configuration }) {
+export function createLlamaBridge({ store, workers, config, version, configuration, adminToken }) {
   const started = Date.now();
   const instance = randomUUID();
+  const admin = adminToken ? Buffer.from('Bearer ' + adminToken) : null;
   return createServer({ requestTimeout: 180000, headersTimeout: 15000 }, async (req, res) => {
     // This service is private to loopback. Reject browser cross-origin and
     // DNS-rebinding requests before accepting any model data or operations.
@@ -314,6 +315,11 @@ export function createLlamaBridge({ store, workers, config, version, configurati
       }
       if (!['POST', 'DELETE'].includes(method))
         return json(res, { error: 'Unknown local endpoint.' }, 404);
+      const authorization = Buffer.from(req.headers.authorization ?? '');
+      const canManage =
+        admin && authorization.length === admin.length && timingSafeEqual(authorization, admin);
+      if (['/api/create', '/api/delete', '/api/pull'].includes(route) && !canManage)
+        return json(res, { error: 'This operation requires Capri local model access.' }, 401);
       const input = await readJson(req);
       if (route === '/api/pull' && method === 'POST') {
         res.writeHead(200, { 'content-type': 'application/x-ndjson' });
@@ -342,6 +348,8 @@ export function createLlamaBridge({ store, workers, config, version, configurati
         !input.prompt &&
         input.keep_alive === 0
       ) {
+        if (!canManage)
+          return json(res, { error: 'This operation requires Capri local model access.' }, 401);
         await workers.unload(input.model);
         return json(res, stamp(input.model, { done: true, done_reason: 'unload' }));
       }
@@ -359,30 +367,23 @@ export function createLlamaBridge({ store, workers, config, version, configurati
           )
         )
           throw invalid('Invalid local embedding request.');
-        return await workers.use(
-          model,
-          'embedding',
-          input,
-          signal,
-          async (worker, active) => {
-            const upstream = await nativeRequest(
-              worker,
-              '/v1/embeddings',
-              { model: model.name, input: source },
-              active,
-            );
-            const packet = await upstream.json();
-            if (route === '/v1/embeddings') return json(res, packet);
-            const embeddings = packet.data.map((entry) => entry.embedding);
-            return json(
-              res,
-              route === '/api/embeddings'
-                ? { embedding: embeddings[0] }
-                : { model: model.name, embeddings, prompt_eval_count: packet.usage?.prompt_tokens },
-            );
-          },
-          () => !res.headersSent && !res.destroyed,
-        );
+        return await workers.use(model, 'embedding', input, signal, async (worker, active) => {
+          const upstream = await nativeRequest(
+            worker,
+            '/v1/embeddings',
+            { model: model.name, input: source },
+            active,
+          );
+          const packet = await upstream.json();
+          if (route === '/v1/embeddings') return json(res, packet);
+          const embeddings = packet.data.map((entry) => entry.embedding);
+          return json(
+            res,
+            route === '/api/embeddings'
+              ? { embedding: embeddings[0] }
+              : { model: model.name, embeddings, prompt_eval_count: packet.usage?.prompt_tokens },
+          );
+        }, () => !res.headersSent && !res.destroyed);
       }
       if (
         !['/api/chat', '/api/generate', '/v1/chat/completions'].includes(route) ||
@@ -394,41 +395,34 @@ export function createLlamaBridge({ store, workers, config, version, configurati
         input.messages = [{ role: 'user', content: input.prompt ?? '', images: input.images }];
       const body = llamaChatBody(input, { legacy, config, model });
       if (legacy && body.stream) body.stream_options = { include_usage: true };
-      await workers.use(
-        model,
-        'chat',
-        input,
-        signal,
-        async (worker, active) => {
-          const upstream = await nativeRequest(worker, '/v1/chat/completions', body, active);
-          if (body.stream) {
-            if (legacy)
-              await legacyStream(upstream, res, model.name, active, route === '/api/generate');
-            else {
-              res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8' });
-              await pipeline(Readable.fromWeb(upstream.body), res, { signal: active });
-            }
-            return;
+      await workers.use(model, 'chat', input, signal, async (worker, active) => {
+        const upstream = await nativeRequest(worker, '/v1/chat/completions', body, active);
+        if (body.stream) {
+          if (legacy)
+            await legacyStream(upstream, res, model.name, active, route === '/api/generate');
+          else {
+            res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8' });
+            await pipeline(Readable.fromWeb(upstream.body), res, { signal: active });
           }
-          const packet = await upstream.json();
-          if (!legacy) return json(res, packet);
-          const choice = packet.choices?.[0];
-          if (!choice?.message) throw unavailable('The local model returned no answer.');
-          const message = legacyMessage(choice.message);
-          return json(
-            res,
-            stamp(model.name, {
-              ...(route === '/api/generate'
-                ? { response: message.content, thinking: message.thinking }
-                : { message }),
-              done: true,
-              done_reason: choice.finish_reason,
-              ...metrics(packet),
-            }),
-          );
-        },
-        () => !res.headersSent && !res.destroyed,
-      );
+          return;
+        }
+        const packet = await upstream.json();
+        if (!legacy) return json(res, packet);
+        const choice = packet.choices?.[0];
+        if (!choice?.message) throw unavailable('The local model returned no answer.');
+        const message = legacyMessage(choice.message);
+        return json(
+          res,
+          stamp(model.name, {
+            ...(route === '/api/generate'
+              ? { response: message.content, thinking: message.thinking }
+              : { message }),
+            done: true,
+            done_reason: choice.finish_reason,
+            ...metrics(packet),
+          }),
+        );
+      }, () => !res.headersSent && !res.destroyed);
     } catch (error) {
       if (signal.aborted || res.destroyed) return;
       const status = Number.isInteger(error.status) ? error.status : 503;

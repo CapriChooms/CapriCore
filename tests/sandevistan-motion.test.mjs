@@ -2,9 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateCompanionSettings } from '../apps/desktop/companion-settings.mjs';
-import { arrivalStart, fps } from '../apps/desktop/renderer/avatar-teleport-motion.mjs';
 import {
-  SANDEVISTAN_TRAVEL_MS,
   drawSandevistan,
   prepareSandevistan,
   sandevistanPosition,
@@ -20,10 +18,10 @@ const motion = (effects) =>
     effects,
   });
 
-test('Sandevistan arrives at lightning speed with acceleration and deceleration', () => {
+test('Sandevistan defaults to 650 ms with acceleration and deceleration', () => {
   const flight = motion();
-  const duration = SANDEVISTAN_TRAVEL_MS;
-  assert.equal(duration, (arrivalStart * 1000) / fps);
+  const duration = flight.travelMs;
+  assert.equal(duration, 650);
   assert.deepEqual(sandevistanPosition(flight, 0), flight.start);
   assert.deepEqual(sandevistanPosition(flight, duration), flight.end);
   const passes = Array.from({ length: 5 }, (_, step) => {
@@ -37,6 +35,14 @@ test('Sandevistan arrives at lightning speed with acceleration and deceleration'
     width: 660,
     height: 230,
   });
+});
+
+test('Sandevistan scales the flight and keeps the configured lifetime of each trail copy', () => {
+  const flight = motion({ teleportTravelMs: 1200, sandevistanCopies: 3, sandevistanHoldMs: 500 });
+  assert.deepEqual(flight.ghosts.map(({ bornMs }) => bornMs), [0, 400, 800]);
+  assert.equal(sandevistanPosition(flight, 600).x, 320);
+  assert.deepEqual(sandevistanPosition(flight, 1200), flight.end);
+  assert.equal(flight.endMs, 1300);
 });
 
 test('snapshots retain their original positions and hues for their configured lifetime', () => {
@@ -80,6 +86,7 @@ test('snapshots retain their original positions and hues for their configured li
 test('teleport settings preserve lightning defaults and validate Sandevistan bounds', () => {
   const defaults = validateCompanionSettings({});
   assert.equal(defaults.teleportStyle, 'lightning');
+  assert.equal(defaults.teleportTravelMs, 650);
   assert.equal(defaults.sandevistanHoldMs, 500);
   assert.equal(defaults.sandevistanCopies, 12);
   assert.equal(defaults.sandevistanHueStep, 6);
@@ -99,6 +106,10 @@ test('teleport settings preserve lightning defaults and validate Sandevistan bou
   assert.throws(() => validateCompanionSettings({ sandevistanHue: 360 }));
   assert.throws(() => validateCompanionSettings({ sandevistanTint: 101 }));
   assert.throws(() => validateCompanionSettings({ teleportStyle: 'glitch' }));
+  for (const teleportTravelMs of [250, 1500])
+    assert.equal(validateCompanionSettings({ teleportTravelMs }).teleportTravelMs, teleportTravelMs);
+  for (const teleportTravelMs of [200, 625, 1550, '650'])
+    assert.throws(() => validateCompanionSettings({ teleportTravelMs }));
 });
 
 test('zero tint keeps the original sprite colors for every copy', () => {

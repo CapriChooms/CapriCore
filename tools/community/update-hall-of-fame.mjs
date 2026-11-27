@@ -7,14 +7,13 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assignEpithets, normalizeCreditNames } from '../../apps/desktop/credits-epithets.mjs';
+import { CREDITS_TEAM } from '../../apps/desktop/credits-team.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 export const DEFAULT_REPOSITORY = 'CapriChooms/Capri';
-export const TEAM = Object.freeze([
-  Object.freeze({ name: 'Overyx', role: 'Developer' }),
-  Object.freeze({ name: 'v1rch', role: 'Discord developer' }),
-  Object.freeze({ name: 'Leberrr', role: 'Discord moderator' }),
-]);
+export const TEAM = Object.freeze(
+  CREDITS_TEAM.map(({ name, role }) => Object.freeze({ name, role })),
+);
 const PAGE_SIZE = 100;
 const MAX_PAGES = 1000;
 const loginPattern = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
@@ -149,7 +148,7 @@ export function refreshHallOfFame({
   );
   const manifest = {
     schemaVersion: 1,
-    team: TEAM.map(({ name, role }) => ({ name, role })),
+    team: TEAM,
     ...acknowledgements,
     supporters,
     epithets,

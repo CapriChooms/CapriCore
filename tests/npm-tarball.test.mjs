@@ -55,18 +55,24 @@ function tarEntry(name, value) {
 
 test('recovery caches every pinned failed tarball mentioned by npm, including duplicate lock entries', async () => {
   const location = folder();
-  const specs = ['first', 'second'].map((name) => ({
+  const specs = ['first', 'second', 'finished'].map((name) => ({
     resolved: `https://registry.npmjs.org/${name}/-/${name}-1.0.0.tgz`,
     integrity: integrity(Buffer.from(name)),
   }));
   writeFileSync(
     path.join(location, 'package-lock.json'),
-    JSON.stringify({ packages: { a: specs[0], b: specs[1], nested: specs[0] } }),
+    JSON.stringify({ packages: { a: specs[0], b: specs[1], nested: specs[0], c: specs[2] } }),
   );
   const cached = [];
   await recoverNpmTarball({
     root: location,
-    error: { outputTail: specs.map((s) => s.resolved).join('\n') },
+    error: {
+      outputTail: [
+        `npm http fetch GET 200 ${specs[2].resolved} 100ms (cache miss)`,
+        `npm error network request to ${specs[0].resolved} failed`,
+        `npm ERR! network request to ${specs[1].resolved} failed`,
+      ].join('\n'),
+    },
     nodeExecutable: process.execPath,
     command: async (_exe, args) => cached.push(readFileSync(args[3], 'utf8')),
     fetchImpl: async (url) => new Response(url.pathname.includes('/first/') ? 'first' : 'second'),

@@ -36,9 +36,23 @@ TORCH_TLS_EOF = '''error: Failed to download `torch==2.6.0+cu124`
   cause: error sending request for url (https://download-r2.pytorch.org/whl/cu124/torch-2.6.0%2Bcu124-cp311-cp311-win_amd64.whl)
   cause: client error (Connect)
   cause: tls handshake eof'''
+TORCH_INDEX_RESET = '''error: Failed to fetch: https://download.pytorch.org/whl/cu124/torchaudio/
+  cause: client error (Connect)
+  cause: An existing connection was forcibly closed by the remote host. (os error 10054)'''
 
 
 class UvRetryTests(unittest.TestCase):
+    def test_installer_ignores_inherited_indexes_and_hash_bypasses(self):
+        seen = []
+        extra = dict(UV_INDEX='https://example.invalid', UV_NO_VERIFY_HASHES='1',
+                     UV_NO_BUILD_ISOLATION='1', UV_OVERRIDE='extra.txt', UV_FIND_LINKS='other')
+        retry.run_uv(['uv', 'pip', 'sync'], environ={**extra, 'UV_HTTP_TIMEOUT': '45'},
+                     run=lambda cmd, env: (seen.append(env) or (0, '')))
+        self.assertTrue(extra.keys().isdisjoint(seen[0]))
+        self.assertEqual(seen[0]['UV_NO_CONFIG'], 'true')
+        self.assertEqual(seen[0]['UV_HTTP_TIMEOUT'], '45')
+
+
     def test_reported_tls_eof_recovers_using_the_official_alternate_for_both_cuda_profiles(self):
         profiles = json.loads((ROOT / 'config/voice-runtime.json').read_text())['profiles']
         for profile, spec in profiles.items():
@@ -80,9 +94,39 @@ class UvRetryTests(unittest.TestCase):
         retry.run_uv(command, environ={}, run=lambda args, env: (calls.append(args) or (2, TORCH_TLS_EOF)),
                      sleep=lambda _: None, notify=notices.append, pytorch_profile='legacy')
         self.assertEqual(len(calls), 3)
-        self.assertEqual(calls[1], calls[2])
-        self.assertEqual(calls[1].count('--constraints'), 1)
-        self.assertIn('alternate official PyTorch source', notices[-1])
+        self.assertTrue(all(args.count('--constraints') == 1 for args in calls[1:]))
+        self.assertNotEqual(calls[1][-1], calls[2][-1])
+        self.assertIn('PyTorch mirror', notices[-1])
+
+    def test_official_pytorch_index_reset_uses_only_the_two_pinned_mirror_wheels(self):
+        runtime = json.loads((ROOT / 'config/voice-runtime.json').read_text(encoding='utf-8'))
+        for profile in ('legacy', 'blackwell'):
+            with self.subTest(profile=profile):
+                spec = runtime['profiles'][profile]
+                command = ['uv.exe', 'pip', 'sync', spec['requirements'],
+                           '--torch-backend', spec['backend'], '--default-index', 'https://pypi.org/simple']
+                calls = []
+                def run(args, env):
+                    calls.append(args)
+                    if len(calls) == 1:
+                        return 1, TORCH_INDEX_RESET.replace('cu124', spec['backend'])
+                    self.assertEqual(args[:-2], command)
+                    self.assertEqual(args[-2], '--constraints')
+                    self.assertEqual(env['UV_CACHE_DIR'], 'existing-cache')
+                    self.assertEqual(env['UV_NO_VERIFY_HASHES'], 'false')
+                    original = (ROOT / spec['transportConstraints']).read_text(encoding='utf-8')
+                    mirrored = Path(args[-1]).read_text(encoding='utf-8')
+                    entries = [line for line in mirrored.splitlines() if line and not line.startswith('#')]
+                    self.assertEqual(len(entries), 2)
+                    for line in entries:
+                        self.assertIn(runtime['pytorchWheelMirror'] + '/whl/' + spec['backend'], line)
+                        self.assertIn(line.replace(runtime['pytorchWheelMirror'], 'https://download.pytorch.org'), original)
+                    return 0, ''
+                self.assertEqual(retry.run_uv(command, environ={'UV_CACHE_DIR': 'existing-cache'},
+                                             run=run, sleep=lambda _: None, notify=lambda _: None,
+                                             pytorch_profile=profile), 0)
+                self.assertEqual(len(calls), 2)
+                self.assertFalse(Path(calls[1][-1]).exists())
 
     def test_pytorch_fallback_uses_only_reviewed_matching_profile_and_keeps_original_lock(self):
         profiles = json.loads((ROOT / 'config/voice-runtime.json').read_text())['profiles']
@@ -112,7 +156,7 @@ class UvRetryTests(unittest.TestCase):
                 self.assertEqual(parsed.hostname, 'download.pytorch.org')
                 self.assertEqual(unquote(parsed.path), f'/whl/{spec["backend"]}/{name}-{spec[name]}-cp311-cp311-win_amd64.whl')
                 self.assertRegex(parsed.fragment, r'^sha256=[a-f0-9]{64}$')
-                self.assertIn(f'{name}=={spec[name]}', (ROOT / spec['requirements']).read_text().splitlines())
+                self.assertIn(f'{name}=={spec[name]}', [line.rstrip(' ' + chr(92)) for line in (ROOT / spec['requirements']).read_text().splitlines()])
             self.assertIsNone(retry.pytorch_fallback(command, profile, reported.replace('pytorch.org/', 'pytorch.org.evil.invalid/')))
             wrong = [*command[:-1], 'cpu']
             self.assertIsNone(retry.pytorch_fallback(wrong, profile, reported))
@@ -129,9 +173,9 @@ class UvRetryTests(unittest.TestCase):
         retry.run_uv(command, environ={}, run=lambda args, env: (calls.append(args) or (2, report)),
                      sleep=lambda _: None, notify=notices.append, pytorch_profile='legacy')
         self.assertEqual(len(calls), 3)
-        self.assertEqual(calls[1], calls[2])
-        self.assertEqual(calls[1].count('--constraints'), 1)
-        self.assertIn('alternate official PyTorch source', notices[-1])
+        self.assertNotEqual(calls[1][-1], calls[2][-1])
+        self.assertTrue(all(args.count('--constraints') == 1 for args in calls[1:]))
+        self.assertIn('PyTorch mirror', notices[-1])
 
     def test_real_uv_direct_constraints_preserve_versions_for_sync_and_override_install(self):
         uv = ROOT / '.runtime/uv/uv.exe'

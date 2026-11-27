@@ -47,7 +47,7 @@ export class FilePermissions {
   load() {
     if (!existsSync(this.file)) {
       if (!this.applicationRoot) return [];
-      const scopes = [{ id: INSTALLATION_SCOPE_ID, root: this.applicationRoot, write: true }];
+      const scopes = [{ id: INSTALLATION_SCOPE_ID, root: this.applicationRoot, write: false }];
       this.save(scopes);
       return scopes;
     }
@@ -75,17 +75,16 @@ export class FilePermissions {
       throw new Error('Duplicate file permission IDs');
     if (this.applicationRoot) {
       const own = saved.scopes.find((s) => s.id === INSTALLATION_SCOPE_ID);
-      if (own) own.root = this.applicationRoot;
-      // Migrate once. Revocation/read-only choices survive every later load and restart.
-      if (saved.applicationScopeInitialized !== true) {
-        if (!own)
-          saved.scopes.unshift({
-            id: INSTALLATION_SCOPE_ID,
-            root: this.applicationRoot,
-            write: true,
-          });
-        this.save(saved.scopes);
+      const migrated = saved.applicationScopeInitialized === true;
+      const wasWritable = own?.write;
+      if (own) {
+        own.root = this.applicationRoot;
+        own.write = false;
       }
+      // Revocation survives every later load and restart.
+      if (!migrated && !own)
+        saved.scopes.unshift({ id: INSTALLATION_SCOPE_ID, root: this.applicationRoot, write: false });
+      if (!migrated || wasWritable) this.save(saved.scopes);
     }
     return saved.scopes;
   }
@@ -102,7 +101,7 @@ export class FilePermissions {
     );
   }
   canActWithoutConfirmation(scope) {
-    return this.isInstallation(scope) || this.isComputer(scope);
+    return this.isComputer(scope);
   }
   all() {
     return [...this.load(), ...this.computerScopes()];
@@ -131,7 +130,7 @@ export class FilePermissions {
     if (scopes.some((s) => s.root.toLowerCase() === root.toLowerCase())) return this.snapshot();
     if (!own && scopes.filter((s) => s.id !== INSTALLATION_SCOPE_ID).length >= 20)
       throw new Error('Remove a folder before adding another one.');
-    scopes.push({ id, root, write: Boolean(own) });
+    scopes.push({ id, root, write: false });
     this.save(scopes);
     return this.snapshot();
   }
@@ -148,6 +147,7 @@ export class FilePermissions {
       scope = scopes.find((s) => s.id === id);
     if (!scope) throw new Error('Folder permission no longer exists');
     this.allowedRoot(scope.root, scope.id);
+    if (write && this.isInstallation(scope)) throw new Error('The Capri installation is read-only.');
     scope.write = write;
     this.save(scopes);
     return this.snapshot();
@@ -161,12 +161,13 @@ export class FilePermissions {
     return this.all().map((s) => ({
       ...s,
       label: path.basename(s.root) || s.root,
-      ...(this.isInstallation(s) ? { kind: 'installation', confirmationRequired: false } : {}),
+      ...(this.isInstallation(s) ? { kind: 'installation' } : {}),
     }));
   }
   scope(id, write = false) {
     const scope = this.all().find((s) => s.id === id);
     if (!scope) throw new Error('Choose an allowed folder in Menu → File access first.');
+    if (write && this.isInstallation(scope)) throw new Error('The Capri installation is read-only.');
     if (write && !scope.write)
       throw new Error('This folder is read-only. The owner can allow file changes in File access.');
     const root = this.allowedRoot(scope.root, scope.id);
@@ -221,6 +222,8 @@ export class FilePermissions {
     }
     if (this.privatePaths.some((privatePath) => within(privatePath, target)))
       throw new Error('Private application data is available only through its dedicated controls.');
+    if (write && this.applicationRoot && within(this.applicationRoot, target))
+      throw new Error('The Capri installation is read-only.');
     return { scope, path: target, relative: parts.join(path.sep) };
   }
 }

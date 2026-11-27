@@ -4,6 +4,7 @@ import {
   INITIATIVE_DEFAULTS,
   validateInitiative,
   quietHour,
+  initiativeAppExcluded,
 } from '../apps/desktop/initiative-settings.mjs';
 import { InitiativePolicy, validateObservation } from '../apps/desktop/initiative-policy.mjs';
 import { InitiativeService } from '../apps/desktop/initiative-service.mjs';
@@ -14,7 +15,13 @@ function fixture() {
   let now = timestamp,
     hour = 14,
     index = 0;
-  const settings = { ...INITIATIVE_DEFAULTS, level: 'conversational', appReactions: true };
+  const settings = {
+    ...INITIATIVE_DEFAULTS,
+    level: 'conversational',
+    appReactions: true,
+    quietHoursEnabled: true,
+    appExclusionsEnabled: true,
+  };
   return {
     settings,
     policy: new InitiativePolicy({ settings, now: () => now, hour: () => hour }),
@@ -65,9 +72,25 @@ test('initiative starts off, validates settings and rejects invented/stale obser
         { now: timestamp },
       ),
     );
-  assert.equal(quietHour(INITIATIVE_DEFAULTS, 0), true);
+  assert.equal(quietHour(INITIATIVE_DEFAULTS, 0), false);
   assert.equal(quietHour(INITIATIVE_DEFAULTS, 14), false);
-  assert.equal(quietHour({ ...INITIATIVE_DEFAULTS, quietStart: 9, quietEnd: 9 }, 12), false);
+  assert.equal(quietHour({ ...INITIATIVE_DEFAULTS, quietHoursEnabled: true }, 0), true);
+  assert.equal(
+    quietHour({ ...INITIATIVE_DEFAULTS, quietHoursEnabled: true, quietStart: 9, quietEnd: 9 }, 12),
+    false,
+  );
+  assert.equal(initiativeAppExcluded(INITIATIVE_DEFAULTS, 'discord'), false);
+  const legacy = { ...INITIATIVE_DEFAULTS, excludedApps: ['DISCORD.EXE', 'discord'] };
+  delete legacy.appExclusionsEnabled;
+  delete legacy.quietHoursEnabled;
+  const restored = validateInitiative(legacy);
+  assert.equal(restored.appExclusionsEnabled, false);
+  assert.equal(restored.quietHoursEnabled, false);
+  assert.deepEqual(restored.excludedApps, ['discord']);
+  assert.equal(
+    initiativeAppExcluded({ ...restored, appExclusionsEnabled: true }, 'Discord.exe'),
+    true,
+  );
 });
 test('foreground, lock, fullscreen, exclusions, user speech and quiet hours suppress comments', () => {
   const f = fixture(),
@@ -201,6 +224,40 @@ test('a late optional generation loses to user input and never commits or speaks
   service.close();
 });
 
+test('a manual preview works with frequency off and preserves the spontaneous budget', async (t) => {
+  let delivered = 0;
+  const f = fixture();
+  const settings = { ...INITIATIVE_DEFAULTS, spontaneous: false };
+  const service = new InitiativeService({
+    settings,
+    now: () => timestamp,
+    hour: () => 0,
+    state: () => ({ quiet: true, disabled: true }),
+    generate: async (candidate) => {
+      assert.equal(candidate.preview, true);
+      return { speak: true, text: 'That is one way to make a quiet room interesting.' };
+    },
+    commit: async () => assert.fail('Preview must not create history'),
+    persist: () => assert.fail('Preview must not change the schedule'),
+    deliver: () => delivered++,
+  });
+  t.after(() => service.close());
+  service.activity();
+  service.policy.observe(f.event('user.idle'));
+  service.policy.attempted();
+  service.policy.spoken({ category: 'return' }, 'A previous comment.');
+  const schedule = service.nextAt;
+  assert.equal((await service.preview()).reason, 'delivered');
+  assert.equal(delivered, 1);
+  assert.equal(service.nextAt, schedule);
+  assert.deepEqual(service.policy.recentText, ['A previous comment.']);
+  service.configure({ ...settings, quietHoursEnabled: true });
+  assert.equal((await service.preview()).reason, 'quiet_hours');
+  service.policy.observe(f.event('session.lock'));
+  assert.equal((await service.preview()).reason, 'locked');
+  assert.equal(delivered, 1);
+});
+
 test('an unfinished typed draft keeps initiative suppressed after keystroke cooldown', () => {
   const f = fixture(),
     service = new InitiativeService({
@@ -290,6 +347,33 @@ test('the optional generator reads shared history and exposes no action tools or
   assert.match(request.messages[1].content, /teal/);
   assert.match(request.messages.at(-1).content, /not an owner request/);
   assert.equal(result.avatar.id, 'neutral');
+});
+
+test('a manual preview generates a sample without reading an existing conversation', async () => {
+  const generate = initiativeGenerator({
+    ollamaUrl: 'http://127.0.0.1:11434',
+    model: 'fixture',
+    rpc: { call: () => assert.fail('Preview must work with an empty session') },
+    persona: () => 'Capri is playful.',
+    avatars: [{ id: 'neutral', pose: 'standing', expression: 'neutral' }],
+    fetchImpl: async (_url, options) => {
+      const request = JSON.parse(options.body);
+      assert.deepEqual(request.tools, []);
+      assert.equal(request.messages.length, 2);
+      assert.match(request.messages[0].content, /pressed the preview button/);
+      assert.doesNotMatch(request.messages[1].content, /metadata/);
+      return Response.json({
+        message: {
+          content: JSON.stringify({ speak: true, text: 'A quiet spark.', avatar: 'neutral' }),
+        },
+      });
+    },
+  });
+  const response = await generate(
+    { category: 'spontaneous', preview: true },
+    { signal: new AbortController().signal },
+  );
+  assert.equal(response.text, 'A quiet spark.');
 });
 
 test('screen comments respect the initiative budget, deduplicate scenes and abort on source loss', async (t) => {

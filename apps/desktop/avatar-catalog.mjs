@@ -232,10 +232,11 @@ export function loadAvatarCatalog(manifestFile, { poseManifest, musicRoot } = {}
       )
     : frames;
   const portraitIds = new Set(portraitFrames.map((frame) => frame.id));
+  const galleryIds = new Set([...portraitIds, ...desktopPoseFrames.map(({ id }) => id)]);
+  const usesFrames = (clip, ids) =>
+    clip.frames.every(({ id }) => ids.has(id)) && (!clip.effect || ids.has(clip.effect.id));
   const portraitClips = clips.filter(
-    (clip) =>
-      clip.frames.every(({ id }) => portraitIds.has(id)) &&
-      (!clip.effect || portraitIds.has(clip.effect.id)),
+    (clip) => usesFrames(clip, portraitIds),
   );
   const portraitClipIds = new Set(portraitClips.map((clip) => clip.id));
   const portraitSprites = sprites.filter(
@@ -261,6 +262,11 @@ export function loadAvatarCatalog(manifestFile, { poseManifest, musicRoot } = {}
     }),
     animated,
     publicSprites: () => portraitSprites.map(publicFrame),
+    publicGallery: () => ({
+      frames: frames.filter(({ id }) => galleryIds.has(id)).map(publicFrame),
+      clips: clips.filter((clip) => usesFrames(clip, galleryIds)),
+      defaultId,
+    }),
     publicAnimation: () =>
       animated
         ? {

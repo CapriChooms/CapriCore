@@ -385,7 +385,19 @@ try {
   });
   assert.ok(heartOffset <= 1, 'The support heart must remain centered in its orbit');
   await page.screenshot({ path: path.join(folder, 'support.png') });
+  await page.locator('#support-heart').click();
+  const meme = page.locator('#support-meme').getByRole('img');
+  await meme.waitFor();
+  await meme.waitFor({ state: 'detached', timeout: 1500 });
   page = await settingsView(application, 'personality');
+  const prankButton = page.locator('#wild-pranks-preview');
+  const prankStatus = page.locator('#wild-pranks-preview-status');
+  assert.equal(await page.locator('#wild-pranks-stage').count(), 0);
+  await prankButton.evaluate((button) => button.click());
+  assert.equal(await prankStatus.textContent(), '');
+  await prankButton.click();
+  await prankStatus.filter({ hasText: 'Prank preview is unavailable right now.' }).waitFor();
+  assert.equal(await prankButton.isEnabled(), true);
   await page.locator('#personality-text').fill('A warm fictional cyberpunk companion.');
   await saveSettings(page);
   await page.waitForFunction(
@@ -550,11 +562,12 @@ try {
     JSON.stringify({
       passed: true,
       checks: [
-        'support panel',
+        'support panel and temporary heart easter egg',
         'settings navigation',
         'last Settings section, per-section content scroll and sidebar scroll survive reopening and renderer recreation',
         'explicit context shortcut still focuses its control',
         'private personality save',
+        'prank preview uses a trusted Settings click, with no inline stage',
         'one Personality file for menu edits, external edits and reset',
         'wake settings',
         'external URL allowlist',

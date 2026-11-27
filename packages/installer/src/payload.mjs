@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readdirSync, existsSync, lstatSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { root } from '../../runtime/src/host/paths.mjs';
+import { readJson } from './policy.mjs';
 import {
   ACTIVE_STARTUP_INTRO,
   startupIntroSourceFiles,
@@ -10,6 +13,7 @@ const directories = [
   'apps',
   'packages',
   'integrations',
+  'native/desktop-teleport',
   'scripts',
   'tools',
   'tests',
@@ -24,6 +28,8 @@ const rootFiles = [
   'package-lock.json',
   'pyproject.toml',
   'README.md',
+  'LINUX-PREVIEW.md',
+  'start-capri.sh',
   'ROADMAP.md',
   'LICENSE',
   'CONTRIBUTING.md',
@@ -39,7 +45,7 @@ const rootFiles = [
   '.prettierrc.json',
 ];
 export const forbiddenSource =
-  /(?:^|\/)(?:node_modules|\.runtime|\.git|\.venv|__pycache__)(?:\/|$)|^(?:data|logs|vendor|archive|release)(?:\/|$)|^docs\/audit\/(?!npm-sbom\.cdx\.json$)|^(?:apps|packages|integrations)\/[^/]+\/(?:dist|build)(?:\/|$)|\.local\.(?:json|ps1)$|\.pyc$|\.env(?:\.|$)/i;
+  /(?:^|\/)(?:node_modules|\.runtime|\.git|\.venv|__pycache__)(?:\/|$)|^(?:data|logs|vendor|archive|release)(?:\/|$)|^docs\/audit\/(?!npm-sbom\.cdx\.json$)|^(?:apps|packages|integrations)\/[^/]+\/(?:dist|build)(?:\/|$)|^native\/desktop-teleport\/target(?:\/|$)|\.local\.(?:json|ps1)$|\.pyc$|\.env(?:\.|$)/i;
 export function sourceFiles(sourceRoot = root) {
   const result = [];
   function walk(directory) {
@@ -111,4 +117,60 @@ export function sourceFiles(sourceRoot = root) {
   if (existsSync(path.join(sourceRoot, ACTIVE_STARTUP_INTRO)))
     result.push(...startupIntroSourceFiles(sourceRoot));
   return [...new Set(result)].sort();
+}
+
+export async function verifySetupPayload(sourceRoot, signal) {
+  const names = sourceFiles(sourceRoot);
+  const manifest = path.join(sourceRoot, 'SOURCE_MANIFEST.json');
+  let expected;
+  if (existsSync(manifest)) {
+    const pinned = readJson(manifest, 2 * 1024 ** 2).files;
+    expected = new Map(pinned.map(({ path: name, sha256 }) => [name, sha256]));
+    const actual = new Set(names);
+    const missing = [...expected.keys()].filter((name) => !actual.has(name));
+    const extra = names.filter((name) => !expected.has(name));
+    if (missing.length || extra.length || expected.size !== pinned.length) {
+      const details = [
+        ...(missing.length
+          ? [`missing (${missing.length}): ${missing.slice(0, 3).join(', ')}`]
+          : []),
+        ...(extra.length ? [`unexpected (${extra.length}): ${extra.slice(0, 3).join(', ')}`] : []),
+        ...(expected.size !== pinned.length ? ['duplicate manifest paths'] : []),
+      ];
+      throw new Error(`Source payload file list differs from its manifest (${details.join('. ')})`);
+    }
+  }
+
+  const files = [];
+  const backoff = [200, 500, 1000];
+  for (const name of names) {
+    const file = path.join(sourceRoot, name);
+    for (let attempt = 0; ; attempt++) {
+      signal?.throwIfAborted();
+      try {
+        const info = lstatSync(file);
+        if (!info.isFile() || info.size > 20 * 1024 ** 2)
+          throw new Error('Invalid source payload file: ' + name);
+        const sha256 = createHash('sha256').update(readFileSync(file)).digest('hex');
+        if (expected && expected.get(name) !== sha256)
+          throw new Error('Source payload checksum mismatch: ' + name);
+        files.push({ path: name, bytes: info.size, sha256 });
+        break;
+      } catch (error) {
+        // A scanner can hold an extracted file briefly. Keep verification mandatory.
+        if (process.platform !== 'win32' || !['EPERM', 'EACCES', 'EBUSY'].includes(error.code))
+          throw error;
+        if (attempt >= backoff.length)
+          throw Object.assign(
+            new Error(
+              `Cannot read source payload file ${name} (${error.code}). The file may be in use or blocked by Windows.`,
+              { cause: error },
+            ),
+            { code: error.code },
+          );
+        await delay(backoff[attempt], undefined, { signal });
+      }
+    }
+  }
+  return files;
 }

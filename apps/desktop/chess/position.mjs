@@ -126,6 +126,7 @@ export function chessMoveReactions(before, after, player) {
           },
           checked: board.isCheck(),
           moveNumber: Number(move.before.split(' ')[5]),
+          player,
           events,
         });
     }

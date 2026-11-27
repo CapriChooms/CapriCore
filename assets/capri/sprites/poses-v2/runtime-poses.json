@@ -18,7 +18,7 @@
       },
       "label": "Ceiling grip",
       "description": "Hanging from an edge by both hands.",
-      "sha256": "7da68fc88fbdcaa18fdef6ab4341acbe6aaba2b177d95abf9a8823c95efe7ee3"
+      "sha256": "ba3e3c31eb1edf577ec8fe6174b7011d6ed86d5e775764b9e2da40dfde0c488d"
     },
     {
       "id": "pose-dock-left",
@@ -37,7 +37,7 @@
       },
       "label": "Left wall grip",
       "description": "Holding a vertical edge to her left.",
-      "sha256": "4c8a9e5663ea5c004d96e0be10befa8581abb8457b0f59004478c1cb5c00c887"
+      "sha256": "69032b74a7a7658f49e1694a790d15b0b1c46531783f26187d2926d4b10f58f1"
     },
     {
       "id": "pose-dock-right",
@@ -56,7 +56,7 @@
       },
       "label": "Right wall grip",
       "description": "Holding a vertical edge to her right.",
-      "sha256": "5fdffb1af571117f1e410cb48af7ece15b8434345fe52d753c5e6f6759537dee"
+      "sha256": "4427d808679071effcd769fac99952fc8216b6a666c94ebc8390722f0acadc93"
     },
     {
       "id": "pose-sit-edge",
@@ -75,7 +75,7 @@
       },
       "label": "Sitting on an edge",
       "description": "Resting on the top edge of an open window.",
-      "sha256": "35419f53130169fc66a5e5ce48a1ea8c937d7d3ea9b82431bb4cfdebf3f347ff"
+      "sha256": "41ccf38b260e16473e1ee8aa3cc01f964bcff8ccf526c0affa551af2d49b6557"
     },
     {
       "id": "pose-ceiling-upside-down",
@@ -94,7 +94,7 @@
       },
       "label": "Upside-down hang",
       "description": "Hanging from the top of the display by her feet.",
-      "sha256": "f15ec6420ea017f8e16af7c7b6f5407ff0ec51836855b4f843faf16844f094f9"
+      "sha256": "77cbc4b565fd4fc3ef90ab20ca3067d8ed9b506ccb89c1cc8badac03574f15c1"
     },
     {
       "id": "pose-sit-floor",
@@ -113,7 +113,7 @@
       },
       "label": "Sitting on the floor",
       "description": "Relaxed and seated on the ground.",
-      "sha256": "8c50c4cffa948024941f1d18187f99d2f252f8a64f86c69012ec8fcd1d9ed4dd"
+      "sha256": "5d0cdd45630bc5ac71090bc6d8a1521225a7fd3ca7de55d9786256a6fb0ef260"
     },
     {
       "id": "pose-crouch",
@@ -132,7 +132,7 @@
       },
       "label": "Crouching",
       "description": "Low, attentive crouch.",
-      "sha256": "4115f89be5fb05c44be1b0344f6536d41c173de1ca1d6ad257e5b8d0cb33fcfc"
+      "sha256": "e202632416117d521a5d789962c4cb97172a0f72469cc426be0c127359793736"
     },
     {
       "id": "pose-sleep",
@@ -151,7 +151,7 @@
       },
       "label": "Sleeping",
       "description": "Asleep on her side.",
-      "sha256": "f76c310daa7ebd0cc683b01d03ff84bb02d9c51985f38a7e1adaabc2b2a734d5"
+      "sha256": "2876d7939703d50ce17ac5232840ad1f466f59acbfc7afa868c6dd496cfd5e8e"
     }
   ]
 }

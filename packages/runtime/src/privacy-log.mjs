@@ -22,7 +22,6 @@ const ERROR_CODES = new Set([
   'EBUSY',
   'EPIPE',
   'EINVAL',
-  'NPM_NETWORK_UNAVAILABLE',
   'UND_ERR_CONNECT_TIMEOUT',
   'UND_ERR_HEADERS_TIMEOUT',
   'UND_ERR_BODY_TIMEOUT',
@@ -48,6 +47,7 @@ const ERROR_CODES = new Set([
   'CAPRI_LOCAL_MODEL_SETUP_REQUIRED',
   'CAPRI_MODEL_WARMUP_FAILED',
   'CAPRI_SERVICE_IDENTITY_UNAVAILABLE',
+  'CAPRI_GATEWAY_STORAGE_MIGRATION_FAILED',
   'CAPRI_REPLY_REPETITION',
   'CUDA_OUT_OF_MEMORY',
   'CUDA_ARCH_UNSUPPORTED',
@@ -84,12 +84,6 @@ const STAGES = new Set([
   'python',
   'node',
   'extracting',
-  'waiting',
-  'registering',
-  'recovering',
-  'update-prepare',
-  'update-backup',
-  'update-cleanup',
 ]);
 const EVENTS = new Set([
   'started',

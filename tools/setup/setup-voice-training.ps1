@@ -6,10 +6,6 @@ Set-Location -LiteralPath $capriRoot
 $capriRuntime = Get-CapriPythonRuntime -ProjectRoot $capriRoot
 $capriUv = $capriRuntime.Uv
 $capriPython = $capriRuntime.Python
-# Extra user indexes must not shadow the pinned public package sources.
-foreach($capriIndexVariable in @('UV_INDEX','UV_EXTRA_INDEX_URL','UV_INDEX_URL','UV_DEFAULT_INDEX','UV_FIND_LINKS','UV_NO_INDEX','UV_INDEX_STRATEGY','UV_TORCH_BACKEND','UV_OVERRIDE','UV_CONSTRAINT','UV_BUILD_CONSTRAINT')){
-    [Environment]::SetEnvironmentVariable($capriIndexVariable,$null,'Process')
-}
 $capriSelectionJson = & $capriPython tools/setup/select-voice-runtime.py --profile $VoiceRuntime
 if($LASTEXITCODE -ne 0){throw 'Could not select a compatible voice runtime.'}
 $capriVoiceRuntime=$capriSelectionJson|ConvertFrom-Json
@@ -23,7 +19,6 @@ if($capriVoiceRuntime.profile -eq 'amd'){
 $capriVenvPython = Ensure-CapriVirtualEnvironment -ProjectRoot $capriRoot -Name 'voice-training-venv' -Runtime $capriRuntime
 Write-Host ('Voice runtime: '+$capriVoiceRuntime.profile+' / PyTorch '+$capriVoiceRuntime.torch+' / '+$capriVoiceRuntime.backend)
 $capriRequirements=$capriVoiceRuntime.requirements
-$capriOverrides=$capriVoiceRuntime.overrides
 $capriPrepared=$false
 $capriGeneratedLocks=@()
 try {
@@ -32,28 +27,17 @@ if(-not $PlanOnly -and $env:OS -eq 'Windows_NT' -and $capriVoiceRuntime.profile 
     $capriStageRequirements=Join-Path $capriRoot ('.runtime/voice-training-venv/chatterbox-requirements-'+$capriLockId+'.txt')
     $capriGeneratedLocks+= $capriStageRequirements
     $capriWheelArgs=@($capriVoiceRuntime.profile,$capriStageRequirements)
-    if($capriOverrides){
-        $capriStageOverrides=Join-Path $capriRoot ('.runtime/voice-training-venv/chatterbox-overrides-'+$capriLockId+'.txt')
-        $capriGeneratedLocks+= $capriStageOverrides
-        $capriWheelArgs+=@('--overrides',$capriStageOverrides)
-    }
     & $capriVenvPython -m integrations.voice_runtime.chatterbox_wheels @capriWheelArgs
     if($LASTEXITCODE -ne 0){throw 'The pinned CUDA voice packages could not be downloaded.'}
     $capriPrepared=Test-Path -LiteralPath $capriStageRequirements -PathType Leaf
     if($capriPrepared){
         $capriRequirements=$capriStageRequirements
-        if($capriOverrides){$capriOverrides=$capriStageOverrides}
     }
 }
-$capriVoiceSync=@('pip','sync','--python',$capriVenvPython,$capriRequirements,'--torch-backend',$capriVoiceRuntime.backend,'--default-index','https://pypi.org/simple','--index-strategy','first-index')
-if($capriVoiceRuntime.PSObject.Properties.Name -contains 'overrides'){
-    # pip sync consumes a complete lock without dependency overrides. Use the
-    # resolver's exact install for this reviewed upstream version-pin exception.
-    $capriVoiceSync=@('pip','install','--exact','--python',$capriVenvPython,'--requirements',$capriRequirements,'--overrides',$capriOverrides,'--torch-backend',$capriVoiceRuntime.backend,'--default-index','https://pypi.org/simple','--index-strategy','first-index')
-}
-if($capriVoiceRuntime.profile -eq 'amd'){
-    $capriVoiceSync=@('pip','install','--exact','--python',$capriVenvPython,'--requirements',$capriVoiceRuntime.requirements,'--overrides',$capriVoiceRuntime.overrides,'--default-index','https://pypi.org/simple','--index-strategy','first-index')
-}
+# Sync the complete reviewed graph. Resolving Chatterbox's demo dependencies
+# here would reinstall its Gradio web server and replace Capri's tested pins.
+$capriVoiceSync=@('pip','sync','--no-config','--require-build-hashes','--build-constraints','config/voice-build-requirements.lock.txt','--python',$capriVenvPython,$capriRequirements,'--default-index','https://pypi.org/simple','--index-strategy','first-index')
+if($capriVoiceRuntime.profile -ne 'amd'){$capriVoiceSync+=@('--torch-backend',$capriVoiceRuntime.backend)}
 if($PlanOnly){$capriVoiceSync+='--dry-run'}
 $capriTransportArgs=@('--uv',$capriUv,'--windows-git-trust')
 if($capriVoiceRuntime.profile -ne 'amd' -and -not $capriPrepared){$capriTransportArgs+=@('--pytorch-profile',$capriVoiceRuntime.profile)}

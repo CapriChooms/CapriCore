@@ -1,10 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-only
-/** Release muted TTS on memory-constrained PCs; serialize against a later start.
+/** Release muted or idle TTS and serialize against a later start.
  * All process ownership and termination remain in the injected runtime boundary.
  */
 export class MutedVoiceResidency {
-  constructor({ enabled, needed, resident, cancel, starting, stop }) {
-    Object.assign(this, { enabled, needed, resident, cancel, starting, stop });
+  constructor({
+    enabled,
+    needed,
+    resident,
+    cancel,
+    starting,
+    stop,
+    idleEligible = () => false,
+    idleBusy = () => false,
+    idleMs = 90000,
+    onIdleError = () => {},
+  }) {
+    Object.assign(this, {
+      enabled,
+      needed,
+      resident,
+      cancel,
+      starting,
+      stop,
+      idleEligible,
+      idleBusy,
+      idleMs,
+      onIdleError,
+    });
     this.pending = null;
     this.releases = 0;
     this.lastError = null;
@@ -17,18 +39,31 @@ export class MutedVoiceResidency {
       lastError: this.lastError,
     };
   }
-  release() {
-    if (!this.enabled || this.needed()) return Promise.resolve(false);
+  scheduleIdle() {
+    clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+    if (!this.enabled || !this.idleEligible()) return;
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (!this.idleEligible()) return;
+      if (this.idleBusy()) this.scheduleIdle();
+      else void this.release({ idle: true }).catch(this.onIdleError);
+    }, typeof this.idleMs === 'function' ? this.idleMs() : this.idleMs);
+    this.idleTimer.unref();
+  }
+  release({ idle = false } = {}) {
+    const needed = idle ? this.idleBusy : this.needed;
+    if (!this.enabled || needed() || (idle && !this.idleEligible())) return Promise.resolve(false);
     if (this.pending) return this.pending;
     if (!this.resident()) return Promise.resolve(false);
-    this.cancel();
+    this.cancel({ idle });
     const starting = this.starting();
     const work = Promise.resolve()
       .then(async () => {
         // Startup cancellation may reject; a newly enabled/previewed voice still
         // wins before termination begins. New starts await pending termination.
         await starting?.catch(() => {});
-        if (this.needed()) return false;
+        if (needed()) return false;
         await this.stop();
         this.lastError = null;
         this.releases++;

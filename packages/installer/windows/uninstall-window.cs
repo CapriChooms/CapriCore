@@ -299,6 +299,13 @@ namespace Capri.Setup {
             public long Bytes;
             public readonly List<int> Masks = new List<int>();
         }
+        private sealed class DiskEstimate {
+            public readonly long[] Bytes = new long[8];
+            public int UnavailableGroups;
+            public bool IsAvailable(int selection) {
+                return !Selected(UnavailableGroups, selection);
+            }
+        }
         [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
         private static extern SafeFileHandle CreateFile(string name, uint access, uint share,
             IntPtr security, uint disposition, uint flags, IntPtr template);
@@ -310,7 +317,8 @@ namespace Capri.Setup {
         [DllImport("user32.dll")]
         private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
 
-        private static void Collect(string path, int mask, Dictionary<string, int> files) {
+        private static void Collect(string path, int mask, Dictionary<string, int> files, CancellationToken cancellation) {
+            cancellation.ThrowIfCancellationRequested();
             FileAttributes attributes;
             try { attributes = File.GetAttributes(path); }
             catch (FileNotFoundException) { return; }
@@ -318,7 +326,7 @@ namespace Capri.Setup {
             if ((attributes & FileAttributes.ReparsePoint) != 0) return;
             if ((attributes & FileAttributes.Directory) != 0) {
                 foreach (string child in Directory.EnumerateFileSystemEntries(path))
-                    Collect(child, mask, files);
+                    Collect(child, mask, files, cancellation);
             } else {
                 int previous;
                 files.TryGetValue(path, out previous);
@@ -328,37 +336,59 @@ namespace Capri.Setup {
         private static bool Selected(int flags, int selection) {
             return (flags & selection) != 0 || (selection == 7 && (flags & 8) != 0);
         }
+        private static bool EstimateUnavailable(Exception error) {
+            return error is IOException || error is UnauthorizedAccessException || error is Win32Exception;
+        }
         // Slots 1..7 hold bytes released by each combination. Shared hard links
         // release disk blocks only if every reference is removed.
         public static long[] Measure(string[][] groups) {
+            return Measure(groups, CancellationToken.None, false).Bytes;
+        }
+
+        private static DiskEstimate Measure(string[][] groups, CancellationToken cancellation, bool keepPartial) {
+            var estimate = new DiskEstimate();
             var files = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            for (int i = 0; i < groups.Length; ++i)
-                foreach (string path in groups[i]) Collect(Path.GetFullPath(path), 1 << i, files);
-            var totals = new long[8];
+            for (int i = 0; i < groups.Length; ++i) {
+                int mask = 1 << i;
+                foreach (string path in groups[i]) {
+                    try { Collect(Path.GetFullPath(path), mask, files, cancellation); }
+                    catch (Exception error) {
+                        if (!keepPartial || !EstimateUnavailable(error)) throw;
+                        estimate.UnavailableGroups |= mask;
+                    }
+                }
+            }
+            var totals = estimate.Bytes;
             var shared = new Dictionary<string, SharedFile>(StringComparer.Ordinal);
             foreach (var file in files) {
-                using (SafeFileHandle handle = CreateFile(@"\\?\" + file.Key, 0x80, 7,
-                    IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
-                    StandardInfo info;
-                    if (handle.IsInvalid || !GetFileInformationByHandleEx(handle, 1, out info,
-                        (uint)Marshal.SizeOf(typeof(StandardInfo)))) {
-                        int error = Marshal.GetLastWin32Error();
-                        if (error == 2 || error == 3) continue;
-                        throw new Win32Exception(error, file.Key);
+                cancellation.ThrowIfCancellationRequested();
+                try {
+                    using (SafeFileHandle handle = CreateFile(@"\\?\" + file.Key, 0x80, 7,
+                        IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
+                        StandardInfo info;
+                        if (handle.IsInvalid || !GetFileInformationByHandleEx(handle, 1, out info,
+                            (uint)Marshal.SizeOf(typeof(StandardInfo)))) {
+                            int error = Marshal.GetLastWin32Error();
+                            if (error == 2 || error == 3) continue;
+                            throw new Win32Exception(error, file.Key);
+                        }
+                        if (info.Links <= 1) {
+                            for (int selection = 1; selection < totals.Length; ++selection)
+                                if (Selected(file.Value, selection)) totals[selection] += info.Allocated;
+                            continue;
+                        }
+                        FileId id;
+                        if (!GetFileInformationByHandle(handle, out id))
+                            throw new Win32Exception(Marshal.GetLastWin32Error(), file.Key);
+                        string key = id.Volume + ":" + id.IndexHigh + ":" + id.IndexLow;
+                        SharedFile group;
+                        if (!shared.TryGetValue(key, out group))
+                            shared[key] = group = new SharedFile { Links = info.Links, Bytes = info.Allocated };
+                        group.Masks.Add(file.Value);
                     }
-                    if (info.Links <= 1) {
-                        for (int selection = 1; selection < totals.Length; ++selection)
-                            if (Selected(file.Value, selection)) totals[selection] += info.Allocated;
-                        continue;
-                    }
-                    FileId id;
-                    if (!GetFileInformationByHandle(handle, out id))
-                        throw new Win32Exception(Marshal.GetLastWin32Error(), file.Key);
-                    string key = id.Volume + ":" + id.IndexHigh + ":" + id.IndexLow;
-                    SharedFile group;
-                    if (!shared.TryGetValue(key, out group))
-                        shared[key] = group = new SharedFile { Links = info.Links, Bytes = info.Allocated };
-                    group.Masks.Add(file.Value);
+                } catch (Win32Exception) {
+                    if (!keepPartial) throw;
+                    estimate.UnavailableGroups |= file.Value;
                 }
             }
             foreach (var group in shared.Values)
@@ -366,7 +396,7 @@ namespace Capri.Setup {
                     int count = group.Masks.FindAll(mask => Selected(mask, selection)).Count;
                     if (count == group.Links) totals[selection] += group.Bytes;
                 }
-            return totals;
+            return estimate;
         }
 
         private static MessageBoxOptions ReadingDirection(bool rightToLeft) {
@@ -407,7 +437,8 @@ namespace Capri.Setup {
             };
             using (var portrait = LoadPortrait(portraitPath))
             using (var form = new Form())
-            using (var tooltip = new ToolTip()) {
+            using (var tooltip = new ToolTip())
+            using (var measurement = new CancellationTokenSource()) {
                 const int presetHeight = 360, customHeight = 564;
                 defaults &= 7;
                 form.Name = "capri-uninstall-selection";
@@ -513,7 +544,7 @@ namespace Capri.Setup {
                 Theme.Theme.AttachWindow(form);
                 form.CancelButton = cancel;
                 form.AcceptButton = remove;
-                long[] measured = null;
+                DiskEstimate measured = null;
                 int result = 0;
                 string byteFormat = messages["bytes"];
                 Func<int> selection = () => standard.Checked ? 1 : complete.Checked ? 7 :
@@ -522,10 +553,13 @@ namespace Capri.Setup {
                     int mask = selection();
                     components.Visible = custom.Checked;
                     remove.Text = custom.Checked ? messages["remove"] : text("uninstallAction", "Uninstall Capri");
-                    if (measured == null) return;
                     remove.Enabled = mask != 0;
-                    status.Text = String.Format(messages["selectedSpace"], Size(measured[mask], byteFormat));
-                    tooltip.SetToolTip(status, FormatBytes(measured[mask], byteFormat));
+                    if (measured == null) return;
+                    bool available = measured.IsAvailable(mask);
+                    status.Text = available ? String.Format(messages["selectedSpace"], Size(measured.Bytes[mask], byteFormat))
+                        : messages["measureFailed"];
+                    tooltip.SetToolTip(status, available ? FormatBytes(measured.Bytes[mask], byteFormat) : null);
+                    report.Visible = !available;
                 };
                 Action fitOptions = () => {
                     var workArea = Screen.FromControl(form).WorkingArea;
@@ -545,17 +579,20 @@ namespace Capri.Setup {
                 refresh();
                 form.Shown += async (sender, args) => {
                     fitOptions();
+                    CancellationToken cancellation = measurement.Token;
                     try {
-                        measured = await Task.Run(() => Measure(groups));
-                        if (form.IsDisposed) return;
+                        measured = await Task.Run(() => Measure(groups, cancellation, true), cancellation);
+                        if (cancellation.IsCancellationRequested || form.IsDisposed) return;
                         for (int i = 0; i < sizes.Length; ++i) {
-                            long bytes = measured[1 << i];
-                            sizes[i].Text = Size(bytes, byteFormat);
-                            tooltip.SetToolTip(sizes[i], FormatBytes(bytes, byteFormat));
+                            int mask = 1 << i;
+                            long bytes = measured.Bytes[mask];
+                            bool available = measured.IsAvailable(mask);
+                            sizes[i].Text = available ? Size(bytes, byteFormat) : "—";
+                            tooltip.SetToolTip(sizes[i], available ? FormatBytes(bytes, byteFormat) : messages["measureFailed"]);
                         }
                         refresh();
                     } catch {
-                        if (form.IsDisposed) return;
+                        if (cancellation.IsCancellationRequested || form.IsDisposed) return;
                         status.Text = messages["measureFailed"];
                         report.Visible = true;
                     }
@@ -566,7 +603,7 @@ namespace Capri.Setup {
                 };
                 remove.Click += (sender, args) => {
                     int mask = selection();
-                    if (mask == 0 || measured == null) return;
+                    if (mask == 0) return;
                     string confirmation = mask == 7
                         ? text("confirmCompleteRemoval", "Permanently delete Capri, downloaded models, and personal data?")
                         : messages["confirm"];
@@ -575,7 +612,8 @@ namespace Capri.Setup {
                     result = mask;
                     form.DialogResult = DialogResult.OK;
                 };
-                return form.ShowDialog() == DialogResult.OK ? result : 0;
+                try { return form.ShowDialog() == DialogResult.OK ? result : 0; }
+                finally { measurement.Cancel(); }
             }
         }
     }

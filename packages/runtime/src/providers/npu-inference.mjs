@@ -184,6 +184,8 @@ export class NpuInference {
       });
       this.client.onStop = () => {
         this.loaded = null;
+        this.resident = false;
+        clearTimeout(this.idleTimer);
       };
     }
     return this.client;
@@ -211,7 +213,7 @@ export class NpuInference {
   async ready({ signal } = {}) {
     if (this.loaded) return this.loaded;
     validateNpuModel(this.config);
-    this.loaded = this.worker().request(
+    const loading = this.worker().request(
       'load',
       {
         ...this.config,
@@ -219,16 +221,39 @@ export class NpuInference {
       },
       { signal, timeoutMs: 300000 },
     );
+    this.loaded = loading;
     try {
-      return await this.loaded;
+      const value = await loading;
+      if (this.loaded === loading) this.resident = true;
+      return value;
     } catch (error) {
-      this.loaded = null;
+      if (this.loaded === loading) this.loaded = null;
       throw error;
+    } finally {
+      this.scheduleIdle();
     }
   }
+  setIdleUnload(enabled, seconds = 300) {
+    this.unloadIdle = enabled;
+    this.idleSeconds = seconds;
+    this.scheduleIdle();
+  }
+  scheduleIdle() {
+    clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+    if (!this.unloadIdle || !this.loaded) return;
+    this.idleTimer = setTimeout(() => {
+      if (this.client?.pending) this.scheduleIdle();
+      else this.stop();
+    }, this.idleSeconds * 1000);
+    this.idleTimer.unref();
+  }
   stop() {
+    clearTimeout(this.idleTimer);
+    this.idleTimer = null;
     this.client?.stop();
     this.client = this.loaded = null;
+    this.resident = false;
   }
   async fetch(url, options = {}) {
     const signal = options.signal;
@@ -277,7 +302,8 @@ export class NpuInference {
             .catch((error) => {
               this.loaded = null;
               controller.error(error);
-            });
+            })
+            .finally(() => this.scheduleIdle());
         },
         cancel: () => cancellation.abort(),
       });
@@ -286,16 +312,18 @@ export class NpuInference {
       });
     }
     let content = '';
-    await this.worker().request(
-      'generate',
-      { messages, maxTokens: maximum },
-      {
-        signal,
-        delta: (text) => {
-          content += text;
+    await this.worker()
+      .request(
+        'generate',
+        { messages, maxTokens: maximum },
+        {
+          signal,
+          delta: (text) => {
+            content += text;
+          },
         },
-      },
-    );
+      )
+      .finally(() => this.scheduleIdle());
     return Response.json(
       openai
         ? { choices: [{ message: { role: 'assistant', content }, finish_reason: 'stop' }] }

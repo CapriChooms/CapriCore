@@ -5,6 +5,7 @@ import { root } from '../host/paths.mjs';
 import { settings } from '../config/settings.mjs';
 import { runtime } from '../context.mjs';
 import { request } from '../http.mjs';
+import { llamaAdminHeaders } from './llama-admin.mjs';
 import { generationParams } from '../config/inference.mjs';
 
 function manifestFile(name) {
@@ -125,7 +126,7 @@ export async function ensureNativeLanguageModel(
       method: 'POST',
       timeout: 120000,
       signal,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...llamaAdminHeaders(rt.ollamaUrl) },
       body: JSON.stringify({ model: config.model, stream: false, ...definition }),
     });
     if (result?.error) throw new Error(result.error);

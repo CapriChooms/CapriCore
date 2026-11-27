@@ -3,6 +3,7 @@ import { isRecord } from '../../../skill-sdk/src/index.mjs';
 import { enabledSetting, turnModeCommands, withTurnMode } from '../turn-mode.mjs';
 import { formatWebSearchContext } from './context.mjs';
 import { webSources, publicWebSourceUrl } from './sources.mjs';
+import { searchQuery } from './query.mjs';
 
 export const WEB_SEARCH_SKILL_ID = 'capri.web-search';
 
@@ -14,7 +15,7 @@ export async function prepareInternetSearch({ query, language, signal, search, e
   emit({ phase: 'searching' });
   let result;
   try {
-    result = await search(query, { signal, language });
+    result = await search(searchQuery(query), { signal, language });
   } catch {
     signal.throwIfAborted();
     result = { status: 'unavailable', reason: 'unavailable', sources: [] };
@@ -34,9 +35,18 @@ export async function prepareInternetSearch({ query, language, signal, search, e
         .filter((value) => value && typeof value.url === 'string')
         .map((value) => [publicWebSourceUrl(value.url), value.snippet]),
     );
+    const pages = new Set(
+      result.sources
+        .filter((value) => value?.page === true)
+        .map((value) => publicWebSourceUrl(value.url)),
+    );
     result = {
       ...result,
-      sources: sources.map((value) => ({ ...value, snippet: snippets.get(value.url) ?? '' })),
+      sources: sources.map((value) => ({
+        ...value,
+        snippet: snippets.get(value.url) ?? '',
+        ...(pages.has(value.url) ? { page: true } : {}),
+      })),
       ...(!sources.length ? { status: 'empty' } : {}),
     };
   }

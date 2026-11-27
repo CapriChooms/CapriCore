@@ -1,5 +1,6 @@
 import { readFileSync, existsSync, lstatSync } from 'node:fs';
 import path from 'node:path';
+import { availableParallelism } from 'node:os';
 import {
   root,
   launch,
@@ -9,7 +10,7 @@ import {
 } from '../../packages/runtime/src/index.mjs';
 import { LANGUAGE_PACKS } from '../../apps/desktop/renderer/language-settings.mjs';
 import { waitForVoiceReady } from './readiness.mjs';
-import { voiceStartupError, voiceStartupFailure } from './startup-error.mjs';
+import { voiceStartupError } from './startup-error.mjs';
 import {
   selectedVoiceModel,
   voiceRuntime,
@@ -19,10 +20,9 @@ import { speechModelsInstalled } from '../../apps/desktop/language-models.mjs';
 import { readVoiceSettings } from '../../packages/runtime/src/voice-settings.mjs';
 import { requiresPrivacyRestart } from '../../packages/runtime/src/host/processes.mjs';
 import { voiceDeviceLaunch } from '../../packages/runtime/src/hardware/model-devices.mjs';
-import {
-  readModelDevices,
-  voiceDevicePreference,
-} from '../../packages/runtime/src/model-device-settings.mjs';
+import { readModelDevices } from '../../packages/runtime/src/model-device-settings.mjs';
+import { settings } from '../../packages/runtime/src/config/settings.mjs';
+import { voiceWorkerEnvironment } from './environment.mjs';
 
 export function companionVoiceSettings() {
   const value = readVoiceSettings(root);
@@ -61,13 +61,17 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
   if (!profile.startsWith(root + path.sep))
     throw new Error('Voice profile must stay in this project.');
   const expected = JSON.parse(readFileSync(path.join(profile, 'voice-profile.json'), 'utf8'));
-  const deviceKey = voiceDevicePreference(readModelDevices(root).voice, selected.backend);
+  const deviceKey = readModelDevices(root).voice;
   const { python, env: runtimeEnv } = voiceRuntime(root, selected, deviceKey);
   if (!existsSync(python))
     throw new Error('Install the voice environment with setup-voice-training.cmd.');
   const marker = managedProcess('companion-voice');
-  if (marker && (marker.deviceKey ?? 'auto') !== deviceKey) await stopManaged('companion-voice');
-  if (requiresPrivacyRestart(managedProcess('companion-voice')))
+  if (
+    marker &&
+    ((marker.deviceKey ?? 'auto') !== deviceKey ||
+      requiresPrivacyRestart(marker) ||
+      marker.isolatedEnvironment !== true)
+  )
     await stopManaged('companion-voice');
   const health = async () =>
     request(`${companionVoiceUrl()}/health`, {
@@ -79,18 +83,14 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
     // Another Capri installation may already own this port. Do not load a second
     // CUDA model just to discover that binding the HTTP socket will fail.
     if (/^HTTP (?:401|403) from /.test(error.message))
-      throw voiceStartupFailure(
-        'CAPRI_VOICE_START_PORT_AUTH',
+      throw new Error(
         'Voice port belongs to another installation. Close its voice service before starting this one.',
       );
     return null;
   });
   signal?.throwIfAborted();
   if (current && !managedProcess('companion-voice'))
-    throw voiceStartupFailure(
-      'CAPRI_VOICE_START_PORT_OWNER',
-      'Voice port belongs to an unmanaged process.',
-    );
+    throw new Error('Voice port belongs to an unmanaged process.');
   if (
     current &&
     (current.protocolVersion !== 2 ||
@@ -119,7 +119,16 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
         ...(modelId ? ['--validate-turbo'] : []),
       ],
       undefined,
-      { env: { ...runtimeEnv, ...device.env }, deviceKey: device.key },
+      {
+        cleanEnv: true,
+        env: {
+          ...voiceWorkerEnvironment(),
+          ...runtimeEnv,
+          ...device.env,
+          CAPRI_CPU_THREADS: String(Math.max(1, Math.min(settings.cpuThreads ?? 8, availableParallelism()))),
+        },
+        deviceKey: device.key,
+      },
     );
   }
   const result = await waitForVoiceReady({
@@ -151,8 +160,7 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
     result.adapterSha256 !== expected.adapterSha256 ||
     result.activeEngine !== expectedEngine
   )
-    throw voiceStartupFailure(
-      'CAPRI_VOICE_START_PROFILE_MISMATCH',
+    throw new Error(
       'Running voice service does not match the selected profile. Restart Capri with stop.cmd.',
     );
   return result;

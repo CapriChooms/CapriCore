@@ -3,6 +3,7 @@ import {
   validateInitiative,
   quietHour,
   initiativeLimit,
+  initiativeAppExcluded,
 } from './initiative-settings.mjs';
 const MEDIA_APPS = new Set(['vlc', 'mpv', 'spotify', 'wmplayer', 'mediaplayer']);
 const DISMISSIBLE = new Set(['return', 'media-app', 'screen']);
@@ -143,12 +144,12 @@ export class InitiativePolicy {
       follow?.windowId && follow.windowId === this.foreground?.windowId,
     );
     for (const [blocked, reason] of [
-      [s.level === 'off', 'disabled'],
+      [!candidate?.preview && (s.level === 'off' || state.disabled), 'disabled'],
       [!candidate, 'no_candidate'],
       [candidate?.expiresAt <= now, 'expired'],
       [this.locked, 'locked'],
       [this.suspended, 'suspended'],
-      [this.idle, 'user_away'],
+      [this.idle && !candidate?.preview, 'user_away'],
       [state.quiet, 'settings_open'],
       [state.busy, 'model_busy'],
       [state.speaking, 'speaking'],
@@ -159,7 +160,7 @@ export class InitiativePolicy {
       [quietHour(s, this.hour()), 'quiet_hours'],
       [this.dismissed.has(candidate?.category), 'dismissed'],
       [this.foreground?.fullscreen && !(s.watchTogether && sharedForeground), 'fullscreen'],
-      [this.foreground && s.excludedApps.includes(this.foreground.processName), 'excluded_app'],
+      [initiativeAppExcluded(s, this.foreground?.processName), 'excluded_app'],
     ])
       if (blocked) return reason;
     if (candidate.category === 'media-app' && candidate.event.id !== this.foreground?.id)
@@ -169,6 +170,7 @@ export class InitiativePolicy {
       (!state.screenCurrent || (follow ? !s.watchTogether || !sharedForeground : !s.screenComments))
     )
       return 'stale_event';
+    if (candidate.preview) return 'ready';
     const cooldown = 3600000 / initiativeLimit(s);
     this.recent = this.recent.filter((t) => t > now - 3600000);
     if (now - this.lastSpoken < cooldown) return 'cooldown';

@@ -101,10 +101,19 @@ try {
   const remove = page.locator('#chess-remove');
   const installed = page.locator('#chess-engine-status').filter({ hasText: '· Installed' });
   assert.equal(await remove.isHidden(), true);
-  await download.click();
+  await page.locator('#chess-input').fill('1. e4 e5 2. Nf3');
+  await page.locator('#chess-import').click();
+  await page.waitForFunction(() => document.querySelectorAll('#chess-board button').length === 64);
+  const downloadByBoard = page.locator('#chess-download-analysis');
+  assert.equal(await page.locator('#chess-analyse').isEnabled(), false);
+  assert.equal(await page.locator('#chess-deep').isEnabled(), false);
+  assert.equal(await downloadByBoard.isVisible(), true);
+  await downloadByBoard.click();
   await installed.waitFor({ timeout: 120000 });
   assert.equal(await download.isHidden(), true);
   assert.equal(await remove.isVisible(), true);
+  assert.equal(await downloadByBoard.isHidden(), true);
+  assert.equal(await page.locator('#chess-deep').isEnabled(), true);
   const executable = path.join(stage, 'chess', `stockfish-${STOCKFISH_VERSION}.exe`);
   const receipt = `${executable}.json`;
   const installedAt = statSync(receipt).mtimeMs;
@@ -119,9 +128,6 @@ try {
   assert.equal(await remove.isVisible(), true);
   assert.equal(await download.isHidden(), true);
   console.log('PASS Stockfish download, installed state, reopening and duplicate install');
-  await page.locator('#chess-input').fill('1. e4 e5 2. Nf3');
-  await page.locator('#chess-import').click();
-  await page.waitForFunction(() => document.querySelectorAll('#chess-board button').length === 64);
   await page.locator('#chess-analyse').click();
   await page.locator('#chess-result:not([hidden]):not([data-provisional])').waitFor();
   assert.match(await page.locator('#chess-result').textContent(), /d\d+/);
@@ -172,13 +178,22 @@ try {
       .waitFor({ state: 'attached' });
     assert.equal(await page.locator('#chess-board-arrow').getAttribute('hidden'), '');
     assert.equal(await page.locator('#chess-watch').count(), 0);
-    assert.ok(app.windows().every((window) => !window.url().endsWith('/chess-overlay.html')));
-    console.log('PASS Selected-window recognition and no arrow over an unsupported source');
+    const visibleOverlay = await app.evaluate(async ({ BrowserWindow }) => {
+      const overlay = BrowserWindow.getAllWindows().find(
+        (window) =>
+          window.isVisible() && window.webContents.getURL().endsWith('/chess-overlay.html'),
+      );
+      return overlay?.webContents.executeJavaScript(
+        "['#board-frame', '#arrow'].map(selector => !document.querySelector(selector).hidden)",
+      );
+    });
+    assert.deepEqual(visibleOverlay, [true, true]);
+    console.log('PASS Selected-window recognition, frame and arrow without a browser site');
     const previousTurn = await page.locator('#chess-turn').inputValue();
     await autoMove.check();
     await page.waitForFunction(() => !document.getElementById('chess-auto-move').disabled);
     const outline = page.locator('#chess-board-frame');
-    await outline.check();
+    assert.equal(await outline.isChecked(), true);
     await page.waitForFunction(() => !document.getElementById('chess-board-frame').disabled);
     assert.equal(
       await page.evaluate(async () => (await window.capri.chess('status')).boardFrame),
@@ -203,6 +218,8 @@ try {
   );
   assert.equal(await download.isVisible(), true, await page.locator('#chess-status').textContent());
   assert.equal(await download.isEnabled(), true);
+  assert.equal(await downloadByBoard.isVisible(), true);
+  assert.equal(await page.locator('#chess-analyse').isEnabled(), false);
   assert.equal(await remove.isHidden(), true);
   assert.equal(await installed.count(), 0);
   assert.equal(existsSync(executable), false);

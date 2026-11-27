@@ -54,19 +54,19 @@ test('casual dialogue and personal-memory questions keep their narrow scopes wit
   assert(prompt.length < unclassified.body.messages[0].content.length * 0.6);
   assert.equal(unclassified.headers['x-capri-tools-once'], undefined);
   assert(unclassified.body.messages[0].content.includes('filesystem_control'));
-  const memory = await capture('What did I tell you yesterday?', {
-    computerIntent: async () => ({ intent: 'memory', usesPrevious: true }),
+  const memory = await capture('What is my favourite game?', {
+    interfaceState: () => ({ activeSkills: new Set(['capri.owner-memory']) }),
   });
   assert.equal(memory.headers['x-capri-tools-once'], 'conversation');
   assert(memory.body.messages[0].content.includes('Only memory tools'));
   assert(!memory.body.messages[0].content.includes('filesystem_control trash'));
 });
 
-test('unclassified questions cannot reach action tools when no action skill is available', async () => {
+test('factual questions stay out of action scopes even when an unrelated skill is available', async () => {
   for (const [skills, expected] of [
     [['capri.avatar-interaction', 'capri.attachment-viewer'], 'dialogue'],
     [['capri.owner-memory'], 'conversation'],
-    [['capri.timers'], undefined],
+    [['capri.timers'], 'conversation'],
   ]) {
     const result = await capture('What is the capital of Slovakia?', {
       interfaceState: () => ({ activeSkills: new Set(skills) }),

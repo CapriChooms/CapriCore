@@ -211,11 +211,61 @@ class RecognitionSession:
 
 class RecognitionQueue:
     """One CPU decode at a time; finals supersede pending wake probes."""
-    def __init__(self, recognizer, emit):
+    def __init__(self, recognizer, emit, *, reload_recognizer=None, idle_seconds=45):
         self.recognizer, self.emit = recognizer, emit
+        self.reload_recognizer = reload_recognizer
+        self.idle_seconds = idle_seconds
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='capri-asr')
         self.lock = threading.RLock()
+        self.model_lock = threading.Lock()
         self.futures = {}
+        self.closed = False
+        self.idle_timer = None
+        self.schedule_idle()
+
+    def cancel_idle(self):
+        if self.idle_timer is not None:
+            self.idle_timer.cancel()
+            self.idle_timer = None
+
+    def schedule_idle(self):
+        # Called under the queue lock, or before the queue is exposed to the worker.
+        if self.closed or self.futures or self.recognizer is None or not self.reload_recognizer or self.idle_seconds <= 0:
+            return
+        self.cancel_idle()
+
+        def release():
+            with self.lock:
+                if self.idle_timer is timer and not self.futures and not self.closed:
+                    self.idle_timer = None
+                    self.recognizer = None
+
+        timer = self.idle_timer = threading.Timer(self.idle_seconds, release)
+        timer.daemon = True
+        timer.start()
+
+    def set_idle_unload(self, enabled, seconds=45):
+        if type(seconds) is not int or not 1 <= seconds <= 3600:
+            raise ValueError('Invalid idle timeout')
+        with self.lock:
+            self.idle_seconds = seconds if enabled else 0
+            self.cancel_idle()
+            self.schedule_idle()
+
+    def get_recognizer(self):
+        with self.model_lock:
+            if self.recognizer is None:
+                self.recognizer = self.reload_recognizer()
+            return self.recognizer
+
+    def warm(self):
+        with self.lock:
+            self.cancel_idle()
+        try:
+            self.get_recognizer()
+        finally:
+            with self.lock:
+                self.schedule_idle()
 
     def submit(self, session, job):
         kind = job[0]
@@ -227,7 +277,10 @@ class RecognitionQueue:
                 audio = job[3]
                 addressed = session.attention
             started = time.perf_counter()
-            result = self.recognizer.recognize(audio, wake=kind == 'wake', addressed=addressed) if len(audio) else {'text': ''}
+            if len(audio):
+                result = self.get_recognizer().recognize(audio, wake=kind == 'wake', addressed=addressed)
+            else:
+                result = {'text': ''}
             session.deliver(job, result, (time.perf_counter() - started) * 1000)
 
         with self.lock:
@@ -240,12 +293,14 @@ class RecognitionQueue:
                     self.futures.pop(future, None)
             if len(self.futures) >= 2:
                 raise ValueError('Recognition queue is full')
+            self.cancel_idle()
             future = self.executor.submit(decode)
             self.futures[future] = session
 
         def completed(done):
             with self.lock:
                 self.futures.pop(done, None)
+                self.schedule_idle()
             if done.cancelled():
                 return
             try:
@@ -268,6 +323,8 @@ class RecognitionQueue:
 
     def close(self):
         with self.lock:
+            self.closed = True
+            self.cancel_idle()
             sessions = list(self.futures.values())
         for session in sessions:
             self.stop(session)

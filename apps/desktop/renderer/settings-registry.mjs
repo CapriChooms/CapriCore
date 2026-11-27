@@ -36,6 +36,7 @@ export const SETTINGS_GROUPS = Object.freeze([
       ['audio', 'Audio', 'audio-routing-panel'],
       ['personality', 'Conversation and personality', 'companion-settings'],
       ['appearance', 'Appearance and animations', 'companion-settings'],
+      ['avatar-gallery', 'Avatar gallery', 'avatar-gallery-panel'],
       ['window', 'Window', 'companion-settings'],
       ['models', 'Language model', 'models-panel'],
       ['api', 'API connections', 'inference-panel'],

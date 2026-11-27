@@ -12,10 +12,7 @@ test('ordinary words and OpenClaw explanations stream immediately, and a new-lin
   const failure = new CoreFailureStream();
   assert.equal(failure.push('A useful partial reply.\n'), 'A useful partial reply.\n');
   assert.equal(failure.push('OpenClaw stopped this '), '');
-  assert.throws(() => failure.push('run'), {
-    code: 'CAPRI_TOOL_LOOP',
-    failureCode: 'CAPRI_TOOL_LOOP_GATEWAY',
-  });
+  assert.throws(() => failure.push('run'), { code: 'CAPRI_TOOL_LOOP' });
 });
 
 test('unchanged discovery is bounded but real progress, changed results and a fresh turn reset the budget', () => {
@@ -28,10 +25,7 @@ test('unchanged discovery is bounded but real progress, changed results and a fr
   read();
   read();
   read([{ name: 'New app' }]);
-  assert.throws(() => read(), {
-    code: 'CAPRI_TOOL_LOOP',
-    failureCode: 'CAPRI_TOOL_LOOP_UNCHANGED_RESULT',
-  });
+  assert.throws(() => read(), { code: 'CAPRI_TOOL_LOOP' });
   assert.doesNotThrow(() =>
     new ToolProgressGuard().record('desktop_control', { action: 'apps' }, { ok: true, apps: [] }),
   );

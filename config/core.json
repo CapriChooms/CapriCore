@@ -14,9 +14,9 @@
   },
   "embeddingModel": "capri-embed:latest",
   "contextTokens": 32768,
-  "keepAlive": 300,
+  "keepAlive": -1,
   "preloadModels": false,
-  "nodeVersion": "24.22.1",
+  "nodeVersion": "24.22.3",
   "llamaVersion": "b12317",
-  "openclawVersion": "2026.10.6"
+  "openclawVersion": "2026.10.33"
 }

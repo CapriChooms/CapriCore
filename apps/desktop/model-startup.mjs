@@ -39,9 +39,9 @@ export function consumeFirstLaunchPreload(state) {
   try {
     choice = JSON.parse(readFileSync(file, 'utf8'));
   } catch {
-    return true;
+    return false;
   }
-  if (choice?.schemaVersion !== 1 || typeof choice.preloadModels !== 'boolean') return true;
+  if (choice?.schemaVersion !== 1 || typeof choice.preloadModels !== 'boolean') return false;
   try {
     unlinkSync(file);
   } catch (error) {

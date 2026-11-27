@@ -5,7 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { createDesktopResources } from '../../apps/desktop/main/resources.mjs';
 
-const runtimeConfiguration = new Set(['config/memory-estimates.json', 'config/llama-models.json']);
+const runtimeConfiguration = new Set([
+  'config/memory-estimates.json',
+  'config/llama-models.json',
+  'config/voice-runtime.json',
+]);
 
 export function checkDependencies() {
   const resources = createDesktopResources({

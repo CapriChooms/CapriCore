@@ -126,6 +126,54 @@ function watching(t, api = {}) {
   return { watch, run, errors, calls, tick, stopped: () => tracksStopped };
 }
 
+test('starting observation requests frames without a hard frame-rate ceiling', async (t) => {
+  const video = { pause() {}, async play() {}, videoWidth: 640, videoHeight: 480 };
+  const track = { stop() {}, addEventListener() {} };
+  const stream = {
+    getAudioTracks: () => [],
+    getVideoTracks: () => [track],
+    getTracks: () => [track],
+  };
+  const priorDocument = globalThis.document;
+  const priorDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+  globalThis.document = { createElement: () => ({}) };
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: {
+      async getDisplayMedia({ audio, video: constraints }) {
+        assert.equal(audio, false);
+        if (typeof constraints.frameRate === 'object' && 'max' in constraints.frameRate)
+          throw new DOMException('Capture device could not start', 'NotReadableError');
+        assert.equal(constraints.frameRate, 5);
+        return stream;
+      },
+    },
+  });
+  t.after(() => {
+    globalThis.document = priorDocument;
+    if (priorDevices) Object.defineProperty(navigator, 'mediaDevices', priorDevices);
+    else delete navigator.mediaDevices;
+  });
+  const errors = [];
+  const watch = new ScreenWatch({
+    api: {
+      prepareScreenWatch: async () => ({ id: 'selected-window' }),
+      stopScreenWatch: async () => {},
+      releaseScreen: async () => {},
+    },
+    video,
+    onChange() {},
+    onError: (message) => errors.push(message),
+  });
+  watch.tick = async () => {};
+  t.after(() => watch.stop());
+  await watch.start({ sourceId: 'source' });
+  assert.deepEqual(errors, []);
+  assert.equal(watch.run?.id, 'selected-window');
+  assert.equal(watch.run?.ready, true);
+  assert.equal(video.srcObject, stream);
+});
+
 test('a transient screen frame or IPC failure retries the same grant without stopping observation', async (t) => {
   const f = watching(t);
   f.watch.image = async () => {

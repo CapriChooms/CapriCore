@@ -1,5 +1,5 @@
 /** Conservative planning estimates, not promises of measured latency or GPU support. */
-import { profileRamRequirement } from './memory-budget.mjs';
+import { fitsAvailableModelRam, profileRamRequirement } from './memory-budget.mjs';
 import { PROFILE_CPU_DEFAULTS } from './cpu-execution.mjs';
 export const PROFILES = Object.freeze([
   {
@@ -75,12 +75,15 @@ export function recommendProfile(hardware) {
       .filter((gpu) => gpu.memoryKind === 'dedicated' && Number.isFinite(gpu.vramMiB))
       .map((gpu) => gpu.vramMiB / 1024),
   );
+  const fits = (profile) =>
+    meetsProfileRam(ram, profileRamRequirement(profile, hardware)) &&
+    fitsAvailableModelRam(profile, hardware);
   const id =
-    meetsProfileRam(ram, profileRamRequirement(PROFILES[3], hardware)) && vram >= 12 - 0.125
+    fits(PROFILES[3]) && vram >= 12 - 0.125
       ? 'quality'
-      : meetsProfileRam(ram, profileRamRequirement(PROFILES[2], hardware)) && vram >= 8 - 0.125
+      : fits(PROFILES[2]) && vram >= 8 - 0.125
         ? 'desktop'
-        : meetsProfileRam(ram, profileRamRequirement(PROFILES[1], hardware))
+        : fits(PROFILES[1])
           ? 'balanced'
           : 'minimal';
   const profile = PROFILES.find((item) => item.id === id);

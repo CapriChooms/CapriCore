@@ -451,7 +451,7 @@ test('reaction inference sends only a bounded, tool-free click cue and safe outp
   assert.equal(body.options.num_ctx, 4096);
   assert.equal(body.shift, false);
   assert.equal(body.truncate, false);
-  assert.equal(body.keep_alive, -1);
+  assert.equal(body.keep_alive, undefined);
   assert.deepEqual(body.tools, []);
   assert.equal(body.messages.length, 2);
   assert.match(body.messages[0].content, /would like some space/);

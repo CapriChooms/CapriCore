@@ -149,7 +149,7 @@ test('plain dialogue has no tools; personal recall keeps memory and never broade
   const manifest = JSON.parse(
     readFileSync(new URL('../integrations/openclaw-compat/patches.json', import.meta.url), 'utf8'),
   );
-  const patch = manifest.patches.find((p) => p.file.includes('openai-tool-choice-'));
+  const patch = manifest.patches.find((p) => p.file.includes('openai-compatible-input-limits-'));
   let source = patch.edits[0].after;
   for (const edit of patch.edits.slice(1))
     if (source.includes(edit.before)) source = source.replace(edit.before, edit.after);

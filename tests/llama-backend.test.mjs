@@ -174,6 +174,31 @@ test('an Ollama v2 Capri model alias reuses local GGUF files after switching eng
   assert.throws(() => store.get(alias), { code: 'CAPRI_LOCAL_LANGUAGE_MODEL_MISSING' });
 });
 
+test('local model administration requires its own credential and leaves inventory available', async (t) => {
+  const token = 'a'.repeat(64);
+  const unloaded = [];
+  const url = await listen(t, createLlamaBridge({
+    adminToken: token,
+    version: 'test',
+    store: { list: () => [], pendingImports: new Map() },
+    workers: { unload: (model) => unloaded.push(model) },
+  }));
+  assert.equal((await fetch(url + '/api/tags')).status, 200);
+  for (const [route, method] of [['pull', 'POST'], ['create', 'POST'], ['delete', 'DELETE']]) {
+    const response = await fetch(url + '/api/' + route, { method, body: '{}' });
+    assert.equal(response.status, 401);
+  }
+  const unload = (authorization) => fetch(url + '/api/generate', {
+    method: 'POST',
+    headers: { authorization },
+    body: JSON.stringify({ model: 'fixture', keep_alive: 0 }),
+  });
+  assert.equal((await unload('Bearer ' + 'b'.repeat(64))).status, 401);
+  assert.deepEqual(unloaded, []);
+  assert.equal((await unload('Bearer ' + token)).status, 200);
+  assert.deepEqual(unloaded, ['fixture']);
+});
+
 test('model preparation distinguishes missing weights, an unavailable GPU, and a native GPU load failure', async (t) => {
   let missing = true;
   const model = { name: 'local:latest', files: [{ file: 'fixture' }] };
@@ -253,6 +278,35 @@ test('stalled Vulkan startup allows Automatic to reach CPU and preserves an expl
   assert.deepEqual(attempts, ['auto', 'stop', 'cpu', 'Vulkan1', 'stop']);
 });
 
+test('a native access violation during CPU startup tries the baseline runtime once', async (t) => {
+  const attempts = [];
+  const workers = new LlamaWorkers({
+    root: tmpdir(),
+    config: { contextTokens: 4096, keepAlive: 0, acceleration: 'cpu' },
+    canRetryIllegalInstruction: true,
+    start: (_role, _args, _env, { baseline }) => {
+      attempts.push(baseline);
+      return {
+        alive: () => false,
+        exitCode: () => (baseline ? -1073741819 : 3221225477),
+        stop: async () => {},
+      };
+    },
+  });
+  t.after(() => workers.close());
+  await assert.rejects(
+    workers.use(
+      { name: 'local:latest', files: [{ file: 'fixture' }] },
+      'chat',
+      {},
+      AbortSignal.timeout(5000),
+      () => assert.fail('Worker never became ready'),
+    ),
+    { code: 'CAPRI_LLAMA_ACCESS_VIOLATION' },
+  );
+  assert.deepEqual(attempts, [false, true]);
+});
+
 test('a larger resident context is reused without a synthetic warmup request', async () => {
   const model = 'local:latest';
   const result = await ensureLanguageModelReady(
@@ -306,6 +360,56 @@ test('a rejected GPU request leaves the resident CPU runner eligible for idle un
   );
   await workers.enqueue('chat', () => {});
   assert.equal(workers.list().length, 0);
+});
+
+test('auxiliary chat inherits its configured lifetime while embedding defaults expire sooner', async (t) => {
+  const workers = new LlamaWorkers({ root: tmpdir(), config: { keepAlive: 300 } });
+  t.after(() => workers.close());
+  assert.equal(workers.keepAlive(undefined, 'chat'), 300);
+  assert.equal(workers.keepAlive(undefined, 'embedding'), 90);
+  assert.equal(workers.keepAlive('2m', 'embedding'), 120);
+  assert.equal(workers.keepAlive(0, 'embedding'), 0);
+  assert.equal(workers.keepAlive(-1, 'embedding'), -1);
+  workers.config.keepAlive = -1;
+  assert.equal(workers.keepAlive(undefined, 'chat'), -1);
+  assert.equal(workers.keepAlive(undefined, 'embedding'), 90);
+  workers.config.keepAlive = 0;
+  assert.equal(workers.keepAlive(undefined, 'embedding'), 0);
+});
+
+test('idle policy defaults to retaining models and can rearm or cancel resident defaults', async (t) => {
+  let unloadIdle = false;
+  let idleMinutes = 5;
+  const workers = new LlamaWorkers({
+    root: tmpdir(),
+    config: { contextTokens: 4096 },
+    idlePolicy: () => ({ unloadIdle, idleMinutes }),
+  });
+  t.after(() => workers.close());
+  const model = { name: 'fixture:latest' };
+  workers.openCompatible = async (_model, _role, options) => ({
+    ...options,
+    model,
+    process: { alive: () => true, stop: async () => {} },
+    dispose() {},
+  });
+  await workers.use(model, 'chat', {}, AbortSignal.timeout(5000), () => {});
+  assert.equal(workers.slots.chat.timer, undefined);
+  assert.equal(workers.keepAlive(undefined, 'embedding'), -1);
+  unloadIdle = true;
+  await workers.refreshIdlePolicy();
+  assert.ok(workers.slots.chat.timer);
+  assert.equal(workers.keepAlive(undefined, 'chat'), 300);
+  assert.equal(workers.keepAlive(undefined, 'embedding'), 300);
+  idleMinutes = 12;
+  await workers.refreshIdlePolicy();
+  assert.equal(workers.keepAlive(undefined, 'chat'), 720);
+  assert.equal(workers.keepAlive(undefined, 'embedding'), 720);
+  assert.equal(workers.keepAlive(0, 'chat'), 0);
+  unloadIdle = false;
+  await workers.refreshIdlePolicy();
+  assert.equal(workers.slots.chat.timer, undefined);
+  assert.equal(workers.list().length, 1);
 });
 
 test(

@@ -191,12 +191,7 @@ export function callApplicationBridge(
         finish(new Error('Application diagnostic exceeds limit'));
         return;
       }
-      if (
-        !settled &&
-        !movePressed &&
-        cancellableChessMove &&
-        /^chess_move_pressed\r?\n/m.test(errorOutput)
-      ) {
+      if (!settled && !movePressed && cancellableChessMove && /^chess_move_pressed\r?\n/m.test(errorOutput)) {
         movePressed = true;
         onMovePressed?.();
       }

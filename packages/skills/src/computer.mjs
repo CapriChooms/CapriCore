@@ -10,9 +10,7 @@ const taskResult = (value) =>
 const taskInput = (value) =>
   isRecord(value) &&
   Object.keys(value).every((key) =>
-    ['goal', 'previousTask', 'ownerRequestedCall', 'planningEffort', 'applicationHint'].includes(
-      key,
-    ),
+    ['goal', 'previousTask', 'ownerRequestedCall', 'planningEffort'].includes(key),
   ) &&
   typeof value.goal === 'string' &&
   value.goal.trim().length > 0 &&
@@ -20,8 +18,6 @@ const taskInput = (value) =>
   !value.goal.includes('\0') &&
   (value.previousTask === undefined || isRecord(value.previousTask)) &&
   (value.ownerRequestedCall === undefined || boolean(value.ownerRequestedCall)) &&
-  (value.applicationHint === undefined ||
-    (typeof value.applicationHint === 'string' && value.applicationHint.length <= 80)) &&
   (value.planningEffort === undefined ||
     (typeof value.planningEffort === 'string' &&
       Object.hasOwn(REASONING_BUDGETS, value.planningEffort)));
@@ -40,8 +36,8 @@ export const computerSkill = {
         sources: ['host', 'companion', 'settings'],
       },
       setAccess: { input: boolean, output: accessState, sources: ['companion', 'settings'] },
-      requestAccess: { input: boolean, output: accessState, sources: ['chat', 'tool'] },
-      run: { input: taskInput, output: taskResult, sources: ['chat', 'tool'] },
+      requestAccess: { input: boolean, output: accessState, sources: ['tool'] },
+      run: { input: taskInput, output: taskResult, sources: ['tool'] },
       status: { input: noInput, output: taskState, sources: ['host', 'companion', 'settings'] },
       diagnostics: { input: noInput, output: taskState, sources: ['host'] },
     },
@@ -51,23 +47,18 @@ export const computerSkill = {
       accessStatus: () => ({ ...access.snapshot(), paused: !isApplicationAccessEnabled() }),
       setAccess: (enabled, signal) => access.configure(enabled, { signal }),
       requestAccess: (enabled, signal) => requests.configure(enabled, { signal }),
-      run: (
-        { goal, previousTask, ownerRequestedCall, planningEffort, applicationHint },
-        signal,
-        source,
-      ) =>
+      run: ({ goal, previousTask, ownerRequestedCall, planningEffort }, signal) =>
         requests.execute(goal, {
           signal,
           previousTask,
           ownerRequestedCall,
-          ...(source === 'chat' && planningEffort && { planningEffort }),
-          ...(source === 'chat' && applicationHint && { applicationHint }),
+          planningEffort,
         }),
       status: () => agent.snapshot(),
       diagnostics: () => agent.diagnostics(),
     };
     return {
-      invoke: (command, input, { signal, source }) => commands[command](input, signal, source),
+      invoke: (command, input, { signal }) => commands[command](input, signal),
     };
   },
 };

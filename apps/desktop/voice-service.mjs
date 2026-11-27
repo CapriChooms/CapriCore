@@ -17,6 +17,7 @@ const VOICE_SPEECH_LIMIT = 'CAPRI_VOICE_SPEECH_LIMIT';
 const VOICE_LANGUAGE_WARNING =
   'The English voice cannot read this response language. Text replies remain available.';
 const VOICE_START_WARNING = 'Capri’s voice could not start. Text replies are still available.';
+const VOICE_START_WAIT_MS = 30000;
 const MAX_VOICE_SEGMENTS = 100;
 const MAX_SPLIT_SPEECH_LENGTH = 480;
 const MIN_SPEECH_RETRY_LENGTH = 160;
@@ -123,6 +124,7 @@ export class VoiceService {
     Object.assign(this, { url, headers, emit, fetchImpl, enabled, external, native, ensureReady });
     this.turn = null;
     this.ready = false;
+    this.idle = false;
     this.running = false;
     this.language = language;
     this.error = null;
@@ -131,6 +133,7 @@ export class VoiceService {
     return {
       enabled: this.enabled,
       ready: this.ready && this.language !== 'off',
+      ...(this.idle && { idle: true }),
       language: this.language,
       error: this.error,
       source: this.external?.config.enabled ? 'api' : 'local',
@@ -228,15 +231,20 @@ export class VoiceService {
       if (this.prepareController === controller) this.prepareController = null;
     }
   }
-  setReady(value) {
+  setReady(value, { idle = false } = {}) {
     this.ready = value;
+    this.idle = !value && idle;
     if (value) this.lastFailure = null;
     this.error = null;
     this.emit({ type: 'voice.settings', ...this.snapshot() });
-    if (value) this.pump().catch(() => {});
+    if (value) {
+      clearTimeout(this.turn?.startupTimer);
+      this.pump().catch(() => {});
+    }
   }
   fail(message) {
     this.ready = false;
+    this.idle = false;
     this.error = message;
     this.cancel();
     this.emit({ type: 'voice.settings', ...this.snapshot() });
@@ -245,7 +253,10 @@ export class VoiceService {
   setEnabled(value) {
     if (typeof value !== 'boolean') throw new Error('Invalid voice setting');
     this.enabled = value;
-    if (!value) this.cancel();
+    if (!value) {
+      this.idle = false;
+      this.cancel();
+    }
     this.emit({ type: 'voice.settings', ...this.snapshot() });
     return this.snapshot();
   }
@@ -253,21 +264,27 @@ export class VoiceService {
     this.prepareController?.abort();
     this.cancel();
   }
+  cancelRequest(turn) {
+    const requestId = turn.requestId;
+    turn.requestId = null;
+    if (requestId && !turn.external && !turn.native)
+      return this.fetchImpl(`${this.url}/cancel`, {
+        method: 'POST',
+        headers: { ...this.headers(), 'content-type': 'application/json' },
+        body: JSON.stringify({ requestId }),
+        redirect: 'error',
+        signal: AbortSignal.timeout(2000),
+      })
+        .then((response) => response.body?.cancel())
+        .catch(() => {});
+  }
   cancel() {
     const turn = this.turn;
     if (turn) {
+      clearTimeout(turn.startupTimer);
       turn.controller.abort();
       this.turn = null;
-      if (turn.requestId && !turn.external && !turn.native)
-        this.fetchImpl(`${this.url}/cancel`, {
-          method: 'POST',
-          headers: { ...this.headers(), 'content-type': 'application/json' },
-          body: JSON.stringify({ requestId: turn.requestId }),
-          redirect: 'error',
-          signal: AbortSignal.timeout(2000),
-        })
-          .then((response) => response.body?.cancel())
-          .catch(() => {});
+      void this.cancelRequest(turn);
       this.emit({ type: 'voice.cancelled', turnId: turn.id });
     }
   }
@@ -380,6 +397,20 @@ export class VoiceService {
       queued.queued = true;
       if (queued.timing)
         markResponseTiming('voice_queued', { cold: this.ready ? 0 : 1 }, { turn: queued.timing });
+      if (!this.ready) {
+        queued.startupTimer = setTimeout(() => {
+          if (this.turn !== queued || this.ready) return;
+          if (queued.timing) markResponseTiming('voice_wait_expired', {}, { turn: queued.timing });
+          // Keep warming the shared service, but never play an expired reply later.
+          this.cancel();
+          this.emit({
+            type: 'voice.warning',
+            turnId: queued.id,
+            message: 'Capri’s voice is loading…',
+          });
+        }, VOICE_START_WAIT_MS);
+        queued.startupTimer.unref();
+      }
     }
     if (this.running || !this.ready) return;
     this.running = true;
@@ -494,14 +525,33 @@ export class VoiceService {
             const failure =
               !turn.external && error.cause?.name === 'TimeoutError' ? error.cause : error;
             this.recordFailure(failure, 'synthesize');
+            if (
+              !turn.external &&
+              (failure.name === 'TimeoutError' || error.code === VOICE_SPEECH_LIMIT)
+            ) {
+              // A bad sentence must not discard audio the player has already accepted.
+              if (failure.name === 'TimeoutError') await this.cancelRequest(turn);
+              else turn.requestId = null;
+              if (this.turn !== turn) continue;
+              if (turn.skippedSentence) {
+                this.turn = null;
+                this.emit({ type: 'voice.generated', turnId: turn.id });
+              } else {
+                turn.skippedSentence = true;
+                this.emit({
+                  type: 'voice.warning',
+                  turnId: turn.id,
+                  message: 'This sentence could not be spoken. Voice is still ready.',
+                });
+              }
+              continue;
+            }
             this.cancel();
             this.emit({
               type: 'voice.error',
               message: turn.external
                 ? error.message
-                : failure.name === 'TimeoutError' || error.code === VOICE_SPEECH_LIMIT
-                  ? 'This sentence could not be spoken. Voice is still ready.'
-                  : 'Capri’s voice is unavailable. Text replies are still available.',
+                : 'Capri’s voice is unavailable. Text replies are still available.',
             });
             console.error('Voice request failed:', error.message);
           }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CapriCore } from '../packages/core/src/index.mjs';
 import {
@@ -60,6 +60,38 @@ test('Attachments starts enabled in the composer and respects saved choices', (t
   restored.set({ id, showComposer: true });
   restored.set({ id, enabled: false });
   assert.equal(showComposerSkill(new SkillSettings(file).snapshot(), id), false);
+});
+
+test('composer modes persist independently of skill activation and other settings', (t) => {
+  const file = fixture(t);
+  const reasoning = 'capri.reasoning';
+  const search = 'capri.web-search';
+  writeFileSync(
+    file,
+    JSON.stringify({
+      schemaVersion: 1,
+      settings: { [reasoning]: { enabled: true }, [search]: { enabled: true } },
+    }),
+  );
+  const settings = new SkillSettings(file);
+  assert.equal(settings.turnMode(reasoning), true);
+  assert.equal(settings.turnMode(search), true);
+  settings.setTurnMode(reasoning, false);
+  settings.setTurnMode(search, false);
+  settings.set({ id: reasoning, effort: 'high' });
+
+  const restored = new SkillSettings(file);
+  assert.equal(restored.enabled(reasoning), true);
+  assert.equal(restored.turnMode(reasoning), false);
+  assert.equal(restored.turnMode(search), false);
+  restored.setTurnMode(search, true);
+  restored.set({ id: search, enabled: false });
+  assert.equal(restored.turnMode(search), false);
+  assert.throws(() => restored.setTurnMode(search, true), /Enable this skill/);
+  restored.set({ id: search, enabled: true });
+  assert.equal(restored.turnMode(search), true);
+  assert.equal(new SkillSettings(file).turnMode(search), true);
+  assert.equal(new SkillSettings(file).turnMode(reasoning), false);
 });
 
 test('skill activation gates operations and aborts in-flight work without blocking configuration', async (t) => {

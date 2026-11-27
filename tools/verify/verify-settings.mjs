@@ -75,9 +75,7 @@ try {
   await page.evaluate(() => document.getElementById('settings-open').click());
   const findSettings = async () => {
     for (let i = 0; i < 100; i++) {
-      const view = application
-        .windows()
-        .find((w) => !w.isClosed() && w.url().endsWith('/settings.html'));
+      const view = application.windows().find((w) => !w.isClosed() && w.url().endsWith('/settings.html'));
       if (view) return view;
       await new Promise((r) => setTimeout(r, 50));
     }
@@ -334,9 +332,7 @@ try {
   await settings.screenshot({ path: path.join(folder, 'settings-youtube-music.png') });
   await youtubeMusicPreferred.uncheck();
   await skill(youtubeMusicId).uncheck();
-  record(
-    'YouTube Music saves the preferred service and opens its official site from Settings and chat',
-  );
+  record('YouTube Music saves the preferred service and opens its official site from Settings and chat');
   await navigate('general');
   const navigation = settings.locator('#settings-navigation');
   const groupedSections = await navigation

@@ -93,10 +93,10 @@ export const skillGuides = {
     step(
       '#time-duration',
       'Set the duration',
-      'Scroll or drag the wheels, use the arrow keys or type a value. A quick preset fills all three fields at once.',
+      'Set days, hours, minutes and seconds. Scroll or drag the wheels, use the arrow keys or type a value. Days stop at 0 and 365, while hours run from 0 to 23.',
       'Задай длительность',
-      'Прокрути барабаны колёсиком мыши, перетаскиванием или клавишами со стрелками. Числа можно ввести и вручную. Готовый интервал заполнит все три поля.',
-      '#time-hours, #time-minutes, #time-seconds, #time-presets',
+      'Задай дни, часы, минуты и секунды. Прокручивай барабаны мышью или клавишами со стрелками. Числа можно ввести вручную. Дни ограничены диапазоном от 0 до 365, часы идут от 0 до 23.',
+      '#time-days, #time-hours, #time-minutes, #time-seconds, #time-presets',
     ),
     step(
       '#time-title',
@@ -246,9 +246,9 @@ export const skillGuides = {
     step(
       '#chess-download',
       'Prepare Stockfish',
-      'Download the chess engine once. Cancel stops a download in progress. Remove deletes the installed engine.',
+      'Download Stockfish before analyzing a position or enabling automatic moves. Cancel stops a download in progress. Remove uninstalls the engine.',
       'Подготовь Stockfish',
-      'Скачай шахматный движок один раз. Загрузку можно остановить, а установленный движок удалить.',
+      'Скачай Stockfish перед анализом позиции или включением автохода. Загрузку можно отменить, а установленный движок удалить.',
       '#chess-cancel, #chess-remove',
     ),
     step(
@@ -338,13 +338,12 @@ export const skillGuides = {
       'Включи молнию при автоходе',
       'Эффект воспроизводится, когда Капри делает автоход. Его можно отключить отдельно.',
     ),
-    step(
+    [
       '#chess-show-arrow',
-      'Show the suggested move on the board',
-      'The arrow highlights a move on supported analysis boards and games against the site’s computer.',
-      'Покажи предложенный ход стрелкой',
-      'Стрелка подсвечивает ход на поддерживаемых досках анализа и в партиях против компьютера сайта.',
-    ),
+      ['Show move arrow', 'Analyze chess positions with Stockfish.'],
+      ['Покажи предложенный ход стрелкой', 'Stockfish предлагает ход для найденной доски.'],
+      { interfaceCopy: true },
+    ],
     step(
       '#chess-board-frame',
       'Outline the tracked board',
@@ -588,39 +587,19 @@ export const skillGuides = {
     step(
       '#music-listening-motion',
       'Move with the track',
-      'Let the avatar move along with the music. Use this separately from floating notes.',
+      'Capri moves to the music in her current pose. You can turn motion and floating notes on or off separately.',
       'Двигайся под музыку',
-      'Разреши аватару двигаться под музыку. Эту реакцию можно настраивать отдельно от парящих нот.',
+      'Капри двигается под музыку в текущей позе. Движение и парящие ноты включаются отдельно.',
     ),
   ],
   'avatar-skill': [
-    step(
-      '#avatar-roaming',
-      'Let Capri roam',
-      'Capri can change her position independently. Roaming pauses while you speak, type or interact with her.',
-      'Разреши Капри перемещаться самой',
-      'Капри сможет сама менять положение. Перемещения приостанавливаются, пока ты говоришь, печатаешь или взаимодействуешь с ней.',
-    ),
-    step(
-      '#avatar-roam-monitors',
-      'Choose where Capri can roam',
-      'Limit movement to the current or observed monitor, allow any display, or follow the display with the pointer.',
-      'Укажи, по каким экранам перемещаться',
-      'Ограничь перемещения текущим или наблюдаемым монитором, разреши любой экран или выбери монитор с курсором.',
-    ),
-    step(
-      '#avatar-roam-interval',
-      'Set the time between moves',
-      'A larger interval leaves Capri in one place longer.',
-      'Задай время между перемещениями',
-      'Чем больше интервал, тем дольше Капри остаётся на одном месте.',
-    ),
     step(
       '#teleport-style',
       'Choose a teleport animation',
       'Lightning strikes between the two points. Sandevistan leaves colored copies as Capri flies.',
       'Выбери анимацию телепорта',
       'Молния соединяет две точки разрядом. С Sandevistan Капри пролетает между ними и оставляет цветные копии.',
+      '#teleport-travel-time',
     ),
     step(
       '#teleport-preview-play',
@@ -675,6 +654,13 @@ export const skillGuides = {
       'Эффект следует за курсором на рабочем столе. Он включается отдельно от молнии телепортации.',
     ),
     step(
+      '#avatar-drag-tether-color',
+      'Drag lightning color',
+      'Choose the color of the bolt that follows the pointer while you hold Capri. The teleport effect on release has its own color setting.',
+      'Цвет молнии при перетаскивании',
+      'Выбери цвет молнии, которая тянется за курсором, пока ты держишь Капри. У эффекта телепортации после отпускания свой цвет.',
+    ),
+    step(
       '#avatar-drag-tether-intensity',
       'Adjust drag lightning and its dead zone',
       'Intensity adds sparks and branches. Chaos spreads them out. The dead zone sets how far the pointer moves before the effect starts.',
@@ -698,6 +684,39 @@ export const skillGuides = {
     ),
   ],
   initiative: [
+    step(
+      '#avatar-roaming',
+      'Let Capri roam',
+      'Capri can change her position independently. Roaming pauses while you speak, type or interact with her.',
+      'Разреши Капри перемещаться самой',
+      'Капри сможет сама менять положение. Перемещения приостанавливаются, пока ты говоришь, печатаешь или взаимодействуешь с ней.',
+    ),
+    [
+      '#avatar-roam-cursor-pranks',
+      [
+        'Let Capri move the mouse pointer while you are away',
+        'Cursor pranks require Full computer access. Press Esc to stop.',
+      ],
+      [
+        'Разреши Капри двигать курсор, пока тебя нет',
+        'Для розыгрышей с курсором нужен полный доступ к компьютеру. Чтобы остановить розыгрыш, нажми Esc.',
+      ],
+      { interfaceCopy: true },
+    ],
+    step(
+      '#avatar-roam-monitors',
+      'Choose where Capri can roam',
+      'Limit movement to the current or observed monitor, allow any display, or follow the display with the pointer.',
+      'Укажи, по каким экранам перемещаться',
+      'Ограничь перемещения текущим или наблюдаемым монитором, разреши любой экран или выбери монитор с курсором.',
+    ),
+    step(
+      '#avatar-roam-interval',
+      'Set the time between moves',
+      'A larger interval leaves Capri in one place longer.',
+      'Задай время между перемещениями',
+      'Чем больше интервал, тем дольше Капри остаётся на одном месте.',
+    ),
     step(
       '#initiative-level',
       'Choose how often Capri can start a conversation',
@@ -757,12 +776,12 @@ export const skillGuides = {
       '#initiative-quiet-start, #initiative-quiet-end',
     ),
     step(
-      '#initiative-exclusions',
+      '#initiative-exclusions-enabled',
       'Keep specific applications quiet',
-      'Separate process names with commas. Exclude the browser if you want silence in browser calls, which Capri may not detect.',
+      'Enable app exclusions and enter process names separated by commas. Add the browser if you want quiet during browser calls.',
       'Отключи инициативу в отдельных программах',
-      'Разделяй имена процессов запятыми. Добавь браузер в исключения, если нужна тишина во время звонков, которые Капри может не распознать.',
-      '#initiative-exclusions-label',
+      'Включи исключения и перечисли имена процессов через запятую. Добавь браузер, если хочешь, чтобы Капри молчала во время звонков в нём.',
+      '#initiative-exclusions, #initiative-exclusions-label',
     ),
     step(
       '#initiative-test',
@@ -785,9 +804,9 @@ export const skillGuides = {
     step(
       '#call-camera-enabled',
       'Show Capri in your call',
-      'Enable Camera, wait until it is ready and select Capri Camera in Discord, Zoom or OBS.',
+      'Turn on the camera and check the preview. It shows Capri’s current pose, expression and animation. Then choose Capri Camera in your call app.',
       'Покажи Капри в звонке',
-      'Включи камеру, дождись готовности и выбери Capri Camera в Discord, Zoom или OBS.',
+      'Включи камеру и выбери Capri Camera в Discord, Zoom или OBS. В предпросмотре видны текущая поза, выражение лица и анимация Капри.',
       '#call-camera-preview-panel',
     ),
     step(

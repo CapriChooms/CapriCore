@@ -4,7 +4,6 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { ComputerAgent } from '../apps/desktop/computer-agent.mjs';
 import {
   computerModeRequest,
   computerTaskCommand,
@@ -103,59 +102,26 @@ test('the Steam store resolver checks app ID and matches the exact title without
   assert.deepEqual(result, game);
 });
 
-test('the exact reported request launches the installed Portal 2 by AppID before the general planner', async (t) => {
+test('the explicit launch operation resolves the installed Portal 2 AppID without repeating a request', async (t) => {
   const f = await fixture(t);
   await f.manifest(4);
   const calls = [];
   let running = false;
-  let audit;
-  const agent = new ComputerAgent({
-    control: {
-      session: null,
-      begin() {
-        this.session = { controller: new AbortController() };
-      },
-      requireSession() {
-        assert.ok(this.session);
-        return this.session;
-      },
-      stop() {
-        this.session = null;
-      },
-      execute() {
-        assert.fail('No UI inputs are needed to launch the installed game');
-      },
+  const task = f.makeTask({
+    openExternal: async (uri) => {
+      calls.push(uri);
+      running = true;
     },
-    applications: {},
-    plan: () => assert.fail('The general planner must not get this Steam task'),
-    language: () => 'ru',
-    audit: (value) => {
-      audit = value;
+    findStoreGame: () => assert.fail('Use the local manifest for an installed game'),
+    gameRunning: async ({ appId }) => {
+      assert.equal(appId, '620');
+      return running;
     },
-    steamGameTask: f.makeTask({
-      openExternal: async (uri) => {
-        calls.push(uri);
-        running = true;
-      },
-      findStoreGame: async () => assert.fail('Use the local manifest for an installed game'),
-      gameRunning: async ({ appId, installPath }) => {
-        assert.equal(appId, '620');
-        assert.equal(installPath, path.join(f.directory, 'steamapps', 'common', 'Portal 2'));
-        return running;
-      },
-    }),
   });
-  assert.deepEqual(await agent.run(reported), {
-    ok: true,
-    verified: true,
-    steps: 1,
-    status: 'completed',
-    summary: 'Запустила Portal 2 через Steam.',
-  });
+  const request = steamGameCommand(computerTaskCommand(reported));
+  assert.equal((await task(request, f.hooks)).status, 'steam_started');
+  assert.equal((await task(request, f.hooks)).status, 'steam_already_running');
   assert.deepEqual(calls, ['steam://rungameid/620']);
-  assert.equal(audit.lastOutcome.reason, 'steam_started');
-  assert.equal((await agent.run(reported)).steps, 0);
-  assert.equal(calls.length, 1);
 });
 
 test('launch reports chosen game, rejects an unconfirmed process and never installs on a play-only request', async (t) => {

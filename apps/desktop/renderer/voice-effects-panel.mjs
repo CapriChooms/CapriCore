@@ -2,6 +2,7 @@ import {
   VOICE_EFFECT_DEFAULTS,
   VOICE_EFFECT_PRESETS,
   VOICE_EFFECT_LIMITS,
+  VOICE_EFFECT_MINIMUMS,
   validateVoiceEffects,
 } from './voice-effects-settings.mjs';
 
@@ -20,6 +21,7 @@ export class VoiceEffectsPanel {
     this.inputs = new Map();
     this.revision = 0;
     for (const [key, label] of Object.entries({
+      pitch: 'Pitch (semitones)',
       intensity: 'Intensity',
       mix: 'Effect mix',
       reverb: 'Room / reverb',
@@ -38,7 +40,7 @@ export class VoiceEffectsPanel {
       const input = document.createElement('input');
       input.type = 'range';
       input.id = `fx-${key}`;
-      input.min = key === 'carrierHz' ? '20' : '0';
+      input.min = String(VOICE_EFFECT_MINIMUMS[key] ?? 0);
       input.max = String(VOICE_EFFECT_LIMITS[key]);
       input.step = '1';
       input.addEventListener('input', () =>
@@ -90,9 +92,16 @@ export class VoiceEffectsPanel {
       style: 'percent',
       maximumFractionDigits: 0,
     });
-    for (const [key, { output }] of this.inputs)
-      output.textContent =
-        key === 'carrierHz' ? this.settings[key] + ' Hz' : format.format(this.settings[key] / 100);
+    const pitchFormat = new Intl.NumberFormat(this.ui.language, { signDisplay: 'exceptZero' });
+    for (const [key, { input, output }] of this.inputs) {
+      const amount = this.settings[key];
+      if (key === 'pitch') {
+        output.textContent = pitchFormat.format(amount);
+        input.setAttribute('aria-valuetext', output.textContent);
+      } else {
+        output.textContent = key === 'carrierHz' ? amount + ' Hz' : format.format(amount / 100);
+      }
+    }
     this.availability(this.available);
   }
   save(value) {

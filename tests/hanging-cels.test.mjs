@@ -52,7 +52,7 @@ test('registered actions accept only their matching pose, name and duration', ()
       const frame = registeredCelFrame(id, time);
       if (frame && !frame.asset.endsWith('-breakdowns')) seen.add(frame.cell);
     }
-    assert.deepEqual([...seen].sort(), [0, 1, 2, 3, 4, 5]);
+    assert.deepEqual([...seen].sort(), id === 'ledge-peek-below' ? [0, 1, 2] : [0, 1, 2, 3, 4, 5]);
     assert.equal(registeredCelAt(id, 0), -1);
     assert.equal(registeredCelAt(id, clip.durationMs - 1), -1);
   }

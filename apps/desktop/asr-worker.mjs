@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { LANGUAGE_PACKS } from './renderer/language-settings.mjs';
 
@@ -26,6 +26,24 @@ const nativeStartupStages = ['ASR_START_DEPENDENCIES', 'ASR_START_MODEL'];
 const canRecoverStartup = (error) =>
   error.code === 'ASR_START_NATIVE_CRASH' && error.startupStage === 'ASR_START_MODEL';
 
+const asrEnvironment = (root) => path.join(root, '.runtime/asr-venv');
+
+export function asrPython(root) {
+  return path.join(
+    asrEnvironment(root),
+    process.platform === 'linux' ? 'bin/python' : 'Scripts/python.exe',
+  );
+}
+
+export function asrSitePackages(root) {
+  const environment = asrEnvironment(root);
+  if (process.platform !== 'linux') return path.join(environment, 'Lib/site-packages');
+  const config = readFileSync(path.join(environment, 'pyvenv.cfg'), 'utf8');
+  const version = /^(?:version|version_info)\s*=\s*(\d+\.\d+)(?:\.|\s|$)/m.exec(config)?.[1];
+  if (!version) throw Error('The ASR virtual environment has no Python version');
+  return path.join(environment, 'lib', 'python' + version, 'site-packages');
+}
+
 const asrError = (code, startupStage) =>
   Object.assign(
     new Error(
@@ -43,9 +61,16 @@ const asrError = (code, startupStage) =>
 
 /** An owned CPU worker over private stdio, never a renderer-accessible server. */
 export class ASRWorker extends EventEmitter {
-  constructor({ root, spawnImpl = spawn, language = 'en' }) {
+  constructor({
+    root,
+    spawnImpl = spawn,
+    language = 'en',
+    deferModel = false,
+    unloadIdle = false,
+    idleSeconds = 300,
+  }) {
     super();
-    Object.assign(this, { root, spawnImpl, language });
+    Object.assign(this, { root, spawnImpl, language, deferModel, unloadIdle, idleSeconds });
     this.child = null;
     this.pending = new Map();
     this.requestId = 0;
@@ -77,7 +102,7 @@ export class ASRWorker extends EventEmitter {
   }
   async startAttempt(safeStartup = false) {
     if (this.ready) return this.ready;
-    const python = path.join(this.root, '.runtime/asr-venv/Scripts/python.exe');
+    const python = asrPython(this.root);
     if (!existsSync(python)) throw asrError('ASR_START_PYTHON');
     const env = Object.fromEntries(
       ['SystemRoot', 'WINDIR', 'PATH', 'TEMP', 'TMP', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA']
@@ -98,6 +123,11 @@ export class ASRWorker extends EventEmitter {
       throw asrError('ASR_START_CONFIG');
     Object.assign(env, { HF_HUB_OFFLINE: '1', TOKENIZERS_PARALLELISM: 'false' });
     env.CAPRI_ASR_LANGUAGE = this.language;
+    if (this.deferModel) env.CAPRI_ASR_DEFER_MODEL = '1';
+    if (this.unloadIdle) {
+      env.CAPRI_ASR_UNLOAD_IDLE = '1';
+      env.CAPRI_ASR_IDLE_SECONDS = String(this.idleSeconds);
+    }
     const child = (this.child = this.spawnImpl(
       python,
       [
@@ -337,11 +367,14 @@ export class ASRWorker extends EventEmitter {
     const request = ++this.requestId,
       child = this.child;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(request);
-        reject(new Error('Recognition timed out'));
-        this.close();
-      }, 15000);
+      const timer = setTimeout(
+        () => {
+          this.pending.delete(request);
+          reject(new Error('Recognition timed out'));
+          this.close();
+        },
+        command.type === 'warm-model' ? 60000 : 15000,
+      );
       this.pending.set(request, { resolve, reject, timer });
       child.stdin.write(JSON.stringify({ ...command, request }) + '\n', (error) => {
         if (error && this.pending.has(request)) {
@@ -351,6 +384,13 @@ export class ASRWorker extends EventEmitter {
         }
       });
     });
+  }
+  setIdleUnload(enabled, idleSeconds = this.idleSeconds) {
+    this.unloadIdle = enabled;
+    this.idleSeconds = idleSeconds;
+    if (this.child && this.ready)
+      return this.send({ type: 'idle-policy', enabled, idleSeconds }).then(() => true);
+    return Promise.resolve(false);
   }
   close() {
     this.startupGeneration++;

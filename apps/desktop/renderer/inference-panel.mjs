@@ -38,10 +38,15 @@ export function renderInferenceLabel(value, ui) {
     : value.setupRequired
       ? ui.text('OFFLINE')
       : value.model;
-  label.querySelector('#inference-mode').textContent = mode;
-  label.querySelector('#inference-detail').textContent = detail ?? '';
   const model = label.querySelector('#inference-model');
-  model.textContent = value.remote ? value.model : '';
+  const labels = [
+    [label.querySelector('#inference-mode'), mode],
+    [label.querySelector('#inference-detail'), detail ?? ''],
+    [model, value.remote ? value.model : ''],
+  ];
+  for (const [element, text] of labels) {
+    if (element.textContent !== text) element.textContent = text;
+  }
   model.hidden = !model.textContent;
   label.dataset.mode = external ? 'api' : 'local';
   label.title = [mode, detail, model.textContent].filter(Boolean).join(' · ');

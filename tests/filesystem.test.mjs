@@ -4,7 +4,7 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root } from '../packages/runtime/src/index.mjs';
-import { FilePermissions } from '../integrations/filesystem/permissions.mjs';
+import { FilePermissions, INSTALLATION_SCOPE_ID } from '../integrations/filesystem/permissions.mjs';
 import { FileService } from '../integrations/filesystem/service.mjs';
 import plugin from '../integrations/filesystem/index.mjs';
 import { ActionBroker } from '../apps/desktop/action-broker.mjs';
@@ -65,6 +65,34 @@ test('no implicit access; explicit folder grants start read-only and can be revo
     /allowed folder/,
   );
   assert.throws(() => f.permissions.grant(f.privateDir));
+});
+
+test('installation write rights from older profiles cannot survive or be granted through an ancestor', async (t) => {
+  const f = await fixture(t);
+  const app = path.join(f.dir, 'Installation');
+  await fs.mkdir(app);
+  const readonly = path.join(app, 'ordinary.txt');
+  await fs.writeFile(readonly, 'Installation content');
+  const file = path.join(f.privateDir, 'legacy-permissions.json');
+  const ancestor = { id: 'a0a00000-0000-4000-8000-000000000099', root: f.dir, write: true };
+  await fs.writeFile(file, JSON.stringify({
+    schemaVersion: 1,
+    applicationScopeInitialized: true,
+    scopes: [{ id: INSTALLATION_SCOPE_ID, root: app, write: true }],
+  }));
+  const permissions = new FilePermissions(file, {
+    applicationRoot: app,
+    computerScopes: () => [ancestor],
+  });
+  assert.equal(permissions.snapshot()[0].write, false);
+  assert.equal(JSON.parse(await fs.readFile(file)).scopes[0].write, false);
+  assert.equal(permissions.target(INSTALLATION_SCOPE_ID, 'ordinary.txt').path, readonly);
+  assert.throws(() => permissions.update(INSTALLATION_SCOPE_ID, true), /read-only/);
+  assert.throws(() => permissions.target(ancestor.id, 'Installation/ordinary.txt', true), /read-only/);
+  assert.throws(() => permissions.target(ancestor.id, 'Installation/new.txt', true), /read-only/);
+  assert.equal(permissions.target(ancestor.id, 'Work/new.txt', true).path, path.join(f.work, 'new.txt'));
+  permissions.revoke(INSTALLATION_SCOPE_ID);
+  assert.equal(permissions.snapshot().some(({ id }) => id === INSTALLATION_SCOPE_ID), false);
 });
 
 test('known folders use their actual granted location and Telegram Desktop search tolerates spacing', async (t) => {

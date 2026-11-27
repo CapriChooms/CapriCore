@@ -13,6 +13,8 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+_STARTED_AT = time.perf_counter()
+
 import torch
 
 from integrations.voice_training.dataset import ROOT
@@ -25,6 +27,7 @@ from .catalog import selected_voice
 
 
 def load_and_warm(config, language, cancelled=None):
+    started = time.perf_counter()
     check_cancelled(cancelled)
     selected = selected_voice(language)
     if config.get('computeDevice') != 'cpu' and (
@@ -33,6 +36,8 @@ def load_and_warm(config, language, cancelled=None):
         from .compatibility import require_cuda
         require_cuda(torch)
     voice = VoicePool(config)
+    voice.prepare(language, cancelled)
+    prepared = time.perf_counter()
     greetings = {'ru': 'Привет.', 'zh': '你好。', 'ja': 'こんにちは。', 'ko': '안녕하세요.',
                  'de': 'Hallo.', 'fr': 'Bonjour.', 'pt': 'Olá.', 'pt-BR': 'Oi.', 'es': 'Hola.', 'it': 'Ciao.'}
     if cancelled is None:
@@ -41,6 +46,11 @@ def load_and_warm(config, language, cancelled=None):
         voice.generate(greetings.get(language, 'Hello.'), cancelled=cancelled, language=language)
     check_cancelled(cancelled)
     torch.cuda.empty_cache()
+    voice.startup_timings = dict(
+        startupImportsMs=round((started - _STARTED_AT) * 1000),
+        startupLoadMs=round((prepared - started) * 1000),
+        startupWarmupMs=round((time.perf_counter() - prepared) * 1000),
+    )
     return voice
 
 
@@ -155,7 +165,7 @@ def serve(language='en', validate_turbo=False):
                 sampleRate=24000, adapterSha256=voice.profile["adapterSha256"],
                 gpuAllocatedMiB=round(torch.cuda.memory_allocated() / 1024**2, 1),
                 gpuReservedMiB=round(torch.cuda.memory_reserved() / 1024**2, 1),
-                warm=True, cancellation=True,
+                warm=True, cancellation=True, **voice.startup_timings,
                 **voice.health(),
                 lastInferenceFailure=failure,
                 languages=[key for key, value in LANGUAGES.items() if value['speech']],

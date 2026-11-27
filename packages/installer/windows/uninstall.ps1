@@ -20,6 +20,27 @@ function Wait-CapriUninstall {
         throw [OperationCanceledException]::new('Capri uninstall was cancelled.')
     }
 }
+function Test-CapriRemovalLock([Exception]$Error) {
+    for($cause=$Error;$cause;$cause=$cause.InnerException){
+        if($cause.HResult -in @(-2147024864,-2147024863)){return $true}
+    }
+    return $false
+}
+function Remove-CapriPlainItem([string]$Path) {
+    for($attempt=0;;$attempt++){
+        try {
+            Remove-Item -LiteralPath $Path -Force
+            return
+        } catch {
+            if($attempt -ge 8 -or -not(Test-CapriRemovalLock $_.Exception)){throw}
+            Wait-CapriUninstall
+            Start-Sleep -Milliseconds 400
+            Wait-CapriUninstall
+            Assert-CapriNoLinks $Path
+            if(-not(Test-Path -LiteralPath $Path)){return}
+        }
+    }
+}
 function Get-CapriCameraCleanupHost([string]$Root) {
     $cameraDirectory=Join-Path $Root '.runtime/capri-camera'
     $active=Join-Path $cameraDirectory 'active.json'
@@ -378,7 +399,7 @@ try {
         if(-not $item){return}
         if(Test-CapriLeafLink $item){Remove-CapriLeafLink $item $Boundary;return}
         if(-not $item.PSIsContainer){
-            Remove-Item -LiteralPath $full -Force
+            Remove-CapriPlainItem $full
             if($progressWindow){$progressWindow.Advance()}
             return
         }
@@ -388,12 +409,12 @@ try {
                     continue};
                 throw 'Uninstall will not traverse filesystem links.'}
             if($child.PSIsContainer){Remove-CapriTree $child.FullName $Boundary}else{
-                Remove-Item -LiteralPath $child.FullName -Force
+                Remove-CapriPlainItem $child.FullName
                 if($progressWindow){$progressWindow.Advance()}
             }
         }
         Wait-CapriUninstall
-        Remove-Item -LiteralPath $full -Force
+        Remove-CapriPlainItem $full
         if($progressWindow){$progressWindow.Advance()}
     }
     if($PlanOnly){@{removeApplication=$RemoveApplication;deleteModels=[bool]$DeleteModels;deleteSettings=[bool]$DeleteSettings;trees=$trees;localSettings=$localTargets;sourceFiles=@($sourceTargets|ForEach-Object {$_.entry.path})}|ConvertTo-Json -Depth 5;return}
@@ -431,7 +452,7 @@ try {
                 [IO.Directory]::CreateDirectory((Split-Path -Parent $backup))|Out-Null
                 Copy-Item -LiteralPath $file -Destination $backup -Force
             }
-            Remove-Item -LiteralPath $file -Force
+            Remove-CapriPlainItem $file
             if($progressWindow){$progressWindow.Advance()}
         }
         $parent=Split-Path -Parent $file
@@ -447,7 +468,7 @@ try {
             if(Test-Path -LiteralPath $path -PathType Container){Remove-CapriTree $path (Split-Path -Parent $path)}
             elseif(Test-Path -LiteralPath $path -PathType Leaf){
                 Assert-CapriNoLinks $path
-                Remove-Item -LiteralPath $path -Force
+                Remove-CapriPlainItem $path
                 if($progressWindow){$progressWindow.Advance()}
             }
         }
@@ -462,7 +483,7 @@ try {
         if($progressWindow){$progressWindow.Advance()}
     }}
     if($RemoveApplication -and (Test-Path -LiteralPath $applicationLauncher -PathType Leaf)){
-        Remove-Item -LiteralPath $applicationLauncher -Force
+        Remove-CapriPlainItem $applicationLauncher
         if($progressWindow){$progressWindow.Advance()}
     }
     if($RemoveApplication){
@@ -532,13 +553,13 @@ try {
     exit 1223
 } catch {
     $failureMessage=$_.Exception.Message
-    $failureCode=switch -Regex ($failureMessage) {
+    $failureCode=if(Test-CapriRemovalLock $_.Exception){'UNINSTALL_FILES_IN_USE'}else{switch -Regex ($failureMessage) {
         'filesystem links' {'UNINSTALL_LINKED_PATH';break}
         'already open|Finish or cancel' {'UNINSTALL_BUSY';break}
         'Could not stop Capri' {'UNINSTALL_STOP_FAILED';break}
         'Invalid managed installation|Invalid installed file' {'UNINSTALL_INVALID_INSTALLATION';break}
         default {'UNINSTALL_FAILED'}
-    }
+    }}
     if(-not ($Quiet -or $MeasureOnly -or $PlanOnly)){
         Add-Type -AssemblyName System.Windows.Forms
         $title=if($messages){$messages['title']}else{'Uninstall Capri'}
@@ -555,7 +576,7 @@ try {
         if($progressWindow){$progressWindow.Fail($visibleDetails,$failureCode,$installedVersion)}
         else{[Windows.Forms.MessageBox]::Show($heading+"`r`n`r`n"+$details+":`r`n"+$visibleDetails,$title,'OK','Error','Button1',$direction)|Out-Null}
     }
-    [Console]::Error.WriteLine($failureMessage);
+    [Console]::Error.WriteLine($failureCode+': '+$failureMessage)
     exit 1
 } finally {
     if($progressWindow){$progressWindow.Dispose()}

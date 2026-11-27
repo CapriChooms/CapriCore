@@ -1,5 +1,43 @@
 // SPDX-License-Identifier: GPL-3.0-only
 export const coreGuides = {
+  'avatar-gallery': [
+    [
+      '.avatar-gallery-categories',
+      [
+        'Explore Capri’s poses and animations',
+        'Choose Poses, Expressions or Animations. Select an item in the list to preview it.',
+      ],
+      [
+        'Посмотри позы и анимации Капри',
+        'Открой «Позы», «Выражения» или «Анимации». Выбери элемент в списке, чтобы увидеть его в предпросмотре.',
+      ],
+      { help: '#avatar-gallery-title' },
+    ],
+    [
+      '#avatar-gallery-preview',
+      [
+        'Control the avatar preview',
+        'Drag the avatar to reposition it. Use the mouse wheel or zoom buttons to resize it. Reset position and zoom restores the initial view.',
+      ],
+      [
+        'Настрой вид в предпросмотре',
+        'Перетащи аватар, чтобы переместить его. Меняй масштаб колёсиком мыши или кнопками. Кнопка сброса вернёт исходный вид.',
+      ],
+      { help: '#avatar-gallery-zoom-in, #avatar-gallery-zoom-out, #avatar-gallery-reset' },
+    ],
+    [
+      '[data-gallery-category="animations"]',
+      [
+        'Replay or loop a preview',
+        'Select an expression or animation to play it. Use Play animation to replay it and Loop animation to keep it playing.',
+      ],
+      [
+        'Повтори или зацикли анимацию',
+        'Выбери выражение лица или анимацию для воспроизведения. Кнопка «Воспроизвести анимацию» запустит её снова, а «Зациклить анимацию» будет повторять её непрерывно.',
+      ],
+      { help: '#avatar-gallery-play, #avatar-gallery-loop' },
+    ],
+  ],
   general: [
     [
       '[data-window-action="hide"]',
@@ -272,6 +310,17 @@ export const coreGuides = {
       ],
     ],
     [
+      '#unrestricted-conversation',
+      [
+        'Choose how freely Capri speaks',
+        'Unrestricted conversation changes how freely Capri talks in character. Actions on your computer still use the permissions you grant.',
+      ],
+      [
+        'Настрой свободу общения',
+        'Режим свободного общения меняет то, как Капри отвечает в своём характере. Для действий на компьютере по-прежнему действуют выданные разрешения.',
+      ],
+    ],
+    [
       '#wild-close-ai-tabs',
       [
         'React to other AI tabs',
@@ -280,6 +329,49 @@ export const coreGuides = {
       [
         'Реакция на другие ИИ-вкладки',
         'Работает при любом стиле общения. Если в Chrome или Edge активна вкладка поддерживаемого ИИ-сайта, Капри может прокомментировать это в своём текущем стиле. Чтобы отменить закрытие, нажми «Оставить вкладку открытой» в течение восьми секунд.',
+      ],
+    ],
+    [
+      '#wild-desktop-pranks',
+      [
+        'Wild desktop pranks',
+        'In Wild mode, Capri occasionally steals a decoy cursor. Your mouse and keyboard work as usual.',
+      ],
+      [
+        'Разреши Капри розыгрыши в диком стиле',
+        'В диком стиле Capri иногда хватает поддельный курсор. Мышь и клавиатура работают как обычно.',
+      ],
+      { interfaceCopy: true },
+    ],
+    [
+      '#wild-pranks-preview',
+      ['Preview a prank', 'Cursor pranks require Full computer access. Press Esc to stop.'],
+      [
+        'Предпросмотр розыгрыша',
+        'Для розыгрышей с курсором нужен полный доступ к компьютеру. Нажмите Esc, чтобы остановить розыгрыш.',
+      ],
+      { interfaceCopy: true },
+    ],
+    [
+      '#companion-fresh-context',
+      [
+        'Start each question with fresh context',
+        'Earlier messages are left out of new requests. Saved memories and the visible conversation history are kept.',
+      ],
+      [
+        'Начинай каждый запрос с чистого контекста',
+        'Предыдущие сообщения не передаются модели при новом запросе. Сохранённые воспоминания и видимая история диалога остаются.',
+      ],
+    ],
+    [
+      '#companion-microphone-on-start',
+      [
+        'Choose whether the microphone starts on',
+        'Enable this to turn on voice input whenever you launch Capri. You can still switch the microphone off in the toolbar.',
+      ],
+      [
+        'Выбери, включать ли микрофон при запуске',
+        'Эта настройка включает голосовой ввод при каждом запуске Капри. Микрофон можно выключить в верхней панели.',
       ],
     ],
     [
@@ -296,23 +388,23 @@ export const coreGuides = {
     [
       '#companion-follow-up',
       [
-        'Answer Capri’s follow-up question',
-        'After a voice request, a question from Capri opens a listening window when she finishes speaking. The microphone needs to be on.',
+        'Continue without saying Capri again',
+        'Choose whether Capri listens again after a question or after any spoken reply. Keep the microphone and wake phrase on. A typed message or a closing phrase like “Thank you” won’t open another listening window.',
       ],
       [
-        'Ответь на встречный вопрос',
-        'Если Капри задаст вопрос в ответ на голосовую реплику, она начнёт слушать после окончания озвучки. Микрофон должен быть включён.',
+        'Продолжи разговор без повторного «Capri»',
+        'Выбери, когда Капри снова начнёт слушать: после вопроса или после любого озвученного ответа. Оставь включёнными микрофон и пробуждение по имени. После сообщения с клавиатуры или фразы вроде «Спасибо» новое окно прослушивания не откроется.',
       ],
     ],
     [
       '#companion-follow-up-seconds',
       [
         'Set the follow-up listening time',
-        'Choose how long Capri waits for your reply after asking a question, from 5 to 30 seconds.',
+        'Choose how long Capri waits for you to speak, from 5 to 30 seconds. If you stay quiet, she goes back to waiting for her name.',
       ],
       [
         'Задай время прослушивания',
-        'Выбери, сколько Капри ждёт твой ответ на вопрос, от 5 до 30 секунд.',
+        'Выбери, сколько Капри ждёт твою реплику, от 5 до 30 секунд. Если ты промолчишь, она снова будет ждать обращения по имени.',
       ],
     ],
     [
@@ -569,11 +661,33 @@ export const coreGuides = {
       '#companion-window-layout',
       [
         'Window layout',
-        'Vertical stacks the reply, portrait and message box from top to bottom. Horizontal gives you a wider, shorter window with the portrait on the left and the reply and message box on the right.',
+        'Vertical stacks the reply, portrait and message box. Horizontal puts the portrait and chat side by side. The preview updates before you save. Drag the window edges to resize either layout.',
       ],
       [
         'Компоновка окна',
-        'В вертикальной компоновке ответ, портрет и поле ввода идут сверху вниз. Горизонтальная делает окно шире и ниже, с портретом слева и перепиской справа.',
+        'В вертикальной компоновке ответ, портрет и поле ввода идут сверху вниз. В горизонтальной портрет и чат располагаются рядом. Изменение видно до сохранения. В любой компоновке окно можно растянуть за край.',
+      ],
+    ],
+    [
+      '#horizontal-monitor-position',
+      [
+        'Place the resource monitor',
+        'In the horizontal layout, place the monitor between the portrait and chat or to the right of the chat. The display menu beside the monitor also lets you hide it.',
+      ],
+      [
+        'Выбери место для мониторинга ресурсов',
+        'В горизонтальной компоновке мониторинг можно поставить между портретом и чатом или справа от чата. Чтобы скрыть его, открой меню отображения рядом с мониторингом.',
+      ],
+    ],
+    [
+      '#reply-animation',
+      [
+        'Animate the reply bubble',
+        'The reply bubble opens and closes instantly by default. Enable this setting to have it slide and fade. The system’s reduced motion setting takes priority.',
+      ],
+      [
+        'Анимируй облачко с ответом',
+        'По умолчанию облачко открывается и закрывается сразу. Включи эту настройку для плавного выезда и затухания. Системная настройка уменьшения анимации имеет приоритет.',
       ],
     ],
     [
@@ -605,8 +719,14 @@ export const coreGuides = {
     ],
     [
       '#dimming-enabled',
-      ['Dim the desktop behind Capri', 'Enable dimming to make the area behind Capri darker.'],
-      ['Затемни рабочий стол за Капри', 'Настройка затемняет участок рабочего стола за Капри.'],
+      [
+        'Dim the desktop behind Capri',
+        'Darkens the backdrop of each panel, including the whole toolbar and resource monitor. The space between panels stays clear.',
+      ],
+      [
+        'Затемни рабочий стол за Капри',
+        'Затемняется фон целых панелей, в том числе верхней панели и мониторинга ресурсов. Промежутки между ними остаются прозрачными.',
+      ],
     ],
     [
       '#dimming-level',
@@ -626,6 +746,18 @@ export const coreGuides = {
     ],
   ],
   models: [
+    [
+      '#models-idle-unload',
+      [
+        'Choose when local models release memory',
+        'Local models load on the first request or when you press Load models in the main window. They stay in memory by default. Enable Unload models when idle and set a delay from 1 to 60 minutes to free memory after inactivity.',
+      ],
+      [
+        'Выбери, когда выгружать локальные модели',
+        'Локальные модели загружаются при первом запросе или по кнопке «Загрузить модели» в главном окне. По умолчанию они остаются в памяти. Чтобы освобождать память в простое, включи выгрузку и задай задержку от 1 до 60 минут.',
+      ],
+      { help: '#models-idle-timeout' },
+    ],
     [
       '#models-choice',
       [

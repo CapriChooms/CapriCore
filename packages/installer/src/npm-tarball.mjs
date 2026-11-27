@@ -230,7 +230,10 @@ export async function recoverNpmTarball({
   fetchImpl,
   onLog = () => {},
 }) {
-  const text = String(error.outputTail ?? error.message);
+  const text = String(error.outputTail ?? error.message)
+    .split(/\r?\n/u)
+    .filter((line) => /\bnpm\s+(?:error|ERR!)\s/i.test(line))
+    .join('\n');
   const entries = Object.values(
     JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8')).packages ?? {},
   );

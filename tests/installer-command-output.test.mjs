@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { writeFileSync, unlinkSync } from 'node:fs';
+import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { runCommand } from '../packages/installer/src/commands.mjs';
+import { temporaryFolders } from './temporary-folders.mjs';
 
 const pause = `const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));`;
 const run = async (script, options = {}) => {
@@ -84,6 +88,41 @@ test('installer output keeps diagnostic lines and failure tails bounded', async 
   );
   assert.equal(lines.length, 1);
   assert.equal(lines[0].length, 1000);
+});
+
+test('an idle package worker is stopped after silence but keeps running while it reports progress', async () => {
+  const options = { idleTimeoutMs: 450 };
+  const lines = await run(
+    `
+    for (let n = 0; n < 5; n++) {
+      console.log(n);
+      await pause(140);
+    }
+  `,
+    options,
+  );
+  assert.deepEqual(lines, ['0', '1', '2', '3', '4']);
+  await assert.rejects(
+    run(`console.log('waiting for registry'); setInterval(() => {}, 1000);`, options),
+    (error) => error.code === 'CAPRI_INSTALL_IDLE' && /waiting for registry/.test(error.outputTail),
+  );
+});
+
+test('a paused installer does not spend its package worker inactivity allowance', async () => {
+  const folder = temporaryFolders('capri-command-pause-')();
+  const marker = path.join(folder, 'paused');
+  writeFileSync(marker, '');
+  const result = run(
+    `while ((await import('node:fs')).existsSync(process.env.CAPRI_INSTALL_PAUSE_FILE)) await pause(10);
+    console.log('resumed');`,
+    {
+      env: { ...process.env, CAPRI_INSTALL_PAUSE_FILE: marker },
+      idleTimeoutMs: 450,
+    },
+  );
+  await delay(650);
+  unlinkSync(marker);
+  assert.deepEqual(await result, ['resumed']);
 });
 
 test(

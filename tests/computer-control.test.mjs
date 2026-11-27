@@ -49,9 +49,133 @@ function fixture() {
     hideBorder: () => {
       state.visible = false;
     },
+    showIdleLightning: (move) => state.lightning?.(move),
   });
   return { state, control };
 }
+
+test('idle cursor requires permission and animates only the confirmed native move', async () => {
+  const { state, control } = fixture();
+  const cancelled = { moved: false, code: 'CAPRI_IDLE_CURSOR_CANCELLED' };
+  state.allowed = false;
+  assert.deepEqual(await control.runIdleCursor(() => true), cancelled);
+  state.allowed = true;
+  assert.deepEqual(await control.runIdleCursor(() => false), cancelled);
+  let idle = true;
+  const from = { x: -150, y: 30 },
+    to = { x: -98, y: 10 };
+  const played = [];
+  state.lightning = (move) => {
+    assert.equal(state.registered && state.visible, true);
+    played.push(move);
+  };
+  state.bridge = async (command, { stillAllowed }) => {
+    assert.equal(state.registered && state.visible && stillAllowed(), true);
+    state.calls.push(command);
+    // Windows can count the cursor move as activity before returning the receipt.
+    idle = false;
+    assert.equal(stillAllowed(), true);
+    return { moved: true, from, to };
+  };
+  assert.deepEqual(
+    await control.runIdleCursor(
+      () => idle,
+      undefined,
+      () => true,
+    ),
+    { moved: true },
+  );
+  assert.deepEqual(state.calls, [{ action: 'idle_cursor_nudge' }]);
+  assert.deepEqual(played, [{ from, to }]);
+  assert.equal(state.registered || state.visible || control.snapshot().active, false);
+});
+
+test('idle cursor reports rejected movement without drawing a fake lightning trail', async () => {
+  const { state, control } = fixture();
+  state.lightning = () => assert.fail('No move was confirmed');
+  state.bridge = async () => ({ moved: false, code: 'CAPRI_IDLE_CURSOR_INPUT_IN_USE' });
+  assert.deepEqual(await control.runIdleCursor(() => true), {
+    moved: false,
+    code: 'CAPRI_IDLE_CURSOR_INPUT_IN_USE',
+  });
+  assert.equal(state.visible || state.registered, false);
+});
+
+test('cursor preview reads the real origin and moves once after the desktop indicator opens', async () => {
+  const { state, control } = fixture();
+  const from = { x: 180, y: 200 };
+  const to = { x: 400, y: 250 };
+  const token = '123456:180:200';
+  state.bridge = async (command, { stillAllowed }) => {
+    assert.equal(stillAllowed(), true);
+    state.calls.push(command);
+    if (command.action === 'idle_cursor_preview_origin') {
+      assert.equal(state.visible, false);
+      return { previewToken: token };
+    }
+    assert.equal(state.visible && state.registered, true);
+    return { moved: true, from, to };
+  };
+  const lightning = [];
+  state.lightning = (move) => lightning.push(move);
+  assert.deepEqual(
+    await control.runIdleCursor(() => true, undefined, undefined, { preview: true }),
+    { moved: true },
+  );
+  assert.deepEqual(state.calls, [
+    { action: 'idle_cursor_preview_origin' },
+    { action: 'idle_cursor_nudge', previewToken: token },
+  ]);
+  assert.deepEqual(lightning, [{ from, to }]);
+  assert.equal(state.visible || state.registered, false);
+});
+
+test('cursor preview cancelled during origin capture never starts desktop input', async () => {
+  const { state, control } = fixture();
+  let allowed = true;
+  state.bridge = async (command) => {
+    state.calls.push(command);
+    allowed = false;
+    return { previewToken: '123456:180:200' };
+  };
+  assert.deepEqual(
+    await control.runIdleCursor(() => allowed, undefined, undefined, { preview: true }),
+    { moved: false, code: 'CAPRI_IDLE_CURSOR_CANCELLED' },
+  );
+  assert.deepEqual(state.calls, [{ action: 'idle_cursor_preview_origin' }]);
+  assert.equal(state.visible || state.registered, false);
+});
+
+test('idle cursor cannot be used by a chat tool and Escape interrupts it before input', async () => {
+  const { state, control } = fixture();
+  const shown = Promise.withResolvers();
+  control.showBorder = async () => shown.resolve();
+  const pending = control.runIdleCursor(() => true);
+  const cancelled = assert.rejects(pending, /cancelled|aborted/i);
+  await shown.promise;
+  await assert.rejects(control.execute({ action: 'observe' }), /owner-requested session/i);
+  state.escape();
+  await cancelled;
+  assert.deepEqual(state.calls, []);
+  await control.begin('Open the fixture');
+  assert.equal(control.snapshot().active, true);
+  await control.stop();
+});
+
+test('returning to the desktop after the indicator opens cancels a scheduled cursor prank', async () => {
+  const { state, control } = fixture();
+  const shown = Promise.withResolvers();
+  let idle = true;
+  control.showBorder = async () => shown.resolve();
+  const pending = control.runIdleCursor(() => idle);
+  const outcome = assert.rejects(pending, /cancelled|aborted/i);
+  await shown.promise;
+  idle = false;
+  assert.equal(control.supervise({ indicatorVisible: true }), false);
+  await outcome;
+  assert.deepEqual(state.calls, []);
+  assert.equal(control.snapshot().active, false);
+});
 
 test('a native input failure consumes the observation and an in-flight action excludes overlapping input', async () => {
   const { state, control } = fixture();
@@ -814,6 +938,7 @@ test('computer vision rejects generated actions and drops bad points without los
       const body = JSON.parse(request.body);
       assert.deepEqual(body.tools, []);
       assert.equal(body.messages.at(-1).images.length, 1);
+      assert.match(body.messages[0].content, /neon-green angular face, large blue cybernetic eyes/);
       return new Response(JSON.stringify(packet));
     },
   });

@@ -7,6 +7,7 @@ import {
 } from '../../packages/skills/src/web-search/context.mjs';
 import { webSearchSettings } from '../../packages/skills/src/web-search/settings.mjs';
 export { formatWebSearchContext } from '../../packages/skills/src/web-search/context.mjs';
+import { withPagePassages } from './web-page-reader.mjs';
 
 const PROVIDERS = [
   {
@@ -210,9 +211,11 @@ async function responseText(response, signal) {
   }
 }
 
-/** Sends only the current, bounded query to fixed HTTPS search pages; never visits result URLs. */
+/** Searches fixed HTTPS providers and optionally reads public result pages. */
 export class WebSearch {
-  constructor({ fetchImpl = fetch, timeoutMs = 12000 } = {}) {
+  // With readPages the first few result pages are opened and the
+  // passage matching the question replaces the search snippet.
+  constructor({ fetchImpl = fetch, timeoutMs = 12000, readPages = false, resolve } = {}) {
     if (
       typeof fetchImpl !== 'function' ||
       !Number.isInteger(timeoutMs) ||
@@ -220,7 +223,7 @@ export class WebSearch {
       timeoutMs > 30000
     )
       throw new Error('Invalid web search configuration.');
-    Object.assign(this, { fetchImpl, timeoutMs });
+    Object.assign(this, { fetchImpl, timeoutMs, readPages: readPages === true, resolve });
   }
 
   async search(value, { signal, language, settings } = {}) {
@@ -308,7 +311,16 @@ export class WebSearch {
             return {
               status: sources.length ? 'ok' : 'empty',
               query,
-              sources,
+              sources:
+                this.readPages && !wiki && sources.length
+                  ? await withPagePassages(sources, query, {
+                      fetchImpl: this.fetchImpl === fetch ? undefined : this.fetchImpl,
+                      signal: combined,
+                      language,
+                      // undefined keeps the default DNS lookup in the page reader.
+                      resolve: this.resolve,
+                    })
+                  : sources,
               searchedAt: new Date().toISOString(),
             };
         } catch {

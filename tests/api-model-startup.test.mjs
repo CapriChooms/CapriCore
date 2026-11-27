@@ -86,6 +86,7 @@ async function fixture(options, verify) {
     ['../context.mjs', 'export const runtime = () => f.rt; export const headers = () => ({});'],
     ['./services.mjs', functions('startLlama', 'startGateway', 'stopManaged')],
     ['../http.mjs', functions('request')],
+    ['./llama-admin.mjs', 'export const llamaAdminHeaders = () => ({ authorization: "Bearer fixture" });'],
     ['../host/processes.mjs', functions('managedProcess')],
     ['../client.mjs', functions('runCli')],
     ['../host/paths.mjs', 'export const root = "C:/capri-isolated-no-files";'],
@@ -195,6 +196,7 @@ test('API skip releases only the exact resident configured language model even w
         });
         assert.equal(releases[0].options.timeout, 30000);
         assert.equal(releases[0].options.method, 'POST');
+        assert.equal(releases[0].options.headers.authorization, 'Bearer fixture');
         assert.ok(names().indexOf('/api/generate') < names().indexOf('ensureEmbeddingModel'));
         noLanguageOrAgent(calls);
         if (!preload)

@@ -92,22 +92,16 @@ function Show-CapriUpdateFailure {
   $bar.AnimateProgress=$false
 }
 function Read-CapriUpdateEvents {
-  if(-not $job.events -or -not (Test-Path -LiteralPath $job.events)){return}
-  $events=@(Get-Content -LiteralPath $job.events -Encoding UTF8)
+  if(-not $job.events){return}
+  try{
+    if(-not (Test-Path -LiteralPath $job.events)){return}
+    $events=@(Get-Content -LiteralPath $job.events -Encoding UTF8 -ErrorAction Stop)
+  }catch{return}
   for($i=$script:lines;$i -lt $events.Count;$i++){
     try{$record=$events[$i]|ConvertFrom-Json}catch{break}
     $script:lines=$i+1
     $phase=[string]$record.phase
-    if($phase -in @('failed','operation-failed')){
-      # Keep actionable diagnostics in the exported log without copying command output.
-      $failure=@{schemaVersion=1;event='failure';phase=$phase}
-      if([string]$record.stage -cmatch '^[a-z-]{1,32}$'){$failure.stage=[string]$record.stage}
-      if([string]$record.code -cmatch '^[A-Z][A-Z0-9_]{2,63}$'){$failure.code=[string]$record.code}
-      if($record.exitCode -is [int] -or $record.exitCode -is [long]){$failure.exitCode=$record.exitCode}
-      [Console]::WriteLine(($failure|ConvertTo-Json -Compress))
-      if($phase -eq 'failed'){Show-CapriUpdateFailure}
-      continue
-    }
+    if($phase -eq 'failed'){Show-CapriUpdateFailure;continue}
     if(-not $labels.ContainsKey($phase) -or $script:terminalPhase -eq 'failed'){continue}
     $status.Text=Text-Capri $labels[$phase]
     $status.ForeColor=if($phase -eq 'recovering'){$yellow}else{$cyan}
@@ -126,7 +120,8 @@ $timer.Add_Tick({
     if($script:worker -and $script:worker.HasExited){
       [Console]::WriteLine((@{phase='worker-exited';exitCode=$script:worker.ExitCode}|ConvertTo-Json -Compress))
       $timer.Stop();$script:finished=$true;$close.Enabled=$true
-      if($script:worker.ExitCode -eq 0){
+      if($script:worker.ExitCode -eq 0 -and $script:terminalPhase -ne 'failed'){
+        $script:terminalPhase='complete'
         Start-Process -FilePath (Join-Path $job.root 'Capri.exe') -WorkingDirectory $job.root -WindowStyle Hidden
         $form.Close()
       }else{Show-CapriUpdateFailure}
@@ -162,4 +157,4 @@ $form.Add_Shown({
   }
 })
 try{[void]$form.ShowDialog()}finally{$timer.Dispose();$form.Dispose();if($icon){$icon.Dispose()}}
-if($script:verificationFailed -or $script:terminalPhase -eq 'failed'){exit 1}
+if($script:verificationFailed -or (-not $Verification -and $script:terminalPhase -ne 'complete')){exit 1}

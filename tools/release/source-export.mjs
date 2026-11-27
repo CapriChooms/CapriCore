@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempDisposableSync,
   copyFileSync,
+  writeFileSync,
   existsSync,
   lstatSync,
 } from 'node:fs';
@@ -23,6 +24,7 @@ import { assertEmptyOwnerTemplates } from '../../packages/runtime/src/owner-memo
 import { startupIntroSourceFiles } from '../../apps/desktop/startup-intro-assets.mjs';
 import { musicArtworkSourceFiles } from '../../apps/desktop/music-artwork.mjs';
 import { hangingCelAssetNames } from '../../apps/desktop/renderer/hanging-cels.mjs';
+import { gripArt } from '../../apps/desktop/renderer/music-grip-art.mjs';
 import {
   sourceFiles,
   forbiddenSource as forbidden,
@@ -59,13 +61,23 @@ export function validateSource(files) {
     JSON.parse(readFileSync(path.join(root, 'config/companion-voice.json'), 'utf8')),
   );
   const errors = [];
+  const homeUser = RegExp.escape(userInfo().username);
+  const localWindowsHome = new RegExp(
+    `[A-Z]:[\\\\/]+Users[\\\\/]+${homeUser}(?=[\\\\/\\s"']|$)`,
+    'iu',
+  );
   const artwork = requireCapriAvatar(root, { source: true });
   for (const name of [
     ACTIVE_AVATAR_CATALOG,
     ACTIVE_AVATAR_POSES,
-    'assets/default/capri-headpat.png',
+    'assets/default/capri-blink-pose.png',
+    'assets/default/capri-blink-eyes.png',
+    ...['poses', 'gestures'].flatMap((group) =>
+      ['png', 'json'].map((extension) => `assets/default/capri-face-${group}.${extension}`),
+    ),
     'assets/default/capri-wave.webp',
     'assets/default/hanging-cels/geometry.json',
+    ...Object.keys(gripArt).map((id) => 'assets/default/music-grip-plates/' + id + '.png'),
     ...hangingCelAssetNames.map((name) => 'assets/default/hanging-cels/' + name + '.webp'),
     ...artwork.frames.map((frame) => path.relative(root, frame.file).split(path.sep).join('/')),
   ])
@@ -75,6 +87,7 @@ export function validateSource(files) {
   for (const name of musicArtworkSourceFiles(root))
     if (!files.includes(name)) errors.push('Missing reviewed music artwork: ' + name);
   for (const name of [
+    '.gitattributes',
     'README.md',
     'package.json',
     'package-lock.json',
@@ -110,13 +123,12 @@ export function validateSource(files) {
       )
     )
       errors.push(name + ': runtime/model/media binary');
-    if (/\.(?:mjs|js|cjs|py|cs|ps1|cmd|json|md|toml|ya?ml|txt)$/.test(name)) {
+    if (/\.(?:mjs|js|cjs|py|cs|ps1|cmd|sh|json|md|toml|ya?ml|txt)$/.test(name)) {
       const text = bytes.toString('utf8');
-      const homeUser = userInfo().username.toLowerCase();
       if (
         /[A-Z]:[\\/]+AI[ _]ASSISTANT/i.test(text) ||
         text.includes(hostname()) ||
-        (/[A-Z]:[\\/]+Users[\\/]+/i.test(text) && text.toLowerCase().includes(homeUser))
+        localWindowsHome.test(text)
       )
         errors.push(name + ': private machine path/name');
       if (hasSourceCredential(text)) errors.push(name + ': credential-like content');
@@ -153,6 +165,23 @@ export function exportSource({ check = false, temporary = false } = {}) {
       const target = path.join(destination, entry.path);
       mkdirSync(path.dirname(target), { recursive: true });
       copyFileSync(path.join(root, entry.path), target);
+    }
+    // A Git checkout of a release must preserve the bytes attested by its manifest.
+    // The development checkout can continue to normalize line endings as usual.
+    const attributes = manifest.find((entry) => entry.path === '.gitattributes');
+    const attributesFile = path.join(destination, attributes.path);
+    const original = readFileSync(attributesFile);
+    if (createHash('sha256').update(original).digest('hex') !== attributes.sha256)
+      throw new Error('Git attributes changed while exporting the release');
+    const rules = original.toString('utf8');
+    const releaseRule = '* -text !eol\n';
+    if (!rules.endsWith('\n' + releaseRule)) {
+      const addition =
+        '\n# Preserve the exact bytes listed in SOURCE_MANIFEST.json.\n' + releaseRule;
+      const updated = Buffer.concat([original, Buffer.from(addition)]);
+      writeFileSync(attributesFile, updated);
+      attributes.bytes = updated.length;
+      attributes.sha256 = createHash('sha256').update(updated).digest('hex');
     }
     writeJsonAtomic(path.join(destination, 'SOURCE_MANIFEST.json'), {
       schemaVersion: 1,

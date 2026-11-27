@@ -15,8 +15,10 @@ mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'avatar-roaming-'));
 const report = { passed: false, errors: [], checks: [] };
 const virtualMonitors = process.argv.includes('--virtual-monitors');
+const offline = process.argv.includes('--offline');
 const server = createServer((_request, response) => {
   response.setHeader('content-type', 'application/json');
+  if (offline) response.statusCode = 503;
   response.end('{"data":[]}');
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -40,7 +42,10 @@ try {
     page.on('pageerror', (error) => report.errors.push(error.message)),
   );
   const owner = await application.firstWindow();
-  await owner.waitForFunction(() => document.body.dataset.phase === 'ready');
+  await owner.waitForFunction(
+    (phase) => document.body.dataset.phase === phase,
+    offline ? 'offline' : 'ready',
+  );
   await application.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()
       .find((item) => item.webContents.getURL() === 'capri://desktop/index.html')
@@ -80,9 +85,24 @@ try {
       if (event.type === 'avatar.detach') window.__roamingPhases.push(event.phase);
     });
   });
-  const settings = await settingsView(application, 'avatar-skill');
+  await application.evaluate(({ powerMonitor }) => {
+    powerMonitor.getSystemIdleState = () => 'idle';
+  });
+  const settings = await settingsView(application, 'initiative');
+  const cursorPranks = settings.locator('#avatar-roam-cursor-pranks');
+  assert.equal(await settings.locator('#initiative-quiet-enabled').isChecked(), false);
+  assert.equal(await settings.locator('#initiative-quiet-start').isDisabled(), true);
+  assert.equal(await settings.locator('#initiative-exclusions-enabled').isChecked(), false);
+  assert.equal(await settings.locator('#initiative-exclusions').isDisabled(), true);
+  await settings.locator('#initiative-exclusions-enabled').check();
+  assert.equal(await settings.locator('#initiative-exclusions').isEnabled(), true);
+  await settings.locator('#initiative-exclusions-enabled').uncheck();
   assert.equal(await settings.locator('#avatar-roaming').isChecked(), false);
+  assert.equal(await cursorPranks.isChecked(), false);
   assert.equal(await settings.locator('#avatar-roam-interval').isDisabled(), true);
+  assert.equal(await settings.locator('#avatar-roam-monitors').isDisabled(), true);
+  await cursorPranks.check();
+  assert.equal(await settings.locator('#avatar-roam-interval').isEnabled(), true);
   assert.equal(await settings.locator('#avatar-roam-monitors').isDisabled(), true);
   await settings.locator('#avatar-roaming').check();
   await settings.locator('#avatar-roam-monitors').selectOption('pointer');
@@ -94,14 +114,18 @@ try {
   await settings.locator('[data-companion-group="Desktop roaming"]').scrollIntoViewIfNeeded();
   await settings.screenshot({ path: path.join(folder, 'roaming-settings.png') });
   await saveSettings(settings);
-  await settings.locator('#settings-window-close').click();
   console.log('Waiting for the first scheduled teleport (30–36 s).');
   await owner.waitForFunction(() => window.__roamingPhases.includes('detached'), null, {
     timeout: 45000,
   });
   report.checks.push(
-    'Enabled roaming leaves the home frame automatically without screen observation.',
+    'Enabled roaming leaves the home frame while Settings is open and mocked system input is idle.',
   );
+  await settings.locator('#settings-window-close').click();
+  if (offline) {
+    assert.equal(await owner.locator('body').getAttribute('data-phase'), 'offline');
+    report.checks.push('Avatar movement does not require the local model or API.');
+  }
   const checkTarget = async (side) => {
     let placement;
     // The outgoing window remains visible while its teleport effect settles.
@@ -142,17 +166,20 @@ try {
     await checkTarget('home');
     report.checks.push('Roaming follows the pointer across two simulated monitors.');
   }
-  const reopened = await settingsView(application, 'avatar-skill');
+  const reopened = await settingsView(application, 'initiative');
+  assert.equal(await reopened.locator('#avatar-roam-cursor-pranks').isChecked(), true);
   assert.equal(await reopened.locator('#avatar-roaming').isChecked(), true);
   assert.equal(await reopened.locator('#avatar-roam-interval').inputValue(), '30');
   assert.equal(await reopened.locator('#avatar-roam-monitors').inputValue(), 'pointer');
   await reopened.locator('#avatar-roaming').uncheck();
+  await reopened.locator('#avatar-roam-cursor-pranks').uncheck();
   assert.equal(await reopened.locator('#avatar-roam-interval').isDisabled(), true);
   assert.equal(await reopened.locator('#avatar-roam-monitors').isDisabled(), true);
   await saveSettings(reopened);
   await reopened.locator('#settings-window-close').click();
   const state = await owner.evaluate(() => window.capri.bootstrap());
   assert.equal(state.companion.avatarRoaming, false);
+  assert.equal(state.companion.avatarRoamCursorPranks, false);
   assert.equal(state.companion.avatarRoamMonitors, 'pointer');
   report.checks.push('Settings persist and roaming can be disabled again.');
   assert.deepEqual(report.errors, []);

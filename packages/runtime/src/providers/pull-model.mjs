@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { existsSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
+import { llamaAdminHeaders } from './llama-admin.mjs';
 class PullPaused extends Error {}
 /** Upstream errors can contain temporary signed CDN URLs. Keep the host/path only. */
 export function modelPullMessage(value) {
@@ -84,7 +85,7 @@ export async function pullModel(
     try {
       const response = await fetchImpl(`${rt.ollamaUrl}/api/pull`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...llamaAdminHeaders(rt.ollamaUrl) },
         body: JSON.stringify({ model, stream: true }),
         redirect: 'error',
         signal: AbortSignal.any([

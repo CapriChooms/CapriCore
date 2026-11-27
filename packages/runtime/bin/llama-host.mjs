@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { existsSync } from 'node:fs';
+import { existsSync, watch } from 'node:fs';
 import path from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 import { createLlamaBridge } from '../src/providers/llama-bridge.mjs';
+import { readLlamaAdminToken } from '../src/providers/llama-admin.mjs';
 import { LlamaModelStore } from '../src/providers/llama-model-store.mjs';
 import { LlamaWorkers } from '../src/providers/llama-workers.mjs';
 import { launch, stopProcess } from '../src/host/processes.mjs';
@@ -10,14 +11,15 @@ import { root, paths, requireExecutable } from '../src/host/paths.mjs';
 import { llamaPath } from '../src/host/executables.mjs';
 import { createLlamaRuntimeView, llamaBundleReady } from '../src/host/llama-bundle.mjs';
 import { settings } from '../src/config/settings.mjs';
+import { modelIdlePolicyFile, readModelIdlePolicy } from '../src/providers/model-idle-policy.mjs';
 
 const executable = requireExecutable(llamaPath, 'llama.cpp');
 const port = Number(process.env.CAPRI_OLLAMA_PORT);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
   throw new Error('Invalid managed inference port.');
 const device = process.env.CAPRI_LLAMA_DEVICE;
-if (device && device !== 'unavailable' && !/^Vulkan\d{1,2}$/.test(device))
-  throw new Error('Invalid local Vulkan device.');
+if (device && device !== 'unavailable' && !/^(?:Vulkan|MTL)\d{1,2}$/.test(device))
+  throw new Error('Invalid local inference device.');
 const overheadMiB = Number(process.env.CAPRI_LLAMA_RESERVE_MIB) || 768;
 if (overheadMiB < 0 || overheadMiB > 8192) throw new Error('Invalid local VRAM reserve.');
 const env = {};
@@ -34,6 +36,7 @@ for (const key of [
   if (process.env[key]) env[key] = process.env[key];
 const canIsolate = process.platform === 'win32' && llamaBundleReady(executable);
 const views = new Map();
+const desktopState = path.join(paths.data, 'desktop');
 
 const roleName = (role) => (role === 'chat' ? 'llama-chat' : 'llama-embedding');
 // A crash may leave an owned native worker. Validate its saved process identity
@@ -46,6 +49,7 @@ const workers = new LlamaWorkers({
   device,
   overheadMiB,
   canRetryIllegalInstruction: canIsolate,
+  idlePolicy: () => readModelIdlePolicy(desktopState),
   start: async (role, args, extra, { allowGpu, baseline }) => {
     const name = roleName(role);
     let target = executable;
@@ -82,8 +86,18 @@ const workers = new LlamaWorkers({
     return { alive: () => !ended, stop: () => stopProcess(name), exitCode };
   },
 });
+let idlePolicyWatcher;
+try {
+  idlePolicyWatcher = watch(desktopState, { persistent: false }, (_event, file) => {
+    if (file === modelIdlePolicyFile) void workers.refreshIdlePolicy().catch(() => {});
+  });
+  idlePolicyWatcher.on('error', () => idlePolicyWatcher.close());
+} catch {
+  // A standalone host can run without a desktop directory. New requests still read the policy.
+}
 const store = new LlamaModelStore(root, settings);
 const server = createLlamaBridge({
+  adminToken: readLlamaAdminToken(),
   store,
   workers,
   config: settings,
@@ -98,6 +112,7 @@ await new Promise((resolve, reject) => {
 let closing;
 const close = () => {
   if (closing) return closing;
+  idlePolicyWatcher?.close();
   clearInterval(stopTimer);
   server.close();
   server.closeAllConnections();

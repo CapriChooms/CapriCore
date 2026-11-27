@@ -17,7 +17,7 @@ private data, logs, model caches and other root distribution exclusions.
 ## Manual source installation
 
 The first desktop target is Windows x64. ARM64 and Linux/macOS desktop integrations
-are not qualified. Install Node.js 24.22.1 or a newer compatible 24.x release,
+are not qualified. Install Node.js 24.22.3 or a newer compatible 24.x release,
 including npm, and extract the [llama.cpp b12317 Windows x64 Vulkan runtime](https://github.com/ggml-org/llama.cpp/releases/tag/b12317).
 Reopen PowerShell after installation,
 then open the writable project folder containing `package.json`.

@@ -12,11 +12,12 @@ import {
   CAMERA_LICENSE_FILE,
 } from '../apps/desktop/call-camera-protocol.mjs';
 import { CallCamera } from '../apps/desktop/main/call-camera.mjs';
+import { AvatarDetach } from '../apps/desktop/main/avatar-detach.mjs';
 import {
   CAMERA_BUNDLES_FOLDER,
   readCameraBundleReceipt,
 } from '../apps/desktop/main/camera-bundle.mjs';
-import { cameraI420 } from '../apps/desktop/renderer/call-camera-frame.mjs';
+import { CameraFramePublisher, cameraI420 } from '../apps/desktop/renderer/call-camera-frame.mjs';
 import { prepareBundledCamera } from '../packages/installer/src/camera-package.mjs';
 import { temporaryFolders } from './temporary-folders.mjs';
 
@@ -42,6 +43,67 @@ test('camera frame converts RGB to independent I420 luminance and chroma planes'
   ]);
   const converted = cameraI420(rgba, new Uint8Array(6), 2, 2);
   assert.deepEqual([...converted], [82, 144, 41, 235, 128, 128]);
+});
+
+test('camera repaints breathing even while the sleeping sprite is unchanged', async () => {
+  const image = { width: 1254, height: 1254 };
+  let breath = 1;
+  const draw = [];
+  const publisher = new CameraFramePublisher({ image: () => image, breathScale: () => breath });
+  publisher.context = {
+    fillRect() {},
+    drawImage: (_, x, y, width, height) => draw.push({ x, y, width, height }),
+  };
+  await publisher.tick();
+  await publisher.tick();
+  breath = 1.025;
+  await publisher.tick();
+  assert.equal(draw.length, 2);
+  const [rest, inhale] = draw;
+  assert.equal(inhale.x, rest.x);
+  assert.equal(inhale.width, rest.width);
+  assert.ok(inhale.height > rest.height && inhale.y < rest.y);
+  assert.ok(Math.abs(rest.y + rest.height * 0.93 - inhale.y - inhale.height * 0.93) < 1e-8);
+});
+
+test('the camera redraws the rendered character whenever its texture revision changes', async () => {
+  const image = { width: 1254, height: 1254, avatarTextureRevision: 0 };
+  const draw = [];
+  const publisher = new CameraFramePublisher({ image: () => image });
+  publisher.context = {
+    fillRect() {},
+    drawImage: (source) => draw.push(source.avatarTextureRevision),
+  };
+  await publisher.tick();
+  await publisher.tick();
+  image.avatarTextureRevision++;
+  await publisher.tick();
+  assert.deepEqual(draw, [0, 1]);
+});
+
+test('only the current visible detached avatar main frame can publish camera data', () => {
+  const sent = [];
+  const contents = {
+    mainFrame: { url: 'capri://desktop/avatar-detach.html' },
+    getURL: () => contents.mainFrame.url,
+    send: (...args) => sent.push(args),
+  };
+  const detach = new AvatarDetach({});
+  detach.overlay = { isDestroyed: () => false, isVisible: () => true, webContents: contents };
+  const event = { sender: contents, senderFrame: contents.mainFrame };
+  assert.equal(detach.cameraSource(), null);
+  detach.phase = 'detached';
+  assert.equal(detach.cameraSource(), contents);
+  assert.equal(detach.ownsCameraSource(event), true);
+  assert.equal(detach.ownsCameraSource({ ...event, senderFrame: { ...event.senderFrame } }), false);
+  detach.sendCameraState({ enabled: true }, true);
+  detach.presentation = 'dialogue';
+  assert.ok(!detach.ownsCameraSource(event));
+  detach.sendCameraState({ enabled: true }, true);
+  assert.deepEqual(sent, [
+    ['capri:avatar-camera-state', { state: { enabled: true }, preview: true }],
+    ['capri:avatar-camera-state', { state: null, preview: false }],
+  ]);
 });
 
 test('camera starts only after opt-in and emits only full frames until stopped', async () => {

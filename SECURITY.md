@@ -1,23 +1,64 @@
 # Security
 
-This policy describes the public **CapriCore 1.0.1** release. When reporting a
-problem, include the installed version and whether it also occurs on the latest
-public release. Historical early-access notes are not a statement of current
-protection.
+This policy applies to CapriCore and the Windows installer. When reporting a
+problem, include the installed version, release channel, operating system and
+whether the problem also occurs on the latest public release for that platform.
+See the [release notes](https://github.com/CapriChooms/CapriCore/releases) for the
+changes in each public build.
 
 Permission bypass, malformed IPC, path traversal, unwanted capture, credential leakage and unsafe process termination are security issues.
 
-The default installation scope intentionally gives Capri read/write access to its own source, configuration and data. It can be revoked in File access. This permits self-modification and is not a security boundary against altered application code or configuration. Additional folder grants and screen/microphone permissions remain separate capabilities in the shipped implementation.
+The installation scope in File access is read-only and can be revoked. Older writable grants migrate to read-only. The file tool protects the installation even when its parent folder or a whole drive is granted. Runtime credentials, private configuration backups and other private data use dedicated controls. Screen permissions, desktop input and coding tasks have separate trust boundaries.
 
 Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/CapriChooms/CapriCore/security/advisories/new). Do not post exploit details or credentials in public issues. Provide a minimal fixture-based reproduction; never attach private data, recordings, models or unredacted logs.
 
 The source exporter is a defense layer, not a guarantee that arbitrary future code contains no personal data. Review the artifact before publishing. Rotate any exposed credential. CI has read-only repository permissions; untrusted pull requests must not publish releases or run privileged desktop actions.
 
-The [reviewed dependency backports](docs/security-backports.md) document two upstream denial-of-service fixes applied to actual runtime files. Original versions and version-based audit warnings remain visible; the checksums and regression fixtures establish the narrow mitigation claim.
+## Runtime dependencies
+
+The [upstream lock](config/upstream-lock.json) records the source and versions of
+the pinned runtimes. The [installer manifest](config/installer.json) pins the
+Windows Node.js and Electron archives by SHA-256. The
+[npm lockfile](package-lock.json) records the installed JavaScript dependencies.
+When checking advisories, compare the affected range with the version installed
+by the specific Capri release. Electron embeds its own Node.js and Chromium.
+
+The [reviewed dependency backports](docs/security-backports.md) document two
+upstream denial-of-service fixes applied to the installed npm dependencies. The
+packages retain their published version numbers, so version-based scanners may
+still report those two advisories and their dependency chains.
+
+The [dependency audit workflow](.github/workflows/dependency-audit.yml) runs npm
+audit and OSV separately from installation. It scans each optional Python
+environment and the voice build backends. It retains both reports and CycloneDX
+inventories of the npm and Python locks on release runs. Review the affected profiles in the
+Python report. An advisory in an optional package can require a particular
+input format, device backend or service to be reachable.
+
+The Windows ASR, request router and OpenVINO setups require SHA-256 hashes for
+their complete runtime locks. Chatterbox uses hashed distributions and two
+full Git commit IDs. Its isolated build backends have a separate hashed lock.
+The Windows installer ignores inherited package indexes and hash-check overrides.
+
+Capri calls Chatterbox through its Python inference API. Its environment omits
+the upstream Gradio demo server and uses separately tested Transformers,
+Diffusers and Safetensors pins. A metadata consistency checker will report
+these differences from Chatterbox's declared requirements. Qwen has a separate
+environment and dependency graph.
+
+The CUDA 12.4, Blackwell and experimental ROCm profiles still use PyTorch versions with
+published advisories. Capri verifies the distributed speech checkpoint bytes
+against the pinned manifest before loading them. A change to the PyTorch family
+also needs a matching TorchAudio wheel and synthesis tests on the target GPU.
+See the [PyTorch checkpoint advisory](https://github.com/pytorch/pytorch/security/advisories/GHSA-63cw-57p8-fm3p).
+
+The Qwen speech package pins Transformers and Accelerate independently of
+Chatterbox. Its Gradio dependency also constrains Pillow. Check the Qwen lock
+when reviewing alerts for those packages, even on systems using CPU speech.
 
 ## Personal data at rest
 
-Full encryption of conversation history, attachments and ordinary memory is deferred. Capri 1.0.1 uses the existing local file storage and does not require EFS, WinFsp or Dokany. It must not be described as fully encrypted. Existing API credential protection and the separately password-protected private memory feature are retained. Stored API credentials use Electron safeStorage/Windows DPAPI for the current Windows account; this is not protection against a compromised account, administrator or process-memory access. The private memory box does not encrypt ordinary conversation history or other copies of information already shared.
+Conversation history, attachments and ordinary memory use local file storage. Stored API credentials use Electron safeStorage backed by Windows DPAPI on Windows. That protection is scoped to the current Windows account and assumes the account and Capri process are trusted. The separately password-protected private memory feature protects entries in its own vault. Ordinary history and other copies of that information remain outside the vault.
 
 A read-only compatibility decoder can recover dialogue and image previews from the withdrawn local encryption experiment using the original Windows account and saved key. It never creates a key or encrypts new files. Unreadable history is preserved instead of being overwritten by new messages.
 
@@ -57,10 +98,21 @@ user tool. A local tool can have its own network and file behavior; declaring a
 permission does not establish that its script is trustworthy. Stop an active
 computer-control session with **Escape**.
 
+Speech recognition can request an action. Pending desktop approvals require a
+typed response or a confirmation button, depending on the action. The managed
+voice worker and its GPU probe receive an allowlisted environment.
+
+During startup, Capri restores its managed gateway plugin and tool policy,
+loopback binding, and token authentication. The managed llama.cpp bridge
+requires a separate credential for model import, download, deletion and
+explicit unload. Its inference and discovery endpoints remain available on
+loopback for provider compatibility.
+
 Public downloads and update checks use
 [CapriChooms/CapriCore](https://github.com/CapriChooms/CapriCore/releases) without
 a GitHub account or token. Optional saved GitHub access stays protected by the
-existing account-bound credential storage. Download hashes and manifests detect
+existing account-bound credential storage and is configured in Updates.
+Download hashes and manifests detect
 integrity problems; they do not replace publisher code signing. The current
 Windows installer is unsigned.
 

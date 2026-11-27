@@ -27,6 +27,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -35,6 +38,8 @@ using Capri.Setup;
 
 internal static class ProgressProbe {
     private static readonly JavaScriptSerializer Json = new JavaScriptSerializer();
+    [DllImport("user32.dll")] private static extern IntPtr GetLastActivePopup(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
     private static T Field<T>(UninstallProgress progress, string name) {
         return (T)typeof(UninstallProgress).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(progress);
     }
@@ -85,7 +90,9 @@ internal static class ProgressProbe {
                 try {
                     if (++ticks > 150) throw new Exception("Selection screen did not finish measuring disk space.");
                     var remove = (Button)window.Controls.Find("selection-remove", true)[0];
-                    if (!remove.Enabled) return;
+                    var status = (Label)window.Controls.Find("disk-usage", true)[0];
+                    if (!remove.Enabled || status.Text == messages["measuring"]) return;
+                    Check(status.Text != messages["measureFailed"], "The regular estimate must still succeed.");
                     window.Location = new Point(-10000, -10000);
                     Check(window.BackColor.GetBrightness() < .2f && window.MinimizeBox, "Selection must use the dark setup theme and offer Minimize.");
                     var cancel = (Button)window.Controls.Find("selection-cancel", true)[0];
@@ -119,12 +126,75 @@ internal static class ProgressProbe {
             Check(choice == 0 && step == 2 && File.Exists(sample), "Selection preview changed the file or returned a removal plan.");
         }
     }
+    private static void CheckMeasurementFailure(string directory, Dictionary<string, string> messages) {
+        string sample = Path.Combine(directory, "readable-app.txt");
+        File.WriteAllText(sample, "Application file in the test fixture");
+        string blocked = Directory.CreateDirectory(Path.Combine(directory, "unreadable-models")).FullName;
+        var original = Directory.GetAccessControl(blocked);
+        var restricted = Directory.GetAccessControl(blocked);
+        using (var user = WindowsIdentity.GetCurrent())
+            restricted.AddAccessRule(new FileSystemAccessRule(user.User, FileSystemRights.ListDirectory, AccessControlType.Deny));
+        Directory.SetAccessControl(blocked, restricted);
+        try { CheckSelectionWithUnreadableModels(directory, messages, sample, blocked); }
+        finally { Directory.SetAccessControl(blocked, original); }
+    }
+    private static void CheckSelectionWithUnreadableModels(string directory, Dictionary<string, string> messages, string sample, string blocked) {
+        string[][] groups = { new[] { sample }, new[] { blocked }, new string[0], new string[0] };
+        try {
+            UninstallWindow.Measure(groups);
+            throw new Exception("The strict estimate should fail on the unreadable directory.");
+        } catch (UnauthorizedAccessException) { }
+        using (var timer = new System.Windows.Forms.Timer { Interval = 60 }) {
+            Exception failure = null;
+            int ticks = 0;
+            bool submitted = false;
+            timer.Tick += (sender, args) => {
+                Form window = Application.OpenForms["capri-uninstall-selection"];
+                if (window == null) return;
+                try {
+                    if (++ticks > 100) throw new Exception("The selection did not complete.");
+                    var status = (Label)window.Controls.Find("disk-usage", true)[0];
+                    if (status.Text != messages["measureFailed"]) return;
+                    var remove = (Button)window.Controls.Find("selection-remove", true)[0];
+                    if (submitted) {
+                        IntPtr dialog = GetLastActivePopup(window.Handle);
+                        if (dialog != window.Handle && dialog != IntPtr.Zero)
+                            PostMessage(dialog, 0x0111, new IntPtr(6), IntPtr.Zero); // WM_COMMAND, IDYES
+                        return;
+                    }
+                    Check(remove.Enabled, "A failed disk estimate blocked removal.");
+                    ((RadioButton)window.Controls.Find("mode-standard", true)[0]).Checked = true;
+                    Check(status.Text.StartsWith(messages["selectedSpace"].Split('{')[0], StringComparison.Ordinal),
+                        "An unreadable model directory hid the estimate for application-only removal.");
+                    ((RadioButton)window.Controls.Find("mode-custom", true)[0]).Checked = true;
+                    for (int index = 0; index < 3; index++)
+                        ((CheckBox)window.Controls.Find("group-" + index, true)[0]).Checked = false;
+                    Check(!remove.Enabled, "Removal is enabled with an empty selection.");
+                    ((CheckBox)window.Controls.Find("group-1", true)[0]).Checked = true;
+                    Check(remove.Enabled, "Selecting a component did not enable removal.");
+                    Check(status.Text == messages["measureFailed"], "An incomplete model estimate appeared as an exact size.");
+                    submitted = true;
+                    remove.PerformClick();
+                    Check(window.DialogResult == DialogResult.OK, "The failed estimate prevented confirmation.");
+                } catch (Exception error) {
+                    failure = error;
+                    window.DialogResult = DialogResult.Cancel;
+                }
+            };
+            timer.Start();
+            int choice = UninstallWindow.Show(directory, groups, 7, "", messages, false, "");
+            timer.Stop();
+            if (failure != null) throw failure;
+            Check(choice == 2 && submitted, "Expected the confirmed custom removal selection.");
+        }
+    }
     [STAThread] private static int Main(string[] args) {
         try {
             Console.OutputEncoding = new System.Text.UTF8Encoding(false);
             var catalog = Json.Deserialize<Dictionary<string, Dictionary<string, string>>>(File.ReadAllText(args[0]));
             var messages = catalog[args[1]];
             bool rtl = args[1] == "ar";
+            if (args[1] == "en") CheckMeasurementFailure(args[2], messages);
             CaptureSelection(args[2], args[1], args[3], messages, rtl);
             var snapshots = new Dictionary<string, object>();
             using (var progress = new UninstallProgress(messages, rtl, "")) {
@@ -240,7 +310,7 @@ internal static class ProgressProbe {
     );
     assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr);
     const reports = [];
-    for (const language of ['en', 'ru', 'ar']) {
+    for (const language of ['en', 'ru', 'es', 'ar']) {
       const result = spawnSync(
         executable,
         [

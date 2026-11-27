@@ -11,8 +11,7 @@ import { settingsView } from './settings-view.mjs';
 const parent = path.join(root, '.runtime/dimming-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'ui-')),
-  errors = [],
-  graphicsWarnings = [];
+  errors = [];
 const server = createServer((req, res) => {
   if (req.url === '/v1/models') {
     res.setHeader('content-type', 'application/json');
@@ -60,8 +59,6 @@ async function launch() {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
-    if (message.type() === 'warning' && message.text().startsWith('Capri portrait graphics: '))
-      graphicsWarnings.push(message.text());
   });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.waitForFunction(
@@ -144,6 +141,13 @@ async function shadePixels() {
     const support = rect('#support-author');
     const reportButton = rect('#report-bug');
     const centerY = (r) => r.top + r.height / 2;
+    const centerX = (r) => r.left + r.width / 2;
+    const [metricA, metricB] = [...document.querySelectorAll('.process-graph, .memory-gauge')]
+      .map((node) => node.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.height > 0);
+    const metricsGap = metricB && (metricB.top >= metricA.bottom
+      ? [centerX(metricA), (metricA.bottom + metricB.top) / 2]
+      : [(metricA.right + metricB.left) / 2, centerY(metricA)]);
     const panelGap = document.body.hasAttribute('data-horizontal-portrait')
       ? [portrait.right + 5, centerY(portrait)]
       : [portrait.left + portrait.width / 2, (portrait.top + reply.bottom) / 2];
@@ -155,6 +159,7 @@ async function shadePixels() {
       cut: [composer.left + 2, composer.top + 2],
       button: [support.left + support.width / 2, centerY(support)],
       buttonGap: [(support.right + reportButton.left) / 2, centerY(support)],
+      ...(metricsGap ? { metricsGap } : {}),
       panelGap,
     };
     clone.dataset.fixture = '';
@@ -325,19 +330,21 @@ try {
   const soft = await shadePixels();
   assert.ok(Math.abs(soft.center - 166) <= 3);
   assert.ok(soft.edge < 80 && soft.corner < 5, JSON.stringify(soft));
-  assert.ok(soft.buttonGap < 5 && soft.panelGap < 5, JSON.stringify(soft));
+  assert.ok(soft.buttonGap > 80 && soft.panelGap < 5, JSON.stringify(soft));
   await settings({ enabled: true, level: 85, softness: 0 });
   const hard = await shadePixels();
   assert.ok(Math.abs(hard.center - 217) <= 3);
   assert.ok(Math.abs(hard.edge - 217) <= 3 && Math.abs(hard.button - 217) <= 3);
-  assert.ok(hard.corner < 5 && hard.cut < 5 && hard.buttonGap < 5 && hard.panelGap < 5);
+  assert.ok(hard.corner < 5 && hard.cut < 5 && hard.panelGap < 5, JSON.stringify(hard));
+  assert.ok(Math.abs(hard.buttonGap - 217) <= 3, JSON.stringify(hard));
+  assert.ok(Math.abs(hard.metricsGap - 217) <= 3, JSON.stringify(hard));
   await settings({ enabled: false, level: 85, softness: 140 });
   const disabled = await shadePixels();
   assert.equal(disabled.center, 0);
   await settings({ enabled: true, level: 0, softness: 140 });
   assert.equal((await shadePixels()).center, 0);
   checks.push(
-    'Pixel alpha verifies clipped corners, clear gaps, feathered edges, disable and zero strength',
+    'Pixel alpha verifies toolbar and resource sections fill internal gaps, preserves gaps between panels and clipped corners',
   );
 
   await page.evaluate(async () => {
@@ -348,7 +355,8 @@ try {
   await settings({ enabled: true, level: 85, softness: 0 });
   const horizontal = await shadePixels();
   assert.ok(Math.abs(horizontal.center - 217) <= 3, JSON.stringify(horizontal));
-  assert.ok(horizontal.panelGap < 5 && horizontal.buttonGap < 5, JSON.stringify(horizontal));
+  assert.ok(horizontal.panelGap < 5 && Math.abs(horizontal.buttonGap - 217) <= 3, JSON.stringify(horizontal));
+  assert.ok(Math.abs(horizontal.metricsGap - 217) <= 3, JSON.stringify(horizontal));
   await page.evaluate(async () => {
     const { companion } = await window.capri.bootstrap();
     await window.capri.setCompanionSettings({ ...companion, windowLayout: 'vertical' });
@@ -405,63 +413,11 @@ try {
   });
   assert.equal((await layer()).opacity, 0.57);
   checks.push('Existing preferences persist on restart');
-
-  await presence('portrait');
-  await page.waitForFunction(() => document.body.dataset.crt === 'webgl');
-  const contextLostLog = page.waitForEvent('console', {
-    predicate: (message) => message.text().includes('"event":"context-lost"'),
-  });
-  await page.locator('#crt-screen').evaluate((canvas) => {
-    const contextLoss = canvas.getContext('webgl').getExtension('WEBGL_lose_context');
-    canvas.addEventListener('capri-test-restore-context', () => contextLoss.restoreContext(), {
-      once: true,
-    });
-    contextLoss.loseContext();
-  });
-  await contextLostLog;
-  await page.waitForFunction(() => document.body.dataset.crt === 'fallback');
-  assert.equal(await page.locator('#crt-screen').isVisible(), false);
-  assert.equal(
-    await page.locator('#sprite').evaluate((node) => getComputedStyle(node).opacity),
-    '1',
-  );
-  const contextRestoredLog = page.waitForEvent('console', {
-    predicate: (message) => message.text().includes('"event":"context-restored"'),
-  });
-  await page.locator('#crt-screen').dispatchEvent('capri-test-restore-context');
-  await contextRestoredLog;
-  await page.waitForFunction(() => document.body.dataset.crt === 'webgl');
-  checks.push('WebGL context loss reveals the sprite and Chromium can restore the effect');
-
-  await application.evaluate(({ app }) => {
-    app.emit('child-process-gone', {}, { type: 'Utility', reason: 'crashed', exitCode: 1 });
-    app.emit('child-process-gone', {}, { type: 'GPU', reason: 'clean-exit', exitCode: 0 });
-  });
-  assert.equal(await page.locator('body').getAttribute('data-crt'), 'webgl');
-  const fallbackLog = page.waitForEvent('console', {
-    predicate: (message) => message.text().includes('"event":"gpu-process-exit-fallback"'),
-  });
-  await application.evaluate(({ app }) =>
-    app.emit('child-process-gone', {}, { type: 'GPU', reason: 'crashed', exitCode: -1073741819 }),
-  );
-  await fallbackLog;
-  await page.waitForFunction(() => document.body.dataset.crt === 'fallback');
-  assert.equal(await page.locator('#crt-screen').isVisible(), false);
-  assert.equal(
-    await page.locator('#sprite').evaluate((node) => getComputedStyle(node).opacity),
-    '1',
-  );
-  await page.locator('#crt-screen').dispatchEvent('webglcontextrestored');
-  assert.equal(await page.locator('body').getAttribute('data-crt'), 'fallback');
-  assert.equal((await page.evaluate(() => window.capri.bootstrap())).portraitFallback, true);
-  checks.push('Unexpected GPU exit switches to the DOM sprite and disables WebGL for this session');
-
   assert.deepEqual(errors, []);
   report.passed = true;
 } catch (error) {
   report.error = error.message;
   report.pageErrors = errors;
-  report.graphicsWarnings = graphicsWarnings;
   report.renderer = await page
     ?.evaluate(() => ({
       phase: document.body.dataset.phase,

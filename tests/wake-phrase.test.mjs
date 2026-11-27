@@ -215,6 +215,33 @@ test('the utterance after a keyword-only wake and follow-up listening preserve f
   }
 });
 
+test('follow-up accepts a prompt without the wake word, then silence restores it', async (t) => {
+  const f = await fixture();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const session = f.service.capture.id;
+    assert.equal(f.service.continueListening(5000, 'old-session'), false);
+    assert.equal(f.service.continueListening(5000, session), true);
+    f.emit(0, 'Tell me more.', { final: true });
+    await f.service.tail;
+    assert.deepEqual(
+      f.submitted.map(({ text }) => text),
+      ['Tell me more.'],
+    );
+    assert.equal(f.service.snapshot().wakeState, 'waiting');
+    assert.equal(f.service.continueListening(5000, session), true);
+    t.mock.timers.tick(4999);
+    assert.equal(f.service.snapshot().wakeState, 'command');
+    t.mock.timers.tick(1);
+    assert.equal(f.service.snapshot().wakeState, 'waiting');
+    f.emit(1, 'Some background speech.', { final: true });
+    await f.service.tail;
+    assert.equal(f.submitted.length, 1);
+  } finally {
+    f.service.stop();
+  }
+});
+
 test('ambient speech is neither sent nor previewed; wake opens promptly and one accurate command rearms it', async () => {
   const f = await fixture();
   f.emit(0, 'PLAY MUSIC', { final: true });

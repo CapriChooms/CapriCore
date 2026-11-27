@@ -7,8 +7,9 @@ import {
   ownerAppLaunch,
   mentionsDiscord,
   windowsMediaPlayerTask,
+  youtubeBrowseFollowUp,
+  youtubeBrowseRequest,
 } from './computer-mode-request.mjs';
-import { browserExecutableCandidate } from './browser-identity.mjs';
 import { uiText } from './interface-translations.mjs';
 import { canClickTarget, hasVisualEvidence } from './computer-click-target.mjs';
 import { chooseApplicationWindow } from './application-window-choice.mjs';
@@ -16,11 +17,9 @@ import { ComputerTaskPlan } from './computer-task-plan.mjs';
 import {
   ComputerTaskScope,
   observedSection,
-  ownerNamesApplication,
   ownerRequestsWeb,
   taskbarApplication,
 } from './computer-task-scope.mjs';
-import { discordTaskRequest } from './discord-application.mjs';
 import {
   discordLaunchBeforeBrowser,
   discordRequestProblem,
@@ -36,23 +35,11 @@ import {
 import {
   explicitSteamGame,
   steamActionAllowed,
-  steamGameCommand,
   steamGameGoal,
   steamMilestones,
 } from './steam-task-state.mjs';
 import { resolveSteamLibraryGame } from './steam-library.mjs';
-import { steamTaskReply } from './steam-game-task.mjs';
-import {
-  confirmCyberpunkLaunch,
-  cyberpunkLauncherTarget,
-  cyberpunkSteamLaunch,
-  isCyberpunkLauncherWindow,
-} from './steam-game-launch.mjs';
-import {
-  edgerunnersTeaserRequest,
-  runEdgerunnersTeaser,
-  edgerunnersReply,
-} from './edgerunners-teaser.mjs';
+import { cyberpunkLauncherTarget, isCyberpunkLauncherWindow } from './steam-game-launch.mjs';
 import {
   browserSearchState,
   browserNavigationState,
@@ -65,11 +52,13 @@ import {
   browserSearchUrl,
   explicitBrowserDestination,
   quotedYouTubeSearch,
-  exactYoutubeVideoTarget,
   youtubeWatchRequirement,
   youtubeWatchVerified,
   youtubeHomeDestination,
+  youtubePageOpen,
+  YOUTUBE_HOME_URL,
 } from './browser-search-state.mjs';
+import { DEFAULT_BROWSER } from './browser-identity.mjs';
 
 const signature = (view) =>
   createHash('sha256')
@@ -84,6 +73,8 @@ const signature = (view) =>
     .digest('hex');
 
 const BROWSER_LOAD_TIMEOUT_MS = 20000;
+const currentTabRequested = (goal) =>
+  /\b(?:current|same|this) tab\b|(?:текущ|этой|той же)\p{L}*\s+вкладк/iu.test(goal);
 const startupFailures = new Map([
   ['COMPUTER_INDICATOR_BOUNDS_FAILED', 'indicator_bounds_failed'],
   ['COMPUTER_ESCAPE_UNAVAILABLE', 'escape_unavailable'],
@@ -388,8 +379,6 @@ export class ComputerAgent {
     control,
     applications,
     plan,
-    launchSteamGame,
-    steamGameTask,
     resolveSteamGame = resolveSteamLibraryGame,
     callFocusWindow = () => null,
     emit = () => {},
@@ -402,8 +391,6 @@ export class ComputerAgent {
       control,
       applications,
       plan,
-      launchSteamGame,
-      steamGameTask,
       resolveSteamGame,
       callFocusWindow,
       emit,
@@ -428,20 +415,6 @@ export class ComputerAgent {
         ? { plan: this.taskPlan?.diagnostics() ?? this.lastTaskPlan }
         : {}),
     };
-  }
-  async navigationBrowser(view, signal) {
-    const preferred = {
-      'chrome.exe': 'Google Chrome',
-      'msedge.exe': 'Microsoft Edge',
-      'opera.exe': 'Opera',
-    }[view.window?.browserExecutable];
-    const names = new Set([preferred, 'Google Chrome', 'Microsoft Edge', 'Opera', 'Opera GX']);
-    for (const name of names) {
-      if (!name) continue;
-      const apps = await this.applications.findApplications?.(name, signal, { exact: true });
-      if (apps?.length === 1 && browserExecutableCandidate(apps[0])) return name;
-    }
-    return null;
   }
   async applicationStep(step, goal, view, signal, { requireUnique = false } = {}) {
     // A model-generated title is not a window selection by the owner. In particular,
@@ -473,48 +446,25 @@ export class ComputerAgent {
       : searching
         ? browserSearchUrl(step.text, youtubeSearch ? 'youtube' : 'google')
         : step.text;
-    const pageField =
-      searching &&
-      (youtubeSearch
-        ? []
-        : view.targets?.filter((t) => t.editable && t.browserSearch && !t.browserAddress));
-    if (searching && requiresPageSearch(goal) && pageField.length !== 1) {
-      const home = await this.applicationStep(
-        { action: 'open_url', query: step.query, url: 'https://www.google.com/' },
-        goal,
-        view,
-        signal,
-      );
+    if (
+      (searching || navigating) &&
+      (ownerTitle || currentTabRequested(goal) || (searching && requiresPageSearch(goal)))
+    )
       return {
-        ...home,
-        searchSubmitted: false,
-        confirmation:
-          'Opened the Google home page. The requested search is NOT submitted yet. Use its visible page search field next.',
+        ok: false,
+        inputPerformed: false,
+        instruction:
+          'Use the requested browser window and its observed field. Choose enter_text and then submit only after a fresh observation verifies the exact text. If the search page is absent, choose open_url for its home page first.',
       };
-    }
-    const reuseTab = /\b(?:current|same|this) tab\b|(?:текущ|этой|той же)\p{L}*\s+вкладк/iu.test(
-      goal,
-    );
-    const directNavigation =
-      !ownerTitle && !reuseTab && (navigating || (searching && pageField.length !== 1));
-    if (view.observationUnavailable && !directNavigation && navigating)
-      return { ok: true, needsWindow: true, inputPerformed: false };
+    const directNavigation = searching || navigating;
     const args = {
-      action: directNavigation
-        ? 'open_url'
-        : searching || navigating
-          ? 'browser_input'
-          : step.action,
+      action: directNavigation ? 'open_url' : step.action,
       ...(step.application?.id && step.action === 'launch'
         ? { appId: step.application.id }
         : { query: step.query }),
       ...(step.application?.id && step.restoreWindowId ? { windowId: step.restoreWindowId } : {}),
       ...(ownerTitle ? { windowTitle: ownerTitle } : {}),
-      ...(directNavigation
-        ? { url: text }
-        : ['browser_input', 'browser_search', 'open_url'].includes(step.action)
-          ? { text }
-          : {}),
+      ...(directNavigation ? { url: text } : step.action === 'browser_input' ? { text } : {}),
     };
     const execute = (request) => {
       this.control.requireSession();
@@ -532,9 +482,8 @@ export class ComputerAgent {
         signal,
       );
     };
-    let result;
+    let result = await execute(args);
     if (directNavigation) {
-      result = await execute(args);
       if (!result?.navigationRequested) return result;
       return {
         ...result,
@@ -548,24 +497,6 @@ export class ComputerAgent {
           : { navigationUrl: step.url }),
       };
     }
-    if (pageField?.length === 1) {
-      this.control.requireSession();
-      result = await this.applications.operation(
-        randomUUID(),
-        { action: 'enter_text', targetId: pageField[0].targetId, text: step.text },
-        () =>
-          this.control.execute(
-            {
-              action: 'enter_text',
-              targetId: pageField[0].targetId,
-              text: step.text,
-              mode: 'replace',
-            },
-            signal,
-          ),
-        signal,
-      );
-    } else result = await execute(args);
     // Retry only the explicit, side-effect-free selection result. Never replay an
     // uncertain native failure. IDs come from the real app, never from the model.
     if (result?.needsWindow && result.inputPerformed === false && !ownerTitle) {
@@ -576,67 +507,6 @@ export class ComputerAgent {
         requireUnique,
       });
       if (chosen) result = await execute({ ...args, windowId: chosen.windowId });
-    }
-    if (step.action === 'launch' && result?.ok && result.focused === false && result.windowId) {
-      const name = step.query.trim().toLocaleLowerCase();
-      const fresh = await this.control.execute({ action: 'observe', vision: false }, signal);
-      const buttons = fresh.targets.filter((t) => {
-        const label = taskbarApplication(t).toLocaleLowerCase();
-        return label === name || label.endsWith(' - ' + name) || label.startsWith(name + ' - ');
-      });
-      if (fresh.window?.windowId === result.windowId) return { ...result, focused: true };
-      if (buttons.length === 1) {
-        const click = { action: 'click', targetId: buttons[0].targetId };
-        await this.applications.operation(
-          randomUUID(),
-          click,
-          () => this.control.execute(click, signal),
-          signal,
-        );
-        const activated = await this.control.execute({ action: 'observe', vision: false }, signal);
-        if (activated.window?.windowId === result.windowId) return { ...result, focused: true };
-      }
-    }
-    if (
-      (searching || navigating) &&
-      result?.ok &&
-      result.typed &&
-      !result.needsWindow &&
-      !result.needsApproval
-    ) {
-      const fresh = await this.control.execute({ action: 'observe', vision: false }, signal);
-      const expectedText = pageField?.length === 1 ? step.text : text;
-      if (
-        fresh.window?.windowId !== (result.windowId ?? view.window?.windowId) ||
-        !fresh.targets.some(
-          (t) =>
-            t.focused &&
-            t.editable &&
-            t.untrustedValue === expectedText &&
-            (pageField?.length !== 1 || (t.browserSearch && !t.browserAddress)),
-        )
-      )
-        throw new Error('Browser focus changed. The search draft was not submitted.');
-      const submit = { action: 'press_keys', keys: ['ENTER'], observationId: fresh.observationId };
-      await this.applications.operation(
-        randomUUID(),
-        submit,
-        () => this.control.execute(submit, signal),
-        signal,
-      );
-      return {
-        ...result,
-        submitted: true,
-        searchSubmitted: searching,
-        ...(youtubeSearch ? { searchSite: 'youtube', searchQuery: step.text.trim() } : {}),
-        ...(navigating ? { navigationUrl: step.url } : {}),
-        windowId: fresh.window.windowId,
-        navigationRequested: true,
-        previousTitle: fresh.window.untrustedTitle,
-        confirmation: navigating
-          ? 'Opened the requested page. Verify it loaded before the next action.'
-          : 'Submitted the requested search. Verify the loaded results before claiming completion.',
-      };
     }
     return result;
   }
@@ -750,17 +620,13 @@ export class ComputerAgent {
     const { handled, success, ...details } = result;
     return { ...details, ok: success === true };
   }
-  async run(
-    goal,
-    { signal, previousTask, ownerRequestedCall = false, planningEffort, applicationHint } = {},
-  ) {
+  async run(goal, { signal, previousTask, ownerRequestedCall = false, planningEffort } = {}) {
     if (this.running) throw new Error('A computer task is already running.');
     if (typeof goal !== 'string' || !goal.trim() || goal.length > 8000 || goal.includes('\0'))
       throw new Error('Describe the computer task in at most 8000 characters.');
     signal?.throwIfAborted();
     const callTask = callTaskRequest(goal);
     const discordAllowed = mentionsDiscord(goal);
-    const discordRequest = discordTaskRequest(goal);
     if (callTask && (!ownerRequestedCall || callTask.action === 'clarify'))
       return callTaskNeedsOwner(this.language());
     this.running = true;
@@ -784,29 +650,19 @@ export class ComputerAgent {
       session.nativeOnlyApplications = ['discord'];
       const combined = AbortSignal.any([session.controller.signal, ...(signal ? [signal] : [])]);
       this.taskPlan = new ComputerTaskPlan({ signal: combined });
-      // Exact, single Discord commands do not need a model to invent UI input.
-      // Natural or chained commands use the semantic planner's structured step.
-      if (
-        discordRequest &&
-        discordRequest.action !== 'clarify' &&
-        !discordRequestProblem(goal, discordRequest) &&
-        discordSingleOperationGoal(goal)
-      ) {
-        const result = await this.discordTask(goal, discordRequest, combined, (count) => {
-          steps = count;
-        });
-        combined.throwIfAborted();
-        completed = result.ok;
-        if (!completed && result.status !== 'needs_user')
-          this.lastFailure = {
-            phase: this.state.phase,
-            reason: result.reason ?? 'discord_unverified',
-            steps,
-            at: Date.now(),
-          };
-        return terminal(result, completed ? 'completed' : (result.reason ?? 'discord_unverified'));
-      }
       if (callTask) {
+        this.progress('planning', steps);
+        const selected = await this.plan(
+          {
+            originalOwnerGoal: goal,
+            language: this.language(),
+            callTaskAllowed: true,
+            currentObservation: { window: {}, targets: [], observationUnavailable: true },
+          },
+          { signal: combined },
+        );
+        combined.throwIfAborted();
+        if (selected.action !== 'call_task') return callTaskNeedsOwner(this.language());
         const result = await runCallComputerTask(callTask, {
           waitForForeground: () =>
             waitForCallForeground(this.callFocusWindow(), {
@@ -840,328 +696,48 @@ export class ComputerAgent {
         completed = result.ok;
         return { ...result, steps };
       }
-      if (edgerunnersTeaserRequest(goal)) {
-        const result = await runEdgerunnersTeaser({
-          signal: combined,
-          navigate: async (url) => {
-            this.activeAction = 'open_url';
-            this.progress('acting', steps);
-            const receipt = await this.applicationStep(
-              { action: 'open_url', query: 'Google Chrome', url },
-              goal,
-              { targets: [] },
-              combined,
-            );
-            if (receipt?.navigationRequested) steps++;
-            this.trace.push({
-              action: 'open_url',
-              outcome: receipt?.navigationRequested ? 'applied' : 'not_applied',
-            });
-            return receipt;
-          },
-          observe: () => {
-            this.progress('verifying', steps);
-            return this.control.execute({ action: 'observe', vision: false }, combined);
-          },
-          input: async (args) => {
-            this.activeAction = args.action;
-            this.progress('acting', steps);
-            const receipt = await this.applications.operation(
-              randomUUID(),
-              args,
-              () => this.control.execute(args, combined),
-              combined,
-            );
-            if (receipt?.ok) steps++;
-            this.trace.push({
-              action: args.action,
-              outcome: receipt?.ok ? 'applied' : 'not_applied',
-            });
-            return receipt;
-          },
-        });
-        combined.throwIfAborted();
-        completed = result.status === 'playing';
-        const needsUser = ['sign_in', 'profile'].includes(result.status);
-        if (!completed)
-          this.lastFailure = { phase: result.stage, reason: result.status, steps, at: Date.now() };
-        const summary = needsUser
-          ? this.message(result.status)
-          : edgerunnersReply(result, this.language());
-        return {
-          ok: completed,
-          status: completed ? 'completed' : needsUser ? 'needs_user' : 'incomplete',
-          steps,
-          verified: completed,
-          summary,
-        };
-      }
-      const runCyberpunkSteam = async (playAlreadyRequested = false) => {
-        this.activeAction = 'steam_launch';
-        this.progress(playAlreadyRequested ? 'verifying' : 'acting', steps);
-        let launcherFocusAttempts = 0;
-        let launcherDecisions = 0;
-        const status = await this.launchSteamGame({
-          signal: combined,
-          assertAllowed: () => this.control.requireSession(),
-          playAlreadyRequested,
-          confirm: ({ isRunning, findLauncher }) =>
-            confirmCyberpunkLaunch({
-              signal: combined,
-              isRunning,
-              observe: async () => {
-                this.progress('observing', steps);
-                const observe = (visualWindow) =>
-                  this.control
-                    .execute(
-                      {
-                        action: 'observe',
-                        vision: Boolean(visualWindow),
-                        ...(visualWindow && { visualWindow }),
-                      },
-                      combined,
-                    )
-                    .catch((error) => {
-                      combined.throwIfAborted();
-                      if (
-                        [
-                          'COMPUTER_OBSERVATION_CHANGED',
-                          'COMPUTER_FOREGROUND_CHANGED',
-                          'COMPUTER_APPLICATION_UNAVAILABLE',
-                        ].includes(error.code)
-                      )
-                        return null;
-                      this.trace.push({
-                        action: 'observe_launcher',
-                        outcome: 'not_observed',
-                        code: error.code ?? error.name,
-                      });
-                      throw error;
-                    });
-                const playInObservedLauncher = async (view) => {
-                  const identity = this.control.session?.target;
-                  if (!view || !isCyberpunkLauncherWindow(identity)) return null;
-                  const { windowId, processId, startedAtTicks } = identity;
-                  const fresh = await observe({ windowId, processId, startedAtTicks });
-                  const target =
-                    fresh && cyberpunkLauncherTarget(fresh, this.control.session?.target);
-                  if (!target || !playAlreadyRequested) return target;
-                  if (!hasVisualEvidence(target) || launcherDecisions >= 2) return null;
-                  launcherDecisions++;
-                  this.progress('planning', steps);
-                  const selected = await this.plan(
-                    {
-                      originalOwnerGoal: goal,
-                      language: this.language(),
-                      currentObservation: { ...fresh, targets: [target] },
-                      steamTaskTargets: [target.targetId],
-                      steamMustAdvance: true,
-                      correction:
-                        'Steam Play was already clicked for Cyberpunk 2077. Use only the verified Play button of the foreground Cyberpunk launcher, wait if it is still loading, or ask the owner if blocked.',
-                    },
-                    { signal: combined },
-                  );
-                  combined.throwIfAborted();
-                  return selected.action === 'click' &&
-                    selected.targetId === target.targetId &&
-                    (selected.button ?? 'left') === 'left' &&
-                    (selected.clickCount ?? 1) === 1
-                    ? { ...target, observationId: fresh.observationId }
-                    : null;
-                };
-                const view = await observe();
-                if (view && isCyberpunkLauncherWindow(this.control.session?.target))
-                  return playInObservedLauncher(view);
-                if (playAlreadyRequested || launcherFocusAttempts >= 2 || !this.control.bridge)
-                  return null;
-                const launcher = await findLauncher();
-                if (!launcher) return null;
-                if (view?.window?.windowId === launcher.windowId) return null;
-                launcherFocusAttempts++;
-                this.control.requireSession();
-                const receipt = await this.control
-                  .bridge(
-                    { action: 'catalog_launch', ...launcher },
-                    {
-                      signal: combined,
-                      stillAllowed: () => Boolean(this.control.requireSession()),
-                    },
-                  )
-                  .catch(() => {
-                    combined.throwIfAborted();
-                    this.control.requireSession();
-                    return null;
-                  });
-                this.trace.push({
-                  action: 'focus_launcher',
-                  outcome: receipt?.focused ? 'focused' : 'not_focused',
-                });
-                if (!receipt?.focused || receipt.windowId !== launcher.windowId) {
-                  // Windows may deny programmatic focus. Use the visible, unique
-                  // taskbar button through the same native input boundary.
-                  const current = await observe();
-                  const buttons =
-                    current?.targets.filter((item) =>
-                      /^(?:REDlauncher|Cyberpunk 2077)$/iu.test(taskbarApplication(item)),
-                    ) ?? [];
-                  if (buttons.length !== 1) return null;
-                  const args = { action: 'click', targetId: buttons[0].targetId };
-                  await this.applications
-                    .operation(
-                      randomUUID(),
-                      args,
-                      () => this.control.execute(args, combined),
-                      combined,
-                    )
-                    .catch((error) => {
-                      if (error.inputPerformed !== false) throw error;
-                    });
-                  await delay(250, undefined, { signal: combined });
-                }
-                const focused = await observe();
-                return focused?.window?.windowId === launcher.windowId
-                  ? playInObservedLauncher(focused)
-                  : null;
-              },
-              click: async (target) => {
-                this.progress('acting', steps);
-                const args = {
-                  action: 'click',
-                  targetId: target.targetId,
-                  ...(target.observationId && { observationId: target.observationId }),
-                };
-                const receipt = await this.applications.operation(
-                  randomUUID(),
-                  args,
-                  () =>
-                    this.control.execute(args, combined, {
-                      exactClickLabel: target.untrustedLabel.trim(),
-                    }),
-                  combined,
-                );
-                if (receipt?.ok) steps++;
-                return receipt;
-              },
-            }),
-        });
-        completed = status === 'started' || status === 'running';
-        this.trace.push({ action: 'steam_launch', outcome: status });
-        const messages = {
-          started: ['Запустила Cyberpunk 2077.', 'Cyberpunk 2077 is running.'],
-          unconfirmed: [
-            'Не смогла подтвердить запуск Cyberpunk 2077. Проверь Steam и REDlauncher.',
-            'I could not confirm that Cyberpunk 2077 started. Check Steam and REDlauncher.',
-          ],
-          running: ['Cyberpunk 2077 уже запущена.', 'Cyberpunk 2077 is already running.'],
-          'not-installed': [
-            'Steam не видит установленный Cyberpunk 2077.',
-            'Steam does not list Cyberpunk 2077 as installed.',
-          ],
-          unavailable: [
-            'Не удалось проверить установку Cyberpunk 2077 в Steam.',
-            'I could not check the Steam installation of Cyberpunk 2077.',
-          ],
-          'client-unavailable': [
-            'Windows не смогла передать команду в Steam. Проверь, открывается ли клиент.',
-            'Windows could not pass the request to Steam. Check that the Steam client opens.',
-          ],
-        };
-        return terminal(
-          {
-            ok: completed,
-            status: completed ? 'completed' : 'incomplete',
-            verified: completed,
-            steps,
-            summary: messages[status][this.language() === 'ru' ? 0 : 1],
-          },
-          status,
-        );
-      };
       const command = computerTaskCommand(goal);
-      const steamRequest = steamGameCommand(command);
-      if (
-        this.launchSteamGame &&
-        (cyberpunkSteamLaunch(goal) ||
-          (this.steamGameTask &&
-            steamRequest?.name === 'Cyberpunk 2077' &&
-            !steamRequest.installIfMissing))
-      )
-        return await runCyberpunkSteam();
-      if (steamRequest && this.steamGameTask) {
-        this.activeAction = 'steam_game';
-        const result = await this.steamGameTask(steamRequest, {
-          signal: combined,
-          assertAllowed: () => this.control.requireSession(),
-          phase: (phase) => this.progress(phase, steps),
-          onAction: () => steps++,
-          onGame: (name) => {
-            session.steamGame = { name, play: false };
-          },
-          observe: async (vision) => {
-            try {
-              const view = await this.control.execute({ action: 'observe', vision }, combined);
-              return { view, executable: session.target?.executable };
-            } catch (error) {
-              combined.throwIfAborted();
-              if (
-                [
-                  'COMPUTER_OBSERVATION_CHANGED',
-                  'COMPUTER_FOREGROUND_CHANGED',
-                  'COMPUTER_APPLICATION_UNAVAILABLE',
-                ].includes(error.code)
-              )
-                return null;
-              throw error;
-            }
-          },
-          click: async (target) => {
-            this.progress('acting', steps);
-            const args = { action: 'click', targetId: target.targetId };
-            try {
-              const receipt = await this.applications.operation(
-                randomUUID(),
-                args,
-                () =>
-                  this.control.execute(args, combined, { exactClickLabel: target.untrustedLabel }),
-                combined,
-              );
-              if (receipt?.ok) steps++;
-              return receipt?.ok === true;
-            } catch (error) {
-              combined.throwIfAborted();
-              if (error.inputPerformed === false) return false;
-              throw error;
-            }
-          },
-        });
-        combined.throwIfAborted();
-        completed = [
-          'steam_started',
-          'steam_already_running',
-          'steam_download_started',
-          'steam_installed',
-        ].includes(result.status);
-        this.trace.push({ action: 'steam_game', outcome: result.status });
-        return terminal(
-          {
-            ok: completed,
-            status: completed ? 'completed' : 'needs_user',
-            verified: completed,
-            steps,
-            summary: steamTaskReply(result, this.language()),
-          },
-          result.status,
-        );
-      }
       let correction = '',
         failures = 0,
         observationRetries = 0,
+        reviewRetries = 0,
+        recoveringReview = false,
         pendingOutcome = null,
         lastPointer = null;
+      const reviewPlan = async (context) => {
+        this.progress('verifying', steps);
+        try {
+          const result = await this.plan(context, { signal: combined, review: true });
+          combined.throwIfAborted();
+          reviewRetries = 0;
+          return result;
+        } catch (error) {
+          combined.throwIfAborted();
+          if (
+            reviewRetries ||
+            error?.code !== 'COMPUTER_PLAN_HTTP' ||
+            ![502, 503, 504].includes(error.httpStatus)
+          )
+            throw error;
+          reviewRetries++;
+          recoveringReview = true;
+          this.taskPlan.recordOutcome({ ok: false, blocked: true });
+          this.trace.push({ action: 'observe', outcome: 'review_recovery', code: error.code });
+          correction =
+            'The independent completion review was temporarily unavailable. Use the fresh observation to verify the result or revise the remaining steps. Do not repeat input already delivered.';
+          await delay(250, undefined, { signal: combined });
+          return null;
+        }
+      };
       const deliveredClicks = new Set();
       const windowLabels = new Map();
       let changedLabels = { windowId: null, values: [] };
       const discordLaunchOnly = discordAllowed ? discordLaunchBeforeBrowser(goal) : null;
+      const youtubeHome = youtubeHomeDestination(command);
+      const youtubeBrowsing =
+        youtubeBrowseRequest(command) || youtubeBrowseFollowUp(goal, previousTask?.goal);
+      const youtubeDirectEntry = youtubeBrowsing && !currentTabRequested(goal);
+      const youtubeEntryInstruction = `If YouTube is not open, choose open_url for ${YOUTUBE_HOME_URL} using "${DEFAULT_BROWSER}" unless the owner named a browser. Do not add a separate browser-launch or focus step. Once there, use the actual page to find videos.`;
       const parsedOpening = ownerAppLaunch(goal);
       const mediaPlayer = windowsMediaPlayerTask(goal);
       const steamOnly = !parsedOpening?.section && explicitSteamGame(command);
@@ -1169,10 +745,7 @@ export class ComputerAgent {
         ? { name: 'Steam', single: false }
         : (discordLaunchOnly ??
           parsedOpening ??
-          (mediaPlayer ? { name: 'Media Player', single: false } : null) ??
-          (ownerNamesApplication(goal, applicationHint)
-            ? { name: applicationHint, single: false }
-            : null));
+          (mediaPlayer ? { name: 'Media Player', single: false } : null));
       let literalApplications;
       if (
         opening?.literalName &&
@@ -1193,89 +766,72 @@ export class ComputerAgent {
       const discordProofRequired =
         discordAllowed && !discordLaunchOnly && !(opening?.single && mentionsDiscord(opening.name));
       let steamGoal = opening?.section ? null : steamGameGoal(command);
-      const youtubeHome = youtubeHomeDestination(command);
       const directDestination = youtubeHome
         ? { url: youtubeHome }
         : explicitBrowserDestination(goal);
       const scope = new ComputerTaskScope(goal, opening, {
-        web: Boolean(directDestination) || ownerRequestsWeb(goal, opening),
+        web: Boolean(directDestination) || youtubeBrowsing || ownerRequestsWeb(goal, opening),
       });
-      let sectionClicked = false;
+      const failedAppLookups = new Map();
+      const appLookupKey = ({ action, query }) =>
+        action + ':' + String(query).normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase();
+      const recoverAppLookup = (step, reason) => {
+        failedAppLookups.set(appLookupKey(step), reason);
+        blockedReason = reason;
+        this.taskPlan.recordOutcome({ ok: false, blocked: true });
+        this.trace.push({
+          action: step.action,
+          outcome: 'application_lookup_failed',
+          code: reason,
+        });
+        const status =
+          reason === 'application_ambiguous'
+            ? 'Windows found more than one application with that name.'
+            : 'Windows found no verified installed application for that action.';
+        const alternative = scope.web
+          ? 'For a requested website with no required browser, try open_url using Default browser. If the owner chose a specific browser, look for that browser in the latest observation. Continue the original task on the verified page.'
+          : 'Look for the requested application in the fresh observation or its exact taskbar button. Use an available route to the same app.';
+        correction =
+          status +
+          ' No input was sent. Revise the remaining plan and do not repeat the failed lookup. ' +
+          alternative +
+          ' Ask the owner if the target remains missing or cannot be identified.';
+        if (++failures < 3) return null;
+        return terminal(
+          {
+            ok: false,
+            status: 'needs_user',
+            steps,
+            summary: this.message(
+              reason === 'application_ambiguous'
+                ? 'applicationAmbiguous'
+                : step.action === 'launch'
+                  ? 'applicationMissing'
+                  : 'launch',
+            ),
+          },
+          reason,
+        );
+      };
       const requestedClick = exactClickLabel(goal);
       let clickNeedsVision = false;
       let closedWindow;
-      let browserDestinationStep = directDestination && {
-        action: 'open_url',
-        query: directDestination.browser,
-        url: directDestination.url,
-        summary: 'Open the requested address',
-        plan: [
-          {
-            id: 'open-page',
-            label: 'Open and verify page',
-            successCriterion: 'The requested URL is loaded in the browser.',
-          },
-        ],
-      };
-      let browserDestinationSent = false;
-      const youtubeQuery = quotedYouTubeSearch(goal);
       const youtubeVideo = youtubeWatchRequirement(goal);
-      const browserName =
-        opening?.name ??
-        /^(?:please\s+)?(?:open|launch|start)\s+(Google Chrome|Chrome|Microsoft Edge|Edge|Firefox|Brave|Vivaldi|Opera)\b/i.exec(
-          goal,
-        )?.[1];
-      let youtubeSeed =
-        youtubeQuery && /chrome|edge|firefox|brave|vivaldi|opera|хром/i.test(browserName ?? '')
-          ? {
-              action: 'browser_search',
-              query: browserName,
-              text: youtubeQuery,
-              summary: 'Search YouTube for the requested video',
-              plan: [
-                {
-                  id: 'youtube-search',
-                  label: 'Search YouTube',
-                  successCriterion: 'YouTube results show the exact requested query.',
-                },
-                ...(youtubeVideo
-                  ? [
-                      {
-                        id: 'youtube-video',
-                        label: 'Open and verify video',
-                        successCriterion: 'The requested video watch page is visible.',
-                      },
-                    ]
-                  : []),
-              ],
-            }
-          : null;
-      let youtubeSeeded = false;
-      let exactVideoAttempted = false;
-      let namedLaunch;
-      if (!browserDestinationStep && opening && this.applications.findApplications) {
-        const apps = literalApplications?.length
-          ? literalApplications
-          : await this.applications.findApplications(opening.name, combined, { exact: true });
-        if (apps.length === 1)
-          namedLaunch = {
-            action: 'launch',
-            query: opening.name,
-            application: apps[0],
-            summary: '',
-          };
-        else if (!scope.web)
-          return terminal(
-            {
-              ok: false,
-              status: 'needs_user',
-              steps,
-              summary: this.message(apps.length ? 'applicationAmbiguous' : 'applicationMissing'),
-            },
-            apps.length ? 'application_ambiguous' : 'application_not_found',
-          );
+      const applications =
+        opening && this.applications.findApplications
+          ? literalApplications?.length
+            ? literalApplications
+            : await this.applications.findApplications(opening.name, combined, { exact: true })
+          : [];
+      const matchedApplication = applications.length === 1 ? applications[0] : null;
+      if (steamGoal && matchedApplication && /^steam$/iu.test(opening.name)) {
+        const installedGame = await this.resolveSteamGame(
+          matchedApplication.executable,
+          steamGoal.name,
+          combined,
+        );
+        if (installedGame) steamGoal = { ...steamGoal, name: installedGame.name };
       }
-      const startInSteam = Boolean(steamGoal && namedLaunch && /^steam$/iu.test(namedLaunch.query));
       const unavailableObservation = {
         observationUnavailable: true,
         window: {},
@@ -1283,34 +839,8 @@ export class ComputerAgent {
         scene: null,
         screenAvailable: false,
       };
-      if (startInSteam) {
-        const installedGame = await this.resolveSteamGame(
-          namedLaunch.application.executable,
-          steamGoal.name,
-          combined,
-        );
-        if (installedGame) steamGoal = { ...steamGoal, name: installedGame.name };
-        // The explicit, verified app launch does not need an image of, or focus
-        // on, the unrelated window behind Capri. Plan the actual UI steps only
-        // after observing the Steam window bound by the launch receipt.
-        this.taskPlan.startOutline({
-          milestones: [],
-          outcome: {
-            label:
-              this.language() === 'ru' ? 'Проверить результат в Steam' : 'Verify the Steam result',
-            successCriterion:
-              'Current evidence confirms the requested Steam game and all remaining owner steps.',
-          },
-        });
-      }
       session.steamGame = steamGoal;
-      let needsOutline = Boolean(
-        this.plan.outline &&
-          !startInSteam &&
-          !requestedClick &&
-          !browserDestinationStep &&
-          !(namedLaunch && (opening.single || opening.sectionOnly)),
-      );
+      let needsOutline = Boolean(this.plan.outline);
       for (let decision = 0; decision < this.maxDecisions; decision++) {
         combined.throwIfAborted();
         this.activeAction = null;
@@ -1330,35 +860,33 @@ export class ComputerAgent {
               scope.markWindowClosed();
             }
           }
-          view =
-            startInSteam && namedLaunch
-              ? unavailableObservation
-              : scope.closedWindow
-                ? {
-                    window: {},
-                    targets: [],
-                    application: { summary: 'The verified application window is closed.' },
-                    [verifiedClosedWindow]: closedWindow,
-                  }
-                : await this.control.execute(
-                    {
-                      action: 'observe',
-                      vision: !youtubeHome,
-                      ...(bound && {
-                        visualWindow: {
-                          windowId: bound.windowId,
-                          processId: bound.processId,
-                          startedAtTicks: bound.startedAtTicks,
-                        },
-                      }),
+          view = scope.closedWindow
+            ? {
+                window: {},
+                targets: [],
+                application: { summary: 'The verified application window is closed.' },
+                [verifiedClosedWindow]: closedWindow,
+              }
+            : await this.control.execute(
+                {
+                  action: 'observe',
+                  vision: true,
+                  ...(bound && {
+                    visualWindow: {
+                      windowId: bound.windowId,
+                      processId: bound.processId,
+                      startedAtTicks: bound.startedAtTicks,
                     },
-                    combined,
-                  );
+                  }),
+                },
+                combined,
+              );
           observationRetries = 0;
         } catch (error) {
           combined.throwIfAborted();
           const openedWebsite =
-            youtubeHome && history.findLast((item) => item.ok && item.navigationRequested);
+            (youtubeHome || youtubeDirectEntry) &&
+            history.findLast((item) => item.ok && item.navigationRequested);
           if (
             openedWebsite &&
             performance.now() - openedWebsite.submittedAt < BROWSER_LOAD_TIMEOUT_MS &&
@@ -1376,11 +904,21 @@ export class ComputerAgent {
           const canStartWithoutObservation =
             error.code === 'COMPUTER_APPLICATION_UNAVAILABLE' ||
             (['COMPUTER_FOREGROUND_CHANGED', 'COMPUTER_OBSERVATION_CHANGED'].includes(error.code) &&
-              (namedLaunch || browserDestinationStep));
-          if (canStartWithoutObservation && !steps && !history.length) {
+              (opening || directDestination || youtubeDirectEntry));
+          const initialYoutubeEntry = youtubeDirectEntry && !steps && !history.length;
+          if (initialYoutubeEntry && !canStartWithoutObservation && ++observationRetries <= 2) {
+            await delay(200, undefined, { signal: combined });
+            continue;
+          }
+          if ((canStartWithoutObservation || initialYoutubeEntry) && !steps && !history.length) {
             // An app launch does not need an unrelated window to be open first.
             // This is NOT an input target: only a launch/direct URL or owner help
             // is allowed below, never typing into an unobserved existing window.
+            this.trace.push({
+              action: 'observe',
+              outcome: 'entry_without_foreground',
+              ...(/^COMPUTER_[A-Z_]+$/u.test(error.code ?? '') && { code: error.code }),
+            });
             view = unavailableObservation;
           } else {
             if (
@@ -1441,41 +979,51 @@ export class ComputerAgent {
             { ok: false, status: 'stalled', steps, summary: this.message('stalled') },
             'stalled',
           );
-        if (scope.canBindCurrent && !scope.window && !scope.closedWindow && view.window?.windowId) {
-          const identity = this.control.session?.target;
-          scope.bind(null, {
+        const identity = this.control.session?.target;
+        const knownForeground =
+          (opening?.name === 'Steam' && view.window?.applicationKind === 'steam') ||
+          (matchedApplication?.executable &&
+            identity?.executable &&
+            sameActionTarget(identity.executable, matchedApplication.executable));
+        if (
+          (scope.canBindCurrent || knownForeground) &&
+          !scope.window &&
+          !scope.closedWindow &&
+          view.window?.windowId
+        ) {
+          scope.bind(knownForeground ? (matchedApplication ?? opening) : null, {
             windowId: view.window.windowId,
             focused: true,
             processId: identity?.processId,
             startedAtTicks: identity?.startedAtTicks,
           });
         }
-        if (scope.window && !scope.ownsForeground(view, this.control.session?.target)) {
-          const bound = scope.window;
-          if (bound.app?.id && !bound.recoveryAttempted) {
-            bound.recoveryAttempted = true;
-            const restored = await this.applicationStep(
-              {
-                action: 'launch',
-                query: bound.app.name,
-                application: bound.app,
-                restoreWindowId: bound.windowId,
-              },
-              goal,
-              view,
-              combined,
-            );
-            this.trace.push({
-              action: 'restore_window',
-              outcome: restored?.focused ? 'applied' : 'not_applied',
-            });
-            if (restored?.ok && restored.focused === true && restored.windowId === bound.windowId)
-              continue;
-          }
-          return terminal(
-            { ok: false, status: 'needs_user', steps, summary: this.message('foreground') },
-            'foreground_changed',
-          );
+        const waitingForCyberpunk =
+          session.steamLaunchRequested && steamGoal?.name === 'Cyberpunk 2077';
+        const inLauncher = waitingForCyberpunk && isCyberpunkLauncherWindow(identity);
+        const gameStarted =
+          waitingForCyberpunk &&
+          /(?:^|[\\/])Cyberpunk2077\.exe$/iu.test(identity?.executable ?? '');
+        const launcherButton =
+          inLauncher &&
+          !history.some((item) => item.launcherPlay) &&
+          cyberpunkLauncherTarget(view, identity);
+        const launcherTarget =
+          launcherButton && hasVisualEvidence(launcherButton) ? launcherButton.targetId : null;
+        const foreignForeground =
+          scope.window && !inLauncher && !gameStarted && !scope.ownsForeground(view, identity);
+        const taskbarRestoreTarget =
+          foreignForeground && !session.steamLaunchRequested
+            ? scope.taskbarRestoreTarget(view)
+            : null;
+        const focusRecoveryRequired =
+          taskbarRestoreTarget &&
+          history.at(-1)?.action === 'launch' &&
+          history.at(-1)?.focusDenied;
+        if (foreignForeground) {
+          correction = taskbarRestoreTarget
+            ? 'The bound window lost foreground focus. Click its observed taskbar application button once, then verify the bound window is in the foreground. Other clicks and keyboard input are blocked until it returns.'
+            : 'The bound window lost foreground focus. Choose launch for the bound window to restore it, or ask_user. Input to this foreground window is blocked.';
         }
         if (scope.window) {
           const { windowId, processId, startedAtTicks } = scope.window;
@@ -1495,11 +1043,12 @@ export class ComputerAgent {
                     [
                       steamGoal &&
                         `For the Steam portion of the request, open the Library, locate "${steamGoal.name}", and verify its title in the main game pane. ${steamGoal.play ? 'Then use the Play button in that pane and verify that exact game is running.' : ''}`,
+                      youtubeDirectEntry && youtubeEntryInstruction,
                       issue,
                     ]
                       .filter(Boolean)
                       .join(' ') || undefined,
-                  ...(namedLaunch && { localApplication: namedLaunch.query }),
+                  ...(matchedApplication && { localApplication: opening.name }),
                   ...(view.screenAvailable && { untrustedVisualScene: view.scene }),
                 },
                 { signal: combined, planningEffort: attempt === 0 ? planningEffort : undefined },
@@ -1516,19 +1065,12 @@ export class ComputerAgent {
             if (!issue) break;
           }
           if (issue) {
-            // An outline is bookkeeping. Keep the actual owner goal and require independent
-            // verification of the entire result while building steps from fresh observations.
-            this.taskPlan.startOutline({
-              milestones: [],
-              outcome: {
-                label:
-                  this.language() === 'ru'
-                    ? 'Проверить результат задачи'
-                    : 'Verify the requested result',
-                successCriterion:
-                  'Current evidence confirms every requirement of the original owner goal.',
-              },
-            });
+            if (
+              [401, 403, 429].includes(outlineError?.httpStatus) ||
+              outlineError?.name === 'TimeoutError'
+            )
+              throw outlineError;
+            correction = issue + ' Include your plan alongside the next action.';
             this.trace.push({
               action: 'outline',
               outcome: 'incremental_fallback',
@@ -1578,6 +1120,7 @@ export class ComputerAgent {
             this.trace.push({ action: 'launch', outcome: 'checkpoint_verified' });
         }
         const pendingSearch = history.findLast((s) => s.ok && s.navigationRequested);
+        const youtubeEntryPending = youtubeDirectEntry && !pendingSearch && !youtubePageOpen(view);
         if (pendingSearch && !pendingSearch.navigationVerified) {
           const status = pendingSearch.navigationUrl
             ? browserNavigationState(view, pendingSearch)
@@ -1609,46 +1152,6 @@ export class ComputerAgent {
                 action,
                 outcome: credited ? 'checkpoint_verified' : 'navigation_verified',
               });
-            }
-            if (
-              browserDestinationSent &&
-              sameNavigationUrl(directDestination.url, pendingSearch.navigationUrl)
-            ) {
-              this.taskPlan.update(
-                {
-                  verifiedCheckpoints: [{ id: 'open-page', evidence: view.window.untrustedTitle }],
-                },
-                { observation: view, evidenceExists },
-              );
-              completed = true;
-              this.progress('verifying', steps);
-              return terminal(
-                {
-                  ok: true,
-                  status: 'completed',
-                  steps,
-                  verified: true,
-                  summary: uiText('Opened the web page.', this.language()),
-                },
-                'completed',
-              );
-            }
-            if (
-              youtubeSeeded &&
-              pendingSearch.site === 'youtube' &&
-              this.taskPlan
-                .context()
-                .remainingCheckpoints.some((entry) => entry.id === 'youtube-search')
-            ) {
-              this.taskPlan.update(
-                {
-                  verifiedCheckpoints: [
-                    { id: 'youtube-search', evidence: view.window.untrustedTitle },
-                  ],
-                },
-                { observation: view, evidenceExists },
-              );
-              this.onPlan({ ...this.taskPlan.view(), phase: 'verifying', active: true });
             }
           } else if (
             navigationStatus === 'loading' &&
@@ -1699,21 +1202,7 @@ export class ComputerAgent {
         }
         this.progress('planning', steps);
         const correctVideo = youtubeWatchVerified(view, youtubeVideo);
-        if (
-          youtubeSeeded &&
-          youtubeVideo?.exactTitle &&
-          correctVideo &&
-          this.taskPlan.context().remainingCheckpoints.some((entry) => entry.id === 'youtube-video')
-        ) {
-          this.taskPlan.update(
-            {
-              verifiedCheckpoints: [{ id: 'youtube-video', evidence: view.window.untrustedTitle }],
-            },
-            { observation: view, evidenceExists },
-          );
-          this.onPlan({ ...this.taskPlan.view(), phase: 'verifying', active: true });
-        }
-        const steam = steamMilestones(steamGoal, view, history);
+        const steam = gameStarted ? null : steamMilestones(steamGoal, view, history);
         const steamProduct = storeSearchFieldRequested(goal)
           ? observedSteamStoreProduct(view)
           : null;
@@ -1732,6 +1221,8 @@ export class ComputerAgent {
         const context = {
           originalOwnerGoal: goal,
           webAllowed: scope.web,
+          ...(youtubeEntryPending && { browserEntryUrl: YOUTUBE_HOME_URL }),
+          ...(youtubeBrowsing && !youtubeVideo && { youtubeRecommendations: true }),
           ...(opening && !scope.web ? { requestedApplication: opening.name } : {}),
           discordTaskAllowed: discordAllowed,
           ...(previousTask ? { previousOwnerTaskForReferencesOnly: previousTask } : {}),
@@ -1740,9 +1231,13 @@ export class ComputerAgent {
           ...progressForPlanner(history),
           taskPlan: this.taskPlan.context(),
           ...(steam?.remaining && {
-            allowSteamLaunch: !steam.steamWindow && !steam.playPressed,
-            steamMustAdvance: Boolean(steam.playTarget || steam.gameTarget || steam.libraryTarget),
+            allowSteamLaunch: !steam.steamWindow && !steam.playPressed && !focusRecoveryRequired,
+            steamMustAdvance: Boolean(
+              launcherTarget || steam.playTarget || steam.gameTarget || steam.libraryTarget,
+            ),
             steamTaskTargets: [
+              launcherTarget,
+              taskbarRestoreTarget?.targetId,
               steam.libraryTarget,
               steam.gameTarget,
               steam.searchTarget,
@@ -1751,19 +1246,37 @@ export class ComputerAgent {
           }),
           correction: [
             steam?.remaining,
+            launcherTarget
+              ? 'The verified Cyberpunk 2077 launcher is in the foreground. Choose its visible Play control if needed, then verify that the game started.'
+              : null,
             storeProgress,
             navigationCorrection,
             correction,
+            youtubeEntryPending ? youtubeEntryInstruction : null,
+            directDestination
+              ? `If the page still needs opening, choose open_url with ${directDestination.url}.`
+              : null,
+            youtubeBrowsing
+              ? 'Browse on YouTube in the browser. If the owner named a creator, use YouTube search and check the creator on the results. If the topic is open, choose a topic or use the feed. Recommend actual videos visible on the page using their titles as evidence. If several videos were requested, include several observed titles in the final reply. Start playback only if the owner asked for it.'
+              : null,
             section
               ? `Verify that the requested section “${opening.section}” is selected in the bound window.`
               : null,
           ]
             .filter(Boolean)
             .join(' '),
-          ...(requestedClick || opening?.section || steamGoal || youtubeVideo?.exactTitle
+          ...(taskbarRestoreTarget ||
+          requestedClick ||
+          opening?.section ||
+          steamGoal ||
+          youtubeVideo?.exactTitle
             ? {
                 expectedControl:
-                  requestedClick ?? opening?.section ?? steamGoal?.name ?? youtubeVideo.exactTitle,
+                  taskbarRestoreTarget?.untrustedLabel ??
+                  requestedClick ??
+                  opening?.section ??
+                  steamGoal?.name ??
+                  youtubeVideo.exactTitle,
               }
             : {}),
           knownApplications:
@@ -1783,65 +1296,13 @@ export class ComputerAgent {
             ),
           ].slice(0, 24),
         };
-        const exactLaunch = namedLaunch;
-        namedLaunch = null;
-        const exactDestination = browserDestinationStep;
-        if (exactDestination) {
-          browserDestinationStep = null;
-          browserDestinationSent = true;
-          if (youtubeHome) {
-            exactDestination.query = await this.navigationBrowser(view, combined);
-            combined.throwIfAborted();
-            if (!exactDestination.query)
-              return terminal(
-                { ok: false, status: 'needs_user', steps, summary: this.message('browserMissing') },
-                'application_not_found',
-              );
-          }
-        } else if (youtubeHome) {
-          return terminal(
-            { ok: false, status: 'incomplete', steps, summary: this.message('pageUnverified') },
-            'navigation_unverified',
-          );
-        }
-        const seed = !exactLaunch && !view.observationUnavailable ? youtubeSeed : null;
-        if (seed) {
-          youtubeSeed = null;
-          youtubeSeeded = true;
-        }
-        const exactVideo =
-          youtubeSeeded &&
-          !exactVideoAttempted &&
-          pendingSearch?.navigationVerified &&
-          !browserNavigationObstacle(view)
-            ? exactYoutubeVideoTarget(view, youtubeVideo)
-            : null;
-        if (exactVideo) exactVideoAttempted = true;
         const exactControl = exactObservedClick(
           clickNeedsVision ? { ...view, targets: view.targets.filter(hasVisualEvidence) } : view,
           requestedClick,
         );
         let step;
         try {
-          const establishedSeed =
-            seed && this.taskPlan.context().outcomeId
-              ? { action: seed.action, query: seed.query, text: seed.text, summary: seed.summary }
-              : seed;
-          step =
-            exactLaunch ??
-            exactDestination ??
-            (requestedClick &&
-              (exactControl
-                ? { action: 'click', targetId: exactControl.targetId, summary: '' }
-                : { action: 'ask_user', summary: this.message('stale') })) ??
-            establishedSeed ??
-            (!sectionClicked && section?.target
-              ? { action: 'click', targetId: section.target.targetId, summary: '' }
-              : null) ??
-            (exactVideo
-              ? { action: 'click', targetId: exactVideo, summary: 'Open the requested video' }
-              : null) ??
-            (await this.plan(context, { signal: combined }));
+          step = await this.plan(context, { signal: combined });
         } catch (error) {
           combined.throwIfAborted();
           if (
@@ -1854,7 +1315,68 @@ export class ComputerAgent {
           continue;
         }
         combined.throwIfAborted();
-        if (!steamActionAllowed(steam, step, view)) {
+        if (
+          youtubeEntryPending &&
+          (!['open_url', 'observe', 'wait', 'ask_user'].includes(step.action) ||
+            (step.action === 'open_url' && !sameNavigationUrl(step.url, YOUTUBE_HOME_URL)))
+        ) {
+          correction = youtubeEntryInstruction;
+          this.trace.push({ action: step.action, outcome: 'website_entry_required' });
+          this.taskPlan.recordOutcome({ ok: false, blocked: true });
+          if (++failures >= 3)
+            return terminal(
+              { ok: false, status: 'incomplete', steps, summary: this.message('unverified') },
+              'website_entry_required',
+            );
+          continue;
+        }
+        const launcherClick =
+          inLauncher &&
+          launcherTarget &&
+          step.action === 'click' &&
+          step.targetId === launcherTarget &&
+          (step.button ?? 'left') === 'left' &&
+          (step.clickCount ?? 1) === 1;
+        const taskbarRestoreClick =
+          taskbarRestoreTarget &&
+          step.action === 'click' &&
+          step.targetId === taskbarRestoreTarget.targetId &&
+          (step.button ?? 'left') === 'left' &&
+          (step.clickCount ?? 1) === 1;
+        if (
+          (inLauncher || gameStarted) &&
+          !launcherClick &&
+          !['observe', 'wait', 'ask_user', ...(gameStarted ? ['finish'] : [])].includes(step.action)
+        ) {
+          correction =
+            'Only the verified Play control in the requested launcher is authorized. Observe, wait, or ask the owner if blocked.';
+          if (++failures >= 3)
+            return terminal({
+              ok: false,
+              status: 'needs_user',
+              steps,
+              summary: this.message('steamGame'),
+            });
+          continue;
+        }
+        if (
+          foreignForeground &&
+          !taskbarRestoreClick &&
+          !['observe', 'wait', 'ask_user'].includes(step.action) &&
+          !(
+            !focusRecoveryRequired &&
+            step.action === 'launch' &&
+            sameActionTarget(step.query, scope.window.app?.name)
+          )
+        ) {
+          if (++failures >= 3)
+            return terminal(
+              { ok: false, status: 'needs_user', steps, summary: this.message('foreground') },
+              'foreground_changed',
+            );
+          continue;
+        }
+        if (!launcherClick && !taskbarRestoreClick && !steamActionAllowed(steam, step, view)) {
           correction =
             steam.remaining ??
             'The requested Steam result is already verified. Do not press Play again.';
@@ -1867,7 +1389,7 @@ export class ComputerAgent {
           continue;
         }
         const scopeProblem =
-          scope.problem(step, view, this.control.session?.target) ||
+          (!launcherClick && !taskbarRestoreClick && scope.problem(step, view, identity)) ||
           (section && step.action === 'finish'
             ? 'The requested application section is not yet verified.'
             : '');
@@ -1926,22 +1448,16 @@ export class ComputerAgent {
             return { ok: false, status: 'needs_user', steps, summary: this.message('window') };
           continue;
         }
-        if (
-          step.action === 'browser_input' &&
-          typeof step.text === 'string' &&
-          !draftOnlyGoal(goal)
-        ) {
-          if (
-            /^https?:\/\//i.test(step.text) &&
-            /\b(?:go to|navigate|visit|watch)\b|перейди|открой\s+сайт/iu.test(goal)
-          )
-            step = { ...step, action: 'open_url', url: step.text };
-          else if (
-            !/^https?:\/\//i.test(step.text) &&
-            /\b(?:google|search\s+the\s+web)\s+(?!chrome\b)\S|погугли/iu.test(goal) &&
-            !siteSearch(goal)
-          )
-            step = { ...step, action: 'browser_search' };
+        if (step.action === 'call_task') {
+          correction = 'Only the current owner message can authorize a call operation.';
+          if (++failures >= 3)
+            return terminal({
+              ok: false,
+              status: 'incomplete',
+              steps,
+              summary: this.message('unverified'),
+            });
+          continue;
         }
         const outsideSteam =
           steamOnly &&
@@ -1951,7 +1467,13 @@ export class ComputerAgent {
             (step.action === 'launch' && !/^(?:steam|стим)$/iu.test(step.query?.trim() ?? '')));
         const invalid = outsideSteam
           ? 'The owner requested the Steam library. Open Steam and use its own game controls. Do not search the web or launch a different application.'
-          : argumentProblem(step, goal, view);
+          : requestedClick && step.action === 'click' && step.targetId !== exactControl?.targetId
+            ? 'Only the uniquely identified control named by the owner can be clicked.'
+            : directDestination &&
+                step.action === 'open_url' &&
+                !sameNavigationUrl(step.url, directDestination.url)
+              ? 'Use the exact web address in the owner request.'
+              : argumentProblem(step, goal, view);
         if (invalid) {
           correction = invalid;
           this.trace.push({ action: step.action, outcome: 'invalid_arguments' });
@@ -2000,6 +1522,10 @@ export class ComputerAgent {
                 at: Date.now(),
               };
             return terminal({ ...result, steps }, result.reason ?? 'discord_unverified');
+          }
+          if (discordSingleOperationGoal(goal)) {
+            completed = true;
+            return terminal({ ...result, steps }, 'completed');
           }
           history.push({
             action: 'discord_task',
@@ -2117,6 +1643,7 @@ export class ComputerAgent {
           continue;
         }
         const duplicateLaunch =
+          !foreignForeground &&
           step.action === 'launch' &&
           history.findLast(
             (item) =>
@@ -2225,6 +1752,25 @@ export class ComputerAgent {
           lastPointer?.key === pointer &&
           previous?.ok &&
           previous.action === step.action;
+        if (
+          recoveringReview &&
+          clickInWindow &&
+          (deliveredClicks.has(clickInWindow) ||
+            (previous?.ok &&
+              previous.action === 'click' &&
+              previous.windowId === view.window?.windowId &&
+              sameActionTarget(previous.target, selected.untrustedLabel)))
+        ) {
+          correction =
+            'That click was already delivered before the verification failure. Verify its outcome from the current observation or choose a different next step.';
+          this.taskPlan.recordOutcome({ ok: false, blocked: true });
+          if (++failures >= 3)
+            return terminal(
+              { ok: false, status: 'stalled', steps, summary: this.message('stalled') },
+              'no_progress',
+            );
+          continue;
+        }
         if (steam?.remaining && repeatsPointer) {
           correction = steam.remaining;
           if (++failures >= 3) {
@@ -2246,8 +1792,8 @@ export class ComputerAgent {
           // Do not click past the goal just because a small model fails to stop.
           // Review a proposed repeat first; legitimate repeated actions still run
           // when the independent reviewer confirms that the task is incomplete.
-          this.progress('verifying', steps);
-          const review = await this.plan(context, { signal: combined, review: true });
+          const review = await reviewPlan(context);
+          if (!review) continue;
           if (review.action === 'finish') {
             if (await this.acceptReviewedResult(review, view, combined, goal)) {
               completed = true;
@@ -2348,12 +1894,8 @@ export class ComputerAgent {
               };
             continue;
           }
-          this.progress('verifying', steps);
-          step = await this.plan(
-            { ...context, completionClaim: step.summary },
-            { signal: combined, review: true },
-          );
-          combined.throwIfAborted();
+          step = await reviewPlan({ ...context, completionClaim: step.summary });
+          if (!step) continue;
           if (step.action === 'finish' && evidenceExists(view, step.evidence)) {
             if (!(await this.acceptReviewedResult(step, view, combined, goal))) {
               correction = missingFinalProof;
@@ -2389,6 +1931,12 @@ export class ComputerAgent {
             'The owner explicitly prohibited Enter/submission/navigation. This key action was blocked. Type the requested draft without sending it.';
           if (++failures >= 2)
             return { ok: false, status: 'incomplete', steps, summary: this.message('unverified') };
+          continue;
+        }
+        const failedLookup = failedAppLookups.get(appLookupKey(step));
+        if (failedLookup) {
+          const failure = recoverAppLookup(step, failedLookup);
+          if (failure) return failure;
           continue;
         }
         const key =
@@ -2427,8 +1975,8 @@ export class ComputerAgent {
           // A small model may ask to "verify" work instead of emitting finish.
           // Review only at this explicit checkpoint, never after every mutation.
           if (steps > 0 && !section && !steam?.remaining && discordProof) {
-            this.progress('verifying', steps);
-            const review = await this.plan(context, { signal: combined, review: true });
+            const review = await reviewPlan(context);
+            if (!review) continue;
             if (
               review.action === 'finish' &&
               this.taskPlan.readyForReview() &&
@@ -2491,22 +2039,30 @@ export class ComputerAgent {
               !step.application &&
               this.applications.findApplications
             ) {
-              const matches = await this.applications.findApplications(step.query, combined, {
-                exact: true,
-              });
-              if (matches.length !== 1)
-                return terminal(
-                  {
-                    ok: false,
-                    status: 'needs_user',
-                    steps,
-                    summary: this.message(
-                      matches.length ? 'applicationAmbiguous' : 'applicationMissing',
-                    ),
-                  },
+              const matches =
+                !steps && !history.length && sameActionTarget(step.query, opening.name)
+                  ? applications
+                  : await this.applications.findApplications(step.query, combined, { exact: true });
+              if (matches.length !== 1) {
+                const failure = recoverAppLookup(
+                  step,
                   matches.length ? 'application_ambiguous' : 'application_not_found',
                 );
+                if (failure) return failure;
+                continue;
+              }
               step = { ...step, application: matches[0] };
+            }
+            if (
+              foreignForeground &&
+              step.action === 'launch' &&
+              sameActionTarget(step.query, scope.window.app?.name)
+            ) {
+              step = {
+                ...step,
+                application: scope.window.app,
+                restoreWindowId: scope.window.windowId,
+              };
             }
             result = await this.applicationStep(step, goal, view, combined, {
               requireUnique: Boolean(opening && !opening.single),
@@ -2603,6 +2159,16 @@ export class ComputerAgent {
           throw error;
         }
         combined.throwIfAborted();
+        if (
+          result?.ok === false &&
+          ['missing_app_id', 'unknown_app_id'].includes(result?.error?.code) &&
+          result.inputPerformed !== true &&
+          ['launch', 'browser_input', 'browser_search', 'open_url'].includes(step.action)
+        ) {
+          const failure = recoverAppLookup(step, 'application_not_found');
+          if (failure) return failure;
+          continue;
+        }
         const submittedQuery = submittedPageQuery(step, view);
         const pageBefore = browserPageState(view);
         if (
@@ -2654,8 +2220,6 @@ export class ComputerAgent {
           scope.closedWindow = false;
         }
         if (succeeded) scope.expectWindowClose(step, selected);
-        if (section?.target?.targetId === step.targetId && step.action === 'click' && succeeded)
-          sectionClicked = true;
         if (result?.needsWindow) {
           this.lastFailure = { phase: 'acting', reason: outcome, steps, at: Date.now() };
           if (
@@ -2674,22 +2238,13 @@ export class ComputerAgent {
         }
         if (view.observationUnavailable && !succeeded)
           return { ok: false, status: 'needs_user', steps, summary: this.message('window') };
-        if (exactLaunch && !succeeded && !scope.web)
-          return terminal(
-            { ok: false, status: 'needs_user', steps, summary: this.message('launch') },
-            'application_unverified',
-          );
         if (succeeded) steps++;
         if (
-          succeeded &&
           step.action === 'click' &&
-          steam?.playTarget &&
-          selected?.targetId === steam.playTarget &&
-          steamOnly &&
-          steamGoal?.name === 'Cyberpunk 2077' &&
-          this.launchSteamGame
+          selected?.targetId === steam?.playTarget &&
+          (succeeded || result?.inputPerformed !== false)
         )
-          return await runCyberpunkSteam(true);
+          session.steamLaunchRequested = true;
         if (succeeded && requestedClick && step.action === 'click') {
           await this.control.execute({ action: 'observe', vision: false }, combined).catch(() => {
             combined.throwIfAborted();
@@ -2709,8 +2264,9 @@ export class ComputerAgent {
         }
         if (
           succeeded &&
-          exactLaunch &&
-          opening.single &&
+          step.action === 'launch' &&
+          opening?.single &&
+          !foreignForeground &&
           result.windowId &&
           result.focused === true
         ) {
@@ -2725,20 +2281,6 @@ export class ComputerAgent {
           };
         }
         if (!succeeded) {
-          const code = result?.error?.code;
-          if (['missing_app_id', 'unknown_app_id'].includes(code)) {
-            this.trace.at(-1).code = code;
-            if (exactLaunch && opening.single) {
-              this.lastFailure = {
-                phase: 'acting',
-                reason: code,
-                action: step.action,
-                steps,
-                at: Date.now(),
-              };
-              return { ok: false, status: 'needs_user', steps, summary: this.message('launch') };
-            }
-          }
           correction =
             result?.focused === false
               ? 'Windows did not focus that application. Do not type into the current window. Use the observed taskbar application button, or Alt+Tab if the goal is to return to the previous app, then verify its foreground state.'
@@ -2746,7 +2288,7 @@ export class ComputerAgent {
           if (++failures >= 3) {
             this.lastFailure = {
               phase: 'acting',
-              reason: 'not_applied',
+              reason: result?.focused === false ? 'focus_denied' : 'not_applied',
               action: step.action,
               steps,
               at: Date.now(),
@@ -2760,6 +2302,7 @@ export class ComputerAgent {
           }
         } else {
           failures = 0;
+          recoveringReview = false;
           if (!planProblem) blockedReason = null;
         }
         const appName = step.action === 'click' ? taskbarApplication(selected) : '';
@@ -2778,6 +2321,8 @@ export class ComputerAgent {
         // Transient per-task trace only, never written to diagnostic logs or memory.
         history.push({
           action: step.action,
+          ...(launcherClick &&
+            (succeeded || result?.inputPerformed !== false) && { launcherPlay: true }),
           ...(step.action === 'click' &&
             selected?.targetId === steam?.playTarget &&
             (succeeded || result?.inputPerformed !== false) && { steamPlay: true }),
@@ -2802,6 +2347,7 @@ export class ComputerAgent {
               }
             : {}),
           ok: succeeded,
+          ...(result?.focused === false && { focusDenied: true }),
           confirmation: result?.confirmation,
           submitted: result?.submitted,
           searchSubmitted: result?.searchSubmitted,

@@ -7,7 +7,7 @@ import { assertPrivatePath, writePrivateBytesAtomic } from '../safe-file.mjs';
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 
 /** Verified upstream backports, including npm's otherwise immutable bundled deps. */
-export function applyDependencySecurityPatches(workspace, { manifest } = {}) {
+export function applyDependencySecurityPatches(workspace, { manifest, verifyOnly = false } = {}) {
   const base = path.resolve(workspace);
   manifest ??= JSON.parse(
     readFileSync(path.join(base, 'config/dependency-security-patches.json'), 'utf8'),
@@ -78,6 +78,8 @@ export function applyDependencySecurityPatches(workspace, { manifest } = {}) {
   }
   // Preflight the whole set before modifying any file. Never relabel a package
   // version or conceal version-based npm audit warnings.
+  if (verifyOnly && pending.length)
+    throw new Error('Packaged dependencies are missing reviewed security patches. Rebuild Capri.');
   for (const { file, updated } of pending) writePrivateBytesAtomic(file, Buffer.from(updated));
   return { changed: pending.length, targets: receipts };
 }

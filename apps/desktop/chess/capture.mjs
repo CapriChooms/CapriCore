@@ -14,25 +14,36 @@ import { teleportLightningSettings } from '../renderer/teleport-effects.mjs';
 
 const OVERLAY = 'capri://desktop/chess-overlay.html';
 const MAX_FRAME_EDGE = 1600;
+const DETECTED_FRAME_MS = 6000;
 const dimensions = (r) => ['x', 'y', 'width', 'height'].map((key) => r[key]).join(',');
 const windowClient = (view) =>
   view?.hwnd && view.processId ? { hwnd: view.hwnd, processId: view.processId } : undefined;
 
 export class ChessCapture {
-  constructor({ BrowserWindow, screen, desktopCapturer, enabled, regionBitmap, teleportEffects }) {
+  constructor({
+    BrowserWindow,
+    screen,
+    desktopCapturer,
+    enabled,
+    regionBitmap,
+    windowBounds,
+    teleportEffects,
+  }) {
     Object.assign(this, {
       BrowserWindow,
       screen,
       desktopCapturer,
       enabled,
       regionBitmap,
+      windowBounds,
       teleportEffects,
     });
     this.appearance = DEFAULT_CHESS_ARROW;
     this.frameStyle = DEFAULT_CHESS_FRAME;
     this.moveLightning = true;
     this.showArrow = true;
-    this.boardFrame = this.frameVisible = false;
+    this.boardFrame = true;
+    this.frameVisible = false;
     this.onDisplayChange = () => this.drop();
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed'])
       screen.on(event, this.onDisplayChange);
@@ -75,6 +86,39 @@ export class ChessCapture {
     const display = this.screen.getAllDisplays().find((item) => String(item.id) === id);
     if (!display) throw new Error('The chess display is unavailable');
     return display;
+  }
+
+  screenView(frame) {
+    const display = frame.display;
+    return {
+      visualOnly: true,
+      token: 'display:' + display.id,
+      bounds: this.screen.dipToScreenRect(null, display.bounds),
+    };
+  }
+
+  async windowView(id, signal) {
+    const windowId = id.split(':')[1];
+    try {
+      const {
+        windowId: actual,
+        processId,
+        startedAtTicks,
+        x,
+        y,
+        width,
+        height,
+      } = (await this.windowBounds?.(windowId, signal)) ?? {};
+      if (actual !== windowId || !(width > 0 && height > 0)) return null;
+      return {
+        visualOnly: true,
+        token: `${id}/${processId}/${startedAtTicks}`,
+        bounds: { x, y, width, height },
+      };
+    } catch {
+      signal.throwIfAborted();
+      return null;
+    }
   }
 
   async frame(id, signal, { maximumEdge = MAX_FRAME_EDGE, view } = {}) {
@@ -392,8 +436,60 @@ export class ChessCapture {
     this.syncVisibility(window);
   }
 
+  async previewBoardFrame(frame, rect, signal) {
+    if (!frame.display || !this.boardFrame) return false;
+    try {
+      await this.showBoardFrame(frame, rect, signal);
+    } catch (error) {
+      this.drop();
+      throw error;
+    }
+    if (!this.boardFrame || !this.frameVisible) return false;
+    clearTimeout(this.boardPreview?.timer);
+    this.boardPreview?.controller.abort();
+    const preview = { controller: new AbortController() };
+    this.boardPreview = preview;
+    // Sample inside the frame so its animated glow cannot invalidate the preview.
+    // Hide the frame if the sampled board area changes or becomes unavailable.
+    const { signal: watchSignal } = preview.controller;
+    const size = frame.bitmap.getSize();
+    const geometry = { ...frame, bitmap: { getSize: () => size } };
+    const crop = {
+      x: rect.x + Math.floor(rect.width / 8),
+      y: rect.y + Math.floor(rect.height / 8),
+      width: Math.floor((3 * rect.width) / 4),
+      height: Math.floor((3 * rect.height) / 4),
+    };
+    let sample;
+    const check = async () => {
+      try {
+        const current = await this.boardSample(geometry, crop, watchSignal);
+        if (this.boardPreview !== preview || watchSignal.aborted) return;
+        if (!current || (sample && sample !== current)) return this.drop();
+        sample = current;
+        schedule(1000);
+      } catch {
+        if (this.boardPreview === preview) this.drop();
+      }
+    };
+    const schedule = (ms, run = check) => {
+      preview.timer = setTimeout(run, ms);
+      preview.timer.unref?.();
+    };
+    if (this.regionBitmap) void check();
+    else schedule(DETECTED_FRAME_MS, () => this.drop());
+    return true;
+  }
+
+  clearBoardPreview() {
+    if (!this.boardPreview) return false;
+    this.drop();
+    return true;
+  }
+
   configureBoardFrame(enabled) {
     this.boardFrame = enabled;
+    if (!enabled && this.clearBoardPreview()) return;
     if (!enabled && this.arrow && !this.arrow.isDestroyed()) {
       const window = this.arrow;
       void this.setFrame(window, false)
@@ -519,6 +615,9 @@ export class ChessCapture {
       .catch(() => {});
   }
   drop() {
+    clearTimeout(this.boardPreview?.timer);
+    this.boardPreview?.controller.abort();
+    this.boardPreview = null;
     clearTimeout(this.flashTimer);
     this.flashTimer = null;
     for (const window of [this.arrow, this.selector])

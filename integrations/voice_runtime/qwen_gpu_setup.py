@@ -60,6 +60,9 @@ def prepare_lock(root, lock, backend, *, download=download_verified):
         patterns[package] = pattern
 
     packages = PACKAGES[backend]
+    if backend == 'cuda':
+        runtimes = json.loads((root / 'config/voice-runtime.json').read_text(encoding='utf-8'))
+        mirror = runtimes['pytorchWheelMirror']
     total = sum(size for _, size, _ in packages.values())
     completed = 0
 
@@ -72,14 +75,14 @@ def prepare_lock(root, lock, backend, *, download=download_verified):
         if backend == 'rocm':
             urls = (ROCM_BASE + url_name,)
         else:
-            urls = tuple(f'https://{host}/whl/cu128/{url_name}' for host in
-                         ('download-r2.pytorch.org', 'download.pytorch.org'))
+            urls = tuple(f'{origin}/whl/cu128/{url_name}' for origin in
+                         ('https://download-r2.pytorch.org', 'https://download.pytorch.org', mirror))
         wheel = download(
             urls[0],
             runtime / f'qwen-{backend}-wheels' / filename,
             {'bytes': size, 'sha256': checksum},
             fallback_urls=urls[1:],
-            attempts=4,
+            attempts=6 if backend == 'cuda' else 4,
             timeout=30,
             progress=report,
         )

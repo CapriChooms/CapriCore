@@ -164,7 +164,7 @@ function fitRect(width, height, rect) {
 /** Draw one approved pose and restrained procedural red ink on a transparent CSS-pixel canvas. */
 export function drawStartupIntro(
   ctx,
-  { time = 0, width, height, images = [], rect, seed = 1, durationMs = 3000 } = {},
+  { time = 0, width, height, images = [], drawFace, rect, seed = 1, durationMs = 3000 } = {},
 ) {
   const sample = startupIntroSample(time, durationMs);
   const viewportWidth = Math.max(0, finite(width, 0));
@@ -201,13 +201,13 @@ export function drawStartupIntro(
       ctx.rect(box.x, box.y, box.width * easeOut(clamp(t / 115)), box.height);
       ctx.clip();
     }
-    ctx.drawImage(
-      image,
-      box.x + box.width * sample.poseX,
-      box.y + box.height * sample.poseY,
-      box.width,
-      box.height,
-    );
+    const x = box.x + box.width * sample.poseX;
+    const y = box.y + box.height * sample.poseY;
+    ctx.drawImage(image, x, y, box.width, box.height);
+    if (drawFace) {
+      ctx.translate(x, y);
+      drawFace(ctx, sample.index, box.width);
+    }
     ctx.restore();
   }
   if (sample.effects) {

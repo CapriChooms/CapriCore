@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld(
     setComputerAccess: (enabled) => ipcRenderer.invoke('capri:computer-access-set', enabled),
     inferenceApiStatus: () => ipcRenderer.invoke('capri:inference-api-status'),
     setLocalModelLoad: (value) => ipcRenderer.invoke('capri:local-model-load-set', value),
+    warmModels: () => ipcRenderer.invoke('capri:models-warm'),
+    setModelIdleUnload: (value) => ipcRenderer.invoke('capri:model-idle-policy', value),
     discoverAiProviders: (refresh = false) => ipcRenderer.invoke('capri:desktop-ai-scan', refresh),
     chatGPTPlan: (value) => ipcRenderer.invoke('capri:chatgpt-plan', value),
     setInferenceStartup: (value) => ipcRenderer.invoke('capri:inference-startup-set', value),
@@ -125,6 +127,7 @@ contextBridge.exposeInMainWorld(
         'capri:companion-settings',
         expectedRevision ? { payload: value, expectedRevision } : value,
       ),
+    previewCursorPrank: () => ipcRenderer.invoke('capri:cursor-prank-preview'),
     communityLink: (id) => ipcRenderer.invoke('capri:community-link', id),
     openDonation: () => ipcRenderer.invoke('capri:donation-open'),
     getPersonality: () => ipcRenderer.invoke('capri:personality-get'),
@@ -149,6 +152,7 @@ contextBridge.exposeInMainWorld(
     workflowAction: (value) => ipcRenderer.invoke('capri:workflow', value),
     userToolAction: (value) => ipcRenderer.invoke('capri:user-tool', value),
     startupIntro: (action) => ipcRenderer.invoke('capri:startup-intro', action),
+    patchNotes: (shown) => ipcRenderer.invoke('capri:patch-notes', shown),
     bugReport: (description) => ipcRenderer.invoke('capri:bug-report', description),
     sendBugReport: (description) => ipcRenderer.invoke('capri:bug-report-send', description),
     send: (message) => ipcRenderer.invoke('capri:send', message),
@@ -246,6 +250,7 @@ contextBridge.exposeInMainWorld(
     avatarReady: (selection) => ipcRenderer.invoke('capri:avatar-ready', selection),
     avatarFrameReady: (frame) => ipcRenderer.invoke('capri:avatar-frame-ready', frame),
     avatarMouth: (shape) => ipcRenderer.invoke('capri:avatar-mouth', shape),
+    avatarFace: (state) => ipcRenderer.invoke('capri:avatar-face', state),
     avatarReply: (text) => ipcRenderer.invoke('capri:avatar-reply', text),
     avatarStatus: (value) => ipcRenderer.invoke('capri:avatar-status', value),
     avatarFailed: (selection) => ipcRenderer.invoke('capri:avatar-failed', selection),
@@ -272,8 +277,10 @@ contextBridge.exposeInMainWorld(
     setAvatarLayout: (value) => ipcRenderer.invoke('capri:avatar-layout', value),
     startAvatarDrag: (value) => ipcRenderer.invoke('capri:avatar-drag-start', value),
     endAvatarDrag: (value) => ipcRenderer.invoke('capri:avatar-drag-end', value),
-    startDrag: (edge) => ipcRenderer.invoke('capri:drag-start', edge),
-    endDrag: () => ipcRenderer.invoke('capri:drag-end'),
+    startDrag: (edge, origin) =>
+      ipcRenderer.invoke('capri:drag-start', edge === undefined ? undefined : { edge, origin }),
+    dragFrame: () => ipcRenderer.invoke('capri:drag-frame'),
+    endDrag: (released) => ipcRenderer.invoke('capri:drag-end', released),
     onEvent: (callback) => {
       if (typeof callback !== 'function') throw new TypeError('Expected callback');
       const listener = (_event, payload) => callback(payload);

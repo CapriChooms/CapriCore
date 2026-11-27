@@ -20,7 +20,62 @@ import {
   OLLAMA_BACKEND_FILES,
 } from '../packages/runtime/src/host/ollama-bundle.mjs';
 import { temporaryFolders } from './temporary-folders.mjs';
+import installer from '../config/installer.json' with { type: 'json' };
 const folder = temporaryFolders('capri-runtime-integrity-unit-');
+const nodeArtifact = installer.artifacts.node;
+test(
+  'the Windows launcher selects one Node executable when PATH contains multiple copies',
+  {
+    skip: process.platform !== 'win32',
+  },
+  () => {
+    const base = folder();
+    const bin = path.join(base, 'packages/runtime/bin');
+    const fallback = path.join(base, 'second-node');
+    mkdirSync(bin, { recursive: true });
+    mkdirSync(path.join(base, 'config'));
+    mkdirSync(fallback);
+    copyFileSync(process.execPath, path.join(fallback, 'node.exe'));
+    copyFileSync(
+      path.join(root, 'packages/runtime/bin/run-node.ps1'),
+      path.join(bin, 'run-node.ps1'),
+    );
+    writeFileSync(path.join(bin, 'capri.mjs'), 'console.log(process.versions.node);');
+    writeFileSync(
+      path.join(base, 'config/installer.json'),
+      JSON.stringify({ artifacts: { node: nodeArtifact } }),
+    );
+    const env = {
+      ...process.env,
+      Path: [
+        path.dirname(process.execPath),
+        fallback,
+        process.env.Path ?? process.env.PATH ?? '',
+      ].join(path.delimiter),
+    };
+    delete env.CAPRI_NODE_PATH;
+    delete env.PATH;
+    const result = spawnSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        path.join(bin, 'run-node.ps1'),
+      ],
+      {
+        env,
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 15000,
+      },
+    );
+    assert.equal(result.status, 0, result.error?.message ?? result.stderr);
+    assert.equal(result.stdout.trim(), process.versions.node);
+  },
+);
 test(
   'a surviving Ollama frontend cannot hide missing runtime dependencies',
   { skip: process.platform !== 'win32' },
@@ -49,7 +104,7 @@ test(
 const bundled = [
   process.execPath,
   nodePath,
-  path.join(root, '.runtime/node-v24.22.1-win-x64/node.exe'),
+  path.join(root, '.runtime', nodeArtifact.directory, 'node.exe'),
 ].find(
   (exe) =>
     exe &&
@@ -64,7 +119,7 @@ test(
     const base = folder(),
       source = path.join(base, 'source'),
       target = path.join(base, 'target'),
-      runtime = 'node-v24.22.1-win-x64',
+      runtime = nodeArtifact.directory,
       node = path.join(target, '.runtime', runtime, 'node.exe');
     mkdirSync(path.dirname(node), { recursive: true });
     copyFileSync(bundled, node);
@@ -104,7 +159,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
       ) +
         `
 $hash=Get-CapriHash $zip;$cached=Join-Path $cache ($hash+'.zip');Move-Item -LiteralPath $zip -Destination $cached
-Write-CapriJson (Join-Path $Source 'config/installer.json') @{minimumWindowsBuild=19045;artifacts=@{node=@{directory='${runtime}';url='https://nodejs.org/dist/v24.22.1/node-v24.22.1-win-x64.zip';sha256=$hash;version='24.22.1';bytes=(Get-Item -LiteralPath $cached).Length}}}
+Write-CapriJson (Join-Path $Source 'config/installer.json') @{minimumWindowsBuild=19045;artifacts=@{node=@{directory='${runtime}';url='${nodeArtifact.url}';sha256=$hash;version='${nodeArtifact.version}';bytes=(Get-Item -LiteralPath $cached).Length}}}
 Write-CapriJson (Join-Path $Target '.capri-install.json') @{schemaVersion=1;productId='capri.desktop';version='0.3.4';root=$Target;installId=[Guid]::NewGuid().ToString()}
 Write-CapriJson (Join-Path $cache 'node.json') @{sha256=$hash;executableSha256=(Get-CapriHash $Node)}
 Write-CapriJson $Request @{target=$Target;acceptLicense=$true;acceptDownloads=$true}

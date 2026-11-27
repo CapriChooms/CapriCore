@@ -2,6 +2,7 @@
 export const VOICE_EFFECT_DEFAULTS = Object.freeze({
   enabled: false,
   preset: 'clean',
+  pitch: 0,
   intensity: 40,
   mix: 25,
   reverb: 0,
@@ -12,6 +13,7 @@ export const VOICE_EFFECT_DEFAULTS = Object.freeze({
   carrierHz: 60,
 });
 export const VOICE_EFFECT_LIMITS = Object.freeze({
+  pitch: 6,
   intensity: 200,
   mix: 100,
   reverb: 200,
@@ -21,6 +23,7 @@ export const VOICE_EFFECT_LIMITS = Object.freeze({
   electronicMix: 100,
   carrierHz: 200,
 });
+export const VOICE_EFFECT_MINIMUMS = Object.freeze({ pitch: -6, carrierHz: 20 });
 export const VOICE_EFFECT_PRESETS = Object.freeze({
   clean: VOICE_EFFECT_DEFAULTS,
   cybernetic: {
@@ -86,13 +89,14 @@ export function validateVoiceEffects(value) {
     throw new Error('Invalid voice effects');
   const result = { enabled: value.enabled, preset: value.preset };
   for (const [key, maximum] of Object.entries(VOICE_EFFECT_LIMITS)) {
-    if (value[key] === undefined && ['electronicMix', 'carrierHz'].includes(key))
-      value = { ...value, [key]: VOICE_EFFECT_DEFAULTS[key] };
-    if (!Number.isFinite(value[key]) || value[key] < 0 || value[key] > maximum)
+    const amount =
+      value[key] === undefined && ['pitch', 'electronicMix', 'carrierHz'].includes(key)
+        ? VOICE_EFFECT_DEFAULTS[key]
+        : value[key];
+    if (!Number.isFinite(amount) || amount < (VOICE_EFFECT_MINIMUMS[key] ?? 0) || amount > maximum)
       throw new Error('Invalid voice effect amount');
-    result[key] = Math.round(value[key]);
+    result[key] = Math.round(amount);
   }
-  if (result.carrierHz < 20) throw new Error('Carrier frequency must be between 20 and 200 Hz');
   const previous = previousPresets[result.preset];
   if (
     previous &&

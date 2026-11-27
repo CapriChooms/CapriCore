@@ -1,0 +1,108 @@
+name: Capri platform previews
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/ports-*']
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: ${{ matrix.platform }} preview
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            runner: ubuntu-24.04
+          - platform: macos
+            runner: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Record build environment
+        run: |
+          uname -m
+          node -p 'process.platform + " " + process.arch + " " + process.version'
+          if [ "$RUNNER_OS" = macOS ]; then sw_vers; else cat /etc/os-release; fi
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          node node_modules/electron/install.js
+      - name: Set up the Linux desktop test session
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends openbox xcompmgr dbus-x11
+      - name: Check platform integration
+        run: >-
+          node --test tests/platform-updates.test.mjs tests/startup-update-check.test.mjs
+          tests/update-notification.test.mjs tests/patch-notes.test.mjs
+          tests/model-startup.test.mjs tests/api-model-startup.test.mjs
+          tests/runtime-foundation.test.mjs tests/managed-shutdown.test.mjs
+          tests/runtime-macos.test.mjs tests/build-macos.test.mjs
+          tests/macos-model-setup.test.mjs tests/macos-llama-runtime.test.mjs
+          tests/desktop-boundaries.test.mjs tests/desktop-window.test.mjs
+          tests/startup-intro-gate.test.mjs tests/settings-window.test.mjs
+      - name: Build and verify the distribution
+        env:
+          CAPRI_TARGET: ${{ matrix.platform }}
+        run: |
+          output="$RUNNER_TEMP/capri-preview"
+          node tools/release/build-platform-preview.mjs "$CAPRI_TARGET" --output "$output"
+          (cd "$output" && shasum -a 256 -c ./*.sha256)
+          if [ "$CAPRI_TARGET" = linux ]; then
+            tar -xzf "$output"/*.tar.gz -C "$RUNNER_TEMP"
+            cd "$RUNNER_TEMP"/Capri-*-linux-x86_64
+            test -x ./start-capri.sh
+            bash -n ./start-capri.sh
+            npm ci --cache "$GITHUB_WORKSPACE/.runtime/npm-cache"
+            node node_modules/electron/install.js
+            xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euc '
+              openbox &
+              manager=$!
+              xcompmgr -n &
+              compositor=$!
+              trap "kill $manager $compositor 2>/dev/null || true" EXIT
+              node tools/verify/verify-platform-preview.mjs
+            '
+          else
+            ditto -x -k "$output"/*.zip "$RUNNER_TEMP"
+            codesign --verify --deep --strict "$RUNNER_TEMP/Capri.app"
+            for launch in 1 2; do
+              echo "Packaged desktop launch $launch"
+              node tools/verify/verify-platform-preview.mjs "$RUNNER_TEMP/Capri.app"
+            done
+            codesign --verify --deep --strict "$RUNNER_TEMP/Capri.app"
+          fi
+      - name: Verify packaged macOS with local inference
+        if: matrix.platform == 'macos'
+        timeout-minutes: 16
+        run: |
+          tag=$(node -p 'require("./config/release.json").tag')
+          case "$tag" in *-experimental.*) exit 0 ;; esac
+          node --input-type=module <<'NODE'
+          import { LlamaModelStore } from './packages/runtime/src/providers/llama-model-store.mjs';
+          const store = new LlamaModelStore(process.cwd());
+          const signal = AbortSignal.timeout(8 * 60 * 1000);
+          for (const model of ['qwen3.5:0.8b', 'bge-m3:latest']) {
+            await store.pull(model, { signal });
+            console.log('Verified model layers:', model);
+          }
+          NODE
+          node tools/verify/verify-platform-preview.mjs "$RUNNER_TEMP/Capri.app" --agent
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: capri-preview-${{ matrix.platform }}
+          path: ${{ runner.temp }}/capri-preview/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

@@ -26,6 +26,9 @@ class ChatterboxWheelsTests(unittest.TestCase):
                 def download(url, file, spec, *, fallback_urls, progress, **_):
                     requests.append(url)
                     self.assertEqual(fallback_urls[0], url.replace('download-r2.', 'download.'))
+                    self.assertEqual(fallback_urls[1], url.replace(
+                        'https://download-r2.pytorch.org', 'https://mirror.nju.edu.cn/pytorch'
+                    ))
                     self.assertEqual(len(spec['sha256']), 64)
                     progress('download', spec['bytes'] // 2)
                     return file

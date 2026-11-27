@@ -15,3 +15,6 @@
 /docs/audit/npm-sbom.cdx.json -export-ignore
 
 *.ico binary
+
+# Preserve the exact bytes listed in SOURCE_MANIFEST.json.
+* -text !eol

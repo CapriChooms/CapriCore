@@ -11,7 +11,7 @@ const notices = new Set([
   'Web search was skipped because the request may contain private credentials.',
 ]);
 
-/** A session preference. Only the host may perform an explicitly enabled search. */
+/** Tracks the saved mode. Only the host may perform an explicitly enabled search. */
 export class InternetMode {
   constructor({ button, status, api, ui, onChange = () => {}, onError = () => {} }) {
     Object.assign(this, { button, status, api, ui, onChange, onError });

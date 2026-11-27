@@ -1,9 +1,23 @@
 export class InitiativePanel {
-  constructor({ api, ui, onOpen, onError }) {
+  constructor({ api, ui, onOpen, onError, companion, saveRoaming }) {
     Object.assign(this, { api, ui, onOpen, onError });
     this.panel = document.getElementById('initiative-panel');
-    document.getElementById('initiative-test').onclick = () =>
-      api.testInitiative().catch((error) => onError(error.message));
+    if (companion) {
+      const card = companion.panel.querySelector('[data-companion-group="Desktop roaming"]');
+      companion.roamingSettings = card;
+      this.panel.querySelector('.preferences-content').prepend(card);
+    }
+    const test = document.getElementById('initiative-test');
+    test.onclick = async () => {
+      test.disabled = true;
+      try {
+        this.activity(await api.testInitiative());
+      } catch (error) {
+        onError(error.message);
+      } finally {
+        test.disabled = false;
+      }
+    };
     document.getElementById('initiative-close').addEventListener('click', () => this.open(false));
     this.draft = () => ({
       level: document.getElementById('initiative-level').value,
@@ -19,6 +33,7 @@ export class InitiativePanel {
       appReactions: document.getElementById('initiative-apps').checked,
       screenComments: document.getElementById('initiative-screen-comments').checked,
       watchTogether: document.getElementById('initiative-watch-together').checked,
+      appExclusionsEnabled: document.getElementById('initiative-exclusions-enabled').checked,
       excludedApps: document
         .getElementById('initiative-exclusions')
         .value.split(',')
@@ -30,6 +45,7 @@ export class InitiativePanel {
       button.disabled = true;
       try {
         this.show(await api.setInitiative(this.draft()));
+        await saveRoaming?.();
         return true;
       } catch {
         this.onError('Initiative settings could not be applied.');
@@ -47,6 +63,8 @@ export class InitiativePanel {
       input.disabled = document.getElementById('initiative-level').value === 'off';
     };
     document.getElementById('initiative-quiet-enabled').onchange = () => this.quietControls();
+    document.getElementById('initiative-exclusions-enabled').onchange = () =>
+      this.exclusionControls();
     document
       .getElementById('initiative-dismiss')
       .addEventListener('click', () =>
@@ -71,11 +89,13 @@ export class InitiativePanel {
     document.getElementById('initiative-watch-together').checked = value.watchTogether === true;
     document.getElementById('initiative-quiet-start').value = value.quietStart;
     document.getElementById('initiative-quiet-end').value = value.quietEnd;
-    document.getElementById('initiative-quiet-enabled').checked =
-      value.quietHoursEnabled ?? value.quietStart !== value.quietEnd;
+    document.getElementById('initiative-quiet-enabled').checked = value.quietHoursEnabled === true;
     document.getElementById('initiative-spontaneous').checked = value.spontaneous !== false;
     this.quietControls();
+    document.getElementById('initiative-exclusions-enabled').checked =
+      value.appExclusionsEnabled === true;
     document.getElementById('initiative-exclusions').value = value.excludedApps.join(', ');
+    this.exclusionControls();
     this.ui.apply(this.ui.language);
   }
   status(value) {
@@ -113,6 +133,11 @@ export class InitiativePanel {
     for (const id of ['initiative-quiet-start', 'initiative-quiet-end'])
       document.getElementById(id).disabled = !document.getElementById('initiative-quiet-enabled')
         .checked;
+  }
+  exclusionControls() {
+    document.getElementById('initiative-exclusions').disabled = !document.getElementById(
+      'initiative-exclusions-enabled',
+    ).checked;
   }
   async open(open) {
     if ((await this.onOpen(open)) === false) return false;

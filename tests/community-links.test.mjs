@@ -116,6 +116,18 @@ test('a replacement invite updates presence and Support together without forward
   for (const id of ['futurePrivateMetadata', '__proto__', 'constructor', 'file:///private'])
     await assert.rejects(open(id), /Unknown community link/);
   assert.equal(opened.length, 8);
+  await open('credits:Overyx', { role: 'settings' });
+  await open('credits:Hastur-Dev', { role: 'settings' });
+  await open('credits:Frkn97', { role: 'settings' });
+  await open('credits:lattelix', { role: 'settings' });
+  assert.deepEqual(opened.slice(8), [
+    'https://github.com/Overyx',
+    'https://github.com/hastur-dev',
+    'https://github.com/Frkn97',
+    'https://github.com/lattelix',
+  ]);
+  await assert.rejects(open('credits:Overyx', { role: 'companion' }), /Unknown community link/);
+  await assert.rejects(open('credits:Unknown', { role: 'settings' }), /Unknown community link/);
 });
 
 test('malformed files and destinations outside their approved HTTPS origin use safe defaults', () => {
@@ -153,15 +165,14 @@ test('donations use the pinned creator in Settings and in the system browser', a
     state: root,
     rt: { workspace: root },
     preferences: {},
-    openDonation: () => opened.push('checkout'),
     shell: { openExternal: async (url) => opened.push(url) },
   });
   const openDonation = handlers.get('capri:donation-open');
-  assert.equal(openDonation(undefined, { role: 'companion' }), false);
-  openDonation('https://example.invalid', { role: 'settings' });
+  assert.equal(await openDonation(undefined, { role: 'companion' }), false);
+  assert.equal(await openDonation('https://example.invalid', { role: 'settings' }), true);
   const open = handlers.get('capri:community-link');
   await open('lava-donate');
   await open('boosty-donate');
   await open('boosty');
-  assert.deepEqual(opened, ['checkout', LAVA_DONATION_URL, BOOSTY_DONATION_URL, links.boosty]);
+  assert.deepEqual(opened, [LAVA_DONATION_URL, LAVA_DONATION_URL, BOOSTY_DONATION_URL, links.boosty]);
 });

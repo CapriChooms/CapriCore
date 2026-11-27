@@ -56,7 +56,10 @@ export function chessPage(view) {
   if (view.origin === 'https://lichess.org') {
     if (/^\/analysis(?:\/?$|\/(?:standard|fromPosition)(?:\/|$))|^\/study(?:\/|$)/.test(route))
       return { ...view };
-    const game = /^\/([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:\/(?:white|black))?\/?$/.exec(route);
+    // Lichess serves rounds under /game/ and redirects older short links.
+    const game =
+      /^\/game\/([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4}|\/(?:white|black))?\/?$/.exec(route) ??
+      /^\/([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:\/(?:white|black))?\/?$/.exec(route);
     if (game) return { ...view, game: game[1] };
   }
   return null;
@@ -82,7 +85,8 @@ export class ChessPageAccess {
       browserProbe: observation?.probe,
     };
     const decide = (reason, extra) => onDecision?.({ ...details, ...extra, reason });
-    if (!page?.game || this.games.has(page.game)) {
+    const cached = page?.game && this.games.get(page.game);
+    if (!page?.game || cached) {
       decide(
         page?.game
           ? 'game_already_verified'
@@ -92,7 +96,8 @@ export class ChessPageAccess {
               ? 'route_rejected'
               : 'no_browser_view',
       );
-      return page?.game ? { ...page, computerSide: this.games.get(page.game) } : page;
+      if (!page?.game) return page;
+      return { ...page, computerSide: cached.computerSide };
     }
     try {
       const reply = await this.fetchImpl(
@@ -125,11 +130,10 @@ export class ChessPageAccess {
         await reader.cancel().catch(() => {});
       }
       const game = JSON.parse(Buffer.concat(chunks).toString());
-      const computerSide = Number.isInteger(game.players?.white?.aiLevel)
-        ? 'w'
-        : Number.isInteger(game.players?.black?.aiLevel)
-          ? 'b'
-          : null;
+      const whiteAI = Number.isInteger(game.players?.white?.aiLevel);
+      const blackAI = Number.isInteger(game.players?.black?.aiLevel);
+      const computerSide =
+        game.rated === false && whiteAI !== blackAI ? (whiteAI ? 'w' : 'b') : null;
       if (
         game.id !== page.game ||
         game.variant !== 'standard' ||
@@ -139,7 +143,7 @@ export class ChessPageAccess {
         return null;
       }
       if (this.games.size >= 16) this.games.delete(this.games.keys().next().value);
-      this.games.set(page.game, computerSide);
+      this.games.set(page.game, { computerSide });
       decide('game_allowed');
       return { ...page, computerSide };
     } catch {

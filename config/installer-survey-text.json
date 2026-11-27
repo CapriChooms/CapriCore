@@ -12,7 +12,13 @@
     "deviceKeep": "Keep the current device",
     "deviceHelp": "Automatic uses compatible GPU acceleration when available. CPU only uses system RAM for the language model. This choice is separate from voice processing.",
     "voiceHelp": "Choose a voice compatible with your conversation language and hardware. You can configure more voices, including a voice API, in Spoken replies after installation.",
-    "voiceOffRepair": "Keep the current voice without installing a new one"
+    "voiceOffRepair": "Keep the current voice without installing a new one",
+    "cameraComponent": "Virtual camera for voice calls",
+    "rebuildDependencies": "Reinstall core dependencies even if their checks pass",
+    "resetDesktop": "Reset desktop preferences…",
+    "resetConfirm": "Restore the default appearance, audio settings and feature preferences for this installation? Setup will back up the current preferences. Your conversations, databases, models and API keys will be kept.",
+    "resetBackup": "Desktop preferences reset. Your backup is in",
+    "resetEmpty": "Desktop preferences are already at their defaults."
   },
   "ru": {
     "interface": "На каком языке показывать интерфейс Capri?",
@@ -27,6 +33,404 @@
     "deviceKeep": "Оставить текущее устройство",
     "deviceHelp": "В автоматическом режиме Capri использует доступное ускорение на совместимой видеокарте. Режим «Только CPU» использует оперативную память для языковой модели. Устройство озвучки настраивается отдельно.",
     "voiceHelp": "Выберите голос, совместимый с языком общения и вашим оборудованием. После установки в разделе «Озвучка ответов» можно выбрать другие голоса или подключить API голоса.",
-    "voiceOffRepair": "Оставить текущий голос без загрузки нового"
+    "voiceOffRepair": "Оставить текущий голос без загрузки нового",
+    "cameraComponent": "Виртуальная камера для звонков",
+    "rebuildDependencies": "Переустановить базовые зависимости, даже если проверка пройдена",
+    "resetDesktop": "Сбросить настройки приложения…",
+    "resetConfirm": "Вернуть стандартное оформление, настройки звука и функций для этой установки? Установщик сохранит резервную копию настроек. Переписка, базы данных, модели и ключи API сохранятся.",
+    "resetBackup": "Настройки сброшены. Папка с резервной копией",
+    "resetEmpty": "Приложение уже использует стандартные настройки."
+  },
+  "de": {
+    "cameraComponent": "Virtuelle Kamera für Anrufe",
+    "rebuildDependencies": "Kernabhängigkeiten auch nach erfolgreicher Prüfung neu installieren",
+    "resetDesktop": "Desktop-Einstellungen zurücksetzen…",
+    "resetConfirm": "Darstellung, Audio und Funktionen auf die Standardwerte zurücksetzen? Setup sichert die Einstellungen. Chats, Datenbanken, Modelle und API-Schlüssel bleiben erhalten.",
+    "resetBackup": "Einstellungen zurückgesetzt. Sicherungsordner",
+    "resetEmpty": "Die Standardeinstellungen sind bereits aktiv."
+  },
+  "fr": {
+    "cameraComponent": "Caméra virtuelle pour les appels",
+    "rebuildDependencies": "Réinstaller les dépendances de base même si la vérification réussit",
+    "resetDesktop": "Réinitialiser les préférences de l’application…",
+    "resetConfirm": "Rétablir les réglages par défaut de l’apparence, du son et des fonctionnalités ? Une copie des préférences sera conservée. Vos conversations, bases de données, modèles et clés API seront préservés.",
+    "resetBackup": "Préférences réinitialisées. Dossier de sauvegarde",
+    "resetEmpty": "Les préférences ont déjà leurs valeurs par défaut."
+  },
+  "es": {
+    "cameraComponent": "Cámara virtual para llamadas",
+    "rebuildDependencies": "Reinstalar las dependencias básicas aunque superen la comprobación",
+    "resetDesktop": "Restablecer las preferencias de la aplicación…",
+    "resetConfirm": "¿Restablecer la apariencia, el audio y las funciones a sus valores predeterminados? Se guardará una copia de tus preferencias. Se conservarán los chats, las bases de datos, los modelos y las claves de API.",
+    "resetBackup": "Preferencias restablecidas. Carpeta de la copia de seguridad",
+    "resetEmpty": "Las preferencias ya tienen sus valores predeterminados."
+  },
+  "it": {
+    "cameraComponent": "Fotocamera virtuale per le chiamate",
+    "rebuildDependencies": "Reinstalla le dipendenze di base anche se superano la verifica",
+    "resetDesktop": "Ripristina le preferenze dell’app…",
+    "resetConfirm": "Ripristinare i valori predefiniti per aspetto, audio e funzionalità? Verrà creata una copia delle preferenze. Chat, database, modelli e chiavi API verranno conservati.",
+    "resetBackup": "Preferenze ripristinate. Cartella di backup",
+    "resetEmpty": "Le preferenze sono già ai valori predefiniti."
+  },
+  "pt": {
+    "cameraComponent": "Câmara virtual para chamadas",
+    "rebuildDependencies": "Reinstalar as dependências base mesmo que passem na verificação",
+    "resetDesktop": "Repor as preferências da aplicação…",
+    "resetConfirm": "Repor as predefinições de aparência, áudio e funcionalidades? Será criada uma cópia das preferências. As conversas, bases de dados, modelos e chaves de API serão preservados.",
+    "resetBackup": "Preferências repostas. Pasta da cópia de segurança",
+    "resetEmpty": "As preferências já têm os valores predefinidos."
+  },
+  "pt-BR": {
+    "cameraComponent": "Câmera virtual para chamadas",
+    "rebuildDependencies": "Reinstalar as dependências básicas mesmo que passem na verificação",
+    "resetDesktop": "Redefinir as preferências do aplicativo…",
+    "resetConfirm": "Restaurar a aparência, o áudio e os recursos para os valores padrão? Uma cópia das preferências será salva. Suas conversas, bancos de dados, modelos e chaves de API serão preservados.",
+    "resetBackup": "Preferências redefinidas. Pasta de backup",
+    "resetEmpty": "As preferências já estão nos valores padrão."
+  },
+  "nl": {
+    "cameraComponent": "Virtuele camera voor gesprekken",
+    "rebuildDependencies": "Basisafhankelijkheden ook na een geslaagde controle opnieuw installeren",
+    "resetDesktop": "Appvoorkeuren herstellen…",
+    "resetConfirm": "De standaardinstellingen voor weergave, geluid en functies herstellen? Je voorkeuren worden geback-upt. Gesprekken, databases, modellen en API-sleutels blijven bewaard.",
+    "resetBackup": "Voorkeuren hersteld. Back-upmap",
+    "resetEmpty": "De standaardvoorkeuren zijn al actief."
+  },
+  "pl": {
+    "cameraComponent": "Wirtualna kamera do rozmów",
+    "rebuildDependencies": "Zainstaluj ponownie podstawowe zależności, nawet jeśli przejdą weryfikację",
+    "resetDesktop": "Przywróć domyślne ustawienia aplikacji…",
+    "resetConfirm": "Przywrócić domyślne ustawienia wyglądu, dźwięku i funkcji? Instalator zachowa kopię ustawień. Rozmowy, bazy danych, modele i klucze API zostaną zachowane.",
+    "resetBackup": "Przywrócono ustawienia. Folder kopii zapasowej",
+    "resetEmpty": "Ustawienia mają już wartości domyślne."
+  },
+  "uk": {
+    "cameraComponent": "Віртуальна камера для дзвінків",
+    "rebuildDependencies": "Перевстановити основні залежності, навіть якщо перевірку пройдено",
+    "resetDesktop": "Скинути налаштування застосунку…",
+    "resetConfirm": "Відновити типові налаштування вигляду, звуку та функцій? Інсталятор збереже резервну копію налаштувань. Розмови, бази даних, моделі та ключі API буде збережено.",
+    "resetBackup": "Налаштування скинуто. Папка резервної копії",
+    "resetEmpty": "Уже застосовано типові налаштування."
+  },
+  "cs": {
+    "cameraComponent": "Virtuální kamera pro hovory",
+    "rebuildDependencies": "Přeinstalovat základní závislosti i po úspěšné kontrole",
+    "resetDesktop": "Obnovit výchozí nastavení aplikace…",
+    "resetConfirm": "Obnovit výchozí vzhled, zvuk a nastavení funkcí? Instalátor zálohuje nastavení. Konverzace, databáze, modely a klíče API zůstanou zachovány.",
+    "resetBackup": "Nastavení obnoveno. Složka zálohy",
+    "resetEmpty": "Nastavení již má výchozí hodnoty."
+  },
+  "sk": {
+    "cameraComponent": "Virtuálna kamera na hovory",
+    "rebuildDependencies": "Preinštalovať základné závislosti aj po úspešnej kontrole",
+    "resetDesktop": "Obnoviť predvolené nastavenia aplikácie…",
+    "resetConfirm": "Obnoviť predvolený vzhľad, zvuk a nastavenia funkcií? Inštalátor zálohuje nastavenia. Rozhovory, databázy, modely a kľúče API sa zachovajú.",
+    "resetBackup": "Nastavenia boli obnovené. Priečinok zálohy",
+    "resetEmpty": "Nastavenia už majú predvolené hodnoty."
+  },
+  "bg": {
+    "cameraComponent": "Виртуална камера за разговори",
+    "rebuildDependencies": "Преинсталиране на основните зависимости дори при успешна проверка",
+    "resetDesktop": "Нулиране на настройките на приложението…",
+    "resetConfirm": "Да се възстановят ли стандартните настройки за външен вид, звук и функции? Ще бъде запазено резервно копие на настройките. Разговорите, базите данни, моделите и API ключовете ще се запазят.",
+    "resetBackup": "Настройките са възстановени. Папка с резервното копие",
+    "resetEmpty": "Настройките вече са стандартните."
+  },
+  "hr": {
+    "cameraComponent": "Virtualna kamera za pozive",
+    "rebuildDependencies": "Ponovno instaliraj osnovne ovisnosti čak i ako prođu provjeru",
+    "resetDesktop": "Vrati zadane postavke aplikacije…",
+    "resetConfirm": "Vratiti zadane postavke izgleda, zvuka i funkcija? Instalacijski program spremit će kopiju postavki. Razgovori, baze podataka, modeli i API ključevi ostat će sačuvani.",
+    "resetBackup": "Postavke su vraćene. Mapa sigurnosne kopije",
+    "resetEmpty": "Zadane postavke već se koriste."
+  },
+  "sr": {
+    "cameraComponent": "Виртуелна камера за позиве",
+    "rebuildDependencies": "Поново инсталирај основне зависности чак и ако прођу проверу",
+    "resetDesktop": "Врати подразумевана подешавања апликације…",
+    "resetConfirm": "Вратити подразумевани изглед, звук и подешавања функција? Инсталатер ће сачувати копију подешавања. Разговори, базе података, модели и API кључеви биће сачувани.",
+    "resetBackup": "Подешавања су враћена. Фасцикла резервне копије",
+    "resetEmpty": "Већ се користе подразумевана подешавања."
+  },
+  "sl": {
+    "cameraComponent": "Navidezna kamera za klice",
+    "rebuildDependencies": "Znova namesti osnovne odvisnosti tudi po uspešnem preverjanju",
+    "resetDesktop": "Ponastavi nastavitve aplikacije…",
+    "resetConfirm": "Obnovim privzete nastavitve videza, zvoka in funkcij? Namestitveni program bo varnostno kopiral nastavitve. Pogovori, podatkovne zbirke, modeli in ključi API bodo ohranjeni.",
+    "resetBackup": "Nastavitve so ponastavljene. Mapa varnostne kopije",
+    "resetEmpty": "Nastavitve so že privzete."
+  },
+  "ro": {
+    "cameraComponent": "Cameră virtuală pentru apeluri",
+    "rebuildDependencies": "Reinstalează dependențele de bază chiar dacă trec verificarea",
+    "resetDesktop": "Resetează preferințele aplicației…",
+    "resetConfirm": "Restabilești setările implicite pentru aspect, sunet și funcții? Se va salva o copie a preferințelor. Conversațiile, bazele de date, modelele și cheile API vor fi păstrate.",
+    "resetBackup": "Preferințele au fost resetate. Dosarul copiei de rezervă",
+    "resetEmpty": "Preferințele au deja valorile implicite."
+  },
+  "hu": {
+    "cameraComponent": "Virtuális kamera hívásokhoz",
+    "rebuildDependencies": "Az alapvető függőségek újratelepítése sikeres ellenőrzés esetén is",
+    "resetDesktop": "Az alkalmazás beállításainak visszaállítása…",
+    "resetConfirm": "Visszaállítja a megjelenés, a hang és a funkciók alapbeállításait? A telepítő menti a jelenlegi beállításokat. A beszélgetések, adatbázisok, modellek és API-kulcsok megmaradnak.",
+    "resetBackup": "A beállítások visszaállítva. A biztonsági mentés mappája",
+    "resetEmpty": "Már az alapbeállítások vannak érvényben."
+  },
+  "el": {
+    "cameraComponent": "Εικονική κάμερα για κλήσεις",
+    "rebuildDependencies": "Επανεγκατάσταση βασικών εξαρτήσεων ακόμη και μετά από επιτυχή έλεγχο",
+    "resetDesktop": "Επαναφορά προτιμήσεων εφαρμογής…",
+    "resetConfirm": "Να επανέλθουν οι προεπιλογές εμφάνισης, ήχου και λειτουργιών; Θα αποθηκευτεί αντίγραφο των προτιμήσεων. Οι συνομιλίες, οι βάσεις δεδομένων, τα μοντέλα και τα κλειδιά API θα διατηρηθούν.",
+    "resetBackup": "Έγινε επαναφορά προτιμήσεων. Φάκελος αντιγράφου ασφαλείας",
+    "resetEmpty": "Οι προτιμήσεις έχουν ήδη τις προεπιλεγμένες τιμές."
+  },
+  "da": {
+    "cameraComponent": "Virtuelt kamera til opkald",
+    "rebuildDependencies": "Geninstaller grundlæggende afhængigheder, selv når kontrollen lykkes",
+    "resetDesktop": "Nulstil appens indstillinger…",
+    "resetConfirm": "Gendan standardindstillinger for udseende, lyd og funktioner? Dine indstillinger sikkerhedskopieres. Samtaler, databaser, modeller og API-nøgler bevares.",
+    "resetBackup": "Indstillingerne er nulstillet. Mappe med sikkerhedskopi",
+    "resetEmpty": "Standardindstillingerne er allerede i brug."
+  },
+  "no": {
+    "cameraComponent": "Virtuelt kamera for samtaler",
+    "rebuildDependencies": "Installer grunnleggende avhengigheter på nytt selv om kontrollen lykkes",
+    "resetDesktop": "Tilbakestill appinnstillinger…",
+    "resetConfirm": "Gjenopprette standardinnstillinger for utseende, lyd og funksjoner? Det lagres en sikkerhetskopi av innstillingene. Samtaler, databaser, modeller og API-nøkler beholdes.",
+    "resetBackup": "Innstillingene er tilbakestilt. Mappe for sikkerhetskopi",
+    "resetEmpty": "Standardinnstillingene er allerede i bruk."
+  },
+  "sv": {
+    "cameraComponent": "Virtuell kamera för samtal",
+    "rebuildDependencies": "Installera om grundläggande beroenden även om kontrollen lyckas",
+    "resetDesktop": "Återställ appens inställningar…",
+    "resetConfirm": "Återställa standardinställningarna för utseende, ljud och funktioner? Inställningarna säkerhetskopieras. Konversationer, databaser, modeller och API-nycklar sparas.",
+    "resetBackup": "Inställningarna har återställts. Mapp för säkerhetskopian",
+    "resetEmpty": "Standardinställningarna används redan."
+  },
+  "fi": {
+    "cameraComponent": "Virtuaalikamera puheluihin",
+    "rebuildDependencies": "Asenna perusriippuvuudet uudelleen myös tarkistuksen onnistuessa",
+    "resetDesktop": "Palauta sovelluksen oletusasetukset…",
+    "resetConfirm": "Palautetaanko ulkoasun, äänen ja toimintojen oletusasetukset? Asetuksista tehdään varmuuskopio. Keskustelut, tietokannat, mallit ja API-avaimet säilyvät.",
+    "resetBackup": "Asetukset palautettiin. Varmuuskopion kansio",
+    "resetEmpty": "Oletusasetukset ovat jo käytössä."
+  },
+  "et": {
+    "cameraComponent": "Virtuaalkaamera kõnede jaoks",
+    "rebuildDependencies": "Paigalda põhisõltuvused uuesti ka eduka kontrolli korral",
+    "resetDesktop": "Taasta rakenduse vaikesätted…",
+    "resetConfirm": "Kas taastada välimuse, heli ja funktsioonide vaikesätted? Sätetest tehakse varukoopia. Vestlused, andmebaasid, mudelid ja API-võtmed säilivad.",
+    "resetBackup": "Sätted on taastatud. Varukoopia kaust",
+    "resetEmpty": "Vaikesätted on juba kasutusel."
+  },
+  "lv": {
+    "cameraComponent": "Virtuālā kamera zvaniem",
+    "rebuildDependencies": "Pārinstalēt pamata atkarības arī pēc sekmīgas pārbaudes",
+    "resetDesktop": "Atiestatīt lietotnes iestatījumus…",
+    "resetConfirm": "Atjaunot izskata, skaņas un funkciju noklusējuma iestatījumus? Tiks izveidota iestatījumu dublējumkopija. Sarunas, datubāzes, modeļi un API atslēgas tiks saglabāti.",
+    "resetBackup": "Iestatījumi atiestatīti. Dublējumkopijas mape",
+    "resetEmpty": "Jau tiek izmantoti noklusējuma iestatījumi."
+  },
+  "lt": {
+    "cameraComponent": "Virtualioji kamera skambučiams",
+    "rebuildDependencies": "Iš naujo įdiegti pagrindines priklausomybes net ir sėkmingai patikrinus",
+    "resetDesktop": "Atkurti numatytąsias programos nuostatas…",
+    "resetConfirm": "Atkurti numatytąsias išvaizdos, garso ir funkcijų nuostatas? Bus sukurta atsarginė nuostatų kopija. Pokalbiai, duomenų bazės, modeliai ir API raktai išliks.",
+    "resetBackup": "Nuostatos atkurtos. Atsarginės kopijos aplankas",
+    "resetEmpty": "Numatytosios nuostatos jau naudojamos."
+  },
+  "is": {
+    "cameraComponent": "Sýndarmyndavél fyrir símtöl",
+    "rebuildDependencies": "Setja grunnpakka upp aftur þótt þeir standist athugun",
+    "resetDesktop": "Endurstilla stillingar forritsins…",
+    "resetConfirm": "Endurheimta sjálfgefnar stillingar fyrir útlit, hljóð og eiginleika? Tekið verður afrit af stillingunum. Samtöl, gagnagrunnar, líkön og API-lyklar varðveitast.",
+    "resetBackup": "Stillingar endurstilltar. Mappa með öryggisafriti",
+    "resetEmpty": "Sjálfgefnar stillingar eru þegar í notkun."
+  },
+  "ca": {
+    "cameraComponent": "Càmera virtual per a trucades",
+    "rebuildDependencies": "Torna a instal·lar les dependències bàsiques encara que superin la comprovació",
+    "resetDesktop": "Restableix les preferències de l’aplicació…",
+    "resetConfirm": "Voleu restablir l’aspecte, l’àudio i les funcions als valors predeterminats? Es farà una còpia de les preferències. Es conservaran les converses, les bases de dades, els models i les claus d’API.",
+    "resetBackup": "S’han restablert les preferències. Carpeta de la còpia de seguretat",
+    "resetEmpty": "Les preferències ja tenen els valors predeterminats."
+  },
+  "ar": {
+    "cameraComponent": "كاميرا افتراضية للمكالمات",
+    "rebuildDependencies": "إعادة تثبيت التبعيات الأساسية حتى عند اجتياز الفحص",
+    "resetDesktop": "إعادة ضبط تفضيلات التطبيق…",
+    "resetConfirm": "هل تريد استعادة الإعدادات الافتراضية للمظهر والصوت والميزات؟ ستُحفظ نسخة احتياطية من تفضيلاتك. وسيتم الاحتفاظ بالمحادثات وقواعد البيانات والنماذج ومفاتيح API.",
+    "resetBackup": "أُعيد ضبط التفضيلات. مجلد النسخة الاحتياطية",
+    "resetEmpty": "التفضيلات مضبوطة بالفعل على القيم الافتراضية."
+  },
+  "he": {
+    "cameraComponent": "מצלמה וירטואלית לשיחות",
+    "rebuildDependencies": "התקנה מחדש של רכיבי הבסיס גם אם הבדיקה הצליחה",
+    "resetDesktop": "איפוס העדפות היישום…",
+    "resetConfirm": "לשחזר את הגדרות ברירת המחדל של התצוגה, השמע והתכונות? יישמר עותק גיבוי של ההעדפות. השיחות, מסדי הנתונים, המודלים ומפתחות ה־API יישמרו.",
+    "resetBackup": "ההעדפות אופסו. תיקיית הגיבוי",
+    "resetEmpty": "ההעדפות כבר מוגדרות לערכי ברירת המחדל."
+  },
+  "fa": {
+    "cameraComponent": "دوربین مجازی برای تماس‌ها",
+    "rebuildDependencies": "نصب دوبارهٔ وابستگی‌های اصلی حتی پس از بررسی موفق",
+    "resetDesktop": "بازنشانی تنظیمات برنامه…",
+    "resetConfirm": "تنظیمات ظاهری، صدا و قابلیت‌ها به حالت پیش‌فرض برگردند؟ از تنظیمات شما نسخهٔ پشتیبان تهیه می‌شود. گفتگوها، پایگاه‌های داده، مدل‌ها و کلیدهای API حفظ می‌شوند.",
+    "resetBackup": "تنظیمات بازنشانی شد. پوشهٔ نسخهٔ پشتیبان",
+    "resetEmpty": "تنظیمات از قبل در حالت پیش‌فرض هستند."
+  },
+  "ur": {
+    "cameraComponent": "کالوں کے لیے ورچوئل کیمرا",
+    "rebuildDependencies": "جانچ کامیاب ہونے پر بھی بنیادی اجزا دوبارہ انسٹال کریں",
+    "resetDesktop": "ایپ کی ترجیحات ری سیٹ کریں…",
+    "resetConfirm": "کیا ظاہری شکل، آواز اور خصوصیات کی ترتیبات ڈیفالٹ پر بحال کی جائیں؟ ترتیبات کا بیک اپ بنایا جائے گا۔ گفتگو، ڈیٹا بیس، ماڈل اور API کلیدیں محفوظ رہیں گی۔",
+    "resetBackup": "ترجیحات ری سیٹ ہو گئیں۔ بیک اپ کا فولڈر",
+    "resetEmpty": "ترجیحات پہلے ہی ڈیفالٹ پر ہیں۔"
+  },
+  "hi": {
+    "cameraComponent": "कॉल के लिए वर्चुअल कैमरा",
+    "rebuildDependencies": "जाँच सफल होने पर भी मूल निर्भरताएँ फिर से इंस्टॉल करें",
+    "resetDesktop": "ऐप की प्राथमिकताएँ रीसेट करें…",
+    "resetConfirm": "रूप, ऑडियो और सुविधाओं की सेटिंग डिफ़ॉल्ट पर लौटाएँ? आपकी प्राथमिकताओं का बैकअप लिया जाएगा। बातचीत, डेटाबेस, मॉडल और API कुंजियाँ सुरक्षित रहेंगी।",
+    "resetBackup": "प्राथमिकताएँ रीसेट हो गईं। बैकअप फ़ोल्डर",
+    "resetEmpty": "प्राथमिकताएँ पहले से डिफ़ॉल्ट पर हैं।"
+  },
+  "bn": {
+    "cameraComponent": "কলের জন্য ভার্চুয়াল ক্যামেরা",
+    "rebuildDependencies": "যাচাই সফল হলেও মূল নির্ভরতাগুলি আবার ইনস্টল করুন",
+    "resetDesktop": "অ্যাপের পছন্দগুলি রিসেট করুন…",
+    "resetConfirm": "চেহারা, অডিও ও ফিচারের ডিফল্ট সেটিংস ফিরিয়ে আনবেন? বর্তমান পছন্দগুলির ব্যাকআপ রাখা হবে। কথোপকথন, ডেটাবেস, মডেল ও API কী সংরক্ষিত থাকবে।",
+    "resetBackup": "পছন্দগুলি রিসেট হয়েছে। ব্যাকআপ ফোল্ডার",
+    "resetEmpty": "পছন্দগুলি ইতিমধ্যেই ডিফল্টে রয়েছে।"
+  },
+  "ta": {
+    "cameraComponent": "அழைப்புகளுக்கான மெய்நிகர் கேமரா",
+    "rebuildDependencies": "சரிபார்ப்பு வெற்றி பெற்றாலும் அடிப்படைச் சார்புகளை மீண்டும் நிறுவு",
+    "resetDesktop": "செயலி விருப்பங்களை மீட்டமை…",
+    "resetConfirm": "தோற்றம், ஒலி மற்றும் அம்சங்களின் இயல்புநிலை அமைப்புகளை மீட்டமைக்கவா? தற்போதைய விருப்பங்கள் காப்புப் பிரதி எடுக்கப்படும். உரையாடல்கள், தரவுத்தளங்கள், மாதிரிகள் மற்றும் API விசைகள் பாதுகாக்கப்படும்.",
+    "resetBackup": "விருப்பங்கள் மீட்டமைக்கப்பட்டன. காப்புப் பிரதி கோப்புறை",
+    "resetEmpty": "விருப்பங்கள் ஏற்கெனவே இயல்புநிலையில் உள்ளன."
+  },
+  "te": {
+    "cameraComponent": "కాల్‌ల కోసం వర్చువల్ కెమెరా",
+    "rebuildDependencies": "తనిఖీ విజయవంతమైనా ప్రధాన డిపెండెన్సీలను మళ్లీ ఇన్‌స్టాల్ చేయండి",
+    "resetDesktop": "యాప్ ప్రాధాన్యతలను రీసెట్ చేయండి…",
+    "resetConfirm": "రూపం, ఆడియో, ఫీచర్ల సెట్టింగ్‌లను డిఫాల్ట్‌లకు మార్చాలా? ప్రస్తుత ప్రాధాన్యతల బ్యాకప్ తీసుకోబడుతుంది. సంభాషణలు, డేటాబేస్‌లు, మోడళ్లు, API కీలు అలాగే ఉంటాయి.",
+    "resetBackup": "ప్రాధాన్యతలు రీసెట్ అయ్యాయి. బ్యాకప్ ఫోల్డర్",
+    "resetEmpty": "ప్రాధాన్యతలు ఇప్పటికే డిఫాల్ట్‌లో ఉన్నాయి."
+  },
+  "mr": {
+    "cameraComponent": "कॉलसाठी व्हर्च्युअल कॅमेरा",
+    "rebuildDependencies": "तपासणी यशस्वी झाली तरी मूलभूत अवलंबने पुन्हा स्थापित करा",
+    "resetDesktop": "ॲपची प्राधान्ये रीसेट करा…",
+    "resetConfirm": "स्वरूप, ध्वनी आणि सुविधांची सेटिंग्ज पूर्वनिर्धारित मूल्यांवर आणायची का? प्राधान्यांची बॅकअप प्रत ठेवली जाईल. संभाषणे, डेटाबेस, मॉडेल आणि API कळा जतन केल्या जातील.",
+    "resetBackup": "प्राधान्ये रीसेट केली. बॅकअप फोल्डर",
+    "resetEmpty": "प्राधान्ये आधीच पूर्वनिर्धारित मूल्यांवर आहेत."
+  },
+  "gu": {
+    "cameraComponent": "કૉલ માટે વર્ચ્યુઅલ કૅમેરા",
+    "rebuildDependencies": "તપાસ સફળ થાય તો પણ મૂળભૂત નિર્ભરતાઓ ફરી ઇન્સ્ટૉલ કરો",
+    "resetDesktop": "ઍપની પસંદગીઓ રીસેટ કરો…",
+    "resetConfirm": "દેખાવ, ઑડિયો અને સુવિધાઓનાં સેટિંગ ડિફૉલ્ટ પર પાછાં લાવવાં છે? પસંદગીઓની બૅકઅપ કૉપી રાખવામાં આવશે. વાતચીત, ડેટાબેઝ, મૉડલ અને API કી જળવાઈ રહેશે.",
+    "resetBackup": "પસંદગીઓ રીસેટ થઈ. બૅકઅપ ફોલ્ડર",
+    "resetEmpty": "પસંદગીઓ પહેલેથી જ ડિફૉલ્ટ પર છે."
+  },
+  "pa": {
+    "cameraComponent": "ਕਾਲਾਂ ਲਈ ਵਰਚੁਅਲ ਕੈਮਰਾ",
+    "rebuildDependencies": "ਜਾਂਚ ਪਾਸ ਹੋਣ ’ਤੇ ਵੀ ਮੁੱਖ ਨਿਰਭਰਤਾਵਾਂ ਮੁੜ ਸਥਾਪਤ ਕਰੋ",
+    "resetDesktop": "ਐਪ ਦੀਆਂ ਤਰਜੀਹਾਂ ਰੀਸੈੱਟ ਕਰੋ…",
+    "resetConfirm": "ਦਿੱਖ, ਆਡੀਓ ਅਤੇ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਡਿਫੌਲਟ ’ਤੇ ਵਾਪਸ ਲਿਆਉਣੀਆਂ ਹਨ? ਤਰਜੀਹਾਂ ਦਾ ਬੈਕਅੱਪ ਰੱਖਿਆ ਜਾਵੇਗਾ। ਗੱਲਬਾਤ, ਡਾਟਾਬੇਸ, ਮਾਡਲ ਅਤੇ API ਕੁੰਜੀਆਂ ਸੁਰੱਖਿਅਤ ਰਹਿਣਗੀਆਂ।",
+    "resetBackup": "ਤਰਜੀਹਾਂ ਰੀਸੈੱਟ ਹੋ ਗਈਆਂ। ਬੈਕਅੱਪ ਫੋਲਡਰ",
+    "resetEmpty": "ਤਰਜੀਹਾਂ ਪਹਿਲਾਂ ਹੀ ਡਿਫੌਲਟ ’ਤੇ ਹਨ।"
+  },
+  "zh": {
+    "cameraComponent": "通话虚拟摄像头",
+    "rebuildDependencies": "即使通过检查也重新安装核心依赖项",
+    "resetDesktop": "重置应用偏好设置…",
+    "resetConfirm": "将外观、音频和功能设置恢复为默认值？安装程序会备份当前偏好设置。对话、数据库、模型和 API 密钥都会保留。",
+    "resetBackup": "偏好设置已重置。备份文件夹",
+    "resetEmpty": "当前已使用默认偏好设置。"
+  },
+  "ja": {
+    "cameraComponent": "通話用の仮想カメラ",
+    "rebuildDependencies": "チェックに合格した場合も基本の依存パッケージを再インストールする",
+    "resetDesktop": "アプリの設定をリセット…",
+    "resetConfirm": "外観、音声、機能の設定を初期値に戻しますか？現在の設定のバックアップを作成します。会話、データベース、モデル、API キーは保持されます。",
+    "resetBackup": "設定をリセットしました。バックアップ先",
+    "resetEmpty": "設定はすでに初期値です。"
+  },
+  "ko": {
+    "cameraComponent": "통화용 가상 카메라",
+    "rebuildDependencies": "검사를 통과한 경우에도 기본 종속성 다시 설치",
+    "resetDesktop": "앱 환경설정 초기화…",
+    "resetConfirm": "화면, 오디오 및 기능 설정을 기본값으로 복원할까요? 현재 환경설정은 백업됩니다. 대화, 데이터베이스, 모델 및 API 키는 유지됩니다.",
+    "resetBackup": "환경설정을 초기화했습니다. 백업 폴더",
+    "resetEmpty": "이미 기본 설정을 사용하고 있습니다."
+  },
+  "vi": {
+    "cameraComponent": "Camera ảo cho cuộc gọi",
+    "rebuildDependencies": "Cài lại các thành phần phụ thuộc cốt lõi dù đã vượt qua kiểm tra",
+    "resetDesktop": "Đặt lại tùy chọn ứng dụng…",
+    "resetConfirm": "Khôi phục mặc định cho giao diện, âm thanh và các tính năng? Trình cài đặt sẽ sao lưu tùy chọn hiện tại. Các cuộc trò chuyện, cơ sở dữ liệu, mô hình và khóa API sẽ được giữ lại.",
+    "resetBackup": "Đã đặt lại tùy chọn. Thư mục sao lưu",
+    "resetEmpty": "Các tùy chọn đã ở giá trị mặc định."
+  },
+  "th": {
+    "cameraComponent": "กล้องเสมือนสำหรับการโทร",
+    "rebuildDependencies": "ติดตั้งส่วนประกอบพื้นฐานใหม่แม้จะผ่านการตรวจสอบ",
+    "resetDesktop": "รีเซ็ตการตั้งค่าแอป…",
+    "resetConfirm": "คืนค่ารูปลักษณ์ เสียง และคุณสมบัติเป็นค่าเริ่มต้นหรือไม่ ระบบจะสำรองการตั้งค่าปัจจุบันไว้ และเก็บบทสนทนา ฐานข้อมูล โมเดล และคีย์ API ของคุณไว้",
+    "resetBackup": "รีเซ็ตการตั้งค่าแล้ว โฟลเดอร์สำรองข้อมูล",
+    "resetEmpty": "กำลังใช้การตั้งค่าเริ่มต้นอยู่แล้ว"
+  },
+  "id": {
+    "cameraComponent": "Kamera virtual untuk panggilan",
+    "rebuildDependencies": "Instal ulang dependensi inti meskipun lolos pemeriksaan",
+    "resetDesktop": "Atur ulang preferensi aplikasi…",
+    "resetConfirm": "Pulihkan tampilan, audio, dan pengaturan fitur ke nilai bawaan? Preferensi saat ini akan dicadangkan. Percakapan, basis data, model, dan kunci API akan dipertahankan.",
+    "resetBackup": "Preferensi telah diatur ulang. Folder cadangan",
+    "resetEmpty": "Preferensi sudah menggunakan nilai bawaan."
+  },
+  "ms": {
+    "cameraComponent": "Kamera maya untuk panggilan",
+    "rebuildDependencies": "Pasang semula kebergantungan teras walaupun lulus semakan",
+    "resetDesktop": "Tetapkan semula keutamaan aplikasi…",
+    "resetConfirm": "Pulihkan tetapan lalai untuk rupa, audio dan ciri? Keutamaan semasa akan disandarkan. Perbualan, pangkalan data, model dan kunci API anda akan dikekalkan.",
+    "resetBackup": "Keutamaan telah ditetapkan semula. Folder sandaran",
+    "resetEmpty": "Keutamaan sudah menggunakan nilai lalai."
+  },
+  "tl": {
+    "cameraComponent": "Virtual na camera para sa mga tawag",
+    "rebuildDependencies": "I-install muli ang mga pangunahing dependency kahit pumasa sa pagsusuri",
+    "resetDesktop": "I-reset ang mga kagustuhan sa app…",
+    "resetConfirm": "Ibalik sa default ang hitsura, audio at mga setting ng feature? Gagawa ng backup ng iyong mga kagustuhan. Mapapanatili ang mga usapan, database, modelo at API key.",
+    "resetBackup": "Na-reset ang mga kagustuhan. Folder ng backup",
+    "resetEmpty": "Naka-default na ang mga kagustuhan."
+  },
+  "tr": {
+    "cameraComponent": "Aramalar için sanal kamera",
+    "rebuildDependencies": "Denetim başarılı olsa bile temel bağımlılıkları yeniden yükle",
+    "resetDesktop": "Uygulama tercihlerini sıfırla…",
+    "resetConfirm": "Görünüm, ses ve özellik ayarları varsayılanlara döndürülsün mü? Tercihleriniz yedeklenecek. Sohbetleriniz, veritabanlarınız, modelleriniz ve API anahtarlarınız korunacak.",
+    "resetBackup": "Tercihler sıfırlandı. Yedekleme klasörü",
+    "resetEmpty": "Tercihler zaten varsayılan değerlerinde."
+  },
+  "sw": {
+    "cameraComponent": "Kamera pepe kwa simu",
+    "rebuildDependencies": "Sakinisha upya vitegemezi vya msingi hata vikifaulu ukaguzi",
+    "resetDesktop": "Rejesha mapendeleo ya programu…",
+    "resetConfirm": "Urejeshe mipangilio chaguomsingi ya mwonekano, sauti na vipengele? Nakala rudufu ya mapendeleo itahifadhiwa. Mazungumzo, hifadhidata, miundo na funguo za API zitasalia.",
+    "resetBackup": "Mapendeleo yamerejeshwa. Folda ya nakala rudufu",
+    "resetEmpty": "Mapendeleo tayari yana thamani chaguomsingi."
+  },
+  "af": {
+    "cameraComponent": "Virtuele kamera vir oproepe",
+    "rebuildDependencies": "Herinstalleer kernafhanklikhede selfs al slaag die kontrole",
+    "resetDesktop": "Stel toepassingvoorkeure terug…",
+    "resetConfirm": "Herstel die verstekinstellings vir voorkoms, klank en funksies? Jou voorkeure sal gerugsteun word. Gesprekke, databasisse, modelle en API-sleutels sal behoue bly.",
+    "resetBackup": "Voorkeure is teruggestel. Rugsteunvouer",
+    "resetEmpty": "Voorkeure is reeds op die verstekwaardes."
   }
 }

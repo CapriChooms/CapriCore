@@ -133,8 +133,8 @@ try {
       undefined,
       { timeout: 10000 },
     );
-  const raySignatures = () =>
-    panel.locator('canvas.credits-ray-sheet').evaluateAll((canvases) =>
+  const raySignatures = (selector = 'canvas.credits-ray-sheet, canvas.credits-spark-sheet') =>
+    panel.locator(selector).evaluateAll((canvases) =>
       canvases.map((canvas) => {
         const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
         let hash = 2166136261;
@@ -221,78 +221,77 @@ try {
     }
   }
   assertGeometry(sample, 'top');
-  report.rayOrbit = await sheets.first().evaluate(async (canvas) => {
+  report.raySpread = await sheets.first().evaluate(async (canvas) => {
     const context = canvas.getContext('2d');
     const { width, height } = canvas;
+    const sheet = canvas.getBoundingClientRect();
+    const label = canvas.closest('.credits-team-light').querySelector('.credits-team-name');
+    const text = document.createRange();
+    text.selectNodeContents(label);
+    const box = text.getBoundingClientRect();
+    const xScale = width / sheet.width;
+    const yScale = height / sheet.height;
+    const west = (box.left - sheet.left - 7) * xScale;
+    const east = (box.right - sheet.left + 7) * xScale;
+    const north = (box.top - sheet.top - 7) * yScale;
+    const south = (box.bottom - sheet.top + 7) * yScale;
+    const centerX = (west + east) / 2;
+    const centerY = (north + south) / 2;
     const start = performance.now();
     const samples = [];
-    for (const offset of [0, 2000, 4000, 6000, 8000]) {
-      const time = await new Promise((resolve) => {
+    for (const offset of [0, 500, 1200, 2100, 2700]) {
+      await new Promise((resolve) => {
         const observe = (now) => {
           if (now < start + offset) requestAnimationFrame(observe);
-          else resolve(now - start);
+          else resolve();
         };
         requestAnimationFrame(observe);
       });
       const pixels = context.getImageData(0, 0, width, height).data;
-      const alpha = new Uint8Array(width * height);
+      const sides = [0, 0, 0, 0];
       let weight = 0;
       let x = 0;
       let y = 0;
-      for (let i = 0; i < alpha.length; i++) {
+      let reach = 0;
+      for (let i = 0; i < width * height; i++) {
         const opacity = pixels[i * 4 + 3];
-        alpha[i] = opacity;
+        const column = i % width;
+        const row = Math.floor(i / width);
         weight += opacity;
-        x += (i % width) * opacity;
-        y += Math.floor(i / width) * opacity;
+        x += column * opacity;
+        y += row * opacity;
+        reach += Math.hypot(column - centerX, row - centerY) * opacity;
+        if (column < west) sides[0] += opacity;
+        if (column > east) sides[1] += opacity;
+        if (row < north) sides[2] += opacity;
+        if (row > south) sides[3] += opacity;
       }
-      samples.push({ alpha, time, weight, x: x / weight, y: y / weight });
+      samples.push({ weight, x: x / weight, y: y / weight, sides, reach: reach / weight });
     }
-    const quarters = samples.slice(0, 4);
-    const center = {
-      x: quarters.reduce((sum, point) => sum + point.x, 0) / quarters.length,
-      y: quarters.reduce((sum, point) => sum + point.y, 0) / quarters.length,
-    };
-    const angles = samples.map((point) => Math.atan2(point.y - center.y, point.x - center.x));
-    const advances = angles.slice(1).map((angle, i) => {
-      const delta = angle - angles[i];
-      return Math.atan2(Math.sin(delta), Math.cos(delta));
-    });
     const initial = samples[0];
-    const bitmapDistance = (sample) =>
-      sample.alpha.reduce((sum, opacity, i) => sum + Math.abs(opacity - initial.alpha[i]), 0) /
-      (sample.weight + initial.weight);
     return {
-      times: samples.map(({ time }) => time),
-      weights: samples.map(({ weight }) => weight),
-      advances,
-      averageRadiansPerSecond:
-        (1000 * Math.abs(advances.reduce((sum, angle) => sum + angle, 0))) /
-        (samples.at(-1).time - initial.time),
-      quarterDistance: bitmapDistance(samples[1]),
-      returnDistance: bitmapDistance(samples.at(-1)),
+      samples,
+      centerDrift: Math.max(...samples.map(({ x, y }) => Math.hypot(x - initial.x, y - initial.y))),
     };
   });
-  const orbit = report.rayOrbit;
-  assert(
-    orbit.weights.every((weight) => weight > 0),
-    'Each orbit pose paints visible rays',
-  );
-  assert(
-    orbit.advances.every(
-      (angle) => Math.sign(angle) === Math.sign(orbit.advances[0]) && Math.abs(angle) > 0.75,
-    ),
-    'The rays turn through four consecutive quarters in the same direction',
-  );
-  assert(Math.abs(orbit.averageRadiansPerSecond - Math.PI / 4) < 0.12);
-  assert(orbit.quarterDistance > 0.07, 'A quarter turn visibly changes the rendered rays');
-  assert(
-    orbit.returnDistance < orbit.quarterDistance * 0.45,
-    'The rays return after eight seconds',
+  const spread = report.raySpread;
+  for (const { weight, sides } of spread.samples)
+    assert(Math.min(...sides) > weight * 0.01, 'Light reaches all sides at once');
+  assert(spread.centerDrift < 1, 'The light field stays anchored as it pulses');
+  const brightness = spread.samples.map(({ weight }) => weight);
+  assert(Math.max(...brightness) / Math.min(...brightness) > 1.07, 'The rays pulse visibly');
+  const reach = spread.samples.map((sample) => sample.reach);
+  assert(Math.max(...reach) - Math.min(...reach) > 0.35, 'The highlight travels outward');
+  const sparks = await raySignatures('canvas.credits-spark-sheet');
+  await settings.waitForTimeout(240);
+  assert.notDeepEqual(
+    await raySignatures('canvas.credits-spark-sheet'),
+    sparks,
+    'Sparks move with time',
   );
   await settings.screenshot({ path: path.join(folder, 'top.png') });
   report.checks.push(
-    'Complete roster, compact title, gradient team nicknames with a thin white stroke, and a continuous eight-second light orbit',
+    'Complete roster, compact title, outlined gradient nicknames and simultaneous rays in every direction',
   );
 
   await panel.locator('#credits-supporters-title').scrollIntoViewIfNeeded();

@@ -80,11 +80,21 @@ export function registerScreenIpc(
     return capturePolicy.monitorFrames(id, frame);
   });
   handle('capri:screen-watch-prepare', (value) => {
-    requireEnabled();
-    if (!screenVisionAvailable) throw new Error(SCREEN_VISION_REQUIRED);
-    const options = observationOptions(value);
-    screenPreviews.clear();
-    return capturePolicy.prepare(value.sourceId, { mode: 'watch', ...options });
+    let code = 'CAPRI_SCREEN_WATCH_DISABLED';
+    try {
+      requireEnabled();
+      code = 'CAPRI_SCREEN_WATCH_VISION_UNAVAILABLE';
+      if (!screenVisionAvailable) throw new Error(SCREEN_VISION_REQUIRED);
+      code = 'CAPRI_SCREEN_WATCH_INVALID_OPTIONS';
+      const options = observationOptions(value);
+      code = 'CAPRI_SCREEN_WATCH_SELECTION_UNAVAILABLE';
+      screenPreviews.clear();
+      const capture = capturePolicy.prepare(value.sourceId, { mode: 'watch', ...options });
+      code = 'CAPRI_SCREEN_WATCH_ARMED';
+      return capture;
+    } finally {
+      capturePolicy.recordWatchStart?.(code);
+    }
   });
   handle('capri:screen-watch-sample', async (value) => {
     if (!screenVisionAvailable) return { active: false, analyse: false };

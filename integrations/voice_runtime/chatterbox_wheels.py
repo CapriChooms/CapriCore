@@ -24,7 +24,8 @@ def installed(profile, package_version=version):
 
 
 def prepare(root, profile_name, requirements, overrides=None, *, download=download_verified, emit=print):
-    profile = json.loads((root / 'config/voice-runtime.json').read_text(encoding='utf-8'))['profiles'][profile_name]
+    runtimes = json.loads((root / 'config/voice-runtime.json').read_text(encoding='utf-8'))
+    profile = runtimes['profiles'][profile_name]
     if installed(profile):
         return
     constraints = (root / profile['transportConstraints']).read_text(encoding='utf-8').splitlines()
@@ -55,8 +56,16 @@ def prepare(root, profile_name, requirements, overrides=None, *, download=downlo
         if url != alternate or not separator or not re.fullmatch(r'[a-f0-9]{64}', digest):
             raise ValueError('Invalid Chatterbox wheel source or checksum.')
         pin = f'{package}=={profile[package]}'
-        if any(lines.count(pin) != 1 for lines in locks.values()):
+        # The distributable lock pins each CUDA wheel hash. Staged requirements
+        # retain that exact digest on the local file URL.
+        hashed_pin = pin + ' ' + chr(92)
+        if any(lines.count(pin) + lines.count(hashed_pin) != 1 for lines in locks.values()):
             raise ValueError('The reviewed Chatterbox dependency pin changed.')
+        for lines in locks.values():
+            if hashed_pin in lines:
+                index = lines.index(hashed_pin)
+                if [line.strip() for line in lines[index + 1:index + 2]] != ['--hash=sha256:' + digest]:
+                    raise ValueError('CUDA wheel digest differs from the reviewed lock.')
 
         def report(stage, received):
             if stage in ('connect', 'download'):
@@ -69,12 +78,18 @@ def prepare(root, profile_name, requirements, overrides=None, *, download=downlo
             if candidate.exists() and candidate.stat().st_nlink != 1:
                 raise ValueError('Chatterbox wheel staging cannot use hard-linked files.')
         wheel = download('https://download-r2.pytorch.org' + location, target,
-                         {'bytes': size, 'sha256': digest}, fallback_urls=(alternate,),
-                         attempts=4, timeout=30, progress=report, emit=emit)
+                         {'bytes': size, 'sha256': digest},
+                         fallback_urls=(alternate, runtimes['pytorchWheelMirror'] + location),
+                         attempts=6, timeout=30, progress=report, emit=emit)
         report('download', size)
         completed += size
         for lines in locks.values():
-            lines[lines.index(pin)] = f'{package} @ {wheel.as_uri()}#sha256={digest}'
+            replacement = f'{package} @ {wheel.as_uri()}#sha256={digest}'
+            if hashed_pin in lines:
+                index = lines.index(hashed_pin)
+                lines[index:index + 2] = [replacement]
+            else:
+                lines[lines.index(pin)] = replacement
 
     for lock, lines in locks.items():
         with lock.open('x', encoding='utf-8') as file:

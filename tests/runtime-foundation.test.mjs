@@ -32,6 +32,28 @@ const parent = path.join(paths.cache, 'test-data/runtime');
 mkdirSync(parent, { recursive: true });
 const folder = () => mkdtempSync(path.join(parent, 'fixture-'));
 const defaults = JSON.parse(readFileSync(path.join(root, 'config/core.json'), 'utf8'));
+test('initialize restores managed gateway privileges and retains working settings', () => {
+  const rt = runtime({ stateDir: folder(), workspace: folder() });
+  const current = createGatewayConfiguration(rt, settings);
+  const expected = structuredClone(current);
+  current.memory.ownerSetting = 'preserve';
+  current.gateway.bind = 'lan';
+  current.gateway.auth = { mode: 'none' };
+  current.tools.allow.push('fixture-tool');
+  current.tools.fs.workspaceOnly = false;
+  current.plugins.load.paths.push(path.join(rt.stateDir, 'extra-plugin'));
+  current.plugins.entries.fixture = { enabled: true };
+  current.agents.entries[settings.agentId].tools.alsoAllow = ['fixture-tool'];
+  writeJsonAtomic(rt.configPath, current);
+  initialize(rt);
+  const updated = JSON.parse(readFileSync(rt.configPath, 'utf8'));
+  assert.equal(updated.memory.ownerSetting, 'preserve');
+  assert.equal(updated.gateway.bind, 'loopback');
+  assert.deepEqual(updated.gateway.auth, expected.gateway.auth);
+  assert.deepEqual(updated.tools, expected.tools);
+  assert.deepEqual(updated.plugins, expected.plugins);
+  assert.equal(updated.agents.entries[settings.agentId].tools.alsoAllow, undefined);
+});
 test('runtime initialization without a provider choice preserves API routing and its context across relaunches', () => {
   const options = { stateDir: folder(), workspace: folder() };
   const active = runtime(options);
@@ -109,8 +131,9 @@ test('reconnect replaces a timed-out Gateway but reuses a ready or independently
   const fixtureId = 'capri-gateway-reconnect-' + randomUUID();
   const url = new URL('../packages/runtime/src/providers/services.mjs', import.meta.url);
   url.searchParams.set('fixture', fixtureId);
-  const hung = { pid: 100, startedAt: '100' };
-  const healthy = { pid: 200, startedAt: '200' };
+  const args = ['gateway-host.mjs', rt.logPrefix, 'managed-permissions-v1'];
+  const hung = { pid: 100, startedAt: '100', args };
+  const healthy = { pid: 200, startedAt: '200', args };
   let owner = hung;
   let ready = false;
   let launches = 0;
@@ -195,7 +218,7 @@ test('reconnect replaces a timed-out Gateway but reuses a ready or independently
 
   ready = false;
   await assert.rejects(start(rt), { code: 'CAPRI_SERVICE_STARTUP_TIMEOUT' });
-  owner = { pid: healthy.pid, startedAt: '300' };
+  owner = { ...healthy, startedAt: '300' };
   ready = true;
   assert.deepEqual(await start(rt), { data: [] });
   assert.deepEqual(stops, [hung]);

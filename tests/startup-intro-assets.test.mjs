@@ -28,7 +28,7 @@ import { temporaryFolders } from './temporary-folders.mjs';
 const temporaryFolder = temporaryFolders('capri-startup-intro-assets-unit-');
 function fixture() {
   const folder = temporaryFolder();
-  const files = [...startupIntroSourceFiles(root), 'assets/capri/sprites/v1/capri-neutral.png'];
+  const files = startupIntroSourceFiles(root);
   for (const name of files) {
     mkdirSync(path.dirname(path.join(folder, name)), { recursive: true });
     copyFileSync(path.join(root, name), path.join(folder, name));
@@ -186,9 +186,14 @@ test('hardlinked intro frames cannot introduce data outside the reviewed pack', 
 });
 
 test('source and installer payload contain only the minimal reviewed intro pack', () => {
-  const exported = sourceFiles(root).filter((name) => name.startsWith('assets/capri/intro-v1/'));
+  const exported = sourceFiles(root).filter(
+    (name) =>
+      name.startsWith('assets/capri/intro-v1/') ||
+      name === 'assets/capri/sprites/v1/capri-neutral.png',
+  );
   assert.deepEqual(exported, [...startupIntroSourceFiles(root)].sort());
-  assert.equal(exported.length, 8);
+  assert.equal(exported.length, 9);
+  assert.equal(validateStartupIntro(fixture().folder).frames.length, STARTUP_INTRO_IDS.length);
   assert.ok(
     exported.every((name) => !/(?:originals|prompts|preview|validation|\.zip|\.mp4)/i.test(name)),
   );

@@ -1,11 +1,11 @@
 {
   "name": "@capri/core",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "exports": "./src/index.mjs",
   "engines": {
-    "node": ">=24.22.1 <25"
+    "node": ">=24.22.3 <25"
   },
   "license": "GPL-3.0-only"
 }

@@ -7,7 +7,7 @@ import vm from 'node:vm';
 // Execute the actual pinned runner with its external services replaced. The
 // preparation deliberately never finishes; no real Gateway or owner data is used.
 const source = readFileSync(
-  new URL('../node_modules/openclaw/dist/agent-runner-memory-Dz7Z-Pdn.mjs', import.meta.url),
+  new URL('../node_modules/openclaw/dist/agent-runner-memory-DiaaXOec.mjs', import.meta.url),
   'utf8',
 );
 const implementation = source.slice(
@@ -47,6 +47,8 @@ test('silent Capri maintenance aborts preparation on its own deadline without ca
     isToolsMemoryFlushPlan: () => false,
     estimatePromptTokensForMemoryFlush: () => 1,
     resolveFreshSessionTotalTokens: () => 16000,
+    estimatePromptTokensFromSessionTranscript: async () => undefined,
+    resolveProjectedPromptTokens: () => 16000,
     resolveCompactionThreshold: () => 12288,
     TRANSCRIPT_OUTPUT_READ_BUFFER_TOKENS: 8192,
     readSessionLogSnapshot: async () => ({}),

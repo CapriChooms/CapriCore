@@ -174,6 +174,23 @@ export function createGatewayConfiguration(rt, config = settings) {
   return applyInferenceProfile(result, rt, config);
 }
 
+/** Runner threads and GPU layers come from core settings. Copy them into an
+ * existing managed model so a changed cpuThreads applies at the next start,
+ * without a profile change. Other generation fields keep their saved values.
+ */
+export function syncRunnerOptions(config, managed, model) {
+  const entry = config.models?.providers?.ollama?.models?.find((item) => item.id === model);
+  if (!entry) return config;
+  const target = managed.models?.providers?.ollama?.models?.find((item) => item.id === model);
+  const params = { ...entry.params };
+  for (const key of ['num_thread', 'num_gpu']) {
+    if (target?.params && key in target.params) params[key] = target.params[key];
+    else delete params[key];
+  }
+  entry.params = params;
+  return config;
+}
+
 /** Explicit profile changes update only Capri's managed inference fields. */
 export function applyModelProfile(existing, rt, config) {
   const next = relocateManagedPaths(existing, rt),
@@ -351,6 +368,7 @@ export function initialize(rt = runtime()) {
       mkdirSync(backups, { recursive: true });
       copyFileSync(rt.configPath, path.join(backups, `context-window-${randomUUID()}.json`));
     }
+    syncRunnerOptions(next, managed, settings.model);
     applyInferenceProfile(next, rt, settings);
     if (JSON.stringify(previous) !== JSON.stringify(next)) writeJsonAtomic(rt.configPath, next);
   }

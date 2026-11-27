@@ -19,6 +19,7 @@ import { writeJsonAtomic } from '../atomic-json.mjs';
 import { waitFor } from '../http.mjs';
 import { assertPrivatePath } from '../safe-file.mjs';
 import { privateLogRecord } from '../privacy-log.mjs';
+import { LIFELINE_ENV } from './lifeline.mjs';
 const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
 let darwinProcessUsage;
@@ -119,6 +120,8 @@ export function launch(
     cleanEnv = false,
     cwd = root,
     probeStartedAt = processStartedAt,
+    // Children that must not outlive Capri read stdin; EOF means the parent is gone.
+    lifeline = false,
   } = {},
 ) {
   const existing = managedProcess(name);
@@ -172,17 +175,19 @@ export function launch(
     }
   };
   let child;
+  const useLifeline = lifeline && process.platform !== 'win32';
   child = spawn(executable, args, {
     cwd,
     env: {
       ...(!cleanEnv ? environment(rt) : {}),
       ...env,
+      ...(useLifeline ? { [LIFELINE_ENV]: 'stdin' } : {}),
     },
     windowsHide: true,
     // The GUI must survive a short-lived launcher. Console services inherit
     // the windowless GUI instead of requesting a new console process group.
     detached: process.platform !== 'win32',
-    stdio: 'ignore',
+    stdio: useLifeline ? ['pipe', 'ignore', 'ignore'] : 'ignore',
   });
   child.once('error', (error) => record('stderr', { event: 'spawn-failed', code: error.code }));
   child.once('exit', (code) =>

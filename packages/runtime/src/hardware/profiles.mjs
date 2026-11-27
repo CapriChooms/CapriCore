@@ -1,6 +1,6 @@
 /** Conservative planning estimates, not promises of measured latency or GPU support. */
 import { fitsAvailableModelRam, profileRamRequirement } from './memory-budget.mjs';
-import { PROFILE_CPU_DEFAULTS } from './cpu-execution.mjs';
+import { PROFILE_CPU_DEFAULTS, profileCpuThreads } from './cpu-execution.mjs';
 export const PROFILES = Object.freeze([
   {
     id: 'minimal',
@@ -91,10 +91,7 @@ export function recommendProfile(hardware) {
     supported: true,
     profile: {
       ...profile,
-      cpuThreads: Math.max(
-        1,
-        Math.min(profile.cpuThreads, Math.floor((hardware.cpuThreads ?? 1) / 2) || 1),
-      ),
+      cpuThreads: profileCpuThreads(profile, hardware.cpuThreads),
     },
     reasons: [
       `Detected ${ram.toFixed(1)} GiB RAM.`,
@@ -115,9 +112,6 @@ export function selectProfile(id, hardware) {
     );
   return {
     ...profile,
-    cpuThreads: Math.max(
-      1,
-      Math.min(profile.cpuThreads, Math.floor((hardware.cpuThreads ?? 1) / 2) || 1),
-    ),
+    cpuThreads: profileCpuThreads(profile, hardware.cpuThreads),
   };
 }

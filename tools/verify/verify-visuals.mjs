@@ -116,6 +116,7 @@ try {
   assert.ok(
     contours.length >= 6 &&
       contours.every((node) => node.closed && node.inside && node.stroke >= 2.5),
+    `Expected at least 6 closed contours, each at least 2.5px and inside its panel clip; got ${JSON.stringify(contours)}`,
   );
   record('Closed 2.5px contours including diagonal cuts stay inside panel clips', { contours });
   await page.evaluate(() => {
@@ -264,8 +265,14 @@ try {
     );
     await page.waitForTimeout(100);
   }
-  assert.ok(positions.every((y) => Math.abs(y) < 2.5));
-  assert.ok(Math.max(...positions) - Math.min(...positions) > 0.03);
+  assert.ok(
+    positions.every((y) => Math.abs(y) < 2.5),
+    `Untouched companion must float within 2.5px of rest; sampled y values ${JSON.stringify(positions)}`,
+  );
+  assert.ok(
+    Math.max(...positions) - Math.min(...positions) > 0.03,
+    `Untouched companion must keep moving; sampled y values ${JSON.stringify(positions)}`,
+  );
   record('Floating stays below 2.5px and keeps moving while untouched');
   await page.locator('#message').focus();
   const locked = await page.evaluate(

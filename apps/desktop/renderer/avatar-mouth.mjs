@@ -6,6 +6,7 @@ import {
   avatarFaceState,
   faceSize,
   loadAvatarFaceRig,
+  avatarFaceArt,
 } from './avatar-face-rig.mjs';
 
 const shapes = ['closed', 'small', 'round', 'wide'];
@@ -162,10 +163,18 @@ export class AvatarMouthLayer {
       canvas.hidden = true;
       return;
     }
+    // Face art loaded in other Capri colors is dropped.
+    if (this.rigArt !== avatarFaceArt()) {
+      this.rig = null;
+      this.loading = null;
+      this.rigArt = avatarFaceArt();
+    }
     if (!this.rig) {
       if (!this.loading) {
+        const art = this.rigArt;
         this.loading = loadAvatarFaceRig()
           .then((rig) => {
+            if (art !== avatarFaceArt()) return;
             this.rig = rig;
             this.onReady?.();
           })

@@ -11,11 +11,14 @@ import { SpriteImages } from './animation-director.mjs';
 import { faceAnimations, faceFrames } from './avatar-face-expressions.mjs';
 import { AvatarHeadpat } from './avatar-headpat.mjs';
 import { AvatarMouthLayer } from './avatar-mouth.mjs';
+import { avatarArtKey } from './avatar-colors.mjs';
 import {
+  avatarFacePalette,
   avatarFaceState,
   composeAvatarFace,
   loadAvatarFaceRig,
   loadAvatarGestureFaces,
+  setAvatarFaceArt,
 } from './avatar-face-rig.mjs';
 import { layeredBlinkAssets, prepareLayeredBlink } from './avatar-layered-blink.mjs';
 import { AvatarSurfacePerformance } from './avatar-surface-performance.mjs';
@@ -295,6 +298,9 @@ export class AvatarGallery {
     this.images = new SpriteImages(data?.frames ?? [], 10);
     this.notes = notes;
     this.effects = effects;
+    // The gallery's art is served in the saved Capri colors; the face rig paints
+    // eyes that look away, so it needs the same colors in this window too.
+    setAvatarFaceArt(avatarArtKey(effects?.avatarColors));
   }
 
   setActive(active) {
@@ -542,7 +548,7 @@ export class AvatarGallery {
         loadImage(layeredBlinkAssets.pose),
         loadImage(layeredBlinkAssets.eyes),
       ]);
-      const draw = prepareLayeredBlink(pose, eyes);
+      const draw = prepareLayeredBlink(pose, eyes, avatarFacePalette());
       return {
         duration: faceAnimations[entry.id].duration,
         paint: (ctx, time) => draw(ctx, resolution, faceAnimations[entry.id].sample(time)),

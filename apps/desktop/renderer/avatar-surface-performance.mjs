@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { prepareRegisteredCel, registeredCelClip } from './hanging-cels.mjs';
-import { loadAvatarFaceRig, loadAvatarGestureFaces } from './avatar-face-rig.mjs';
+import { avatarFaceArt, loadAvatarFaceRig, loadAvatarGestureFaces } from './avatar-face-rig.mjs';
 import {
   createScreenInteractionRenderer,
   getScreenInteraction,
@@ -56,6 +56,12 @@ export class AvatarSurfacePerformance {
         return false;
       }
       if (gestures) this.gestureFaces = gestures;
+      // A renderer holding face art in other Capri colors is replaced.
+      if (this.rendererArt !== avatarFaceArt()) {
+        this.renderer?.dispose();
+        this.renderer = null;
+      }
+      this.rendererArt = avatarFaceArt();
       this.renderer ??= createScreenInteractionRenderer(this.canvas, {
         faceRig,
         drawGestureFace: (...args) => this.gestureFaces?.(...args),

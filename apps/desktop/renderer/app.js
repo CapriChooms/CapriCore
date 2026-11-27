@@ -53,6 +53,8 @@ import { PANEL_SECTIONS } from './settings-registry.mjs';
 import { StopwatchHUD } from './stopwatch-hud.mjs';
 import { MemoryHUD } from './memory-hud.mjs';
 import { AnimationDirector, SpriteImages } from './animation-director.mjs';
+import { avatarArtKey, withArtKey } from './avatar-colors.mjs';
+import { setAvatarFaceArt } from './avatar-face-rig.mjs';
 import { AvatarWave } from './avatar-wave.mjs';
 import { AvatarHeadpat } from './avatar-headpat.mjs';
 import { playAvatarObservation } from './avatar-observation.mjs';
@@ -326,6 +328,7 @@ const companionPanel = new CompanionPanel({
   onOpen: (open) => preferencesOpened('companion-settings', open),
   onChange: (value) => {
     companionSettings = value;
+    refreshAvatarArt(value.avatarColors);
     replyVisibility?.configure(value);
     presence.expandOnReply = value.expandOnReply !== false;
     memoryHUD.configure(value);
@@ -482,6 +485,34 @@ let director = null,
   frameImages = null,
   renderedFrame = null,
   frameCatalog = new Map();
+// Capri colors. Decoded frames are kept, so a color change tags
+// the sprite URLs with the new colors and drops the kept images; every frame
+// is then fetched again, recolored by the capri:// handler.
+let avatarArt = '',
+  avatarArtTimer = 0;
+function applyAvatarArt(key) {
+  avatarArt = key;
+  setAvatarFaceArt(key);
+  for (const item of [...avatars.values(), ...frameCatalog.values()])
+    item.url = withArtKey(item.url, key);
+  if (frameImages) frameImages = new SpriteImages([...frameCatalog.values()]);
+  for (const [id, sprite] of avatars) {
+    if (!decodedImages.has(id)) continue;
+    const image = new Image();
+    image.src = sprite.url;
+    const decoded = image.decode().then(() => image);
+    decoded.catch(() => {});
+    decodedImages.set(id, decoded);
+  }
+  if (elements.sprite.src) elements.sprite.src = withArtKey(elements.sprite.src, key);
+}
+function refreshAvatarArt(colors) {
+  const key = avatarArtKey(colors);
+  clearTimeout(avatarArtTimer);
+  if (key === avatarArt) return;
+  // Color pickers send many previews; recolor once the owner pauses.
+  avatarArtTimer = setTimeout(() => applyAvatarArt(key), 250);
+}
 let frameTicket = 0,
   frameSequence = 0,
   wantedFrame = '',
@@ -2776,6 +2807,7 @@ function onEvent(event) {
   }
   if (event.type === 'companion.settings') {
     companionSettings = event.settings;
+    refreshAvatarArt(event.settings.avatarColors);
     applyWindowLayout(event.settings);
     replyVisibility.configure(event.settings);
     presence.expandOnReply = event.settings.expandOnReply !== false;
@@ -3973,6 +4005,7 @@ try {
     ];
     frameCatalog = new Map(animationFrames.map((frame) => [frame.id, frame]));
     frameImages = new SpriteImages(animationFrames);
+    applyAvatarArt(avatarArtKey(snapshot.companion?.avatarColors));
     director = new AnimationDirector({
       choices: snapshot.avatars,
       frames: animationFrames,

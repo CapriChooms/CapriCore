@@ -15,6 +15,7 @@ import { installCodingBridge } from './main/coding-bridge.mjs';
 import { faceAnimations, faceFrames } from './renderer/avatar-face-expressions.mjs';
 import { describeOwnAvatar } from './avatar-awareness.mjs';
 import { prepareMacModels } from './main/macos-models.mjs';
+import { createSignalExit } from './main/signal-exit.mjs';
 import { createMediaSkills } from './main/media-skills.mjs';
 import { createConversationSkills, createOwnerMemory } from './main/conversation-skills.mjs';
 import { createVoiceSkills } from './main/voice-skills.mjs';
@@ -5988,6 +5989,10 @@ async function initializeDesktop() {
       }
       return;
     }
+    await unloadModelsAndQuit();
+  }
+
+  async function unloadModelsAndQuit() {
     shuttingDown = true;
     modelWarmupController?.abort();
     // Keep a parked avatar visible long enough to show DISCONNECTING.
@@ -10593,6 +10598,21 @@ async function initializeDesktop() {
         if (focusMode || avatarOnly || !window.isVisible() || window.isMinimized())
           restoreCompanion();
       });
+    }
+    // SIGTERM and SIGINT (macOS and Linux) run the same unload as the Quit dialog.
+    // The timeout and a second signal guarantee exit; children stop via their stdin lifeline.
+    if (process.platform !== 'win32') {
+      const onSignal = createSignalExit({
+        shutdown: async () => {
+          if (cableInstaller.snapshot().busy) await cableInstaller.whenSettled();
+          if (shuttingDown) return;
+          await computerControl.stop();
+          await unloadModelsAndQuit();
+        },
+        exit: () => app.exit(0),
+        onError: (error) => console.error('Shutdown after a signal failed:', error.message),
+      });
+      for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, onSignal);
     }
     app.on('before-quit', (event) => {
       if (quitting) return;

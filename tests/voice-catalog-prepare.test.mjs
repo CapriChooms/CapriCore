@@ -2,12 +2,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { writeJsonAtomic } from '../packages/runtime/src/atomic-json.mjs';
 import { prepareVoiceCatalog } from '../packages/installer/src/voice-catalog-prepare.mjs';
-import { validateVoicePack } from '../packages/installer/src/voice-pack.mjs';
+import { importVoicePack, validateVoicePack } from '../packages/installer/src/voice-pack.mjs';
 
 const manifest = JSON.parse(readFileSync(path.join(root, 'config/installer.json'), 'utf8'));
 const upstream = JSON.parse(readFileSync(path.join(root, 'config/voice-upstream.json'), 'utf8'));
@@ -89,19 +89,60 @@ test('Qwen preparation repairs a clean API-only install using the verified bundl
   assert.deepEqual(mocks.counts(), { downloads: 2, extractions: 2 });
 });
 
-test('Qwen preparation preserves a valid custom voice and refuses missing reference data before downloading', async () => {
+test('Qwen preparation preserves a valid custom voice', async () => {
   const { folder, profileDir } = fixture({ custom: true });
   const mocks = mockRuntime(folder);
   await prepareVoiceCatalog({ root: folder, ...mocks });
   assert.equal(json(path.join(folder, 'config/companion-voice.json')).profileDir, profileDir);
   assert.equal(existsSync(path.join(folder, 'data/voices/capri/en/exports/capri-en-v1')), false);
-  const missing = fixture({ seed: false });
-  const missingMocks = mockRuntime(missing.folder);
-  await assert.rejects(
-    prepareVoiceCatalog({ root: missing.folder, ...missingMocks }),
-    /reference voice is missing/,
-  );
-  assert.deepEqual(missingMocks.counts(), { downloads: 0, extractions: 0 });
+});
+
+test('Qwen repairs a damaged bundled revision beside the original installed voice', async () => {
+  const { folder, profileDir } = fixture();
+  const stock = path.join(folder, 'data/speech/bundled-voice');
+  const original = path.join(folder, importVoicePack(stock, folder, upstream.model));
+  writeJsonAtomic(path.join(stock, 'adapter.json'), { adapter: { rank: 8 } });
+  const revision = importVoicePack(stock, folder, upstream.model, { bundled: true });
+  assert.match(revision, /^data\/speech\/voice-pack-revisions\/capri-en-v1-/);
+  const config = path.join(folder, 'config/companion-voice.json');
+  writeJsonAtomic(config, { profileDir: revision });
+  const damaged = path.join(folder, revision, 'adapter.safetensors');
+  writeFileSync(damaged, 'damaged revision');
+  const restored = await prepareVoiceCatalog({ root: folder, ...mockRuntime(folder) });
+  assert.notEqual(restored.profileDir, revision);
+  assert.notEqual(restored.profileDir, profileDir);
+  assert.equal(json(config).profileDir, restored.profileDir);
+  validateVoicePack(path.join(folder, restored.profileDir), upstream.model);
+  assert.deepEqual(json(path.join(original, 'adapter.json')), {});
+  assert.equal(readFileSync(damaged, 'utf8'), 'damaged revision');
+});
+
+test('Qwen preparation recovers a missing reference and reuses it on retry', async () => {
+  const { folder, profileDir } = fixture({ seed: false });
+  const stock = path.join(fixture().folder, 'data/speech/bundled-voice');
+  const mocks = mockRuntime(folder);
+  const archive = path.join(folder, '.runtime/installer/downloads/reference.zip');
+  let referenceDownloads = 0;
+  const options = {
+    root: folder,
+    ...mocks,
+    async download(spec, cache, request) {
+      if (spec.sha256 === manifest.artifacts.uv.sha256) return mocks.download(spec, cache, request);
+      assert.deepEqual(spec, upstream.bundledPack);
+      referenceDownloads++;
+      return archive;
+    },
+    async execute(file, args, request) {
+      if (!args.includes(archive)) return mocks.execute(file, args, request);
+      assert.ok(args.some((arg) => arg.endsWith('archive.ps1')));
+      cpSync(stock, args[args.indexOf('-Destination') + 1], { recursive: true });
+    },
+  };
+  assert.deepEqual(await prepareVoiceCatalog(options), { profileDir });
+  validateVoicePack(path.join(folder, profileDir), upstream.model);
+  assert.deepEqual(await prepareVoiceCatalog(options), { profileDir });
+  assert.equal(referenceDownloads, 1);
+  assert.deepEqual(mocks.counts(), { downloads: 1, extractions: 1 });
 });
 
 test('cancelled Qwen preparation does not extract a runtime or activate an incomplete profile', async () => {

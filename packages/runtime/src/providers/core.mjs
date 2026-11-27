@@ -2,6 +2,7 @@ import { settings } from '../config/settings.mjs';
 import { runtime, headers } from '../context.mjs';
 import { startLlama, startGateway, stopManaged } from './services.mjs';
 import { request } from '../http.mjs';
+import { llamaAdminHeaders } from './llama-admin.mjs';
 import { managedProcess } from '../host/processes.mjs';
 import { runCli } from '../client.mjs';
 import { root } from '../host/paths.mjs';
@@ -44,7 +45,7 @@ export async function startCore(
         method: 'POST',
         timeout: 30000,
         signal,
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...llamaAdminHeaders(rt.ollamaUrl) },
         body: JSON.stringify({ model: settings.model, keep_alive: 0, stream: false }),
       });
       signal?.throwIfAborted();
@@ -170,7 +171,6 @@ export async function prewarmEmbedding(rt = runtime(), { signal, models } = {}) 
     body: JSON.stringify({
       model: settings.embeddingModel,
       input: 'Memory index warmup.',
-      keep_alive: settings.keepAlive ?? -1,
       options: { num_gpu: 0 },
     }),
   });
@@ -208,7 +208,6 @@ export async function prewarmModels(rt = runtime(), { signal, inventory, warmMem
               : {}),
             truncate: false,
             shift: false,
-            keep_alive: settings.keepAlive ?? -1,
             options: {
               num_ctx: settings.contextTokens,
               num_predict: 1,

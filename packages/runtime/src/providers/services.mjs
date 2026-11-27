@@ -1,9 +1,9 @@
 import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { root, requireExecutable } from '../host/paths.mjs';
+import { root, resourceRoot, requireExecutable } from '../host/paths.mjs';
 import { nodePath, llamaPath, openclawPath } from '../host/executables.mjs';
-import { llamaBundleReady } from '../host/llama-bundle.mjs';
+import { bundledLlamaPath, llamaBundleReady } from '../host/llama-bundle.mjs';
 import { settings } from '../config/settings.mjs';
 import { runtime, initialize, headers } from '../context.mjs';
 import { launch, managedProcess, stopProcess, requiresPrivacyRestart } from '../host/processes.mjs';
@@ -11,7 +11,9 @@ import { request } from '../http.mjs';
 import { applyOpenClawCompatibility } from './openclaw-compat.mjs';
 import { waitForOwnedService } from '../host/readiness.mjs';
 import { gpuBudget } from '../hardware/gpu-budget.mjs';
+import { initializeLlamaAdminToken } from './llama-admin.mjs';
 import { applyDependencySecurityPatches } from './dependency-security.mjs';
+import { migrateGatewayStorage } from './gateway-storage.mjs';
 import { migrateLanguageDevice, probeLanguageDevices } from '../hardware/model-devices.mjs';
 import { readModelDevices, modelsShareDevice } from '../model-device-settings.mjs';
 
@@ -33,22 +35,21 @@ async function startLocalLlama(
   { signal, voiceExpected = false, voiceReady = false } = {},
 ) {
   signal?.throwIfAborted();
-  const bundled = path.join(
-    root,
-    '.runtime',
-    `llama-${settings.llamaVersion}-vulkan`,
-    'llama-server.exe',
+  const bundled = [root, resourceRoot].some(
+    (directory) => llamaPath === bundledLlamaPath(directory, settings.llamaVersion),
   );
-  if (!llamaPath || (llamaPath === bundled && !llamaBundleReady(bundled)))
+  if (!llamaPath || (bundled && !llamaBundleReady(llamaPath)))
     throw Object.assign(
       new Error('The llama.cpp runtime is missing or incomplete. Run Capri Setup to repair it.'),
       { code: 'CAPRI_LLAMA_BUNDLE_INCOMPLETE' },
     );
   initialize(rt);
+  initializeLlamaAdminToken();
   const preferences = readModelDevices(root);
   const configuration = createHash('sha256')
     .update(
       JSON.stringify([
+        'authenticated-admin-v1',
         settings.model,
         settings.embeddingModel,
         settings.contextTokens,
@@ -113,7 +114,11 @@ async function startLocalLlama(
   await launch('llama', nodePath, [path.join(root, 'packages/runtime/bin/llama-host.mjs')], rt, {
     env: {
       CAPRI_LLAMA_PATH: llamaPath,
-      CAPRI_LLAMA_DEVICE: device ? `Vulkan${device.ordinal}` : explicit ? 'unavailable' : '',
+      CAPRI_LLAMA_DEVICE: device
+        ? `${device.backend === 'metal' ? 'MTL' : 'Vulkan'}${device.ordinal}`
+        : explicit
+          ? 'unavailable'
+          : '',
       CAPRI_LLAMA_FORCE_CPU: id === 'cpu' || id.startsWith('npu-') ? '1' : '0',
       CAPRI_LLAMA_CONFIGURATION: configuration,
       CAPRI_LLAMA_RESERVE_MIB: String(budget.overheadBytes / 1024 ** 2),
@@ -124,6 +129,7 @@ async function startLocalLlama(
 }
 
 const timedOutGateways = new Map();
+const gatewayPolicy = 'managed-permissions-v1';
 
 export async function startGateway(rt = runtime(), { signal } = {}) {
   signal?.throwIfAborted();
@@ -133,10 +139,13 @@ export async function startGateway(rt = runtime(), { signal } = {}) {
       code: 'CAPRI_GATEWAY_RUNTIME_MISSING',
     });
   initialize(rt);
-  const security = applyDependencySecurityPatches(root);
+  const patchOptions = { verifyOnly: root !== resourceRoot };
+  const security = applyDependencySecurityPatches(resourceRoot, patchOptions);
   if (security.changed && managedProcess(rt.logPrefix)) await stopProcess(rt.logPrefix);
-  if (requiresPrivacyRestart(managedProcess(rt.logPrefix))) await stopProcess(rt.logPrefix);
-  if (applyOpenClawCompatibility(root) && managedProcess(rt.logPrefix))
+  const running = managedProcess(rt.logPrefix);
+  if (running && (requiresPrivacyRestart(running) || running.args?.[2] !== gatewayPolicy))
+    await stopProcess(rt.logPrefix, { expected: running });
+  if (applyOpenClawCompatibility(resourceRoot, patchOptions) && managedProcess(rt.logPrefix))
     await stopProcess(rt.logPrefix);
   signal?.throwIfAborted();
   let owner = managedProcess(rt.logPrefix);
@@ -167,11 +176,12 @@ export async function startGateway(rt = runtime(), { signal } = {}) {
         { code: 'CAPRI_SERVICE_PORT_OCCUPIED' },
       );
     }
+    await migrateGatewayStorage(rt, { signal });
     signal?.throwIfAborted();
     owner = await launch(
       rt.logPrefix,
       nodePath,
-      [path.join(root, 'packages/runtime/bin/gateway-host.mjs'), rt.logPrefix],
+      [path.join(root, 'packages/runtime/bin/gateway-host.mjs'), rt.logPrefix, gatewayPolicy],
       rt,
       rt.remote?.enabled ? { env: { CAPRI_REMOTE_PROXY_TOKEN: rt.remoteProxyToken } } : {},
     );

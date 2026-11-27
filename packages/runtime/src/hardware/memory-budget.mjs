@@ -27,7 +27,9 @@ const round = (n) => (Math.sign(n) * Math.round(Math.abs(n) * 10)) / 10 || 0;
 export function estimateMemoryBudget(selection, hardware) {
   const gpu = dedicatedGpu(hardware);
   const freeVram = gpu ? finite(gpu.freeVramMiB) : null;
-  const gpuBudget = gpu ? (freeVram ?? gpu.vramMiB) / 1024 : 0;
+  const gpuBudget = gpu
+    ? (freeVram ?? gpu.vramMiB * estimates.unknownVramBudgetFraction) / 1024
+    : 0;
   const ram = [...estimates.base.ram],
     vram = gpu ? [...estimates.base.vram] : [0, 0];
   const add = (part) => {
@@ -73,7 +75,7 @@ export function estimateMemoryBudget(selection, hardware) {
       ram[i] += fraction * Math.max(0, model.cpuRam[i] - model.hostRam[i]);
     }
   }
-  const row = (range, total, available) => ({
+  const row = (range, total, available, planningLimit = total) => ({
     estimate: range.map(round),
     total: finite(total),
     available: finite(available),
@@ -82,14 +84,30 @@ export function estimateMemoryBudget(selection, hardware) {
         ? null
         : [round(available - range[1]), round(available - range[0])],
     exceedsAvailable:
-      (finite(available) ?? finite(total)) !== null &&
-      range[1] > (finite(available) ?? finite(total)),
+      (finite(available) ?? finite(planningLimit)) !== null &&
+      range[1] > (finite(available) ?? finite(planningLimit)),
   });
   return {
     contextTokens: estimates.contextTokens,
     mode: gpu ? 'gpu' : 'cpu',
     offload,
-    ram: row(ram, hardware.ramBytes / 2 ** 30, hardware.availableRamBytes / 2 ** 30),
-    vram: row(vram, gpu ? gpu.vramMiB / 1024 : NaN, freeVram === null ? NaN : freeVram / 1024),
+    ram: row(
+      ram,
+      hardware.ramBytes / 2 ** 30,
+      finite(hardware.availableRamBytes) === null ? NaN : hardware.availableRamBytes / 2 ** 30,
+    ),
+    vram: row(
+      vram,
+      gpu ? gpu.vramMiB / 1024 : NaN,
+      freeVram === null ? NaN : freeVram / 1024,
+      gpu ? gpuBudget : NaN,
+    ),
   };
+}
+
+/** A busy machine can still support a manually selected profile after other apps close. */
+export function fitsAvailableModelRam(profile, hardware) {
+  if (finite(hardware.availableRamBytes) === null) return true;
+  return !estimateMemoryBudget({ profile: profile.id, downloadModels: true }, hardware).ram
+    .exceedsAvailable;
 }

@@ -73,9 +73,9 @@ try {
     };
     window.creditsRasterizedNames = [];
     window.creditsSheetDraws = 0;
-    CanvasRenderingContext2D.prototype.fillText = function (name, ...args) {
-      window.creditsRasterizedNames.push(name);
-      return fillText.call(this, name, ...args);
+    CanvasRenderingContext2D.prototype.fillText = function (name, x, y, ...args) {
+      window.creditsRasterizedNames.push({ name, x, y });
+      return fillText.call(this, name, x, y, ...args);
     };
     CanvasRenderingContext2D.prototype.drawImage = function (...args) {
       if (this.canvas.matches('canvas.credits-ray-sheet')) window.creditsSheetDraws++;
@@ -127,8 +127,30 @@ try {
   });
   const rasterizedNames = () => settings.evaluate(() => window.creditsRasterizedNames);
   const initialMasks = await rasterizedNames();
-  for (const { name } of roster.team)
-    assert(initialMasks.includes(name), `Missing nickname in projection mask: ${name}`);
+  for (const { name } of roster.team.filter(({ name }) => name !== 'Hastur-Dev'))
+    assert(
+      initialMasks.some((entry) => entry.name === name),
+      `Missing nickname in projection mask: ${name}`,
+    );
+  const hasturLines = await panel
+    .getByRole('link', { name: 'Hastur-Dev', exact: true })
+    .evaluate((label) => {
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      return Array.from(range.getClientRects(), ({ left, top }) => ({ left, top }));
+    });
+  assert.equal(hasturLines.length, 2, 'The default grid wraps Hastur-Dev over two lines');
+  const hasturMask = initialMasks.filter(({ name }) =>
+    ['Hastur-Dev', 'Hastur-', 'Dev'].includes(name),
+  );
+  assert.deepEqual(
+    hasturMask.map(({ name }) => name),
+    ['Hastur-', 'Dev'],
+  );
+  const [firstLine, secondLine] = hasturLines;
+  const [firstMask, secondMask] = hasturMask;
+  assert(Math.abs(secondMask.x - firstMask.x - (secondLine.left - firstLine.left)) < 0.5);
+  assert(Math.abs(secondMask.y - firstMask.y - (secondLine.top - firstLine.top)) < 0.5);
   const { initialDraws, initialProjection } = await teamRays.first().evaluate((canvas) => ({
     initialDraws: window.creditsSheetDraws,
     initialProjection: canvas.toDataURL(),
@@ -146,6 +168,30 @@ try {
     initialMasks,
     'Animation reuses the rasterized letters',
   );
+  assert.equal(
+    await panel.locator('.credits-team .credits-spark-sheet').count(),
+    roster.team.length,
+  );
+  await settings.waitForFunction(() => {
+    const canvases = [...document.querySelectorAll('.credits-team .credits-spark-sheet')];
+    return canvases.every((canvas) => {
+      const hex = getComputedStyle(canvas).getPropertyValue('--name-glow').trim();
+      const color = hex
+        .slice(1)
+        .match(/../g)
+        .map((value) => parseInt(value, 16));
+      const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      for (let offset = 0; offset < pixels.length; offset += 4) {
+        if (
+          pixels[offset + 3] > 36 &&
+          color.every((component, index) => Math.abs(pixels[offset + index] - component) < 42)
+        )
+          return true;
+      }
+      return false;
+    });
+  });
+  report.checks.push('All team nicknames have visible sparks in their own palette');
   await settings.evaluate(() => window.releaseCreditsRoster());
   await panel.getByText(roster.supporters[0], { exact: true }).waitFor();
   assert.equal(
@@ -155,10 +201,32 @@ try {
     true,
     'The supporter registry updates without rebuilding or restarting team rays',
   );
-  report.checks.push('Team rays paint before the pending roster, using cached nickname glyphs');
+  report.checks.push(
+    'Team rays paint before the pending roster and align with both lines of the wrapped nickname',
+  );
   const text = await panel.textContent();
   for (const person of [...roster.team.map(({ name }) => name), ...roster.supporters])
     assert(text.includes(person), 'Missing credit: ' + person);
+  assert.deepEqual(
+    await panel.locator('#credits-community-helpers .credits-name-gradient').allTextContents(),
+    roster.communityHelpers,
+  );
+  assert.deepEqual(
+    await panel.locator('.credits-team').evaluate((list) => {
+      const center = (list.getBoundingClientRect().left + list.getBoundingClientRect().right) / 2;
+      const rows = new Map();
+      for (const card of list.children) {
+        const { left, right } = card.getBoundingClientRect();
+        const row = rows.get(card.offsetTop) ?? { left, right };
+        rows.set(card.offsetTop, {
+          left: Math.min(row.left, left),
+          right: Math.max(row.right, right),
+        });
+      }
+      return [...rows.values()].map(({ left, right }) => Math.round((left + right) / 2 - center));
+    }),
+    [0, 0],
+  );
   const aliases = await panel.locator('.credits-supporter').evaluateAll((nodes) =>
     nodes.map((node) => ({
       name: node.querySelector('.credits-name-gradient').textContent,
@@ -179,6 +247,29 @@ try {
       roster.epithets[name.toLowerCase()],
     );
   }
+  await application.evaluate(({ shell }) => {
+    globalThis.openedCreditProfiles = [];
+    shell.openExternal = async (url) => globalThis.openedCreditProfiles.push(url);
+  });
+  const profiles = new Map([
+    ['Overyx', 'https://github.com/Overyx'],
+    ['Hastur-Dev', 'https://github.com/hastur-dev'],
+    ['Frkn97', 'https://github.com/Frkn97'],
+    ['lattelix', 'https://github.com/lattelix'],
+  ]);
+  const team = panel.locator('#credits-team');
+  assert.equal(await team.getByRole('link').count(), profiles.size);
+  await settings.emulateMedia({ reducedMotion: 'reduce' });
+  for (const [name, url] of profiles) {
+    const link = team.getByRole('link', { name, exact: true });
+    assert.equal(await link.getAttribute('href'), url);
+    await link.click();
+  }
+  await settings.emulateMedia({ reducedMotion: 'no-preference' });
+  assert.deepEqual(await application.evaluate(() => globalThis.openedCreditProfiles), [
+    ...profiles.values(),
+  ]);
+  report.checks.push('Linked team names open the expected GitHub profiles in the system browser');
   report.checks.push(
     'Every nickname has its saved unique adjective/noun epithet; team roles stay present',
   );
@@ -211,6 +302,10 @@ try {
       uiText('Credits', locale),
     );
     assert(await panel.getByText(uiText('Hall of Fame', locale), { exact: true }).isVisible());
+    assert.equal(
+      await team.locator('.credits-team-card').first().locator('.credits-team-role').textContent(),
+      uiText('Main developer', locale),
+    );
     if (locale !== 'en') assert.notEqual(uiText('Hall of Fame', locale), 'Hall of Fame');
     const size = await settings.locator('#companion').evaluate((main) => ({
       width: main.clientWidth,

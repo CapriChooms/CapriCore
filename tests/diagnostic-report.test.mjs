@@ -37,28 +37,6 @@ test('screen startup diagnostics preserve only the known stage and error class',
     '[PRIVATE TEXT OMITTED]',
   );
 });
-test('Settings diagnostics distinguish an unexpected hide from a renderer crash', () => {
-  assert.deepEqual(
-    redactor().value(
-      diagnosticState({
-        hidden: { message: 'Settings native window hidden unexpectedly' },
-        crashed: { message: 'Settings renderer stopped: crashed (exit code -1073741819)' },
-        private: { message: 'Settings renderer stopped: arbitrary private text (exit code 1)' },
-      }),
-    ),
-    {
-      hidden: { message: { event: 'settings-window-hidden' } },
-      crashed: {
-        message: {
-          event: 'settings-renderer-stopped',
-          rendererReason: 'crashed',
-          exitCode: -1073741819,
-        },
-      },
-      private: { message: { schemaVersion: 1, event: 'activity' } },
-    },
-  );
-});
 mkdirSync(parent, { recursive: true });
 const fixture = () => mkdtempSync(path.join(parent, 'case-'));
 const put = (base, name, data) => {
@@ -358,41 +336,6 @@ test('high system RAM and partial model offload are separate diagnostic evidence
   assert.match(files.get('REPORT.md'), /does not attribute all memory use to Capri/);
 });
 
-test('reports keep time and exit codes for related GPU and portrait events without raw renderer text', async () => {
-  const gpuExit = { timeMs: 1795225219000, gpuExitReason: 'crashed', exitCode: -1073741819 };
-  const portrait = {
-    event: 'texture-upload-failed',
-    timeMs: gpuExit.timeMs + 4,
-    width: 480,
-    height: 660,
-    glError: 1285,
-  };
-  const report = await createDiagnosticReport({
-    root: fixture(),
-    input: { category: 'interface', includeLogs: false },
-    snapshot: {
-      windowGraphics: { gpuProcessFailures: 1, gpuProcessEvents: [gpuExit] },
-      rendererDiagnostics: [
-        {
-          level: 2,
-          message:
-            'Capri portrait graphics: ' +
-            JSON.stringify({ ...portrait, url: 'private-renderer-canary' }),
-        },
-      ],
-    },
-    hardware: async () => ({}),
-    pythonProbe: async () => ({}),
-    installerDirectory: null,
-  });
-  const files = unpack(report.bytes);
-  const session = JSON.parse(files.get('session.json'));
-  assert.deepEqual(session.windowGraphics.gpuProcessEvents, [gpuExit]);
-  assert.deepEqual(session.rendererDiagnostics[0].message, portrait);
-  assert.ok(!files.get('session.json').includes('private-renderer-canary'));
-  assert.match(files.get('REPORT.md'), /Unexpected Electron GPU process exits: 1/);
-});
-
 test('reports redact credentials, structured dialogue and personal paths without corrupting JSON', () => {
   const clean = redactor({
     root: 'C:\\Users\\Alice\\Capri',
@@ -428,30 +371,6 @@ test('reports redact credentials, structured dialogue and personal paths without
   assert.equal(json.event, 'failure');
   assert.equal(json.prompt, undefined);
   assert.equal(json.details, undefined);
-});
-
-test('a crash ZIP includes the exit and recent technical logs without private prose', async () => {
-  const base = fixture();
-  const crash = {
-    crashSurface: 'desktop',
-    crashReason: 'process-exit',
-    timeMs: 1795225219000,
-    exitCode: -1073741819,
-  };
-  put(base, 'logs/desktop.stderr.log', 'CAPRI_DESKTOP_INIT private-crash-canary\n');
-  const report = await createDiagnosticReport({
-    root: base,
-    input: { category: 'startup', includeLogs: true },
-    snapshot: { desktopCrash: crash },
-    installerDirectory: null,
-    hardware: async () => ({}),
-    pythonProbe: async () => ({}),
-  });
-  const files = unpack(report.bytes);
-  assert.deepEqual(JSON.parse(files.get('session.json')).desktopCrash, crash);
-  assert.match(files.get('REPORT.md'), /Capri closed unexpectedly/);
-  assert.ok([...files.keys()].some((name) => name.endsWith('desktop.stderr.log')));
-  assert.ok([...files.values()].every((body) => !body.includes('private-crash-canary')));
 });
 
 test('exported computer-task traces preserve safe stop reasons across both privacy passes', async () => {
@@ -541,6 +460,7 @@ test('a useful report survives missing voice components and includes bounded red
       },
       messages: 'history canary',
       lastVoiceFailure: { message: 'Authorization: Bearer private_token' },
+      callAudio: { setup: { phase: 'error', lastFailure: 'skill-disabled' } },
     },
     hardware: async () => ({
       cpu: 'Fixture CPU',
@@ -567,6 +487,7 @@ test('a useful report survives missing voice components and includes bounded red
   assert.equal(session.backend.phase, 'offline');
   assert.deepEqual(session.startup.stages, [{ id: 'core', state: 'running' }]);
   assert.equal(session.voice.lastFailure.phase, 'synthesize');
+  assert.equal(session.callAudio.setup.lastFailure, 'skill-disabled');
   assert.deepEqual(session.recognition.performance.lastFailure, {
     code: 'ASR_START_NATIVE_CRASH',
     startupStage: 'ASR_START_MODEL',
@@ -670,6 +591,75 @@ test('custom voice profile names, reference paths and health prose never enter d
   assert.equal(voice.profile.language, 'en');
   assert.equal(voice.health.ready, true);
   assert.match(files.get('REPORT.md'), /Missing voice component/);
+});
+
+test('voice reports do not attribute Chatterbox files to other engines or text-only mode', async (t) => {
+  for (const [engine, voice, health, selection] of [
+    ['breeze-tts', { language: 'en', source: 'local' }, { activeEngine: 'breeze-tts' }],
+    ['external-api', { language: 'en', source: 'api' }, { activeEngine: 'turbo' }],
+    ['off', { language: 'off', source: 'local' }, { activeEngine: 'turbo' }],
+    [
+      'breeze-tts',
+      { configuredLanguage: 'en', language: 'off', source: 'local' },
+      { activeEngine: 'turbo' },
+      'breeze-tts-2-q4-k',
+    ],
+    [
+      'qwen3-tts',
+      { configuredLanguage: 'en', language: 'off', source: 'local' },
+      { ready: false },
+      'qwen3-tts-0.6b-base',
+    ],
+  ]) {
+    await t.test(selection ?? engine, async () => {
+      const base = fixture();
+      put(base, 'config/companion-voice.json', {
+        engine: 'chatterbox-turbo',
+        profileDir: 'data/voice',
+      });
+      put(base, 'config/voice-training.json', { modelDir: 'data/speech/base' });
+      put(base, 'config/voice-upstream.json', { model: { files: ['missing.safetensors'] } });
+      if (selection)
+        put(base, 'data/speech/voice-selections.json', {
+          schemaVersion: 1,
+          languages: { en: selection },
+        });
+      const pythonProbes = [];
+      const report = await createDiagnosticReport({
+        root: base,
+        input: { category: 'voice', includeLogs: false },
+        snapshot: { voice },
+        hardware: async () => ({}),
+        pythonProbe: async (_root, options) => {
+          pythonProbes.push(options);
+          return { available: false, code: 'ENOENT' };
+        },
+        installerDirectory: null,
+        health: async () => ({ ready: true, ...health }),
+      });
+      const files = unpack(report.bytes);
+      const diagnostics = JSON.parse(files.get('voice.json'));
+      assert.equal(diagnostics.config.engine, engine);
+      assert.deepEqual(diagnostics.files, []);
+      assert.doesNotMatch(files.get('REPORT.md'), /Missing voice component|Chatterbox Turbo/);
+      if (engine === 'qwen3-tts') {
+        assert.equal(pythonProbes.length, 1);
+        assert.equal(
+          pythonProbes[0].runtime.python,
+          path.join(base, '.runtime/qwen-tts-venv/Scripts/python.exe'),
+        );
+        assert.equal(pythonProbes[0].checkChatterbox, false);
+        assert.match(files.get('REPORT.md'), /Qwen3-TTS Python runtime could not be verified/);
+      } else {
+        assert.deepEqual(pythonProbes, []);
+      }
+      if (selection && engine === 'breeze-tts') {
+        assert.deepEqual(diagnostics.breeze, { runtimeInstalled: false, profileValid: false });
+        assert.match(files.get('REPORT.md'), /Breeze TTS voice profile is missing or invalid/);
+        assert.doesNotMatch(files.get('REPORT.md'), /text-only speech/);
+      }
+    });
+  }
 });
 
 test('bug reports validate bounded fields and ZIP entries before writing any file', async () => {

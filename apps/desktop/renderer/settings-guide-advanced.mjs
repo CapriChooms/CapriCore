@@ -180,9 +180,9 @@ export const advancedGuides = {
       'Дополнительные папки открываются только на чтение. Капри сможет показать список файлов, найти файл по имени и прочитать текст. Защищённые системные папки, сетевые папки и пути через ссылки недоступны.',
     ),
     step(
-      '#file-access-list .file-scope input[type="checkbox"]',
+      '#file-access-list .file-scope input[type="checkbox"]:not(:disabled)',
       'Enable writing for a specific folder',
-      'Allow file changes to create, copy, move or rename files in that folder. The Capri installation folder starts with write access. Replacing text or sending a file to the Recycle Bin needs separate confirmation.',
+      'Allow file changes to create, copy, move or rename files in that folder. The Capri installation is read-only. Replacing text or sending a file to the Recycle Bin needs separate confirmation.',
       'Разреши запись в конкретную папку',
       'Разреши изменения, чтобы создавать, копировать, перемещать или переименовывать файлы в этой папке. В папку установки Капри изначально можно писать. Замена текста или перенос файла в корзину требуют отдельного подтверждения.',
     ),
@@ -559,9 +559,9 @@ export const advancedGuides = {
     step(
       '#support-donation-open',
       'Choose a way to support Capri',
-      'Capri is free. Lava.top opens the payment window. Open donation in browser if it fails to load. Boosty opens its donation page. Each provider shows available payment methods.',
+      'Boosty and Lava.top open in your default browser, where the provider shows the available payment methods.',
       'Выбери способ поддержать Капри',
-      'Капри бесплатна. Lava.top открывает окно оплаты. Если оно не загрузилось, открой донат в браузере. Boosty ведёт на свою страницу доната. Доступные способы оплаты покажет платёжная площадка.',
+      'Boosty и Lava.top открываются в браузере по умолчанию. Доступные способы оплаты покажет платёжная площадка.',
       '.support-donation-browser, [data-community="boosty-donate"]',
       '.support-donation-card',
     ),

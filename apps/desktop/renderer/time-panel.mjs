@@ -5,17 +5,20 @@ import {
   matchesAudioOutput,
 } from './local-audio-output.mjs';
 
-const MAX_SECONDS = 366 * 86400;
+const SECONDS_PER_DAY = 24 * 3600;
+const MAX_DAYS = 365;
+const MAX_SECONDS = (MAX_DAYS + 1) * SECONDS_PER_DAY - 1;
 const clampDuration = (seconds) => Math.max(0, Math.min(MAX_SECONDS, Math.round(seconds)));
 const offsets = [-3, -2, -1, 0, 1, 2, 3];
 const translate = (rows) => `translateY(${(rows * 100) / offsets.length}%)`;
 const digits = (number) => String(number).padStart(2, '0');
 const units = [
+  { name: 'Days', id: 'days', multiplier: SECONDS_PER_DAY, maximum: MAX_DAYS, bounded: true },
   {
     name: 'Hours',
     id: 'hours',
     multiplier: 3600,
-    maximum: MAX_SECONDS / 3600,
+    maximum: 23,
   },
   {
     name: 'Minutes',
@@ -30,11 +33,13 @@ const units = [
     maximum: 59,
   },
 ];
-const unitValue = (seconds, { multiplier, maximum }) =>
-  Math.floor(seconds / multiplier) % (maximum + 1);
+const unitValue = (seconds, { multiplier, maximum, bounded }) => {
+  const value = Math.floor(seconds / multiplier);
+  return bounded ? value : value % (maximum + 1);
+};
 
 function durationDial(unit, panel) {
-  const { name, id, maximum } = unit;
+  const { name, id, maximum, bounded } = unit;
   const dial = document.createElement('div');
   dial.className = 'time-dial';
   const input = document.createElement('input');
@@ -54,8 +59,11 @@ function durationDial(unit, panel) {
 
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const range = maximum + 1;
-  const wrap = (value) => ((value % range) + range) % range;
-  const read = () => Math.max(0, Math.min(maximum, Math.round(Number(input.value) || 0)));
+  const clamp = (value) => Math.max(0, Math.min(maximum, value));
+  const normalize = bounded ? clamp : (value) => ((value % range) + range) % range;
+  const limitTravel = (start, travel) => (bounded ? clamp(start + travel) - start : travel);
+  const format = bounded ? String : digits;
+  const read = () => clamp(Math.round(Number(input.value) || 0));
   let drag, motion, shown, coastFrame;
   let offset = 0;
   function stopMotion() {
@@ -83,11 +91,14 @@ function durationDial(unit, panel) {
   function paint(value) {
     if (shown === value) return;
     shown = value;
-    for (const [index, row] of offsets.entries())
-      rows[index].textContent = digits(wrap(value + row));
+    for (const [index, row] of offsets.entries()) {
+      const neighbor = value + row;
+      rows[index].textContent =
+        bounded && (neighbor < 0 || neighbor > maximum) ? '' : format(normalize(neighbor));
+    }
   }
   function setValue(value) {
-    const text = digits(value);
+    const text = format(value);
     if (input.value !== text) input.value = text;
     paint(value);
   }
@@ -99,7 +110,7 @@ function durationDial(unit, panel) {
   }
   function position(start, travel) {
     const nearest = Math.round(travel);
-    const value = wrap(start + nearest);
+    const value = normalize(start + nearest);
     if (value !== shown) {
       setValue(value);
       panel.tick();
@@ -117,7 +128,7 @@ function durationDial(unit, panel) {
     );
     if (Math.abs(speed) < 0.006) return false;
     const duration = Math.min(800, 190 + Math.abs(speed) * 9800);
-    const target = Math.round(travel + (speed * duration) / 3);
+    const target = limitTravel(start, Math.round(travel + (speed * duration) / 3));
     if ((target - travel) * speed <= 0) return false;
     reel.dataset.rolling = '';
     const startedAt = performance.now();
@@ -136,7 +147,7 @@ function durationDial(unit, panel) {
     return true;
   }
   function step(delta) {
-    if (set(wrap(read() + delta), Math.sign(delta))) panel.tick();
+    if (set(normalize(read() + delta), Math.sign(delta))) panel.tick();
   }
   dial.addEventListener(
     'wheel',
@@ -182,7 +193,7 @@ function durationDial(unit, panel) {
     const distance = drag.y - event.clientY;
     if (Math.abs(distance) < 4 && !reel.hasAttribute('data-dragging')) return;
     reel.dataset.dragging = '';
-    const travel = drag.origin + distance / drag.row;
+    const travel = limitTravel(drag.start, drag.origin + distance / drag.row);
     if (travel === drag.travel) return;
     drag.travel = travel;
     drag.samples = drag.samples.filter(({ time }) => event.timeStamp - time <= 105);
@@ -217,11 +228,19 @@ function durationDial(unit, panel) {
   return { dial, input, set, stopMotion };
 }
 
-const duration = (ms) => {
+const duration = (ms, language, showDays) => {
   const seconds = Math.max(0, Math.floor(ms / 1000));
-  return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
-    .map((n) => String(n).padStart(2, '0'))
+  const days = showDays ? Math.floor(seconds / SECONDS_PER_DAY) : 0;
+  const time = [Math.floor(seconds / 3600) - days * 24, Math.floor(seconds / 60) % 60, seconds % 60]
+    .map(digits)
     .join(':');
+  if (!days) return time;
+  const dayLabel = new Intl.NumberFormat(language, {
+    style: 'unit',
+    unit: 'day',
+    unitDisplay: 'short',
+  }).format(days);
+  return `${dayLabel} · ${time}`;
 };
 export class TimePanel {
   constructor({ api, ui, onOpen, onError }) {
@@ -350,7 +369,11 @@ export class TimePanel {
           object.state === 'due' ? 'Due now' : object.state === 'paused' ? 'Paused' : 'Running',
         ) +
         ' · ' +
-        duration(object.kind === 'stopwatch' ? object.elapsedMs : (object.remainingMs ?? 0));
+        duration(
+          object.kind === 'stopwatch' ? object.elapsedMs : (object.remainingMs ?? 0),
+          this.ui.language,
+          object.kind !== 'stopwatch',
+        );
       if (object.kind === 'reminder')
         status.textContent +=
           ' · ' +

@@ -138,3 +138,23 @@ test('Spotify planning keeps safe error codes and HTTP status without echoing pr
     name: 'AbortError',
   });
 });
+
+test('an otherwise valid Spotify plan in a single JSON code fence is accepted, but surrounding prose and extra keys are rejected', async () => {
+  let content;
+  const planner = spotifyPlanner({
+    url: 'http://127.0.0.1:11434',
+    fetchImpl: async () => Response.json({ done: true, message: { content } }),
+  });
+  const fenced = ['```json', '{"action":"next"}', '```'].join('\n');
+  content = fenced;
+  assert.deepEqual(await planner('Skip to the next track on Spotify'), { action: 'next' });
+  for (content of [
+    'Here is the command:\n' + fenced,
+    fenced + '\n' + fenced,
+    fenced.replace('"next"', '"next","extra":true'),
+  ]) {
+    await assert.rejects(planner('Skip to the next track on Spotify'), {
+      code: 'CAPRI_SPOTIFY_PLAN_INVALID',
+    });
+  }
+});

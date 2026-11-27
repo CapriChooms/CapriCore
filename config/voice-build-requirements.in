@@ -1,0 +1,4 @@
+# Build backends for the two reviewed Git commits and the AMD rocm source archive.
+setuptools==84.2.1
+uv-build~=0.12.7
+wheel

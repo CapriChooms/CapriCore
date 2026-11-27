@@ -256,7 +256,7 @@ export class ActionApprovals {
       instruction:
         'This is a pending approval, not a failed tool call. Ask the owner briefly to confirm this exact action, then end your reply and wait. Do not repeat the request, try other tools, inspect files or invent a command. The desktop executes only after owner confirmation.' +
         (voice
-          ? ' The owner can use the approval buttons or reply yes or confirm.'
+          ? ' The owner can use the approval buttons or type yes or confirm.'
           : ' The owner must use the approval buttons; chat text cannot approve this action.'),
     };
   }
@@ -266,7 +266,10 @@ export class ActionApprovals {
       if (pending?.id === id) this.cancel();
       throw new Error('That permission request has expired. Ask again.');
     }
-    if (typeof accepted !== 'boolean' || (accepted && source === 'voice' && !pending.voice))
+    if (
+      typeof accepted !== 'boolean' ||
+      (accepted && (source === 'voice' || (source === 'text' && !pending.voice)))
+    )
       throw new Error('Use the confirmation buttons for this action.');
     this.executing = true;
     this.pending = null;
@@ -283,7 +286,7 @@ export class ActionApprovals {
       }
     }
   }
-  async text(text) {
+  async text(text, { source = 'text' } = {}) {
     if (!this.pending) return null;
     if (this.pending.expiresAt <= this.now()) {
       this.cancel();
@@ -295,7 +298,7 @@ export class ActionApprovals {
       .replace(/[.!?]+$/g, '')
       .trim();
     if (['no', 'cancel', 'нет', 'отмена', 'не надо'].includes(normalized))
-      return this.respond(this.pending.id, false, 'voice');
+      return this.respond(this.pending.id, false, source);
     if (
       [
         'yes',
@@ -312,12 +315,12 @@ export class ActionApprovals {
         'включи',
       ].includes(normalized)
     ) {
-      if (!this.pending.voice)
+      if (source === 'voice' || !this.pending.voice)
         return {
           ok: false,
           confirmation: 'Use the on-screen confirmation buttons for this action.',
         };
-      return this.respond(this.pending.id, true, 'voice');
+      return this.respond(this.pending.id, true, source);
     }
     this.cancel();
     return null;

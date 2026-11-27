@@ -22,7 +22,9 @@ test('the Capri colors card exists and sits in Appearance', () => {
 
 test('every companion card is placed in some settings section', () => {
   assert.ok(headings.length > 10, 'section list parsed');
-  const moved = ['Reminders']; // settings-app moves this one to the Time panel
+  // settings-app moves Reminders to the Time panel; initiative-panel.mjs moves
+  // Desktop roaming (Capri 1.3.0) into the Initiative panel.
+  const moved = ['Reminders', 'Desktop roaming'];
   const upstreamHidden = ['Qwen model', 'Updates']; // unplaced in stock Capri too
   const orphans = groups.filter(
     (g) =>

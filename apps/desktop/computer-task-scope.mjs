@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { exactApplications } from './application-target.mjs';
+import { canClickTarget } from './computer-click-target.mjs';
+import { youtubeBrowseRequest } from './computer-mode-request.mjs';
 
 const browserActions = new Set(['open_url', 'browser_search', 'browser_input']);
 const inputActions = new Set([
@@ -64,7 +66,8 @@ export function ownerRequestsWeb(goal, opening) {
     )
   )
     return true;
-  if (/^(?:youtube|netflix)$/iu.test(opening?.name ?? '')) return true;
+  if (/^(?:youtube|netflix)$/iu.test(opening?.name ?? '') || youtubeBrowseRequest(goal))
+    return true;
   if (opening) return false;
   return /\b(?:search|look up|find (?:where|how|the official)|chrome|edge|firefox|youtube|netflix)\b|^\s*in\s+[^,]{1,180}\btab\s*,|\bfind\b[^.!?]{0,180}\b(?:where|how)\b[^.!?]{0,100}\b(?:download|buy|get|order)\b|(?:^|\s)(?:поищи|найди где|найди как|найди официальный)|\b(?:cherche|recherche|busca)\b/iu.test(
     source,
@@ -148,19 +151,34 @@ export class ComputerTaskScope {
     return view.window?.modal === true && Boolean(bound.startedAtTicks) && sameProcess;
   }
 
+  taskbarRestoreTarget(view) {
+    const app = this.window?.app;
+    if (!app) return null;
+    const matches = (view.targets ?? []).filter((target) => {
+      const name = taskbarApplication(target);
+      return (
+        name &&
+        /\.(?:Button|ListItem)$/u.test(target.role ?? '') &&
+        exactApplications([app], name).length === 1 &&
+        canClickTarget(target)
+      );
+    });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
   followWindow(view, identity, appName) {
     const bound = this.window;
     if (
-      !bound ||
+      (!bound && !appName) ||
       !identity?.startedAtTicks ||
       !identity.processId ||
       !view.window?.windowId ||
-      bound.windowId === view.window.windowId
+      bound?.windowId === view.window.windowId
     )
       return false;
     const sameInstance =
-      String(identity.processId) === String(bound.processId) &&
-      identity.startedAtTicks === bound.startedAtTicks;
+      String(identity.processId) === String(bound?.processId) &&
+      identity.startedAtTicks === bound?.startedAtTicks;
     if (appName) {
       // A mutable window title is not proof that the switch reached the named app.
       if (
@@ -203,6 +221,8 @@ export class ComputerTaskScope {
       (step.clickCount ?? 1) === 1
     )
       return '';
+    if (this.opening && !this.window && inputActions.has(step.action))
+      return 'Launch or focus the requested application and verify its window before sending input.';
     if (
       inputActions.has(step.action) &&
       (selected?.surface ||

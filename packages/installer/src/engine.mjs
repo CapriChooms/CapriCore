@@ -4,7 +4,6 @@ import {
   existsSync,
   readFileSync,
   copyFileSync,
-  statSync,
   unlinkSync,
   writeFileSync,
   renameSync,
@@ -12,16 +11,18 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { sourceFiles } from './payload.mjs';
+import { verifySetupPayload } from './payload.mjs';
 import { requireCapriAvatar } from '../../../apps/desktop/avatar-catalog.mjs';
 import {
   LANGUAGE_DEFAULTS,
   validateLanguages,
 } from '../../../apps/desktop/renderer/language-settings.mjs';
 import { readVoiceSelections } from '../../../apps/desktop/voice-catalog-service.mjs';
+import { recognitionModelsInstalled } from '../../../apps/desktop/language-models.mjs';
 import voiceCatalog from '../../../config/tts-catalog.json' with { type: 'json' };
 import { apiSettings } from '../../../apps/desktop/inference-api.mjs';
 import { writeJsonAtomic } from '../../runtime/src/atomic-json.mjs';
+import { compareVersions } from '../../updater/src/releases.mjs';
 import { probeHardware } from '../../runtime/src/hardware/probe.mjs';
 import {
   deviceSettingsFile,
@@ -44,6 +45,7 @@ import {
 } from './policy.mjs';
 import { nodeBootstrapBytes } from './storage-estimate.mjs';
 import {
+  BUNDLED_VOICE_LOCATIONS,
   validateVoicePack,
   importVoicePack,
   cacheBundledVoicePack,
@@ -90,6 +92,7 @@ export async function install(
   const russianQwen = plan.voiceMode === 'qwen-ru';
   const qwen = plan.voiceMode === 'qwen' || russianQwen;
   const needsVoice = Boolean(plan.voicePack || qwen);
+  let addedRecognition = false;
   const needsPython = plan.recognition || plan.router || needsVoice;
   const stages = [
     'node',
@@ -123,7 +126,15 @@ export async function install(
       readJson(path.join(sourceRoot, 'config/voice-upstream.json')).model,
     );
   const includedReference = plan.bundledVoicePack || path.join(sourceRoot, '.bundled-voice');
-  const hasIncludedReference = Boolean(plan.bundledVoicePack || existsSync(includedReference));
+  // Repair can find an older pack in the target. Let Qwen preparation verify
+  // these copies and recover the reference if the cached files are damaged.
+  const installedReference =
+    qwen &&
+    BUNDLED_VOICE_LOCATIONS.some(
+      (relative) => path.relative(path.join(plan.target, relative), includedReference) === '',
+    );
+  const hasIncludedReference =
+    !installedReference && Boolean(plan.bundledVoicePack || existsSync(includedReference));
   if (
     hasIncludedReference &&
     validateVoicePack(
@@ -186,11 +197,6 @@ export async function install(
     }
   }
   mkdirSync(cache, { recursive: true });
-  const releaseLock = installationLock(cache);
-  const identity = existsSync(identityFile(root))
-    ? readJson(identityFile(root))
-    : { schemaVersion: 1, productId: 'capri.desktop', installId: randomUUID(), root, version };
-  writeJsonAtomic(identityFile(root), identity);
   const journal = {
     schemaVersion: 1,
     fingerprint: planFingerprint(plan, readFileSync(path.join(sourceRoot, 'package-lock.json'))),
@@ -203,7 +209,6 @@ export async function install(
     journal.updatedAt = new Date().toISOString();
     writeJsonAtomic(journalFile, journal);
   };
-  save();
   const env = {
     ...process.env,
     ...(pauseFile ? { CAPRI_INSTALL_PAUSE_FILE: pauseFile } : {}),
@@ -259,7 +264,7 @@ export async function install(
     'voice-pack',
     'models',
   ]);
-  const command = async (file, args, options = {}) => {
+  const command = async (file, args, { onOutput, ...options } = {}) => {
     await waitWhilePaused(pauseFile, { signal, emit });
     return execute(file, args, {
       cwd: root,
@@ -267,6 +272,7 @@ export async function install(
       signal,
       timeoutMs: (downloadSteps.has(currentStep) ? 8 : 1) * 60 * 60 * 1000,
       output: (message) => {
+        if (onOutput?.(message)) return;
         if (message.startsWith('{"capriFileTransfer"')) {
           try {
             const { capriFileTransfer: file, received, total, stageFraction } = JSON.parse(message);
@@ -501,7 +507,25 @@ export async function install(
       }
     }
   }
+  let journalStarted = false;
+  const releaseLock = installationLock(cache);
   try {
+    noLinks(identityFile(root));
+    const identity = existsSync(identityFile(root))
+      ? readJson(identityFile(root))
+      : { schemaVersion: 1, productId: 'capri.desktop', installId: randomUUID(), root, version };
+    noLinks(journalFile);
+    let reuseDependencies = false;
+    if (plan.reuseDependencies && existsSync(journalFile)) {
+      try {
+        reuseDependencies = readJson(journalFile).status === 'complete';
+      } catch {
+        // An incomplete or obsolete setup receipt requires a full dependency repair.
+      }
+    }
+    writeJsonAtomic(identityFile(root), identity);
+    save();
+    journalStarted = true;
     let savedInference;
     if (request.inferenceMode !== undefined) {
       noLinks(inferenceFile);
@@ -520,28 +544,9 @@ export async function install(
     let activateCameraBundle;
     await step('source', async () => {
       activity('checkSource');
-      activateCameraBundle = await prepareBundledCamera(sourceRoot, root, signal);
       requireCapriAvatar(sourceRoot, { source: true });
-      const files = sourceFiles(sourceRoot).map((name) => {
-        const file = path.join(sourceRoot, name),
-          info = statSync(file);
-        if (!info.isFile() || info.size > 20 * 1024 ** 2)
-          throw new Error('Invalid source payload file: ' + name);
-        return {
-          path: name,
-          bytes: info.size,
-          sha256: createHash('sha256').update(readFileSync(file)).digest('hex'),
-        };
-      });
-      if (existsSync(path.join(sourceRoot, 'SOURCE_MANIFEST.json'))) {
-        const pinned = readJson(path.join(sourceRoot, 'SOURCE_MANIFEST.json'), 2 * 1024 ** 2).files;
-        const expected = new Map(pinned.map((item) => [item.path, item.sha256]));
-        if (expected.size !== files.length)
-          throw new Error('Source payload file list differs from its manifest');
-        for (const file of files)
-          if (expected.get(file.path) !== file.sha256)
-            throw new Error('Source payload checksum mismatch: ' + file.path);
-      }
+      const files = await verifySetupPayload(sourceRoot, signal);
+      if (plan.camera) activateCameraBundle = await prepareBundledCamera(sourceRoot, root, signal);
       activity('copySource');
       let processed = 0;
       for (const file of files) {
@@ -560,14 +565,22 @@ export async function install(
               'config/voice-training.json',
               'config/request-router.json',
             ].includes(file.path)
-          )
-            continue;
+          ) {
+            try {
+              const settings = readJson(target);
+              if (settings && typeof settings === 'object' && !Array.isArray(settings)) continue;
+            } catch (error) {
+              if (!(error instanceof SyntaxError)) throw error;
+            }
+            // Back up malformed preferences before restoring verified factory bytes.
+          }
           const old = createHash('sha256').update(readFileSync(target)).digest('hex');
           if (old === file.sha256) continue;
           const backup = path.join(cache, 'backups', Date.now().toString(), file.path);
           mkdirSync(path.dirname(backup), { recursive: true });
           copyFileSync(target, backup);
         }
+        reuseDependencies = false;
         await replaceSourceFile(path.join(sourceRoot, file.path), target, { root, signal });
       }
       writeJsonAtomic(path.join(cache, 'source-files.json'), { files });
@@ -580,15 +593,25 @@ export async function install(
           root,
           readJson(path.join(root, 'config/voice-upstream.json')).model,
         );
+      if (qwen)
+        emit({
+          type: 'log',
+          step: 'source',
+          message: hasIncludedReference
+            ? 'The verified Capri voice pack from Setup was cached.'
+            : 'Setup did not supply a separate Capri voice pack. Qwen will check the installed profiles and recover the reference if needed.',
+        });
     });
     await step('dependencies', async () => {
       activity('installDependencies');
       await installNpmDependencies({
+        reuseInstalled: reuseDependencies,
         nodeExecutable,
         command,
         signal,
         root,
         pauseFile,
+        onPackages: (value) => emit({ type: 'packages', step: currentStep, ...value }),
         progress: (value) => emit({ type: 'download', step: currentStep, ...value }),
         onRecovery: (message) => emit({ type: 'log', step: currentStep, message }),
         onRetry: ({ attempt, attempts, delayMs, code }) =>
@@ -598,6 +621,7 @@ export async function install(
             message: `npm connection interrupted (${code}). Retrying dependencies ${attempt}/${attempts} in ${delayMs / 1000}s; verified cached packages will be reused.`,
           }),
       });
+      emit({ type: 'fraction', step: currentStep, fraction: 0.9 });
       // Electron 45 no longer downloads its executable during npm ci. Do it
       // inside Setup, with the same pinned checksums, progress, pause and resume.
       const electronPackage = path.join(root, 'node_modules/electron');
@@ -658,16 +682,22 @@ export async function install(
     if (needsPython)
       await step('python', () => runtime('uv', path.join(root, '.runtime/uv/uv.exe')));
     if (plan.recognition)
-      await step('recognition', () =>
-        ps(
+      await step('recognition', async () => {
+        addedRecognition = !recognitionModelsInstalled(
+          root,
+          plan.languages.conversation,
+          readJson(path.join(root, 'config/companion-asr.json')),
+        );
+        if (reuseDependencies && !addedRecognition) return;
+        await ps(
           'tools/setup/' +
             (plan.languages.conversation === 'en'
               ? 'setup-streaming-asr.ps1'
               : plan.languages.conversation === 'pt-BR'
                 ? 'setup-fast-multilingual-asr.ps1'
                 : 'setup-multilingual-asr.ps1'),
-        ),
-      );
+        );
+      });
     if (plan.router)
       await step('router', async () => {
         try {
@@ -691,6 +721,7 @@ export async function install(
             plan.voicePack,
             root,
             readJson(path.join(root, 'config/voice-upstream.json')).model,
+            { bundled: path.relative(plan.voicePack, includedReference) === '' },
           );
           const config = readJson(path.join(root, 'config/companion-voice.json'));
           writeJsonAtomic(path.join(root, 'config/companion-voice.json'), {
@@ -698,7 +729,21 @@ export async function install(
             profileDir: relative,
           });
         }
-        await prepareVoiceCatalog({ root, env, signal, download, execute });
+        await prepareVoiceCatalog({
+          root,
+          env,
+          signal,
+          pauseFile,
+          download,
+          execute,
+          onReferenceDownload: (progress) =>
+            emit({
+              type: 'download',
+              step: 'voice-runtime',
+              file: 'Capri voice pack',
+              ...progress,
+            }),
+        });
         await ps('tools/setup/setup-qwen-tts.ps1', ['-DependenciesOnly']);
       });
       await step('voice-pack', () =>
@@ -726,6 +771,7 @@ export async function install(
           plan.voicePack,
           root,
           readJson(path.join(root, 'config/voice-upstream.json')).model,
+          { bundled: plan.voiceMode === 'bundled' },
         );
         const config = readJson(path.join(root, 'config/companion-voice.json'));
         config.profileDir = relative;
@@ -772,9 +818,18 @@ export async function install(
             throw new Error('A required model is not ready: ' + model);
       }
     });
+    const releaseFile = path.join(sourceRoot, 'config/release.json');
+    const nextTag = existsSync(releaseFile) ? readJson(releaseFile).tag : undefined;
+    try {
+      const previousTag = identity.releaseTag ?? identity.version;
+      const change = compareVersions(nextTag ?? version, previousTag);
+      if (change > 0) identity.previousReleaseTag = previousTag;
+      else if (change < 0) delete identity.previousReleaseTag;
+    } catch {
+      // Older, incomplete install receipts can lack usable release metadata.
+    }
     identity.version = version;
-    if (existsSync(path.join(sourceRoot, 'config/release.json')))
-      identity.releaseTag = readJson(path.join(sourceRoot, 'config/release.json')).tag;
+    if (nextTag) identity.releaseTag = nextTag;
     writeJsonAtomic(identityFile(root), identity);
     if (register)
       await step('shortcuts', () =>
@@ -797,6 +852,10 @@ export async function install(
         interface: plan.languages.interface,
         conversation: plan.languages.conversation,
         customConversation: plan.languages.customConversation,
+        recognition:
+          addedRecognition && previous?.recognition === 'off'
+            ? 'follow'
+            : (previous?.recognition ?? plan.languages.recognition),
         speech:
           needsVoice ||
           (!['off', 'follow'].includes(speech) && speech !== plan.languages.conversation)
@@ -868,6 +927,7 @@ export async function install(
   } catch (error) {
     // A failed download must leave the user's previous model usable. All stages
     // rerun on retry, so restoring these settings cannot skip the next switch.
+    if (!journalStarted) throw error;
     restoreCameraBundle?.();
     restoreModelSelection?.();
     restoreModelDevices?.();
@@ -877,7 +937,7 @@ export async function install(
     emit({ type: journal.status, step: currentStep, message: error.message.slice(0, 2500) });
     throw error;
   } finally {
-    if (existsSync(path.join(root, 'packages/runtime/bin/core.mjs')))
+    if (journalStarted && existsSync(path.join(root, 'packages/runtime/bin/core.mjs')))
       await command(nodeExecutable, [path.join(root, 'packages/runtime/bin/core.mjs'), 'stop'], {
         signal: undefined,
         timeoutMs: 120000,

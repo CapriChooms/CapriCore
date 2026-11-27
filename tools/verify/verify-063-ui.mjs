@@ -8,6 +8,8 @@ import path from 'node:path';
 import { _electron } from 'playwright-core';
 import { root } from '../../packages/runtime/src/host/paths.mjs';
 import { COMPANION_DEFAULTS } from '../../apps/desktop/companion-settings.mjs';
+import { CREDITS_TEAM } from '../../apps/desktop/credits-team.mjs';
+import { DRAG_LIGHTNING_COLOR } from '../../apps/desktop/renderer/teleport-effects.mjs';
 import { saveSettings, settingsView } from './settings-view.mjs';
 
 const parent = path.join(root, '.runtime/hotfix-063');
@@ -35,7 +37,7 @@ writeFileSync(
         id: 'ui-answer',
         turnId: 'ui-turn',
         role: 'assistant',
-        text: 'A synthetic answer for checking the collapsed home frame.',
+        text: 'Ready.',
         createdAt: '2025-01-01T00:00:00.000Z',
         status: 'complete',
       },
@@ -102,15 +104,16 @@ try {
         const slot = document.getElementById('reply-slot');
         const stage = document.getElementById('subtitle-stage');
         const portrait = document.getElementById('portrait-panel');
-        const effects = [...document.querySelectorAll('#signal-fx, #frame-fx, #crt-screen')];
         const reveal = document.getElementById('subtitle-reveal');
         const collapse = document.getElementById('subtitle-collapse');
         const sample = () => ({
           height: innerHeight,
           portraitTop: screenY + portrait.getBoundingClientRect().top,
+          portraitWidth: portrait.getBoundingClientRect().width,
+          portraitHeight: portrait.getBoundingClientRect().height,
           opacity: slot.hidden ? 0 : Number(getComputedStyle(stage).opacity),
-          effectHeights: effects.map((canvas) => canvas.height),
           stageHeight: stage.getBoundingClientRect().height,
+          slotHeight: slot.getBoundingClientRect().height,
           hidden: slot.hidden,
           focused: document.activeElement.id,
         });
@@ -154,23 +157,35 @@ try {
     const bounds = await application.evaluate(() => globalThis.finishReplyBoundsSample());
     const [before] = frames;
     const after = frames.at(-1);
+    for (const frame of frames) {
+      assert.ok(
+        Math.abs(frame.portraitWidth - before.portraitWidth) <= 1,
+        name + ' preserves portrait width',
+      );
+      assert.ok(
+        Math.abs(frame.portraitHeight - before.portraitHeight) <= 2,
+        name + ' preserves portrait height',
+      );
+    }
     report.samples.push({ name, frames, bounds });
     assert.equal(after.hidden, !open, name);
     assert.equal(after.focused, open ? 'subtitle-collapse' : 'subtitle-reveal', name);
-    const fading = frames.filter(({ opacity }) => opacity > 0.1 && opacity < 0.9);
-    assert(fading.length > 0, name + ' fades');
+    assert(
+      frames.some(({ opacity }) => opacity > 0.1 && opacity < 0.9),
+      name + ' fades',
+    );
     const heights = new Set(frames.map(({ height }) => height));
     if (vertical) {
       assert(heights.size >= 4, name + ' interpolates native heights');
-      assert(
-        fading.every(({ effectHeights }) =>
-          effectHeights.every((height, index) => height === fading[0].effectHeights[index]),
-        ),
-        name + ' retains the canvas buffer sizes between paints',
+      const shown = open ? after : before;
+      assert.ok(shown.slotHeight < 148, name + ' uses less than the full reply reserve');
+      assert.ok(Math.abs(shown.slotHeight - shown.stageHeight - 22) <= 1, name + ' fits the reply');
+      assert.ok(
+        Math.abs(Math.abs(after.height - before.height) - shown.slotHeight) <= 1,
+        name + ' changes physical size by the fitted reply height',
       );
-      assert(Math.abs(after.height - before.height) >= 80, name + ' changes physical size');
       assert(
-        bounds.every(({ y, height }) => y + height === bounds[0].y + bounds[0].height),
+        bounds.every(({ y, height }) => Math.abs(y + height - bounds[0].y - bounds[0].height) <= 1),
         name + ' anchors the bottom edge',
       );
       assert(
@@ -180,6 +195,42 @@ try {
     } else assert.equal(heights.size, 1, name + ' retains physical height');
     return after;
   };
+  const checkInstantReply = async (vertical) => {
+    for (const open of [false, true]) {
+      const frames = await captureReply(open);
+      report.samples.push({
+        name: `instant ${vertical ? 'vertical' : 'horizontal'} ${open ? 'reveal' : 'collapse'}`,
+        frames,
+      });
+      assert.equal(frames.at(-1).hidden, !open);
+      assert.equal(frames.at(-1).focused, open ? 'subtitle-collapse' : 'subtitle-reveal');
+      assert.equal(new Set(frames.map(({ height }) => height)).size, vertical ? 2 : 1);
+      assert.ok(frames.every(({ opacity }) => opacity === 0 || opacity === 1));
+      if (vertical) {
+        const minHeight = Math.min(frames[0].height, frames.at(-1).height);
+        assert.ok(frames.every(({ opacity, height }) => opacity === Number(height > minHeight)));
+      }
+      for (const frame of frames) {
+        assert.ok(Math.abs(frame.portraitWidth - frames[0].portraitWidth) <= 1);
+        assert.ok(Math.abs(frame.portraitHeight - frames[0].portraitHeight) <= 2);
+      }
+    }
+  };
+  const setReplyAnimation = async (enabled) => {
+    const configuration = await settingsView(application, 'window');
+    const option = configuration.locator('#reply-animation');
+    assert.equal(await option.isChecked(), !enabled);
+    await option.setChecked(enabled);
+    await saveSettings(configuration);
+    await configuration.locator('#settings-window-close').click();
+    assert.equal(
+      await owner.evaluate(async () => (await window.capri.bootstrap()).companion.replyAnimation),
+      enabled,
+    );
+  };
+  await checkInstantReply(true);
+  report.checks.push('Default vertical reply updates instantly and resizes the window');
+  await setReplyAnimation(true);
   const collapsed = await checkAnimation('vertical collapse', { vertical: true, open: false });
   assert.equal(collapsed.stageHeight, 0);
   await owner.screenshot({ path: path.join(folder, 'reply-collapsed.png'), omitBackground: true });
@@ -193,17 +244,7 @@ try {
   );
 
   await owner.emulateMedia({ reducedMotion: 'reduce' });
-  for (const open of [false, true]) {
-    const frames = await captureReply(open);
-    assert.equal(frames.at(-1).hidden, !open);
-    assert.equal(new Set(frames.map(({ height }) => height)).size, 2);
-    assert(
-      frames.every(
-        ({ opacity, height }) =>
-          opacity === (height > Math.min(frames[0].height, frames.at(-1).height) ? 1 : 0),
-      ),
-    );
-  }
+  await checkInstantReply(true);
   report.checks.push('Reduced motion keeps the reply and native size in sync in one step');
 
   await owner.locator('#history-toggle').click();
@@ -249,7 +290,7 @@ try {
       };
     }),
   );
-  assert.equal(rays.length, 3);
+  assert.equal(rays.length, CREDITS_TEAM.length);
   for (const ray of rays) {
     assert.equal(ray.layers, 1);
     assert.equal(ray.projections, 0);
@@ -275,7 +316,7 @@ try {
   await settings.screenshot({ path: path.join(folder, 'credits-rays.png') });
   report.rays = rays;
   report.checks.push(
-    'Three team names illuminate from animated glyph-based textures with shared drift, decorative accessibility and no horizontal page overflow',
+    'Team names illuminate from animated glyph-based textures with shared drift, decorative accessibility and no horizontal page overflow',
   );
   await settings.locator('#settings-window-close').click();
 
@@ -294,7 +335,39 @@ try {
   await checkAnimation('horizontal collapse', { vertical: false, open: false });
   await checkAnimation('horizontal reveal', { vertical: false, open: true });
   report.checks.push('Horizontal reply animates independently at a fixed window size');
+  await setReplyAnimation(false);
+  await checkInstantReply(false);
+  report.checks.push('Horizontal reveal and collapse are instant with reply animation disabled');
   await switchLayout('vertical');
+
+  const avatarSettings = await settingsView(application, 'avatar-skill');
+  const color = avatarSettings.locator('#avatar-drag-tether-color');
+  assert.equal(await color.inputValue(), DRAG_LIGHTNING_COLOR);
+  await color.fill('#21c9a6');
+  await saveSettings(avatarSettings);
+  await avatarSettings.locator('#settings-window-close').click();
+  const renderedStroke = await owner.evaluate(async () => {
+    const { companion } = await window.capri.bootstrap();
+    const { AvatarDragTether } = await import('./avatar-drag-tether.mjs');
+    const tether = new AvatarDragTether();
+    try {
+      tether.applyAppearance();
+      const bolt = tether.paths.find(({ key, role }) => key === 'bolt' && role === 'stroke').path;
+      const red = getComputedStyle(bolt).stroke;
+      tether.applyAppearance({ teleportColor: companion.avatarDragTetherColor });
+      return { red, selected: getComputedStyle(bolt).stroke, teleport: companion.teleportColor };
+    } finally {
+      tether.svg.remove();
+    }
+  });
+  assert.deepEqual(renderedStroke, {
+    red: 'rgb(245, 0, 25)',
+    selected: 'rgb(33, 201, 166)',
+    teleport: COMPANION_DEFAULTS.teleportColor,
+  });
+  report.checks.push(
+    'Drag lightning renders a saturated bolt and saves its color independently from teleport',
+  );
 
   await owner.evaluate(() => window.capri.windowAction('hide'));
   let chip;

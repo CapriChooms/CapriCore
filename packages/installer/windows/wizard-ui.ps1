@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 . (Join-Path $PSScriptRoot 'common.ps1')
 . (Join-Path $PSScriptRoot 'install-discovery.ps1')
+. (Join-Path $PSScriptRoot 'settings-recovery.ps1')
 . (Join-Path $PSScriptRoot 'installed-models.ps1')
 . (Join-Path $PSScriptRoot 'localization.ps1')
 . (Join-Path $PSScriptRoot 'memory-budget.ps1')
@@ -45,8 +46,9 @@ Update-CapriMemorySnapshot $hardware
 if($hardware.ramGiB -eq 0){try{Add-Type -AssemblyName Microsoft.VisualBasic;
         $memory=New-Object Microsoft.VisualBasic.Devices.ComputerInfo;
         $hardware.ramGiB=[Math]::Round($memory.TotalPhysicalMemory/1GB,1)}catch{}}
-$voiceGpu=($hardware.gpu -match 'NVIDIA') -or (([Environment]::OSVersion.Version.Build -ge 22000) -and ($hardware.gpu -match '\b(?:RX (?:9070(?: XT)?|9060 XT|7900 XTX|7700)|(?:AI )?PRO (?:R9700|W7900(?: Dual Slot)?))\b'))
-$rocmVoice=$hardware.gpu -notmatch 'NVIDIA' -and $hardware.gpu -match '\b(?:RX (?:9070(?: XT)?|9060 XT|7900 XTX|7700)|(?:AI )?PRO (?:R9700|W7900(?: Dual Slot)?))\b'
+$amdVoice=(Read-CapriJson (Join-Path $sourceRoot 'config/voice-runtime.json')).amdWindows
+$rocmVoice=($hardware.gpu -notmatch 'NVIDIA') -and (Test-CapriRocmVoiceGpu ($hardware.gpu -split ',\s*') $amdVoice ([Environment]::OSVersion.Version.Build))
+$voiceGpu=($hardware.gpu -match 'NVIDIA') -or $rocmVoice
 if(-not $BundledVoicePack -and (Test-Path -LiteralPath (Join-Path $sourceRoot '.bundled-voice/voice-profile.json'))){$BundledVoicePack=Join-Path $sourceRoot '.bundled-voice'}
 if($BundledVoicePack){$BundledVoicePack=Assert-CapriVoicePack $BundledVoicePack}
 $voiceCatalog=(Read-CapriJson (Join-Path $sourceRoot 'config/tts-catalog.json')).models
@@ -72,7 +74,7 @@ $script:russianVoiceAvailable=$script:bundledRussianVoiceAvailable
 $recommendation='minimal'
 foreach($candidate in @($manifest.profiles|Where-Object{$_.id -in @('balanced','desktop','quality')})){
     $ram=Get-CapriRequiredRam $candidate $hardware $memoryEstimates
-    if((Test-CapriProfileRam $hardware.ramGiB $ram) -and ($candidate.id -eq 'balanced' -or $hardware.vramGiB -ge ($candidate.recommendedVramGiB-0.125))){$recommendation=$candidate.id}
+    if((Test-CapriProfileRam $hardware.ramGiB $ram) -and (Test-CapriAvailableModelRam $candidate $hardware $memoryEstimates 'auto') -and ($candidate.id -eq 'balanced' -or $hardware.vramGiB -ge ($candidate.recommendedVramGiB-0.125))){$recommendation=$candidate.id}
 }
 $version=(Read-CapriJson (Join-Path $sourceRoot 'package.json')).version
 $releaseTag=(Read-CapriJson (Join-Path $sourceRoot 'config/release.json')).tag
@@ -86,6 +88,8 @@ $options=@{schemaVersion=1;
     inferenceMode='local';
     modelSource='catalog';
     repair=$false;
+    reuseDependencies=$false;
+    camera=$true;
     interfaceLanguage=$installerLanguage;
     conversationLanguage='en';
     recognition=$true;
@@ -116,7 +120,7 @@ $script:result=$null;
 $script:completionSession=$null
 $script:completionNoticeCount=0
 $script:launchOnFinish=$true
-$script:preloadOnFirstLaunch=$true
+$script:preloadOnFirstLaunch=$false
 $script:failure='';
 $script:networkAdviceShown=$false
 $script:cancelRequested=$false
@@ -482,6 +486,18 @@ function Update-CapriModelRecommendations {
     }
 }
 function Format-CapriGiB([long]$Bytes){return ($Bytes/1GB).ToString('0.00')+' GiB'}
+$script:navigationStorageEstimate=$null
+function Get-CapriNavigationStorageEstimate($Selection){
+    $profile=if($Selection.inferenceMode -eq 'api' -or $Selection.modelSource -eq 'huggingface'){'deferred'}else{$Selection.profile}
+    $downloadModel=$profile -ne 'deferred' -and $Selection.downloadModels
+    $key=@($Selection.target,$Selection.inferenceMode,$Selection.modelSource,$profile,$downloadModel,
+        $Selection.conversationLanguage,$Selection.recognition,$Selection.voiceMode,[bool]$Selection.voicePack) -join '|'
+    if(-not $script:navigationStorageEstimate -or $script:navigationStorageEstimate.key -cne $key){
+        $estimate=Get-CapriStorageEstimate $Selection $manifest $storageCatalog $rocmVoice $hardware
+        $script:navigationStorageEstimate=@{key=$key;value=$estimate}
+    }
+    return $script:navigationStorageEstimate.value
+}
 function Format-CapriStorageEstimate($Estimate){
     return (Text-Capri 'storage')+': '+(Format-CapriGiB $Estimate.requiredBytes)+"`n"+(Text-Capri 'download')+': ~'+(Format-CapriGiB $Estimate.downloadBytes)
 }
@@ -555,6 +571,8 @@ function Save-CapriPage{
         }
         'components'{
             $options.recognition=$script:fields.recognition.Checked
+            $options.camera=$script:fields.camera.Checked
+            $options.reuseDependencies=$options.repair -and -not $script:fields.rebuildDependencies.Checked
             if($script:fields.models.Enabled){$options.downloadModels=$script:fields.models.Checked}
             $options.desktopShortcut=$script:fields.desktop.Checked
             $options.startMenuShortcut=$script:fields.startMenu.Checked
@@ -582,6 +600,12 @@ function Load-CapriRepairSettings {
     if($script:settingsTarget -ieq $options.target){return}
     $script:settingsTarget=$options.target
     $options['repair']=$false
+    $options.reuseDependencies=$false
+    $options.recognition=$true
+    $options.camera=$true
+    $options.downloadModels=$true
+    $options.desktopShortcut=$true
+    $options.startMenuShortcut=$true
     $options.modelSource='catalog'
     $options.inferenceMode='local'
     $options.profile=$recommendation
@@ -658,8 +682,20 @@ function Load-CapriRepairSettings {
             }
         }catch{}
     }
-    # Component defaults belong to this wizard. Navigation keeps the user's current
-    # selection; attaching to a running session restores its exact request separately.
+    if($options.repair){
+        $options.reuseDependencies=$true
+        $options.recognition=Test-Path -LiteralPath (Join-Path $options.target '.runtime/asr-venv/Scripts/python.exe') -PathType Leaf
+        $options.camera=(Test-Path -LiteralPath (Join-Path $options.target '.runtime/capri-camera/active.json') -PathType Leaf) -or
+            (Test-Path -LiteralPath (Join-Path $options.target '.runtime/capri-camera/capri-camera-host.exe') -PathType Leaf)
+        $selected=@($manifest.profiles|Where-Object{$_.id -eq $options.profile}) | Select-Object -First 1
+        $options.downloadModels=$selected -and ($script:installedModelNames.Contains($selected.model) -or $script:installedModelNames.Contains('capri-'+$selected.model))
+        $installId=(Read-CapriJson (Join-Path $options.target '.capri-install.json')).installId
+        if($installId){
+            $shortcut='Capri - '+$installId.Substring(0,8)+'.lnk'
+            $options.desktopShortcut=Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) $shortcut) -PathType Leaf
+            $options.startMenuShortcut=Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('Programs')) ('Capri/'+$shortcut)) -PathType Leaf
+        }
+    }
 }
 function Get-CapriVoiceChoices {
     $language=$options.conversationLanguage
@@ -816,6 +852,26 @@ function Update-CapriPageControls{
                 })
                 $body.Controls.Add($installed)
             }
+            $reset=New-Object Capri.Setup.Cyberpunk.Button
+            $reset.Text=Survey-Capri 'resetDesktop'
+            Set-CapriBounds $reset 28 250 620 38
+            $script:fields.resetDesktop=$reset
+            $reset.Enabled=Test-Path -LiteralPath (Join-Path $options.target '.capri-install.json') -PathType Leaf
+            $box.Add_TextChanged({
+                $folder=$this.Text.Trim()
+                $script:fields.resetDesktop.Enabled=$folder -and [IO.Directory]::Exists($folder) -and [IO.File]::Exists([IO.Path]::Combine($folder,'.capri-install.json'))
+            })
+            $reset.Add_Click({
+                try{
+                    $target=Assert-CapriTarget $script:fields.target.Text.Trim() $sourceRoot $version
+                    $prompt=(Survey-Capri 'resetConfirm')+[Environment]::NewLine+$target
+                    if([Windows.Forms.MessageBox]::Show($form,$prompt,$this.Text,'YesNo','Question','Button2') -ne 'Yes'){return}
+                    $backup=Reset-CapriDesktopPreferences $target $sourceRoot $version
+                    $message=if($backup){(Survey-Capri 'resetBackup')+[Environment]::NewLine+$backup}else{Survey-Capri 'resetEmpty'}
+                    [Windows.Forms.MessageBox]::Show($form,$message,$this.Text,'OK','Information')|Out-Null
+                }catch{[Windows.Forms.MessageBox]::Show($form,$_.Exception.Message,(Text-Capri 'error'),'OK','Warning')|Out-Null}
+            })
+            $body.Controls.Add($reset)
         }
         'device'{
             Add-CapriInferenceChoice 'local' 'survey.local' 83
@@ -842,12 +898,12 @@ function Update-CapriPageControls{
                 param($sender)
                 if($sender -and -not $sender.Checked){return}
                 $script:fields.languageDevice.Enabled=-not $script:fields.api.Checked
-                Update-CapriMemoryBudgetView
+                Update-CapriMemoryBudgetView -DeferLayout
                 Fit-CapriPage
             }
             foreach($mode in @('local','api','huggingface')){$script:fields[$mode].Add_CheckedChanged($updateInferenceChoice)}
             $device.Add_SelectedIndexChanged({Update-CapriMemoryBudgetView})
-            & $updateInferenceChoice
+            $device.Enabled=-not $script:fields.api.Checked
         }
         'conversation'{
             $choice=Add-CapriCombo 'conversationLanguage' 93 @(Get-CapriConversationChoices) $options.conversationLanguage
@@ -910,12 +966,15 @@ function Update-CapriPageControls{
             $script:fields.storageEstimate=Add-CapriLabel '' 261 55
             $null=Add-CapriInfo 'storage' 261
             $refreshVoiceChoice={
+                param($sender)
                 $body.FinishQuestionReveal()
                 $custom=(Selected-Capri 'voiceMode') -eq 'custom'
                 $script:fields.voicePack.Enabled=$script:fields.voicePack.Visible=$custom
                 $script:fields.voiceBrowse.Enabled=$script:fields.voiceBrowse.Visible=$custom
-                Update-CapriMemoryBudgetView
-                Fit-CapriPage
+                if($sender){
+                    Update-CapriMemoryBudgetView -DeferLayout
+                    Fit-CapriPage
+                }
             }
             $choice.Add_SelectedIndexChanged($refreshVoiceChoice)
             & $refreshVoiceChoice
@@ -931,8 +990,16 @@ function Update-CapriPageControls{
             $null=Add-CapriInfo 'desktop' 172
             $null=Add-CapriCheck 'startMenu' 216 $options.startMenuShortcut
             $null=Add-CapriInfo 'startMenu' 216
-            $script:fields.storageEstimate=Add-CapriLabel '' 267 56
-            $null=Add-CapriInfo 'storage' 267
+            $camera=Add-CapriCheck 'camera' 260 $options.camera
+            $camera.Text=Survey-Capri 'cameraComponent'
+            $storageY=304
+            if($options.repair){
+                $rebuild=Add-CapriCheck 'rebuildDependencies' 304 (-not $options.reuseDependencies)
+                $rebuild.Text=Survey-Capri 'rebuildDependencies'
+                $storageY=348
+            }
+            $script:fields.storageEstimate=Add-CapriLabel '' $storageY 56
+            $null=Add-CapriInfo 'storage' $storageY
             foreach($key in @('recognition','models')){$script:fields[$key].Add_CheckedChanged({Update-CapriMemoryBudgetView})}
         }
         'review'{
@@ -944,7 +1011,7 @@ function Update-CapriPageControls{
             if($options.inferenceMode -eq 'local'){
                 $modelSummary+="`n"+(Survey-Capri 'deviceLabel' 'hardware')+': '+(Get-CapriDeviceChoiceLabel $options.languageDevice)
             }
-            $script:reviewStorage=Get-CapriStorageEstimate $options $manifest $storageCatalog $rocmVoice $hardware
+            $script:reviewStorage=Get-CapriNavigationStorageEstimate $options
             $voiceSummary=if($options.voiceMode -eq 'qwen-ru'){$russianVoiceLabel}elseif($options.voiceMode -eq 'qwen'){Text-Capri 'voiceHuggingFace'}elseif($options.voicePack){'Chatterbox / Capri / '+$options.conversationLanguage+' / '+(Text-Capri 'on')}elseif($options.repair){Survey-Capri 'voiceOffRepair' 'voiceOff'}else{Text-Capri 'voiceOff'}
             $summary=$options.target+"`n"+$modelSummary+"`n"+(Text-Capri 'uiLanguage')+': '+$options.interfaceLanguage+'  |  '+(Text-Capri 'conversationLanguage')+': '+$options.conversationLanguage+"`n"+(Text-Capri 'recognition')+': '+$(if($options.recognition){Text-Capri 'on'}else{Text-Capri 'off'})+'  |  '+(Text-Capri 'classifierIncluded')+"`n"+(Text-Capri 'voiceChoice')+': '+$voiceSummary
             $shortcuts=@(
@@ -952,6 +1019,8 @@ function Update-CapriPageControls{
                 if($options.startMenuShortcut){Text-Capri 'startMenu'}
             )
             if($shortcuts.Count){$summary+="`n"+($shortcuts -join '  |  ')}
+            if($options.camera){$summary+="`n"+(Survey-Capri 'cameraComponent')}
+            if($options.repair -and -not $options.reuseDependencies){$summary+="`n"+(Survey-Capri 'rebuildDependencies')}
             # Compact minimum rows. Fit-CapriPageRows grows each block to its
             # wrapped height and preserves the gap before the next one.
             $script:reviewSummary=$summary
@@ -1044,7 +1113,7 @@ function Update-CapriPageControls{
             Add-CapriReportButtons $(if($script:result -and ($options.inferenceMode -eq 'api' -or $options.modelSource -eq 'huggingface')){463}else{498})
         }
     }
-    Update-CapriMemoryBudgetView
+    Update-CapriMemoryBudgetView -DeferLayout
     Fit-CapriPage
     $body.PreviewWelcome=$script:page -eq 'interface'
     Update-CapriCyberpunkTheme $form
@@ -1058,6 +1127,8 @@ function Start-CapriInstall{
     $options.target=Assert-CapriTarget $options.target $sourceRoot (Read-CapriJson (Join-Path $sourceRoot 'package.json')).version
     if(-not $options.acceptLicense -or -not $options.acceptDownloads){throw 'License acceptance and download consent are required.'}
     $estimate=Get-CapriStorageEstimate $options $manifest $storageCatalog $rocmVoice $hardware
+    $script:navigationStorageEstimate=$null
+    $script:reviewStorage=$estimate
     $free=Get-CapriAvailableDiskBytes $options.target
     if($null -eq $free -or $free -lt $estimate.requiredBytes){
         Update-CapriDiskReview -Available $free
@@ -1343,9 +1414,10 @@ public static class CapriSetupScrollVerification {
     }
     function Wait-CapriAnswerReveal {
         $clock=[Diagnostics.Stopwatch]::StartNew()
-        while($body.QuestionRevealActive -and $body.AnswerRevealOpacity -le 0.05 -and $clock.ElapsedMilliseconds -lt 2200){
+        while($body.QuestionRevealActive -and $body.AnswerRevealOpacity -le 0.05 -and $clock.ElapsedMilliseconds -lt 700){
             Wait-CapriVerificationEvents 12
         }
+        if($body.AnswerRevealOpacity -le 0.05){throw 'The installer answers did not start revealing promptly.'}
     }
     function Save-CapriAnimationFrame([string]$Name){
         $folder=Join-Path $check 'animation'
@@ -1545,6 +1617,8 @@ public static class CapriSetupScrollVerification {
         $savedBenchmark=$script:modelBenchmark
         $savedRam=$hardware.ramGiB
         $savedVram=$hardware.vramGiB
+        $savedAvailableRam=$hardware.availableRamGiB
+        $savedAvailableVram=$hardware.availableVramGiB
         try{
             $script:modelBenchmark=[pscustomobject]@{
                 schemaVersion=1
@@ -1554,6 +1628,8 @@ public static class CapriSetupScrollVerification {
                 }
             }
             $hardware.ramGiB=64;$hardware.vramGiB=12
+            $hardware.availableRamGiB=48;$hardware.availableVramGiB=12
+            $options.languageDevice='auto'
             Select-CapriFixtureConversation 'en'
             $script:page='model';Render-CapriPage
             $script:fields.profile.SelectedIndex=1
@@ -1574,6 +1650,7 @@ public static class CapriSetupScrollVerification {
                 throw 'Changing the conversation language must refresh recommendations and retain the selected model.'
             }
             $hardware.ramGiB=16;$hardware.vramGiB=0
+            $hardware.availableRamGiB=16;$hardware.availableVramGiB=$null
             Update-CapriModelRecommendations
             if($script:fields.modelRecommendations.Text -cne ($caption+'qwen3.5:2b'+$reason)){
                 throw 'Model recommendations must fit CPU-only hardware.'
@@ -1588,6 +1665,7 @@ public static class CapriSetupScrollVerification {
         }finally{
             $script:modelBenchmark=$savedBenchmark
             $hardware.ramGiB=$savedRam;$hardware.vramGiB=$savedVram
+            $hardware.availableRamGiB=$savedAvailableRam;$hardware.availableVramGiB=$savedAvailableVram
             foreach($key in $savedOptions.Keys){$options[$key]=$savedOptions[$key]}
             $script:page='model'
             Render-CapriPage
@@ -1646,16 +1724,16 @@ public static class CapriSetupScrollVerification {
                        [Math]::Abs($middleX-$body.ClientSize.Width/2) -gt 1 -or [Math]::Abs($middleY-$body.ClientSize.Height/2) -gt 1){
                         throw 'Setup must reveal its question in the center before the answers.'
                     }
-                    Wait-CapriVerificationEvents 115
-                    $peakBloom=$body.QuestionBloom
-                    if($body.QuestionTextOpacity -le 0.1 -or $peakBloom -le 0.1 -or $body.AnswerRevealOpacity -gt 0){
+                    Wait-CapriVerificationEvents 95
+                    if($body.QuestionTextOpacity -le 0.1 -or $body.QuestionBloom -le 0.1 -or $body.AnswerRevealOpacity -gt 0){
                         throw 'The question must fade in with bloom while the answers are hidden.'
                     }
-                    Save-CapriAnimationFrame ($language+'-question')
-                    Wait-CapriVerificationEvents 650
+                    while($body.QuestionTextOpacity -lt 0.99 -and $stopwatch.ElapsedMilliseconds -lt 300){Wait-CapriVerificationEvents 12}
+                    $peakBloom=$body.QuestionBloom
                     if($title.Location -ne $center -or $body.QuestionTextOpacity -lt 0.99 -or $answer.Visible -or $body.AnswerRevealOpacity -gt 0){
                         throw 'The fully visible question must pause in the center before it rises.'
                     }
+                    Save-CapriAnimationFrame ($language+'-question')
                     Wait-CapriAnswerReveal
                     if($answer.Visible -or $body.AnswerRevealOpacity -ge 1 -or $body.AnswerRevealOffset -le 0 -or
                        $title.Top -ge ($middleY-$title.Height/2) -or $body.QuestionBloom -ge $peakBloom){
@@ -1709,7 +1787,9 @@ public static class CapriSetupScrollVerification {
                    -not $script:fields.existing.Text.StartsWith('v0.0.2 | ')){throw 'Existing installation was not selected by default.'}
                 $script:fields.target.Text=Join-Path $check 'different Capri'
                 if($script:fields.existing.SelectedIndex -ne -1){throw 'Editing the target left a stale existing installation selection.'}
+                if($script:fields.resetDesktop.Enabled){throw 'A fresh folder should not offer a preference reset.'}
                 $script:fields.target.Text=$older
+                if(-not $script:fields.resetDesktop.Enabled){throw 'Missing recovery action for a managed installation.'}
                 if($script:fields.existing.SelectedIndex -lt 0 -or -not $script:fields.existing.Text.StartsWith('v0.0.1 | ')){
                     throw 'Typing the previous path did not select its existing installation.'
                 }
@@ -1726,6 +1806,15 @@ public static class CapriSetupScrollVerification {
                 Write-CapriJson (Join-Path $upgrade 'data/desktop/languages.json') @{schemaVersion=1;settings=@{interface='en';conversation='en';speech='off'}}
                 try{
                     $options.target=$upgrade;Load-CapriRepairSettings;Render-CapriPage
+                    $script:page='components';Render-CapriPage
+                    if($script:fields.recognition.Checked -or $script:fields.camera.Checked -or
+                       -not $script:fields.models.Checked -or $script:fields.rebuildDependencies.Checked){
+                        throw 'Maintenance must preselect existing components and allow reusing the core.'
+                    }
+                    $script:fields.camera.Checked=$true
+                    Save-CapriPage
+                    if(-not $options.camera -or -not $options.reuseDependencies){throw 'Component change was lost.'}
+                    $script:page='model';Render-CapriPage
                     if(-not $script:fields.profile.Enabled -or (Selected-Capri 'profile') -ne 'gemma4-e2b'){throw 'Update must select the actual current model and leave its picker enabled.'}
                     $downloaded=@($script:fields.profile.Items|Where-Object{([string]$_).Contains((Text-Capri 'modelInstalled'))})
                     if($downloaded.Count -ne 2 -or -not $script:fields.profile.Text.Contains((Text-Capri 'modelCurrent'))){throw 'Installed and current model badges are incomplete.'}
@@ -1984,7 +2073,7 @@ public static class CapriSetupScrollVerification {
                 $script:fields.consent.Checked=$options.acceptDownloads
             }
             if($pageId -eq 'finish' -and $language -eq $verificationIds[0]){
-                if(-not $script:fields.preloadOnFirstLaunch.Checked){throw 'First-launch model preload must default to on.'}
+                if($script:fields.preloadOnFirstLaunch.Checked){throw 'First-launch model preload must default to off.'}
                 $script:fields.launch.Checked=$false
                 $script:fields.preloadOnFirstLaunch.Checked=$false
                 Save-CapriPage

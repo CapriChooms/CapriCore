@@ -18,9 +18,14 @@ const runRegistry = (args) =>
 const startHelper = (helper, token) =>
   spawn(helper, ['--watch', token], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
 
+export const TELEPORT_HELPER = 'capri-teleport.exe';
+
 export async function prepareDesktopTeleport(root) {
-  const source = path.join(root, 'packages/installer/windows/desktop-teleport.cs');
   const directory = path.join(root, '.runtime/desktop-teleport');
+  const rustHelper = path.join(directory, TELEPORT_HELPER);
+  if (existsSync(rustHelper)) return rustHelper;
+  // A source install or in-app update can use the polling C# helper without Cargo.
+  const source = path.join(root, 'packages/installer/windows/desktop-teleport.cs');
   const digest = createHash('sha256')
     .update(await readFile(source))
     .digest('hex')

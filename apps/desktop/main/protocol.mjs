@@ -4,6 +4,10 @@ import { readFile } from 'node:fs/promises';
 import { taggedSpriteRequest } from './avatar-recolor.mjs';
 export const DESKTOP_CSP =
   "default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'";
+const AVATAR_CSP = DESKTOP_CSP.replace(
+  'connect-src ',
+  'connect-src capri://desktop/capri-wave.webp capri://desktop/avatar-face-poses.json capri://desktop/avatar-face-gestures.json ',
+);
 export function resourceResponse(request, resources, { attachments, transform } = {}) {
   const url = new URL(request.url);
   const trusted =
@@ -40,12 +44,12 @@ export function resourceResponse(request, resources, { attachments, transform } 
         'content-type': entry.type,
         'content-security-policy':
           url.pathname === '/settings.html'
-            ? DESKTOP_CSP.replace(
+            ? AVATAR_CSP.replace(
                 'connect-src ',
                 'connect-src capri://desktop/index.html capri://desktop/hall-of-fame.json ',
               )
             : ['/index.html', '/avatar-detach.html'].includes(url.pathname)
-              ? DESKTOP_CSP.replace('connect-src ', 'connect-src capri://desktop/capri-wave.webp ')
+              ? AVATAR_CSP
               : DESKTOP_CSP,
         'x-content-type-options': 'nosniff',
         'cache-control': 'no-store',

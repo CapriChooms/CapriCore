@@ -40,7 +40,7 @@ test('briefing uses only the active local/proxy inference transport and the curr
     assert.equal(body.think, false);
     assert.equal(body.shift, false);
     assert.equal(body.truncate, false);
-    assert.equal(body.keep_alive, -1);
+    assert.equal(body.keep_alive, undefined);
     assert.equal(body.options.num_ctx, 32768);
     assert.deepEqual(body.tools, []);
     assert.equal(body.options.num_predict, 192);

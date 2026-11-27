@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
-/** Identify unambiguous social turns without swallowing commands or follow-ups. */
+export const conversationFollowUp = (text) =>
+  /^(?:how about you|what about you|а ты|а у тебя|et toi|et vous|¿?y tú)\s*[?!.]*$/iu.test(
+    text.trim(),
+  );
+
+/** Identify unambiguous social turns without swallowing commands. */
 export function conversationOnly(text, routing) {
   if (routing?.mode === 'fast' && routing.reason === 'simple-dialogue') return true;
   if (typeof text !== 'string' || text.length > 100) return false;
   const greeting = text.normalize('NFKC').trim().toLowerCase().replace(/\s+/gu, ' ');
   return (
+    conversationFollowUp(greeting) ||
     /^(?:how are you(?: doing)?|how(?:['’]s| is) it going|как (?:дела|ты|жизнь)|comment (?:vas-tu|ça va)|¿?cómo estás|wie geht(?:['’]s| es dir))\s*[?!.]*$/u.test(
       greeting,
     ) ||
@@ -16,22 +22,6 @@ export function conversationOnly(text, routing) {
     ) ||
     /^(?:bonjour|salut|coucou|hola|buenas|hallo|guten tag|olá|ola|oi|ciao|buongiorno|merhaba|你好|您好|こんにちは|안녕|안녕하세요|مرحبا)(?:[,，! ]*(?:capri|капри))?[?!.！。]*$/u.test(
       greeting,
-    )
-  );
-}
-
-/** Questions about the companion and follow-up instructions are requests for text. */
-export function companionDialogueQuestion(text) {
-  const value = text.normalize('NFKC').trim().replace(/\s+/gu, ' ');
-  return (
-    /^(?:(?:(?:hi|hey|hello),? )?(?:i['’]m|i am|my name is) [\p{L}][\p{L} '\-]{0,45}[.!] )?(?:who are you|what (?:can you do|do you do)|what can you help me with|can i (?:move|drag) you)[?!.]*$/iu.test(
-      value,
-    ) ||
-    /^(?:кто ты|что ты умеешь|чем ты можешь помочь|можно ли тебя (?:переместить|перетащить))[?!.]*$/iu.test(
-      value,
-    ) ||
-    /^(?:how (?:do i|can i) do (?:it|that)|как (?:мне )?это сделать)[?!.]*(?: (?:please )?tell me step by step[?!.]*)?$/iu.test(
-      value,
     )
   );
 }

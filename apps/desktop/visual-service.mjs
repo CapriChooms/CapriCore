@@ -254,7 +254,6 @@ export class VisualService {
             : {}),
           truncate: false,
           shift: false,
-          keep_alive: -1,
           tools: [],
           options: { ...this.params, num_predict: budget },
           messages: [

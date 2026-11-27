@@ -49,12 +49,7 @@ export class SubtitleController {
     this.measure = document.createElement('canvas').getContext('2d');
     this.revision = 0;
   }
-  fits(text) {
-    const element = this.elements['subtitle-text'],
-      style = getComputedStyle(element);
-    this.measure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const width = Math.max(1, element.parentElement.clientWidth - 10),
-      spacing = parseFloat(style.letterSpacing) || 0;
+  fits(text, width, spacing) {
     let lines = 1,
       used = 0;
     for (const word of text.split(' ')) {
@@ -106,19 +101,39 @@ export class SubtitleController {
     if (!this.hidden) this.paginate();
     this.render();
   }
-  paginate() {
+  paginate(onlyIfResized = false) {
     const state = this.state;
     const limit = Math.max(
       48,
       Math.min(144, Math.floor(this.elements['subtitle-stage'].clientWidth / 10) * 3),
     );
-    state.cues = sentenceSubtitleCues(
+    const element = this.elements['subtitle-text'];
+    const style = getComputedStyle(element);
+    const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const width = Math.max(1, element.parentElement.clientWidth - 10);
+    const spacing = parseFloat(style.letterSpacing) || 0;
+    const layout = `${limit}/${width}/${spacing}/${font}`;
+    if (onlyIfResized && layout === this.layout) return false;
+    this.layout = layout;
+    this.measure.font = font;
+    const cues = sentenceSubtitleCues(
       state.text,
       limit,
-      (text) => this.fits(text),
+      (text) => this.fits(text, width, spacing),
       state.status !== 'streaming' || !state.followVoice,
     );
+    if (
+      onlyIfResized &&
+      cues.length === state.cues.length &&
+      cues.every((cue, i) => cue === state.cues[i])
+    )
+      return false;
+    state.cues = cues;
     state.index = Math.min(state.index, Math.max(0, state.cues.length - 1));
+    return true;
+  }
+  reflow() {
+    if (this.state.id && !this.hidden && this.paginate(true)) this.render();
   }
   setHidden(hidden) {
     if (this.hidden === hidden) return;

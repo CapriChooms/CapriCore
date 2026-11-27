@@ -361,7 +361,7 @@
   line-height: 1.38;
 }
 
-#capri-guide[data-view='faq'] .guide-dialog {
+#capri-guide:is([data-view='faq'], [data-view='patch-notes']) .guide-dialog {
   display: flex;
   flex-direction: column;
   width: min(530px, calc(100vw - 2 * var(--guide-margin)));
@@ -410,6 +410,69 @@
   padding: 2px 3px;
   scrollbar-width: thin;
   scrollbar-color: var(--guide-edge) transparent;
+}
+
+#capri-guide[data-view='patch-notes'] .guide-step {
+  direction: ltr;
+  text-transform: none;
+  unicode-bidi: isolate;
+}
+
+#capri-guide[data-view='patch-notes'] .guide-title:focus {
+  outline: none;
+}
+
+#capri-guide .guide-patch-notes-panel {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  gap: 12px;
+  margin-block-start: 14px;
+}
+
+#capri-guide .guide-patch-notes-content {
+  color: var(--guide-text);
+  font-size: 13px;
+  line-height: 1.52;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+#capri-guide .guide-patch-section {
+  padding: 10px 12px;
+  border: 1px solid var(--guide-edge);
+  border-inline-start-color: var(--guide-accent);
+  background: color-mix(in srgb, var(--guide-panel) 92%, var(--guide-accent));
+}
+
+#capri-guide .guide-patch-section + .guide-patch-section {
+  margin-block-start: 8px;
+}
+
+#capri-guide .guide-patch-section h3 {
+  margin: 0 0 5px;
+  color: var(--guide-accent);
+  font-size: 14px;
+}
+
+#capri-guide .guide-patch-section :is(p, ul, ol) {
+  margin-block: 5px;
+}
+
+#capri-guide .guide-patch-section :is(ul, ol) {
+  padding-inline-start: 19px;
+}
+
+#capri-guide .guide-patch-section li + li {
+  margin-block-start: 4px;
+}
+
+#capri-guide .guide-patch-section li::marker {
+  color: var(--guide-accent);
+}
+
+#capri-guide #guide-patch-notes-close {
+  margin-inline-start: auto;
 }
 
 #capri-guide .guide-faq-group + .guide-faq-group {

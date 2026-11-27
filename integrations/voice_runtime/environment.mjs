@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFileSync, lstatSync } from 'node:fs';
 import path from 'node:path';
+
+export { voiceWorkerEnvironment } from '../../packages/runtime/src/host/voice-worker-environment.mjs';
+
 /** Select the pinned SDK bundle, not a GPU ISA override. Required before Python .pth imports. */
 export function voiceRuntimeEnvironment(root, inherited = process.env) {
   try {

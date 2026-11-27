@@ -31,8 +31,13 @@ export class AvatarState {
   }
 
   request(id) {
-    if (!this.sprites.has(id)) return null;
-    if (this.pendingId === id) return null;
+    const sprite = this.sprites.get(id);
+    if (!sprite) return null;
+    if (
+      this.pendingId === id &&
+      (sprite.canPersist !== false || this.acknowledgedRevision !== this.revision)
+    )
+      return null;
     this.pendingId = id;
     this.revision++;
     return this.snapshot();
@@ -53,6 +58,7 @@ export class AvatarState {
     )
       return false;
     const choice = this.sprites.get(this.pendingId);
+    this.acknowledgedRevision = this.revision;
     const nextId =
       choice.canPersist === false ? (choice.returnTo ?? this.currentId) : this.pendingId;
     const changed = this.currentId !== nextId;

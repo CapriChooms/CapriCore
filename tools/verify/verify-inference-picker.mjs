@@ -211,36 +211,78 @@ try {
   assert.equal(await choices.nth(3).isDisabled(), true);
   await page.keyboard.press('Escape');
 
-  await page.evaluate(async () => {
-    const { renderInferenceLabel } = await import('capri://desktop/inference-panel.mjs');
+  await application.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((item) => item.webContents.getURL().endsWith('/index.html'))
+      .setContentSize(380, 580),
+  );
+  const ticker = badge.locator('#inference-name');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const skillVisibility = await page.evaluate(async () => {
+    const { renderInferenceLabel } = await import('./inference-panel.mjs');
     renderInferenceLabel(
       {
         remote: true,
         authMode: 'chatgpt',
         providerHost: 'api.openai.com',
-        model: 'fixture/' + 'long-model-'.repeat(12),
+        model: 'fixture/long-model-name-to-check-the-toolbar-overflow',
       },
       { text: (value) => value },
     );
+    return [...document.querySelectorAll('.skills-toolbar button')].map((button) => {
+      const hidden = button.hidden;
+      button.hidden = false;
+      return hidden;
+    });
   });
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.waitForFunction(
-    () => document.getElementById('inference-info').dataset.overflow === 'true',
-  );
-  assert.equal(
-    await page.locator('#inference-track').evaluate((node) => getComputedStyle(node).animationName),
-    'telemetry-ticker',
-  );
+  await page.waitForFunction(() => document.querySelector('#inference-name[data-overflow]'));
+  const toolbar = await ticker.evaluate((viewport) => {
+    const track = viewport.firstElementChild;
+    const button = viewport.closest('button').getBoundingClientRect();
+    const context = document.querySelector('#context-hud').getBoundingClientRect();
+    const actions = document.querySelector('.window-actions').getBoundingClientRect();
+    const quick = [...document.querySelectorAll('#quick-actions button')]
+      .map((item) => item.getBoundingClientRect())
+      .filter((rect) => rect.width > 0);
+    const scroller = document.querySelector('.skills-toolbar');
+    const tickerAnimation = track.getAnimations()[0];
+    tickerAnimation.pause();
+    tickerAnimation.currentTime = tickerAnimation.effect.getTiming().duration * 0.95;
+    const end = track.getBoundingClientRect().right - viewport.getBoundingClientRect().right;
+    tickerAnimation.play();
+    return {
+      tickerWidth: viewport.clientWidth,
+      identityOnFirstRow: button.top >= actions.top && button.bottom <= actions.bottom,
+      contextFits: context.right <= actions.left,
+      actionsFit: actions.right <= innerWidth,
+      secondRow: quick.every((item) => item.top >= actions.bottom && item.top === quick[0].top),
+      canRevealSkills: scroller.scrollWidth > scroller.clientWidth,
+      tickerEnd: end,
+    };
+  });
+  assert(toolbar.tickerWidth > 20, JSON.stringify(toolbar));
+  assert(toolbar.identityOnFirstRow && toolbar.contextFits && toolbar.actionsFit);
+  assert(toolbar.secondRow && toolbar.canRevealSkills);
+  assert(Math.abs(toolbar.tickerEnd) <= 2, JSON.stringify(toolbar));
+  await page.locator('.skills-toolbar').dispatchEvent('wheel', { deltaY: 75, cancelable: true });
+  assert(await page.locator('.skills-toolbar').evaluate((node) => node.scrollLeft > 0));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   assert.equal(
-    await page.locator('#inference-track').evaluate((node) => getComputedStyle(node).animationName),
-    'none',
+    await ticker.locator('.inference-name-track').evaluate((track) => track.getAnimations().length),
+    0,
   );
-  await page.screenshot({ path: path.join(folder, 'toolbar-two-rows.png') });
+  await page.evaluate(async (hidden) => {
+    document.querySelectorAll('.skills-toolbar button').forEach((button, index) => {
+      button.hidden = hidden[index];
+    });
+    const { renderInferenceLabel } = await import('./inference-panel.mjs');
+    renderInferenceLabel((await window.capri.bootstrap()).inference, { text: (value) => value });
+  }, skillVisibility);
+  await page.emulateMedia({ reducedMotion: null });
+  report.toolbar = toolbar;
 
   for (const [width, height] of [
     [480, 660],
-    [380, 520],
     [320, 480],
     [320, 360],
   ]) {
@@ -251,37 +293,6 @@ try {
           .setContentSize(...size),
       [width, height],
     );
-    const toolbar = await page.evaluate(() => {
-      const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
-      const model = rect('#inference-label'),
-        version = rect('#capri-header-version'),
-        ctx = rect('#context-hud');
-      const headerButtons = rect('.window-actions'),
-        quick = rect('#quick-actions');
-      const gear = rect('#settings-open');
-      const buttons = [...document.querySelectorAll('#quick-actions button')]
-        .map((node) => node.getBoundingClientRect())
-        .filter((box) => box.width);
-      return {
-        fits: model.width > 0 && model.right <= headerButtons.left + 1,
-        sameRow:
-          Math.abs(model.top + model.bottom - (headerButtons.top + headerButtons.bottom)) <= 2,
-        versionAligned: version.top >= headerButtons.top && version.bottom <= headerButtons.bottom,
-        contextAligned:
-          !ctx.width ||
-          (ctx.top >= headerButtons.top &&
-            ctx.bottom <= headerButtons.bottom &&
-            ctx.right <= headerButtons.left + 1),
-        quickRow: headerButtons.bottom <= quick.top && buttons.every((box) => box.top === gear.top),
-      };
-    });
-    assert.deepEqual(toolbar, {
-      fits: true,
-      sameRow: true,
-      versionAligned: true,
-      contextAligned: true,
-      quickRow: true,
-    });
     await open();
     const bounds = await menu.evaluate((node) => {
       const r = node.getBoundingClientRect();
@@ -302,29 +313,6 @@ try {
     await page.screenshot({ path: path.join(folder, `picker-${width}x${height}.png`) });
     await page.keyboard.press('Escape');
   }
-  const extra = await page.evaluate(() => {
-    const scroller = document.getElementById('quick-controls');
-    const gear = document.getElementById('settings-open');
-    const buttons = Array.from({ length: 15 }, () => {
-      const button = document.createElement('button');
-      button.textContent = '+';
-      return button;
-    });
-    scroller.append(...buttons);
-    const overflow = scroller.scrollWidth > scroller.clientWidth;
-    scroller.scrollLeft = scroller.scrollWidth;
-    const visible = scroller.getBoundingClientRect(),
-      last = buttons.at(-1).getBoundingClientRect();
-    const pinned = gear.getBoundingClientRect();
-    for (const button of buttons) button.remove();
-    scroller.scrollLeft = 0;
-    return {
-      overflow,
-      lastReachable: last.right <= visible.right + 1 && last.left >= visible.left,
-      gearPinned: pinned.right <= innerWidth && pinned.left >= visible.right,
-    };
-  });
-  assert.deepEqual(extra, { overflow: true, lastReachable: true, gearPinned: true });
   await application.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()
       .find((item) => item.webContents.getURL().endsWith('/index.html'))
@@ -362,6 +350,38 @@ try {
   await page.locator('#message').click();
   assert.equal(await menu.isVisible(), false);
   assert.equal(await application.evaluate(() => globalThis.pickerLoads > 0), true);
+
+  await page.evaluate(async () => {
+    const { companion } = await window.capri.bootstrap();
+    await window.capri.setCompanionSettings({ ...companion, windowLayout: 'horizontal' });
+    const { renderInferenceLabel } = await import('./inference-panel.mjs');
+    renderInferenceLabel({ model: '4B' }, { text: (value) => value });
+  });
+  await page.waitForFunction(() => document.body.hasAttribute('data-horizontal-portrait'));
+  for (const width of [525, 840]) {
+    await application.evaluate(
+      ({ BrowserWindow }, width) =>
+        BrowserWindow.getAllWindows()
+          .find((item) => item.webContents.getURL().endsWith('/index.html'))
+          .setContentSize(width, 350),
+      width,
+    );
+    await page.waitForFunction((width) => innerWidth === width, width);
+    assert(
+      await page.evaluate(() => {
+        const header = document.querySelector('#handle').getBoundingClientRect();
+        const tools = document.querySelector('#quick-actions').getBoundingClientRect();
+        const name = document.getElementById('inference-name');
+        return (
+          tools.right <= innerWidth &&
+          (tools.left >= header.right || tools.top >= header.bottom) &&
+          name.clientWidth >= name.firstElementChild.offsetWidth &&
+          !name.hasAttribute('data-overflow')
+        );
+      }),
+      `The short badge and both toolbar groups fit at ${width}px in horizontal layout`,
+    );
+  }
   assert.deepEqual(report.errors, []);
   report.switches = await application.evaluate(() => globalThis.pickerCalls);
   report.passed = true;

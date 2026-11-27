@@ -12,6 +12,7 @@ import {
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { root, paths } from '../packages/runtime/src/host/paths.mjs';
 import { nodePath } from '../packages/runtime/src/host/executables.mjs';
@@ -187,22 +188,36 @@ test('a stale timestamp or another checkout cannot terminate a reused PID', asyn
   assert.equal(processStartedAt(child.pid), original.startedAt);
 });
 
-test('launch clears only the old stop request before a delayed child starts, then preserves a fresh stop', async (t) => {
+test('a fresh stop during gateway host startup prevents the upstream process from spawning', async (t) => {
   const base = path.join(paths.cache, 'shutdown-test');
   mkdirSync(base, { recursive: true });
   const folder = mkdtempSync(path.join(base, 'delayed-'));
   const name = 'shutdown-delay-' + randomUUID();
   const stop = path.join(paths.data, 'run', name + '.stop');
-  const entered = path.join(folder, 'entered.json');
-  const drained = path.join(folder, 'drained.json');
   const script = path.join(folder, 'gateway-host.mjs');
+  const hostUrl = pathToFileURL(path.join(root, 'packages/runtime/bin/gateway-host.mjs')).href;
   mkdirSync(path.dirname(stop), { recursive: true });
   writeFileSync(stop, 'stale request from an exited instance');
   writeFileSync(
     script,
-    `import {existsSync, writeFileSync} from 'node:fs';
-    writeFileSync(process.argv[3], JSON.stringify({stale:existsSync(process.argv[2])}));
-    setTimeout(() => writeFileSync(process.argv[4], JSON.stringify({stoppedBeforeModel:existsSync(process.argv[2])})), 2000);`,
+    `import childProcess from 'node:child_process';
+    import {readFileSync} from 'node:fs';
+    import {syncBuiltinESMExports} from 'node:module';
+    import {setTimeout as delay} from 'node:timers/promises';
+    const stop = process.argv[3];
+    const deadline = Date.now() + 10_000;
+    for (;;) {
+      try {
+        if (readFileSync(stop, 'utf8') === 'stop\\n') break;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      if (Date.now() >= deadline) throw new Error('Fresh stop request never arrived');
+      await delay(25);
+    }
+    childProcess.spawn = () => { throw new Error('Upstream Gateway must not spawn after a stop'); };
+    syncBuiltinESMExports();
+    await import(${JSON.stringify(hostUrl)});`,
   );
   const rt = runtime({
     stateDir: path.join(folder, 'openclaw'),
@@ -210,15 +225,27 @@ test('launch clears only the old stop request before a delayed child starts, the
     logPrefix: name,
   });
   initialize(rt);
-  const child = await launch(name, nodePath, [script, stop, entered, drained], rt);
+  const exited = Promise.withResolvers();
+  let child;
   t.after(() => {
     try {
-      process.kill(child.pid);
+      if (child && processStartedAt(child.pid) === child.startedAt) process.kill(child.pid);
     } catch {}
     for (const file of [markerPath(name), stop]) if (existsSync(file)) unlinkSync(file);
   });
+  child = await launch(name, nodePath, [script, name, stop], rt, {
+    probeStartedAt(pid) {
+      assert.equal(
+        existsSync(stop),
+        false,
+        'The launcher clears a previous stop before publishing',
+      );
+      return processStartedAt(pid);
+    },
+    onExit: exited.resolve,
+  });
   await stopProcess(name);
-  assert.deepEqual(JSON.parse(readFileSync(entered, 'utf8')), { stale: false });
-  assert.deepEqual(JSON.parse(readFileSync(drained, 'utf8')), { stoppedBeforeModel: true });
+  assert.equal(await exited.promise, 0);
+  assert.equal(readFileSync(stop, 'utf8'), 'stop\n');
   assert.equal(existsSync(markerPath(name)), false);
 });

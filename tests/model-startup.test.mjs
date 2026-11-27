@@ -1,10 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempDisposableSync,
+  mkdtempSync,
+  realpathSync,
+  rmdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { responsiveness } from '../packages/runtime/src/hardware/responsiveness.mjs';
+import {
+  modelIdlePolicyFile,
+  readModelIdlePolicy,
+  validModelIdleMinutes,
+} from '../packages/runtime/src/providers/model-idle-policy.mjs';
 import {
   consumeFirstLaunchPreload,
   consumeMicrophoneRestart,
@@ -12,24 +25,44 @@ import {
   startModelServices,
 } from '../apps/desktop/model-startup.mjs';
 
-test('first-launch warmup defaults on and an explicit opt-out is consumed once', (t) => {
-  const state = mkdtempSync(path.join(tmpdir(), 'capri-first-launch-'));
+test('model idle policy defaults off and migrates older boolean settings', () => {
+  using state = mkdtempDisposableSync(path.join(realpathSync(tmpdir()), 'capri-idle-models-'));
+  const file = path.join(state.path, modelIdlePolicyFile);
+  assert.deepEqual(readModelIdlePolicy(state.path), { unloadIdle: false, idleMinutes: 5 });
+  writeFileSync(file, JSON.stringify({ schemaVersion: 1, unloadIdle: true }));
+  assert.deepEqual(readModelIdlePolicy(state.path), { unloadIdle: true, idleMinutes: 5 });
+  writeFileSync(file, JSON.stringify({ schemaVersion: 1, unloadIdle: true, idleMinutes: 23 }));
+  assert.deepEqual(readModelIdlePolicy(state.path), { unloadIdle: true, idleMinutes: 23 });
+  for (const minutes of [0, 61, 1.5, '12', null]) {
+    assert.equal(validModelIdleMinutes(minutes), false);
+    writeFileSync(
+      file,
+      JSON.stringify({ schemaVersion: 1, unloadIdle: true, idleMinutes: minutes }),
+    );
+    assert.deepEqual(readModelIdlePolicy(state.path), { unloadIdle: true, idleMinutes: 5 });
+  }
+  assert.equal(validModelIdleMinutes(1), true);
+  assert.equal(validModelIdleMinutes(60), true);
+});
+
+test('first-launch warmup defaults off and an explicit opt-in is consumed once', (t) => {
+  const state = mkdtempSync(path.join(realpathSync(tmpdir()), 'capri-first-launch-'));
   const file = path.join(state, 'first-start.json');
   t.after(() => {
     rmSync(file, { force: true });
     rmdirSync(state);
   });
-  assert.equal(consumeFirstLaunchPreload(state), true);
-  writeFileSync(file, JSON.stringify({ schemaVersion: 1, preloadModels: false }));
   assert.equal(consumeFirstLaunchPreload(state), false);
+  writeFileSync(file, JSON.stringify({ schemaVersion: 1, preloadModels: true }));
+  assert.equal(consumeFirstLaunchPreload(state), true);
   assert.equal(existsSync(file), false);
-  assert.equal(consumeFirstLaunchPreload(state), true);
+  assert.equal(consumeFirstLaunchPreload(state), false);
   writeFileSync(file, JSON.stringify({ schemaVersion: 1, preloadModels: 'false' }));
-  assert.equal(consumeFirstLaunchPreload(state), true);
+  assert.equal(consumeFirstLaunchPreload(state), false);
 });
 
 test('a microphone restart marker only resumes once, within two minutes', (t) => {
-  const state = mkdtempSync(path.join(tmpdir(), 'capri-microphone-restart-'));
+  const state = mkdtempSync(path.join(realpathSync(tmpdir()), 'capri-microphone-restart-'));
   const file = path.join(state, 'microphone-restart.json');
   t.after(() => {
     rmSync(file, { force: true });

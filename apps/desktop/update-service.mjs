@@ -14,6 +14,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Preferences } from './preferences.mjs';
+import { PatchNotes } from './patch-notes.mjs';
 import { writeJsonAtomic } from './storage.mjs';
 import { noLinks } from '../../packages/installer/src/policy.mjs';
 import {
@@ -21,7 +22,7 @@ import {
   managedInstallation,
   runtimeUpgradeRequired,
 } from '../../packages/updater/src/transaction.mjs';
-import { listUpdateReleases, githubCredential } from '../../packages/updater/src/github.mjs';
+import { listReleases, listUpdateReleases } from '../../packages/updater/src/github.mjs';
 import { gitlabReleaseUrl } from '../../packages/updater/src/gitlab.mjs';
 import {
   EXPERIMENTAL_REPOSITORY,
@@ -67,46 +68,58 @@ export class UpdateService {
     state,
     node,
     emit = () => {},
-    credential = githubCredential,
-    releases = listUpdateReleases,
+    credential = async () => null,
+    releases,
     download = downloadUpdate,
     stage = stageUpdate,
     launch = spawn,
     prepareHost = prepareUpdateHost,
     startupTimeoutMs = 15000,
+    installSupported = true,
+    platform = process.platform,
+    arch = process.arch,
   }) {
+    this.archiveKind = !installSupported
+      ? { 'linux:x64': 'linux-x64', 'darwin:arm64': 'macos-arm64' }[platform + ':' + arch]
+      : null;
+    const archive = Boolean(this.archiveKind);
     Object.assign(this, {
       root,
       node,
       emit,
       credential,
-      releases,
+      releases: releases ?? (archive ? listReleases : listUpdateReleases),
       download,
       stage,
       launch,
       prepareHost,
       startupTimeoutMs,
     });
+    const metadata = JSON.parse(readFileSync(path.join(root, 'config/release.json'), 'utf8'));
+    const version = parseVersion(metadata.tag);
     this.preferences = new Preferences(
       path.join(state, 'updates.json'),
-      { experimental: false, automatic: true },
+      { experimental: archive && version.pre.length > 0, automatic: true },
       validateUpdateSettings,
     );
-    const metadata = JSON.parse(readFileSync(path.join(root, 'config/release.json'), 'utf8'));
-    parseVersion(metadata.tag);
-    this.current = installedUpdateVersion(root, metadata.tag);
-    this.mode = 'installer';
-    try {
-      managedInstallation(root);
-      this.mode = 'managed';
-    } catch {
-      /* A source checkout is never overwritten by the updater. */
+    this.current = archive ? metadata.tag : installedUpdateVersion(root, metadata.tag);
+    this.mode = archive ? 'archive' : installSupported ? 'installer' : 'manual';
+    let previous;
+    if (installSupported) {
+      try {
+        previous = managedInstallation(root).previousReleaseTag;
+        this.mode = 'managed';
+      } catch {
+        /* A source checkout is never overwritten by the updater. */
+      }
     }
+    this.patchNotes = new PatchNotes({ root, state, current: this.current, previous });
     this.value = {
-      phase: 'idle',
+      phase: this.mode === 'manual' ? 'manual' : 'idle',
       current: this.current,
       mode: this.mode,
       ...this.preferences.snapshot(),
+      ...(this.mode === 'manual' && { automatic: false, experimental: false }),
       notification: null,
     };
     this.selected = null;
@@ -125,6 +138,43 @@ export class UpdateService {
   snapshot() {
     return structuredClone(this.value);
   }
+  async currentPatchNotes({ network = true } = {}) {
+    const local = this.patchNotes.localBody();
+    if (local || !network || !this.patchNotes.current) return local;
+    this.patchNotesRequest ??= this.fetchCurrentPatchNotes().catch(() => '');
+    const body = await this.patchNotesRequest;
+    if (!body) this.patchNotesRequest = null;
+    return body;
+  }
+  async fetchCurrentPatchNotes() {
+    const signal = AbortSignal.timeout(5500);
+    const preview = this.mode !== 'archive' && parseVersion(this.current).pre.length > 0;
+    const token = preview ? await this.optionalCredential() : null;
+    signal.throwIfAborted();
+    const repositories = token ? [EXPERIMENTAL_REPOSITORY, REPOSITORY] : [REPOSITORY];
+    const answers = await Promise.allSettled(
+      repositories.map((repository) =>
+        this.releases({ repository, token, signal, allowAnonymousFallback: true }),
+      ),
+    );
+    for (const [index, answer] of answers.entries()) {
+      if (answer.status !== 'fulfilled') continue;
+      for (const release of answer.value) {
+        if (release.draft || typeof release.body !== 'string' || !release.body.trim()) continue;
+        try {
+          if (compareVersions(this.current, releaseVersion(release, repositories[index])) === 0)
+            return release.body.slice(0, 12000).trim();
+        } catch {
+          // Ignore unrelated or malformed tags.
+        }
+      }
+    }
+    return '';
+  }
+  get assetKind() {
+    if (this.mode === 'archive') return this.archiveKind;
+    return this.mode === 'managed' ? 'source' : 'installer';
+  }
   publish(patch) {
     Object.assign(this.value, patch);
     this.emit({ type: 'updates.status', ...this.snapshot() });
@@ -141,7 +191,7 @@ export class UpdateService {
     this.automaticController?.abort(new Error('Automatic update check cancelled'));
   }
   startAutomaticChecks() {
-    if (this.closed || this.automaticChecksStarted) return;
+    if (this.mode === 'manual' || this.closed || this.automaticChecksStarted) return;
     this.automaticChecksStarted = true;
     this.syncAutomaticCheckTimer();
     return this.checkOnStartup();
@@ -169,12 +219,12 @@ export class UpdateService {
     }
   }
   async findRelease(experimental, signal, { reportPrivateFailure = false } = {}) {
-    const token = await this.optionalCredential();
+    const token = this.mode === 'archive' ? null : await this.optionalCredential();
     signal.throwIfAborted();
     const selection = {
       current: this.current,
       experimental,
-      kind: this.mode === 'managed' ? 'source' : 'installer',
+      kind: this.assetKind,
     };
     const publicReleases = this.releases({ token, signal, allowAnonymousFallback: true });
     const selectPublic = (items) => {
@@ -183,7 +233,7 @@ export class UpdateService {
     };
     if (!experimental || !token) {
       const release = selectPublic(await publicReleases);
-      if (experimental && !token && !release && reportPrivateFailure)
+      if (experimental && !token && !release && reportPrivateFailure && this.mode !== 'archive')
         throw Object.assign(new Error(privateAccessMessage), { code: 'GITHUB_ACCESS_REQUIRED' });
       return release;
     }
@@ -228,6 +278,7 @@ export class UpdateService {
   }
   checkAutomatically() {
     if (
+      this.mode === 'manual' ||
       this.closed ||
       !this.preferences.value.automatic ||
       this.busy() ||
@@ -286,7 +337,7 @@ export class UpdateService {
     return {
       tag: selected.tag_name,
       experimental: isExperimentalRelease(selected),
-      bytes: releaseAsset(selected, this.mode === 'managed' ? 'source' : 'installer').bytes,
+      bytes: releaseAsset(selected, this.assetKind).bytes,
       ...(selected.repository === EXPERIMENTAL_REPOSITORY
         ? { repository: EXPERIMENTAL_REPOSITORY }
         : {}),
@@ -294,7 +345,7 @@ export class UpdateService {
   }
   async history(experimental = false) {
     if (typeof experimental !== 'boolean') throw new Error('Invalid update channel.');
-    const token = await this.optionalCredential();
+    const token = this.mode === 'archive' ? null : await this.optionalCredential();
     const signal = AbortSignal.timeout(20000);
     const publicRequest = this.releases({ token, signal, allowAnonymousFallback: true });
     const previewRequest =
@@ -310,6 +361,8 @@ export class UpdateService {
           const prerelease = isExperimentalRelease(release);
           if (release.draft || (repository === EXPERIMENTAL_REPOSITORY && !prerelease)) continue;
           if (prerelease && !experimental) continue;
+          const asset = releaseAsset(release, this.assetKind);
+          if (this.mode === 'archive' && !asset) continue;
           const id = repository + '@' + release.tag_name;
           entries.set(id, {
             release: { ...release, repository },
@@ -319,8 +372,9 @@ export class UpdateService {
               experimental: prerelease,
               notes: typeof release.body === 'string' ? release.body.slice(0, 12000) : '',
               update:
+                this.mode !== 'manual' &&
                 compareVersions(releaseVersion(release, repository), this.current) > 0 &&
-                Boolean(releaseAsset(release, this.mode === 'managed' ? 'source' : 'installer')),
+                Boolean(asset),
             },
           });
         } catch {
@@ -338,7 +392,9 @@ export class UpdateService {
         .sort((a, b) => compareVersions(releaseVersion(b.release), releaseVersion(a.release)))
         .map(({ view }) => view),
       previewUnavailable:
-        experimental && (previewResult.status === 'rejected' || !previewResult.value),
+        this.mode !== 'archive' &&
+        experimental &&
+        (previewResult.status === 'rejected' || !previewResult.value),
     };
   }
   historyUrl(id) {
@@ -352,7 +408,14 @@ export class UpdateService {
       encodeURIComponent(entry.release.tag_name)
     );
   }
+  archiveReleaseUrl() {
+    if (this.mode !== 'archive' || this.selected?.repository !== REPOSITORY)
+      throw new Error('Check for updates first.');
+    this.patchNotes.remember(this.selected);
+    return `https://github.com/${REPOSITORY}/releases/tag/${encodeURIComponent(this.selected.tag_name)}`;
+  }
   async chooseHistory(id) {
+    if (this.mode === 'manual') return this.snapshot();
     const entry = this.historyEntries?.get(id);
     if (!entry?.view.update) throw new Error('This version is not available as an in-app update.');
     if (this.busy()) throw new Error('Wait for the update operation to finish.');
@@ -380,6 +443,7 @@ export class UpdateService {
     return this.publish({ notification: null });
   }
   setSettings(value) {
+    if (this.mode === 'manual') return this.snapshot();
     if (this.busy()) throw new Error('Wait for the update operation to finish.');
     const previous = this.preferences.value;
     const settings = this.preferences.set(validateUpdateSettings(value, previous.automatic));
@@ -410,6 +474,7 @@ export class UpdateService {
     return snapshot;
   }
   async check(value) {
+    if (this.mode === 'manual') return this.snapshot();
     this.cancelAutomaticCheck();
     const experimental =
       value === undefined
@@ -451,6 +516,7 @@ export class UpdateService {
     }
   }
   async prepare() {
+    if (this.mode === 'manual' || this.mode === 'archive') return this.snapshot();
     this.cancelAutomaticCheck();
     if (this.busy()) return this.snapshot();
     if (!this.selected) throw new Error('Check for updates first.');
@@ -463,7 +529,7 @@ export class UpdateService {
       installerReason: null,
       notification: null,
     });
-    const asset = releaseAsset(this.selected, this.mode === 'managed' ? 'source' : 'installer');
+    const asset = releaseAsset(this.selected, this.assetKind);
     try {
       const token =
         this.selected.downloadSource === 'gitlab' ? null : await this.optionalCredential();
@@ -541,6 +607,7 @@ export class UpdateService {
     return this.snapshot();
   }
   async install({ parentPid, language, shutdown }) {
+    if (this.mode === 'manual' || this.mode === 'archive') return false;
     this.cancelAutomaticCheck();
     if (this.busy() || this.installOperation) return false;
     if (!this.prepared || this.value.phase !== 'ready')
@@ -561,6 +628,7 @@ export class UpdateService {
     const prepared = this.prepared;
     if ((await fileHash(prepared.archive)) !== prepared.asset.sha256)
       throw new Error('Update checksum verification failed. Download it again.');
+    if (this.mode === 'managed') this.patchNotes.remember(this.selected);
     if (prepared.executable) {
       if ((await fileHash(prepared.executable)) !== prepared.asset.sha256)
         throw new Error('Installer checksum verification failed.');

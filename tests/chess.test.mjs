@@ -39,6 +39,7 @@ import {
   restoreChessFrameAppearance,
 } from '../apps/desktop/renderer/chess-frame-style.mjs';
 import { ChessReactions } from '../apps/desktop/chess/reactions.mjs';
+import { reactionCandidates } from '../apps/desktop/chess/reaction-copy.mjs';
 import { chessReactionSettings } from '../apps/desktop/renderer/chess-reaction-settings.mjs';
 import {
   ARROW_ANGLED_ENDS,
@@ -50,9 +51,77 @@ import {
 import { chessArrowPath } from '../apps/desktop/renderer/chess-arrow-path.mjs';
 
 const bounds = { x: -800, y: 40, width: 800, height: 700 };
+const sampleBitmap = { getSize: () => ({ width: 1080, height: 900 }) };
 const chessMoveEvents = (...args) => chessMoveReactions(...args).flatMap(({ events }) => events);
 const token = 'A'.repeat(64);
 const view = (origin, path) => ({ origin, path, bounds, token });
+
+test('Chess-Online shows the frame before analysis and draws the move without a supported site', async (t) => {
+  const board = {
+    rect: { x: 100, y: 80, width: 400, height: 400 },
+    placement: orientPlacement('r1b1kb1r/ppBpq1p1/2n2n1p/8/8/2P2N2/PP2PPPP/RN1QKB1R', 'black'),
+    orientation: 'black',
+    reliable: true,
+    confidence: Array(64).fill(0.95),
+  };
+  const bitmap = {
+    getSize: () => ({ width: 800, height: 700 }),
+    toBitmap: () => Buffer.alloc(800 * 700 * 4),
+    toPNG: () => Buffer.alloc(16),
+    crop: () => bitmap,
+    resize: () => bitmap,
+  };
+  const display = { bounds };
+  const frame = { display, bitmap, revision: 'test-display' };
+  const previews = [];
+  const arrow = Promise.withResolvers();
+  const capture = {
+    boardFrame: true,
+    display: () => display,
+    frame: async () => frame,
+    screenView: () => ({ visualOnly: true, bounds, token: 'display:1' }),
+    center: () => ({ x: -500, y: 300 }),
+    inView: () => true,
+    fingerprint: () => 'board',
+    afterOverlay: async () => {},
+    show: async (_frame, rect, move) => arrow.resolve({ rect, move }),
+    previewBoardFrame: async (frame, rect) => {
+      previews.push({ frame, rect });
+      return true;
+    },
+    drop() {},
+  };
+  const session = new ChessSession({
+    capture,
+    access: new ChessPageAccess({
+      inspect: async () => view('https://live.chess-online.com', '/en/training/2Qvfo'),
+    }),
+    install: { snapshot: () => ({ installed: true }) },
+    enabled: () => true,
+    playScreenMove: () => assert.fail('Detection cannot move pieces'),
+  });
+  t.after(() => session.stop());
+  session.detect = async () => [{ ...board }];
+  const { items } = await session.scan({ id: '1', manual: false });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].watchable, true);
+  assert.equal(items[0].fen, undefined);
+  assert.deepEqual(previews, [{ frame, rect: board.rect }]);
+  const fen = orientPlacement(board.placement, 'black') + ' b - - 0 1';
+  const [move] = new Chess(fen).moves({ verbose: true });
+  const uci = move.from + move.to;
+  session.engine = async () => ({ analyse: async () => ({ bestMove: { uci } }) });
+  session.watch({ index: 0, orientation: 'black', analyse: true, text: fen });
+  assert.deepEqual(await arrow.promise, { rect: board.rect, move: { uci, orientation: 'black' } });
+  session.stopWatch();
+  capture.boardFrame = false;
+  await session.scan({ id: '1', manual: false });
+  assert.equal(previews.length, 1);
+  capture.boardFrame = true;
+  frame.display = null;
+  await session.scan({ id: 'window:142:0', manual: false });
+  assert.equal(previews.length, 1, 'window thumbnails have no desktop coordinates');
+});
 
 test('Chess reactions infer captures, checks and outcomes from verified moves', () => {
   const opening = importGame({ text: '1. e4 d5' });
@@ -116,7 +185,7 @@ test('verified chess reactions mention both moves, filter events and vary withou
   assert.equal(delivered.length, 2);
   assert.match(
     delivered[0][0],
-    /Your knight takes the queen.*opponent’s rook gives check.*rook takes the knight/iu,
+    /the queen.*our knight.*check from the opponent’s rook.*rook takes the knight/iu,
   );
   assert.notEqual(delivered[0][0], delivered[1][0]);
   settings.events.check = false;
@@ -124,7 +193,7 @@ test('verified chess reactions mention both moves, filter events and vary withou
   reactions.submit([twoMoves[1]]);
   assert.match(
     delivered.at(-1)[0],
-    /rook takes the knight|knight is off the board|rook just took the knight/iu,
+    /the knight.*the opponent’s rook|rook (?:takes|just took) the knight/iu,
   );
   assert.doesNotMatch(delivered.at(-1)[0], /check/iu);
   assert.equal(delivered.at(-1)[1], false);
@@ -144,10 +213,10 @@ test('localized Chess reactions use the current style and the verified checker',
     advantage: 'b',
   };
   for (const [style, expected] of [
-    ['neutral', /Ладья белых даёт шах.*Перевес у чёрных/iu],
-    ['romantic', /Ладья белых даёт шах.*Я теперь смотрю/iu],
-    ['business', /Ладья белых даёт шах.*У чёрных перевес/iu],
-    ['wild', /Ладья белых даёт шах.*рука на пульте/iu],
+    ['neutral', /привет, король.*шах от ладьи белых/iu],
+    ['romantic', /побудь рядом.*ладья белых даёт шах/iu],
+    ['business', /шах от ладьи белых.*сначала ответ/iu],
+    ['wild', /пинг.*ладья белых даёт шах/iu],
   ]) {
     const lines = [];
     const reactions = new ChessReactions({
@@ -162,6 +231,33 @@ test('localized Chess reactions use the current style and the verified checker',
     assert.match(lines[0], expected, style);
     assert.doesNotMatch(lines[0], /слон/iu);
   }
+});
+
+test('Chess comment names our pieces and evaluates the board from our side', () => {
+  const move = {
+    events: [{ type: 'capture', color: 'b', piece: 'r', captured: 'q', side: 'player' }],
+    advantage: 'b',
+    player: 'b',
+  };
+  const english = reactionCandidates(move, 'en', 'wild');
+  assert.match(english[0].text, /Yoink.*our rook.*queen/iu);
+  assert.ok(english.some(({ text }) => /our side has a hand on the controls/iu.test(text)));
+  assert.ok(english.every(({ text }) => !/White|Black/iu.test(text)));
+  const russian = reactionCandidates(move, 'ru', 'wild');
+  assert.match(russian[0].text, /наша ладья.*ферзя/iu);
+  assert.ok(russian.some(({ text }) => /у нас рука на пульте/iu.test(text)));
+  const lines = [];
+  const reactions = new ChessReactions({
+    preferences: () => ({ ...chessReactionSettings(), enabled: true }),
+    allowed: () => true,
+    style: () => 'wild',
+    random: () => 0,
+    deliver: (text) => lines.push(text),
+  });
+  reactions.submit([move, move, { ...move, advantage: 'w' }]);
+  assert.match(lines[0], /our side has a hand on the controls/iu);
+  assert.match(lines[0], /the opponent has a hand on the controls/iu);
+  assert.equal((lines[0].match(/our side has a hand on the controls/giu) ?? []).length, 1);
 });
 
 test('a long chain of repeated checks keeps unique wording and never loses a move', () => {
@@ -205,7 +301,7 @@ test('Chess retains fresh reactions during speech and clears stale or cancelled 
   available = true;
   reactions.drain();
   assert.equal(lines.length, 1);
-  assert.match(lines[0], /Pieces up.*opponent’s queen gives check/iu);
+  assert.match(lines[0], /Pieces up.*check from the opponent’s queen/iu);
 
   available = false;
   reactions.submit([{ events: [{ type: 'capture', side: 'player' }] }], game.signal);
@@ -280,7 +376,7 @@ test('the board outline and lightning are on a non-activating overlay with real 
   });
   t.after(() => capture.close());
   const geometry = { x: 227, y: 122, width: 800, height: 800 };
-  const frame = { display };
+  const frame = { display, bitmap: { getSize: () => ({ width: 1080, height: 890 }) } };
   const requests = [];
   let visible = false;
   let ignoresMouse = false;
@@ -365,6 +461,29 @@ test('the board outline and lightning are on a non-activating overlay with real 
   assert.equal(visible, false);
   assert.deepEqual(windowBounds, geometry);
   assert.ok(requests.includes('globalThis.capriChessOverlay.layout("0px 0px 0px 0px")'));
+
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  capture.drop();
+  capture.configureBoardFrame(true);
+  let pixels = 'unchanged';
+  capture.boardSample = async (_frame, rect) => {
+    assert.deepEqual(rect, { x: 327, y: 222, width: 600, height: 600 });
+    return pixels;
+  };
+  assert.equal(await capture.previewBoardFrame(frame, geometry, signal), true);
+  assert.equal(visible, true);
+  t.mock.timers.tick(6000);
+  await new Promise(setImmediate);
+  assert.equal(visible, true);
+  pixels = 'window moved';
+  t.mock.timers.tick(1000);
+  await new Promise(setImmediate);
+  assert.equal(visible, false);
+  assert.equal(capture.arrow, null);
+  assert.equal(await capture.previewBoardFrame(frame, geometry, signal), true);
+  capture.configureBoardFrame(false);
+  assert.equal(visible, false);
+  assert.equal(capture.boardPreview, null);
 });
 
 test('Chess frame restores retained preferences and accepts the expanded ranges', () => {
@@ -968,6 +1087,78 @@ test('Chess overlay admits analysis and built-in computer pages without treating
   assert.equal(requests, 2);
 });
 
+test('current Lichess game links still require server confirmation of a computer opponent', async () => {
+  const origin = 'https://lichess.org';
+  const gameId = 'AbCd1234';
+  for (const route of [
+    '/game/AbCd1234',
+    '/game/AbCd1234/black',
+    '/game/AbCd1234Wxyz',
+    '/AbCd1234',
+    '/AbCd1234Wxyz/white',
+  ])
+    assert.equal(chessPage(view(origin, route))?.game, gameId, route);
+  for (const route of [
+    '/game/AbCd1234/mini',
+    '/game/AbCd1234/black/analysis',
+    '/game/AbCd1234Wxyz/white',
+    '/game/export/AbCd1234',
+  ])
+    assert.equal(chessPage(view(origin, route)), null, route);
+
+  const signal = new AbortController().signal;
+  const game = { id: gameId, variant: 'standard', status: 'started', rated: false };
+  const results = [
+    { ...game, players: { black: { user: { title: 'BOT' } } } },
+    { ...game, rated: true, players: { black: { aiLevel: 8 } } },
+    { ...game, id: 'different', players: { black: { aiLevel: 8 } } },
+    { ...game, players: { black: { aiLevel: 8 } } },
+  ];
+  let requests = 0;
+  let route = '/game/AbCd1234';
+  const access = new ChessPageAccess({
+    inspect: async () => view(origin, route),
+    fetchImpl: async (url) => {
+      assert.equal(url, origin + '/game/export/AbCd1234?moves=false&clocks=false');
+      return Response.json(results[requests++]);
+    },
+  });
+  assert.equal(await access.allowed(signal), null);
+  assert.equal(await access.allowed(signal), null);
+  assert.equal(await access.allowed(signal), null);
+  const activeComputer = await access.allowed(signal);
+  assert.equal(activeComputer.computerSide, 'b');
+  route = '/game/AbCd1234Wxyz';
+  assert.equal((await access.allowed(signal))?.computerSide, 'b');
+  assert.equal(requests, 4);
+});
+
+test('Lichess computer games permit recommendations while browser auto move stays disabled', () => {
+  const page = {
+    ...chessPage(view('https://lichess.org', '/game/AbCd1234')),
+    computerSide: 'b',
+  };
+  const position = { fen: new Chess().fen() };
+  const watch = {
+    orientation: 'white',
+    position,
+    verifiedPosition: true,
+    result: { bestMove: { uci: 'e2e4' } },
+  };
+  const session = new ChessSession({
+    enabled: () => true,
+    autoMove: () => true,
+    playScreenMove: () => assert.fail('The Lichess board must not receive native input'),
+  });
+  assert.equal(session.playerColor(watch, page), 'w');
+  assert.equal(session.shouldAutoMove(watch, page), false);
+  assert.equal(session.shouldAutoMove(watch, chessPage(view(page.origin, '/analysis'))), false);
+  assert.equal(
+    session.shouldAutoMove(watch, chessPage(view('https://www.chess.com', '/play/computer'))),
+    true,
+  );
+});
+
 test('Chess prefers tab identity and falls back to the verified bot window', () => {
   const first = {
     ...view('https://www.chess.com', '/play/computer'),
@@ -1018,7 +1209,7 @@ test(
       capture: {
         async afterOverlay() {},
         async frame() {
-          return { revision: 'monitor' };
+          return { revision: 'monitor', bitmap: sampleBitmap };
         },
         center: () => ({ x: 236, y: 246 }),
         inView: (_frame, _rect, view) => Boolean(view),
@@ -1113,7 +1304,7 @@ test(
   async (t) => {
     const board = new Chess();
     const rect = { x: 36, y: 46, width: 400, height: 400 };
-    const frame = { revision: 'display revision' };
+    const frame = { revision: 'display revision', bitmap: sampleBitmap };
     const initialView = view('https://lichess.org', '/analysis');
     let switched = false;
     let overlayOpen = false;
@@ -1235,6 +1426,25 @@ test('Chess snaps the far edges to the last tile and scales the four boundaries 
   });
 });
 
+test('Chess keeps an edge flush with the capture and looks past the outline on the last tiles', () => {
+  const width = 460;
+  const height = 430;
+  const data = new Float32Array(width * height).fill(38);
+  for (let y = 0; y < 400; y++) {
+    for (let x = 30; x < 430; x++) {
+      const dark = (Math.floor((x - 30) / 50) + Math.floor(y / 50)) % 2;
+      data[y * width + x] = y === 7 || y === 8 ? 150 : dark ? 130 : x >= 427 ? 170 : 224;
+    }
+  }
+  const source = { width, height, data };
+  assert.deepEqual(refineBoardEdges(source, { x0: 30, y0: 0, x1: 430, y1: 400 }), {
+    x0: 30,
+    y0: 0,
+    x1: 430,
+    y1: 400,
+  });
+});
+
 test('A tight manual Chess selection first checks for the whole board around its edges', async () => {
   const session = new ChessSession({});
   const frame = { bitmap: { getSize: () => ({ width: 720, height: 540 }) } };
@@ -1254,6 +1464,27 @@ test('A tight manual Chess selection first checks for the whole board around its
   assert.deepEqual(await session.detectSelection(frame, crop), [{ rect: crop }]);
 });
 
+test('Chess tracking recovers an edge outside the last crop and retains bounds on a fallback', async () => {
+  const session = new ChessSession({ capture: { inView: () => true } });
+  const frame = { bitmap: { getSize: () => ({ width: 720, height: 540 }) } };
+  const crop = { x: 130, y: 130, width: 300, height: 290 };
+  const full = { ...crop, y: 120, height: 300 };
+  const item = { placement: placement(new Chess().fen()), reliable: true };
+  const page = view('https://www.chess.com', '/play/computer');
+  const track = () => session.trackableBoards(frame, crop, page, 'white', undefined, 1);
+  session.detect = async (_frame, area, manual) => {
+    assert.equal(manual, false);
+    assert.ok(chessRectInside(full, area));
+    return [{ ...item, rect: full }];
+  };
+  assert.deepEqual((await track())[0].rect, full);
+  session.detect = async (_frame, area) => [{ ...item, rect: { ...full, y: area.y } }];
+  assert.deepEqual(await track(), []);
+  session.detect = async (_frame, _area, manual) =>
+    manual ? [{ ...item, rect: { ...crop, y: 132, height: 288 } }] : [];
+  assert.deepEqual((await track())[0].rect, crop);
+});
+
 test(
   'Chess rediscovers a moved bot board and analyses its new position despite changing pixels',
   {
@@ -1264,7 +1495,7 @@ test(
     const original = { x: 40, y: 60, width: 400, height: 400 };
     const relocated = { ...original, x: 560 };
     const initialView = { ...view('https://www.chess.com', '/play/computer'), hwnd: '123' };
-    const frame = { revision: 'display' };
+    const frame = { revision: 'display', bitmap: sampleBitmap };
     const refreshed = Promise.withResolvers();
     const relocatedArrow = Promise.withResolvers();
     const arrows = [];
@@ -1313,7 +1544,7 @@ test(
     });
     t.after(() => session.close());
     session.detect = async (_frame, crop) =>
-      moved && crop?.x === original.x
+      moved && crop && !chessRectInside(relocated, crop)
         ? []
         : [
             {
@@ -1373,7 +1604,7 @@ test(
         async afterOverlay() {},
         async frame() {
           if (++frames === 3) board.move('Qxd5');
-          return { revision: 'monitor' };
+          return { revision: 'monitor', bitmap: sampleBitmap };
         },
         center: () => ({ x: 236, y: 246 }),
         inView: () => true,
@@ -1411,7 +1642,7 @@ test(
     );
     assert.deepEqual(
       reactions.map(({ type, color, side, captured }) => [type, color, side, captured]),
-      [['capture', 'b', undefined, 'p']],
+      [['capture', 'b', 'opponent', 'p']],
     );
   },
 );

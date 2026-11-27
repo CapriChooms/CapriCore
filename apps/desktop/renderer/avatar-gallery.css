@@ -1,0 +1,176 @@
+#avatar-gallery-panel {
+  container-type: inline-size;
+}
+
+.avatar-gallery {
+  min-inline-size: 0;
+}
+
+#avatar-gallery-preview,
+#avatar-gallery-library {
+  min-inline-size: 0;
+}
+
+.avatar-gallery-stage,
+.avatar-gallery-thumbnail {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #080d13;
+}
+
+.avatar-gallery-stage {
+  block-size: clamp(166px, 31vh, 260px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  border: 1px solid var(--settings-card-line);
+  background-image:
+    radial-gradient(
+      ellipse at 50% 75%,
+      color-mix(in srgb, var(--settings-title) 12%, transparent),
+      transparent 67%
+    ),
+    linear-gradient(transparent 23px, #82cecb19 24px),
+    linear-gradient(90deg, transparent 23px, #82cecb19 24px);
+  background-size:
+    auto,
+    24px 24px,
+    24px 24px;
+  background-position: center;
+}
+
+.avatar-gallery-stage[data-panning] {
+  cursor: grabbing;
+}
+
+.avatar-gallery-art {
+  position: absolute;
+  pointer-events: none;
+}
+
+.avatar-gallery-art > :is(img, canvas) {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.avatar-gallery-card[data-gallery-detail] img {
+  inset: -23% auto auto -65%;
+  inline-size: 230%;
+  block-size: 230%;
+  max-inline-size: none;
+}
+
+.avatar-gallery-art:has(
+    > :is(.avatar-gallery-canvas, .avatar-surface-performance, .avatar-wave):not([hidden])
+  )
+  > :is(.avatar-gallery-poster, .avatar-mouth-plate) {
+  visibility: hidden;
+}
+
+.avatar-gallery-caption {
+  min-block-size: 2.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-block: 0.35rem;
+}
+
+.avatar-gallery-caption h3 {
+  flex: 1;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.94rem;
+}
+
+.avatar-gallery-playback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.avatar-gallery-caption button {
+  flex: none;
+  min-inline-size: 2rem;
+  padding-inline: 5px;
+}
+
+#avatar-gallery-play {
+  flex: none;
+  border-color: var(--settings-title);
+}
+
+.avatar-gallery-categories {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-block-end: 8px;
+}
+
+.avatar-gallery-categories > button {
+  flex: 1 0 auto;
+  max-inline-size: 100%;
+}
+
+.avatar-gallery-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 100px), 1fr));
+  align-content: start;
+  gap: 7px;
+  max-block-size: clamp(158px, 31vh, 360px);
+  min-block-size: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  padding: 3px;
+}
+
+.settings-window #companion .avatar-gallery-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  gap: 5px;
+  padding: 4px 4px 6px;
+  min-inline-size: 0;
+  color: var(--settings-copy);
+  font-size: 0.77rem;
+  line-height: 1.22;
+}
+
+.avatar-gallery-thumbnail {
+  display: block;
+  aspect-ratio: 1.42;
+  inline-size: 100%;
+  border: 1px solid var(--settings-card-line);
+}
+
+.avatar-gallery-thumbnail img {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.avatar-gallery-card[aria-pressed='true'] .avatar-gallery-thumbnail {
+  border-color: var(--settings-title);
+}
+
+@container (min-width: 590px) {
+  #avatar-gallery-panel .avatar-gallery {
+    display: grid;
+    grid-template-columns: minmax(235px, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+    gap: 14px;
+  }
+
+  .avatar-gallery-stage {
+    block-size: clamp(210px, 38vh, 340px);
+  }
+
+  .avatar-gallery-items {
+    max-block-size: clamp(185px, 31vh, 360px);
+  }
+}

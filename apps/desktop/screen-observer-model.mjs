@@ -66,7 +66,6 @@ export function screenObserverModel({
         ...(!modelCapabilities || modelCapabilities.includes('thinking') ? { think: false } : {}),
         truncate: false,
         shift: false,
-        keep_alive: -1,
         tools: [],
         options: { ...params, num_predict: question ? 1536 : 192 },
         format: {

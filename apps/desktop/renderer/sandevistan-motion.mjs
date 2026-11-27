@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { SANDEVISTAN_RANGES } from './teleport-effects.mjs';
+import { SANDEVISTAN_RANGES, teleportTravelTime } from './teleport-effects.mjs';
 
-export const SANDEVISTAN_TRAVEL_MS = 625;
 const defaultAnchor = { x: 0.5, y: 1166 / 1254 };
 const lerp = (from, to, t) => from + (to - from) * t;
 const wrapHue = (hue) => ((hue % 360) + 360) % 360;
@@ -11,10 +10,10 @@ function spriteRect(point, anchor, scale) {
   return { x: point.x - anchor.x * size, y: point.y - anchor.y * size, size, clip: point.clip };
 }
 
-export function sandevistanPosition({ start, end }, elapsedMs) {
+export function sandevistanPosition({ start, end, travelMs }, elapsedMs) {
   if (elapsedMs <= 0) return start;
-  if (elapsedMs >= SANDEVISTAN_TRAVEL_MS) return end;
-  const t = elapsedMs / SANDEVISTAN_TRAVEL_MS;
+  if (elapsedMs >= travelMs) return end;
+  const t = elapsedMs / travelMs;
   const eased = t * t * (3 - 2 * t);
   return {
     x: lerp(start.x, end.x, eased),
@@ -38,22 +37,23 @@ export function prepareSandevistan({
   };
   const start = spriteRect(from, anchor, scale);
   const end = spriteRect(to, arrivalAnchor, scale);
+  const travelMs = teleportTravelTime(effects);
+  const motion = { start, end, travelMs };
   const holdMs = option('sandevistanHoldMs');
   const count = option('sandevistanCopies');
   const hue = option('sandevistanHue');
   const hueStep = option('sandevistanHueStep');
   const ghosts = Array.from({ length: count }, (_, index) => {
-    const bornMs = SANDEVISTAN_TRAVEL_MS * (index / count);
+    const bornMs = travelMs * (index / count);
     return {
       bornMs,
       hue: wrapHue(hue + index * hueStep),
-      position: sandevistanPosition({ start, end }, bornMs),
+      position: sandevistanPosition(motion, bornMs),
     };
   });
-  const endMs = Math.max(SANDEVISTAN_TRAVEL_MS, ghosts.at(-1).bornMs + holdMs);
+  const endMs = Math.max(travelMs, ghosts.at(-1).bornMs + holdMs);
   return {
-    start,
-    end,
+    ...motion,
     ghosts,
     holdMs,
     endMs,

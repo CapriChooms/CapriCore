@@ -36,7 +36,7 @@ function Get-CapriMemoryBudget($Selection,$Hardware,$Estimates) {
     $languageDevice=if($Selection -is [Collections.IDictionary]){$Selection['languageDevice']}elseif($Selection.PSObject.Properties['languageDevice']){$Selection.languageDevice}
     $languageGpu=$gpu -and $languageDevice -ne 'cpu'
     $freeVram=if($gpu -and $null -ne $Hardware.availableVramGiB){$Hardware.availableVramGiB}else{$null}
-    $gpuBudget=if($null -ne $freeVram){$freeVram}else{$Hardware.vramGiB}
+    $gpuBudget=if($null -ne $freeVram){$freeVram}else{$Hardware.vramGiB*$Estimates.unknownVramBudgetFraction}
     $ram=@([double]$Estimates.base.ram[0],[double]$Estimates.base.ram[1])
     $vram=if($gpu){@([double]$Estimates.base.vram[0],[double]$Estimates.base.vram[1])}else{@(0.0,0.0)}
     $parts=New-Object Collections.Generic.List[object]
@@ -64,12 +64,27 @@ function Get-CapriMemoryBudget($Selection,$Hardware,$Estimates) {
         $fraction=[Math]::Min(1.0,[Math]::Max(0.0,([double]$vram[$i]-[double]$gpuBudget))/[double]$model.vram[$i])
         $ram[$i]+=$fraction*[Math]::Max(0.0,([double]$model.cpuRam[$i]-[double]$model.hostRam[$i]))
     }}
-    function Row($Range,$Total,$Available) {
+    function Row($Range,$Total,$Available,$PlanningLimit=$Total) {
         $known=$null -ne $Available -and -not([double]::IsNaN($Available) -or [double]::IsInfinity($Available)) -and $Available -ge 0
-        $limit=if($known){$Available}else{$Total}
+        $limit=if($known){$Available}else{$PlanningLimit}
         return @{estimate=@($Range|ForEach-Object{[Math]::Round($_,1,[MidpointRounding]::AwayFromZero)});total=$Total;available=$(if($known){$Available}else{$null});remaining=$(if($known){@([Math]::Round(($Available-$Range[1]),1,[MidpointRounding]::AwayFromZero),[Math]::Round(($Available-$Range[0]),1,[MidpointRounding]::AwayFromZero))}else{$null});exceedsAvailable=($null -ne $limit -and $Range[1] -gt $limit)}
     }
-    return @{contextTokens=$Estimates.contextTokens;mode=$(if($languageGpu){'gpu'}else{'cpu'});offload=[bool]$offload;ram=(Row $ram $Hardware.ramGiB $Hardware.availableRamGiB);vram=(Row $vram $(if($gpu){$Hardware.vramGiB}else{$null}) $freeVram)}
+    return @{contextTokens=$Estimates.contextTokens;mode=$(if($languageGpu){'gpu'}else{'cpu'});offload=[bool]$offload;ram=(Row $ram $Hardware.ramGiB $Hardware.availableRamGiB);vram=(Row $vram $(if($gpu){$Hardware.vramGiB}else{$null}) $freeVram $(if($gpu){$gpuBudget}else{$null}))}
+}
+function Test-CapriAvailableModelRam($Profile,$Hardware,$Estimates,$LanguageDevice) {
+    if($null -eq $Hardware.availableRamGiB){return $true}
+    $selection=@{profile=$Profile.id;downloadModels=$true;languageDevice=$LanguageDevice;conversationLanguage='en';voiceMode='off';recognition=$false;router=$false}
+    $plan=Get-CapriMemoryBudget $selection $Hardware $Estimates
+    return -not $plan.ram.exceedsAvailable
+}
+function Test-CapriRocmVoiceGpu([string[]]$Names, $AmdWindows, [int]$WindowsBuild) {
+    if($WindowsBuild -lt $AmdWindows.minimumBuild){return $false}
+    $models=@($AmdWindows.models | ForEach-Object{$_ -replace '\s+',''})
+    foreach($name in $Names){
+        $model=($name -replace '\s+','') -replace '^(?:AMD)?(?:RADEON(?:\(TM\)|[\u00ae\u2122])?)?',''
+        if($models -contains $model){return $true}
+    }
+    return $false
 }
 function Update-CapriMemorySnapshot($Hardware) {
     try {

@@ -2,6 +2,7 @@
 import builtins
 import ctypes
 import io
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -17,7 +18,7 @@ STAGES = ['ASR_START_DEPENDENCIES', 'ASR_START_CONFIG',
 
 
 class WorkerStartupTests(unittest.TestCase):
-    def run_worker(self, fail_at=None):
+    def run_worker(self, fail_at=None, *, deferred=False, stdin=b'', idle_seconds=0):
         events, calls = [], []
         model = ModuleType('integrations.asr_runtime.model')
         recognition = ModuleType('integrations.asr_runtime.recognition')
@@ -34,9 +35,16 @@ class WorkerStartupTests(unittest.TestCase):
         model.Recognizer = lambda config: phase('ASR_START_MODEL', SimpleNamespace())
         model.validate_pause = lambda value: value
         recognition.RecognitionSession = SimpleNamespace
-        recognition.RecognitionQueue = lambda recognizer, emit: SimpleNamespace(
-            stop=lambda session: None, close=lambda: None)
+        def make_queue(recognizer, emit, *, reload_recognizer, idle_seconds: int):
+            self.assertEqual(idle_seconds, expected_idle_seconds)
+            self.assertEqual(recognizer is None, deferred)
+            return SimpleNamespace(stop=lambda session: None, close=lambda: None,
+                warm=lambda: calls.append('warm'),
+                set_idle_unload=lambda enabled, seconds: calls.append(('idle', enabled, seconds)),
+                executor=SimpleNamespace(submit=lambda f, *args: f(*args)))
+        recognition.RecognitionQueue = make_queue
         original_import = builtins.__import__
+        expected_idle_seconds = idle_seconds
 
         def import_module(name, *args, **kwargs):
             if name == 'numpy':
@@ -47,7 +55,10 @@ class WorkerStartupTests(unittest.TestCase):
         with patch.dict(sys.modules, {model.__name__: model, recognition.__name__: recognition}), \
                 patch.object(worker, 'load_sherpa_runtime'), \
                 patch.object(worker, 'emit', side_effect=events.append), \
-                patch.object(worker.sys, 'stdin', SimpleNamespace(buffer=io.BytesIO())), \
+                patch.dict(os.environ, {'CAPRI_ASR_DEFER_MODEL': '1' if deferred else '0',
+                                        'CAPRI_ASR_UNLOAD_IDLE': '1' if idle_seconds else '0',
+                                        'CAPRI_ASR_IDLE_SECONDS': str(idle_seconds)}), \
+                patch.object(worker.sys, 'stdin', SimpleNamespace(buffer=io.BytesIO(stdin))), \
                 patch('builtins.__import__', side_effect=import_module):
             result = worker.run()
         return result, events, calls
@@ -71,6 +82,21 @@ class WorkerStartupTests(unittest.TestCase):
         self.assertEqual(events[-1], {'type': 'ready', 'protocol': 1, 'language': 'en',
             'sampleRate': 16000, 'provider': 'cpu', 'engine': 'fixture', 'mode': 'utterance',
             'draft': False})
+
+    def test_deferred_start_skips_loading_until_an_explicit_warm_command(self):
+        result, events, calls = self.run_worker(deferred=True,
+            stdin=b'{"type":"warm-model","request":5}\n')
+        self.assertIsNone(result)
+        self.assertEqual(calls, STAGES[:-1] + ['warm'])
+        self.assertEqual(events[-2]['type'], 'ready')
+        self.assertEqual(events[-1], {'type': 'ack', 'request': 5})
+
+    def test_custom_model_unload_timeout_updates_through_worker_protocol(self):
+        result, events, calls = self.run_worker(idle_seconds=120,
+            stdin=b'{"type":"idle-policy","enabled":true,"idleSeconds":600,"request":6}\n')
+        self.assertIsNone(result)
+        self.assertEqual(calls[-1], ('idle', True, 600))
+        self.assertEqual(events[-1], {'type': 'ack', 'request': 6})
 
 
 class WindowsRuntimeTests(unittest.TestCase):

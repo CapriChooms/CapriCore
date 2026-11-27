@@ -5,7 +5,9 @@ import {
   validateSource,
   hasSourceCredential,
   assertPublicVoiceConfiguration,
+  exportSource,
 } from '../tools/release/source-export.mjs';
+import { verifySetupPayload } from '../packages/installer/src/payload.mjs';
 import {
   ACTIVE_AVATAR_CATALOG,
   ACTIVE_AVATAR_POSES,
@@ -124,6 +126,43 @@ test('source export includes its own tooling and every Node command, excluding i
 });
 
 const archiveFixture = temporaryFolders('capri-source-archive-unit-');
+test('the source manifest survives checkout of a release with mixed line endings', async (t) => {
+  const git = findExecutable('git', { extra: [path.join(root, '.runtime/git/cmd/git.exe')] });
+  if (!git) return t.skip('Git is needed to exercise line-ending conversion');
+  const originalAttributes = readFileSync(path.join(root, '.gitattributes'));
+  using source = exportSource({ temporary: true });
+  assert.equal((await verifySetupPayload(source.destination)).length, source.files);
+  assert.deepEqual(readFileSync(path.join(root, '.gitattributes')), originalAttributes);
+
+  const folder = archiveFixture();
+  const repository = path.join(folder, 'repo');
+  const extracted = path.join(folder, 'checked-out');
+  mkdirSync(repository);
+  mkdirSync(extracted);
+  const run = (...args) => {
+    const result = spawnSync(
+      git,
+      ['-c', 'safe.directory=' + repository, '-c', 'core.autocrlf=true', ...args],
+      { cwd: repository, encoding: 'utf8', windowsHide: true, timeout: 30000 },
+    );
+    assert.equal(result.status, 0, result.error?.message || result.stderr || result.stdout);
+  };
+  copyFileSync(
+    path.join(source.destination, '.gitattributes'),
+    path.join(repository, '.gitattributes'),
+  );
+  const samples = new Map([
+    ['fixture.ps1', Buffer.from('Write-Output 1\nWrite-Output 2\n')],
+    ['fixture.txt', Buffer.from('one\r\ntwo\r\n')],
+  ]);
+  for (const [name, bytes] of samples) writeFileSync(path.join(repository, name), bytes);
+  run('init', '--quiet');
+  run('add', '--all');
+  run('checkout-index', '--all', '--prefix=' + extracted.replaceAll('\\', '/') + '/');
+  for (const [name, bytes] of samples)
+    assert.deepEqual(readFileSync(path.join(extracted, name)), bytes);
+});
+
 test('standard Git source archives include the validated avatar and keep private directories excluded', (t) => {
   const git = findExecutable('git', { extra: [path.join(root, '.runtime/git/cmd/git.exe')] });
   if (!git) return t.skip('Git is needed to exercise its real export-ignore behavior');

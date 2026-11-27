@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 const hint = 'Take more time to check difficult answers.';
 
-/** A session toggle and a public approach, never a reasoning transcript. */
+/** Tracks the saved mode and exposes only the public approach. */
 export class ThinkingMode {
   constructor({
     button,

@@ -91,9 +91,13 @@ def verify_model_metadata(config):
     folder = config["modelPath"]
     receipt = json.loads((folder / "model-receipt.json").read_text(encoding="utf-8"))
     upstream = verify_source()
-    if receipt["upstream"] != upstream or set(receipt["files"]) != set(
-        upstream["model"]["files"]
-    ):
+    pinned = json.loads((ROOT / "config/voice-model-download.json").read_text(encoding="utf-8"))
+    # The separate reference pack can be republished without changing the base model.
+    identity = {key: value for key, value in upstream.items() if key != "bundledPack"}
+    installed = {key: value for key, value in receipt["upstream"].items() if key != "bundledPack"}
+    hashes = {name: spec["sha256"] for name, spec in pinned["files"].items()}
+    if (installed != identity or pinned["revision"] != upstream["model"]["revision"]
+            or set(hashes) != set(upstream["model"]["files"]) or receipt["files"] != hashes):
         raise ValueError(
             "Model revision differs from the pinned download; rerun download"
         )

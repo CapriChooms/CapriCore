@@ -8,7 +8,12 @@ if __name__ == '__main__':
     # The desktop launches with -I -S: sitecustomize and .pth hooks must not
     # import a different ONNX Runtime before the worker can select its DLL.
     root = Path(__file__).resolve().parents[2]
-    packages = Path(sys.executable).parent.parent / 'Lib' / 'site-packages'
+    venv_root = Path(sys.executable).parent.parent
+    if sys.platform == 'linux':
+        major, minor = sys.version_info[:2]
+        packages = venv_root / 'lib' / f'python{major}.{minor}' / 'site-packages'
+    else:
+        packages = venv_root / 'Lib' / 'site-packages'
     sys.path.extend((str(root), str(packages)))
     module = ('integrations.voice_training.review_recordings' if '--transcribe-recordings' in sys.argv
               else 'integrations.asr_runtime.worker')

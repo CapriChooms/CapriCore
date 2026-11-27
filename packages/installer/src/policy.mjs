@@ -134,6 +134,9 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
     if (typeof input[key] !== 'boolean') throw new Error('Invalid installer option: ' + key);
   if (input.router !== undefined && typeof input.router !== 'boolean')
     throw new Error('Invalid installer option: router');
+  for (const key of ['camera', 'reuseDependencies'])
+    if (input[key] !== undefined && typeof input[key] !== 'boolean')
+      throw new Error('Invalid installer option: ' + key);
   let customConversation = '';
   if (input.conversationLanguage === 'custom') {
     const languageFile = path.join(target, 'data/desktop/languages.json');
@@ -229,6 +232,8 @@ export function validateRequest(input, { sourceRoot, version, hardware, freeByte
     voicePack,
     bundledVoicePack,
     recognition: input.recognition,
+    camera: input.camera ?? true,
+    reuseDependencies: input.reuseDependencies === true,
     router: true,
     downloadModels,
     desktopShortcut: input.desktopShortcut,

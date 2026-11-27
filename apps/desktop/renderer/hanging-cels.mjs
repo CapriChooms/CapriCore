@@ -99,20 +99,19 @@ register('ledge-keytar', 'ledge-keytar', 'pose-sit-edge', [
   [master, 190],
 ]);
 register('ledge-peek-below', 'hang-pullup', 'pose-ceiling', [
-  [master, 150],
-  [6, 80],
-  [0, 115],
+  [master, 200],
+  [6, 90],
+  [0, 125],
+  [7, 100],
+  [1, 125],
+  [8, 90],
+  [2, 760],
+  [8, 100],
+  [1, 140],
   [7, 90],
-  [1, 190],
-  [8, 75],
-  [2, 125],
-  [9, 90],
-  [3, 445],
-  [4, 170],
-  [10, 110],
-  [11, 105],
-  [5, 110],
-  [master, 215],
+  [0, 105],
+  [6, 80],
+  [master, 200],
 ]);
 
 export function registeredCelClip(action) {

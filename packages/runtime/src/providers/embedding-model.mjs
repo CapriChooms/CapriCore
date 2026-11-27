@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { request } from '../http.mjs';
+import { llamaAdminHeaders } from './llama-admin.mjs';
 
 const managedModel = 'capri-embed:latest';
 const baseModel = 'bge-m3:latest';
@@ -26,7 +27,7 @@ export async function ensureEmbeddingModel(
       method: 'POST',
       timeout: 60000,
       signal,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...llamaAdminHeaders(rt.ollamaUrl) },
       body: JSON.stringify({
         model: managedModel,
         from: baseModel,

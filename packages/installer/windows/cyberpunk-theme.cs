@@ -282,6 +282,8 @@ namespace Capri.Setup.Cyberpunk {
 
     public class ProgressBar : System.Windows.Forms.ProgressBar {
         private const int SweepDuration = 1700;
+        private const int BreathDuration = 4800;
+        private const float BreathStretch = .025f;
         private const uint SpiGetClientAreaAnimation = 0x1042;
         private static readonly Color FillStart = Color.FromArgb(38, 143, 159);
         private static readonly Color FillEnd = Color.FromArgb(88, 222, 222);
@@ -317,6 +319,7 @@ namespace Capri.Setup.Cyberpunk {
                 if (marker != null) marker.Dispose();
                 marker = cropped;
             }
+            UpdateSweep();
             Invalidate();
         }
         protected override void Dispose(bool disposing) {
@@ -349,8 +352,11 @@ namespace Capri.Setup.Cyberpunk {
         protected override void OnHandleDestroyed(EventArgs e) { StopSweep(); base.OnHandleDestroyed(e); }
         protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); UpdateSweep(); }
         private void OwnerResized(object sender, EventArgs e) { UpdateSweep(); }
+        private bool AnimateFill {
+            get { return animateProgress && (Style == ProgressBarStyle.Marquee || (Value > Minimum && Value < Maximum)); }
+        }
         private Rectangle SweepBounds() {
-            return Style == ProgressBarStyle.Marquee ? ClientRectangle : FillBounds(Ink.LayoutScale);
+            return marker != null || Style == ProgressBarStyle.Marquee ? ClientRectangle : FillBounds(Ink.LayoutScale);
         }
         private void StopSweep() {
             if (!sweepClock.IsRunning) return;
@@ -359,9 +365,8 @@ namespace Capri.Setup.Cyberpunk {
             Invalidate(SweepBounds());
         }
         private void UpdateSweep() {
-            if (!animateProgress || !IsHandleCreated || !Visible || ownerForm == null ||
-                ownerForm.WindowState == FormWindowState.Minimized ||
-                (Style != ProgressBarStyle.Marquee && (Value <= Minimum || Value >= Maximum))) {
+            if (!IsHandleCreated || !Visible || ownerForm == null ||
+                ownerForm.WindowState == FormWindowState.Minimized || (!AnimateFill && marker == null)) {
                 StopSweep();
                 return;
             }
@@ -374,7 +379,10 @@ namespace Capri.Setup.Cyberpunk {
             if (sweepClock.IsRunning) return;
             if (sweepTimer == null) {
                 sweepTimer = new Timer { Interval = 33 };
-                sweepTimer.Tick += delegate { Invalidate(SweepBounds()); };
+                sweepTimer.Tick += delegate {
+                    UpdateSweep();
+                    if (sweepClock.IsRunning) Invalidate(SweepBounds());
+                };
             }
             sweepClock.Restart();
             sweepTimer.Start();
@@ -415,7 +423,7 @@ namespace Capri.Setup.Cyberpunk {
             }
             using (LinearGradientBrush brush = new LinearGradientBrush(fill, rtl ? FillEnd : FillStart, rtl ? FillStart : FillEnd, LinearGradientMode.Horizontal))
                 graphics.FillRectangle(brush, fill);
-            if (!sweepClock.IsRunning) return;
+            if (!sweepClock.IsRunning || !AnimateFill) return;
             float band = Math.Min(fill.Width, Math.Max(20 * scale, fill.Width * .38f));
             float phase = (sweepClock.ElapsedMilliseconds % SweepDuration) / (float)SweepDuration;
             float offset = phase * (fill.Width + band) - band;
@@ -429,11 +437,14 @@ namespace Capri.Setup.Cyberpunk {
                 graphics.FillRectangle(glow, lit);
             }
         }
-        private void PaintMarker(Graphics graphics, Rectangle track, Rectangle inner, float edge, float lift, float scale) {
-            float width = Math.Min(224 * scale, Math.Min(inner.Width, (track.Top + 2 * scale) * marker.Width / marker.Height));
-            float height = width * marker.Height / marker.Width;
+        private void PaintMarker(Graphics graphics, Rectangle track, Rectangle inner, float edge, float scale) {
+            float maxHeight = (track.Top + 2 * scale) / (1 + BreathStretch);
+            float width = Math.Min(224 * scale, Math.Min(inner.Width, maxHeight * marker.Width / marker.Height));
+            double phase = (sweepClock.ElapsedMilliseconds % BreathDuration) * (2 * Math.PI / BreathDuration);
+            float breathScale = 1 + BreathStretch * (float)(1 - Math.Cos(phase)) / 2;
+            float height = width * marker.Height / marker.Width * breathScale;
             float left = Math.Max(inner.Left, Math.Min(inner.Right - width, edge - width / 2));
-            RectangleF position = new RectangleF(left, track.Top - height + 2 * scale - lift, width, height);
+            RectangleF position = new RectangleF(left, track.Top - height + 2 * scale, width, height);
             graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
             graphics.DrawImage(marker, position, new RectangleF(0, 0, marker.Width, marker.Height), GraphicsUnit.Pixel);
         }
@@ -453,7 +464,7 @@ namespace Capri.Setup.Cyberpunk {
             Rectangle fill = marquee ? Rectangle.Empty : FillBounds(inner);
             if (marquee) {
                 using (HatchBrush activity = new HatchBrush(HatchStyle.ForwardDiagonal, Color.FromArgb(35, Ink.Cyan), Ink.Raised)) g.FillRectangle(activity, inner);
-                if (sweepClock.IsRunning) {
+                if (sweepClock.IsRunning && AnimateFill) {
                     float phase = (sweepClock.ElapsedMilliseconds % SweepDuration) / (float)SweepDuration;
                     float band = Math.Max(24 * s, inner.Width * .25f);
                     float position = phase * (inner.Width + band) - band;
@@ -472,10 +483,7 @@ namespace Capri.Setup.Cyberpunk {
             if (marker != null && trackBounds.Top > 0 && e.ClipRectangle.Top < trackBounds.Top + 2 * s) {
                 float edge = marquee ? inner.Left + inner.Width / 2f
                     : (RightToLeft == RightToLeft.Yes ? inner.Right - fill.Width : inner.Left + fill.Width);
-                float lift = marquee && sweepClock.IsRunning
-                    ? (float)((1 - Math.Cos((sweepClock.ElapsedMilliseconds % 3200) * (2 * Math.PI / 3200))) * 1.5 * s)
-                    : 0;
-                PaintMarker(g, trackBounds, inner, edge, lift, s);
+                PaintMarker(g, trackBounds, inner, edge, s);
             }
         }
     }
@@ -497,12 +505,12 @@ namespace Capri.Setup.Cyberpunk {
         private Point questionCenter;
         private SizeF questionHaloSize;
         private float questionReveal = 1f;
-        private const int TextFadeDuration = 235;
-        private const int ReadingPauseDuration = 1000;
+        private const int TextFadeDuration = 160;
+        private const int ReadingPauseDuration = 150;
         private const int RiseStart = TextFadeDuration + ReadingPauseDuration;
-        private const int RiseDuration = 270;
-        private const int AnswersStart = RiseStart + RiseDuration - 40;
-        private const int AnswersDuration = 255;
+        private const int RiseDuration = 180;
+        private const int AnswersStart = RiseStart + 60;
+        private const int AnswersDuration = 170;
         public bool QuestionRevealActive { get { return revealClock.IsRunning; } }
         public float QuestionTextOpacity { get; private set; }
         public float QuestionBloom { get; private set; }

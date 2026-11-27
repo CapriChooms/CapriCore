@@ -9,6 +9,7 @@ import {
   estimateMemoryBudget,
   profileRamRequirement,
 } from '../packages/runtime/src/hardware/memory-budget.mjs';
+import { recommendProfile, selectProfile } from '../packages/runtime/src/hardware/profiles.mjs';
 import { selectModelChoice } from '../packages/runtime/src/hardware/model-catalog.mjs';
 const hardware = {
   ramBytes: 16 * 2 ** 30,
@@ -291,3 +292,20 @@ $e=Read-CapriJson (Join-Path $Root 'config/memory-estimates.json')
     assert.equal(MEMORY_ESTIMATES.contextTokens, 32768);
   },
 );
+
+test('unknown VRAM reserves headroom while measured zero and unavailable RAM stay distinct', () => {
+  const onlyText = { ...selection, profile: 'quality' };
+  const card = { memoryKind: 'dedicated', vramMiB: 8192 };
+  const host = { ...hardware, ramBytes: 32 * 2 ** 30, availableRamBytes: null, gpus: [card] };
+  const unknown = estimateMemoryBudget(onlyText, host);
+  assert.equal(unknown.ram.available, null);
+  assert.equal(unknown.vram.available, null);
+  assert.equal(unknown.offload, true);
+  assert.equal(
+    estimateMemoryBudget(onlyText, { ...host, gpus: [{ ...card, freeVramMiB: 8192 }] }).offload,
+    false,
+  );
+  const busy = { ...host, availableRamBytes: 2 ** 30 };
+  assert.equal(recommendProfile(busy).profile.id, 'minimal');
+  assert.equal(selectProfile('desktop', busy).id, 'desktop');
+});

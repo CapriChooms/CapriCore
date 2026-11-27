@@ -6,7 +6,7 @@ import { stripVTControlCharacters } from 'node:util';
 export function runCommand(
   executable,
   args,
-  { cwd, env, signal, output = () => {}, timeoutMs = 60 * 60 * 1000 } = {},
+  { cwd, env, signal, output = () => {}, timeoutMs = 60 * 60 * 1000, idleTimeoutMs } = {},
 ) {
   signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
@@ -40,18 +40,31 @@ export function runCommand(
     };
     const timeout = () => terminate(new Error('Installation component timed out'));
     let activeMs = 0,
+      idleMs = 0,
       previousTick = Date.now();
-    const timer = env?.CAPRI_INSTALL_PAUSE_FILE
-      ? setInterval(
-          () => {
-            const now = Date.now();
-            if (!existsSync(env.CAPRI_INSTALL_PAUSE_FILE)) activeMs += now - previousTick;
-            previousTick = now;
-            if (activeMs >= timeoutMs) timeout();
-          },
-          Math.min(250, timeoutMs),
-        )
-      : setTimeout(timeout, timeoutMs);
+    const pauseFile = env?.CAPRI_INSTALL_PAUSE_FILE;
+    const timer =
+      pauseFile || idleTimeoutMs
+        ? setInterval(
+            () => {
+              const now = Date.now();
+              if (!pauseFile || !existsSync(pauseFile)) {
+                activeMs += now - previousTick;
+                idleMs += now - previousTick;
+              }
+              previousTick = now;
+              if (activeMs >= timeoutMs) timeout();
+              else if (idleTimeoutMs && idleMs >= idleTimeoutMs)
+                terminate(
+                  Object.assign(new Error('Installation command stopped reporting progress'), {
+                    code: 'CAPRI_INSTALL_IDLE',
+                    outputTail: stripVTControlCharacters(tail),
+                  }),
+                );
+            },
+            Math.min(250, timeoutMs, idleTimeoutMs ?? Infinity),
+          )
+        : setTimeout(timeout, timeoutMs);
     const abort = () => {
       terminate(signal.reason ?? new Error('Installation cancelled'));
     };
@@ -76,6 +89,7 @@ export function runCommand(
       state.buffer = '';
     };
     const receive = (state, text) => {
+      idleMs = 0;
       tail = (tail + text).slice(-6000);
       state.buffer = (state.buffer + text).slice(-16000);
       let at;

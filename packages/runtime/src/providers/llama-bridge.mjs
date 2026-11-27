@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { once } from 'node:events';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -282,9 +282,10 @@ async function nativeRequest(worker, endpoint, body, signal) {
   return response;
 }
 
-export function createLlamaBridge({ store, workers, config, version, configuration }) {
+export function createLlamaBridge({ store, workers, config, version, configuration, adminToken }) {
   const started = Date.now();
   const instance = randomUUID();
+  const admin = adminToken ? Buffer.from('Bearer ' + adminToken) : null;
   return createServer({ requestTimeout: 180000, headersTimeout: 15000 }, async (req, res) => {
     // This service is private to loopback. Reject browser cross-origin and
     // DNS-rebinding requests before accepting any model data or operations.
@@ -314,6 +315,11 @@ export function createLlamaBridge({ store, workers, config, version, configurati
       }
       if (!['POST', 'DELETE'].includes(method))
         return json(res, { error: 'Unknown local endpoint.' }, 404);
+      const authorization = Buffer.from(req.headers.authorization ?? '');
+      const canManage =
+        admin && authorization.length === admin.length && timingSafeEqual(authorization, admin);
+      if (['/api/create', '/api/delete', '/api/pull'].includes(route) && !canManage)
+        return json(res, { error: 'This operation requires Capri local model access.' }, 401);
       const input = await readJson(req);
       if (route === '/api/pull' && method === 'POST') {
         res.writeHead(200, { 'content-type': 'application/x-ndjson' });
@@ -342,6 +348,8 @@ export function createLlamaBridge({ store, workers, config, version, configurati
         !input.prompt &&
         input.keep_alive === 0
       ) {
+        if (!canManage)
+          return json(res, { error: 'This operation requires Capri local model access.' }, 401);
         await workers.unload(input.model);
         return json(res, stamp(input.model, { done: true, done_reason: 'unload' }));
       }

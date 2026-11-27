@@ -1,5 +1,4 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import { voiceStartupFailure } from './startup-error.mjs';
 
 /** Cold model loading can exceed three minutes on an ordinary Windows disk. */
 export async function waitForVoiceReady({
@@ -25,17 +24,13 @@ export async function waitForVoiceReady({
     if (status?.ready === true) return status;
     if (now() >= nextProcessCheck) {
       if (!(await isRunning()))
-        throw voiceStartupFailure(
-          'CAPRI_VOICE_START_PROCESS_EXIT',
+        throw new Error(
           'The local voice process stopped during startup. See logs/companion-voice.stderr.log.',
         );
       nextProcessCheck = now() + 5000;
     }
     if (now() >= deadline)
-      throw voiceStartupFailure(
-        'CAPRI_VOICE_START_TIMEOUT',
-        'Voice model loading timed out. See logs/companion-voice.stderr.log.',
-      );
+      throw new Error('Voice model loading timed out. See logs/companion-voice.stderr.log.');
     await sleep(Math.min(interval, deadline - now()));
   }
 }

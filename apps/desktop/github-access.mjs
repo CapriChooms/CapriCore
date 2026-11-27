@@ -3,7 +3,7 @@ import { existsSync, lstatSync, readFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { noLinks } from '../../packages/installer/src/policy.mjs';
 import { writeJsonAtomic } from './storage.mjs';
-import { githubCredential, listReleases } from '../../packages/updater/src/github.mjs';
+import { listReleases } from '../../packages/updater/src/github.mjs';
 import { EXPERIMENTAL_REPOSITORY } from '../../packages/updater/src/releases.mjs';
 
 export const GITHUB_ACCESS_URL =
@@ -42,8 +42,8 @@ export function credentialStorage(safeStorage, platform = process.platform) {
 
 /** Main-process only. The renderer receives status, never a token or ciphertext. */
 export class GitHubAccess {
-  constructor({ root, storage, verify = listReleases, fallback = githubCredential }) {
-    Object.assign(this, { root, storage, verify, fallback });
+  constructor({ root, storage, verify = listReleases }) {
+    Object.assign(this, { storage, verify });
     this.file = path.join(root, 'data/secrets/github-updates.json');
     this.controller = null;
   }
@@ -79,7 +79,7 @@ export class GitHubAccess {
     }
   }
   async credential() {
-    return (await this.saved()) ?? (await this.fallback(this.root));
+    return this.saved();
   }
   async status() {
     let connected = false,

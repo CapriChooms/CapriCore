@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { wantsVoiceFollowUp } from '../apps/desktop/voice-follow-up.mjs';
+import { endsVoiceConversation, wantsVoiceFollowUp } from '../apps/desktop/voice-follow-up.mjs';
 import { settingsBounds, settingsHelpBounds } from '../apps/desktop/main/settings-window.mjs';
 import {
   INITIATIVE_DEFAULTS,
@@ -58,6 +58,40 @@ test('a final question opens follow-up only for the current trusted voice sessio
   ])
     assert.equal(wantsVoiceFollowUp({ ...valid, ...delta }), false);
   assert.equal(wantsVoiceFollowUp({ ...valid, text: 'هل تبقى؟' }), true);
+  const spokenReply = { ...valid, text: 'The answer is forty-two.', afterAnyReply: true };
+  assert.equal(wantsVoiceFollowUp(spokenReply), true);
+  assert.equal(wantsVoiceFollowUp({ ...spokenReply, text: '' }), false);
+  assert.equal(wantsVoiceFollowUp({ ...spokenReply, ended: true }), false);
+  assert.equal(wantsVoiceFollowUp({ ...spokenReply, origin: 'text' }), false);
+  assert.equal(wantsVoiceFollowUp({ ...spokenReply, activeSessionId: 'mic2' }), false);
+});
+
+test('standalone thanks and goodbyes close the voice conversation', () => {
+  for (const text of [
+    'Thank you.',
+    'Capri, thank you!',
+    'Thank you, that’s all.',
+    'No, thanks.',
+    'Bye, Capri.',
+    'Спасибо!',
+    'Капри, спасибо, на этом всё.',
+    'Пока, Капри!',
+    'Danke schön!',
+    'Dziękuję.',
+    'Спасибо большое.',
+    'ありがとう。',
+    '谢谢！',
+    'धन्यवाद।',
+  ])
+    assert.ok(endsVoiceConversation(text), text);
+  for (const text of [
+    'Thank you, what else should I try?',
+    'Thanks for explaining that. Open Settings.',
+    'What does goodbye mean?',
+    'Спасибо, а сколько сейчас времени?',
+    'Пока загружается модель, расскажи что-нибудь.',
+  ])
+    assert.equal(endsVoiceConversation(text), false, text);
 });
 test('settings docking stays within a monitor, including negative coordinates and high DPI work areas', () => {
   for (const area of [

@@ -23,6 +23,26 @@ const lowFrequency = (sampleRate, filter) =>
 const glitchInterval = (amount, first = false) =>
   ((first ? 2 : 3) + Math.max(0, 100 - amount) * 0.12) / (1 + extension(amount) * 7);
 
+const PITCH_WINDOW_SECONDS = 0.048;
+const pitchControls = new WeakMap();
+
+function pitchControlBuffer(context) {
+  if (pitchControls.has(context)) return pitchControls.get(context);
+  const length = Math.round(PITCH_WINDOW_SECONDS * context.sampleRate);
+  const buffer = context.createBuffer(4, length, context.sampleRate);
+  for (let tap = 0; tap < 2; tap++) {
+    const sweep = buffer.getChannelData(2 * tap);
+    const gain = buffer.getChannelData(2 * tap + 1);
+    for (let i = 0; i < length; i++) {
+      const phase = (i / length + tap / 2) % 1;
+      sweep[i] = phase - 0.5;
+      gain[i] = Math.sin(Math.PI * phase) ** 2;
+    }
+  }
+  pitchControls.set(context, buffer);
+  return buffer;
+}
+
 /** Persistent playback graph: chunks share filters, room and delay state. */
 export class VoiceEffects {
   constructor(context, destination) {
@@ -50,6 +70,7 @@ export class VoiceEffects {
       nodes.push(n);
       return n;
     };
+    this.voice = gain();
     this.dry = gain();
     this.wet = gain();
     this.roomGain = gain();
@@ -84,9 +105,10 @@ export class VoiceEffects {
     });
     nodes.push(this.high, this.low, this.room, this.space, this.echo, this.safety);
     this.input.disconnect();
-    this.input.connect(this.dry);
+    this.input.connect(this.voice);
+    this.voice.connect(this.dry);
     this.dry.connect(this.sum);
-    this.input.connect(this.high);
+    this.voice.connect(this.high);
     this.high.connect(this.low);
     this.low.connect(this.drive);
     this.drive.connect(this.normal);
@@ -109,6 +131,60 @@ export class VoiceEffects {
     this.sum.connect(this.safety);
     this.safety.connect(this.destination);
   }
+  configurePitch(semitones) {
+    if (!semitones) {
+      if (this.pitch) {
+        this.input.disconnect();
+        this.clearPitch();
+        this.input.connect(this.voice);
+      }
+      return;
+    }
+    const shift = 2 ** (semitones / 12) - 1;
+    if (this.pitch) {
+      this.parameter(this.pitch.source.playbackRate, Math.abs(shift));
+      for (const depth of this.pitch.depths)
+        this.parameter(depth.gain, -Math.sign(shift) * this.pitch.source.buffer.duration);
+      return;
+    }
+
+    // A falling delay raises pitch and a rising one lowers it. Crossfade two
+    // taps a half cycle apart so each tap can reset its delay while silent.
+    const source = this.context.createBufferSource();
+    source.buffer = pitchControlBuffer(this.context);
+    source.loop = true;
+    source.playbackRate.value = Math.abs(shift);
+    const sweepSeconds = source.buffer.duration;
+    const controls = this.context.createChannelSplitter(4);
+    source.connect(controls);
+    const nodes = [source, controls];
+    const depths = [];
+    this.input.disconnect();
+    for (let tap = 0; tap < 2; tap++) {
+      const delay = this.context.createDelay(sweepSeconds);
+      delay.delayTime.value = sweepSeconds / 2;
+      const depth = this.context.createGain();
+      depth.gain.value = -Math.sign(shift) * sweepSeconds;
+      const envelope = this.context.createGain();
+      envelope.gain.value = 0;
+      controls.connect(depth, 2 * tap);
+      depth.connect(delay.delayTime);
+      controls.connect(envelope.gain, 2 * tap + 1);
+      this.input.connect(delay);
+      delay.connect(envelope);
+      envelope.connect(this.voice);
+      nodes.push(delay, depth, envelope);
+      depths.push(depth);
+    }
+    source.start();
+    this.pitch = { source, nodes, depths };
+  }
+  clearPitch() {
+    if (!this.pitch) return;
+    this.pitch.source.stop();
+    for (const node of this.pitch.nodes) node.disconnect();
+    this.pitch = null;
+  }
   configure(value) {
     const next = validateVoiceEffects(value),
       was = this.settings.enabled,
@@ -119,6 +195,7 @@ export class VoiceEffects {
       return;
     }
     if (!this.nodes.length) this.build();
+    this.configurePitch(next.pitch);
     const mix = next.mix / 100,
       roomBoost = extension(next.reverb),
       echoBoost = extension(next.delay);
@@ -203,10 +280,13 @@ export class VoiceEffects {
     );
   }
   get tailSeconds() {
-    return this.settings.enabled && (this.settings.reverb || this.settings.delay)
-      ? 0.36 +
+    if (!this.settings.enabled) return 0;
+    const pitch = this.pitch?.source.buffer.duration ?? 0;
+    return this.settings.reverb || this.settings.delay
+      ? pitch +
+          0.36 +
           Math.max(extension(this.settings.reverb) * 1.28, extension(this.settings.delay) * 1.64)
-      : 0;
+      : pitch;
   }
   resetGraph() {
     if (this.carrier) {
@@ -217,6 +297,7 @@ export class VoiceEffects {
     this.timer = null;
     this.nextGlitch = 0;
     this.input.disconnect();
+    this.clearPitch();
     for (const node of this.nodes) node.disconnect();
     this.nodes = [];
     this.input.connect(this.destination);

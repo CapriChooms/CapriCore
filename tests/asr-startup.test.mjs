@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import test from 'node:test';
-import { ASRWorker } from '../apps/desktop/asr-worker.mjs';
+import { ASRWorker, asrPython, asrSitePackages } from '../apps/desktop/asr-worker.mjs';
 import { recognitionModelsInstalled } from '../apps/desktop/language-models.mjs';
 import settings from '../config/companion-asr.json' with { type: 'json' };
 import candidates from '../config/multilingual-candidates.json' with { type: 'json' };
@@ -24,7 +24,7 @@ function fixture(t) {
     mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, content);
   };
-  file('.runtime/asr-venv/Scripts/python.exe', 'fixture');
+  file(path.relative(root, asrPython(root)), 'fixture');
   const child = new EventEmitter();
   for (const channel of ['stdin', 'stdout', 'stderr']) child[channel] = new PassThrough();
   child.kill = () => {};
@@ -50,6 +50,23 @@ function fixture(t) {
   t.after(() => worker.close());
   return { root, file, worker, child, children, environments, argumentsBySpawn };
 }
+
+test('Linux ASR uses the managed Python and the matching site-packages version', async (t) => {
+  t.mock.property(process, 'platform', 'linux');
+  const { root, file, worker, child } = fixture(t);
+  file('.runtime/asr-venv/pyvenv.cfg', 'home = /usr/bin\nversion_info = 3.12.7\n');
+  file('.runtime/asr-venv/lib/python3.11/site-packages/faster_whisper/__init__.py', 'old');
+  assert.equal(asrPython(root), path.join(root, '.runtime/asr-venv/bin/python'));
+  assert.equal(
+    asrSitePackages(root),
+    path.join(root, '.runtime/asr-venv/lib/python3.12/site-packages'),
+  );
+  const ready = worker.start();
+  child.stdout.write(
+    '{"type":"ready","protocol":1,"language":"en","sampleRate":16000,"provider":"cpu","mode":"utterance","draft":false}\n',
+  );
+  assert.equal((await ready).language, 'en');
+});
 
 test('Russian speech recognition does not report truncated Parakeet files as installed', (t) => {
   const { root, file } = fixture(t);

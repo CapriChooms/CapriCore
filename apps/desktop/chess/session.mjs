@@ -164,6 +164,7 @@ export class ChessSession {
       phase,
       supported,
       watching: Boolean(this.watchRun),
+      boardFrame: this.capture.boardFrame ?? false,
       autoMove: this.autoMove(),
       candidates: this.scanned?.result.length ?? 0,
     };
@@ -211,6 +212,7 @@ export class ChessSession {
     )
       throw new Error('Choose a chess source');
     if (manual || !id.startsWith('window:')) this.capture.display(id);
+    const hadOverlay = Boolean(this.watchRun) || this.capture.clearBoardPreview?.();
     this.stopWatch();
     this.scanned = null;
     const source = id.startsWith('window:') ? 'window' : 'display';
@@ -221,7 +223,7 @@ export class ChessSession {
         trace('cancelled', { reason: 'selection_cancelled' });
         return { items: [] };
       }
-      if (manual) await this.capture.afterOverlay(signal);
+      if (manual || hadOverlay) await this.capture.afterOverlay(signal);
       const captureStarted = performance.now();
       const bounds = relative && this.capture.display(id).bounds;
       const maximumEdge = bounds
@@ -251,6 +253,11 @@ export class ChessSession {
           : await this.admittedView(signal, { hwnd: id.split(':')[1] }, (details) =>
               trace('access', details),
             );
+      const visualView = frame.display
+        ? this.capture.screenView?.(frame)
+        : result.length
+          ? await this.capture.windowView?.(id, signal)
+          : null;
       const items = [];
       for (const [boardIndex, item] of result.entries()) {
         const point = frame.display && this.capture.center(frame, item.rect);
@@ -261,13 +268,14 @@ export class ChessSession {
           : windowView;
         const bitmap = frame.bitmap.crop(item.rect);
         const marks = markedSquares(bitmap);
-        item.watchable = Boolean(view && (!point || this.capture.inView(frame, item.rect, view)));
-        item.view = item.watchable ? view : null;
-        item.position = readScreenPosition(item, item.watchable ? view : null, marks);
+        item.visualView = visualView;
+        item.view = view && (!point || this.capture.inView(frame, item.rect, view)) ? view : null;
+        item.watchable = Boolean(frame.display || visualView || item.view);
+        item.position = readScreenPosition(item, item.view, marks);
         if (item.position)
           item.placement = orientPlacement(placement(item.position.fen), item.orientation);
         item.canWait =
-          item.watchable &&
+          Boolean(item.view) &&
           item.reliable &&
           !item.position &&
           diagramPositions(orientPlacement(item.placement, item.orientation)).length > 0;
@@ -294,12 +302,43 @@ export class ChessSession {
           meanConfidence: confidence.reduce((sum, score) => sum + score, 0) / confidence.length,
           uncertainSquares: confidence.filter((score) => score < 0.85).length,
         });
-        const { fingerprint, view: boundView, position, ...visible } = item;
+        const {
+          fingerprint,
+          visualView: desktopView,
+          view: boundView,
+          position,
+          ...visible
+        } = item;
         items.push({
           ...visible,
           fen: position?.fen,
           preview: new Uint8Array(bitmap.resize({ width: 256, height: 256 }).toPNG()),
         });
+      }
+      signal.throwIfAborted();
+      const selected = result.find((item) => item.watchable) ?? result[0];
+      if (this.capture.boardFrame && selected?.watchable) {
+        try {
+          const visible = frame.display
+            ? { frame, rect: selected.rect }
+            : await this.locateWindowBoard(
+                { board: selected, orientation: selected.orientation, possible: [] },
+                visualView ?? selected.view,
+                signal,
+              );
+          if (
+            visible &&
+            (await this.capture.previewBoardFrame(visible.frame, visible.rect, signal))
+          )
+            trace('overlay', {
+              visible: true,
+              width: visible.rect.width,
+              height: visible.rect.height,
+            });
+        } catch (error) {
+          signal.throwIfAborted();
+          trace('decision', { reason: 'overlay_failed', ...chessFailure(error) });
+        }
       }
       signal.throwIfAborted();
       this.scanned = { id, revision: frame.revision, result, scanId: trace.id, maximumEdge };
@@ -311,26 +350,65 @@ export class ChessSession {
     }, trace);
   }
 
-  async detectSelection(frame, crop, signal) {
+  async detectSelection(frame, crop, signal, { tracking = false } = {}) {
     const size = frame.bitmap.getSize();
     const pad = Math.max(4, Math.ceil(Math.min(crop.width, crop.height) / 28));
     const x = Math.max(0, crop.x - pad);
     const y = Math.max(0, crop.y - pad);
-    const padded = {
-      x,
-      y,
-      width: Math.min(size.width, crop.x + crop.width + pad) - x,
-      height: Math.min(size.height, crop.y + crop.height + pad) - y,
-    };
+    const right = Math.min(size.width, crop.x + crop.width + pad);
+    const bottom = Math.min(size.height, crop.y + crop.height + pad);
+    const padded = { x, y, width: right - x, height: bottom - y };
     const [candidate] = await this.detect(frame, padded, false, 1, signal);
     if (
       candidate &&
       Math.abs(candidate.rect.width - crop.width) <= pad * 2 &&
       Math.abs(candidate.rect.height - crop.height) <= pad * 2 &&
       chessRectInside(candidate.rect, padded)
-    )
+    ) {
+      const rect = candidate.rect;
+      // Let the next full scan recover a board that has moved outside this crop.
+      if (
+        tracking &&
+        ((x > 0 && rect.x === x) ||
+          (y > 0 && rect.y === y) ||
+          (right < size.width && rect.x + rect.width === right) ||
+          (bottom < size.height && rect.y + rect.height === bottom))
+      )
+        return [];
       return [candidate];
-    return this.detect(frame, crop, true, 1, signal);
+    }
+    const fallback = await this.detect(frame, crop, true, 1, signal);
+    // A tight crop can still read the pieces, but cannot prove where the board ends.
+    if (tracking && fallback.length) return [{ ...fallback[0], rect: crop }];
+    return fallback;
+  }
+
+  async preview(index) {
+    if (!Number.isSafeInteger(index) || !this.scanned?.result[index])
+      throw new Error('Choose a chessboard');
+    this.stopWatch();
+    const hadOverlay = this.capture.clearBoardPreview();
+    if (!this.capture.boardFrame) return false;
+    const { id, revision, maximumEdge, result } = this.scanned;
+    const board = result[index];
+    return this.exclusive(async (signal) => {
+      if (hadOverlay) await this.capture.afterOverlay(signal);
+      const frame = await this.capture.frame(id, signal, { maximumEdge });
+      if (frame.revision !== revision) return false;
+      if (frame.display && this.capture.fingerprint(frame, board.rect) === board.fingerprint)
+        return this.capture.previewBoardFrame(frame, board.rect, signal);
+      if (frame.display || !board.watchable) return false;
+      const view = (await this.capture.windowView(id, signal)) ?? board.view;
+      if (!view) return false;
+      const visible = await this.locateWindowBoard(
+        { board, orientation: board.orientation, possible: [] },
+        view,
+        signal,
+      );
+      return Boolean(
+        visible && (await this.capture.previewBoardFrame(visible.frame, visible.rect, signal)),
+      );
+    });
   }
 
   async detect(frame, crop, manual, limit, signal) {
@@ -348,7 +426,10 @@ export class ChessSession {
   }
 
   async trackableBoards(frame, crop, view, orientation, signal, limit = 3) {
-    const items = await this.detect(frame, crop, Boolean(crop && limit === 1), limit, signal);
+    const items =
+      crop && limit === 1
+        ? await this.detectSelection(frame, crop, signal, { tracking: true })
+        : await this.detect(frame, crop, false, limit, signal);
     return items.flatMap((item) => {
       if (!this.capture.inView(frame, item.rect, view)) return [];
       const pieces = orientPlacement(item.placement, orientation);
@@ -474,12 +555,12 @@ export class ChessSession {
     let engine;
     try {
       engine = await this.engine(signal, trace);
-      for (const { position, checked, events, moveNumber } of reactions) {
+      for (const { position, checked, events, moveNumber, player } of reactions) {
         const verified = await engine.verifyPosition(position, { signal });
         signal.throwIfAborted();
         if (checked !== undefined && checked !== verified.checked)
           throw new Error('Stockfish check state did not match the observed game');
-        facts.push({ events, checkers: verified.checkers, moveNumber });
+        facts.push({ events, checkers: verified.checkers, moveNumber, player });
       }
     } catch (error) {
       signal.throwIfAborted();
@@ -510,6 +591,12 @@ export class ChessSession {
     return true;
   }
 
+  playerColor(watch, view) {
+    if (view.computerSide) return view.computerSide === 'w' ? 'b' : 'w';
+    if (chessBotPage(view)) return watch.playerColor ?? watch.orientation[0];
+    return undefined;
+  }
+
   async noteGameStart(watch, view, restarted = false) {
     const { position } = watch;
     if (
@@ -523,7 +610,11 @@ export class ChessSession {
       return;
     const identity = view.game ?? view.windowId ?? view.token;
     if (!restarted && this.reactionGame === identity) return;
-    if (await this.announceReactions(watch, [{ position, events: [{ type: 'start' }] }]))
+    if (
+      await this.announceReactions(watch, [
+        { position, events: [{ type: 'start' }], player: this.playerColor(watch, view) },
+      ])
+    )
       this.reactionGame = identity;
   }
 
@@ -554,7 +645,7 @@ export class ChessSession {
       (!waiting && !analyse && !this.last?.result.bestMove) ||
       (analyse && !board.watchable)
     )
-      throw new Error('Analyse a board in an allowed page first');
+      throw new Error('Choose a visible chessboard first');
     const pieces = orientPlacement(board.placement, orientation);
     const possible = waiting && board.watchable && board.reliable ? diagramPositions(pieces) : [];
     if (waiting && !possible.length) throw new Error('Choose a chessboard');
@@ -568,6 +659,7 @@ export class ChessSession {
     if (analyse && !position) throw new Error('Choose a chessboard');
     if (position && !corrected && pieces !== placement(position.fen))
       throw new Error('The analysed position differs from the chessboard');
+    this.capture.clearBoardPreview?.();
     this.stopWatch();
     const { id, revision, maximumEdge } = this.scanned;
     const controller = new AbortController();
@@ -815,16 +907,34 @@ export class ChessSession {
         watch.failure = 'display_changed';
         throw new Error('The chess source changed');
       }
-      return {
-        id,
-        revision,
-        view: await this.waitForView(signal, this.capture.center(frame, board.rect), watch),
-      };
+      const target = this.capture.center(frame, board.rect);
+      const view = board.visualView
+        ? (board.view && (await this.admittedView(signal, target))) || board.visualView
+        : await this.waitForView(signal, target, watch);
+      return { id, revision, view };
     }
 
     // Window thumbnails have no screen origin and may include content hidden by other windows.
-    // Locate the same board in the visible page before assigning desktop coordinates.
-    const view = await this.waitForView(signal, { hwnd: id.split(':')[1] }, watch);
+    // Locate the same board in the visible window before assigning desktop coordinates.
+    const target = { hwnd: id.split(':')[1] };
+    const view = board.visualView
+      ? (board.view && (await this.admittedView(signal, target))) ||
+        (await this.capture.windowView(id, signal))
+      : await this.waitForView(signal, target, watch);
+    const match =
+      view &&
+      (!view.visualOnly || sameChessView(board.visualView, view)) &&
+      (await this.locateWindowBoard(watch, view, signal));
+    if (!match) {
+      watch.failure ??= 'board_not_found';
+      throw new Error('The chess source changed');
+    }
+    Object.assign(board, { rect: match.rect, fingerprint: match.fingerprint });
+    return { id: match.id, revision: match.frame.revision, view };
+  }
+
+  async locateWindowBoard(watch, view, signal) {
+    const { board } = watch;
     let match;
     for await (const source of this.capture.pageFrames(view, signal)) {
       const { frame, crop } = source;
@@ -833,26 +943,23 @@ export class ChessSession {
         const { rect } = item;
         const same = item.matches(orientPlacement(board.placement, watch.orientation));
         if (!same && !matchObservedPosition(watch, item)) continue;
-        const visible = await this.admittedView(signal, this.capture.center(frame, rect));
-        if (visible?.token !== view.token) continue;
+        if (!view.visualOnly) {
+          const visible = await this.admittedView(signal, this.capture.center(frame, rect));
+          if (visible?.token !== view.token) continue;
+        }
         if (match) {
           watch.failure = 'board_ambiguous';
           throw new Error('The chess source changed');
         }
         match = {
           id: source.id,
-          revision: frame.revision,
+          frame,
           rect,
           fingerprint: same && this.capture.fingerprint(frame, rect),
         };
       }
     }
-    if (!match) {
-      watch.failure = 'board_not_found';
-      throw new Error('The chess source changed');
-    }
-    Object.assign(board, { rect: match.rect, fingerprint: match.fingerprint });
-    return { id: match.id, revision: match.revision, view };
+    return match;
   }
 
   async track(watch) {
@@ -864,10 +971,11 @@ export class ChessSession {
     } = watch;
     await this.capture.afterOverlay(signal);
     const { id, revision, view: initialView } = await this.bindScreen(watch, signal);
-    if (board.view && !sameChessView(board.view, initialView)) {
+    if (!initialView.visualOnly && board.view && !sameChessView(board.view, initialView)) {
       watch.failure = 'view_changed';
       throw new Error('The chess source changed');
     }
+    if (chessBotPage(initialView)) watch.playerColor = watch.orientation[0];
     trace('bound', { width: board.rect.width, height: board.rect.height });
     let shown = false,
       pendingBoard,
@@ -888,13 +996,38 @@ export class ChessSession {
       watch.result = null;
       watch.needsAnalysis = Boolean(watch.position);
     };
-    if (board.view && initialView.token !== board.view.token) {
+    if (!initialView.visualOnly && board.view && initialView.token !== board.view.token) {
       invalidateReading();
       trace('access', { reason: 'view_rebound', frames: watch.frames });
     }
     const grace = chessBotPage(initialView) ? BOT_BOARD_GRACE_MS : 2500;
     const end = Date.now() + 20 * 60000;
-    while (!signal.aborted && this.enabled() && Date.now() < end) {
+    const visualView = () =>
+      watch.id.startsWith('window:') ? this.capture.windowView(watch.id, signal) : board.visualView;
+    const inspect = async (target, onDecision) => {
+      if (boundView.visualOnly) return visualView();
+      const result = await this.admittedView(signal, target, onDecision);
+      if (!board.visualView || !board.fingerprint || (result && sameChessView(boundView, result)))
+        return result;
+      const fallback = await visualView();
+      if (!fallback || !sameChessView(board.visualView, fallback)) return result;
+      // Browser metadata may disappear while the same board stays visible. Switch
+      // to observation only after checking the actual desktop pixels.
+      const desktop = await this.capture
+        .frame(id, signal, { maximumEdge: watch.maximumEdge })
+        .catch(() => {
+          signal.throwIfAborted();
+          return null;
+        });
+      if (
+        desktop?.revision === revision &&
+        this.capture.inView(desktop, board.rect, fallback) &&
+        this.capture.fingerprint(desktop, board.rect) === board.fingerprint
+      )
+        return fallback;
+      return result;
+    };
+    while (!signal.aborted && this.enabled() && (boundView.visualOnly || Date.now() < end)) {
       const liveReactions =
         this.reactionsEnabled() && (chessBotPage(boundView) || boundView.computerSide);
       const sample =
@@ -917,15 +1050,14 @@ export class ChessSession {
       let visibleLocation = true;
       if (unavailableSince !== null && lastFrame) {
         watch.probes++;
-        view = await this.admittedView(
-          signal,
+        view = await inspect(
           this.capture.center(lastFrame, pendingBoard?.rect ?? board.rect),
           (details) => {
             viewDecision = details;
           },
         );
         if (!view && boundView.hwnd) {
-          view = await this.admittedView(signal, { hwnd: boundView.hwnd });
+          view = await inspect({ hwnd: boundView.hwnd });
           visibleLocation = false;
         }
         if (!view) {
@@ -978,8 +1110,7 @@ export class ChessSession {
             performance.now() - checkedAt >= BROWSER_RECHECK_MS))
       ) {
         watch.probes++;
-        view = await this.admittedView(
-          signal,
+        view = await inspect(
           this.capture.center(frame, pendingBoard?.rect ?? board.rect),
           (details) => {
             viewDecision = details;
@@ -1003,6 +1134,16 @@ export class ChessSession {
           trace('paused', { ...viewDecision, frames: watch.frames, visible: false });
         }
         await delay(250, undefined, { signal });
+        continue;
+      }
+      if (!boundView.visualOnly && view.visualOnly) {
+        boundView = view;
+        watch.expectedMove = null;
+        invalidateReading();
+        pendingBoard = boardSample = null;
+        waitedForBoard = false;
+        this.capture.hideArrow({ keepFrame: true });
+        shown = false;
         continue;
       }
       if (!sameChessView(boundView, view)) {
@@ -1099,11 +1240,14 @@ export class ChessSession {
               ? changed[0]
               : null;
         if (choice && !crop) {
-          const candidateView = await this.admittedView(
-            signal,
-            this.capture.center(frame, choice.item.rect),
-          );
-          if (!candidateView || !sameChessView(view, candidateView)) choice = null;
+          const candidateView = await inspect(this.capture.center(frame, choice.item.rect));
+          if (
+            !candidateView ||
+            !sameChessView(view, candidateView) ||
+            (candidateView.visualOnly &&
+              !this.capture.inView(frame, choice.item.rect, candidateView))
+          )
+            choice = null;
           else if (!visibleLocation) {
             view = candidateView;
             checkedAt = performance.now();
@@ -1167,7 +1311,7 @@ export class ChessSession {
           Object.assign(board, { rect: choice.item.rect, fingerprint });
           await this.capture.showBoardFrame?.(frame, board.rect, signal);
           const scanned = this.scanned.result[index];
-          scanned.view = view;
+          if (!view.visualOnly) scanned.view = view;
           if (!watch.id.startsWith('window:'))
             Object.assign(scanned, { rect: choice.item.rect, fingerprint });
           if (choice.position || watch.needsAnalysis) {
@@ -1191,6 +1335,7 @@ export class ChessSession {
               watch.position = choice.position;
               watch.pieces = placement(watch.position.fen);
               watch.orientation = choice.orientation ?? watch.orientation;
+              if (choice.newGame && chessBotPage(view)) watch.playerColor = watch.orientation[0];
               watch.verifiedPosition = true;
               watch.retryMoveAt = 0;
               if (choice.newGame) {
@@ -1209,10 +1354,9 @@ export class ChessSession {
                 (chessBotPage(view) || view.computerSide)
               ) {
                 // Board orientation can be flipped independently of the player's color.
-                const player = { b: 'w', w: 'b' }[view.computerSide];
                 await this.announceReactions(
                   watch,
-                  chessMoveReactions(previous, watch.position, player),
+                  chessMoveReactions(previous, watch.position, this.playerColor(watch, view)),
                 );
               }
             }

@@ -51,10 +51,80 @@ function visibleTarget(selectors) {
   return null;
 }
 
+function patchNoteText(line) {
+  return line
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/<\/?[a-z][^>]*>/gi, '')
+    .replace(
+      /\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`/g,
+      (_all, bold, strong, code) => bold ?? strong ?? code,
+    )
+    .trim();
+}
+
+function renderPatchNoteBody(container, body) {
+  const content = document.createDocumentFragment();
+  let section, list;
+  const newSection = () => {
+    const section = document.createElement('section');
+    section.className = 'guide-patch-section';
+    content.append(section);
+    return section;
+  };
+  for (const source of body.replace(/<!--[\s\S]*?-->/gu, '').split(/\r?\n/u)) {
+    const line = source.trim();
+    if (!line || /^(?:[-*_]{3,}|```.*)$/u.test(line)) {
+      list = null;
+      continue;
+    }
+    const heading = /^#{1,6}\s+(.+)$/u.exec(line);
+    const bullet = /^([-*+]|\d+\.)\s+(.+)$/u.exec(line);
+    const text = patchNoteText(heading?.[1] ?? bullet?.[2] ?? line);
+    if (!text) continue;
+    const element = document.createElement(heading ? 'h3' : bullet ? 'li' : 'p');
+    element.textContent = text;
+    element.dir = 'auto';
+    if (heading || !section) section = newSection();
+    if (bullet) {
+      const type = /^\d/u.test(bullet[1]) ? 'ol' : 'ul';
+      if (list?.localName !== type) {
+        list = document.createElement(type);
+        section.append(list);
+      }
+      list.append(element);
+    } else {
+      list = null;
+      section.append(element);
+    }
+  }
+  container.replaceChildren(content);
+}
+
 /** Only the guide's controls are interactive while it presents the real interface. */
 export class GuideOverlay {
-  constructor({ language, faq, onActive, onPanel, openSettings, openLink, blocked }) {
-    Object.assign(this, { language, faq, onActive, onPanel, openSettings, openLink, blocked });
+  constructor({
+    language,
+    faq,
+    ui,
+    patchNotes,
+    onActive,
+    onPanel,
+    openSettings,
+    openLink,
+    blocked,
+  }) {
+    Object.assign(this, {
+      language,
+      faq,
+      ui,
+      patchNotes,
+      onActive,
+      onPanel,
+      openSettings,
+      openLink,
+      blocked,
+    });
     this.root = byId('capri-guide');
     this.opener = byId('guide-open');
     this.companion = byId('companion');
@@ -83,6 +153,10 @@ export class GuideOverlay {
     this.faqResults = byId('guide-faq-results');
     this.faqEmpty = byId('guide-faq-empty');
     this.faqError = byId('guide-faq-error');
+    this.notesPanel = byId('guide-patch-notes-panel');
+    this.notesButton = byId('guide-patch-notes');
+    this.notesContent = byId('guide-patch-notes-content');
+    this.notesShowing = false;
     this.faqShowing = false;
     this.faqGroups = [];
     this.index = -1;
@@ -97,6 +171,9 @@ export class GuideOverlay {
     this.faqButton.onclick = () => this.showFaq(true);
     this.faqBack.onclick = () => this.showFaq(false);
     this.faqSearch.oninput = () => this.filterFaq();
+    this.notesButton.onclick = () => this.showNotes(true);
+    byId('guide-patch-notes-back').onclick = () => this.showNotes(false);
+    byId('guide-patch-notes-close').onclick = () => this.close();
     window.addEventListener('keydown', (event) => this.key(event), true);
     const resize = new ResizeObserver(() => this.scheduleLayout());
     resize.observe(this.dialog);
@@ -119,14 +196,25 @@ export class GuideOverlay {
   }
 
   maybeStart() {
-    if (this.startupPending && !document.hidden) this.open({ beginner: true });
+    if (document.hidden || this.active || this.blocked()) return;
+    if (this.notesPending) this.open({ notes: true });
+    else if (this.startupPending) this.open({ beginner: true });
   }
 
-  open({ beginner = false } = {}) {
+  setInstalledRelease(tag, pending) {
+    this.releaseTag = tag;
+    this.notesPending = pending;
+    this.maybeStart();
+  }
+
+  open({ beginner = false, notes = false } = {}) {
     if (this.active || this.blocked()) return;
-    this.presented = true;
-    this.startupPending = false;
-    setGuideFlag('sessionStorage');
+    if (!notes) {
+      this.presented = true;
+      this.startupPending = false;
+      setGuideFlag('sessionStorage');
+    }
+    this.notesShowing = notes;
     if (beginner) this.index = 0;
     this.previousInert = this.companion.inert;
     this.companion.inert = true;
@@ -135,7 +223,13 @@ export class GuideOverlay {
     this.onActive(true);
     this.pendingEntrance = 'open';
     this.refresh();
-    (beginner ? this.title : this.start).focus({ preventScroll: true });
+    (beginner || notes ? this.title : this.start).focus({ preventScroll: true });
+    if (notes) {
+      const tag = this.notesPending;
+      this.notesPending = null;
+      void this.patchNotes(tag).catch(() => {});
+      this.loadNotes();
+    }
   }
 
   close() {
@@ -144,6 +238,7 @@ export class GuideOverlay {
     this.pendingEntrance = null;
     this.cancelEntrance();
     this.index = -1;
+    this.notesShowing = false;
     this.faqShowing = false;
     this.faqSearch.value = '';
     this.faqError.hidden = true;
@@ -163,6 +258,7 @@ export class GuideOverlay {
     this.opener.setAttribute('aria-expanded', 'false');
     this.onActive(false);
     if (!this.blocked()) this.opener.focus({ preventScroll: true });
+    if (this.notesPending) this.maybeStart();
   }
 
   advance() {
@@ -199,16 +295,31 @@ export class GuideOverlay {
     const text = this.content;
     const step = this.step;
     const faq = this.faqText;
-    this.root.dataset.view = step ? 'tour' : this.faqShowing ? 'faq' : 'menu';
+    this.root.dataset.view = step
+      ? 'tour'
+      : this.faqShowing
+        ? 'faq'
+        : this.notesShowing
+          ? 'patch-notes'
+          : 'menu';
     this.root.lang = step ? this.tourLanguage : faq.lang;
     this.root.dir = step ? 'ltr' : faq.direction;
     if (step) this.root.dataset.step = step.id;
-    this.title.textContent = step?.title ?? (this.faqShowing ? faq.title : faq.menuTitle);
+    const notesTitle = this.ui.text('Patch notes');
+    this.title.textContent =
+      step?.title ?? (this.faqShowing ? faq.title : this.notesShowing ? notesTitle : faq.menuTitle);
     byId('guide-kicker').textContent = step ? text.kicker : 'CAPRI';
-    byId('guide-step').textContent = step ? text.stepLabel(this.index + 1, text.steps.length) : '';
-    byId('guide-list').hidden = Boolean(step) || this.faqShowing;
+    byId('guide-step').textContent = step
+      ? text.stepLabel(this.index + 1, text.steps.length)
+      : this.notesShowing
+        ? this.releaseTag
+        : '';
+    byId('guide-list').hidden = Boolean(step) || this.faqShowing || this.notesShowing;
     byId('guide-body').hidden = !step;
     this.faqPanel.hidden = !this.faqShowing;
+    this.notesPanel.hidden = !this.notesShowing;
+    byId('guide-patch-notes-menu').hidden = !this.releaseTag;
+    byId('guide-patch-notes-title').textContent = notesTitle;
     this.start.lang = this.tourLanguage;
     byId('guide-start-title').textContent = text.beginnerTitle;
     byId('guide-start-description').textContent = text.beginnerDescription;
@@ -234,8 +345,49 @@ export class GuideOverlay {
       this.error.textContent = this.settingsFailed ? text.statusUnavailable : '';
     }
     if (this.faqShowing) this.renderFaq();
+    if (this.notesShowing) this.renderNotes();
     this.syncPanel();
     this.scheduleLayout();
+  }
+
+  showNotes(show) {
+    if (!this.active || this.step || this.faqShowing || show === this.notesShowing) return;
+    this.notesShowing = show;
+    this.pendingEntrance = 'panel';
+    this.render();
+    this.notesContent.scrollTop = 0;
+    (show ? this.title : this.notesButton).focus({ preventScroll: true });
+    if (show) this.loadNotes();
+  }
+
+  loadNotes() {
+    if (this.notesRequest || this.notesBody) return;
+    this.notesBody = undefined;
+    this.renderNotes();
+    this.notesRequest = this.patchNotes()
+      .then((body) => {
+        this.notesBody = typeof body === 'string' ? body : '';
+      })
+      .catch(() => {
+        this.notesBody = '';
+      })
+      .finally(() => {
+        this.notesRequest = null;
+        if (this.active && this.notesShowing) this.renderNotes();
+      });
+  }
+
+  renderNotes() {
+    byId('guide-patch-notes-back').textContent = this.faqText.back;
+    byId('guide-patch-notes-close').textContent = this.ui.text('Close');
+    this.notesContent.setAttribute('aria-busy', String(this.notesBody === undefined));
+    if (this.notesBody) renderPatchNoteBody(this.notesContent, this.notesBody);
+    else
+      this.notesContent.textContent = this.ui.text(
+        this.notesBody === undefined
+          ? 'Loading patch notes…'
+          : 'No patch notes are available for this version.',
+      );
   }
 
   showFaq(show) {
@@ -375,7 +527,7 @@ export class GuideOverlay {
     else if (this.step && event.key === 'ArrowLeft') this.go(this.index - 1);
     else if (event.key === 'Tab') {
       const controls = [
-        ...this.dialog.querySelectorAll('button:enabled, input:enabled, summary'),
+        ...this.dialog.querySelectorAll('button:enabled, input:enabled, summary, [tabindex="0"]'),
       ].filter(
         (control) =>
           control.checkVisibility() &&
@@ -489,9 +641,12 @@ export class GuideOverlay {
       }
     } else if (this.faqShowing) {
       reveal(this.faqPanel, 155);
+    } else if (this.notesShowing) {
+      reveal(this.notesPanel, 155);
     } else {
       reveal(this.start, 160);
       reveal(this.faqButton, 205);
+      reveal(this.notesButton, 250);
     }
   }
 

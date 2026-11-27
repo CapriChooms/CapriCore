@@ -3,6 +3,7 @@ import {
   COMPOSER_SKILLS,
   REASONING_BUDGETS,
   SKILL_BY_ID,
+  TURN_MODE_SKILLS,
   skillPreferences,
 } from '../../../packages/skills/src/settings-catalog.mjs';
 import { SkillError } from '../../../packages/skill-sdk/src/index.mjs';
@@ -17,7 +18,6 @@ const protectedCommands = {
   'capri.coding': ['run'],
   'capri.computer': ['run'],
   'capri.avatar-interaction': ['react'],
-  'capri.initiative': ['test'],
   'capri.attachment-viewer': ['open'],
   'capri.applications': ['execute'],
   'capri.calculator': ['calculate'],
@@ -45,6 +45,20 @@ export class SkillSettings {
 
   enabled(id) {
     return this.preferences.value[id]?.enabled === true;
+  }
+
+  turnMode(id) {
+    return this.enabled(id) && this.preferences.value[id].turnMode === true;
+  }
+
+  setTurnMode(id, enabled) {
+    if (!TURN_MODE_SKILLS.includes(id) || typeof enabled !== 'boolean')
+      throw new SkillError('invalid_skill_input', 'Invalid skill setting.');
+    if (enabled) this.require(id);
+    if (this.preferences.value[id].turnMode === enabled) return;
+    const next = this.snapshot();
+    next[id].turnMode = enabled;
+    this.preferences.set(next);
   }
 
   require(id) {
@@ -113,9 +127,7 @@ export class SkillSettings {
   operationSignal({ skillId, command, input }) {
     const operational =
       protectedCommands[skillId]?.includes(command) ||
-      (['capri.reasoning', 'capri.web-search'].includes(skillId) &&
-        command === 'setMode' &&
-        input === true) ||
+      (TURN_MODE_SKILLS.includes(skillId) && command === 'setMode' && input === true) ||
       (skillId === 'capri.coding' && command === 'mode' && input === true) ||
       (skillId === 'capri.voice-output' && command === 'setEnabled' && input === true) ||
       (skillId === 'capri.computer' && command === 'requestAccess' && input === true) ||

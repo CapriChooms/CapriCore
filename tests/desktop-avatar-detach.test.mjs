@@ -9,6 +9,7 @@ import {
   avatarDockPoint,
   nearestAvatarDock,
   nearestDisplayAvatarDock,
+  nearestWindowAvatarDock,
   pointInReservedDesktop,
   visibleAvatarDock,
 } from '../apps/desktop/avatar-docking.mjs';
@@ -18,12 +19,18 @@ import {
   arrivalStart,
   boltOnlyFrames,
   draw,
+  fps,
   frames,
+  lightningFrameAt,
   prepareTeleportMotion,
+  teleportBackingSize,
   teleportViewport,
   transitStart,
 } from '../apps/desktop/renderer/avatar-teleport-motion.mjs';
-import { TELEPORT_LIGHTNING_DEFAULTS } from '../apps/desktop/renderer/teleport-effects.mjs';
+import {
+  DRAG_LIGHTNING_COLOR,
+  TELEPORT_LIGHTNING_DEFAULTS,
+} from '../apps/desktop/renderer/teleport-effects.mjs';
 
 const area = { x: -1600, y: -180, width: 1600, height: 900 };
 const geometry = {
@@ -68,6 +75,9 @@ function fixture({
         assert.deepEqual(handler(), { action: 'deny' });
       this.webContents.executeJavaScript = (source) => {
         if (/^globalThis\.capriAvatarDetach\.play\(\d*\)$/.test(source)) return play(source);
+        const tetherCall = /^globalThis\.capriAvatarTether\((.*)\)$/.exec(source);
+        if (tetherCall)
+          return Promise.resolve(parked('setTether', JSON.parse(tetherCall[1]), this));
         if (source.startsWith('globalThis.capriAvatarDetach.headpat(')) {
           this.headpat = JSON.parse(
             source.slice('globalThis.capriAvatarDetach.headpat('.length, -1),
@@ -265,6 +275,7 @@ test('avatar leaves on its current display, hops to fresh points and returns to 
   assert.deepEqual(phases.slice(0, 4), ['leaving', 'detached', 'teleporting', 'detached']);
   assert.deepEqual(phases.slice(-2), ['returning', 'attached']);
   assert.equal(overlays.length, 1);
+  await new Promise(setImmediate);
   assert.ok(overlays[0].isDestroyed());
 });
 
@@ -416,7 +427,7 @@ test('a teleport from the frame can land at the cursor on another monitor', asyn
   assert.deepEqual({ x: to.x + targetArea.x, y: to.y + targetArea.y }, cursor);
   assert.deepEqual(phases, ['leaving', 'detached']);
   assert.equal(await controller.returnToFrame(), true);
-  assert.equal(target.commands.at(-1).interactiveArrival, false);
+  assert.equal(target.commands.at(-1).interactiveArrival, true);
   assert.deepEqual(phases, ['leaving', 'detached', 'returning', 'attached']);
 });
 
@@ -475,25 +486,26 @@ test('reset removes outgoing effect layers and stale completion cannot close a n
   controller.reset();
 });
 
-test('Sandevistan returns Capri to the frame before discarding the trail overlay', async () => {
-  const tail = Promise.withResolvers();
-  const { controller, overlays, phases } = fixture({
-    getEffects: () => ({ teleportStyle: 'sandevistan', sandevistanHoldMs: 2000 }),
-    parked: (method) => (method === 'whenSettled' ? tail.promise : true),
+for (const teleportStyle of ['lightning', 'sandevistan'])
+  test(`${teleportStyle} returns Capri to the frame while the effect finishes`, async () => {
+    const tail = Promise.withResolvers();
+    const { controller, overlays, phases } = fixture({
+      getEffects: () => ({ teleportStyle }),
+      parked: (method) => (method === 'whenSettled' ? tail.promise : true),
+    });
+
+    await controller.leave(geometry, sprite, canvas);
+    assert.equal(await controller.returnToFrame(), true);
+    assert.equal(phases.at(-1), 'attached');
+    assert.equal(controller.overlay, null);
+    assert.equal(overlays[0].isDestroyed(), false);
+    assert.ok(controller.settlingOverlays.has(overlays[0]));
+
+    tail.resolve(true);
+    await new Promise(setImmediate);
+    assert.equal(overlays[0].isDestroyed(), true);
+    assert.equal(controller.settlingOverlays.size, 0);
   });
-
-  await controller.leave(geometry, sprite, canvas);
-  assert.equal(await controller.returnToFrame(), true);
-  assert.equal(phases.at(-1), 'attached');
-  assert.equal(controller.overlay, null);
-  assert.equal(overlays[0].isDestroyed(), false);
-  assert.ok(controller.settlingOverlays.has(overlays[0]));
-
-  tail.resolve(true);
-  await new Promise(setImmediate);
-  assert.equal(overlays[0].isDestroyed(), true);
-  assert.equal(controller.settlingOverlays.size, 0);
-});
 
 test('an echoed standing frame does not interrupt the active arrival effect', async () => {
   const updates = [];
@@ -598,6 +610,7 @@ test('a cursor on another display moves the detached avatar there and returns to
     focus: { ...initialPortrait.focus, x: initialPortrait.focus.x - 30 },
     clip: { ...initialPortrait.clip, x: initialPortrait.clip.x - 30 },
   });
+  await new Promise(setImmediate);
   assert.ok(overlays.every((overlay) => overlay.isDestroyed()));
   assert.deepEqual(phases, [
     'leaving',
@@ -771,7 +784,7 @@ test('a transparent gap accepts a tethered desktop drag but never a tap', async 
       intensity: 65,
       chaos: 55,
       seed,
-      effects: TELEPORT_LIGHTNING_DEFAULTS,
+      effects: { ...TELEPORT_LIGHTNING_DEFAULTS, teleportColor: DRAG_LIGHTNING_COLOR },
     },
     null,
     'drop',
@@ -956,7 +969,13 @@ test('desktop drag draws the same tether across a second monitor and clears the 
   const { controller, commands, overlays } = fixture({
     targetDisplay: target,
     onDragDrop: (cursor) => drops.push(cursor),
-    getEffects: () => ({ ...effects, avatarDragTether: true, avatarDragTetherIntensity: 70 }),
+    getEffects: () => ({
+      ...effects,
+      teleportColor: '#f01408',
+      avatarDragTetherColor: effects.teleportColor,
+      avatarDragTether: true,
+      avatarDragTetherIntensity: 70,
+    }),
     parked: (method, value, view) => {
       if (method === 'setTether') paints.push({ view, value });
       return true;
@@ -1001,7 +1020,7 @@ test('desktop drag draws the same tether across a second monitor and clears the 
   controller.reset();
 });
 
-test('a portrait drag moves its preview to desktop layers outside the companion and clears on re-entry', async () => {
+test('a portrait drag hides and reuses its desktop preview layers until release', async () => {
   const paints = [];
   const { controller, content, overlays } = fixture({
     targetDisplay: { id: 8, workArea: { x: 0, y: -180, width: 1000, height: 900 } },
@@ -1020,6 +1039,8 @@ test('a portrait drag moves its preview to desktop layers outside the companion 
   await new Promise(setImmediate);
   assert.equal(overlays.length, 2);
   assert.ok(overlays.every((overlay) => overlay.isVisible() && overlay.clickThrough));
+  assert.ok(overlays.every((overlay) => overlay.url.endsWith('/avatar-tether.html')));
+  assert.ok(overlays.every((overlay) => overlay.options.webPreferences.backgroundThrottling));
   assert.equal(paints[0].seed, paints[1].seed);
   assert.deepEqual(paints[0].exclude, {
     x: content.x + 1600,
@@ -1028,11 +1049,15 @@ test('a portrait drag moves its preview to desktop layers outside the companion 
     height: content.height,
   });
   controller.trackAttachedTether(press, inside, content, 80);
-  assert.ok(overlays.every((overlay) => overlay.isDestroyed()));
+  assert.ok(overlays.every((overlay) => !overlay.isVisible() && !overlay.isDestroyed()));
+  await new Promise(setImmediate);
+  assert.deepEqual(paints.slice(-2), [null, null]);
   controller.trackAttachedTether(press, outside, content, 120);
+  await new Promise(setImmediate);
+  assert.equal(overlays.length, 2);
+  assert.ok(overlays.every((overlay) => overlay.isVisible()));
   controller.trackAttachedTether();
   await new Promise(setImmediate);
-  assert.equal(overlays.length, 4);
   assert.ok(overlays.every((overlay) => overlay.isDestroyed()));
 });
 
@@ -1059,6 +1084,8 @@ test('drag lightning is silent inside its configured dead zone and stops when a 
   assert.equal(overlays.length, 1);
   assert.equal(paints[0].chaos, 85);
   controller.trackAttachedTether(press, cursor(42), content, 120);
+  assert.equal(overlays[0].isVisible(), false);
+  controller.trackAttachedTether();
   assert.equal(overlays[0].isDestroyed(), true);
 });
 
@@ -1374,6 +1401,17 @@ test('teleport reuses its curve and draws a distinct interpolated position insid
   assert.notDeepEqual(render(transitStart + 1.45), render(transitStart + 2));
 });
 
+test('large HiDPI teleports cap their effect canvas without reducing small effects', () => {
+  assert.deepEqual(teleportBackingSize({ width: 240, height: 320 }, 1.5), {
+    width: 360,
+    height: 480,
+  });
+  assert.deepEqual(teleportBackingSize({ width: 3840, height: 2160 }, 2), {
+    width: 1920,
+    height: 1080,
+  });
+});
+
 test('teleport keeps seeded sparks paired, bounded, and optional', () => {
   const options = {
     from: { x: 120, y: 510, scale: 180 },
@@ -1432,6 +1470,26 @@ test('docking geometry uses the nearest allowed edge and preserves its fractiona
   );
   assert.equal(avatarDockFrame(art, { kind: 'ceiling', edge: 'bottom' }), 'ceiling');
   assert.equal(avatarDockFrame(art, dock), 'sit-edge');
+});
+
+test('a drag snapshot resolves the final drop coordinates against window edges in stack order', () => {
+  const front = { x: -600, y: 300, width: 450, height: 200 };
+  const behind = { ...front, width: 480 };
+  const adjacent = { ...front, x: -110 };
+  const windows = [front, behind, adjacent];
+  assert.equal(nearestWindowAvatarDock({ x: -375, y: 290 }, windows, 36)?.target, front);
+  assert.equal(nearestWindowAvatarDock({ x: 100, y: 490 }, windows, 36)?.dock.kind, 'ceiling');
+  assert.equal(nearestWindowAvatarDock({ x: -375, y: 400 }, windows, 36), null);
+});
+
+test('lightning reaches the target at the selected travel time and uses a fixed-speed tail', () => {
+  assert.ok(lightningFrameAt(649) < arrivalStart);
+  assert.equal(lightningFrameAt(650), arrivalStart);
+  for (const travelMs of [250, 1000, 1500]) {
+    assert.equal(lightningFrameAt(travelMs / 2, travelMs), arrivalStart / 2);
+    assert.equal(lightningFrameAt(travelMs, travelMs), arrivalStart);
+    assert.equal(lightningFrameAt(travelMs + 1000 / fps, travelMs), arrivalStart + 1);
+  }
 });
 
 test('the display floor uses the seated pose above the bottom taskbar', () => {

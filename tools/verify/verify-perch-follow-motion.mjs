@@ -144,7 +144,7 @@ await import(${source('apps/desktop/main.mjs')});
     TMP: process.env.TMP,
   };
   delete env.ELECTRON_RUN_AS_NODE;
-  let app;
+  let app, coverApp;
   const errors = [];
   try {
     app = await electron.launch({
@@ -178,6 +178,7 @@ await import(${source('apps/desktop/main.mjs')});
         width: Math.min(620, area.width - 80),
         height: Math.min(480, Math.round(area.height * 0.5)),
       });
+      settings.setAlwaysOnTop(true, 'screen-saver');
       const owner = BrowserWindow.getAllWindows().find(
         (window) => window.webContents.getURL() === 'capri://desktop/index.html',
       );
@@ -201,6 +202,64 @@ await import(${source('apps/desktop/main.mjs')});
       ignoreProcessId: target.processId,
     });
     assert.ok(discovered.windowId, 'The owned Settings HWND must pass native identity discovery');
+    const perchChecks = {};
+    const probeContact = (x, y, overlays = []) =>
+      callApplicationBridge(variant.root, {
+        action: 'avatar_dock_visible',
+        ...target,
+        startedAtTicks: discovered.startedAtTicks,
+        ignoreProcessId: target.processId,
+        edge: 'top',
+        x: String(x),
+        y: String(y),
+        overlays,
+      });
+    const coverContact = async (covered) =>
+      app.evaluate(async ({ BrowserWindow, screen }, covered) => {
+        const settings = BrowserWindow.getAllWindows().find(
+          (item) => item.webContents.getURL() === 'capri://desktop/settings.html',
+        );
+        const bounds = settings.getBounds();
+        const x = Math.round(bounds.x + bounds.width * 0.66);
+        const y = bounds.y;
+        if (covered) {
+          const cover = new BrowserWindow({
+            x: x - 70,
+            y: y - 24,
+            width: 140,
+            height: 80,
+            frame: false,
+            show: false,
+            focusable: false,
+            skipTaskbar: true,
+            backgroundColor: '#193357',
+          });
+          globalThis.fixtureContactCover = cover;
+          await cover.loadURL('about:blank');
+          cover.setAlwaysOnTop(true, 'screen-saver');
+          cover.setIgnoreMouseEvents(true);
+          cover.setOpacity(0.99);
+          cover.showInactive();
+          cover.moveTop();
+        } else {
+          globalThis.fixtureContactCover?.destroy();
+          globalThis.fixtureContactCover = null;
+        }
+        return screen.dipToScreenPoint({ x, y });
+      }, covered);
+    if (variant.label === 'current') {
+      const { x, y } = await coverContact(false);
+      const probe = (x) => probeContact(x, y);
+      const exposed = await probe(x);
+      assert.equal(exposed.visible, true, JSON.stringify({ exposed, x, y, discovered }));
+      await coverContact(true);
+      const covered = await probe(x);
+      assert.equal(covered.visible, false, JSON.stringify(covered));
+      assert.equal((await probe(x - 135)).visible, true);
+      await coverContact(false);
+      assert.equal((await probe(x)).visible, true);
+      perchChecks.contactRejectsClickThroughCover = true;
+    }
     const before = (await owner.evaluate(() => window.capri.bootstrap())).messages.length;
     await owner.locator('#message').fill('Sit on the Settings window');
     await owner.waitForFunction(() => !document.getElementById('send').disabled);
@@ -241,7 +300,6 @@ await import(${source('apps/desktop/main.mjs')});
     });
     await app.evaluate(() => globalThis.fixtureComposer.ready);
     await owner.waitForTimeout(1200);
-    const perchChecks = {};
     if (variant.label === 'current') {
       const initial = await app.evaluate(({ BrowserWindow, screen }) => {
         const settings = BrowserWindow.getAllWindows().find(
@@ -299,6 +357,62 @@ await import(${source('apps/desktop/main.mjs')});
       await waitForState(true);
       perchChecks.returnRestoresSameSeatAndComposer = true;
       if (statesOnly) {
+        const { x, y } = await coverContact(false);
+        const coverEntry = path.join(fixture, 'contact-cover.cjs');
+        const bounds = initial.bounds;
+        writeFileSync(
+          coverEntry,
+          `
+          const { app, BrowserWindow } = require('electron');
+          app.setPath('userData', ${JSON.stringify(path.join(fixture, 'cover-profile'))});
+          app.whenReady().then(async () => {
+            const window = new BrowserWindow({
+              x: ${Math.round(bounds.x + bounds.width * 0.66) - 70}, y: ${bounds.y - 24},
+              width: 140, height: 80, frame: false, backgroundColor: '#193357', show: false,
+            });
+            await window.loadURL('about:blank');
+            window.setAlwaysOnTop(true, 'screen-saver');
+            window.show();
+          });
+        `,
+        );
+        coverApp = await electron.launch({
+          executablePath: require('electron'),
+          args: [coverEntry],
+          env,
+        });
+        const coverPage = await coverApp.firstWindow();
+        await coverPage.waitForLoadState();
+        await coverApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].show());
+        // Keep the target at the normal layer while the independent cover stays topmost.
+        await app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()
+            .find((item) => item.webContents.getURL() === 'capri://desktop/settings.html')
+            .setAlwaysOnTop(false),
+        );
+        const overlays = await app.evaluate(() =>
+          [globalThis.fixtureAvatar.overlay, globalThis.fixtureComposer.window]
+            .filter(Boolean)
+            .map((window) => {
+              const handle = window.getNativeWindowHandle();
+              return String(handle.length === 8 ? handle.readBigUInt64LE() : handle.readUInt32LE());
+            }),
+        );
+        const covered = await probeContact(x, y, overlays);
+        assert.equal(covered.visible, false, JSON.stringify(covered));
+        const released = await app.evaluate(async (_, dock) => {
+          const avatar = globalThis.fixtureAvatar;
+          const deadline = Date.now() + 20000;
+          while (Date.now() < deadline) {
+            if (!avatar.operation && avatar.session?.dock !== dock) return true;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+          return false;
+        }, initial.dock);
+        assert(released, 'The sprite must leave the seat when the contact is covered');
+        await coverApp.close();
+        coverApp = null;
+        perchChecks.coveredContactReleasesSeat = true;
         if (option('expected-scale'))
           assert.equal(
             initial.scaleFactor,
@@ -573,6 +687,7 @@ await import(${source('apps/desktop/main.mjs')});
     );
     return result;
   } finally {
+    if (coverApp) await coverApp.close();
     if (app) await app.close();
     await new Promise((resolve) => server.close(resolve));
   }

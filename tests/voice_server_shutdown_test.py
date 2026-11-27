@@ -53,6 +53,9 @@ class VoiceShutdownTests(unittest.TestCase):
             def __init__(self, config):
                 fixture.created += 1
 
+            def prepare(self, _language, cancelled):
+                check_cancelled(cancelled)
+
             def generate(self, text, cancelled=None, language='en'):
                 if fixture.block_warmup or text == 'block':
                     fixture.started.set()

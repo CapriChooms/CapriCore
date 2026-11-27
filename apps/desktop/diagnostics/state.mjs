@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { diagnosticModelId, privateLogRecord } from '../../../packages/runtime/src/privacy-log.mjs';
-import { rendererCrashReasons } from '../main/crash-report.mjs';
+import { isCallSetupFailure } from '../call-audio-setup.mjs';
 
 const PRIVATE_FIELD =
   /(?:prompt|transcript|utterance|messages|history|personality|content|goal|query|parameters|arguments|clipboard|windowTitle|caption|fileName|filePath|executable|url|token|secret|password|headers|environment|recording|screenshot|image|audioData|text)/i;
@@ -143,58 +143,23 @@ const ERRORS = new Set([
 ]);
 const screenStartupFailure =
   /^Capri screen startup failed: \{"stage":"(selection|capture|first-frame)","name":"(NotAllowedError|NotReadableError|AbortError|InvalidStateError|NotFoundError|TypeError|Error)"\}$/;
-const settingsRendererFailure =
-  /^Settings renderer stopped: (clean-exit|abnormal-exit|killed|crashed|oom|launch-failed|integrity-failure|memory-eviction)(?: \(exit code (-?\d{1,10}|unknown)\))?$/;
-const portraitGraphicsPrefix = 'Capri portrait graphics: ';
-const portraitGraphicsEvents = new Set([
-  'context-lost',
-  'context-restored',
-  'initialization-failed',
-  'texture-upload-failed',
-  'draw-failed',
-  'sprite-image-missing',
-  'gpu-process-exit-fallback',
-]);
-function portraitGraphicsRecord(message) {
-  if (!message.startsWith(portraitGraphicsPrefix)) return;
-  try {
-    const { event, timeMs, width, height, glError } = JSON.parse(
-      message.slice(portraitGraphicsPrefix.length),
-    );
-    if (
-      portraitGraphicsEvents.has(event) &&
-      Number.isSafeInteger(timeMs) &&
-      timeMs >= 0 &&
-      [width, height].every((size) => Number.isInteger(size) && size >= 0 && size <= 32768)
-    )
-      return {
-        event,
-        timeMs,
-        width,
-        height,
-        ...(Number.isInteger(glError) && glError > 0 && glError <= 65535 ? { glError } : {}),
-      };
-  } catch {
-    // Malformed renderer diagnostics contain no trusted measurements.
-  }
-}
 // Host-defined control vocabulary only. Never admit arbitrary target labels,
 // destinations, message text or model-provided prose under these field names.
 const CONTROL_VALUES = {
   id: new Set(['core', 'models', 'recognition', 'voice']),
+  source: new Set(['api']),
+  activeEngine: new Set(['turbo', 'multilingual-v3', 'tts-pt-br']),
+  computeDevice: new Set(['cuda:0']),
+  decoderDevice: new Set(['cuda:0']),
+  decoderReason: new Set([
+    'configured-cpu',
+    'configured-cuda',
+    'available-vram',
+    'vram-reserve',
+    'cuda-oom',
+  ]),
   phase: new Set(['offline', 'model-loading', 'prepare', 'synthesize']),
   state: new Set(['running']),
-  crashSurface: new Set(['desktop', 'companion', 'settings']),
-  crashReason: new Set(['process-exit', ...rendererCrashReasons]),
-  gpuExitReason: new Set([
-    'abnormal-exit',
-    'killed',
-    'crashed',
-    'oom',
-    'launch-failed',
-    'integrity-failure',
-    'memory-eviction',
-  ]),
   action: new Set([
     'observe',
     'launch',
@@ -222,6 +187,7 @@ const CONTROL_VALUES = {
   outcome: new Set([
     'applied',
     'not_applied',
+    'review_recovery',
     'invalid_arguments',
     'preflight_rejected',
     'discord_dispatched',
@@ -281,6 +247,7 @@ const CONTROL_VALUES = {
 };
 
 export function isDiagnosticControlValue(key, value) {
+  if (key === 'lastFailure') return isCallSetupFailure(value);
   return (
     typeof value === 'string' &&
     Object.hasOwn(CONTROL_VALUES, key) &&
@@ -305,19 +272,6 @@ export function diagnosticState(value, key = '', depth = 0) {
     const screenFailure = key === 'message' && screenStartupFailure.exec(value);
     if (screenFailure)
       return { event: 'screen-startup-failed', stage: screenFailure[1], name: screenFailure[2] };
-    if (key === 'message') {
-      const portrait = portraitGraphicsRecord(value);
-      if (portrait) return portrait;
-      const stopped = settingsRendererFailure.exec(value);
-      if (stopped)
-        return {
-          event: 'settings-renderer-stopped',
-          rendererReason: stopped[1],
-          ...(stopped[2] && stopped[2] !== 'unknown' ? { exitCode: Number(stopped[2]) } : {}),
-        };
-      if (value === 'Settings native window hidden unexpectedly')
-        return { event: 'settings-window-hidden' };
-    }
     if (STATES.has(value) || ERRORS.has(value)) return value;
     if (isDiagnosticControlValue(key, value)) return value;
     if (
@@ -331,7 +285,7 @@ export function diagnosticState(value, key = '', depth = 0) {
     )
       return value;
     if (
-      /^(?:language|interface|conversation|speech)$/.test(key) &&
+      /^(?:language|configuredLanguage|interface|conversation|speech)$/.test(key) &&
       /^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(value)
     )
       return value;

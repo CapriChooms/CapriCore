@@ -83,8 +83,11 @@ class RuntimeOptimizationTests(unittest.TestCase):
             voice = load_and_warm({'fixture': True}, 'ru')
             preflight.assert_called_once_with(torch)
             pool.assert_called_once_with({'fixture': True})
+            pool.return_value.prepare.assert_called_once_with('ru', None)
             pool.return_value.generate.assert_called_once_with('Привет.', language='ru')
             self.assertIs(voice, pool.return_value)
+            self.assertEqual(set(voice.startup_timings), {'startupImportsMs', 'startupLoadMs', 'startupWarmupMs'})
+            self.assertTrue(all(ms >= 0 for ms in voice.startup_timings.values()))
 
     def test_chinese_extras_are_checked_before_ready_and_only_when_switching(self):
         pool = object.__new__(VoicePool)

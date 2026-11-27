@@ -249,7 +249,16 @@ try {
     const expected = document.createElement('canvas');
     expected.width = expected.height = intro.width;
     const ctx = expected.getContext('2d');
-    ctx.drawImage(sprite, 0, 0, intro.width, intro.height);
+    const plate = document.querySelector('#sprite-region .avatar-mouth-plate:not([hidden])');
+    if (plate) {
+      const full = document.createElement('canvas');
+      full.width = full.height = sprite.naturalWidth;
+      const composite = full.getContext('2d');
+      const position = (axis) => Math.round((parseFloat(plate.style[axis]) * full.width) / 100);
+      composite.drawImage(sprite, 0, 0);
+      composite.drawImage(plate, position('left'), position('top'));
+      ctx.drawImage(full, 0, 0, intro.width, intro.height);
+    } else ctx.drawImage(sprite, 0, 0, intro.width, intro.height);
     return {
       frame: sprite.dataset.frame,
       identical: expected.toDataURL() === intro.toDataURL(),

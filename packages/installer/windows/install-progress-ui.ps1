@@ -48,6 +48,17 @@ function Update-CapriDownloadProgress($Event) {
         }
     }catch{$script:uiDiagnostics.Record('invalid-download-progress',($_|Out-String))}
 }
+function Update-CapriPackageProgress($Event) {
+    $progress=$script:installProgress
+    if($progress.step -ne 'dependencies' -or $Event.step -ne $progress.step){return}
+    if($Event.processed -notmatch '^\d{1,5}$' -or $Event.total -notmatch '^\d{1,5}$'){return}
+    $processed=[int]$Event.processed
+    $total=[int]$Event.total
+    if($total -lt 1 -or $processed -gt $total){return}
+    Set-CapriProgressFraction $progress $progress.step (0.8*$processed/$total)
+    $progress.transferEta=$null
+    $progress.transfer='npm  '+$processed.ToString('N0')+' / '+$total.ToString('N0')
+}
 function Read-CapriInstallProgress([bool]$Paused) {
     $logBatch=New-Object 'Collections.Generic.List[string]'
     $progress=$script:installProgress
@@ -89,6 +100,7 @@ function Read-CapriInstallProgress([bool]$Paused) {
                     $progress.lastTransferLog=$now
                 }
             }
+            'packages'{Update-CapriPackageProgress $event}
             'percent'{
                 Set-CapriProgressFraction $progress $(if($event.PSObject.Properties['step']){$event.step}else{$progress.step}) (0.9*[double]$event.percent/100)
             }

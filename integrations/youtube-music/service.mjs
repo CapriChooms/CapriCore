@@ -6,6 +6,7 @@ import { prepareNativeHelper } from '../../apps/desktop/native-helper.mjs';
 const home = 'https://music.youtube.com/';
 const windowBinding = /^\d{1,14}:\d{1,10}:\d{16,20}:-?\d+(?:,-?\d+){0,20}$/;
 const navigationActions = new Set(['open', 'search', 'play']);
+const searchFallbackReceipts = new Set(['tab_control_unavailable', 'search_input_unavailable']);
 const browserLaunchGraceMs = 4_000;
 const actions = new Set([
   'open',
@@ -36,6 +37,7 @@ const receipts = new Set([
   'playback_unverified',
   'control_unavailable',
   'control_unverified',
+  ...searchFallbackReceipts,
 ]);
 
 export function validateYouTubeMusicCommand(input) {
@@ -205,13 +207,19 @@ export class YouTubeMusicService {
       }
       // The browser can accept the previous launch before its tab is visible to UI Automation.
       let remaining = this.browserLaunchPendingUntil - performance.now();
-      while (mayNavigate && result.status === 'tab_not_found' && remaining > 0) {
+      const canOpenSearch = () => query && searchFallbackReceipts.has(result.status);
+      while (
+        mayNavigate &&
+        (result.status === 'tab_not_found' || canOpenSearch()) &&
+        remaining > 0
+      ) {
         await delay(Math.min(250, remaining), undefined, { signal });
         result = await this.run(helper, command, signal);
         remaining = this.browserLaunchPendingUntil - performance.now();
       }
-      if (mayNavigate && result.status === 'tab_not_found') {
+      if (mayNavigate && (result.status === 'tab_not_found' || canOpenSearch())) {
         signal.throwIfAborted();
+        const fallbackReason = canOpenSearch() ? result.status : undefined;
         try {
           await this.openExternal(query ? searchUrl(query) : home);
         } catch {
@@ -221,8 +229,13 @@ export class YouTubeMusicService {
         this.browserLaunchPendingUntil = performance.now() + browserLaunchGraceMs;
         signal.throwIfAborted();
         if (action !== 'play')
-          return { ok: true, status: action === 'open' ? 'opened' : 'search_opened' };
+          return {
+            ok: true,
+            status: action === 'open' ? 'opened' : 'search_opened',
+            ...(fallbackReason && { fallbackReason }),
+          };
         result = await this.run(helper, { ...command, waitForSearch: true }, signal);
+        if (fallbackReason) result = { ...result, fallbackReason };
       }
       const { binding, ...details } = result;
       // Keep follow-up controls with the exact browser document that was verified.

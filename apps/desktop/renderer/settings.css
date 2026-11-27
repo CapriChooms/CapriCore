@@ -745,6 +745,28 @@ body.settings-window {
 .chess-settings .settings-card > label:first-child {
   margin-block-start: 0;
 }
+.chess-settings #chess-engine[data-install-required],
+.chess-prepare-analysis {
+  border-inline-start: 3px solid var(--settings-control-ink);
+  background: color-mix(in srgb, var(--settings-control-ink) 10%, var(--settings-card-surface));
+}
+.chess-prepare-analysis {
+  margin-block-start: 10px;
+  padding: 8px 10px;
+}
+.chess-prepare-analysis p {
+  margin: 0;
+  color: var(--settings-copy);
+}
+.settings-window #companion .chess-engine-download:enabled {
+  background: var(--settings-control-ink);
+  border-color: var(--settings-control-ink);
+  color: #071015;
+  font-weight: 700;
+}
+.settings-window #companion .chess-engine-download:enabled:hover {
+  background: color-mix(in srgb, var(--settings-control-ink) 80%, white);
+}
 .settings-window .chess-settings .general-toggle:has(> input:disabled) {
   cursor: wait;
 }
@@ -1821,7 +1843,7 @@ body.settings-window {
 .teleport-effects :is(.teleport-slider, .teleport-effects-footer) :is(input, select, label) {
   scroll-margin-block-start: calc(var(--teleport-preview-height) + 50px);
 }
-#teleport-color {
+:is(#teleport-color, #avatar-drag-tether-color) {
   flex: none;
   inline-size: 44px;
   block-size: 26px;

@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { randomInt } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { COMPANION_DEFAULTS } from '../companion-settings.mjs';
 import { pointInRect, spriteDragHit, spritePressKind } from '../geometry.mjs';
-import { teleportLightningSettings } from '../renderer/teleport-effects.mjs';
+import { DRAG_LIGHTNING_COLOR, teleportLightningSettings } from '../renderer/teleport-effects.mjs';
 
 const overlayUrl = 'capri://desktop/avatar-detach.html';
+const cameraPreload = fileURLToPath(new URL('../avatar-camera-preload.cjs', import.meta.url));
+const tetherUrl = 'capri://desktop/avatar-tether.html';
 const keys = ['x', 'y', 'width', 'height'];
 const dragDistance = 5;
 const tetherInterval = 20;
@@ -161,11 +164,12 @@ function tetherCrosses(from, to, area, padding) {
 function tetherStyle(settings) {
   const {
     avatarDragTether,
+    avatarDragTetherColor: teleportColor = DRAG_LIGHTNING_COLOR,
     avatarDragTetherIntensity: intensity,
     avatarDragTetherChaos: chaos = COMPANION_DEFAULTS.avatarDragTetherChaos,
   } = settings;
   return avatarDragTether && intensity > 0
-    ? { intensity, chaos, effects: teleportLightningSettings(settings) }
+    ? { intensity, chaos, effects: { ...teleportLightningSettings(settings), teleportColor } }
     : null;
 }
 
@@ -226,6 +230,7 @@ export class AvatarDetach {
     onPointer = () => {},
     onClick = () => {},
     onHeadpat = () => {},
+    onDragSample = () => {},
     onDragDrop = () => {},
     watchRelease = () => {},
     verification = false,
@@ -235,6 +240,7 @@ export class AvatarDetach {
     getPresentation = () => 'character',
     getPortraitGeometry = () => undefined,
     onReturnPlacement = () => {},
+    onCameraSourceChanged = () => {},
     timeoutMs = 5000,
   }) {
     Object.assign(this, {
@@ -247,6 +253,7 @@ export class AvatarDetach {
       onPointer,
       onClick,
       onHeadpat,
+      onDragSample,
       onDragDrop,
       watchRelease,
       verification,
@@ -256,6 +263,7 @@ export class AvatarDetach {
       getPresentation,
       getPortraitGeometry,
       onReturnPlacement,
+      onCameraSourceChanged,
       timeoutMs,
     });
     this.phase = 'attached';
@@ -270,6 +278,36 @@ export class AvatarDetach {
 
   get available() {
     return this.phase === 'detached' && !this.operation && !this.relocation;
+  }
+
+  cameraSource() {
+    const overlay = this.overlay;
+    return this.phase === 'detached' &&
+      this.presentation === 'character' &&
+      overlay &&
+      !overlay.isDestroyed() &&
+      overlay.isVisible() &&
+      overlay.webContents.getURL() === overlayUrl
+      ? overlay.webContents
+      : null;
+  }
+
+  ownsCameraSource(event) {
+    const source = this.cameraSource();
+    return (
+      source &&
+      event.sender === source &&
+      event.senderFrame === source.mainFrame &&
+      event.senderFrame?.url === overlayUrl
+    );
+  }
+
+  sendCameraState(state, preview) {
+    const contents = this.overlay?.webContents;
+    if (!contents || contents.isDestroyed?.() || contents.getURL() !== overlayUrl) return;
+    if (contents === this.cameraSource())
+      contents.send('capri:avatar-camera-state', { state, preview });
+    else contents.send('capri:avatar-camera-state', { state: null, preview: false });
   }
 
   get desktopPoint() {
@@ -358,6 +396,7 @@ export class AvatarDetach {
     const result = await this.updateParked('setPresentation', presentation);
     if (result === false) return false;
     this.presentation = presentation;
+    this.onCameraSourceChanged();
     if (this.pointerTimer) {
       this.stopPointer();
       this.startPointer();
@@ -369,6 +408,11 @@ export class AvatarDetach {
   sendMouth(shape) {
     this.mouth = shape;
     if (this.available) this.updateParked('setMouth', shape).catch(() => {});
+  }
+
+  sendFace(state) {
+    this.face = state;
+    if (this.available) this.updateParked('setFace', state).catch(() => {});
   }
 
   sendMusic(value) {
@@ -751,10 +795,12 @@ export class AvatarDetach {
       this.watchPoseMotion(session, rendered);
       target.showInactive();
       previous?.destroy();
+      this.onCameraSourceChanged();
       this.startPointer();
       if (this.reply) this.sendReply(this.reply);
       if (this.status) this.sendStatus(this.status);
       if (this.mouth) this.sendMouth(this.mouth);
+      if (this.face) this.sendFace(this.face);
       if (this.music) this.sendMusic(this.music);
       return true;
     } finally {
@@ -830,6 +876,7 @@ export class AvatarDetach {
     this.replySuppressedEdge = null;
     this.status = null;
     this.mouth = 'closed';
+    this.face = null;
     for (const overlay of overlays) {
       if (!overlay || overlay.isDestroyed()) continue;
       if (retiring.includes(overlay)) this.retireOverlay(overlay);
@@ -920,6 +967,7 @@ export class AvatarDetach {
           kind,
           grabOffset: { x: (x - mouse.x) / scale, y: (y - mouse.y) / scale },
         };
+        this.onDragSample(this.press);
       }
     } else if (mouse.type === 'mouseUp' && this.replyPress) {
       const press = this.replyPress;
@@ -943,14 +991,14 @@ export class AvatarDetach {
   releasePress(point, cursor) {
     const press = this.press;
     this.press = null;
-    if (press?.tetherAt) this.clearTether();
+    if (press?.tetherAt || this.tetherViews.size) this.clearTether();
     if (!press || Date.now() - press.at > 30000 || !this.available) return;
     press.moved ||= Math.hypot(point.x - press.x, point.y - press.y) >= dragDistance;
     if (press.moved) {
       // Dead zone governs the release itself, even with drag-lightning disabled.
       // Returning inside it cancels the move instead of starting a short teleport.
       if (avatarDragCanTeleport(press, point, this.getEffects() ?? {}))
-        this.onDragDrop(cursor, press.grabOffset);
+        this.onDragDrop(cursor, press.grabOffset, press);
     } else if (
       press.kind &&
       Date.now() - press.at < 800 &&
@@ -970,10 +1018,11 @@ export class AvatarDetach {
     if (!press) return;
     const distance = Math.hypot(x - press.x, y - press.y);
     press.moved ||= distance >= dragDistance;
+    if (press.moved) this.onDragSample(press);
     const settings = this.getEffects() ?? {};
     const style = tetherStyle(settings);
     if (!style || !press.moved || !avatarDragCanTeleport(press, { x, y }, settings)) {
-      if (press.tetherAt) this.clearTether();
+      if (press.tetherAt) this.clearTether(true);
       press.tetherAt = press.lastX = press.lastY = undefined;
       return;
     }
@@ -996,7 +1045,8 @@ export class AvatarDetach {
   trackAttachedTether(press, cursor, area, now) {
     if (!press || this.phase !== 'attached' || this.operation || pointInRect(cursor, area)) {
       if (press) press.tether = undefined;
-      if (this.phase === 'attached' && !this.operation && this.tetherViews.size) this.clearTether();
+      if (this.phase === 'attached' && !this.operation && this.tetherViews.size)
+        this.clearTether(Boolean(press));
       return;
     }
     const to = { x: cursor.x - area.x, y: cursor.y - area.y };
@@ -1004,7 +1054,7 @@ export class AvatarDetach {
     const style = tetherStyle(settings);
     if (!style || !avatarDragCanTeleport(press.point, to, settings)) {
       press.tether = undefined;
-      if (this.tetherViews.size) this.clearTether();
+      if (this.tetherViews.size) this.clearTether(true);
       return;
     }
     if (
@@ -1029,15 +1079,19 @@ export class AvatarDetach {
     const desktopFrom = rebasePoint(from, area, { x: 0, y: 0 });
     const desktopTo = rebasePoint(to, area, { x: 0, y: 0 });
     const padding = Math.max(55, 25 + (style.effects?.teleportSparkTravel ?? 0) * 0.63);
-    const visible = this.screen
-      .getAllDisplays()
-      .filter(
-        (display) =>
-          display.id !== displayId &&
-          tetherCrosses(desktopFrom, desktopTo, display.workArea, padding),
-      );
+    const displays = this.screen.getAllDisplays();
+    const visible = displays.filter(
+      (display) =>
+        display.id !== displayId &&
+        tetherCrosses(desktopFrom, desktopTo, display.workArea, padding),
+    );
     for (const [id, view] of this.tetherViews) {
-      if (!visible.some((display) => display.id === id)) this.closeTetherView(id, view);
+      const display = displays.find((display) => display.id === id);
+      if (!display || keys.some((key) => display.workArea[key] !== view.area[key])) {
+        this.closeTetherView(id, view);
+      } else if (!visible.includes(display)) {
+        this.hideTetherView(id, view);
+      }
     }
     for (const { id, workArea } of visible) {
       const command = {
@@ -1054,14 +1108,14 @@ export class AvatarDetach {
         if (existing.ready) this.paintTetherView(id, existing);
         continue;
       }
-      const overlay = this.createOverlay(workArea);
-      const view = { overlay, command, ready: false };
+      const overlay = this.createOverlay(workArea, true);
+      const view = { overlay, area: { ...workArea }, command, ready: false };
       this.tetherViews.set(id, view);
       const close = () => this.closeTetherView(id, view);
       overlay.once('closed', close);
       overlay.webContents.once('render-process-gone', close);
       void overlay
-        .loadURL(overlayUrl)
+        .loadURL(tetherUrl)
         .then(() => {
           view.ready = true;
           this.paintTetherView(id, view);
@@ -1073,15 +1127,23 @@ export class AvatarDetach {
   paintTetherView(id, view) {
     const { overlay, command } = view;
     if (this.tetherViews.get(id) !== view || overlay.isDestroyed() || view.pending) return;
-    const task = this.sendOverlay(overlay, 'setTether', command);
-    if (!task) {
+    if (overlay.webContents.getURL() !== tetherUrl) {
       this.closeTetherView(id, view);
       return;
     }
+    const task = overlay.webContents.executeJavaScript(
+      `globalThis.capriAvatarTether(${JSON.stringify(command)})`,
+    );
     view.pending = true;
     void task
       .then(() => {
-        if (this.tetherViews.get(id) === view && !overlay.isDestroyed() && !overlay.isVisible())
+        if (
+          command &&
+          view.command &&
+          this.tetherViews.get(id) === view &&
+          !overlay.isDestroyed() &&
+          !overlay.isVisible()
+        )
           overlay.showInactive();
       })
       .catch(() => this.closeTetherView(id, view))
@@ -1092,15 +1154,27 @@ export class AvatarDetach {
       });
   }
 
+  hideTetherView(id, view) {
+    if (!view.command) return;
+    // The cursor can cross an edge repeatedly before mouse-up. Keep the loaded
+    // renderer for this gesture and stop its animation as soon as it is hidden.
+    view.command = null;
+    if (!view.overlay.isDestroyed() && view.overlay.isVisible()) view.overlay.hide();
+    if (view.ready) this.paintTetherView(id, view);
+  }
+
   closeTetherView(id, view) {
     if (this.tetherViews.get(id) !== view) return;
     this.tetherViews.delete(id);
     if (!view.overlay.isDestroyed()) view.overlay.destroy();
   }
 
-  clearTether() {
+  clearTether(keepViews = false) {
     this.sendOverlay(this.overlay, 'setTether', null)?.catch(() => {});
-    for (const [id, view] of this.tetherViews) this.closeTetherView(id, view);
+    for (const [id, view] of this.tetherViews) {
+      if (keepViews) this.hideTetherView(id, view);
+      else this.closeTetherView(id, view);
+    }
   }
 
   pulse(count, tone) {
@@ -1119,18 +1193,16 @@ export class AvatarDetach {
 
   async playSurface(action, side, stillAllowed = () => true) {
     const overlay = this.overlay;
-    const playback = (this.surfacePlayback = {});
     const available = () =>
       this.available &&
-      this.surfacePlayback === playback &&
       this.overlay === overlay &&
       overlay &&
       !overlay.isDestroyed() &&
       overlay.isVisible() &&
       !this.session?.reducedMotion &&
       stillAllowed();
+    if (!available()) return false;
     try {
-      if (!available()) return false;
       // Releasing pointer input early during arrival does not finish the flight.
       await withTimeout(this.sendOverlay(overlay, 'whenSettled'), this.timeoutMs);
       if (!available()) return false;
@@ -1139,15 +1211,11 @@ export class AvatarDetach {
         this.timeoutMs,
       );
       if (started === true && available()) return true;
-      if (started === true && this.overlay === overlay && this.surfacePlayback === playback)
-        this.playReaction('stopSurface');
+      if (started === true && this.overlay === overlay) this.playReaction('stopSurface');
       return false;
     } catch {
-      if (this.overlay === overlay && this.surfacePlayback === playback)
-        this.playReaction('stopSurface');
+      if (this.overlay === overlay) this.playReaction('stopSurface');
       return false;
-    } finally {
-      if (this.surfacePlayback === playback) this.surfacePlayback = null;
     }
   }
 
@@ -1240,7 +1308,7 @@ export class AvatarDetach {
     const { area } = this.session;
     const point = { x: x - area.x, y: y - area.y };
     if (this.press && Date.now() - this.press.at > 30000) {
-      if (this.press.tetherAt) this.clearTether();
+      if (this.press.tetherAt || this.tetherViews.size) this.clearTether();
       this.press = null;
     }
     this.trackPress(point);
@@ -1275,7 +1343,7 @@ export class AvatarDetach {
     }
   }
 
-  createOverlay(area) {
+  createOverlay(area, tetherOnly = false) {
     const overlay = new this.BrowserWindow({
       ...area,
       title: 'Capri Avatar',
@@ -1292,32 +1360,46 @@ export class AvatarDetach {
       maximizable: false,
       hasShadow: false,
       webPreferences: {
+        ...(tetherOnly ? {} : { preload: cameraPreload }),
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
         webSecurity: true,
         devTools: false,
-        backgroundThrottling: false,
+        backgroundThrottling: tetherOnly,
       },
     });
     const lost = () => {
       if (this.overlay === overlay || this.nextOverlay === overlay) this.reset();
     };
-    // Windows puts every topmost app in the same band. Recover when another
-    // application promotes itself, without polling its contents or taking focus.
-    const stackingTimer = setInterval(() => this.raiseOverlay(overlay), stackingInterval);
-    stackingTimer.unref?.();
-    overlay.once('closed', () => clearInterval(stackingTimer));
-    overlay.once('closed', lost);
-    overlay.on('show', () => this.raiseOverlay(overlay));
-    overlay.on('hide', () => {
-      if (this.overlay === overlay) this.stopPointer();
-    });
-    overlay.webContents.once('render-process-gone', lost);
-    overlay.webContents.once('did-finish-load', () => this.refreshTheme([overlay]));
-    overlay.webContents.on('before-mouse-event', (_event, input) => {
-      if (this.overlay === overlay) this.mouse(input);
-    });
+    if (tetherOnly) {
+      overlay.on('show', () => {
+        overlay.moveTop?.();
+        this.onRaised();
+      });
+    } else {
+      // Windows puts every topmost app in the same band. Recover when another
+      // application promotes itself, without polling its contents or taking focus.
+      const stackingTimer = setInterval(() => this.raiseOverlay(overlay), stackingInterval);
+      stackingTimer.unref?.();
+      overlay.once('closed', () => clearInterval(stackingTimer));
+      overlay.once('closed', lost);
+      overlay.on('show', () => {
+        this.raiseOverlay(overlay);
+        if (this.overlay === overlay) this.onCameraSourceChanged();
+      });
+      overlay.on('hide', () => {
+        if (this.overlay === overlay) {
+          this.stopPointer();
+          this.onCameraSourceChanged();
+        }
+      });
+      overlay.webContents.once('render-process-gone', lost);
+      overlay.webContents.once('did-finish-load', () => this.refreshTheme([overlay]));
+      overlay.webContents.on('before-mouse-event', (_event, input) => {
+        if (this.overlay === overlay) this.mouse(input);
+      });
+    }
     overlay.setMenu(null);
     overlay.setAlwaysOnTop?.(true, 'screen-saver');
     overlay.setIgnoreMouseEvents(true);
@@ -1513,7 +1595,7 @@ export class AvatarDetach {
               effects,
               crossing,
               park: overlay === target && phase !== 'returning',
-              interactiveArrival: phase !== 'returning',
+              interactiveArrival: true,
               presentation: this.getPresentation(),
               reduceMotion: this.getPresentation() === 'dialogue',
             };
@@ -1554,9 +1636,7 @@ export class AvatarDetach {
         throw new Error('The teleport renderer could not complete the animation.');
       if (phase === 'returning') {
         if (destination.layout) this.onReturnPlacement(destination.layout);
-        this.reset(
-          effects?.teleportStyle === 'sandevistan' ? views.map(({ overlay }) => overlay) : [],
-        );
+        this.reset(views.map(({ overlay }) => overlay));
       } else {
         if (crossing) {
           this.overlay = target;
@@ -1579,6 +1659,7 @@ export class AvatarDetach {
         if (this.reply) this.sendReply(this.reply);
         if (this.status) this.sendStatus(this.status);
         if (this.mouth) this.sendMouth(this.mouth);
+        if (this.face) this.sendFace(this.face);
         if (this.music) this.sendMusic(this.music);
       }
       return true;

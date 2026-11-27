@@ -71,7 +71,7 @@ function Layout-CapriMemoryBudget($Layout) {
     }
     $budgetHelp.SetBounds((D 28),$Layout.rowsBottom,($width-(D 56)),$Layout.helpHeight)
 }
-function Update-CapriMemoryBudgetView {
+function Update-CapriMemoryBudgetView([switch]$DeferLayout) {
     if($script:page -notin @('device','model','voice','components','review')){return}
     $selection=$options.Clone()
     $selection.router=$true
@@ -95,7 +95,7 @@ function Update-CapriMemoryBudgetView {
     if($selection.inferenceMode -eq 'api' -or $selection.modelSource -eq 'huggingface'){$selection.downloadModels=$false}
     $selection.installedModel=$selection.profile -match '^hf-[a-f0-9]{24}$'
     if($script:fields.ContainsKey('storageEstimate')){
-        $script:fields.storageEstimate.Text=Format-CapriStorageEstimate (Get-CapriStorageEstimate $selection $manifest $storageCatalog $rocmVoice $hardware)
+        $script:fields.storageEstimate.Text=Format-CapriStorageEstimate (Get-CapriNavigationStorageEstimate $selection)
     }
     $unknown=$selection.inferenceMode -ne 'api' -and ($selection.modelSource -eq 'huggingface' -or $selection.installedModel)
     $script:memoryBudget=if($unknown){@{mode='unknown'}}else{Get-CapriMemoryBudget $selection $hardware $memoryEstimates}
@@ -122,10 +122,19 @@ function Update-CapriMemoryBudgetView {
     $budgetInfo.AccessibleDescription=Text-Capri $(if($unknown){'budgetHuggingFaceUnknown'}else{'budgetHelp'})
     $budgetHelp.Text=if($unknown){Text-Capri 'budgetHuggingFaceUnknown'}elseif($warning){Text-Capri 'budgetWarning'}else{''}
     $budgetHelp.ForeColor=if($warning){[Drawing.Color]::FromArgb(155,57,20)}else{[Drawing.Color]::FromArgb(45,69,77)}
-    Layout-CapriWizard
+    if(-not $DeferLayout){Layout-CapriWizard}
 }
 $budgetRefresh.Add_Click({
     $budgetRefresh.Enabled=$false
-    try{Update-CapriMemorySnapshot $hardware;Update-CapriHardwareLabel;Update-CapriModelRecommendations;Update-CapriMemoryBudgetView;Update-CapriDiskReview;Fit-CapriPage}
+    try{
+        $script:navigationStorageEstimate=$null
+        if($script:page -eq 'review'){$script:reviewStorage=Get-CapriNavigationStorageEstimate $options}
+        Update-CapriMemorySnapshot $hardware
+        Update-CapriHardwareLabel
+        Update-CapriModelRecommendations
+        Update-CapriMemoryBudgetView -DeferLayout
+        Update-CapriDiskReview
+        Fit-CapriPage
+    }
     finally{$budgetRefresh.Enabled=$true}
 })

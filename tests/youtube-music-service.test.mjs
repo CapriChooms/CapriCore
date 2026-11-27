@@ -102,6 +102,40 @@ test('YouTube Music scans again without opening a duplicate while a newly launch
   service.close();
 });
 
+test('YouTube Music recovers from unavailable tab controls using only the exact provider search', async () => {
+  for (const reason of ['tab_control_unavailable', 'search_input_unavailable']) {
+    const query = 'C418 & ?';
+    const calls = [];
+    const service = new YouTubeMusicService({
+      root: 'fixture',
+      platform: 'win32',
+      openExternal: async (url) => calls.push(new URL(url)),
+      prepare: async () => 'native-fixture',
+      run: async (_helper, command) => {
+        calls.push(command);
+        return command.waitForSearch
+          ? { ok: false, status: 'playback_unverified' }
+          : { ok: false, status: reason };
+      },
+    });
+    const command = { action: 'play', query };
+    try {
+      assert.deepEqual(await service.execute('play', command), {
+        ok: false,
+        status: 'playback_unverified',
+        fallbackReason: reason,
+      });
+      assert.deepEqual(calls, [
+        command,
+        new URL('https://music.youtube.com/search?q=C418+%26+%3F'),
+        { ...command, waitForSearch: true },
+      ]);
+    } finally {
+      service.close();
+    }
+  }
+});
+
 test('YouTube Music keeps playback commands in the validated document and never retries a lost binding', async () => {
   const records = [];
   const binding = '131408:11232:639000032111010012:42,987,3';

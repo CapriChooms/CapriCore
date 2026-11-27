@@ -428,7 +428,11 @@ test('an explicit current computer command still works while Internet is enabled
     let executions = 0;
     const f = fixture({
       interfaceState: () => ({ fullComputerAccess: true }),
-      computerAccess: async () => ({ ok: true }),
+      fetchImpl: async (_url, options) => {
+        assert.equal(options.headers['x-capri-tools-once'], 'desktop');
+        f.chat.selectModelComputerTask(question);
+        return stream('The fixture app is being opened.');
+      },
       computerTask: async () => {
         f.chat.assertToolAllowed('desktop_control', { action: 'run_task' });
         executions++;
@@ -439,7 +443,6 @@ test('an explicit current computer command still works while Internet is enabled
     assert.equal(f.events.at(-1).type, 'turn.completed');
     assert.equal(executions, 1);
     assert.equal(f.searches.length, 0);
-    assert.equal(f.requests.length, 0);
   }
 });
 

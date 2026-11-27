@@ -12,7 +12,6 @@ export function conversationBudget({
   timeoutMs = 180000,
   residentBytes,
   residentGpuBytes,
-  acceleration,
   emulatedX64 = false,
 }) {
   const positive = (n) => Number.isFinite(n) && n > 0;
@@ -36,16 +35,9 @@ export function conversationBudget({
   // Automatic acceleration can fall back to CPU. Use observed allocation,
   // rather than only the saved device preference, for the prefill allowance.
   const observedCpu = positive(residentBytes) && residentGpuBytes === 0;
-  const cpuOnly = acceleration === 'cpu' || observedCpu;
-  // Large context settings can slow first prefill even before the gateway
-  // reports prompt usage. Do not treat the entire window as occupied.
-  const unmeasuredLargeContext = window >= 131072 && !measured && !pressure;
   const initialDeadline = Math.min(
     timeoutMs,
-    Math.max(
-      firstTextTimeoutMs,
-      emulatedX64 ? 180000 : cpuOnly ? 120000 : unmeasuredLargeContext ? 60000 : 0,
-    ),
+    Math.max(firstTextTimeoutMs, emulatedX64 ? 180000 : observedCpu ? 120000 : 0),
   );
   const cap = Math.max(initialDeadline, Math.min(150000, timeoutMs - 30000));
   const firstReplyMs =

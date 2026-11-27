@@ -5,8 +5,7 @@ import { callTaskRequest } from './call-computer-task.mjs';
 import { youtubeHomeDestination } from './browser-search-state.mjs';
 import { steamGameCommand } from './steam-task-state.mjs';
 
-// Fast paths for common requests. Ambiguous and other-language requests can use
-// the desktop intent classifier without starting an ordinary chat turn.
+// Recognize owner wording so the model can be offered the appropriate tools.
 const russianMode = String.raw`(?:режим\s+)?полн(?:ого|ое|ый|ом|ым)\s+(?:управлени[ея]|доступ[а]?)\s+(?:ко?\s+)?(?:(?:всему|моим|моему|моего|всего)\s+)*(?:компьютер(?:ом|у|а)?|пк)`;
 const englishMode = String.raw`(?:full\s+(?:computer|pc|desktop)\s+(?:control|access)|full\s+(?:control|access)\s+(?:of|to|over)\s+(?:(?:my|the|this|entire|whole)\s+)*(?:computer|pc|desktop)|computer\s+control)(?:\s+mode)?`;
 const mode = String.raw`(?:${russianMode}|${englishMode})`;
@@ -44,7 +43,7 @@ const trailing = new RegExp(
   'iu',
 );
 const action =
-  /^(?:open|launch|start|find|search|type|write|click|move|create|copy|delete|play|calculate|открой|запусти|найди|поищи|введи|напиши|нажми|перемести|создай|скопируй|удали|включи|посчитай)(?=\s)/iu;
+  /^(?:open|launch|start|find|search|google|type|write|click|move|create|copy|delete|play|calculate|открой|запусти|найди|поищи|погугли|введи|напиши|нажми|перемести|создай|скопируй|удали|включи|посчитай)(?=\s)/iu;
 const mention = new RegExp(String.raw`(?:^|\s)${mode}(?=$|[\s,.:;!?])`, 'iu');
 const spanishMode = String.raw`(?:control|acceso) (?:total|completo) (?:del?|al?|sobre) (?:(?:el|la|mi|tu) )?(?:ordenador|computadora?|equipo|pc)`;
 const settingId = String.raw`(?:fullComputerAccess?|"fullComputerAccess?"|“fullComputerAccess?”|«fullComputerAccess?»)`;
@@ -78,7 +77,7 @@ export const rejectsDesktopAction = (text) =>
 const recoveredMode =
   /^(?:useful\s+(?:computer|pc|desktop)\s+(?:access|control)|use\s+my\s+(?:computer|pc|desktop)\s+via\s+full\s+access|используй\s+(?:(?:мой|этот)\s+)?(?:компьютер|пк)(?=\s*[,.:;]|\s+и\s))(?=\s|[,.:;!?]|$)/iu;
 const personalComputer =
-  /^(?:use\s+(?:my|the|this)\s+(?:computer|pc|desktop)(?:\s+to\s+|\s*[,;:]\s*)|(?:используй|использовать)\s+(?:мой|этот)\s+(?:компьютер|пк)\s*,?\s*чтобы\s+)/iu;
+  /^(?:use\s+(?:my|the|this)\s+(?:computer|pc|desktop)(?:\s+(?:to|and(?:\s+then)?)\s+|\s*[,;:]\s*)|(?:используй|использовать)\s+(?:мой|этот)\s+(?:компьютер|пк)\s*,?\s*чтобы\s+)/iu;
 const personalComputerCommand = (request) => {
   const match = personalComputer.exec(request);
   if (!match) return null;
@@ -87,6 +86,48 @@ const personalComputerCommand = (request) => {
     ? task
     : null;
 };
+export function youtubeBrowseRequest(text) {
+  const value = computerTaskCommand(text)
+    .replace(personalComputer, '')
+    .replace(/"[^"\n]*"|“[^”\n]*”|«[^»\n]*»/gu, '');
+  if (
+    /\b(?:without\s+(?:a\s+|the\s+)?browser|(?:do not|don['’]t|never)\s+(?:use|open)\s+(?:a\s+|the\s+)?browser)\b|не\s+(?:используй|открывай)\s+браузер/iu.test(
+      value,
+    )
+  )
+    return false;
+  const findVideo = /^(?:finde?|search|pick|choose|найди|поищи|подбери|выбери)\s/iu;
+  const [opening, followUp] = value.split(
+    /\s*[,;:]\s*(?:(?:and|then|и|затем|потом)\s+)?|\s+(?:and(?:\s+then)?|then|и|затем|потом)\s+/iu,
+    2,
+  );
+  if (followUp && youtubeHomeDestination(opening) && findVideo.test(followUp)) return true;
+  const withVideos =
+    /^(.*?)\s*,?\s+(?:with|с)\s+(?:[\p{L}\p{N}'’\-]+\s+){0,6}(?:[vw]ideos?\b|видео(?!\p{L})|ролик\p{L}*(?!\p{L}))/iu.exec(
+      value,
+    );
+  if (withVideos && youtubeHomeDestination(withVideos[1])) return true;
+  return (
+    findVideo.test(value) &&
+    !/(?:\b(?:youtube|yt)\s+music\b|ютуб[-\s]+музык)/iu.test(value) &&
+    (/(?:\b(?:on|in)\s+(?:the\s+)?youtube\b|(?:^|\s)(?:на|в)\s+(?:youtube(?!\p{L})|ютуб\p{L}*))/iu.test(
+      value,
+    ) ||
+      (/\b[vw]ideos?\b/iu.test(value) && /\b(?:on|in)\s+yt\b/iu.test(value)))
+  );
+}
+
+/** A direct request to browse on the PC can refer to the immediately preceding YouTube request. */
+export function youtubeBrowseFollowUp(text, previous) {
+  const task = personalComputerCommand(requestText(text));
+  return Boolean(
+    previous &&
+      youtubeBrowseRequest(previous) &&
+      /^(?:find|search for|choose|pick)\s+(?:something|anything)(?:\s+(?:interesting|for me|on your own|you (?:like|recommend)).*)?[.!?]*$/iu.test(
+        task ?? '',
+      ),
+  );
+}
 const launchPrefix =
   /^(?:open|launch|start|открой|открыть|запусти|запустить|abre|abrir|inicia|iniciar|lanza|lanzar|ouvre|ouvrez|ouvrir|lance|lancez|lancer|démarre|démarrez|démarrer)\s+/iu;
 const chainSeparator =
@@ -138,6 +179,7 @@ export function computerModelCandidate(text) {
 export function ownerAppLaunch(text) {
   const command = computerTaskCommand(text);
   if (steamGameCommand(command)) return { name: 'Steam', single: false };
+  if (youtubeHomeDestination(command) || youtubeBrowseRequest(command)) return null;
   if (!launchPrefix.test(command) || computerAppReference(command)) return null;
   const remainder = command.replace(launchPrefix, '');
   const separator = remainder.search(chainSeparator);
@@ -234,6 +276,49 @@ export function spotifyPlaybackCandidate(text) {
   return /^(?:play|put\s+on|turn\s+on|resume|pause|skip|next|previous|включи|поставь|воспроизведи|продолжи|приостанови|останови)(?=\s|[.!?]|$)/iu.test(
     requestText(scoped),
   );
+}
+
+const spotifyPlaybackControls = [
+  [
+    'pause',
+    /^(?:pause|stop|приостанови|останови)(?:\s+(?:the\s+)?(?:music|playback|музыку|воспроизведение))?$/iu,
+  ],
+  [
+    'resume',
+    /^(?:play|resume|continue|включи|поставь|продолжи|возобнови)(?:\s+(?:(?:some|any|the|good|nice|great|любую|хорошую|какую-нибудь)\s+)*(?:music|playback|музыку|воспроизведение|something|что-нибудь))?$/iu,
+  ],
+  [
+    'next',
+    /^(?:(?:play\s+(?:the\s+)?|skip\s+to\s+(?:the\s+)?)?next(?:\s+(?:song|track))?|skip(?:\s+(?:the\s+|this\s+)?(?:song|track))?|следующ(?:ий трек|ую песню)|переключи трек)$/iu,
+  ],
+  [
+    'previous',
+    /^(?:(?:play\s+(?:the\s+)?|go\s+to\s+(?:the\s+)?)?previous(?:\s+(?:song|track))?|предыдущ(?:ий трек|ую песню))$/iu,
+  ],
+];
+
+export function explicitSpotifyControl(text) {
+  const scoped = musicRequestScope(text);
+  if (scoped === null) return null;
+  const request = requestText(scoped)
+    .replace(/[.!?\s]+$/u, '')
+    .replace(/[, \t]+(?:please|пожалуйста)$/iu, '');
+  if (/^(?:pausiere\s+spotify|spotify\s+pausieren)$/iu.test(request)) return { action: 'pause' };
+  if (
+    /^(?:what(?:['’]s| is)\s+(?:(?:now|currently)\s+)?playing|(?:what|which)\s+(?:song|track)\s+is\s+(?:(?:now|currently)\s+)?playing)\s+(?:on|in)\s+spotify$/iu.test(
+      request,
+    ) ||
+    /^(?:что|какая песня|какой трек)\s+(?:сейчас\s+)?(?:играет|воспроизводится)\s+в\s+(?:spotify|спотифа[йе])$/iu.test(
+      request,
+    ) ||
+    /^(?:welcher (?:titel|song|track)|welches lied|was)\s+(?:läuft|spielt)\s+(?:gerade\s+)?(?:auf|in)\s+spotify$/iu.test(
+      request,
+    )
+  )
+    return { action: 'status' };
+  const subject = /^(.*?)\s+(?:(?:in|on|в|на)\s+)?(?:spotify|спотифа[йе])$/iu.exec(request)?.[1];
+  const match = subject && spotifyPlaybackControls.find(([, pattern]) => pattern.test(subject));
+  return match ? { action: match[0] } : null;
 }
 
 /** Only an explicit, single owner request can bypass generated tool syntax. */
@@ -467,6 +552,7 @@ export function computerModeRequest(text, { fullComputerAccess = false } = {}) {
   if (dedicatedMusicRequest(value)) return null;
   if (fullComputerAccess) {
     if (youtubeHomeDestination(computerTaskCommand(value))) return { enabled: true, run: true };
+    if (youtubeBrowseRequest(computerTaskCommand(value))) return { enabled: true, run: true };
     if (authorizedDiscordCommand(text)) return { enabled: true, run: true };
     if (exactClickLabel(text)) return { enabled: true, run: true };
     if (cyberpunkSteamLaunch(value) || edgerunnersTeaserRequest(value))

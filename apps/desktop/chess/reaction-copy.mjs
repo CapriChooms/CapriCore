@@ -53,6 +53,42 @@ const english = {
     'Too few pieces to finish it. Draw.',
     'That’s a draw. Neither side has enough to mate.',
   ],
+  voices: {
+    neutral: {
+      capture: [
+        'There goes {target}. {Mover} saw to that.',
+        'Hey, {mover} took {target}. Nice twist.',
+      ],
+      check: ['Well, hello, king. Check from {checker}.', '{Checker} springs a check. Now what?'],
+    },
+    romantic: {
+      capture: [
+        'Ooh, {mover} took {target}. Stay close, this is getting good.',
+        'There goes {target}. I like that move by {mover}.',
+      ],
+      check: [
+        'Stay close. {Checker} gives check.',
+        'That king’s in trouble. {Checker} gives check.',
+      ],
+    },
+    business: {
+      capture: ['Mark it. {Mover} takes {target}.', '{Mover} removes {target}. Watch the reply.'],
+      check: [
+        'Check from {checker}. Deal with that first.',
+        '{Checker} checks the king. Priority one.',
+      ],
+    },
+    wild: {
+      capture: [
+        'Yoink. {Mover} just tossed {target} off the board.',
+        'Lights out for {target}. {Mover} pulled the plug.',
+      ],
+      check: [
+        'Ping! {Checker} lit up the king. That’s check.',
+        'Hey, king. {Checker} says check. Your move.',
+      ],
+    },
+  },
   short: {
     capture: '{Mover} takes {target}.',
     check: 'And check.',
@@ -163,18 +199,18 @@ const russian = {
   ],
   mate: ['{Winner}. Мат.', 'Мат от {actorGen}.', 'Мат. {Checker} ставит точку.'],
   promotion: [
-    'Пешка {actorGen} становится {promoted}.',
-    'Превращение пешки {actorGen} в {promotionTarget}.',
+    '{OwnedPawn} становится {promoted}.',
+    'Превращение {pawnGen} в {promotionTarget}.',
     'У {actorGen} теперь {promotionName} вместо пешки.',
   ],
   castleShort: [
-    'Рокировка {actorGen} в короткую сторону.',
+    'Рокировка в короткую сторону у {actorGen}.',
     'У {actorGen} короткая рокировка. Король в укрытии.',
     'Короткая рокировка от {actorGen}.',
   ],
   castleLong: [
     'Длинная рокировка у {actorGen}.',
-    'Король {actorGen} ушёл на длинную сторону.',
+    '{OwnedKing} ушёл на длинную сторону.',
     'Длинная рокировка от {actorGen}.',
   ],
   stalemate: [
@@ -187,6 +223,39 @@ const russian = {
     'Слишком мало фигур для мата. Ничья.',
     'На доске уже нечем заматовать. Ничья.',
   ],
+  voices: {
+    neutral: {
+      capture: [
+        'Вот и всё, {targetName} больше не на доске. Это {mover}.',
+        '{Mover} забирает {target}. Вот это поворот.',
+      ],
+      check: ['Ну привет, король. Шах от {checkerGen}.', '{Checker} даёт шах. Что в ответ?'],
+    },
+    romantic: {
+      capture: [
+        'О, {mover} забирает {target}. Сиди ближе, тут интересно.',
+        '{Mover} снимает {target}. Мне нравится этот ход.',
+      ],
+      check: ['Побудь рядом. {Checker} даёт шах.', 'Королю неспокойно. Это {checker} даёт шах.'],
+    },
+    business: {
+      capture: [
+        'Отмечаю взятие. {Mover} забирает {target}.',
+        '{Mover} снимает {target}. Теперь важен ответ.',
+      ],
+      check: ['Шах от {checkerGen}. Сначала ответ на него.', '{Checker} даёт шах. Это приоритет.'],
+    },
+    wild: {
+      capture: [
+        'Вырубаем свет. {Mover} снимает {target}.',
+        '{Mover} забирает {target}. Минус одна деталь в системе.',
+      ],
+      check: [
+        'Пинг! {Checker} даёт шах. Король засветился.',
+        'Эй, король. Это {checker} с доставкой шаха.',
+      ],
+    },
+  },
   short: {
     capture: '{Mover} забирает {target}.',
     check: 'И шах.',
@@ -212,7 +281,11 @@ const russian = {
         'Это уже меняет расклад.',
       ],
       ending: ['Запомню этот финал.', 'Вот и точка.', 'Я дождалась развязки.'],
-      ahead: ['Перевес у {edgeGen}.', '{Edge} сейчас задают темп.', 'Позиция в пользу {edgeGen}.'],
+      ahead: [
+        'Перевес у {edgeGen}.',
+        'Темп теперь на стороне {edgeGen}.',
+        'Позиция в пользу {edgeGen}.',
+      ],
       even: ['Пока почти поровну.', 'Тут ещё рано выбирать фаворита.'],
     },
     romantic: {
@@ -263,7 +336,7 @@ const russian = {
       ending: ['Всё, катим титры.', 'Этот кадр я заберу себе.', 'И тут экран гаснет.'],
       ahead: [
         'Теперь у {edgeGen} рука на пульте.',
-        '{Edge} задают бит. Успевай.',
+        'Бит теперь на стороне {edgeGen}. Успевай.',
         'Доску уже кренит в сторону {edgeGen}.',
       ],
       even: ['Вся доска на лезвии.', 'Тут ещё искрит с обеих сторон.', 'Этот бардак пока ничей.'],
@@ -280,10 +353,10 @@ const ruPieces = {
   p: ['пешка', 'пешку', 'пешкой', 'пешки'],
 };
 const enPieces = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: 'pawn' };
-const ruOwner = { player: 'тебя', opponent: 'соперника', w: 'белых', b: 'чёрных' };
+const ruOwner = { player: 'нас', opponent: 'соперника', w: 'белых', b: 'чёрных' };
 const ruActor = { player: 'Ты', opponent: 'Соперник', w: 'Белые', b: 'Чёрные' };
 const ruWinner = {
-  player: 'Ты побеждаешь',
+  player: 'Мы победили',
   opponent: 'Соперник побеждает',
   w: 'Белые побеждают',
   b: 'Чёрные побеждают',
@@ -295,7 +368,7 @@ function russianNames(event, role, checker, advantage) {
     if (!name || !role) return name;
     if (role !== 'player') return name + ' ' + ruOwner[role];
     const feminine = piece === 'p' || piece === 'r';
-    const pronoun = form === 3 ? (feminine ? 'твоей' : 'твоего') : feminine ? 'твоя' : 'твой';
+    const pronoun = form === 3 ? (feminine ? 'нашей' : 'нашего') : feminine ? 'наша' : 'наш';
     return pronoun + ' ' + name;
   };
   return {
@@ -303,6 +376,10 @@ function russianNames(event, role, checker, advantage) {
     winner: ruWinner[role],
     mover: owned(event.piece, 0),
     target: ruPieces[event.captured]?.[1],
+    targetName: ruPieces[event.captured]?.[0],
+    ownedPawn: owned('p', 0),
+    pawnGen: owned('p', 3),
+    ownedKing: owned('k', 0),
     checker: owned(checker, 0),
     checkerGen: owned(checker, 3),
     promoted: ruPieces[event.promoted]?.[2],
@@ -314,17 +391,17 @@ function russianNames(event, role, checker, advantage) {
 }
 
 function englishNames(event, role, checker, advantage) {
-  const actor = { player: 'you', opponent: 'the opponent', w: 'White', b: 'Black' }[role];
-  const owner = { player: 'your', opponent: 'the opponent’s', w: 'White’s', b: 'Black’s' }[role];
+  const actor = { player: 'us', opponent: 'the opponent', w: 'White', b: 'Black' }[role];
+  const owner = { player: 'our', opponent: 'the opponent’s', w: 'White’s', b: 'Black’s' }[role];
   const named = (piece, article = 'the') => enPieces[piece] && article + ' ' + enPieces[piece];
   return {
     actor,
-    winner: role === 'player' ? 'You win' : actor && lead(actor, 'en') + ' wins',
+    winner: role === 'player' ? 'We win' : actor && lead(actor, 'en') + ' wins',
     mover: named(event.piece, owner),
     target: named(event.captured, 'the'),
     checker: named(checker, owner),
     promoted: named(event.promoted, 'a'),
-    edge: { w: 'White', b: 'Black' }[advantage],
+    edge: { player: 'our side', opponent: 'the opponent', w: 'White', b: 'Black' }[advantage],
   };
 }
 
@@ -349,7 +426,7 @@ function eventKey(event, checkers) {
 }
 
 export function reactionCandidates(
-  { events, checkers = [], advantage, balanced },
+  { events, checkers = [], advantage, balanced, player },
   language,
   style,
 ) {
@@ -358,12 +435,13 @@ export function reactionCandidates(
   );
   const [main, ...related] = ordered;
   const role = main.side ?? main.color;
+  const edge = advantage && player ? (advantage === player ? 'player' : 'opponent') : advantage;
   const copy = { en: english, ru: russian }[language];
   const label = (event) =>
     uiText(event.reason === 'stalemate' ? 'Stalemate' : reactionLabels[event.type], language);
   const actor = roles[role] && uiText(roles[role], language);
   if (!copy) {
-    const { detail, tone } = localDetails(events, checkers, advantage, balanced, language, style);
+    const { detail, tone } = localDetails(ordered, checkers, edge, balanced, language, style);
     const action = new Intl.ListFormat(language).format(events.map(label));
     const who = actor && main.type !== 'start' && main.type !== 'draw' ? actor + ' — ' : '';
     const lines = detail
@@ -381,7 +459,7 @@ export function reactionCandidates(
       event,
       event.side ?? event.color,
       checkers.length === 1 ? checkers[0] : undefined,
-      advantage,
+      edge,
     );
   const names = namesFor(main);
   const fill = (template) => interpolate(template, names, language);
@@ -403,12 +481,26 @@ export function reactionCandidates(
           : 'tactic';
   const tails = main.type === 'start' ? [] : asides[comment].map(fill).filter(Boolean);
   const combined = mainLines.map((line) => [line, ...secondaries].join(' '));
+  const character = (copy.voices[style] ?? copy.voices.neutral)[key] ?? [];
+  const expressive = character
+    .map(fill)
+    .filter(Boolean)
+    .map((line) => ({ text: [line, ...secondaries].join(' '), character: true }))
+    .filter(({ text }) => text.length <= 130);
   const withTone = combined.flatMap((text) =>
     tails
       .map((aside) => ({ text: text + ' ' + aside, aside }))
       .filter((line) => line.text.length <= 130),
   );
-  return [...combined.map((text) => ({ text })), ...withTone];
+  const changedPosition =
+    comment === 'ahead' && player
+      ? (expressive.length ? expressive : combined.map((text) => ({ text }))).flatMap(({ text }) =>
+          tails
+            .map((aside) => ({ text: text + ' ' + aside, aside, position: true }))
+            .filter((line) => line.text.length <= 130),
+        )
+      : [];
+  return [...expressive, ...combined.map((text) => ({ text })), ...withTone, ...changedPosition];
 }
 
 const localizedTerms = {

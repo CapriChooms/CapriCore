@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import voiceRuntime from '../../../../config/voice-runtime.json' with { type: 'json' };
+
+const { minimumBuild, models } = voiceRuntime.amdWindows;
+const supportedModels = new Set(models.map((model) => model.replace(/\s+/g, '').toUpperCase()));
+const amdModel = (name) =>
+  String(name ?? '')
+    .replace(/\s+/g, '')
+    .toUpperCase()
+    .replace(/^(?:AMD)?(?:RADEON(?:\(TM\)|[®™])?)?/, '');
+
 export function voiceRocmSupported(hardware) {
   const windows11 =
-    hardware.platform === 'win32' && Number(String(hardware.osRelease).split('.')[2]) >= 22000;
+    hardware.platform === 'win32' &&
+    Number(String(hardware.osRelease).split('.')[2]) >= minimumBuild;
   return (
-    windows11 &&
-    hardware.gpus?.some((gpu) =>
-      /\bRADEON\s+(?:RX (?:9070 XT|9070|9060 XT|7900 XTX|7700)|(?:AI )?PRO (?:R9700|W7900(?: Dual Slot)?))$/i.test(
-        String(gpu.name ?? '').trim(),
-      ),
-    ) === true
+    windows11 && hardware.gpus?.some((gpu) => supportedModels.has(amdModel(gpu.name))) === true
   );
 }
 

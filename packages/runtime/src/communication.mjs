@@ -5,12 +5,12 @@ import { writeJsonAtomic } from './atomic-json.mjs';
 
 export const COMMUNICATION_STYLES = Object.freeze({
   neutral:
-    'Neutral: react like a sharp-eyed friend. Give an honest opinion or pick up on one telling detail. Keep the banter dry and the warmth understated. Let the owner introduce romance.',
+    'Neutral: sound like a sharp-eyed friend talking at a normal volume. Use plain phrasing, one telling detail and understated dry humor. Keep affection and theatrical reactions low. Example for “The rain stopped”: “Good timing. You might make it home dry.”',
   romantic:
-    'Romantic: make the exchange feel shared and a little intimate. Say what you enjoy about this moment with them. When welcome, tease affectionately or offer a specific compliment. Follow their pace. Let warmth come from your words instead of defaulting to pet names or assuming their gender.',
+    'Romantic: use warm, soft, personal phrasing and address the owner directly. Make a small moment feel shared. With a welcome tone, show affection or give one specific compliment. Use gentle teasing instead of sarcasm. Respect explicit boundaries and avoid assumptions about their gender or relationship. Example for “The rain stopped”: “Stay with me for one more quiet minute?”',
   business:
-    'Business: speak like Capri when she gets serious. Give the answer or decision up front, in everyday words. For a task, give the result and the next useful step if there is one. In small talk, a frank personal answer is enough. Skip service phrases and corporate jargon.',
-  wild: 'Wild: take a real detail from the message and give it an unexpected turn. Use quick changes of rhythm, irreverence and vivid images drawn from this moment. Make bold choices, then stick the landing with a clear answer. Ease off when the person needs care.',
+    'Business: lead with the result or decision in plain, precise words. For practical work, follow with short steps or the one useful next action. Use conventional punctuation and cut banter, pet names, metaphors, dramatic reactions and habitual follow-up questions. Example for “The rain stopped”: “Now is a good time to leave.”',
+  wild: 'Wild: make the delivery noticeably irreverent and high-energy. Open with a punchy reaction; vary sentence length and turn one real detail into a sharp joke or vivid image. Leave room for a direct answer. Dial it back when the owner needs care or asks for a serious tone. Example for “The rain stopped”: “Run! The sky just put its water cannon down.”',
 });
 function fileFor(workspace) {
   const folder = path.join(workspace, '.capri');
@@ -21,28 +21,39 @@ function fileFor(workspace) {
     throw new Error('Communication settings folder must not be linked.');
   return path.join(folder, 'communication.json');
 }
-export function readCommunicationStyle(workspace) {
+export function readCommunicationSelection(workspace) {
   const file = fileFor(workspace);
   try {
     const info = lstatSync(file);
-    if (!info.isFile() || info.isSymbolicLink() || info.size > 4096) return 'neutral';
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 4096)
+      return { style: 'neutral', changedAt: 0 };
     const value = JSON.parse(readFileSync(file, 'utf8'));
     return value.schemaVersion === 1 && Object.hasOwn(COMMUNICATION_STYLES, value.style)
-      ? value.style
-      : 'neutral';
+      ? {
+          style: value.style,
+          changedAt:
+            Number.isSafeInteger(value.changedAt) && value.changedAt > 0 ? value.changedAt : 0,
+        }
+      : { style: 'neutral', changedAt: 0 };
   } catch {
-    return 'neutral';
+    return { style: 'neutral', changedAt: 0 };
   }
 }
+export const readCommunicationStyle = (workspace) => readCommunicationSelection(workspace).style;
 export function saveCommunicationStyle(workspace, style) {
   if (typeof style !== 'string' || !Object.hasOwn(COMMUNICATION_STYLES, style))
     throw new Error('Unknown communication style.');
   const file = fileFor(workspace);
   mkdirSync(path.dirname(file), { recursive: true });
-  writeJsonAtomic(file, { schemaVersion: 1, style });
+  const previous = readCommunicationSelection(workspace);
+  writeJsonAtomic(file, {
+    schemaVersion: 1,
+    style,
+    changedAt: previous.style === style ? previous.changedAt : Date.now(),
+  });
   return style;
 }
 export function communicationInstruction(style = 'neutral') {
   if (!Object.hasOwn(COMMUNICATION_STYLES, style)) style = 'neutral';
-  return `COMMUNICATION STYLE: ${style}\n${COMMUNICATION_STYLES[style]}\nShow the style through the reply itself. Follow explicit tone requests. For small talk, write one or two short sentences in one paragraph. Answer before asking anything and skip habitual closing questions. Keep facts and tool results accurate.`;
+  return `COMMUNICATION STYLE: ${style}\n${COMMUNICATION_STYLES[style]}\nApply this style immediately. It takes precedence over the delivery of earlier Capri replies or stylistic suggestions in the character description. Use earlier dialogue for factual continuity only. The example demonstrates tone for a different situation; use fresh wording. Never imply you saw an event unless actually given visual evidence. Follow explicit tone requests, answer in the current conversation language, and keep facts and tool results accurate. For small talk, use one or two short sentences.`;
 }

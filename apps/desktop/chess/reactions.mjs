@@ -31,8 +31,10 @@ export class ChessReactions {
     const { enabled, events: selected } = this.preferences();
     if (!enabled) return;
     for (const move of moves) {
-      if (move.events.some(({ type }) => type === 'start'))
+      if (move.events.some(({ type }) => type === 'start')) {
         this.usedLines = new Set([...this.usedLines].slice(-24));
+        this.advantage = null;
+      }
       const relevant = move.events.filter(
         ({ type }) => Object.hasOwn(reactionLabels, type) && selected[type],
       );
@@ -77,6 +79,8 @@ export class ChessReactions {
   }
 
   nextLine(move, language, style) {
+    const advantageChanged = move.advantage && move.advantage !== this.advantage;
+    if (move.advantage || move.balanced) this.advantage = move.advantage;
     const candidates = reactionCandidates(move, language, style);
     let fresh = candidates.filter(({ text }) => !this.usedLines.has(text));
     if (!fresh.length && Number.isSafeInteger(move.moveNumber)) {
@@ -89,9 +93,13 @@ export class ChessReactions {
         .filter(({ text }) => !this.usedLines.has(text));
     }
     if (!fresh.length) return null;
+    const position = advantageChanged ? fresh.filter((line) => line.position) : [];
+    const expressive = fresh.filter(({ character }) => character);
     const withFreshAside = fresh.filter(({ aside }) => aside && !this.recentAsides.includes(aside));
     const factual = fresh.filter(({ aside }) => !aside);
-    const choices = withFreshAside.length ? withFreshAside : factual.length ? factual : fresh;
+    const choices = [position, expressive, withFreshAside, factual, fresh].find(
+      (lines) => lines.length,
+    );
     const { text, aside } = choices[Math.floor(this.random() * choices.length)];
     this.usedLines.add(text);
     this.recentAsides = [...this.recentAsides.slice(-3), aside];
@@ -101,5 +109,6 @@ export class ChessReactions {
   cancel() {
     clearTimeout(this.timer);
     this.pending = [];
+    this.advantage = null;
   }
 }

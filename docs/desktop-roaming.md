@@ -1,8 +1,9 @@
 # Desktop roaming
 
-Open **Settings → Avatar interaction → Desktop roaming**.
+Open **Settings → Initiative → Desktop roaming**.
 
 - **Let Capri move around on her own** enables automatic lightning teleports. It is off by default, including when upgrading existing settings.
+- **Let Capri move the mouse pointer while you are away** allows a small horizontal movement after at least 15 seconds without input. It is off by default and requires enabled Computer control and Full computer access. Esc stops an in-progress movement.
 - **Time between moves** selects a minimum interval from 30 seconds to 30 minutes. The default is two minutes. Actual pauses vary by up to 20% so movement feels less mechanical.
 - **Roaming monitors** controls where Capri can go. **Current or observed monitor** keeps the existing behavior. **Any monitor** picks another connected monitor when one is available. **Monitor with the pointer** uses the monitor where your pointer is when the next move is due.
 
@@ -10,15 +11,18 @@ Roaming uses desktop geometry without capturing the screen or calling a model.
 With screen observation enabled, Capri can also perch on windows covered by the
 existing screen access grant.
 
-Roaming pauses while Settings is open, while you type, speak, drag or interact
+Roaming pauses while you use Settings, type, speak, drag or interact
 with Capri, during replies and voice playback, during computer control, while
-Capri sleeps, in Focus mode, and when her host window is minimized. A short quiet
+Capri sleeps, in Focus mode, in fullscreen detected by app awareness, and when her host window is minimized.
+Quiet hours and app exclusions also pause roaming when enabled. A short quiet
 period follows interaction; missed moves do not accumulate. Manual teleports and
 returning home restart the waiting period. Turning roaming off preserves manual
 dragging and teleport controls, including following a window she is perched on.
+Capri can roam while listening to music or after Settings has been left open for
+at least 15 seconds without input.
 
-Scheduling shares the existing desktop supervision tick and adds no timer or
-background model loading. Verification covers upgrade defaults, saved settings,
+Movement shares the existing desktop supervision tick. Avatar movement requires no model.
+An opted-in pointer movement asks the current model for a direction. Verification covers upgrade defaults, saved settings,
 interval changes, pauses, manual cooldowns and repeated automatic teleports:
 
 ```text

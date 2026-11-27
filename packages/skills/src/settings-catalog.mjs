@@ -213,6 +213,7 @@ export const COMPOSER_SKILLS = Object.freeze({
   'capri.web-search': 'internet-toggle',
   'capri.attachment-viewer': 'attachment-open',
 });
+export const TURN_MODE_SKILLS = Object.freeze(['capri.reasoning', 'capri.web-search']);
 export const REASONING_BUDGETS = Object.freeze({ low: 4096, medium: 8192, high: 16384 });
 export function reasoningEffort(value) {
   return typeof value === 'string' && Object.hasOwn(REASONING_BUDGETS, value) ? value : 'medium';
@@ -492,6 +493,8 @@ export function skillPreferences(value) {
         ...(Object.hasOwn(COMPOSER_SKILLS, id)
           ? { showComposer: value?.[id]?.showComposer !== false }
           : {}),
+        // Older profiles started with the mode on whenever its skill was enabled.
+        ...(TURN_MODE_SKILLS.includes(id) ? { turnMode: value?.[id]?.turnMode !== false } : {}),
         ...(id === 'capri.reasoning' ? { effort: reasoningEffort(value?.[id]?.effort) } : {}),
         ...(id === 'capri.web-search' ? { search } : {}),
         ...(id === 'capri.calculator' ? { showWindow: value?.[id]?.showWindow === true } : {}),

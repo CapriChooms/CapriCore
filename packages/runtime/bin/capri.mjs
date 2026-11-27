@@ -90,13 +90,9 @@ try {
   } else if (command === 'desktop') {
     const marker = await startDesktop({ wait: args.includes('--wait') });
     console.log(
-      marker?.crashReported
-        ? 'Capri stopped unexpectedly and showed the diagnostic prompt.'
-        : marker?.alreadyRunning
-          ? 'Showing the running Capri.'
-          : marker
-            ? `Capri companion started (process ${marker.pid}).`
-            : 'Capri closed.',
+      marker.alreadyRunning
+        ? 'Showing the running Capri.'
+        : `Capri companion started (process ${marker.pid}).`,
     );
   } else if (command === 'models') {
     process.argv.splice(2, 1);

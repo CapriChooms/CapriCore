@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { sparkPalette, SPARK_SHAPES } from './spark-atlas.mjs';
-import { TELEPORT_LIGHTNING_DEFAULTS } from './teleport-effects.mjs';
+import { DRAG_LIGHTNING_COLOR, TELEPORT_LIGHTNING_DEFAULTS } from './teleport-effects.mjs';
 
 const svgNamespace = 'http://www.w3.org/2000/svg';
 const format = ({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`;
 const normalized = (value) => Math.min(1, Math.max(0, value / 100));
 const mix = (a, b, t) => a + (b - a) * t;
+const movingInterval = 1000 / 60;
+const stationaryInterval = 1000 / 30;
 
 function noise(seed, index) {
   const mixed = Math.imul(seed ^ Math.imul(index, 0x9e3779b1), 0x85ebca6b);
@@ -14,15 +16,17 @@ function noise(seed, index) {
 
 function shardPath(points, center, axis, side, size) {
   const scale = size / 48;
-  const path = points.map(([x, y]) => {
+  let path = 'M';
+  for (const [x, y] of points) {
     const along = (x - 24) * scale;
     const across = (y - 24) * scale * side;
-    return format({
-      x: center.x + axis.x * along - axis.y * across,
-      y: center.y + axis.y * along + axis.x * across,
-    });
-  });
-  return `M${path.join('L')}Z`;
+    path += `${(center.x + axis.x * along - axis.y * across).toFixed(1)},${(
+      center.y +
+      axis.y * along +
+      axis.x * across
+    ).toFixed(1)}L`;
+  }
+  return path.slice(0, -1) + 'Z';
 }
 
 /** Coordinates are in CSS pixels. A single clock and seed keep display slices aligned. */
@@ -148,7 +152,7 @@ export class AvatarDragTether {
       ['bolt', 'halo', 8, 0.13],
       ['bolt', 'halo', 4, 0.29],
       ['branches', 'stroke', 1, 0.64],
-      ['bolt', 'stroke', 1.45, 0.98],
+      ['bolt', 'stroke', 2, 1],
       ['faintEmbers', 'ember', 0, 0.33],
       ['embers', 'ember', 0, 0.88],
       ['sparks', 'core', 0, 0.95],
@@ -169,22 +173,22 @@ export class AvatarDragTether {
   draw(value) {
     if (!value || !value.from || !value.to || value.intensity <= 0) return this.clear();
     this.value = value;
+    this.dirty = true;
     this.updateClip(value.exclude);
     this.applyAppearance(value.effects);
     if (!this.frame) this.paint();
   }
 
   applyAppearance({ teleportColor, teleportThickness, teleportGlow, teleportReducedFlash } = {}) {
-    const color = teleportColor ?? TELEPORT_LIGHTNING_DEFAULTS.teleportColor;
+    const color = teleportColor ?? DRAG_LIGHTNING_COLOR;
     const thickness = (teleportThickness ?? TELEPORT_LIGHTNING_DEFAULTS.teleportThickness) / 100;
     const glow = (teleportGlow ?? TELEPORT_LIGHTNING_DEFAULTS.teleportGlow) / 45;
     const quiet = this.motion.matches || teleportReducedFlash === true;
     const key = `${color}/${thickness}/${glow}/${quiet}`;
     if (this.appearanceKey === key) return;
     this.appearanceKey = key;
-    const palette = sparkPalette(
-      color === TELEPORT_LIGHTNING_DEFAULTS.teleportColor ? undefined : color,
-    );
+    const palette = sparkPalette(color);
+    this.glow = glow;
     for (const { path, role, width, opacity } of this.paths) {
       if (role === 'ember' || role === 'core') {
         path.setAttribute('fill', role === 'core' ? palette.core[1] : palette.shard[1]);
@@ -192,7 +196,7 @@ export class AvatarDragTether {
         continue;
       }
       const halo = role === 'halo';
-      path.setAttribute('stroke', halo ? color : palette.shard[2]);
+      path.setAttribute('stroke', color);
       path.setAttribute('stroke-width', width * thickness * (halo ? Math.max(0.45, glow) : 1));
       path.setAttribute('opacity', Math.min(1, opacity * (halo ? glow * (quiet ? 0.5 : 1) : 1)));
     }
@@ -216,18 +220,30 @@ export class AvatarDragTether {
     this.group.setAttribute('clip-path', 'url(#avatar-drag-lightning-clip)');
   }
 
-  paint() {
+  paint(time = performance.now()) {
     this.frame = 0;
-    const geometry = dragLightningGeometry(this.value, Date.now(), this.motion.matches);
-    if (!geometry) return this.clear();
-    for (const { key, path } of this.paths) path.setAttribute('d', geometry[key]);
-    this.svg.style.visibility = 'visible';
-    if (!this.motion.matches) this.frame = requestAnimationFrame(() => this.paint());
+    const reduced = this.motion.matches;
+    const interval = this.dirty ? movingInterval : stationaryInterval;
+    if (reduced || time + 1 >= (this.lastPaint ?? -Infinity) + interval) {
+      this.lastPaint = time;
+      this.dirty = false;
+      const geometry = dragLightningGeometry(this.value, Date.now(), reduced);
+      if (!geometry) return this.clear();
+      for (const item of this.paths) {
+        const next = item.role === 'halo' && !this.glow ? '' : geometry[item.key];
+        if (next === item.data) continue;
+        item.data = next;
+        item.path.setAttribute('d', next);
+      }
+      this.svg.style.visibility = 'visible';
+    }
+    if (!reduced) this.frame = requestAnimationFrame((now) => this.paint(now));
   }
 
   clear() {
     if (this.frame) cancelAnimationFrame(this.frame);
     this.frame = 0;
+    this.lastPaint = undefined;
     this.value = null;
     this.svg.style.visibility = 'hidden';
   }

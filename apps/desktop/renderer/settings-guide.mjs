@@ -224,8 +224,10 @@ export class SettingsGuide {
   }
 
   stepText(step) {
-    const [, english, russian] = step;
+    const [, english, russian, options] = step;
     if (this.locale === 'ru') return { pair: russian, language: 'ru' };
+    if (options?.interfaceCopy)
+      return { pair: english.map((text) => this.ui.text(text)), language: this.locale };
     const messages = guideLocales.get(this.locale);
     if (this.locale !== 'en' && messages?.[english[0]] && messages?.[english[1]])
       return { pair: english.map((text) => messages[text]), language: this.locale };

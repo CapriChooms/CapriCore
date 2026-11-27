@@ -1,21 +1,20 @@
 <img src="assets/default/icon-source.png" alt="CapriCore lightning logo" width="72" align="right">
 
-# CapriCore · Capri 1.2.2
+# CapriCore · Capri 1.3.0
 
-Capri is a Windows AI desktop companion powered by OpenClaw. Run a bundled local model, import a compatible Hugging Face GGUF model, or connect to an OpenAI-compatible API. Capri supports text and voice chat, persistent memory, an animated desktop avatar, and optional tools for working with apps and files.
+Capri is an AI desktop companion powered by OpenClaw. Run a bundled local model, import a compatible Hugging Face GGUF model, or connect to an OpenAI-compatible API. Capri supports text and voice chat, persistent memory, an animated desktop avatar, and optional tools for working with apps and files.
 
 [Website](https://capri-core.com/) · [Discord](https://discord.gg/capricore) · [Documentation](docs/README.md) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
-**[Download the latest Capri for Windows](https://github.com/CapriChooms/CapriCore/releases/latest)** · [1.2.2 release notes](https://github.com/CapriChooms/CapriCore/releases/tag/v1.2.2) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
+**[Download Capri for Windows, Linux or macOS](https://github.com/CapriChooms/CapriCore/releases/latest)** · [1.3.0 release notes](docs/releases/v1.3.0.md) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
 
 The public repository and releases are **CapriChooms/CapriCore**. Downloads and update checks do not require a GitHub account, invitation or token.
 
-## What's new in 1.2.2
+Capri is available on Windows x64, Linux x86-64 and Apple Silicon. Some desktop integrations currently require Windows. See the [Linux install guide](LINUX-PREVIEW.md), [macOS install guide](docs/macos.md), and [platform build instructions](docs/platform-previews.md).
 
-- Adjust voice output gain up to 200% in Audio settings or the voice volume menu.
-- Trigger more avatar animations in conversation, including pull-ups and seated gestures. Capri also picks animations that fit her current pose when idle.
-- Fit toolbar controls into two rows, with long model names scrolling inside the model selector.
-- Recover the portrait after a WebGL or GPU renderer failure. After a crash, Capri opens its logs and lets you save a diagnostic ZIP.
+## What's new in 1.3.0
+
+See the [1.3.0 release notes](docs/releases/v1.3.0.md) for the changes and download options.
 
 ## What Capri can do
 
@@ -44,11 +43,11 @@ For voice replies on a supported GPU, choose your **Conversation language** and 
 
 Capri starts with the microphone and voice replies **off** on every launch. Their models stay unloaded until you enable the microphone or speaker button. Installing a speech pack does not turn it on automatically at startup; your selected languages and downloaded models are kept.
 
-License/download consent, hardware profiles, language choices, progress, cancellation, repair and selective uninstall are explained in the [wizard guide](docs/installation-wizard.md). The installer is unsigned; publisher signing and broader clean-machine qualification remain release work. Capri has read/write access to its own installation folder by default, including code and configuration; revoke it in **Settings → File access**. Other folders, microphone and screen access require separate grants.
+License/download consent, hardware profiles, language choices, progress, cancellation, repair and selective uninstall are explained in the [wizard guide](docs/installation-wizard.md). The installer is unsigned; publisher signing and broader clean-machine qualification remain release work. Capri has read-only File access to its installation folder by default. You can revoke it in **Settings → File access**. Other folders, microphone and screen access require separate grants.
 
 ## Start from source
 
-For manual local-model development on Windows 10/11 x64, install Node.js 24.22.1
+For manual local-model development on Windows 10/11 x64, install Node.js 24.22.3
 (or a compatible later 24.x), npm and the [llama.cpp Windows x64 Vulkan runtime](https://github.com/ggml-org/llama.cpp/releases/tag/b12317). Set `CAPRI_LLAMA_PATH` to the full path of `llama-server.exe` before starting Capri. Open the
 extracted or cloned folder containing **package.json** and run:
 
@@ -62,7 +61,7 @@ npm run models:pull
 npm run desktop
 ```
 
-`node --version` should show `v24.22.1` or a newer 24.x version. `npm ci` installs
+`node --version` should show `v24.22.3` or a newer 24.x version. `npm ci` installs
 the JavaScript libraries from the lockfile; wait for it to finish successfully
 before continuing. If startup reports `Cannot find module` or
 `ERR_MODULE_NOT_FOUND`, repeat `npm ci` in this folder. If `node` or `npm` is not

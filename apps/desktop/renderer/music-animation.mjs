@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Music moves rigid, held drawings on twos. Floating notes use their own smooth
-// display clock; speech mouth plates remain entirely independent of this layer.
+import { createRenderer, POSE_RIGS } from './idle-gesture-rig.mjs';
+import { beatPoseChannels, musicRig } from './music-beat-motion.mjs';
+import { gripArt } from './music-grip-art.mjs';
+import { GripBeatLayer } from './music-grip-motion.mjs';
+// Body drawings are held on twos. Particles advance at the display clock.
 export const MUSIC_POSES = Object.freeze({
   'music-window': Object.freeze({
     anchor: [628, 771],
@@ -96,6 +99,7 @@ export class MusicAnimation {
     this.amount = 0;
     this.bodyStep = '';
     this.bodyAngle = 0;
+    this.channels = null;
     this.rhythmAmount = 0;
     this.clockStarted = false;
     this.beats = 0;
@@ -123,7 +127,7 @@ export class MusicAnimation {
       frameId = 'music-floor',
     } = {},
   ) {
-    if (!Number.isFinite(now) || !Object.hasOwn(MUSIC_POSES, frameId))
+    if (!Number.isFinite(now) || !musicRig(frameId))
       return { active: false, amount: 0, angle: 0, dy: 0, notes: [], frameId, frame: 0 };
     if (this.lastAt !== null && (now < this.lastAt || now - this.lastAt > 5000)) this.reset();
     if (this.reduced !== reduced) {
@@ -216,6 +220,13 @@ export class MusicAnimation {
         heldBeats = positionAt(previous, heldDt);
       }
       const phase = heldBeats * 2 * Math.PI;
+      this.channels = reduced
+        ? null
+        : beatPoseChannels(
+            frameId,
+            heldBeats,
+            this.amount * this.rhythmAmount * (0.55 + 0.45 * strengthValue),
+          );
       const sway = legacy
         ? Math.sin(phase) * 0.85 + Math.sin(phase / 2) * 0.22
         : Math.sin(phase) * 0.85 + Math.sin(phase * 2) * 0.12;
@@ -247,6 +258,7 @@ export class MusicAnimation {
       beatLocked: Boolean(rhythmic && freshAnchor),
       beatPhase: rhythmic ? turn(this.beats) : null,
       angle,
+      channels: this.channels,
       dy: 0,
       notes,
     };
@@ -259,9 +271,22 @@ export function musicNoteParticles(
   frameId,
   { amount = 1, strength = 0.5, birthsUntil = time, births } = {},
 ) {
-  const pose = MUSIC_POSES[frameId];
-  if (!pose || !Number.isFinite(time) || time < 0 || !Number.isFinite(amount) || amount <= 0)
+  const poseId = musicRig(frameId);
+  if (
+    !poseId ||
+    poseId === 'sleep' ||
+    !Number.isFinite(time) ||
+    time < 0 ||
+    !Number.isFinite(amount) ||
+    amount <= 0
+  )
     return [];
+  const [headX, headY] = POSE_RIGS[poseId].neck;
+  const above = POSE_RIGS[poseId].inverted ? 1 : -1;
+  const emitters = MUSIC_POSES[frameId]?.emitters ?? [
+    [headX - 104, headY + above * 67],
+    [headX + 108, headY + above * 101],
+  ];
   const interval = 0.48,
     last = Math.floor(Math.min(time, birthsUntil) / interval),
     first = Math.max(0, Math.floor((time - 3.15) / interval));
@@ -279,7 +304,7 @@ export function musicNoteParticles(
     if (progress <= 0 || progress >= 1) continue;
     const side = n % 2,
       direction = side ? 1 : -1,
-      [x, y] = pose.emitters[side];
+      [x, y] = emitters[side];
     const dx = direction * (270 + 60 * noise(n, 2)),
       dy = -(185 + 65 * noise(n, 3));
     const rise = cubic(0, -14, dy * 0.52, dy, progress);
@@ -328,31 +353,95 @@ export function drawMusicNotes(
 
 /** Body-only texture at 12FPS. Notes must not force a 1254px GL upload at 60FPS. */
 export class MusicPoseLayer {
+  constructor(size = extent) {
+    this.size = size;
+  }
+  gripFor(id) {
+    if (this.grip?.id !== id) this.grip = new GripBeatLayer(id, this.size);
+    return this.grip;
+  }
   image(source, state) {
-    const pose = MUSIC_POSES[state?.frameId];
-    if (!pose || !state?.active || !state.angle) return source;
-    const identity = [source, source.avatarTextureRevision, state.frame, state.angle, state.dy];
-    if (this.source?.every((value, i) => value === identity[i])) return this.canvas;
+    if (!source || !state?.active || !(state.channels || state.angle)) return source;
+    const pose = POSE_RIGS[musicRig(state.frameId)];
+    if (!pose) return source;
+    const identity = [
+      source,
+      source.currentSrc,
+      source.avatarTextureRevision,
+      state.frameId,
+      state.frame,
+      state.channels,
+      state.angle,
+      state.dy,
+    ];
+    if (this.source?.every((value, i) => value === identity[i])) return this.output;
+    if (Object.hasOwn(gripArt, state.frameId)) {
+      if (!state.channels) return source;
+      const image = this.gripFor(state.frameId).image(source, state.channels);
+      return image === source ? source : this.record(image, identity);
+    }
+    if (state.channels && this.mesh !== false) {
+      if (!this.mesh) {
+        this.meshCanvas = document.createElement('canvas');
+        this.meshCanvas.width = this.meshCanvas.height = this.size;
+        try {
+          this.mesh = createRenderer(this.meshCanvas, {}, { grid: 56, preboundedStream: true });
+        } catch {
+          this.mesh = false;
+        }
+      }
+      if (this.mesh && !this.meshCanvas.getContext('webgl').isContextLost()) {
+        this.mesh.draw(source, state.channels);
+        return this.record(this.meshCanvas, identity);
+      }
+    }
     this.canvas ??= document.createElement('canvas');
     const canvas = this.canvas;
-    if (canvas.width !== extent) canvas.width = canvas.height = extent;
+    if (canvas.width !== this.size) canvas.width = canvas.height = this.size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return source;
     ctx.resetTransform();
-    ctx.clearRect(0, 0, extent, extent);
+    ctx.clearRect(0, 0, this.size, this.size);
     ctx.save();
-    const [x, y] = pose.anchor;
+    if (this.size !== extent) ctx.scale(this.size / extent, this.size / extent);
+    const [x, y] = MUSIC_POSES[state.frameId]?.anchor ?? pose.anchor;
     ctx.translate(x, y + (state.dy ?? 0));
-    ctx.rotate((state.angle * Math.PI) / 180);
+    if (state.channels) {
+      // Software fallback anchors an entire floor/ceiling/wall contact line.
+      const c = state.channels;
+      const tilt = (((c.lean ?? 0) + (c.head ?? 0) * 0.45) * Math.PI) / 180;
+      if (pose.grip === 'left' || pose.grip === 'right') {
+        const direction = pose.grip === 'left' ? 1 : -1;
+        ctx.transform(
+          1 + (direction * c.bodyX) / 650,
+          (direction * c.bodyY) / 650 + tilt,
+          0,
+          1,
+          0,
+          0,
+        );
+      } else {
+        const delta = pose.neck[1] - y;
+        const dy = (c.lift ?? 0) + (c.headY ?? 0) + (c.bodyY ?? 0) - (c.breath ?? 0) * 2;
+        ctx.transform(1, 0, -tilt + (c.bodyX ?? 0) / delta, 1 + dy / delta, 0, 0);
+      }
+    } else ctx.rotate((state.angle * Math.PI) / 180);
     ctx.translate(-x, -y);
     ctx.drawImage(source, 0, 0, extent, extent);
     ctx.restore();
+    return this.record(canvas, identity);
+  }
+  record(canvas, identity) {
     canvas.avatarTextureRevision = (canvas.avatarTextureRevision ?? 0) + 1;
     this.source = identity;
+    this.output = canvas;
     return canvas;
   }
   clear() {
+    if (this.mesh) this.mesh.dispose();
+    this.meshCanvas = this.mesh = this.output = null;
     this.source = null;
+    this.grip = null;
     this.canvas = null;
   }
 }

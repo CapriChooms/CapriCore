@@ -49,33 +49,6 @@ async function fixture(t, fetchImpl, provider = config) {
   return { root, api, id };
 }
 
-test('only a streaming chat provider rejection from the current turn is reported to chat', async (t) => {
-  let status = 404;
-  const { api } = await fixture(t, async () => Response.json({ error: 'private' }, { status }));
-  const started = performance.now();
-  const send = (endpoint) =>
-    api.localFetch(api.url + endpoint, {
-      method: 'POST',
-      body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }], stream: true }),
-    });
-  const response = await send('/v1/chat/completions');
-  assert.equal(response.status, 404);
-  await response.body.cancel();
-  assert.equal(api.chatProviderRejectionSince(started), 404);
-  assert.equal(api.chatProviderRejectionSince(performance.now()), undefined);
-
-  status = 429;
-  const planner = await send('/api/chat');
-  assert.equal(planner.status, 429);
-  await planner.body.cancel();
-  assert.equal(api.chatProviderRejectionSince(started), 404);
-
-  const current = await send('/v1/chat/completions');
-  assert.equal(current.status, 429);
-  await current.body.cancel();
-  assert.equal(api.chatProviderRejectionSince(started), 429);
-});
-
 test('Groq applies documented reasoning controls to probes, chat and explicit thinking', async (t) => {
   for (const [model, normal, field, value] of [
     ['openai/gpt-oss-20b', 'low', 'include_reasoning', false],

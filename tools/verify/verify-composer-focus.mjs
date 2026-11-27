@@ -326,29 +326,33 @@ try {
   assert.equal(await time.locator('#time-hours').inputValue(), '00');
   assert.equal(await time.locator('#time-minutes').inputValue(), '00');
   const secondReel = time.locator('.time-dial-reel:has(#time-seconds)');
-  const flickSeconds = (holdMs = 0) =>
-    secondReel.evaluate(async (reel, holdMs) => {
-      // Keep samples in the same renderer clock. CDP mouse commands against a
-      // hidden native window can take longer than the entire momentum window.
-      reel.setPointerCapture = () => {};
-      const { y, height } = reel.getBoundingClientRect();
-      const dispatch = (type, progress) =>
-        reel.dispatchEvent(
-          new PointerEvent(type, { pointerId: 1, button: 0, clientY: y + height * progress }),
-        );
-      try {
-        dispatch('pointerdown', 0.8);
-        await new Promise((resolve) => setTimeout(resolve, 24));
-        dispatch('pointermove', 0.2);
-        if (holdMs) await new Promise((resolve) => setTimeout(resolve, holdMs));
-        const atRelease = Number(reel.querySelector('input').value);
-        dispatch('pointerup', 0.2);
-        return atRelease;
-      } finally {
-        delete reel.setPointerCapture;
-      }
-    }, holdMs);
-  const atRelease = await flickSeconds();
+  const flick = (reel, holdMs = 0, backwards = false) =>
+    reel.evaluate(
+      async (reel, { holdMs, backwards }) => {
+        // Keep samples in the same renderer clock. CDP mouse commands against a
+        // hidden native window can take longer than the entire momentum window.
+        reel.setPointerCapture = () => {};
+        const { y, height } = reel.getBoundingClientRect();
+        const dispatch = (type, progress) =>
+          reel.dispatchEvent(
+            new PointerEvent(type, { pointerId: 1, button: 0, clientY: y + height * progress }),
+          );
+        try {
+          const [from, to] = backwards ? [0.2, 0.8] : [0.8, 0.2];
+          dispatch('pointerdown', from);
+          await new Promise((resolve) => setTimeout(resolve, 24));
+          dispatch('pointermove', to);
+          if (holdMs) await new Promise((resolve) => setTimeout(resolve, holdMs));
+          const atRelease = Number(reel.querySelector('input').value);
+          dispatch('pointerup', to);
+          return atRelease;
+        } finally {
+          delete reel.setPointerCapture;
+        }
+      },
+      { holdMs, backwards },
+    );
+  const atRelease = await flick(secondReel);
   assert.equal(atRelease, 3);
   await time.waitForFunction(
     () => !document.getElementById('time-seconds').parentElement.hasAttribute('data-rolling'),
@@ -357,9 +361,34 @@ try {
   assert.equal(await time.locator('#time-minutes').inputValue(), '00');
   assert.equal(await time.locator('#time-hours').inputValue(), '00');
   await time.locator('#time-seconds').fill('58');
-  assert.equal(await flickSeconds(160), 1);
+  assert.equal(await flick(secondReel, 160), 1);
   assert.equal(await time.locator('#time-seconds').inputValue(), '01');
   assert.equal(await time.locator('#time-minutes').inputValue(), '00');
+  const days = time.locator('#time-days');
+  const dayReel = time.locator('.time-dial-reel:has(#time-days)');
+  const dayRows = dayReel.locator('.time-dial-track > span');
+  const hours = time.locator('#time-hours');
+  assert.deepEqual(await dayRows.allTextContents(), ['', '', '', '0', '1', '2', '3']);
+  await days.press('ArrowDown');
+  await dayReel.dispatchEvent('wheel', { deltaY: 50, cancelable: true, bubbles: true });
+  assert.equal(await flick(dayReel, 0, true), 0);
+  assert.equal(await days.inputValue(), '0');
+  await days.fill('364');
+  assert.equal(await flick(dayReel), 365);
+  await days.press('ArrowUp');
+  assert.equal(await days.inputValue(), '365');
+  assert.deepEqual(await dayRows.allTextContents(), ['362', '363', '364', '365', '', '', '']);
+  await hours.fill('23');
+  await hours.press('ArrowUp');
+  assert.equal(await hours.inputValue(), '00');
+  await hours.press('ArrowDown');
+  assert.equal(await hours.inputValue(), '23');
+  assert.equal(await days.inputValue(), '365');
+  await time.locator('#time-presets [data-seconds="300"]').click();
+  assert.equal(await days.inputValue(), '0');
+  assert.equal(await hours.inputValue(), '00');
+  assert.equal(await time.locator('#time-minutes').inputValue(), '05');
+  await time.locator('#time-minutes').fill('0');
   await time.emulateMedia({ reducedMotion: 'reduce' });
   const motionReduced = await minuteReel.evaluate((reel) => {
     reel.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -25 }));
@@ -374,6 +403,17 @@ try {
   await time.locator('#time-title').fill('Draft verification timer');
   await time.locator('#time-create').click();
   await time.locator('#time-list').getByText('Draft verification timer').waitFor();
+  await days.fill('365');
+  await hours.fill('23');
+  await time.locator('#time-minutes').fill('59');
+  await time.locator('#time-seconds').fill('59');
+  await time.locator('#time-title').fill('Maximum duration timer');
+  await time.locator('#time-create').click();
+  await time.locator('#time-list').getByText('Maximum duration timer').waitFor();
+  const maximumTimer = await time.evaluate(async () =>
+    (await window.capri.timeStatus()).find(({ title }) => title === 'Maximum duration timer'),
+  );
+  assert.equal(maximumTimer.dueAt - maximumTimer.createdAt, (366 * 86400 - 1) * 1000);
 
   const general = await settingsView(application, 'general');
   await general.locator('[data-section="appearance"]').click();

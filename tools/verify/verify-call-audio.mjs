@@ -35,7 +35,20 @@ const visible = new WeakSet();
 BrowserWindow.prototype.show = BrowserWindow.prototype.showInactive = function () { visible.add(this); };
 BrowserWindow.prototype.isVisible = function () { return visible.has(this); };
 Object.defineProperty(VoiceService.prototype, 'ready', { get: () => true, set: () => {} });
-const fixture = globalThis.callAudioFixture = { previews: [], callPrompts: [] };
+const fixture = globalThis.callAudioFixture = {
+  previews: [], callPrompts: [],
+  hideCompanion() {
+    const window = BrowserWindow.getAllWindows().find(
+      (view) => view.webContents.getURL() === 'capri://desktop/index.html',
+    );
+    const isVisible = window.isVisible, showInactive = window.showInactive;
+    this.restoreWindowMethods = () => Object.assign(window, { isVisible, showInactive });
+    let shown = false;
+    window.isVisible = () => shown;
+    window.showInactive = () => { shown = true; };
+    return window.isVisible();
+  },
+};
 ASRWorker.prototype.send = async function () { this.child = {}; };
 ASRWorker.prototype.close = function () { this.child = null; };
 const fetchNative = globalThis.fetch;
@@ -69,9 +82,16 @@ VoiceService.prototype.preview = function (turnId, text) {
   fixture.previews.push(text);
   syntheticAudio(this, turnId, text);
 };
+const speechText = new Map();
 VoiceService.prototype.onChat = function (event) {
-  if (event.type === 'turn.completed' && this.enabled)
-    syntheticAudio(this, event.turnId, event.assistant.text);
+  const { type, turnId } = event;
+  if (type === 'turn.delta') {
+    speechText.set(turnId, (speechText.get(turnId) ?? '') + event.text);
+  } else if (type === 'turn.completed' || type === 'turn.failed' || type === 'turn.cancelled') {
+    const text = speechText.get(turnId);
+    speechText.delete(turnId);
+    if (type === 'turn.completed' && text && this.enabled) syntheticAudio(this, turnId, text);
+  }
 };
 await import(${JSON.stringify(pathToFileURL(path.join(root, 'apps/desktop/main.mjs')).href)});
 `,
@@ -334,6 +354,7 @@ try {
   assert.deepEqual(await companion.evaluate(() => window.capri.callAudioDevices()), []);
 
   const settings = await settingsView(application, 'calls');
+  await settings.evaluate(() => window.capri.setSkill({ id: 'capri.voice-output', enabled: true }));
   const waitCable = async (condition, stage) =>
     companion.waitForFunction(condition).catch(async (error) => {
       const details = await companion.evaluate(() => ({
@@ -387,12 +408,30 @@ try {
     companion.evaluate(() => window.capri.callAudioSetup('install')),
     /Settings/,
   );
+  await settings.evaluate(() => window.capri.setSkill({ id: 'capri.voice-calls', enabled: false }));
+  await settings.locator('#call-setup-connect:disabled').waitFor();
+  assert.equal(await settings.locator('#call-setup-status').innerText(), 'Voice calls · Off');
+  assert.equal(
+    (await settings.evaluate(() => window.capri.callAudioSetup('connect'))).error,
+    'Call output is off.',
+  );
+  await settings.evaluate(() => window.capri.setSkill({ id: 'capri.voice-calls', enabled: true }));
+  await settings.locator('#call-setup-connect:enabled').waitFor();
+  assert.equal(
+    await application.evaluate(() => globalThis.callAudioFixture.hideCompanion()),
+    false,
+  );
   if (!windowsCable) {
     await companion.evaluate(() => {
       window.callAudioFixture.connected = false;
     });
     await settings.locator('#call-setup-connect').click();
-    await settings.locator('#call-setup-install-options').waitFor({ state: 'visible' });
+    await settings
+      .locator('#call-setup-install-options')
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .catch(async (error) => {
+        throw new Error(await settings.locator('#call-setup-status').innerText(), { cause: error });
+      });
     assert.equal(await output.locator('option[value="steam-playback"]').count(), 0);
     assert.equal(await settings.locator('#call-setup-recording').isVisible(), false);
     assert.equal(await settings.locator('#call-setup-install').isDisabled(), true);
@@ -417,6 +456,14 @@ try {
       );
     });
   assert.match(await settings.locator('#call-setup-recording-name').innerText(), /CABLE Output/);
+  assert.equal(
+    await application.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((view) => view.webContents.getURL() === 'capri://desktop/index.html')
+        .isVisible(),
+    ),
+    true,
+  );
   assert.notEqual(
     (await companion.evaluate(() => window.capri.bootstrap())).microphone.status,
     'listening',
@@ -427,11 +474,17 @@ try {
     await companion.evaluate(() => window.callAudioFixture.physical.getAudioTracks()[0].readyState),
     'ended',
   );
+  await application.evaluate(() => {
+    globalThis.callAudioFixture.restoreWindowMethods();
+  });
+  console.log(
+    'PASS automatic setup reports disabled calls, restores the companion and connects a paired cable',
+  );
   await companion.evaluate(() => {
     window.callAudioFixture.micDestinations = [];
   });
   await settings.locator('#call-output-advanced > summary').click();
-  await companion.locator('#microphone-toggle').evaluate((button) => button.click());
+  await settings.evaluate(() => window.capri.setSkill({ id: 'capri.microphone', enabled: true }));
   await settings.waitForFunction(() => !document.getElementById('call-system-enable').disabled);
   await settings.locator('#call-output-refresh').click();
   const cable = output.locator('option').filter({ hasText: cableLabel });
@@ -511,10 +564,16 @@ try {
   ]);
 
   await composer.fill('Give me the test reply.');
+  await companion.locator('#send:enabled').waitFor();
   await composer.press('Enter');
-  await companion.waitForSelector('.message[data-role="assistant"][data-status="complete"]', {
-    state: 'attached',
-  });
+  await companion.waitForFunction(
+    async (reply) =>
+      (await window.capri.bootstrap()).messages.some(
+        (message) =>
+          message.role === 'assistant' && message.status === 'complete' && message.text === reply,
+      ),
+    assistantReply,
+  );
   await companion.waitForFunction(() => window.callAudioFixture.destinations.length === 3);
   if (windowsCable) {
     await companion.waitForTimeout((samples / 24000) * 1000 + 250);

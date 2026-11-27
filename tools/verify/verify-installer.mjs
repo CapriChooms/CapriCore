@@ -31,7 +31,7 @@ const pages = [
   'finish',
 ];
 const options = process.argv.slice(2);
-if (options.some((arg) => !/^--(?:dpi=\d+|locales=[a-z,]+)$/.test(arg)))
+if (options.some((arg) => !/^--(?:dpi=\d+|locales=[A-Za-z,-]+)$/.test(arg)))
   throw new Error('Supported options: --dpi=96 and --locales=en,ru');
 const languages =
   options

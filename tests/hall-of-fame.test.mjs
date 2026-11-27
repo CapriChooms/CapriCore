@@ -7,6 +7,7 @@ import path from 'node:path';
 import configured from '../config/hall-of-fame.json' with { type: 'json' };
 import { assignEpithets, validateEpithet } from '../apps/desktop/credits-epithets.mjs';
 import {
+  TEAM,
   collaboratorArguments,
   collectSupporters,
   normalizeSupporters,
@@ -35,10 +36,16 @@ test('the shipped roster is a static public snapshot with only approved fields',
   assert(configured.supporters.length > 0);
   assert.deepEqual(configured.supporters, normalizeSupporters(configured.supporters));
   assert.deepEqual(configured.team, [
-    { name: 'Overyx', role: 'Developer' },
+    { name: 'Overyx', role: 'Main developer' },
+    { name: 'Hastur-Dev', role: 'Developer' },
     { name: 'v1rch', role: 'Discord developer' },
     { name: 'Leberrr', role: 'Discord moderator' },
+    { name: 'Frkn97', role: 'Linux port developer' },
+    { name: 'lattelix', role: 'macOS port developer' },
   ]);
+  assert(!configured.communityHelpers.includes('Hastur-Dev'));
+  assert(configured.communityHelpers.includes('untoasted_bread'));
+  assert(validateEpithet(configured.epithets.untoasted_bread));
 });
 
 test('public usernames are case-insensitively deduplicated and naturally sorted', () => {
@@ -120,14 +127,10 @@ test('snapshot contains only the public contract and the specified team roles', 
   });
   assert.deepEqual(JSON.parse(readFileSync(output, 'utf8')), {
     schemaVersion: 1,
-    team: [
-      { name: 'Overyx', role: 'Developer' },
-      { name: 'v1rch', role: 'Discord developer' },
-      { name: 'Leberrr', role: 'Discord moderator' },
-    ],
+    team: TEAM,
     supporters: ['Supporter1', 'Supporter2'],
     epithets: {
-      ...assignEpithets(['Overyx', 'v1rch', 'Leberrr', 'Supporter1', 'Supporter2'], {}, () => 0),
+      ...assignEpithets([...TEAM.map(({ name }) => name), 'Supporter1', 'Supporter2'], {}, () => 0),
     },
     snapshotDate: '2026-11-07',
     source: 'CapriChooms/Capri',
@@ -183,9 +186,9 @@ test('successful refresh retains permanent credits and updates current login cap
   assert.equal(manifest.epithets.overyx, 'Neon Voyager');
   assert.equal(manifest.epithets.formersupporter, 'Quantum Explorer');
   assert.equal(manifest.epithets.currentuser, 'Cosmic Wanderer');
-  for (const login of ['v1rch', 'leberrr', 'newsupporter'])
+  for (const login of ['v1rch', 'leberrr', 'frkn97', 'lattelix', 'newsupporter'])
     assert(validateEpithet(manifest.epithets[login]));
-  assert.equal(new Set(Object.values(manifest.epithets)).size, 6);
+  assert.equal(new Set(Object.values(manifest.epithets)).size, TEAM.length + 3);
   assert(!readFileSync(output, 'utf8').includes('must-not-be-forwarded'));
 });
 
@@ -222,11 +225,11 @@ test('refresh preserves curated tiers, display names and callsigns shared across
   assert.deepEqual(manifest.majorSupporters, majorSupporters);
   assert.deepEqual(manifest.communityHelpers, communityHelpers);
   assert.deepEqual(manifest.supporters, ['CURRENTUSER', 'FormerSupporter', 'NewSupporter']);
-  assert.equal(draws, 3);
+  assert.equal(draws, TEAM.length);
   for (const [name, epithet] of Object.entries(previous.epithets))
     assert.equal(manifest.epithets[name], epithet);
-  assert.equal(Object.keys(manifest.epithets).length, 8);
-  assert.equal(new Set(Object.values(manifest.epithets)).size, 8);
+  assert.equal(Object.keys(manifest.epithets).length, TEAM.length + 5);
+  assert.equal(new Set(Object.values(manifest.epithets)).size, TEAM.length + 5);
   assert.deepEqual(JSON.parse(readFileSync(output, 'utf8')), {
     ...manifest,
     epithets: { ...manifest.epithets },
@@ -255,8 +258,8 @@ test('legacy schema 1 snapshots receive missing callsigns once and preserve them
       return 0;
     },
   });
-  assert.equal(draws, 5);
-  assert.equal(Object.keys(first.epithets).length, 5);
+  assert.equal(draws, TEAM.length + 2);
+  assert.equal(Object.keys(first.epithets).length, TEAM.length + 2);
   const reopened = refreshHallOfFame({
     output,
     queryPage: () => ['CURRENTUSER', 'OVERYX'],

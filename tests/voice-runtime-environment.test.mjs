@@ -4,7 +4,32 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { voiceRuntimeEnvironment } from '../integrations/voice_runtime/environment.mjs';
+import {
+  voiceRuntimeEnvironment,
+  voiceWorkerEnvironment,
+} from '../integrations/voice_runtime/environment.mjs';
+
+test('voice inference inherits OS and GPU settings without gateway or ambient credentials', () => {
+  assert.deepEqual(
+    voiceWorkerEnvironment({
+      Path: 'runtime-path',
+      SYSTEMROOT: 'system-dir',
+      HIP_VISIBLE_DEVICES: '1',
+      OPENCLAW_GATEWAY_TOKEN: 'gateway-secret',
+      GH_TOKEN: 'github-secret',
+      OPENAI_API_KEY: 'provider-secret',
+      PYTHONPATH: 'foreign-python-dir',
+    }),
+    {
+      Path: 'runtime-path',
+      SYSTEMROOT: 'system-dir',
+      HIP_VISIBLE_DEVICES: '1',
+      PYTHONUTF8: '1',
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONNOUSERSITE: '1',
+    },
+  );
+});
 test('only a valid AMD runtime receipt selects the packaged SDK before Python starts', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'capri-voice-env-'));
   mkdirSync(path.join(root, '.runtime'));

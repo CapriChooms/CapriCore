@@ -8,6 +8,8 @@ const labels = {
   gateway: 'Waiting for gateway text',
   stream: 'Receiving the reply',
   voice: 'Voice',
+  voice_wait: 'Preparing Capri’s voice…',
+  voice_synthesis: 'Spoken replies',
 };
 const stages = {
   received: 'Request received',
@@ -36,6 +38,7 @@ const stages = {
   first_paint: 'First text painted',
   voice_text: 'First text sent to interface',
   voice_queued: 'Voice',
+  voice_wait_expired: 'Capri’s voice is loading…',
   voice_synthesis: 'Generating tokens',
   voice_audio: 'Ready',
   completed: 'Completed',
@@ -280,7 +283,14 @@ export class DeveloperPanel {
     this.metric(metrics, 'Full reply', this.ms(turn.totalMs));
     this.metric(metrics, 'First interface paint', this.ms(turn.firstPaintMs));
     this.metric(metrics, 'Model calls', this.number(turn.calls.length));
-    const slowest = turn.phases
+    const splitVoice = turn.phases.some(
+      ({ id, durationMs }) =>
+        (id === 'voice_wait' || id === 'voice_synthesis') && Number.isFinite(durationMs),
+    );
+    const visiblePhases = turn.phases.filter(({ id }) =>
+      splitVoice ? id !== 'voice' : id !== 'voice_wait' && id !== 'voice_synthesis',
+    );
+    const slowest = visiblePhases
       .filter(({ durationMs }) => Number.isFinite(durationMs) && durationMs > 0)
       .sort((a, b) => b.durationMs - a.durationMs)[0];
     if (slowest)
@@ -291,8 +301,8 @@ export class DeveloperPanel {
       );
     const phases = this.get('phases');
     phases.replaceChildren();
-    const maximum = Math.max(turn.totalMs ?? 0, ...turn.phases.map((p) => p.durationMs ?? 0), 1);
-    for (const phase of turn.phases) {
+    const maximum = Math.max(turn.totalMs ?? 0, ...visiblePhases.map((p) => p.durationMs ?? 0), 1);
+    for (const phase of visiblePhases) {
       const row = element('div', undefined, 'developer-phase'),
         title = element('div', undefined, 'developer-phase-title');
       title.append(

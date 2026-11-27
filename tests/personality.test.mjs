@@ -55,6 +55,24 @@ test('the prompt drops the old factory language cue without changing the stored 
   assert.ok(personaPrompt({ workspace }, { personality: quoted }).includes(quoted));
 });
 
+test('factory introductions identify the current desktop while custom Windows references survive', () => {
+  const workspace = folder();
+  const host = { darwin: 'macOS', linux: 'Linux' }[process.platform] ?? 'Windows';
+  const shipped = readFileSync(path.join(root, 'config/workspace/PERSONALITY.md'), 'utf8');
+  const custom = 'I remember a Windows desktop at school.';
+  const file = path.join(workspace, 'PERSONALITY.md');
+  for (const previous of ['Windows', 'macOS']) {
+    const existing =
+      shipped.replace("owner's Windows desktop", `owner's ${previous} desktop`) + '\n' + custom;
+    writeFileSync(file, existing);
+    const prompt = personaPrompt({ workspace });
+    assert.ok(prompt.includes(`owner's ${host} desktop`));
+    assert.ok(prompt.includes(custom));
+    assert.equal(readFileSync(file, 'utf8'), existing);
+  }
+  assert.ok(defaultPersonality().includes(`owner's ${host} desktop`));
+});
+
 test('upgrade replaces only the exact factory example and preserves custom text, memory and history', () => {
   for (const ending of ['\n', '\r\n']) {
     const parent = folder(),
@@ -238,7 +256,7 @@ test('fresh runtime creates just one prompt file and disables automatic legacy b
 test('actual pinned OpenClaw context filter removes duplicate character files while retaining owner memory', () => {
   const source = readFileSync(
     new URL(
-      '../node_modules/openclaw/dist/attempt-system-prompt-prepare-BIe9Jay8.mjs',
+      '../node_modules/openclaw/dist/attempt-system-prompt-prepare-Djpx7-Xt.mjs',
       import.meta.url,
     ),
     'utf8',
@@ -277,14 +295,14 @@ test('the reviewed OpenClaw adapter patch supports a clean package and prior pat
     readFileSync(path.join(root, 'integrations/openclaw-compat/patches.json'), 'utf8'),
   );
   const patch = spec.patches.find(
-    (p) => p.file === 'dist/attempt-system-prompt-prepare-BIe9Jay8.mjs',
+    (p) => p.file === 'dist/attempt-system-prompt-prepare-Djpx7-Xt.mjs',
   );
   const current = readFileSync(path.join(root, 'node_modules/openclaw', patch.file), 'utf8');
   const digest = (text) => createHash('sha256').update(text).digest('hex');
   assert.equal(digest(current), patch.afterSha256);
   for (const version of [
     { beforeSha256: patch.beforeSha256, edits: patch.edits },
-    ...patch.upgrades,
+    ...(patch.upgrades ?? []),
   ]) {
     let original = current;
     for (const edit of [...version.edits].reverse()) {

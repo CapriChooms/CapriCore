@@ -8,6 +8,7 @@ import {
   VOICE_EFFECT_DEFAULTS,
   VOICE_EFFECT_PRESETS,
   VOICE_EFFECT_LIMITS,
+  VOICE_EFFECT_MINIMUMS,
   validateVoiceEffects,
 } from '../apps/desktop/renderer/voice-effects-settings.mjs';
 
@@ -25,6 +26,9 @@ test('voice presets validate and stay bounded; malformed IPC cannot activate an 
   );
   for (const bad of [
     { ...VOICE_EFFECT_DEFAULTS, mix: 101 },
+    { ...VOICE_EFFECT_DEFAULTS, pitch: VOICE_EFFECT_MINIMUMS.pitch - 1 },
+    { ...VOICE_EFFECT_DEFAULTS, pitch: VOICE_EFFECT_LIMITS.pitch + 1 },
+    { ...VOICE_EFFECT_DEFAULTS, pitch: '3' },
     { ...VOICE_EFFECT_DEFAULTS, intensity: NaN },
     { ...VOICE_EFFECT_DEFAULTS, preset: 'remote' },
     { ...VOICE_EFFECT_DEFAULTS, enabled: 'true' },
@@ -41,6 +45,9 @@ test('effects persist independently and invalid saved preferences are preserved 
   store.set(VOICE_EFFECT_PRESETS.holographic);
   store = new Preferences(file, VOICE_EFFECT_DEFAULTS, validateVoiceEffects);
   assert.equal(store.snapshot().preset, 'holographic');
+  store.set({ ...store.snapshot(), preset: 'custom', pitch: -4 });
+  store = new Preferences(file, VOICE_EFFECT_DEFAULTS, validateVoiceEffects);
+  assert.equal(store.snapshot().pitch, -4);
   writeFileSync(file, 'broken');
   store = new Preferences(file, VOICE_EFFECT_DEFAULTS, validateVoiceEffects);
   assert.equal(store.snapshot().enabled, false);
@@ -50,6 +57,12 @@ test('effects persist independently and invalid saved preferences are preserved 
   assert.equal(readFileSync(file, 'utf8'), 'broken');
   store.set(VOICE_EFFECT_DEFAULTS);
   assert.equal(store.warning, null);
+});
+
+test('voice effects saved before pitch was available keep their original pitch', () => {
+  const { pitch, ...legacy } = VOICE_EFFECT_PRESETS.synthetic;
+  assert.equal(pitch, 0);
+  assert.deepEqual(validateVoiceEffects(legacy), VOICE_EFFECT_PRESETS.synthetic);
 });
 
 test('factory voice presets upgrade while individually edited and muted settings are respected', () => {

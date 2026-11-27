@@ -2,22 +2,37 @@
 import { dimmingFeatherWidth } from './dimming-settings.mjs';
 
 const surfaces = [
-  '#capri-header-version, #inference-label, #context-hud, #compact-status',
-  '#handle .window-actions button, #quick-actions button',
-  '#portrait-panel, .portrait-status, #subtitle-frame, .reply-tail, .composer',
-  '#process-graphs-hud .process-graph, #memory-hud .memory-gauge, #monitor-display',
-  '#microphone-preview, #reconnect, #computer-control-stop',
+  '.companion-toolbar, #portrait-panel, #subtitle-frame, .composer',
+  'body:not([data-horizontal-portrait]) .dock-telemetry:has(:is(#process-graphs-hud, #memory-hud, #monitor-display, #microphone-preview):not([hidden]))',
+  'body[data-horizontal-portrait] :is(#resource-monitor, #microphone-preview)',
+  '#reconnect, #computer-control-stop',
   '#history-panel, #inference-picker, #voice-volume-menu, #stopwatch-controls',
   '#startup-progress, #attachment-drafts, #call-audio-dock',
   '#wild-tab-notice, #thinking-progress, #update-notification, .resource-warning',
   '.preferences-panel, #dimming-panel, #notice, #clip-result, #time-alert, #action-approval',
 ].join(', ');
-const scrollSurfaces =
-  '.dock-notifications, #process-graphs-hud, #memory-hud, #reply-slot[data-resizing], #quick-controls';
+const scrollSurfaces = '.dock-notifications, #reply-slot[data-resizing]';
 const snap = (value) => Math.round(value * 64) / 64;
 
+function surfaceBox(host, style) {
+  if (style.display !== 'contents') return host.getBoundingClientRect();
+  // The stacked layouts flatten the toolbar wrapper into its two rows.
+  const rows = [...host.children]
+    .map((row) => row.getBoundingClientRect())
+    .filter(({ width, height }) => width > 0 && height > 0);
+  if (!rows.length) return host.getBoundingClientRect();
+  const x = Math.min(...rows.map((row) => row.left));
+  const y = Math.min(...rows.map((row) => row.top));
+  return new DOMRect(
+    x,
+    y,
+    Math.max(...rows.map((row) => row.right)) - x,
+    Math.max(...rows.map((row) => row.bottom)) - y,
+  );
+}
+
 export function featherForSurface(softness, { width, height }) {
-  // Small controls keep a fully shaded center even at the maximum global setting.
+  // Short panels keep a fully shaded center even at the maximum global setting.
   return Math.min(dimmingFeatherWidth(softness), Math.min(width, height) / 4);
 }
 
@@ -39,10 +54,10 @@ export class DimmingMask {
     const visible = new Map();
     const scrollBounds = new Map();
     for (const host of this.root.querySelectorAll(surfaces)) {
-      const rect = host.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) continue;
       const style = getComputedStyle(host);
       if (style.visibility !== 'visible' || Number(style.opacity) === 0) continue;
+      const rect = surfaceBox(host, style);
+      if (rect.width <= 0 || rect.height <= 0) continue;
 
       let inset = 'none';
       const scroller = host.closest(scrollSurfaces);

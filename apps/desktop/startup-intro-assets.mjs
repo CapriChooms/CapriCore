@@ -194,5 +194,6 @@ export function startupIntroSourceFiles(root) {
   return [
     ACTIVE_STARTUP_INTRO,
     ...intro.frames.map((frame) => path.relative(root, frame.file).split(path.sep).join('/')),
+    masterFile,
   ];
 }

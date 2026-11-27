@@ -40,6 +40,7 @@ export class FileAccessPanel {
       const write = document.createElement('input');
       write.type = 'checkbox';
       write.checked = scope.write;
+      write.disabled = scope.kind === 'installation';
       label.append(write, this.ui.text('Allow file changes'));
       write.addEventListener('change', () =>
         this.api

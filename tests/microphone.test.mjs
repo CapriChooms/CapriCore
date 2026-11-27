@@ -164,6 +164,35 @@ test('changing microphone gain updates the live input without changing the syste
   assert.equal(client.run.systemAudio, systemAudio);
 });
 
+test('recognition installation blocks capture with the specific reason and preserves the worker', async (t) => {
+  const f = fixture();
+  const errors = [];
+  const original = globalThis.AudioContext;
+  globalThis.AudioContext = class {
+    async resume() {}
+    async close() {}
+  };
+  t.after(() => {
+    if (original === undefined) delete globalThis.AudioContext;
+    else globalThis.AudioContext = original;
+  });
+  const client = new MicrophoneClient({
+    api: {
+      startMicrophone: async () => f.service.startBlocked('ASR_START_INSTALLING'),
+      stopMicrophone: async () => assert.fail('No capture was opened'),
+    },
+    onState() {},
+    onLevel() {},
+    onError: (message) => errors.push(message),
+  });
+  client.settings({ available: true });
+  await client.start();
+  assert.equal(client.run, null);
+  assert.deepEqual(errors, ['Wait for speech installation to finish, or cancel it in Languages.']);
+  assert.equal(f.service.diagnostics().lastFailure.code, 'ASR_START_INSTALLING');
+  assert.deepEqual(f.worker.commands, []);
+});
+
 test('startup failure survives capture shutdown as a bounded diagnostic', async () => {
   const { worker, service, events } = fixture({ language: 'ru' });
   worker.send = async () => {

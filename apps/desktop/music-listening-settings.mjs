@@ -19,7 +19,7 @@ export function musicTempoReady(value) {
   );
 }
 
-/** Hearing music alone must not select a motionless music drawing while BPM warms up. */
+/** Start beat motion once the audio tracker has a reliable tempo. */
 export function musicAnimationReady(value) {
   return Boolean(
     value?.enabled === true &&
@@ -27,6 +27,12 @@ export function musicAnimationReady(value) {
       value.settings?.enabled !== false &&
       musicTempoReady(value),
   );
+}
+
+export function musicBreathingTempo(value) {
+  const preferences = value?.settings ?? value;
+  if (!musicAnimationReady(value) || preferences.motion === false) return 0;
+  return preferences.autoBpm === false ? 110 : value.tempo;
 }
 
 /** Preferences never represent an active capture grant or a running microphone. */

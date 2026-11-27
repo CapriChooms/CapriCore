@@ -119,7 +119,7 @@ async function cameraBackgroundPng(settings) {
 }
 
 async function verifyPreview() {
-  const settings = await launchCapri();
+  let settings = await launchCapri();
   await settings.evaluate(() => window.capri.setSkill({ id: 'capri.voice-calls', enabled: true }));
   const preview = settings.locator(previewSelector);
   const toggle = settings.locator('#call-camera-enabled');
@@ -190,6 +190,87 @@ async function verifyPreview() {
   assert.equal(await color.inputValue(), CAMERA_BACKGROUND_COLOR);
   assert.equal(await toggle.isChecked(), false);
   console.log('PASS The camera-off preview renders the sprite and tracks background changes.');
+
+  const companion = app.windows().find((page) => page.url() === 'capri://desktop/index.html');
+  await settings.locator('#settings-window-close').evaluate((button) => button.click());
+  await app.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows().find(
+      (view) => view.webContents.getURL() === 'capri://desktop/index.html',
+    );
+    window.showInactive();
+  });
+  await companion.evaluate(() => {
+    const portrait = document.getElementById('presence-toggle');
+    if (portrait.getAttribute('aria-pressed') !== 'true') portrait.click();
+  });
+  await companion.waitForFunction(
+    () =>
+      document.body.dataset.presence === 'portrait' &&
+      !document.getElementById('avatar-detach').disabled,
+  );
+  const avatarWindow = app.waitForEvent('window', { timeout: 15000 });
+  await companion.evaluate(() => document.getElementById('avatar-detach').click());
+  const detached = await avatarWindow;
+  await companion.waitForFunction(() => document.body.dataset.avatarDetach === 'detached');
+  await detached.waitForURL('capri://desktop/avatar-detach.html');
+  await detached.emulateMedia({ reducedMotion: 'reduce' });
+  await detached.waitForFunction(
+    () => typeof window.capriAvatarCamera?.publishFrame === 'function',
+  );
+  settings = await settingsView(app, 'calls');
+
+  const signature = (selector) => {
+    const canvas = document.querySelector(selector);
+    const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+    let value = 0;
+    for (let i = 0; i < data.length; i += 4)
+      value = (Math.imul(31, value) + data[i] + 257 * data[i + 1] + 65537 * data[i + 2]) | 0;
+    return value;
+  };
+  await settings.locator(previewSelector).scrollIntoViewIfNeeded();
+  await expectBackground(settings, [11, 21, 29], [11, 21, 29], previewSelector);
+  const sample = () => settings.evaluate(signature, previewSelector);
+  const previous = await sample();
+  assert.equal(
+    await detached.evaluate(() =>
+      window.capriAvatarDetach.setFace({
+        expression: 'sad',
+        clip: null,
+        startedAt: 0,
+      }),
+    ),
+    true,
+  );
+  for (let i = 0; i < 25 && (await sample()) === previous; i++) await wait(100);
+  assert.notEqual(await sample(), previous, 'Camera ignores the detached avatar face');
+  const face = await sample();
+  assert.equal(
+    await detached.evaluate(() =>
+      Boolean(
+        window.capriAvatarDetach.setFace({
+          expression: 'happy',
+          clip: 'laugh',
+          startedAt: Date.now(),
+        }),
+      ),
+    ),
+    true,
+  );
+  for (let i = 0; i < 25 && (await sample()) === face; i++) await wait(100);
+  assert.notEqual(await sample(), face, 'Camera ignores the detached mood change');
+  const standing = await sample();
+  assert.ok(
+    await detached.evaluate(() =>
+      window.capriAvatarDetach.setFrame({
+        url: 'capri://desktop/sprites/pose-crouch.png',
+        anchor: { x: 0.5, y: 0.85 },
+      }),
+    ),
+  );
+  await detached.waitForSelector('#parked-avatar[data-pose-frame="pose-crouch"]');
+  for (let i = 0; i < 25 && (await sample()) === standing; i++) await wait(100);
+  assert.notEqual(await sample(), standing, 'Camera ignores the detached pose change');
+  console.log('PASS The preview follows the detached avatar’s pose and mood.');
 }
 
 async function verifyNativeCamera() {

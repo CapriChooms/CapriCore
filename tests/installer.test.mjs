@@ -8,6 +8,7 @@ import {
   writeFileSync,
   existsSync,
   symlinkSync,
+  cpSync,
   copyFileSync,
   unlinkSync,
   chmodSync,
@@ -29,6 +30,7 @@ import { runCommand } from '../packages/installer/src/commands.mjs';
 import { install } from '../packages/installer/src/engine.mjs';
 import { estimateInstallStorage } from '../packages/installer/src/storage-estimate.mjs';
 import {
+  BUNDLED_VOICE_PROFILE,
   copyRussianVoicePack,
   importVoicePack,
   validateRussianVoicePack,
@@ -206,6 +208,34 @@ test('installer requires explicit consent, sufficient resources and supported la
   assert.equal(plan.languages.speech, 'off');
   assert.equal(plan.languages.recognition, 'off');
 });
+
+test('Setup accepts RX 9070 GRE for Chatterbox on Windows 11 and uses the ROCm estimate', () => {
+  const voicePack = folder();
+  const input = { ...request(path.join(folder(), 'new')), voiceMode: 'bundled', voicePack };
+  const context = { sourceRoot: root, version: '1.2.3', hardware, freeBytes: 100 * 2 ** 30 };
+  const radeon = (name, osRelease = '10.0.26100') => ({
+    ...context,
+    hardware: {
+      ...hardware,
+      platform: 'win32',
+      osRelease,
+      gpus: [{ name, vendor: 'amd', memoryKind: 'dedicated', vramMiB: 12288 }],
+    },
+  });
+  const detected = radeon('AMD Radeon RX 9070 GRE');
+  const plan = validateRequest(input, detected);
+  const estimate = estimateInstallStorage(input, { hardware: detected.hardware, rocmVoice: true });
+  assert.equal(plan.voiceMode, 'bundled');
+  assert.equal(plan.requiredBytes, estimate.requiredBytes);
+  assert.throws(
+    () => validateRequest(input, radeon('AMD Radeon RX 9070 GRE', '10.0.19045')),
+    /NVIDIA GPU/,
+  );
+  assert.throws(
+    () => validateRequest(input, radeon('AMD Radeon RX 9070 GRE Mobile')),
+    /NVIDIA GPU/,
+  );
+});
 test('dependency downloads verify bytes and checksum, reuse verified cache and reject hostile redirects', async () => {
   const bytes = Buffer.from('approved dependency fixture'),
     info = { url: 'https://nodejs.org/fixture.zip', bytes: bytes.length, sha256: digest(bytes) };
@@ -353,6 +383,9 @@ async function transactionFixture({
   modelSource,
   voiceMode,
   includedReference = false,
+  repairReference = false,
+  addRecognitionLater = false,
+  previousVoice,
   gpuName,
   llamaState,
   failLlamaPromotion = false,
@@ -423,6 +456,10 @@ async function transactionFixture({
     writeFileSync(path.join(bundle, 'stale-backend.dll'), 'legacy file');
   }
   let voicePack = '';
+  let oldVoiceConfig;
+  const upstream = json(path.join(root, 'config/voice-upstream.json'));
+  const cachedVoice = path.join(target, 'data/speech/bundled-voice');
+  const referenceArchive = path.join(target, '.runtime/verified-reference-fixture.zip');
   const multilingualCalls = [];
   const speechSetupCalls = [];
   let runtimeDownloads = 0;
@@ -436,14 +473,38 @@ async function transactionFixture({
     writeJsonAtomic(path.join(voicePack, 'adapter.json'), {});
     writeJsonAtomic(path.join(voicePack, 'voice-profile.json'), {
       schemaVersion: 1,
-      id: includedReference ? 'capri-en-v1' : 'language-fixture',
+      id: includedReference || repairReference ? 'capri-en-v1' : 'language-fixture',
       engine: 'chatterbox-turbo',
       language: 'en',
-      baseModel: json(path.join(root, 'config/voice-upstream.json')).model,
+      baseModel: upstream.model,
       adapter: 'adapter.safetensors',
       adapterConfig: 'adapter.json',
       adapterSha256: digest(adapter),
       references: { neutral: { file: 'references/neutral.wav', sha256: digest(wav) } },
+    });
+  }
+  if (repairReference) {
+    mkdirSync(path.dirname(cachedVoice), { recursive: true });
+    cpSync(voicePack, cachedVoice, { recursive: true });
+    writeFileSync(path.join(cachedVoice, 'references/neutral.wav'), 'damaged cached reference');
+    const exported = path.join(target, BUNDLED_VOICE_PROFILE);
+    mkdirSync(exported, { recursive: true });
+    writeFileSync(path.join(exported, 'voice-profile.json'), 'damaged exported profile');
+  }
+  if (previousVoice) {
+    const oldPack = folder();
+    cpSync(voicePack, oldPack, { recursive: true });
+    const oldUpstream = { ...upstream };
+    delete oldUpstream.bundledPack;
+    oldVoiceConfig = {
+      upstream: oldUpstream,
+      adapter: { rank: 8, alpha: previousVoice === 'different' ? 8 : 16 },
+    };
+    writeJsonAtomic(path.join(oldPack, 'adapter.json'), oldVoiceConfig);
+    importVoicePack(oldPack, target, upstream.model);
+    writeJsonAtomic(path.join(voicePack, 'adapter.json'), {
+      upstream,
+      adapter: { rank: 8, alpha: 16 },
     });
   }
   if (russianAdapter) copyRussianVoicePack(russianAdapter, path.join(voicePack, 'russian'));
@@ -501,6 +562,10 @@ async function transactionFixture({
       assert.equal(options.timeoutMs, 60 * 60 * 1000, 'Local setup keeps its original deadline');
     if (args.some((arg) => arg.endsWith('archive.ps1'))) {
       const destination = args[args.indexOf('-Destination') + 1];
+      if (repairReference && args.includes(referenceArchive)) {
+        cpSync(voicePack, destination, { recursive: true });
+        return;
+      }
       if (destination === path.join(target, 'node_modules/electron/dist')) {
         extractElectronFixture(target);
         return;
@@ -558,8 +623,9 @@ async function transactionFixture({
     {
       ...request(target),
       ...(routerNativeFailure && { router: true }),
-      voicePack: includedReference ? '' : voicePack,
+      voicePack: (includedReference && voiceMode !== 'bundled') || repairReference ? '' : voicePack,
       ...(includedReference ? { bundledVoicePack: voicePack } : {}),
+      ...(repairReference ? { bundledVoicePack: cachedVoice } : {}),
       ...(voiceMode ? { voiceMode } : {}),
       conversationLanguage: languageUpgrade?.conversation ?? (voiceLanguage || 'en'),
       ...(inferenceMode ? { inferenceMode, downloadModels: true } : {}),
@@ -601,6 +667,10 @@ async function transactionFixture({
       download: async (selected, _folder, { progress }) => {
         if (selected.sha256 === spec.artifacts.electron.sha256)
           return path.join(target, '.runtime/electron-fixture.zip');
+        if (repairReference && selected.sha256 === upstream.bundledPack.sha256) {
+          progress({ received: selected.bytes, total: selected.bytes });
+          return referenceArchive;
+        }
         assert.ok(damagedLlama || llamaState);
         assert.equal(selected.sha256, spec.artifacts.llama.sha256);
         progress({ received: selected.bytes, total: selected.bytes });
@@ -706,6 +776,18 @@ async function transactionFixture({
       !routerNativeFailure,
     );
     assert.equal(speechSetupCalls[0], 'router');
+    if (previousVoice) {
+      const active = json(path.join(target, 'config/companion-voice.json')).profileDir;
+      assert.deepEqual(
+        json(path.join(target, BUNDLED_VOICE_PROFILE, 'adapter.json')),
+        oldVoiceConfig,
+      );
+      if (previousVoice === 'different') {
+        assert.match(active, /^data\/speech\/voice-pack-revisions\/capri-en-v1-/);
+        assert.equal(json(path.join(target, active, 'adapter.json')).adapter.alpha, 16);
+      } else assert.equal(active, BUNDLED_VOICE_PROFILE);
+      validateVoicePack(path.join(target, active), upstream.model);
+    }
     if (qwen) {
       assert.deepEqual(speechSetupCalls, ['router', 'qwen-dependencies', 'qwen-weights']);
       assert.deepEqual(json(path.join(target, 'data/speech/voice-selections.json')), {
@@ -729,6 +811,17 @@ async function transactionFixture({
         validateVoicePack(
           path.join(target, profileDir),
           json(path.join(root, 'config/voice-upstream.json')).model,
+        );
+      }
+      if (repairReference) {
+        const profile = path.join(target, BUNDLED_VOICE_PROFILE);
+        validateVoicePack(profile, upstream.model);
+        const parent = path.dirname(profile);
+        const backup = readdirSync(parent).find((name) => name.startsWith('capri-en-v1.backup-'));
+        assert.ok(backup);
+        assert.equal(
+          readFileSync(path.join(parent, backup, 'voice-profile.json'), 'utf8'),
+          'damaged exported profile',
         );
       }
       if (russianAdapter)
@@ -773,6 +866,35 @@ async function transactionFixture({
     );
   }
   assert.equal(runtimeDownloads, damagedLlama || llamaState ? 1 : 0);
+  if (addRecognitionLater) {
+    const calls = [];
+    const identity = path.join(target, '.capri-install.json');
+    assert.equal(json(identity).previousReleaseTag, '0.3.0');
+    await install(
+      { ...request(target), recognition: true, reuseDependencies: true },
+      {
+        sourceRoot: root,
+        hardware,
+        register: false,
+        free: () => 1024 ** 4,
+        nodeExecutable: process.execPath,
+        execute: async (...args) => {
+          calls.push(args[1]);
+          return execute(...args);
+        },
+        download: async () => assert.fail('Existing bundled runtimes should be reused'),
+      },
+    );
+    assert.ok(calls.some((args) => args.includes('ls') && args.includes('--offline')));
+    assert.equal(
+      calls.some((args) => args.includes('ci')),
+      false,
+    );
+    assert.ok(calls.some((args) => args.some((arg) => arg.endsWith('setup-streaming-asr.ps1'))));
+    assert.equal(json(languageFile).settings.recognition, 'follow');
+    assert.equal(json(identity).previousReleaseTag, '0.3.0');
+    assert.equal(readFileSync(canary, 'utf8'), 'private memory canary');
+  }
   if (failLlamaPromotion) {
     assert.equal(readFileSync(plugin, 'utf8'), 'corrupt Vulkan backend');
     assert.equal(readFileSync(receiptFile, 'utf8'), previousReceipt);
@@ -783,6 +905,12 @@ async function transactionFixture({
     assert.equal(existsSync(path.join(bundle, 'stale-backend.dll')), false);
   }
 }
+
+test(
+  'repeat setup adds recognition to a text installation and reuses the core',
+  { skip: process.platform !== 'win32' },
+  () => transactionFixture({ addRecognitionLater: true }),
+);
 
 test(
   'NVIDIA and Radeon installations use the same pinned llama.cpp distribution',
@@ -853,6 +981,19 @@ test(
   () => transactionFixture({ voiceLanguage: 'ru' }),
 );
 test(
+  'Setup repairs a bundled voice install across both metadata-only and real ID conflicts',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    for (const previousVoice of ['archive changed', 'different'])
+      await transactionFixture({
+        voiceLanguage: 'ru',
+        voiceMode: 'bundled',
+        includedReference: true,
+        previousVoice,
+      });
+  },
+);
+test(
   'a CPU-only installation provisions Hugging Face speech and enables it only for the chosen language',
   { skip: process.platform !== 'win32' },
   () => transactionFixture({ voiceLanguage: 'ru', voiceMode: 'qwen', inferenceMode: 'api' }),
@@ -867,6 +1008,17 @@ test(
       voiceMode: 'qwen',
       inferenceMode: 'api',
       includedReference: true,
+    }),
+);
+test(
+  'an upgrade restores Qwen voice when the cached and exported references are damaged',
+  { skip: process.platform !== 'win32' },
+  () =>
+    transactionFixture({
+      voiceLanguage: 'en',
+      voiceMode: 'qwen',
+      inferenceMode: 'api',
+      repairReference: true,
     }),
 );
 test(

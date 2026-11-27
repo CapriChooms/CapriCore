@@ -52,10 +52,10 @@ export class InitiativeService {
     this.lastReason = reason;
     this.onStatus(this.snapshot());
   }
-  tick(force = false) {
+  tick() {
     if (this.active || this.timer) return;
     const { screenComments, watchTogether } = this.policy.settings;
-    const evidence = !force && (screenComments || watchTogether) && this.screenEvidence();
+    const evidence = (screenComments || watchTogether) && this.screenEvidence();
     if (evidence && !sameScene(evidence, this.lastScreenAttempt)) {
       const candidate = {
         category: 'screen',
@@ -75,18 +75,33 @@ export class InitiativeService {
         return;
       }
     }
-    if (!this.policy.settings.spontaneous && !force) return;
+    if (!this.policy.settings.spontaneous) return;
     const candidate = {
       category: 'spontaneous',
       expiresAt: this.now() + 60000,
       event: { kind: 'conversation.idle', source: 'local-scheduler', timestamp: this.now() },
-      preview: force,
     };
     const reason = this.policy.reason(candidate, this.candidateState(candidate));
-    this.report(reason === 'ready' && !force && this.now() < this.nextAt ? 'waiting' : reason);
-    if (reason !== 'ready' || (!force && this.now() < this.nextAt)) return;
+    this.report(reason === 'ready' && this.now() < this.nextAt ? 'waiting' : reason);
+    if (reason !== 'ready' || this.now() < this.nextAt) return;
     this.reschedule();
     void this.run(candidate);
+  }
+  async preview() {
+    if (this.active) return this.snapshot();
+    clearTimeout(this.timer);
+    this.timer = null;
+    const now = this.now();
+    const candidate = {
+      preview: true,
+      category: 'spontaneous',
+      expiresAt: now + 60000,
+      event: { kind: 'conversation.idle', source: 'local-scheduler', timestamp: now },
+    };
+    const reason = this.policy.reason(candidate, this.candidateState(candidate));
+    if (reason === 'ready') await this.run(candidate);
+    else this.report(reason);
+    return this.snapshot();
   }
   configure(settings) {
     if (JSON.stringify(settings) === JSON.stringify(this.policy.settings)) return;
@@ -141,8 +156,10 @@ export class InitiativeService {
   }
   async run(candidate) {
     if (!this.policy.permitted(candidate, this.candidateState(candidate)) || this.active) return;
-    this.policy.attempted();
-    this.saveBudget();
+    if (!candidate.preview) {
+      this.policy.attempted();
+      this.saveBudget();
+    }
     const controller = new AbortController(),
       id = randomUUID();
     this.active = { controller, id, candidate };
@@ -166,10 +183,14 @@ export class InitiativeService {
         return;
       }
       if (response?.speak !== true) {
-        if (this.policy.settings.level === 'conversational' && (this.silentAttempts ?? 0) < 2) {
+        if (
+          !candidate.preview &&
+          this.policy.settings.level === 'conversational' &&
+          (this.silentAttempts ?? 0) < 2
+        ) {
           this.silentAttempts = (this.silentAttempts ?? 0) + 1;
           this.nextAt = this.now() + 60000 * (1 + this.random() * 0.5);
-        } else this.silentAttempts = 0;
+        } else if (!candidate.preview) this.silentAttempts = 0;
         this.report('model_chose_silence');
         return;
       }
@@ -178,9 +199,12 @@ export class InitiativeService {
         !text ||
         text.length > 240 ||
         text.split(/\s+/).length > 35 ||
-        this.policy.recentText.some((previous) => previous.toLowerCase() === text.toLowerCase())
-      )
+        (!candidate.preview &&
+          this.policy.recentText.some((previous) => previous.toLowerCase() === text.toLowerCase()))
+      ) {
+        this.report('generation_failed');
         return;
+      }
       const message = {
         id: randomUUID(),
         turnId: id,
@@ -197,11 +221,13 @@ export class InitiativeService {
         ...(response.avatar ? { avatar: response.avatar } : {}),
       };
       if (!deliverable()) return;
-      await this.commit(message, candidate, { signal: controller.signal });
-      if (!deliverable()) return;
-      this.policy.spoken(candidate, text);
-      this.silentAttempts = 0;
-      this.saveBudget();
+      if (!candidate.preview) {
+        await this.commit(message, candidate, { signal: controller.signal });
+        if (!deliverable()) return;
+        this.policy.spoken(candidate, text);
+        this.silentAttempts = 0;
+        this.saveBudget();
+      }
       this.deliver(message, candidate);
       this.report('delivered');
     } catch (error) {

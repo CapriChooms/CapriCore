@@ -13,8 +13,6 @@ using System.Threading;
 using System.Windows.Forms;
 
 internal static class CapriDesktopTeleport {
-    private const int WhMouseLowLevel = 14;
-    private const int WhKeyboardLowLevel = 13;
     private const int LeftDown = 0x0201;
     private const int LeftUp = 0x0202;
     private const int RightDown = 0x0204;
@@ -22,8 +20,9 @@ internal static class CapriDesktopTeleport {
     private const int MiddleDown = 0x0207;
     private const int XDown = 0x020B;
     private static readonly object State = new object();
-    private static readonly Hook Mouse = ObserveMouse;
-    private static readonly Hook Keyboard = ObserveKeyboard;
+    private static readonly int[] PointerKeys = { 0x01, 0x02, 0x04, 0x05, 0x06 };
+    private static readonly bool[] PointerDown = new bool[PointerKeys.Length];
+    private static bool menuKeyDown;
     private static Point? origin;
     private static IntPtr releaseWindow;
     private static int releaseId;
@@ -55,11 +54,8 @@ internal static class CapriDesktopTeleport {
     private struct FileTime { public uint Low, High; }
     private enum AnchorIdentity { Unavailable, Verified, Closed }
 
-    private delegate IntPtr Hook(int code, IntPtr message, IntPtr data);
     private delegate void WinEvent(IntPtr hook, uint kind, IntPtr window, int objectId, int childId, uint thread, uint time);
-    [DllImport("user32.dll")] private static extern IntPtr SetWindowsHookEx(int kind, Hook callback, IntPtr module, uint thread);
-    [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(IntPtr hook);
-    [DllImport("user32.dll")] private static extern IntPtr CallNextHookEx(IntPtr hook, int code, IntPtr message, IntPtr data);
+    [DllImport("user32.dll")] private static extern bool GetPhysicalCursorPos(out Point point);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPhysicalPoint(Point point);
     [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr window, uint flags);
     [DllImport("user32.dll")] private static extern IntPtr GetShellWindow();
@@ -73,7 +69,6 @@ internal static class CapriDesktopTeleport {
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect rect);
     [DllImport("user32.dll")] private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr window, int attr, out Rect rect, int size);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr GetModuleHandle(string name);
     [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint first, uint last, IntPtr module, WinEvent callback, uint process, uint thread, uint flags);
     [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
     [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr OpenProcess(uint access, bool inherit, uint process);
@@ -100,25 +95,21 @@ internal static class CapriDesktopTeleport {
         return hit == "SysListView32" || hit == "SHELLDLL_DefView" || hit == "Progman" || hit == "WorkerW";
     }
 
-    private static IntPtr ObserveMouse(int code, IntPtr message, IntPtr data) {
-        int kind = message.ToInt32();
-        if (code >= 0 && kind == LeftUp) {
+    private static void ObserveMouse(int kind, Point point) {
+        if (kind == LeftUp) {
             int id;
             lock (State) {
                 id = trackRelease ? releaseId : 0;
                 trackRelease = false;
             }
             if (id != 0) {
-                Point point = (Point)Marshal.PtrToStructure(data, typeof(Point));
                 ThreadPool.QueueUserWorkItem(_ => {
                     try {
                         Console.WriteLine(String.Format(CultureInfo.InvariantCulture, "release {0} {1} {2}", id, point.X, point.Y));
                     } catch (IOException) {}
                 });
             }
-        } else if (code >= 0 && (kind == RightDown || kind == RightUp || kind == LeftDown || kind == MiddleDown || kind == XDown)) {
-            // MSLLHOOKSTRUCT begins with the physical, per-monitor-aware cursor point.
-            Point point = (Point)Marshal.PtrToStructure(data, typeof(Point));
+        } else {
             IntPtr window = WindowFromPhysicalPoint(point);
             IntPtr root = GetAncestor(window, 2); // GA_ROOT
             bool explorer = IsExplorer(window);
@@ -136,18 +127,25 @@ internal static class CapriDesktopTeleport {
                 }
             }
         }
-        return CallNextHookEx(IntPtr.Zero, code, message, data);
     }
 
-    private static IntPtr ObserveKeyboard(int code, IntPtr message, IntPtr data) {
-        if (code >= 0 && (message.ToInt32() == 0x0100 || message.ToInt32() == 0x0104)) {
-            int key = Marshal.ReadInt32(data);
-            if (key == 0x1B || key == 0x5D || (key == 0x79 && GetAsyncKeyState(0x10) < 0)) {
-                // Esc dismisses the original menu. Apps and Shift+F10 create a new one.
-                lock (State) origin = null;
-            }
+    private static void PollInput() {
+        bool menuKey = GetAsyncKeyState(0x1B) < 0 || GetAsyncKeyState(0x5D) < 0 ||
+            (GetAsyncKeyState(0x79) < 0 && GetAsyncKeyState(0x10) < 0);
+        if (menuKey && !menuKeyDown) {
+            lock (State) origin = null;
         }
-        return CallNextHookEx(IntPtr.Zero, code, message, data);
+        menuKeyDown = menuKey;
+        for (int i = 0; i < PointerKeys.Length; ++i) {
+            bool down = GetAsyncKeyState(PointerKeys[i]) < 0;
+            if (down == PointerDown[i]) continue;
+            PointerDown[i] = down;
+            int kind = i == 0 ? (down ? LeftDown : LeftUp) :
+                i == 1 ? (down ? RightDown : RightUp) :
+                down ? (i == 2 ? MiddleDown : XDown) : 0;
+            Point point;
+            if (kind != 0 && GetPhysicalCursorPos(out point)) ObserveMouse(kind, point);
+        }
     }
 
     private static void Listen(string pipeName, Control lifetime) {
@@ -178,12 +176,8 @@ internal static class CapriDesktopTeleport {
     }
 
     private static int Watch(string pipeName) {
-        IntPtr module = GetModuleHandle(null);
-        IntPtr mouseHook = SetWindowsHookEx(WhMouseLowLevel, Mouse, module, 0);
-        IntPtr keyboardHook = SetWindowsHookEx(WhKeyboardLowLevel, Keyboard, module, 0);
-        try {
-            if (mouseHook == IntPtr.Zero || keyboardHook == IntPtr.Zero) return 1;
-            using (var lifetime = new Control()) {
+        using (var lifetime = new Control())
+        using (var input = new System.Windows.Forms.Timer { Interval = 15 }) {
                 // The inherited pipes are the lifetime link with the Electron parent.
                 IntPtr handle = lifetime.Handle;
                 var server = new Thread(() => Listen(pipeName, lifetime)) { IsBackground = true };
@@ -196,15 +190,13 @@ internal static class CapriDesktopTeleport {
                     geometry.Tick += (_, __) => PollAnchor();
                     anchorTimer = geometry;
                     anchorLifetime = lifetime;
+                    input.Tick += (_, __) => PollInput();
+                    input.Start();
                     try { Application.Run(); }
                     finally { StopFollowing(); anchorLifetime = null; anchorTimer = null; }
                 }
-            }
-            return 0;
-        } finally {
-            if (mouseHook != IntPtr.Zero) UnhookWindowsHookEx(mouseHook);
-            if (keyboardHook != IntPtr.Zero) UnhookWindowsHookEx(keyboardHook);
         }
+        return 0;
     }
 
     private static System.Windows.Forms.Timer anchorTimer;

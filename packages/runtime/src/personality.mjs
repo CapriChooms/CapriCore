@@ -16,6 +16,8 @@ import { paths } from './host/paths.mjs';
 export const MAX_PERSONALITY_LENGTH = 24000;
 export const PERSONALITY_FILE = 'PERSONALITY.md';
 export const PERSONALITY_PROMPT_HEADER = 'CAPRI PERSONALITY (PERSONALITY.md):';
+export const DESKTOP_PLATFORM_NAME =
+  { darwin: 'macOS', linux: 'Linux' }[process.platform] ?? 'Windows';
 const LEGACY_FILES = Object.freeze([
   'SOUL.md',
   'AGENTS.md',
@@ -50,10 +52,19 @@ function readText(file) {
   return validatePersonality(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 }
 
+// Adapt only a complete factory paragraph. Quoted examples and owner-written
+// instructions remain verbatim, including in profiles imported from another OS.
+export function hostPersonality(text) {
+  return text.replace(
+    /^(You are Capri, a fictional personal companion inspired by Cyberpunk: Edgerunners 2, living in the owner's )(?:Windows|macOS|Linux)( desktop\. Speak in the first person)(?: and in the conversation language selected by the interface)?(\. Be present in the conversation: respond as Capri, rather than explaining how somebody could portray her\.)(?=\r?$)/m,
+    `$1${DESKTOP_PLATFORM_NAME}$2$3`,
+  );
+}
+
 export function defaultPersonality(sourceDirectory = path.join(paths.config, 'workspace')) {
   const text = readText(path.join(sourceDirectory, PERSONALITY_FILE));
   if (!text) throw new Error("Capri's default PERSONALITY.md is empty.");
-  return text;
+  return hostPersonality(text);
 }
 
 /** Reads exactly one live source; retired prompt files are never fallback context. */

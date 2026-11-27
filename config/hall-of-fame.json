@@ -3,6 +3,10 @@
   "team": [
     {
       "name": "Overyx",
+      "role": "Main developer"
+    },
+    {
+      "name": "Hastur-Dev",
       "role": "Developer"
     },
     {
@@ -12,10 +16,26 @@
     {
       "name": "Leberrr",
       "role": "Discord moderator"
+    },
+    {
+      "name": "Frkn97",
+      "role": "Linux port developer"
+    },
+    {
+      "name": "lattelix",
+      "role": "macOS port developer"
     }
   ],
-  "majorSupporters": ["ChilledT", "Trenton Gregory", "Daniel Rodriguez", "Legat", "Joan_P"],
-  "communityHelpers": ["KiRaS", "phosparad", "Rofls", "lollabby", "Keiron"],
+  "majorSupporters": ["Legat", "ChilledT", "Trenton Gregory", "Daniel Rodriguez", "Joan_P"],
+  "communityHelpers": [
+    "KiRaS",
+    "phosparad",
+    "Rofls",
+    "lollabby",
+    "Keiron",
+    "Eddy Narouille",
+    "untoasted_bread"
+  ],
   "supporters": [
     "1b3urself-cloud",
     "1vds",
@@ -694,6 +714,8 @@
     "overyx": "Vivid Prism",
     "v1rch": "Dreaming Quasar",
     "leberrr": "Gentle Starlight",
+    "frkn97": "Lucid Spark",
+    "lattelix": "Adventurous Nova",
     "1b3urself-cloud": "Wandering Spark",
     "1vds": "Joyful Nebula",
     "2hattah": "Onyx Chronicler",
@@ -1305,9 +1327,11 @@
     "daniel rodriguez": "Astral Artisan",
     "legat": "Stellar Stream",
     "joan_p": "Violet Vector",
+    "hastur-dev": "Quiet Navigator",
     "kiras": "Merry Oasis",
     "rofls": "Dauntless Ripple",
     "keiron": "Cerulean Scribe",
+    "eddy narouille": "Neon Equinox",
     "918vvs": "Nimble Prism",
     "antopetit40-dev": "Soaring Explorer",
     "asa385": "Sailing Artisan",
@@ -1364,6 +1388,7 @@
     "thierrytomazzette19-ai": "Luminous Astrolabe",
     "tyler722405": "Electric Moon",
     "umaaleatoria990-ai": "Copper Prism",
+    "untoasted_bread": "Amber Wayfarer",
     "wetaf01": "Emerald Equinox",
     "xyp9ks": "Steady Asteroid",
     "yakov-fz": "Wondrous Pulsar",

@@ -7,6 +7,11 @@ import {
   validateRegions,
   visibleWindowBounds,
 } from '../apps/desktop/geometry.mjs';
+import {
+  compactReplyHeight,
+  fittedReplyHeight,
+  REPLY_SPACE,
+} from '../apps/desktop/renderer/reply-geometry.mjs';
 
 test('corner placement respects the taskbar, negative monitor coordinates and missing monitors', () => {
   const area = { x: -1920, y: 0, width: 1920, height: 1040 },
@@ -66,6 +71,10 @@ test('IPC hit regions cannot expand interaction outside the companion window', (
   );
   assert.throws(() => validateRegions({ controls: [], sprite, replyCollapsed: 'true' }, bounds));
   assert.throws(() => validateRegions({ controls: [], sprite, replyMotion: 'true' }, bounds));
+  assert.equal(validateRegions({ controls: [], sprite, replySpace: 76 }, bounds).replySpace, 76);
+  for (const replySpace of [0, -1, 1.5, NaN, REPLY_SPACE + 1, '76']) {
+    assert.throws(() => validateRegions({ controls: [], sprite, replySpace }, bounds));
+  }
   assert.deepEqual(validateRegions({ controls: [], sprite, footprint }, bounds).footprint, {
     ...footprint,
     height: 180,
@@ -73,6 +82,14 @@ test('IPC hit regions cannot expand interaction outside the companion window', (
   assert.throws(() =>
     validateRegions({ controls: [], sprite, footprint: { ...footprint, y: -5 } }, bounds),
   );
+});
+
+test('fitted reply height adds only the requested space above the compact window', () => {
+  const full = 660;
+  assert.equal(fittedReplyHeight(full, 0), compactReplyHeight(full));
+  assert.equal(fittedReplyHeight(full, 76), compactReplyHeight(full) + 76);
+  assert.equal(fittedReplyHeight(full, REPLY_SPACE), full);
+  assert.equal(fittedReplyHeight(330, 76), 330);
 });
 
 test('CRT hit testing samples the curved image and rejects out-of-range texture pixels', () => {

@@ -15,6 +15,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { writeJsonAtomic } from '../atomic-json.mjs';
 import { HF_DRAFT_CHAT_ERROR, validateImportedProfile } from '../hardware/imported-model.mjs';
+import { llamaAdminHeaders } from '../providers/llama-admin.mjs';
 import { hubJson } from './transport.mjs';
 import {
   downloadArtifact,
@@ -207,7 +208,8 @@ export class HuggingFaceHub {
     token = async () => null,
     diskFree = freeBytes,
   }) {
-    this.folder = path.join(path.resolve(root), 'data/huggingface');
+    this.root = path.resolve(root);
+    this.folder = path.join(this.root, 'data/huggingface');
     this.blobs = path.join(this.folder, 'blobs');
     this.packages = path.join(this.folder, 'packages');
     this.fetchImpl = fetchImpl;
@@ -504,6 +506,12 @@ export class HuggingFaceHub {
     try {
       response = await this.fetchImpl(this.ollamaUrl + endpoint, {
         ...options,
+        headers: {
+          ...options.headers,
+          ...(['/api/create', '/api/delete'].includes(endpoint)
+            ? llamaAdminHeaders(this.ollamaUrl, this.root)
+            : {}),
+        },
         redirect: 'error',
         signal: AbortSignal.any([
           ...(options.signal ? [options.signal] : []),

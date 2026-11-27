@@ -54,24 +54,32 @@ try {
   page = await settingsView(application, 'files');
   page.on('pageerror', (error) => errors.push(error.message));
   await page.waitForSelector('#file-access-panel:not([hidden])');
-  assert.equal((await page.evaluate(() => window.capri.bootstrap())).fileAccess.scopes.length, 0);
+  const installation = (await page.evaluate(() => window.capri.bootstrap())).fileAccess.scopes;
+  assert.equal(installation.length, 1);
+  assert.equal(installation[0].kind, 'installation');
+  assert.equal(installation[0].write, false);
+  assert.equal(await page.locator('.file-scope input').isDisabled(), true);
   await page.locator('#file-access-add').click({ force: true });
-  await page.waitForSelector('.file-scope');
+  await page.waitForSelector('.file-scope input:not(:disabled)');
   assert.equal(
-    (await page.evaluate(() => window.capri.bootstrap())).fileAccess.scopes[0].write,
+    (await page.evaluate(() => window.capri.bootstrap())).fileAccess.scopes[1].write,
     false,
   );
-  await page.locator('.file-scope input').check({ force: true });
+  await page.locator('.file-scope input:not(:disabled)').check({ force: true });
   await page.waitForFunction(
-    async () => (await window.capri.bootstrap()).fileAccess.scopes[0].write,
+    async () => (await window.capri.bootstrap()).fileAccess.scopes[1].write,
   );
   const saved = JSON.parse(
     readFileSync(path.join(folder, 'desktop/file-permissions.json'), 'utf8'),
   );
-  assert.equal(saved.scopes[0].root, selected);
-  await page.locator('.file-scope button').click({ force: true });
+  assert.equal(saved.scopes[1].root, selected);
+  await page
+    .locator('.file-scope')
+    .filter({ has: page.locator('input:not(:disabled)') })
+    .locator('button')
+    .click({ force: true });
   await page.waitForFunction(
-    async () => (await window.capri.bootstrap()).fileAccess.scopes.length === 0,
+    async () => (await window.capri.bootstrap()).fileAccess.scopes.length === 1,
   );
   assert.equal(
     readFileSync(path.join(folder, 'desktop/file-permissions.json'), 'utf8').includes(selected),

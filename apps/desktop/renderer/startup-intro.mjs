@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { drawStartupIntro } from './startup-intro-motion.mjs';
+import { loadAvatarGestureFaces } from './avatar-face-rig.mjs';
 
 /** One local presentation, driven by the existing render loop. No model, audio or network. */
 export class StartupIntro {
@@ -75,7 +76,14 @@ export class StartupIntro {
     let timeout;
     try {
       await Promise.race([
-        Promise.all(images.map((image) => image.decode())),
+        Promise.all([
+          ...images.map((image) => image.decode()),
+          loadAvatarGestureFaces()
+            .then((draw) => {
+              this.drawFace = draw;
+            })
+            .catch(() => {}),
+        ]),
         new Promise((_, reject) => {
           timeout = setTimeout(() => reject(new Error('Intro artwork unavailable')), 2200);
         }),
@@ -132,6 +140,11 @@ export class StartupIntro {
       width: size,
       height: size,
       images: this.drawings,
+      drawFace: (ctx, index, size) => {
+        // The last drawing may already be the live restored portrait.
+        if (index && this.drawings[index] === this.images[index])
+          this.drawFace?.(ctx, 'intro:' + this.config.frames[index].id, size);
+      },
       seed: 0x43415052,
       durationMs: this.config.durationMs,
     });

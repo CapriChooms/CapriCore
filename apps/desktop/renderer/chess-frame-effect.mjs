@@ -307,12 +307,20 @@ function drawEdge(context, { segments, length, inset, line, palette }) {
 export class ChessFrameEffect {
   constructor(
     element,
-    { color, inset = -CHESS_FRAME_OUTSET, strokeInset, getOutsetLimit, speed = 1 } = {},
+    {
+      color,
+      inset = -CHESS_FRAME_OUTSET,
+      strokeInset,
+      getOutsetLimit,
+      speed = 1,
+      bakeBloom = false,
+    } = {},
   ) {
     this.element = element;
     this.getOutsetLimit = getOutsetLimit;
     this.speed = speed;
     this.strokeInset = strokeInset;
+    this.bakeBloom = bakeBloom;
     element.style.inset = `${inset}px`;
     this.style = DEFAULT_CHESS_FRAME;
     this.palette = framePalette(color);
@@ -402,13 +410,21 @@ export class ChessFrameEffect {
     const nearGlow = Math.min(4, glow);
     const nearRadius = (0.7 + nearGlow * 0.85 + boost * 2.1) * scale;
     const wideRadius = boost ? (4.5 + boost * 13.5) * scale : 0;
+    const wideSpread = boost * 3.25 * scale;
     // Enlarge the highlights before blurring so a strong halo doesn't amplify
     // quantization in the low-alpha tail of the blur.
-    this.bloom.nearBlur.setAttribute('stdDeviation', String(nearRadius));
+    const setBloomScale = (x, y) => {
+      this.bloom.nearBlur.setAttribute('stdDeviation', `${nearRadius * x} ${nearRadius * y}`);
+      this.bloom.wideSpread.setAttribute('radius', `${wideSpread * x} ${wideSpread * y}`);
+      this.bloom.wideBlur.setAttribute('stdDeviation', `${wideRadius * x} ${wideRadius * y}`);
+    };
+    setBloomScale(1, 1);
     this.bloom.nearGain.setAttribute('slope', String(2.7 + nearGlow * 0.28 + boost * 3.2));
-    this.bloom.wideSpread.setAttribute('radius', String(boost * 3.25 * scale));
-    this.bloom.wideBlur.setAttribute('stdDeviation', String(wideRadius));
     this.bloom.wideGain.setAttribute('slope', String(boost * 6.5));
+    // Cache the filter output in the static strip so scrolling won't run
+    // the SVG blur again on every compositor frame.
+    const source =
+      this.bakeBloom && glow ? document.createElement('canvas').getContext('2d') : null;
     const quality = qualityLevels[detail - 1];
     if (detail >= 3) this.sparkAtlas = getSparkAtlas(this.palette.color, glow / 30);
     if (glow) this.halo ??= makeHalo(this.palette.color);
@@ -463,7 +479,9 @@ export class ChessFrameEffect {
         transform: `rotate(${angles[index]}deg) translate(${-edgePadding}px, ${-outset}px)`,
         maskImage: edgePadding ? `linear-gradient(transparent, black ${outset * 0.55}px)` : '',
       };
-      Object.assign(base.style, placement, { filter: glow ? this.bloom.filter : 'none' });
+      Object.assign(base.style, placement, {
+        filter: glow && !source ? this.bloom.filter : 'none',
+      });
       Object.assign(canvas.style, placement, { opacity: String(this.style.opacity / 100) });
       base.width = Math.min(quality.maxEdge, Math.ceil(paintLength * ratio));
       const depthLimit = quality.maxDepth * (particlesOutward ? 1.5 : 1);
@@ -478,8 +496,19 @@ export class ChessFrameEffect {
       if (cache) {
         const bx = base.width / paintLength;
         const by = base.height / depth;
-        cache.setTransform(bx, 0, 0, by, edgePadding * bx, outset * by);
-        drawEdge(cache, edge.geometry);
+        const painter = source ?? cache;
+        if (source) {
+          source.canvas.width = base.width;
+          source.canvas.height = base.height;
+        }
+        painter.setTransform(bx, 0, 0, by, edgePadding * bx, outset * by);
+        drawEdge(painter, edge.geometry);
+        if (source) {
+          setBloomScale(bx, by);
+          cache.filter = this.bloom.filter;
+          cache.drawImage(source.canvas, 0, 0);
+          cache.filter = 'none';
+        }
       }
     }
   }

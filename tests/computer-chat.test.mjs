@@ -10,6 +10,7 @@ import { FullComputerAccess } from '../apps/desktop/full-computer-access.mjs';
 import { ComputerRequests } from '../apps/desktop/computer-requests.mjs';
 import { Confirmations } from '../apps/desktop/main/confirmations.mjs';
 import { ChatService } from '../apps/desktop/chat-service.mjs';
+import { computerToolSelector } from '../apps/desktop/computer-tool-selection.mjs';
 import { CompanionActions } from '../apps/desktop/companion-actions.mjs';
 import { CapriCore } from '../packages/core/src/index.mjs';
 import { registerActionToolSkills } from '../packages/skills/src/action-tools.mjs';
@@ -21,8 +22,8 @@ import {
   mentionsDiscord,
   ownerAppLaunch,
   ownerAppLaunchFollowUp,
+  youtubeBrowseRequest,
 } from '../apps/desktop/computer-mode-request.mjs';
-import { computerIntentClassifier } from '../apps/desktop/computer-planner.mjs';
 import { steamGameGoal } from '../apps/desktop/steam-task-state.mjs';
 import { ownerRequestsWeb } from '../apps/desktop/computer-task-scope.mjs';
 import { toolDomain } from '../apps/desktop/task-route.mjs';
@@ -56,6 +57,7 @@ test('explicit local Media Player playback goes to authorized computer control',
     prepareYouTubeMusic: () => assert.fail('YouTube Music may not intercept Windows Media Player'),
   });
   const enabling = f.send('Enable full computer access.');
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await enabling;
   const goal = "Play some music from my Windows's Media Player";
@@ -132,9 +134,10 @@ test('a spoken request to use my computer carries the entire Steam task through 
 
   const f = fixture();
   const first = f.send(text);
+  await waitForApproval(f);
   assert.equal(f.dialogs[0].delayMs, 3000);
   assert.equal(f.access.enabled, false);
-  assert.equal(f.modelCalls, 0);
+  assert.equal(f.modelCalls, 1);
   assert.deepEqual(f.goals, []);
   assert.equal(f.confirmations.respond({ id: f.dialogs[0].id, choice: 'cancel' }), true);
   await first;
@@ -142,6 +145,7 @@ test('a spoken request to use my computer carries the entire Steam task through 
   assert.deepEqual(f.goals, []);
 
   const accepted = f.send(text);
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await accepted;
   assert.deepEqual(f.goals, [text]);
@@ -175,8 +179,6 @@ test('use my computer routes only a direct request with a concrete action', () =
 test('opening the YouTube home page takes the desktop route from chat and the test field', async () => {
   const f = fixture({
     interfaceState: () => ({ fullComputerAccess: true, computerSkillEnabled: true }),
-    computerAccess: async () => ({ ok: true, enabled: true }),
-    prepareModel: () => assert.fail('This verified URL should not wait for a model'),
     computerTask: async (goal) => {
       f.goals.push(goal);
       return { status: 'completed', steps: 1, summary: 'Opened the requested page.' };
@@ -189,10 +191,249 @@ test('opening the YouTube home page takes the desktop route from chat and the te
   assert.equal(f.events.at(-1).assistant.text, 'Opened the requested page.');
 });
 
+test('explicit browser tasks keep the entire owner request even when the model rewrites it', async () => {
+  const goal =
+    'Hello Capri, can you use my computer to open Google Chrome, then Google Cyberpunk Renders 2 and find yourself on the pictures?';
+  const rewritten =
+    'Use my computer to open Google Chrome, then search for "Cyberpunk 2027 Renders 2" and navigate to the pictures.';
+  for (const proposedGoal of [rewritten, undefined]) {
+    const f = fixture({
+      interfaceState: () => ({ fullComputerAccess: f.access.enabled, computerSkillEnabled: true }),
+      fetchImpl: async (_url, options) => {
+        assert.equal(options.headers['x-capri-tools-once'], 'desktop');
+        assert.equal(JSON.parse(options.body).messages.at(-1).content, goal);
+        const receipt = f.chat.selectModelComputerTask(proposedGoal);
+        assert.equal(receipt.status, 'delegated');
+        await delay(60_000, undefined, { signal: options.signal });
+      },
+    });
+    const grant = f.access.configure(true);
+    await waitForApproval(f);
+    assert.equal(f.accept(), true);
+    await grant;
+    await f.send(goal);
+    assert.deepEqual(f.goals, [goal]);
+    assert.equal(f.events.at(-1).type, 'turn.completed');
+  }
+});
+
+test('the model selects a real run_task for both reported browser requests before any desktop action', async () => {
+  const goals = [
+    'Hello Capri, can you use my computer to open Google Chrome, then Google Cyberpunk Renders 2 and find yourself on the pictures?',
+    'Use my PC and google some Capri pics from Edgerunners 2',
+  ];
+  const selected = [];
+  const f = fixture({
+    selectComputerTool: computerToolSelector({
+      url: 'http://127.0.0.1:1234',
+      model: 'fixture',
+      fetchImpl: async (url, options) => {
+        assert.equal(url.pathname, '/v1/chat/completions');
+        const body = JSON.parse(options.body);
+        assert.deepEqual(body.tool_choice, {
+          type: 'function',
+          function: { name: 'desktop_control' },
+        });
+        assert.deepEqual(
+          body.tools.map((tool) => tool.function.name),
+          ['desktop_control'],
+        );
+        assert.deepEqual(body.tools[0].function.parameters.properties.action.enum, ['run_task']);
+        selected.push(body.messages.at(-1).content);
+        return Response.json({
+          choices: [
+            {
+              finish_reason: 'tool_calls',
+              message: {
+                tool_calls: [
+                  { function: { name: 'desktop_control', arguments: '{"action":"run_task"}' } },
+                ],
+              },
+            },
+          ],
+        });
+      },
+    }),
+    fetchImpl: () => assert.fail('The chat gateway must not run a second tool'),
+  });
+  const pending = f.send(goals[0]);
+  await waitForApproval(f);
+  assert.deepEqual(selected, [goals[0]]);
+  assert.deepEqual(f.goals, []);
+  assert.equal(f.accept(), true);
+  await pending;
+  await f.send(goals[1], { internet: true });
+  assert.deepEqual(selected, goals);
+  assert.deepEqual(f.goals, goals);
+});
+
+test('a granted model chooses computer control from context and can decline an advice question', async () => {
+  const goal = 'Could you bring the Discord window to the front for me?';
+  const question = 'How can I open Chrome?';
+  const choices = [];
+  const f = fixture({
+    selectComputerTool: async (text, { required }) => {
+      assert.equal(required, false);
+      choices.push(text);
+      return text === goal;
+    },
+    fetchImpl: (_url, options) => {
+      assert.equal(options.headers['x-capri-tools-once'], 'conversation');
+      assert.throws(() => f.chat.selectModelComputerTask(), /not selected/);
+      return streamReply('Open it from the Start menu.');
+    },
+  });
+  const grant = f.access.configure(true);
+  await waitForApproval(f);
+  assert.equal(f.accept(), true);
+  await grant;
+  await f.send(goal);
+  await f.send(question);
+  assert.deepEqual(choices, [goal, question]);
+  assert.deepEqual(f.goals, [goal]);
+  assert.equal(f.dialogs.filter((event) => event.type === 'confirmation.request').length, 1);
+});
+
+test('tool selection falls back to a model decision and never treats prose as a tool call', async () => {
+  const seen = [];
+  const choose = computerToolSelector({
+    url: 'http://127.0.0.1:1234',
+    model: 'fixture',
+    fetchImpl: async (url) => {
+      seen.push(url.pathname);
+      return url.pathname === '/v1/chat/completions'
+        ? Response.json({
+            choices: [{ finish_reason: 'stop', message: { content: 'I will open Chrome.' } }],
+          })
+        : Response.json({ done: true, message: { content: '{"action":"run_task"}' } });
+    },
+  });
+  assert.equal(
+    await choose('Please use my PC to open Chrome', {
+      nativeTools: true,
+      required: true,
+      signal: new AbortController().signal,
+    }),
+    true,
+  );
+  assert.deepEqual(seen, ['/v1/chat/completions', '/api/chat']);
+  assert.equal(
+    await choose('Is Chrome a browser?', {
+      nativeTools: true,
+      required: false,
+      signal: new AbortController().signal,
+    }),
+    false,
+  );
+});
+
+test('YouTube browsing delegates the original owner goal despite model capitalization', async () => {
+  const goal = 'Open youtube and find some good videos to watch';
+  const f = fixture({
+    interfaceState: () => ({ fullComputerAccess: f.access.enabled, computerSkillEnabled: true }),
+    fetchImpl: async (_url, options) => {
+      assert.equal(options.headers['x-capri-tools-once'], 'desktop');
+      f.chat.selectModelComputerTask('Open YouTube and find some good videos to watch');
+      await delay(60_000, undefined, { signal: options.signal });
+    },
+  });
+  const grant = f.access.configure(true);
+  await waitForApproval(f);
+  assert.equal(f.accept(), true);
+  await grant;
+  const grantEvents = f.dialogs.length;
+  await f.send(goal);
+  assert.deepEqual(f.goals, [goal]);
+  assert.equal(f.events.at(-1).assistant.computerTask.status, 'completed');
+  assert.equal(f.dialogs.length, grantEvents);
+});
+
+test('YouTube browsing recognizes open-then-find without treating discussion or music as navigation', () => {
+  for (const command of [
+    'Open youtube and find some good videos to watch',
+    'Use my pc and open youtube with some good wideos from marmok.',
+    'use my pc and finde som good videos from Marmok on yt',
+    'Open YouTube with 3 funny gaming videos.',
+    'Открой Ютуб с новыми видео Мармока.',
+    'Please go to youtube.com, then pick a video about space.',
+    'Открой YouTube и подбери интересные видео.',
+    'Find an interesting video on YouTube.',
+  ])
+    assert.equal(youtubeBrowseRequest(command), true, command);
+  for (const command of [
+    'Do not open YouTube and find a video.',
+    'How do I open YouTube and find a video?',
+    'Open YouTube Music and search for Believer.',
+    'Find music videos on YT Music.',
+    'Find my file on YT.',
+    'Use my PC and do not find videos on YT.',
+    'Open YouTube app with some videos.',
+    'Open YouTube with some videos without a browser.',
+    'Open YouTube.',
+    'Paste "Open YouTube and find a video" into Notepad.',
+  ])
+    assert.equal(youtubeBrowseRequest(command), false, command);
+  assert.equal(
+    ownerAppLaunch('Use my pc and open youtube with some good wideos from marmok.'),
+    null,
+  );
+});
+
+test('the model can delegate a YouTube request and an owner-authorized follow-up using their PC', async () => {
+  const first = 'Найди на ютубчике что-нибудь интересное';
+  const followUp = 'Use my PC and find something on your own flavor';
+  assert.deepEqual(computerModeRequest(followUp), { enabled: true, run: true });
+  assert.equal(ownerRequestsWeb(first), true);
+  const f = fixture({
+    interfaceState: () => ({ fullComputerAccess: true, computerSkillEnabled: true }),
+    localTools: () => [{ name: 'extract_data', mode: 'tool', keywords: ['find'] }],
+    computerTask: async (goal, { previousTask }) => {
+      f.goals.push(goal);
+      f.taskContexts.push(previousTask);
+      return { status: 'completed', steps: 1, summary: 'Found a video on YouTube.' };
+    },
+    fetchImpl: async (_url, options) => {
+      const request = JSON.parse(options.body);
+      const owner = [...f.records.values()].findLast(({ role }) => role === 'user').text;
+      assert.equal(options.headers['x-capri-tools-once'], 'desktop');
+      assert.match(request.messages[0].content, /^DESKTOP TASK:.*first response.*desktop_control/);
+      assert.equal(request.messages[1].content, owner);
+      assert.deepEqual(f.goals, owner === first ? [] : [first]);
+      f.chat.selectModelComputerTask(owner);
+      await delay(60_000, undefined, { signal: options.signal });
+    },
+  });
+  await f.send(first, { internet: true });
+  await f.send(followUp, { internet: true });
+  assert.deepEqual(f.goals, [first, followUp]);
+  assert.deepEqual(f.taskContexts, [undefined, { goal: first }]);
+});
+
+test('an explicit desktop task only presents receipts or a truthful failure if the model does not delegate', async () => {
+  const f = fixture({
+    fetchImpl: () => {
+      assert.throws(
+        () => f.chat.assertToolAllowed('desktop_control', { action: 'browser_input' }),
+        /run_task/,
+      );
+      return streamReply('I will open YouTube now.');
+    },
+  });
+  await f.send('Use my PC and find something interesting on YouTube');
+  assert.deepEqual(f.goals, []);
+  assert.doesNotMatch(
+    f.events
+      .filter(({ type }) => type === 'turn.delta')
+      .map(({ text }) => text)
+      .join(''),
+    /I will open/,
+  );
+  assert.match(f.events.at(-1).assistant.text, /did not start computer control/);
+});
+
 test('an app substitution after a direct launch uses the verified desktop route', async () => {
   const f = fixture({
     interfaceState: () => ({ fullComputerAccess: true }),
-    computerAccess: async () => ({ ok: true }),
     computerTask: async (goal) => {
       f.goals.push(goal);
       return { status: 'completed', steps: 1, summary: 'Application opened.' };
@@ -205,7 +446,10 @@ test('an app substitution after a direct launch uses the verified desktop route'
   });
   await f.send('Open Discord window.');
   await f.send('ooookay, nevermind. how about FL Studio 2024?');
-  assert.deepEqual(f.goals, ['Open Discord window.', 'Open FL Studio 2024']);
+  assert.deepEqual(f.goals, [
+    'Open Discord window.',
+    'ooookay, nevermind. how about FL Studio 2024?',
+  ]);
   assert.equal(f.events.at(-1).type, 'turn.completed');
   for (const previous of [
     undefined,
@@ -215,6 +459,16 @@ test('an app substitution after a direct launch uses the verified desktop route'
     assert.equal(ownerAppLaunchFollowUp('How about FL Studio 2024?', previous), null);
   assert.equal(ownerAppLaunchFollowUp('How about doing something else?', 'Open Discord.'), null);
 });
+
+const streamReply = (text) =>
+  new Response(
+    `data: ${JSON.stringify({ choices: [{ delta: { content: text }, finish_reason: 'stop' }] })}\n\ndata: [DONE]\n\n`,
+    { headers: { 'content-type': 'text/event-stream' } },
+  );
+async function waitForApproval(f) {
+  for (let i = 0; !f.confirmations.pending && i < 100; i++) await delay(1);
+  assert(f.confirmations.pending, JSON.stringify(f.chat.diagnostics().lastFailure));
+}
 
 function fixture(overrides = {}) {
   const records = new Map(),
@@ -267,13 +521,26 @@ function fixture(overrides = {}) {
       spotify: { enabled: true, prepared: true },
       applications: { calculator: true },
     }),
-    computerAccess: (value, options) => requests.configure(value, options),
     computerTask: (goal, options) => requests.execute(goal, options),
     prepareModel: async () => {
       modelCalls++;
     },
-    fetchImpl: () => assert.fail('Explicit mode must not call ordinary model chat'),
-    prepareContext: () => assert.fail('Background observation must not divert computer control'),
+    token: () => 'fixture',
+    persona: () => 'Capri',
+    fetchImpl: async (_url, options) => {
+      const last = [...records.values()].findLast(({ role }) => role === 'user').text;
+      const accessChange = computerModeRequest(last);
+      if (accessChange?.run === false) {
+        const receipt = await requests.configure(accessChange.enabled, { signal: options.signal });
+        return streamReply(receipt.summary);
+      }
+      if (chat.active.selectComputerTask) {
+        chat.selectModelComputerTask(last);
+        await delay(60_000, undefined, { signal: options.signal });
+      }
+      return streamReply('An ordinary reply.');
+    },
+    prepareContext: () => ({}),
     requestRouter: { classify: () => assert.fail('Narrow skill classifier must not intercept') },
     ...overrides,
   });
@@ -331,7 +598,6 @@ test('a status question reports live computer access without a model, action, or
         fullComputerAccess: enabled,
         languages: { conversation: language },
       }),
-      computerAccess: () => assert.fail('A question must not change permissions'),
       computerTask: () => assert.fail('A question must not start a computer task'),
     });
     await f.send(question);
@@ -347,17 +613,18 @@ test('a status question reports live computer access without a model, action, or
   }
 });
 
-test('a Spanish request to activate computer access opens one confirmation before model preparation', async () => {
+test('a Spanish request to activate computer access opens one confirmation after a model tool call', async () => {
   const f = fixture();
   const pending = f.send('¿Puedes activar el «fullComputerAccess» para comenzar?');
   for (let i = 0; i < 20 && !f.dialogs.length; i++) await new Promise(setImmediate);
   assert.equal(f.dialogs.length, 1);
   assert.equal(f.access.enabled, false);
-  assert.equal(f.modelCalls, 0);
+  assert.equal(f.modelCalls, 1);
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await pending;
   assert.equal(f.access.enabled, true);
-  assert.equal(f.modelCalls, 0);
+  assert.equal(f.modelCalls, 1);
   assert.deepEqual(f.goals, []);
   assert.equal(f.events.at(-1).type, 'turn.completed');
 });
@@ -371,7 +638,6 @@ test('access complaints use ordinary conversation without desktop classification
       prepareContext: null,
       token: () => 'fixture',
       persona: () => 'fixture',
-      computerIntent: () => assert.fail('Access discussion must not invoke desktop intent'),
       fetchImpl: async (_url, options) => {
         replies++;
         assert.equal(options.headers['x-capri-tools-once'], 'conversation');
@@ -440,7 +706,6 @@ test('an ordinary music turn rejects generated desktop escalation before any nat
       prepareContext: null,
       token: () => 'fixture',
       persona: () => 'fixture',
-      computerIntent: () => assert.fail('A dedicated music request must not reach desktop intent'),
       fetchImpl: async (_url, options) => {
         assert.equal(
           options.headers['x-capri-tools-once'],
@@ -509,9 +774,9 @@ test('an ordinary music turn rejects generated desktop escalation before any nat
 test('explicit Spotify GUI interaction keeps the authorized computer route', async () => {
   const f = fixture({
     requestRouter: null,
-    computerIntent: async () => ({ intent: 'task', usesPrevious: false }),
   });
   const enabled = f.send('Enable full computer access.');
+  await waitForApproval(f);
   f.accept();
   await enabled;
   const goal = 'Click the Spotify play button with the mouse.';
@@ -555,7 +820,7 @@ test('Escape cancellation rejects late music and explicit computer inputs while 
   }
 });
 
-test('direct call commands wait for the existing full-access grant and reach the executor without a model', async () => {
+test('direct call commands wait for the existing full-access grant and reach the executor after a model tool call', async () => {
   const f = fixture();
   const join = 'Join this meeting in Google Meet.';
   const draft = 'Write "Hello from Capri" in the call chat.';
@@ -564,11 +829,12 @@ test('direct call commands wait for the existing full-access grant and reach the
   assert.deepEqual(f.dialogs, []);
   const pending = f.send(join);
   assert.deepEqual(f.ownerCallGoals, []);
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await pending;
   await f.send(draft);
   assert.deepEqual(f.ownerCallGoals, [join, draft]);
-  assert.equal(f.modelCalls, 0);
+  assert.equal(f.modelCalls, 2);
 });
 
 test('the reported ASR variants and Steam chains preserve the original task', () => {
@@ -636,11 +902,10 @@ test('the reported English Steam request keeps the game title and bypasses the c
     play: true,
   });
   assert.equal(steamGameGoal('Open Steam and launch Alchemy Factory and then open Discord'), null);
-  const f = fixture({
-    computerIntent: () => assert.fail('Explicit desktop request must not consult the classifier'),
-  });
+  const f = fixture({});
   const pending = f.send(goal);
   assert.equal(f.access.enabled, false);
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await pending;
   assert.deepEqual(f.goals, [goal]);
@@ -658,17 +923,16 @@ test('the reported Russian Steam command reaches authorized computer control int
     computerModeRequest('Привет, не используй пк и не запускай игры из стима, пж'),
     null,
   );
-  const f = fixture({
-    computerIntent: () => assert.fail('Explicit desktop request must not consult the classifier'),
-  });
+  const f = fixture({});
   const pending = f.send(goal);
   assert.equal(f.access.enabled, false);
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await pending;
   assert.deepEqual(f.goals, [goal]);
 });
 
-test('the main model can hand a task to the host after a classifier miss and a silent gateway', async () => {
+test('the main model can hand a task to the host after a tool call and a silent gateway', async () => {
   const goal = 'I need the Downloads tab in Steam visible on screen. Could you take care of it?';
   let selected;
   const f = fixture({
@@ -676,9 +940,7 @@ test('the main model can hand a task to the host after a classifier miss and a s
     persona: () => 'Capri',
     prepareContext: () => ({}),
     requestRouter: null,
-    computerIntent: async () => ({ intent: 'chat', usesPrevious: false }),
     fetchImpl: async (_url, options) => {
-      assert.equal(options.headers['x-capri-tools-once'], 'desktop');
       assert.match(options.body, /Decide yourself/);
       assert.throws(
         () => f.chat.selectModelComputerTask('A different task'),
@@ -695,6 +957,7 @@ test('the main model can hand a task to the host after a classifier miss and a s
   assert.equal(selected?.status, 'delegated', JSON.stringify(f.chat.diagnostics().lastFailure));
   assert.equal(f.access.enabled, false);
   assert.deepEqual(f.goals, []);
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await pending;
   assert.deepEqual(f.goals, [goal]);
@@ -711,7 +974,6 @@ test('the model handoff cannot create a task from an ordinary question or contin
     persona: () => 'Capri',
     prepareContext: () => ({}),
     requestRouter: null,
-    computerIntent: async () => ({ intent: 'chat', usesPrevious: false }),
     fetchImpl: async (_url, options) => {
       if (message === conversation) {
         assert.throws(() => f.chat.selectModelComputerTask(message), /No current owner message/);
@@ -777,6 +1039,7 @@ test('the owner’s thinking toggle reaches computer tasks without enabling a se
     interfaceState: () => ({ fullComputerAccess: true, reasoningEffort: 'high' }),
   });
   const enable = f.send('Enable full computer access.');
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await enable;
   const goal = 'Open Steam, then go to my library.';
@@ -786,11 +1049,10 @@ test('the owner’s thinking toggle reaches computer tasks without enabling a se
   assert.deepEqual(f.taskEfforts, ['high', undefined]);
 });
 
-test('a classified computer task can run beyond the ordinary conversation deadline', async () => {
+test('a model-selected computer task can run beyond the ordinary conversation deadline', async () => {
   const f = fixture({
     timeoutMs: 100,
     interfaceState: () => ({ fullComputerAccess: true }),
-    computerIntent: async () => ({ intent: 'task', application: 'Notepad' }),
     computerTask: async (_goal, { signal }) => {
       await delay(150);
       signal.throwIfAborted();
@@ -802,7 +1064,7 @@ test('a classified computer task can run beyond the ordinary conversation deadli
   assert.equal(f.events.at(-1)?.assistant?.text, 'Draft verified.');
 });
 
-test('spoken Cyberpunk launch requests use the authorized computer route without warming a model', async () => {
+test('spoken Cyberpunk launch requests use the authorized computer route after a model tool call', async () => {
   const phrases = [
     'I need to test your ability. See, I want you to use uh full access to my PC, then go to Steam and uh launch Cyberpunk twenty seventy seven, please.',
     "Use my computer and turn on Cyberpunk's 2077 please.",
@@ -812,73 +1074,12 @@ test('spoken Cyberpunk launch requests use the authorized computer route without
   const f = fixture();
   for (const phrase of phrases) assert.equal(computerModeRequest(phrase), null);
   const enabling = f.send('Enable full computer access.');
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await enabling;
   for (const phrase of phrases) await f.send(phrase);
   assert.deepEqual(f.goals, phrases);
-  assert.equal(f.modelCalls, 0);
-});
-
-test('multilingual desktop intent uses the host grant and keeps the current goal and reference separate', async () => {
-  const requests = [];
-  const classifier = computerIntentClassifier({
-    url: 'http://127.0.0.1:1234',
-    model: 'fixture',
-    params: { num_ctx: 32768 },
-    fetchImpl: async (url, options) => {
-      assert.equal(url.pathname, '/api/chat');
-      const payload = JSON.parse(options.body);
-      assert.equal(payload.options.num_predict, 64);
-      assert.equal(payload.options.num_ctx, 32768);
-      assert.equal(payload.shift, false, 'Classifier must share the gateway runner');
-      assert.equal(payload.truncate, false);
-      assert.equal(payload.keep_alive, -1);
-      const request = JSON.parse(payload.messages[1].content);
-      requests.push(request);
-      const intent =
-        request.latestOwnerMessage === '¿Qué es Steam?'
-          ? 'chat'
-          : request.latestOwnerMessage === '请启用完整电脑控制。'
-            ? 'enable'
-            : 'task';
-      return Response.json({
-        done: true,
-        message: {
-          content: JSON.stringify({
-            intent,
-            usesPrevious: request.latestOwnerMessage === 'Dann öffne es.',
-          }),
-        },
-      });
-    },
-  });
-  let ordinaryTurns = 0;
-  const f = fixture({
-    computerIntent: classifier,
-    requestRouter: null,
-    prepareContext: null,
-    token: () => 'fixture',
-    persona: () => 'fixture',
-    fetchImpl: async () => {
-      ordinaryTurns++;
-      return new Response(
-        'data: {"choices":[{"delta":{"content":"Steam is a game launcher."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
-      );
-    },
-  });
-  const enabled = f.send('请启用完整电脑控制。');
-  for (let i = 0; i < 20 && !f.dialogs.length; i++) await new Promise(setImmediate);
-  assert.deepEqual(f.goals, []);
-  assert.equal(f.access.enabled, false);
-  assert.equal(f.accept(), true);
-  await enabled;
-  await f.send('¿Qué es Steam?');
-  await f.send('Dann öffne es.');
-  await f.send('Ouvre le Bloc-notes puis saisis un brouillon.');
-  assert.equal(ordinaryTurns, 1);
-  assert.deepEqual(f.goals, ['Dann öffne es.', 'Ouvre le Bloc-notes puis saisis un brouillon.']);
-  assert.deepEqual(f.taskContexts, [{ goal: '¿Qué es Steam?' }, undefined]);
-  assert.equal(requests[2].previousOwnerMessage, '¿Qué es Steam?');
+  assert.equal(f.modelCalls, 1 + phrases.length);
 });
 
 test('authorized browser chains use the complete host task, while drafts and conversation keep their narrow route', async () => {
@@ -906,6 +1107,7 @@ test('authorized browser chains use the complete host task, while drafts and con
     assert.equal(computerModeRequest(text, { fullComputerAccess: true }), null, text);
   const f = fixture();
   const enabling = f.send('Enable full computer access.');
+  await waitForApproval(f);
   f.accept();
   await enabling;
   await f.send(goal);
@@ -917,6 +1119,7 @@ test('authorized browser chains use the complete host task, while drafts and con
 test('spoken Discord and Resolve tasks go to the executor, and a follow-up retains the Resolve context', async () => {
   const f = fixture();
   const enabling = f.send('Enable full computer access.');
+  await waitForApproval(f);
   f.accept();
   await enabling;
   const discord = 'I want you to open my Discord server uh go to general channel and uh type test.';
@@ -985,95 +1188,48 @@ test('direct Discord navigation, voice and message requests use only an existing
     assert.equal(mentionsDiscord(text), false, text);
 });
 
-test('Discord semantic intent can recover a CPU social route across languages without classifying ordinary greetings', async () => {
-  const tasks = [
-    'Could you join the General voice channel in Discord?',
-    'Rejoins le salon vocal Général sur Discord.',
-    'Entra al canal de voz General en Discord.',
-    'ディスコードで一般のボイスチャンネルに参加して。',
-    '디스코드에서 일반 음성 채널에 들어가 줘.',
-    '加入迪斯科德的常规语音频道。',
-    'انضم إلى القناة الصوتية العامة في ديسكورد.',
-    'הצטרפי לערוץ הקולי הכללי בדיסקורד.',
-    'डिस्कॉर्ड के General वॉइस चैनल में जुड़ो।',
-  ];
-  const questions = [
-    'Can you join Discord voice channels?',
-    'Переведи фразу «подключись к Discord».',
-    'Do not join the Discord voice channel.',
-  ];
-  const classified = [];
-  let ordinaryTurns = 0;
+test('a CPU dialogue classification cannot start desktop control or prevent a model tool call', async () => {
+  const goal = 'ディスコードで一般のボイスチャンネルに参加して。';
+  let selection;
+  let routingCalls = 0;
   const f = fixture({
-    requestRouter: { classify: async () => ({ mode: 'fast', reason: 'simple-dialogue' }) },
-    computerIntent: async (text, options) => {
-      classified.push(text);
-      assert.equal(options.fullComputerAccess, true);
-      return { intent: tasks.includes(text) ? 'task' : 'chat', usesPrevious: false };
+    interfaceState: () => ({ fullComputerAccess: true }),
+    computerTask: async (text) => {
+      f.goals.push(text);
+      return { ok: true, status: 'completed', steps: 1, summary: 'Verified.' };
     },
-    prepareContext: null,
-    token: () => 'fixture',
-    persona: () => 'fixture',
-    fetchImpl: async () => {
-      ordinaryTurns++;
-      return new Response(
-        'data: {"choices":[{"delta":{"content":"A normal reply."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
-      );
+    requestRouter: {
+      classify: async () => {
+        routingCalls++;
+        return { mode: 'fast', reason: 'simple-dialogue', route: 'conversation' };
+      },
+    },
+    fetchImpl: async (_url, options) => {
+      if (!selection) return streamReply('I can help with that.');
+      f.chat.selectModelComputerTask(goal);
+      await delay(60_000, undefined, { signal: options.signal });
     },
   });
-  const enabling = f.send('Enable full computer access.');
-  f.accept();
-  await enabling;
-  for (const text of [...tasks, ...questions, 'Hi Capri!']) await f.send(text);
-  assert.deepEqual(classified, [...tasks, ...questions]);
-  assert.deepEqual(f.goals, tasks);
-  assert.equal(ordinaryTurns, questions.length + 1);
-  assert.equal(f.dialogs.filter((event) => event.type === 'confirmation.request').length, 1);
-});
-
-test('Discord semantic recovery neither creates a grant nor resumes after cancellation', async () => {
-  const intent = Promise.withResolvers();
-  let classifications = 0;
-  const f = fixture({
-    requestRouter: { classify: async () => ({ mode: 'fast', reason: 'simple-dialogue' }) },
-    computerIntent: async () => {
-      classifications++;
-      return intent.promise;
-    },
-    prepareContext: null,
-    token: () => 'fixture',
-    persona: () => 'fixture',
-    fetchImpl: async () =>
-      new Response(
-        'data: {"choices":[{"delta":{"content":"A normal reply."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
-      ),
-  });
-  const goal = 'Rejoins le salon vocal Général sur Discord.';
   await f.send(goal);
-  assert.equal(classifications, 0);
+  assert.deepEqual(f.goals, []);
   assert.deepEqual(f.dialogs, []);
-  assert.deepEqual(f.goals, []);
-  const enabling = f.send('Enable full computer access.');
-  f.accept();
-  await enabling;
-  const task = f.send(goal);
-  for (let i = 0; i < 20 && !classifications; i++) await new Promise(setImmediate);
-  assert.equal(classifications, 1);
-  f.chat.cancel();
-  intent.resolve({ intent: 'task', usesPrevious: false });
-  await task;
-  assert.deepEqual(f.goals, []);
+  selection = true;
+  await f.send(goal);
+  assert.equal(routingCalls, 2);
+  assert.deepEqual(f.goals, [goal]);
 });
 
 test('chat grants through the timed host dialog and runs every original step once, ahead of narrow skills', async () => {
   const f = fixture();
   const text = 'Enable full computer access and open Spotify, search for Capri and calculate 2+2.';
   const task = f.send(text);
+  await waitForApproval(f);
   assert.equal(f.dialogs[0].delayMs, 3000);
   assert.equal('signal' in f.dialogs[0], false, 'AbortSignal must never cross Electron IPC');
   assert.equal(f.confirmations.respond({ id: f.dialogs[0].id, choice: 'confirm' }), false);
   assert.deepEqual(f.goals, []);
-  assert.equal(f.modelCalls, 0, 'No unnecessary model loading while owner reviews access');
+  assert.equal(f.modelCalls, 1);
+  await waitForApproval(f);
   assert.equal(f.accept(), true);
   await task;
   assert.deepEqual(f.goals, [text]);
@@ -1086,14 +1242,15 @@ test('chat grants through the timed host dialog and runs every original step onc
   assert.equal(f.discoveries, 1);
 });
 
-test('activation alone does not load or run a model; revocation reports actual state', async () => {
+test('the model can request a grant or revoke it without starting a task', async () => {
   const f = fixture();
   const task = f.send('Включи режим полного управления компьютером.');
+  await waitForApproval(f);
   f.accept();
   await task;
   assert.equal(f.access.enabled, true);
   assert.equal(f.events.at(-1).assistant.text, 'Full computer access is enabled.');
-  assert.equal(f.modelCalls, 0);
+  assert.equal(f.modelCalls, 1);
   assert.deepEqual(f.goals, []);
   await f.send('Disable full computer access.');
   assert.equal(f.access.enabled, false);
@@ -1104,6 +1261,7 @@ test('declining, cancelling a turn or timing out cannot grant access or run a ta
   for (const reason of ['decline', 'cancel', 'timeout']) {
     const f = fixture();
     const task = f.send('Use full computer control to open Chrome.');
+    await waitForApproval(f);
     const id = f.dialogs[0].id;
     if (reason === 'decline') f.confirmations.respond({ id, choice: 'cancel' });
     if (reason === 'cancel') f.chat.cancel();
@@ -1115,7 +1273,7 @@ test('declining, cancelling a turn or timing out cannot grant access or run a ta
     assert.equal(f.confirmations.respond({ id, choice: 'confirm' }), false, reason);
     assert.deepEqual(f.goals, [], reason);
     assert.equal(f.discoveries, 0, reason);
-    assert.equal(f.modelCalls, 0, reason);
+    assert.equal(f.modelCalls, 1, reason);
     if (reason === 'decline') assert.equal(f.events.at(-1).assistant.text, 'Cancelled.');
   }
 });
@@ -1126,6 +1284,7 @@ test('cancel during drive discovery never persists a late permission grant', asy
     drive = Promise.withResolvers();
   f.access.discover = () => drive.promise;
   const task = f.requests.configure(true, { signal: controller.signal });
+  await waitForApproval(f);
   f.accept();
   await new Promise((resolve) => setImmediate(resolve));
   controller.abort();
@@ -1171,6 +1330,7 @@ test('model settings and run_task share real host permission and preserve arbitr
     }),
   );
   const grant = execute('settings_control', { action: 'request', setting: 'fullComputerAccess' });
+  await waitForApproval(f);
   f.accept();
   assert.equal((await grant).enabled, true);
   const goal = 'Ouvre Chrome, cherche Capri et vérifie les résultats.';

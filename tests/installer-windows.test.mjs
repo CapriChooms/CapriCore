@@ -11,6 +11,7 @@ import {
   symlinkSync,
   copyFileSync,
   linkSync,
+  unlinkSync,
   utimesSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -35,6 +36,94 @@ const ps = (file, args = []) =>
     ],
     { encoding: 'utf8', windowsHide: true, timeout: 30000 },
   );
+
+test(
+  'offline settings reset protects personal files and retains the previous preferences',
+  { skip: !windows },
+  () => {
+    const dir = folder(),
+      target = path.join(dir, 'Capri'),
+      desktop = path.join(target, 'data/desktop');
+    mkdirSync(desktop, { recursive: true });
+    writeJsonAtomic(path.join(target, '.capri-install.json'), {
+      schemaVersion: 1,
+      productId: 'capri.desktop',
+      root: target,
+      version: '1.3.0',
+      installId: randomUUID(),
+    });
+    const settings = path.join(desktop, 'skills.json');
+    writeFileSync(settings, 'corrupt preference');
+    for (const file of [
+      'brain.sqlite',
+      'transcript.json',
+      'private-data-key.json',
+      'inference-api.json',
+    ])
+      writeFileSync(path.join(desktop, file), 'retained');
+    const script = path.join(dir, 'reset.ps1');
+    writeFileSync(
+      script,
+      `param($source,$target)
+. (Join-Path $source 'packages/installer/windows/common.ps1')
+. (Join-Path $source 'packages/installer/windows/settings-recovery.ps1')
+Reset-CapriDesktopPreferences $target $source '1.3.0'`,
+    );
+    const run = () => ps(script, [root, target]);
+    const marker = path.join(target, 'data/run/desktop.json');
+    writeJsonAtomic(marker, { pid: process.pid });
+    assert.notEqual(run().status, 0);
+    assert.equal(readFileSync(settings, 'utf8'), 'corrupt preference');
+    writeJsonAtomic(marker, { pid: 2147483647 });
+    const linked = path.join(desktop, 'window.json');
+    linkSync(path.join(desktop, 'brain.sqlite'), linked);
+    assert.notEqual(run().status, 0);
+    assert.ok(existsSync(settings));
+    unlinkSync(linked);
+    const reset = run();
+    assert.equal(reset.status, 0, reset.stderr);
+    assert.equal(
+      readFileSync(path.join(reset.stdout.trim(), 'skills.json'), 'utf8'),
+      'corrupt preference',
+    );
+    assert.equal(existsSync(settings), false);
+    const again = run();
+    assert.equal(again.status, 0, again.stderr);
+    assert.equal(again.stdout.trim(), '');
+    for (const file of [
+      'brain.sqlite',
+      'transcript.json',
+      'private-data-key.json',
+      'inference-api.json',
+    ])
+      assert.equal(readFileSync(path.join(desktop, file), 'utf8'), 'retained');
+  },
+);
+
+test(
+  'Setup recognizes the same Radeon voice models as the installation worker',
+  { skip: !windows },
+  () => {
+    const script = path.join(folder(), 'voice-eligibility.ps1');
+    writeFileSync(
+      script,
+      `param($Source)
+. (Join-Path $Source 'packages/installer/windows/memory-budget.ps1')
+$spec=(Get-Content -LiteralPath (Join-Path $Source 'config/voice-runtime.json') -Raw | ConvertFrom-Json).amdWindows
+$cases=@(
+    (Test-CapriRocmVoiceGpu @('AMD Radeon Graphics','AMD Radeon(TM) RX9070GRE') $spec 26100),
+    (Test-CapriRocmVoiceGpu @('AMD Radeon RX 9070 GRE') $spec 19045),
+    (Test-CapriRocmVoiceGpu @('AMD Radeon RX 9070 GRE Mobile') $spec 26100),
+    (Test-CapriRocmVoiceGpu @('AMD Radeon RX 7700 XT') $spec 26100)
+)
+ConvertTo-Json -InputObject $cases -Compress
+`,
+    );
+    const result = ps(script, [root]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), [true, false, false, false]);
+  },
+);
 
 test(
   'combined base and AMD downloads keep stage progress below completion while preserving actual transfer bytes',
@@ -73,6 +162,45 @@ Set-CapriProgressFraction $script:installProgress 'ollama' 1
       invalidIgnored: true,
       transferBytesCorrect: true,
       perFileProgress: true,
+    });
+  },
+);
+
+test(
+  'npm package counts update the dependency progress bar before the stage finishes',
+  { skip: !windows },
+  () => {
+    const script = path.join(folder(), 'package-progress.ps1');
+    writeFileSync(
+      script,
+      `param($Source)
+. (Join-Path $Source 'packages/installer/windows/install-progress.ps1')
+. (Join-Path $Source 'packages/installer/windows/install-progress-ui.ps1')
+$progress=$script:installProgress=New-CapriInstallProgress
+$progress.step='dependencies'
+Set-CapriProgressPlan $progress @('node','dependencies','voice')
+Set-CapriProgressFraction $progress 'node' 1
+Set-CapriProgressFraction $progress 'dependencies' 0
+$initial=$progress.value
+Update-CapriPackageProgress ([PSCustomObject]@{step='dependencies';processed=112;total=400})
+$partial=$progress.value
+$transfer=$progress.transfer
+Update-CapriPackageProgress ([PSCustomObject]@{step='dependencies';processed=401;total=400})
+Update-CapriPackageProgress ([PSCustomObject]@{step='voice';processed=400;total=400})
+$invalidIgnored=$progress.value -eq $partial -and $progress.transfer -eq $transfer
+Update-CapriPackageProgress ([PSCustomObject]@{step='dependencies';processed=400;total=400})
+$allPackages=$progress.fractionalValue
+Set-CapriProgressFraction $progress 'dependencies' 1
+[PSCustomObject]@{advanced=($partial -gt $initial);transfer=$transfer;invalidIgnored=$invalidIgnored;belowComplete=($allPackages -lt $progress.fractionalValue)}|ConvertTo-Json -Compress
+`,
+    );
+    const result = ps(script, [root]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      advanced: true,
+      transfer: 'npm  112 / 400',
+      invalidIgnored: true,
+      belowComplete: true,
     });
   },
 );
@@ -595,6 +723,61 @@ test(
     assert.equal(result.status, 0, result.stderr);
     assert.equal(existsSync(path.join(target, 'data')), false);
     assert.equal(readFileSync(path.join(outside, 'keep.txt'), 'utf8'), 'outside canary');
+  },
+);
+test(
+  'uninstall waits for a transient file lock and safely reports a file that stays busy',
+  { skip: !windows },
+  () => {
+    const uninstaller = 'packages/installer/windows/uninstall.ps1';
+    const script = path.join(folder(), 'lock.ps1');
+    writeFileSync(
+      script,
+      `param($File,$Ready,$Milliseconds)
+$stream=[IO.File]::Open($File,'Open','Read','Read')
+try {
+  [IO.File]::WriteAllText($Ready,'locked')
+  Start-Sleep -Milliseconds $Milliseconds
+} finally {$stream.Dispose()}
+`,
+    );
+    const wrapper = path.join(folder(), 'launch-uninstall.ps1');
+    writeFileSync(
+      wrapper,
+      `param($Uninstaller,$Root,$Script,$Hold)
+$ErrorActionPreference='Stop'
+$file=Join-Path $Root 'apps/example.mjs'
+$ready=Join-Path $Root 'fixture-lock-ready.txt'
+$argsForLock=@('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',('"' + $Script + '"'),('"' + $file + '"'),('"' + $ready + '"'),$Hold)
+$locker=Start-Process powershell.exe -WindowStyle Hidden -ArgumentList $argsForLock -PassThru
+try {
+  $deadline=[DateTime]::UtcNow.AddSeconds(15)
+  while(-not [IO.File]::Exists($ready)){
+    if($locker.HasExited -or [DateTime]::UtcNow -gt $deadline){throw 'Lock fixture did not start'}
+    Start-Sleep -Milliseconds 25
+  }
+  & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $Uninstaller -InstallRoot $Root -Quiet
+  $code=$LASTEXITCODE
+} finally {
+  if(-not $locker.HasExited){$locker.Kill();$locker.WaitForExit()}
+  $locker.Dispose()
+}
+exit $code
+`,
+    );
+    const run = (target, milliseconds) =>
+      ps(wrapper, [path.join(root, uninstaller), target, script, String(milliseconds)]);
+    const persistent = uninstallFixture();
+    const blocked = run(persistent, 20000);
+    assert.equal(blocked.status, 1, blocked.stderr);
+    assert.match(blocked.stderr, /UNINSTALL_FILES_IN_USE/);
+    assert.ok(existsSync(path.join(persistent, 'apps/example.mjs')));
+    assert.ok(existsSync(path.join(persistent, '.capri-install.json')));
+
+    const transient = uninstallFixture();
+    const removed = run(transient, 2400);
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.ok(!existsSync(path.join(transient, 'apps/example.mjs')));
   },
 );
 test(

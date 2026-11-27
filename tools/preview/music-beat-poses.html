@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="ru">
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Капри в ритме · CapriCore</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #0d1017;
+      color: #f2f4f6;
+      font:
+        16px/1.45 'Segoe UI',
+        Arial,
+        sans-serif;
+    }
+    main {
+      max-width: 1460px;
+      margin: auto;
+      padding: 26px clamp(16px, 4vw, 64px) 36px;
+    }
+    header,
+    .transport,
+    .beats,
+    .label {
+      display: flex;
+      align-items: center;
+    }
+    header {
+      justify-content: space-between;
+      border-bottom: 1px solid #3a3e4b;
+      padding-bottom: 14px;
+    }
+    .brand {
+      font: italic 900 23px Arial;
+      letter-spacing: -1.5px;
+    }
+    .brand b {
+      color: #ff437f;
+    }
+    h1 {
+      font-size: clamp(32px, 4vw, 60px);
+      line-height: 1.04;
+      margin: 0.55em 0;
+      letter-spacing: -0.05em;
+    }
+    .beats {
+      gap: 6px;
+    }
+    .beats i {
+      width: 16px;
+      height: 5px;
+      background: #383f4a;
+      border-radius: 1px;
+    }
+    .beats i.on {
+      background: #66fff0;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(360px, 1fr);
+      gap: 26px;
+      align-items: start;
+    }
+    .stage {
+      position: relative;
+      height: clamp(275px, 43vh, 500px);
+      overflow: hidden;
+      border-radius: 10px;
+      background:
+        radial-gradient(ellipse at center, #24304488 0, transparent 65%),
+        radial-gradient(#68758736 0.75px, transparent 0.85px) 0 0/14px 14px,
+        #141923;
+      border: 1px solid #394252;
+    }
+    .stage video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .stage:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 17%;
+      height: 3px;
+      background: #66fff0;
+    }
+    h2 {
+      font-size: clamp(24px, 3vw, 35px);
+      margin: 16px 0 3px;
+      line-height: 1.16;
+      letter-spacing: -0.035em;
+    }
+    p {
+      color: #bcc6d7;
+      margin: 0;
+      min-height: 3em;
+    }
+    .transport {
+      gap: 12px 16px;
+      flex-wrap: wrap;
+      padding: 14px 0;
+      border-top: 1px solid #333b48;
+      margin-top: 12px;
+    }
+    button {
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 3px;
+    }
+    .transport button {
+      border-radius: 6px;
+      background: #1c2230;
+      border: 1px solid #4a5363;
+      padding: 7px 13px;
+      font-size: 14px;
+    }
+    .transport #play {
+      background: #b3fff3;
+      border-color: #b3fff3;
+      color: #10212a;
+      font-weight: 650;
+      min-width: 94px;
+    }
+    .transport button[aria-pressed='true'] {
+      border-color: #72efdb;
+    }
+    .label {
+      gap: 9px;
+      font-size: 13px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .label output {
+      font-variant-numeric: tabular-nums;
+      min-width: 61px;
+    }
+    input {
+      width: clamp(75px, 9vw, 145px);
+      accent-color: #78eedb;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+    }
+    .tile {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid #323b49;
+      border-radius: 7px;
+      background: #161b25;
+      padding: 0 7px 8px;
+      text-align: left;
+    }
+    .tile:hover {
+      background: #202634;
+    }
+    .tile[aria-pressed='true'] {
+      border-color: #68e9d8;
+      background: #1b2931;
+    }
+    .tile video {
+      display: block;
+      width: 100%;
+      height: clamp(58px, 10.8vh, 114px);
+      object-fit: contain;
+    }
+    .tile span {
+      display: block;
+      font-size: clamp(11px, 0.98vw, 15px);
+      line-height: 1.18;
+      font-weight: 600;
+    }
+    .problem {
+      color: #ffc097;
+      min-height: 0;
+      margin-top: 0.6em;
+    }
+    .stage .clean {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #424858;
+    }
+    .clean[hidden] {
+      display: none;
+    }
+    @media (max-width: 800px) {
+      .layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .stage {
+        height: 36vh;
+        min-height: 255px;
+      }
+      .tile video {
+        height: 80px;
+      }
+      p {
+        min-height: 0;
+      }
+      .tile span {
+        font-size: 13px;
+      }
+      main {
+        padding-top: 15px;
+      }
+      .grid {
+        grid-template-columns: repeat(auto-fit, minmax(119px, 1fr));
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+  <main>
+    <header>
+      <div class="brand">Capri<b>Core</b></div>
+      <div class="beats" aria-label="Индикатор четырёх долей"><i></i><i></i><i></i><i></i></div>
+    </header>
+    <h1>Капри в ритме</h1>
+    <div class="layout">
+      <section aria-label="Выбранная поза">
+        <div class="stage">
+          <video id="hero" muted loop playsinline></video
+          ><img class="clean" alt="Крупный план причёски без рук" hidden />
+        </div>
+        <h2 id="title"></h2>
+        <p id="desc"></p>
+        <div class="transport">
+          <button type="button" id="play">Пауза</button>
+          <label class="label"
+            ><output id="speed" for="bpm">120 BPM</output
+            ><input
+              id="bpm"
+              type="range"
+              min="40"
+              max="240"
+              value="120"
+              step="1"
+              aria-label="Темп в ударах в минуту"
+          /></label>
+          <button type="button" id="click" aria-pressed="false">Метроном</button>
+          <button type="button" id="inspect" aria-pressed="false" hidden>Волосы без рук</button>
+        </div>
+        <p class="problem" role="status"></p>
+      </section>
+      <div class="grid" aria-label="Выбор позы"></div>
+    </div>
+  </main>
+  <script type="module">
+    const poses = /*POSES*/ [];
+    const $ = (selector) => document.querySelector(selector);
+    const hero = $('#hero'),
+      grid = $('.grid'),
+      slider = $('#bpm'),
+      play = $('#play'),
+      click = $('#click');
+    const videos = [],
+      tiles = [],
+      lights = Array.from(document.querySelectorAll('.beats i'));
+    let bpm = 120,
+      running = !matchMedia('(prefers-reduced-motion:reduce)').matches;
+    let origin = performance.now(),
+      savedBeat = 0,
+      lastCheck = -Infinity,
+      beatIndex = -1,
+      audio;
+    const beatsAt = (now) => savedBeat + (running ? ((now - origin) * bpm) / 60000 : 0);
+    function syncVideo(video, time, force = false) {
+      if ((!running || document.hidden) && !video.paused) video.pause();
+      if (video.readyState < 2) return;
+      const target = (beatsAt(time) % 4) / 2;
+      const drift = Math.abs(((video.currentTime - target + 3) % 2) - 1);
+      if (!video.seeking && (force || drift > 0.1)) video.currentTime = target;
+      video.playbackRate = bpm / 120;
+      if (running && !document.hidden) {
+        if (video.paused) void video.play().catch(() => {});
+      } else if (!video.paused) video.pause();
+    }
+    function setup(video) {
+      video.muted = video.loop = video.playsInline = true;
+      video.preload = 'auto';
+      video.addEventListener('loadeddata', () => syncVideo(video, performance.now(), true));
+      video.addEventListener(
+        'error',
+        () =>
+          ($('.problem').textContent =
+            'Не удалось открыть видео. Распакуйте index.html и папку clips рядом.'),
+      );
+      videos.push(video);
+    }
+    function select(index) {
+      const [id, name, desc] = poses[index];
+      hero.src = 'clips/' + id + '.webm';
+      const hasPlate = ['pose-ceiling', 'pose-dock-left', 'pose-dock-right'].includes(id);
+      $('#inspect').hidden = !hasPlate;
+      $('#inspect').setAttribute('aria-pressed', 'false');
+      $('.clean').hidden = true;
+      if (hasPlate) $('.clean').src = 'layers/' + id + '.png';
+      $('#title').textContent = name;
+      $('#desc').textContent = desc;
+      tiles.forEach((tile, i) => tile.setAttribute('aria-pressed', String(i === index)));
+    }
+    setup(hero);
+    for (const [i, [id, name]] of poses.entries()) {
+      const tile = document.createElement('button'),
+        label = document.createElement('span');
+      const video = document.createElement('video');
+      setup(video);
+      video.src = 'clips/' + id + '.webm';
+      label.textContent = name;
+      tile.className = 'tile';
+      tile.type = 'button';
+      tile.append(video, label);
+      tile.onclick = () => select(i);
+      tiles.push(tile);
+      grid.append(tile);
+    }
+    select(
+      Math.max(
+        0,
+        poses.findIndex(([id]) => id === location.hash.slice(1)),
+      ),
+    );
+    $('#inspect').onclick = () => {
+      $('.clean').hidden = !$('.clean').hidden;
+      $('#inspect').setAttribute('aria-pressed', String(!$('.clean').hidden));
+    };
+    function changeRate(change) {
+      const now = performance.now();
+      savedBeat = beatsAt(now);
+      origin = now;
+      change();
+      play.textContent = running ? 'Пауза' : 'Играть';
+      $('#speed').textContent = bpm + ' BPM';
+      for (const video of videos) syncVideo(video, now, true);
+    }
+    changeRate(() => {});
+    play.onclick = () =>
+      changeRate(() => {
+        running = !running;
+      });
+    slider.oninput = () =>
+      changeRate(() => {
+        bpm = Number(slider.value);
+      });
+    click.onclick = async () => {
+      if (!audio) audio = new AudioContext();
+      await audio.resume();
+      click.setAttribute('aria-pressed', String(click.getAttribute('aria-pressed') !== 'true'));
+    };
+    function tick(now) {
+      const beat = Math.floor(beatsAt(now));
+      if (beat !== beatIndex) {
+        lights.forEach((light, i) => light.classList.toggle('on', i === beat % 4));
+        if (running && !document.hidden && click.getAttribute('aria-pressed') === 'true' && audio) {
+          const osc = audio.createOscillator(),
+            gain = audio.createGain(),
+            t = audio.currentTime;
+          osc.frequency.value = beat % 4 === 0 ? 1080 : 740;
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.043);
+          osc.connect(gain).connect(audio.destination);
+          osc.start(t);
+          osc.stop(t + 0.045);
+        }
+        beatIndex = beat;
+      }
+      if (now - lastCheck > 350) {
+        for (const video of videos) syncVideo(video, now);
+        lastCheck = now;
+      }
+      requestAnimationFrame(tick);
+    }
+    document.addEventListener('visibilitychange', () =>
+      videos.forEach((v) => syncVideo(v, performance.now(), true)),
+    );
+    requestAnimationFrame(tick);
+  </script>
+</html>

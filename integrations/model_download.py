@@ -161,7 +161,8 @@ def download_verified(
         source_index = (attempt - 1) % len(sources)
         report('connect', offset)
         if source_index:
-            log(f"Using alternate official source {source_index + 1}/{len(sources)} for {target.name}")
+            host = urlsplit(sources[source_index]).hostname
+            log(f"Using alternate source {host} ({source_index + 1}/{len(sources)}) for {target.name}")
         failure = None
         stage = 'connect'
         try:

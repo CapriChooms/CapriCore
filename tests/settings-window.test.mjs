@@ -16,7 +16,6 @@ function fixture(idleCloseMs) {
       this.moves = 0;
       this.bounds = { x: 800, y: 20, width: 480, height: 660 };
       this.webContents = new EventEmitter();
-      this.webContents.isCrashed = () => false;
       this.webContents.setWindowOpenHandler = () => {};
       this.webContents.send = () => {};
       this.webContents.capturePage = async () => ({ isEmpty: () => false });
@@ -51,9 +50,6 @@ function fixture(idleCloseMs) {
     }
     isVisible() {
       return this.visible;
-    }
-    isMinimized() {
-      return false;
     }
     isDestroyed() {
       return Boolean(this.destroyed);
@@ -313,31 +309,6 @@ test('hiding during initialization cannot reveal a late painted settings window'
   assert.equal(view.visible, true);
 });
 
-test('an unexpected native hide preserves the running Settings view, and owner hide cancels recovery', async () => {
-  const { host, owner, errors } = fixture();
-  owner.show();
-  const opening = host.open('appearance');
-  const view = host.window;
-  host.loaded();
-  host.rendered();
-  view.emit('ready-to-show');
-  view.resolve();
-  await opening;
-  await host.surfacePending;
-  view.hide();
-  await Promise.resolve();
-  assert.equal(host.window, view);
-  assert.equal(host.snapshot().visible, true);
-  assert.equal(view.throttled, false);
-  assert.deepEqual(errors, ['Settings native window hidden unexpectedly']);
-  view.hide();
-  owner.hide();
-  await Promise.resolve();
-  assert.equal(host.snapshot().visible, false);
-  assert.equal(host.requested, false);
-  host.destroy();
-});
-
 test('first native frame is shared, cancelled by hide, and never exposes an empty surface', async () => {
   const { host, errors } = fixture();
   const opening = host.open();
@@ -438,8 +409,6 @@ test('settings crash and shutdown release the native window and reject delayed p
 
 test('open Settings recovers a crashed renderer only once and resumes its saved location', async () => {
   const { host, owner, errors, notices } = fixture();
-  const crashes = [];
-  host.onRendererCrash = (details) => crashes.push(details);
   const opening = host.open('appearance');
   const first = host.window;
   host.loaded();
@@ -451,7 +420,6 @@ test('open Settings recovers a crashed renderer only once and resumes its saved 
   first.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 7 });
   assert.equal(first.isDestroyed(), true);
   assert.deepEqual(errors, ['Settings renderer stopped: crashed (exit code 7)']);
-  assert.deepEqual(crashes, [{ reason: 'crashed', exitCode: 7 }]);
   await new Promise((resolve) => setTimeout(resolve, 170));
 
   const replacement = host.window;

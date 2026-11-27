@@ -34,6 +34,16 @@ export function nearestAvatarDock(point, bounds, radius, display = false) {
   return inside.sort((a, b) => a.distance - b.distance)[0] ?? null;
 }
 
+export function nearestWindowAvatarDock(point, windows, radius) {
+  let nearest = null;
+  for (const target of windows) {
+    const dock = nearestAvatarDock(point, target, radius);
+    // The snapshot is ordered from front to back. Keep the frontmost tie.
+    if (dock && (!nearest || dock.distance < nearest.dock.distance)) nearest = { target, dock };
+  }
+  return nearest;
+}
+
 export function avatarDockPoint(bounds, { edge, fraction }) {
   const { x, y, width, height } = bounds;
   return {

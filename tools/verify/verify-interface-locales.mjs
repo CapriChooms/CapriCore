@@ -5,7 +5,7 @@ import { SETTINGS_SECTIONS } from '../../apps/desktop/renderer/settings-registry
 import { SKILL_BY_SECTION } from '../../packages/skills/src/settings-catalog.mjs';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
@@ -20,7 +20,6 @@ mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'ui-')),
   errors = [],
   checks = [];
-const version = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 let holdReplies = false,
   heldResponse;
 const server = createServer((req, res) => {
@@ -107,6 +106,10 @@ try {
   await page.waitForFunction(() => document.body.dataset.phase === 'ready', null, {
     timeout: 30000,
   });
+  const versionLabel = page.locator('#capri-version');
+  await page.waitForFunction(() => document.getElementById('capri-version').textContent !== '');
+  const installedVersion = await versionLabel.textContent();
+  assert.match(installedVersion, /^v?\d+\.\d+\.\d+/u);
   controls = await settingsView(application, 'languages');
   await controls.evaluate((steps) => {
     document.getElementById('workflow-json').value = JSON.stringify(steps);
@@ -197,6 +200,11 @@ try {
       ['#call-setup-license', 'License terms'],
       ['label[for="time-hours"]', 'Hours'],
       ['label[for="time-seconds"]', 'Seconds'],
+      ['label[for="time-days"]', 'Days'],
+      ['#avatar-gallery-title', 'Avatar gallery'],
+      ['[data-gallery-category="expressions"]', 'Expressions'],
+      ['label[for="models-idle-timeout"]', 'Idle timeout (minutes)'],
+      ['#settings-group-skills > span', 'Skills'],
       ['#model-device-npu-advanced summary', 'Advanced NPU setup'],
     ])
       assert.equal(
@@ -268,7 +276,7 @@ try {
         uiText(key, locale.id),
         locale.id + ': ' + selector,
       );
-    assert.equal(await page.locator('#capri-version').textContent(), 'v' + version);
+    assert.equal(await versionLabel.textContent(), installedVersion);
     assert.deepEqual(await page.locator('.message-text').allTextContents(), expectedMessages);
     assert.equal(await page.locator('#message').inputValue(), 'Open');
     assert.equal(await page.locator('#localization-private-data').textContent(), 'Menu');

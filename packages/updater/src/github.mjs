@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { existsSync, readdirSync } from 'node:fs';
-import path from 'node:path';
 import { EXPERIMENTAL_REPOSITORY, REPOSITORY } from './releases.mjs';
 import { listGitLabReleases } from './gitlab.mjs';
-const execute = promisify(execFile);
 const cdns = new Set(['release-assets.githubusercontent.com', 'objects.githubusercontent.com']);
 function releasePath(repository) {
   if (repository !== REPOSITORY && repository !== EXPERIMENTAL_REPOSITORY)
@@ -30,32 +25,6 @@ export function approvedUrl(value, repository = REPOSITORY) {
   )
     throw new Error('Unapproved update URL');
   return url;
-}
-/** Tokens stay in the main process. They never enter requests saved on disk or CDN redirects. */
-export async function githubCredential(root, env = process.env) {
-  const provided = env.GH_TOKEN || env.GITHUB_TOKEN;
-  if (provided && !/[\r\n]/.test(provided)) return provided;
-  const candidates = ['gh'];
-  const runtimes = path.join(root, '.runtime');
-  if (existsSync(runtimes))
-    for (const name of readdirSync(runtimes))
-      if (/^github-cli-[0-9.]+$/.test(name))
-        candidates.push(path.join(runtimes, name, 'bin/gh.exe'));
-  for (const file of candidates) {
-    try {
-      const { stdout } = await execute(file, ['auth', 'token', '--hostname', 'github.com'], {
-        windowsHide: true,
-        timeout: 5000,
-        maxBuffer: 8192,
-        env,
-      });
-      const token = stdout.trim();
-      if (token && !/[\r\n]/.test(token)) return token;
-    } catch {
-      /* Public repositories do not require GitHub CLI or an account. */
-    }
-  }
-  return null;
 }
 export function githubFetch({
   token,

@@ -17,8 +17,10 @@ import {
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+import { createHash } from 'node:crypto';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { replaceSourceFile } from '../packages/installer/src/replace-source-file.mjs';
+import { verifySetupPayload } from '../packages/installer/src/payload.mjs';
 
 const cache = path.join(root, '.runtime/source-replacement-unit');
 mkdirSync(cache, { recursive: true });
@@ -96,12 +98,12 @@ test('cancellation preserves old source and a hard-linked read-only file is not 
   assert.deepEqual(stagedFiles(f), []);
 });
 
-async function holdWindowsFile(t, f) {
+async function holdWindowsFile(t, f, share = 'ReadWrite') {
   const ready = path.join(f.base, 'ready'),
     release = path.join(f.base, 'release');
   const script = `
     $ErrorActionPreference = 'Stop'
-    $capriStream = [IO.File]::Open($env:CAPRI_TEST_LOCK_TARGET, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+    $capriStream = [IO.File]::Open($env:CAPRI_TEST_LOCK_TARGET, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::${share})
     try {
       [IO.File]::WriteAllText($env:CAPRI_TEST_LOCK_READY, 'ready')
       while (-not [IO.File]::Exists($env:CAPRI_TEST_LOCK_RELEASE)) { Start-Sleep -Milliseconds 25 }
@@ -151,6 +153,42 @@ async function holdWindowsFile(t, f) {
   assert.ok(existsSync(ready), spawnError?.message || error || 'Lock fixture did not start');
   return unlock;
 }
+
+test('installer payload reports missing and unexpected files even if the counts match', async () => {
+  const f = fixture();
+  const sha256 = createHash('sha256').update('previous source').digest('hex');
+  writeFileSync(
+    path.join(f.root, 'SOURCE_MANIFEST.json'),
+    JSON.stringify({ files: [{ path: 'tools/setup/expected.ps1', sha256 }] }),
+  );
+  await assert.rejects(
+    verifySetupPayload(f.root),
+    /missing \(1\): tools\/setup\/expected\.ps1.*unexpected \(1\): tools\/setup\/python-runtime\.ps1/,
+  );
+});
+
+test(
+  'installer payload retries a transient Windows read lock and verifies the digest',
+  {
+    skip: process.platform !== 'win32',
+    timeout: 10000,
+  },
+  async (t) => {
+    const f = fixture();
+    const name = 'tools/setup/python-runtime.ps1';
+    const manifest = path.join(f.root, 'SOURCE_MANIFEST.json');
+    const sha256 = createHash('sha256').update('previous source').digest('hex');
+    writeFileSync(manifest, JSON.stringify({ files: [{ path: name, sha256 }] }));
+    const unlock = await holdWindowsFile(t, f, 'None');
+    assert.throws(() => readFileSync(f.target), { code: /^(EPERM|EACCES|EBUSY)$/ });
+    const pending = verifySetupPayload(f.root);
+    await delay(300);
+    await unlock();
+    assert.deepEqual(await pending, [{ path: name, bytes: 15, sha256 }]);
+    writeFileSync(f.target, 'changed source!');
+    await assert.rejects(verifySetupPayload(f.root), /Source payload checksum mismatch/);
+  },
+);
 
 test(
   'a short Windows sharing lock recovers; a persistent lock preserves contents and read-only state',

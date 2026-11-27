@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src capri://desktop/capri-wave.webp capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+      content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' blob:; media-src blob:; connect-src capri://desktop/capri-wave.webp capri://desktop/avatar-face-poses.json capri://desktop/avatar-face-gestures.json capri://desktop/shared/languages.json capri://desktop/shared/interface-locales.json capri://desktop/locales/; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
     />
     <title>Capri</title>
     <link rel="icon" type="image/svg+xml" href="/brand/capricore.svg" />
@@ -32,8 +32,8 @@
           <span class="status-dot" aria-hidden="true"></span
           ><strong id="capri-header-version" dir="ltr" data-untranslated></strong>
           <button id="inference-label" type="button" data-untranslated hidden>
-            <span id="inference-info" dir="ltr">
-              <span id="inference-track" class="ticker-copy">
+            <span id="inference-name">
+              <span class="inference-name-track">
                 <span id="inference-mode"></span><bdi id="inference-detail"></bdi
                 ><bdi id="inference-model" hidden></bdi>
               </span>
@@ -114,124 +114,117 @@
       </header>
       <nav id="quick-actions" aria-label="Quick actions" data-hit-region>
         <span id="compact-status">CAPRI // <span data-signal-label>CONNECTING</span></span>
-        <div id="quick-controls">
-          <div
-            class="toolbar-group conversation-actions"
-            role="group"
-            aria-label="Conversation controls"
+        <div
+          class="toolbar-group conversation-actions"
+          role="group"
+          aria-label="Conversation controls"
+        >
+          <button
+            id="microphone-toggle"
+            type="button"
+            aria-label="Enable microphone (English)"
+            aria-pressed="false"
+            title="Enable microphone (English)"
+            disabled
           >
-            <button
-              id="microphone-toggle"
-              type="button"
-              aria-label="Enable microphone (English)"
-              aria-pressed="false"
-              title="Enable microphone (English)"
-              disabled
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <rect x="7" y="2" width="6" height="10" rx="3" />
-                <path d="M4 9v1a6 6 0 0012 0V9M10 16v3M7 19h6" />
-              </svg>
-            </button>
-            <button
-              id="voice-toggle"
-              type="button"
-              aria-label="Mute Capri"
-              aria-pressed="true"
-              aria-controls="voice-volume-menu"
-              aria-expanded="false"
-              title="Mute Capri"
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true" data-skill-icon>
-                <path d="M3 8h3l4-4v12l-4-4H3z" />
-                <path class="voice-waves" d="M13 7a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10" />
-                <path class="voice-muted" d="m13 8 4 4m0-4-4 4" />
-              </svg>
-            </button>
-            <button
-              id="music-toggle"
-              type="button"
-              aria-label="Music listening"
-              title="Music listening"
-              aria-pressed="false"
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M7 14V4l10-2v10M7 7l10-2" />
-                <ellipse cx="4.5" cy="15" rx="2.5" ry="2" />
-                <ellipse cx="14.5" cy="13" rx="2.5" ry="2" />
-              </svg>
-            </button>
-            <button
-              id="history-toggle"
-              type="button"
-              aria-label="Open conversation history"
-              aria-controls="history-panel"
-              aria-expanded="false"
-              title="Conversation history"
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M4 4.5h12v9H9l-4 3v-3H4zM7 7.5h6M7 10h4" />
-              </svg>
-            </button>
-            <button
-              id="subtitle-reveal"
-              type="button"
-              data-hit-region
-              aria-label="Show reply"
-              title="Show reply"
-              aria-controls="subtitle-frame"
-              aria-expanded="false"
-              hidden
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7l5 5 5-5" /></svg>
-            </button>
-          </div>
-          <div class="toolbar-group capability-actions" role="group" aria-label="Capabilities">
-            <button
-              id="screen-indicator"
-              type="button"
-              aria-pressed="false"
-              title="Screen observation (BETA)"
-              aria-label="Screen observation (BETA)"
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path
-                  d="M7 3H4a1 1 0 0 0-1 1v3m10-4h3a1 1 0 0 1 1 1v3M3 13v3a1 1 0 0 0 1 1h3m6 0h3a1 1 0 0 0 1-1v-3"
-                  stroke-linecap="round"
-                />
-                <circle cx="10" cy="10" r="3" fill="currentColor" stroke="none" />
-              </svg>
-            </button>
-            <button
-              id="applications-open"
-              type="button"
-              data-quick="applications"
-              title="Application access"
-              aria-label="Application access"
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z" />
-              </svg>
-            </button>
-            <button
-              id="time-open"
-              type="button"
-              data-quick="time"
-              title="Timers and reminders"
-              aria-label="Timers and reminders"
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <circle cx="10" cy="10" r="7" />
-                <path d="M10 6v4l3 2" />
-              </svg>
-            </button>
-            <button
-              id="stopwatch-hud"
-              type="button"
-              aria-label="Stopwatch controls"
-              hidden
-            ></button>
-          </div>
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <rect x="7" y="2" width="6" height="10" rx="3" />
+              <path d="M4 9v1a6 6 0 0012 0V9M10 16v3M7 19h6" />
+            </svg>
+          </button>
+          <button
+            id="voice-toggle"
+            type="button"
+            aria-label="Mute Capri"
+            aria-pressed="true"
+            aria-controls="voice-volume-menu"
+            aria-expanded="false"
+            title="Mute Capri"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true" data-skill-icon>
+              <path d="M3 8h3l4-4v12l-4-4H3z" />
+              <path class="voice-waves" d="M13 7a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10" />
+              <path class="voice-muted" d="m13 8 4 4m0-4-4 4" />
+            </svg>
+          </button>
+          <button
+            id="music-toggle"
+            type="button"
+            aria-label="Music listening"
+            title="Music listening"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M7 14V4l10-2v10M7 7l10-2" />
+              <ellipse cx="4.5" cy="15" rx="2.5" ry="2" />
+              <ellipse cx="14.5" cy="13" rx="2.5" ry="2" />
+            </svg>
+          </button>
+          <button
+            id="history-toggle"
+            type="button"
+            aria-label="Open conversation history"
+            aria-controls="history-panel"
+            aria-expanded="false"
+            title="Conversation history"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M4 4.5h12v9H9l-4 3v-3H4zM7 7.5h6M7 10h4" />
+            </svg>
+          </button>
+          <button
+            id="subtitle-reveal"
+            type="button"
+            data-hit-region
+            aria-label="Show reply"
+            title="Show reply"
+            aria-controls="subtitle-frame"
+            aria-expanded="false"
+            hidden
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7l5 5 5-5" /></svg>
+          </button>
+        </div>
+        <div class="toolbar-group capability-actions" role="group" aria-label="Capabilities">
+          <button
+            id="screen-indicator"
+            type="button"
+            aria-pressed="false"
+            title="Screen observation (BETA)"
+            aria-label="Screen observation (BETA)"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path
+                d="M7 3H4a1 1 0 0 0-1 1v3m10-4h3a1 1 0 0 1 1 1v3M3 13v3a1 1 0 0 0 1 1h3m6 0h3a1 1 0 0 0 1-1v-3"
+                stroke-linecap="round"
+              />
+              <circle cx="10" cy="10" r="3" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+          <button
+            id="applications-open"
+            type="button"
+            data-quick="applications"
+            title="Application access"
+            aria-label="Application access"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z" />
+            </svg>
+          </button>
+          <button
+            id="time-open"
+            type="button"
+            data-quick="time"
+            title="Timers and reminders"
+            aria-label="Timers and reminders"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="10" cy="10" r="7" />
+              <path d="M10 6v4l3 2" />
+            </svg>
+          </button>
+          <button id="stopwatch-hud" type="button" aria-label="Stopwatch controls" hidden></button>
         </div>
         <div class="toolbar-group settings-actions-group" role="group" aria-label="Settings">
           <button type="button" data-quick="languages" title="Languages" aria-label="Languages">
@@ -259,7 +252,7 @@
       <section id="voice-volume-menu" aria-labelledby="voice-volume-label" data-hit-region hidden>
         <label id="voice-volume-label" for="voice-volume">Capri’s voice volume</label>
         <output id="voice-volume-value" for="voice-volume">100%</output>
-        <input id="voice-volume" type="range" min="0" step="1" value="100" />
+        <input id="voice-volume" type="range" min="0" max="100" step="1" value="100" />
       </section>
       <section
         id="stopwatch-controls"
@@ -366,6 +359,12 @@
       <canvas id="frame-fx" aria-hidden="true"></canvas>
       <section id="input-dock" aria-label="Message Capri">
         <div class="dock-notifications" data-hit-region>
+          <button id="models-warm" type="button" data-hit-region hidden disabled>
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M4 9h12v8H4zM7 12v2m3-2v2m3-2v2M10 2v5m-3-3 3 3 3-3" />
+            </svg>
+            <span>Load models</span>
+          </button>
           <div id="connection-status">
             <span id="status" class="sr-only" dir="auto" role="status" aria-live="polite"
               >Starting local core…</span
@@ -792,10 +791,7 @@
         </div>
         <div class="preferences-content">
           <section class="settings-card" aria-label="Folder">
-            <p class="settings-help">
-              Capri can edit its installation folder by default. Additional folders start read-only.
-              You can revoke access below.
-            </p>
+            <p class="settings-help">The Capri installation is read-only.</p>
             <p id="file-access-empty" class="settings-help">No folders are shared with Capri.</p>
             <p id="file-access-warning" class="settings-help" role="status"></p>
             <div id="file-access-list"></div>
@@ -971,7 +967,7 @@
           </section>
           <section class="settings-card" aria-labelledby="initiative-quiet-label">
             <label class="dimming-switch" id="initiative-quiet-label"
-              ><input id="initiative-quiet-enabled" type="checkbox" checked /> Enable quiet
+              ><input id="initiative-quiet-enabled" type="checkbox" role="switch" /> Enable quiet
               hours</label
             >
             <label class="dimming-label" for="initiative-quiet-start"
@@ -981,23 +977,18 @@
             ><input id="initiative-quiet-end" type="number" min="0" max="23" />
           </section>
           <section class="settings-card" aria-labelledby="initiative-exclusions-label">
-            <label
-              class="dimming-label"
-              for="initiative-exclusions"
-              id="initiative-exclusions-label"
-              >Exclude apps (process names, comma separated)</label
-            ><input
+            <label class="dimming-switch" id="initiative-exclusions-label">
+              <input id="initiative-exclusions-enabled" type="checkbox" role="switch" />
+              Exclude apps (process names, comma separated)
+            </label>
+            <input
               id="initiative-exclusions"
               type="text"
               maxlength="1800"
               spellcheck="false"
+              aria-labelledby="initiative-exclusions-label"
               data-untranslated
             />
-            <p class="settings-help">
-              Disable quiet hours to allow comments at any time. Fullscreen windows, excluded apps,
-              typing, user speech and active replies suppress comments. Browser-based calls cannot
-              be detected reliably; exclude your browser during calls.
-            </p>
           </section>
           <section class="settings-card" aria-labelledby="initiative-status-title">
             <h3 id="initiative-status-title">Initiative status</h3>
@@ -1010,10 +1001,6 @@
               </button>
             </div>
             <p id="initiative-status" class="settings-help" role="status">App awareness is off.</p>
-            <p class="settings-help" data-help-for="initiative-status-title">
-              Preview comments use the local model and shared history. They can affect model cache
-              and the next response time. Repeated or late comments are skipped.
-            </p>
           </section>
         </div>
       </section>
@@ -1271,6 +1258,11 @@
               <span id="guide-faq-description"></span>
             </button>
           </li>
+          <li id="guide-patch-notes-menu" hidden>
+            <button id="guide-patch-notes" type="button">
+              <strong id="guide-patch-notes-title"></strong>
+            </button>
+          </li>
         </ul>
         <div id="guide-body" hidden>
           <p class="guide-description" id="guide-description"></p>
@@ -1304,6 +1296,19 @@
           <p id="guide-faq-error" class="guide-error" role="status" hidden></p>
           <p id="guide-faq-empty" class="guide-faq-empty" role="status" hidden></p>
           <div id="guide-faq-results" class="guide-faq-results"></div>
+        </div>
+        <div class="guide-patch-notes-panel" id="guide-patch-notes-panel" hidden>
+          <div
+            id="guide-patch-notes-content"
+            class="guide-faq-results guide-patch-notes-content"
+            role="region"
+            aria-labelledby="guide-title"
+            tabindex="0"
+          ></div>
+          <footer class="guide-actions">
+            <button id="guide-patch-notes-back" type="button"></button>
+            <button id="guide-patch-notes-close" class="guide-primary" type="button"></button>
+          </footer>
         </div>
       </section>
     </div>

@@ -85,6 +85,20 @@ export function factualActionReply(tool, args, result, language = 'en') {
     return uiText('Spotify volume: {value}%.', language, { value: result.data.volumePercent });
   if (result?.ok === true && tool === 'spotify_control') {
     const data = result.data ?? {};
+    if (
+      args.action === 'status' &&
+      typeof data.playing === 'boolean' &&
+      typeof data.title === 'string' &&
+      data.title.trim()
+    ) {
+      const track =
+        typeof data.artist === 'string' && data.artist.trim()
+          ? `${data.title} — ${data.artist}`
+          : data.title;
+      return ['Spotify', track, !data.playing && uiText('Paused.', language)]
+        .filter(Boolean)
+        .join(' · ');
+    }
     const text =
       ['pause', 'resume', 'toggle', 'play', 'next', 'previous'].includes(args.action) &&
       typeof data.playing === 'boolean'

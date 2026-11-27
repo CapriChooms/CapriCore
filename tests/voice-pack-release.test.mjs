@@ -102,3 +102,71 @@ test('voice release rejects damaged adapters and incompatible metadata before cr
     assert.equal(existsSync(input.destination), false);
   }
 });
+
+test('voice release accepts an existing adapter after the pack download changes', () => {
+  const input = fixture();
+  const file = path.join(input.source, 'adapter.json');
+  const original = json(file);
+  delete original.upstream.bundledPack;
+  writeJsonAtomic(file, original);
+  input.upstream.bundledPack = { url: 'https://example.invalid/current.zip', bytes: 2 };
+  const { directory } = exportVoicePack(input);
+  assert.deepEqual(json(path.join(directory, 'adapter.json')).upstream, input.upstream);
+});
+
+test('reinstalling the same voice ignores archive metadata and preserves the original export', () => {
+  const input = fixture();
+  const installed = path.join(input.folder, 'installed');
+  const relative = importVoicePack(input.source, installed, input.upstream.model);
+  const installedConfig = path.join(installed, relative, 'adapter.json');
+  const before = readFileSync(installedConfig);
+  const adapterFile = path.join(input.source, 'adapter.json');
+  const adapter = json(adapterFile);
+  adapter.upstream.bundledPack = { url: 'https://example.invalid/rebuilt.zip', bytes: 1 };
+  writeFileSync(adapterFile, JSON.stringify(adapter));
+  assert.equal(importVoicePack(input.source, installed, input.upstream.model), relative);
+  assert.deepEqual(readFileSync(installedConfig), before);
+  assert.deepEqual(readdirSync(path.dirname(path.join(installed, relative))), [
+    path.basename(relative),
+  ]);
+});
+
+test('different content with the same ID installs alongside the original and retries reuse it', () => {
+  const input = fixture();
+  const installed = path.join(input.folder, 'installed');
+  const relative = importVoicePack(input.source, installed, input.upstream.model);
+  const original = path.join(installed, relative);
+  const config = path.join(input.source, 'adapter.json');
+  const adapter = json(config);
+  writeJsonAtomic(config, { ...adapter, adapter: { ...adapter.adapter, alpha: 32 } });
+  const changed = importVoicePack(input.source, installed, input.upstream.model);
+  assert.notEqual(changed, relative);
+  assert.equal(json(path.join(original, 'adapter.json')).adapter.alpha, 16);
+  assert.equal(json(path.join(installed, changed, 'adapter.json')).adapter.alpha, 32);
+  assert.equal(importVoicePack(input.source, installed, input.upstream.model), changed);
+  const changedDir = path.join(installed, changed);
+  writeFileSync(path.join(changedDir, 'adapter.safetensors'), 'damaged revision');
+  const repaired = importVoicePack(input.source, installed, input.upstream.model);
+  assert.notEqual(repaired, changed);
+  assert.equal(importVoicePack(input.source, installed, input.upstream.model), repaired);
+  assert.equal(
+    readFileSync(path.join(changedDir, 'adapter.safetensors'), 'utf8'),
+    'damaged revision',
+  );
+  validateVoicePack(path.join(installed, repaired), input.upstream.model);
+});
+
+test('an incomplete earlier import is preserved and never mixed with new pack files', () => {
+  const input = fixture();
+  const installed = path.join(input.folder, 'installed');
+  const old = path.join(installed, 'data/voices/capri/en/exports/capri-en-fixture');
+  mkdirSync(old, { recursive: true });
+  writeFileSync(path.join(old, 'adapter.json'), 'incomplete import');
+  writeFileSync(path.join(old, 'notes.txt'), 'owner data');
+  const relative = importVoicePack(input.source, installed, input.upstream.model);
+  assert.notEqual(path.join(installed, relative), old);
+  assert.deepEqual(readdirSync(old).sort(), ['adapter.json', 'notes.txt']);
+  assert.equal(readFileSync(path.join(old, 'adapter.json'), 'utf8'), 'incomplete import');
+  assert.equal(readFileSync(path.join(old, 'notes.txt'), 'utf8'), 'owner data');
+  validateVoicePack(path.join(installed, relative), input.upstream.model);
+});

@@ -1,0 +1,60 @@
+name: Dependency audit
+on:
+  pull_request:
+    paths:
+      - 'config/**'
+      - 'package-lock.json'
+      - '.github/workflows/dependency-audit.yml'
+  push:
+    branches: [main]
+    tags: ['v*']
+  release:
+    types: [published]
+  schedule:
+    - cron: '23 5 * * 2'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Generate npm inventory from the release lock
+        run: npm sbom --package-lock-only --sbom-format=cyclonedx > npm-sbom.cdx.json
+      - name: Audit npm packages
+        run: npm audit --registry=https://registry.npmjs.org --audit-level=high --json > npm-audit.json
+      - name: Audit all Python profiles with OSV
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location --retry 2 --output "$RUNNER_TEMP/osv-scanner" https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64
+          echo "fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8  $RUNNER_TEMP/osv-scanner" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+          locks=()
+          for file in config/*requirements.lock.txt config/requirements-*.lock; do
+            locks+=("--lockfile=requirements.txt:$file")
+          done
+          # The requirements extractor skips AMD's direct wheel URLs. Check the
+          # upstream version as well as the locked builds in the other profiles.
+          node --input-type=module -e "import spec from './config/voice-runtime.json' with {type:'json'}; for (const pkg of ['torch','torchaudio']) console.log(pkg+'=='+spec.profiles.amd[pkg].split('+')[0])" > "$RUNNER_TEMP/amd-upstream.txt"
+          locks+=("--lockfile=requirements.txt:$RUNNER_TEMP/amd-upstream.txt")
+          # Exit code 1 means the inventory contains reported vulnerabilities.
+          "$RUNNER_TEMP/osv-scanner" scan source "${locks[@]}" --all-packages --format=cyclonedx-1-6 --output-file=python-sbom.cdx.json || test "$?" -eq 1
+          "$RUNNER_TEMP/osv-scanner" scan source "${locks[@]}" --format=json --output-file=python-audit.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ !cancelled() }}
+        with:
+          name: dependency-reports
+          path: |
+            npm-sbom.cdx.json
+            python-sbom.cdx.json
+            npm-audit.json
+            python-audit.json

@@ -2,13 +2,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   musicDetectorConfig,
   musicPython,
   prepareMusicDetector,
 } from '../apps/desktop/music-detector-provision.mjs';
+import { venvPython } from '../apps/desktop/python-venv.mjs';
 
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const original = JSON.parse(
@@ -34,7 +35,7 @@ function fixture() {
   mkdirSync(path.dirname(configFile), { recursive: true });
   const save = () => writeFileSync(configFile, JSON.stringify(config));
   save();
-  const python = path.join(root, '.runtime/router-venv/Scripts/python.exe');
+  const python = venvPython(path.join(root, '.runtime/router-venv'));
   mkdirSync(path.dirname(python), { recursive: true });
   writeFileSync(python, 'fixture-never-executed');
   let downloads = 0,
@@ -104,9 +105,7 @@ test('the music model accepts only four pinned fixed files with unique safe name
 test('a checked official archive is staged, checked again and cached without subsequent network or extraction', async () => {
   const f = fixture(),
     progress = [];
-  assert(
-    musicPython(f.root).endsWith('router-venv' + path.sep + 'Scripts' + path.sep + 'python.exe'),
-  );
+  assert.equal(musicPython(f.root), venvPython(path.join(f.root, '.runtime/router-venv')));
   const first = await prepare(f, { progress: (value) => progress.push(value) });
   assert.equal(f.downloads(), 1);
   assert.equal(f.extractions(), 1);
@@ -183,6 +182,16 @@ test('download checksums and approved official origin block altered or redirecte
     /Unapproved/,
   );
   assert.equal(redirect.extractions(), 0);
+});
+
+test('macOS finds the music detector Python in bin/python of either venv', (t) => {
+  t.mock.property(process, 'platform', 'darwin');
+  const f = fixture();
+  assert.equal(musicPython(f.root), path.join(f.root, '.runtime/router-venv/bin/python'));
+  rmSync(path.join(f.root, '.runtime/router-venv'), { recursive: true, force: true });
+  mkdirSync(path.join(f.root, '.runtime/asr-venv/bin'), { recursive: true });
+  writeFileSync(path.join(f.root, '.runtime/asr-venv/bin/python'), 'fixture-never-executed');
+  assert.equal(musicPython(f.root), path.join(f.root, '.runtime/asr-venv/bin/python'));
 });
 
 test('preparation cancellation and missing local Python never publish a detector', async () => {

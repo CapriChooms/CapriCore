@@ -14,6 +14,7 @@ import { noLinks } from '../../packages/installer/src/policy.mjs';
 import { fileHash } from '../../packages/installer/src/download.mjs';
 import { resumableArtifact } from '../../packages/installer/src/resumable-download.mjs';
 import { runCommand } from '../../packages/installer/src/commands.mjs';
+import { venvPython } from './python-venv.mjs';
 
 export function musicDetectorConfig(root) {
   const value = JSON.parse(readFileSync(path.join(root, 'config/music-detector.json'), 'utf8'));
@@ -41,7 +42,7 @@ export function musicDetectorConfig(root) {
 export function musicPython(root) {
   return (
     ['router-venv', 'asr-venv']
-      .map((name) => path.join(root, '.runtime', name, 'Scripts/python.exe'))
+      .map((name) => venvPython(path.join(root, '.runtime', name)))
       .find(existsSync) ?? null
   );
 }

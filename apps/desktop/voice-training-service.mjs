@@ -16,6 +16,7 @@ import path from 'node:path';
 import { readJson, noLinks } from '../../packages/installer/src/policy.mjs';
 import { voiceRuntimeEnvironment } from '../../integrations/voice_runtime/environment.mjs';
 import { writeJsonAtomic } from './storage.mjs';
+import { venvPython } from './python-venv.mjs';
 import { voiceDataPath, readVoiceSelections } from './voice-catalog-service.mjs';
 import {
   readTrainingSettings,
@@ -62,7 +63,7 @@ export function runVoiceTraining({ root, jobId, signal, onProgress }) {
     noLinks(env.TEMP);
     mkdirSync(env.TEMP, { recursive: true });
     const child = spawn(
-      path.join(root, '.runtime/voice-training-venv/Scripts/python.exe'),
+      venvPython(path.join(root, '.runtime/voice-training-venv')),
       ['-m', 'integrations.voice_training.job', '--job', jobId],
       { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] },
     );
@@ -126,10 +127,8 @@ function voiceImportEnvironment() {
 }
 
 function runVoiceDatasetDraft({ root, source, signal, transcribe }) {
-  const python = path.join(
-    root,
-    transcribe ? '.runtime/asr-venv' : '.runtime/voice-training-venv',
-    'Scripts/python.exe',
+  const python = venvPython(
+    path.join(root, transcribe ? '.runtime/asr-venv' : '.runtime/voice-training-venv'),
   );
   return new Promise((resolve, reject) => {
     signal.throwIfAborted();
@@ -174,7 +173,7 @@ export function runVoiceDatasetImport({ root, source, importId, signal, reviewed
   signal.throwIfAborted();
   return new Promise((resolve, reject) => {
     const child = spawn(
-      path.join(root, '.runtime/voice-training-venv/Scripts/python.exe'),
+      venvPython(path.join(root, '.runtime/voice-training-venv')),
       ['-m', 'integrations.voice_training.import_dataset', '--id', importId],
       {
         cwd: root,
@@ -261,7 +260,7 @@ export class VoiceTrainingService {
           available: false,
           reason: 'This training recipe requires reviewed English Capri recordings.',
         };
-      if (!existsSync(path.join(this.root, '.runtime/voice-training-venv/Scripts/python.exe')))
+      if (!existsSync(venvPython(path.join(this.root, '.runtime/voice-training-venv'))))
         return { available: false, reason: 'Install the Capri English voice runtime first.' };
       const metadata = voiceDataPath(this.root, config.datasetDir + '/metadata.csv');
       if (!existsSync(metadata) || statSync(metadata).size < 100)
@@ -323,7 +322,7 @@ export class VoiceTrainingService {
   }
   chooseDataset(source) {
     if (this.busy()) throw new Error('Wait for the current voice operation to finish.');
-    if (!existsSync(path.join(this.root, '.runtime/voice-training-venv/Scripts/python.exe')))
+    if (!existsSync(venvPython(path.join(this.root, '.runtime/voice-training-venv'))))
       throw new Error(
         'Install the English Capri voice runtime before importing training recordings.',
       );
@@ -347,7 +346,7 @@ export class VoiceTrainingService {
     const draft = (transcribe) => this.draftRun({ root, source, signal, transcribe });
     try {
       let value;
-      if (existsSync(path.join(root, '.runtime/asr-venv/Scripts/python.exe'))) {
+      if (existsSync(venvPython(path.join(root, '.runtime/asr-venv')))) {
         try {
           value = await draft(true);
         } catch {

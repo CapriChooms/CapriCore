@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { root } from '../packages/runtime/src/host/paths.mjs';
 import { speechModelsInstalled } from '../apps/desktop/language-models.mjs';
+import { venvPython } from '../apps/desktop/python-venv.mjs';
 
 const parent = path.join(root, '.runtime/voice-installation-unit');
 mkdirSync(parent, { recursive: true });
@@ -23,7 +24,7 @@ test('a profile and Python alone cannot advertise an English voice without adapt
   };
   put('config/companion-voice.json', { profileDir });
   assert.equal(speechModelsInstalled(folder, 'en'), false);
-  const python = put('.runtime/voice-training-venv/Scripts/python.exe');
+  const python = put(venvPython('.runtime/voice-training-venv'));
   put(profileDir + '/voice-profile.json', {
     language: 'en',
     engine: 'chatterbox-turbo',

@@ -125,6 +125,25 @@ const confirmationRequests = new ConfirmationRequests({
   },
   respond: (value) => raw.confirmAction(value),
 });
+// Restarting Capri waits on this window's Save/Discard bar. Settling tells main whether to go ahead.
+function settleRestart(proceed) {
+  void raw.settingsDraftsSettled(proceed).catch(() => {});
+}
+async function checkDraftsForRestart() {
+  await Promise.allSettled([...writes]);
+  if (applyingDraft || resettingSettings || busy || document.querySelector('dialog[open]')) {
+    notice('Finish the open Settings change before restarting Capri.');
+    settleRestart(false);
+    return;
+  }
+  if (!syncDraftActions().length) {
+    settleRestart(true);
+    return;
+  }
+  closeRequested = true;
+  syncDraftActions();
+  $('settings-apply').focus({ preventScroll: true });
+}
 async function close() {
   if (settingsGuide.active) {
     settingsGuide.close();
@@ -626,6 +645,8 @@ async function finishClose() {
   await models.voices.stopPreview();
   clearTimeout(previewTimer);
   await previewTail.catch(() => {});
+  // Settled before the hide, so a pending restart proceeds rather than cancelling.
+  settleRestart(true);
   await raw.closeSettings();
   lastPreview = undefined;
 }
@@ -661,6 +682,7 @@ async function resolveDrafts(save) {
   }
   if (resolved) {
     if (save) {
+      settleRestart(true);
       $('settings-window-close').focus({ preventScroll: true });
       void queuePreview(true).catch((error) => notice(error.message));
     } else await finishClose();
@@ -670,6 +692,7 @@ async function resolveDrafts(save) {
   }
 }
 $('settings-stay').onclick = () => {
+  if (closeRequested) settleRestart(false);
   closeRequested = false;
   syncDraftActions();
   $('settings-window-close').focus({ preventScroll: true });
@@ -1960,6 +1983,7 @@ async function navigate(id, focus = null, match = null) {
     if (current && id !== current) {
       if (current === 'voice') void models.voices.stopPreview();
       if (current === 'support') companion.showSupportFrame(false);
+      if (closeRequested) settleRestart(false);
       closeRequested = false;
       notice();
     }
@@ -2317,6 +2341,10 @@ function event(value) {
     else void navigate(value.section, value.focus);
     return;
   }
+  if (value.type === 'settings.drafts-check') {
+    void checkDraftsForRestart();
+    return;
+  }
   if (value.type === 'settings.close-request') {
     void close();
     return;
@@ -2493,6 +2521,7 @@ async function previewInterfaceLanguage(locale) {
 for (const name of ['input', 'change', 'click'])
   document.addEventListener(name, (event) => {
     if (!event.target.closest('.preferences-panel') || applyingDraft || resettingSettings) return;
+    if (closeRequested) settleRestart(false);
     closeRequested = false;
     syncDraftActions();
     if (event.target.id === 'language-interface') {

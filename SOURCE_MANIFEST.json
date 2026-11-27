@@ -1779,8 +1779,8 @@
     },
     {
       "path": "apps/desktop/renderer/avatar-gallery.mjs",
-      "bytes": 25839,
-      "sha256": "fa1fee701bd6e7f81bc7da292d4cdb454df8cf642cba6f945f2622ded7beb593"
+      "bytes": 26170,
+      "sha256": "26116d32c85efeea4c5e4887ff22d128c66690ff96ae47c9aa463510c29d106f"
     },
     {
       "path": "apps/desktop/renderer/avatar-headpat.css",
@@ -6661,6 +6661,11 @@
       "path": "tests/avatar-face-art.test.mjs",
       "bytes": 7161,
       "sha256": "b7286e30c7e15f3c8a06f9bdf1612365d2cb59357eb2403156d7f83bf81425ce"
+    },
+    {
+      "path": "tests/avatar-gallery-colors.test.mjs",
+      "bytes": 3782,
+      "sha256": "1e9c303fc96c52128806207d4b69d5484ed79157c7fe97a78addfb42ddd9f1d6"
     },
     {
       "path": "tests/avatar-installation.test.mjs",

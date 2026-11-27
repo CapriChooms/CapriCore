@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 export function webSearchSettings(value) {
-  const engine = ['wikipedia', 'duckduckgo'].includes(value?.engine) ? value.engine : 'duckduckgo';
+  const engine = ['wikipedia', 'duckduckgo', 'keenable'].includes(value?.engine)
+    ? value.engine
+    : 'duckduckgo';
   const sort = value?.sort === 'title' ? 'title' : 'relevance';
   const domains = typeof value?.domains === 'string' ? value.domains : '';
   const list = [

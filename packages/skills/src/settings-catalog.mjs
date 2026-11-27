@@ -426,6 +426,8 @@ export const SKILL_TEXT_RU = Object.freeze({
   'Higher effort gives supported models more time and tokens for difficult requests.':
     'На высоком уровне совместимые модели получают больше времени и токенов для сложных задач.',
   'Search engine': 'Поисковая система',
+  'Keenable is optional. It uses the KEENABLE_API_KEY environment variable when set, and Keenable’s keyless public endpoint otherwise. Keenable logs search requests under its default data policy with or without a key; only an Enterprise zero-data-retention agreement differs.':
+    'Keenable — по желанию. Он использует переменную окружения KEENABLE_API_KEY, если она задана, иначе — открытый эндпоинт Keenable без ключа. Keenable записывает поисковые запросы по умолчанию и с ключом, и без него; иначе только по корпоративному соглашению о нулевом хранении данных.',
   'Result order': 'Порядок результатов',
   Relevance: 'По релевантности',
   'Title (A–Z)': 'По названию',

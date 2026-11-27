@@ -20,6 +20,15 @@ const PROVIDERS = [
     snippetClass: 'result-snippet',
   },
 ];
+// Opt-in engine, chosen in Settings. DuckDuckGo stays the default.
+const KEENABLE_KEYED = 'https://api.keenable.ai/v1/search';
+const KEENABLE_PUBLIC = 'https://api.keenable.ai/v1/search/public';
+const KEENABLE_FAILURES = new Map([
+  [429, 'rate_limited'],
+  [401, 'key_rejected'],
+  [403, 'key_rejected'],
+  [402, 'credits_exhausted'],
+]);
 const MAX_QUERY = 500;
 const MAX_RESPONSE = 256 * 1024;
 const entities = {
@@ -73,6 +82,26 @@ function sensitiveQuery(value) {
     ) ||
     /https?:\/\/[^\s/@]+:[^\s/@]+@/iu.test(value)
   );
+}
+
+function keenableResults(body, accepts) {
+  const value = JSON.parse(body);
+  if (!Array.isArray(value?.results)) return null;
+  return value.results
+    .flatMap(({ title, url: href, snippet }) => {
+      const url = typeof href === 'string' ? sourceUrl(href) : null;
+      if (!url || typeof title !== 'string' || !accepts(url)) return [];
+      return [
+        {
+          title: referenceText(title, 180),
+          url,
+          // `description` is always empty in Keenable's response; the page text is `snippet`.
+          snippet: plainText(typeof snippet === 'string' ? snippet : '', 600),
+        },
+      ];
+    })
+    .filter((source) => source.title)
+    .slice(0, MAX_SOURCES);
 }
 
 function attribute(attributes, name) {
@@ -212,15 +241,57 @@ async function responseText(response, signal) {
 
 /** Sends only the current, bounded query to fixed HTTPS search pages; never visits result URLs. */
 export class WebSearch {
-  constructor({ fetchImpl = fetch, timeoutMs = 12000 } = {}) {
+  /**
+   * `keenableKey` (the KEENABLE_API_KEY environment variable) only matters when the owner chose the
+   * Keenable engine; without it that engine uses Keenable's keyless public endpoint.
+   */
+  constructor({ fetchImpl = fetch, timeoutMs = 12000, keenableKey } = {}) {
+    const key = typeof keenableKey === 'string' ? keenableKey.trim() : '';
     if (
       typeof fetchImpl !== 'function' ||
       !Number.isInteger(timeoutMs) ||
       timeoutMs < 1 ||
-      timeoutMs > 30000
+      timeoutMs > 30000 ||
+      (keenableKey !== undefined && typeof keenableKey !== 'string') ||
+      key.length > 512 ||
+      /[^\x21-\x7e]/u.test(key)
     )
       throw new Error('Invalid web search configuration.');
-    Object.assign(this, { fetchImpl, timeoutMs });
+    Object.assign(this, { fetchImpl, timeoutMs, keenableKey: key });
+  }
+
+  async keenable(query, accepts, signal) {
+    const response = await unlessAborted(
+      this.fetchImpl(this.keenableKey ? KEENABLE_KEYED : KEENABLE_PUBLIC, {
+        method: 'POST',
+        redirect: 'error',
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        signal,
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+          // Only the application name; nothing about the owner or this computer.
+          'x-keenable-title': 'CapriCore',
+          ...(this.keenableKey ? { 'x-api-key': this.keenableKey } : {}),
+        },
+        body: JSON.stringify({ query, max_results: 20, snippet_max_length: 600 }),
+      }),
+      signal,
+    );
+    if (response.status !== 200) {
+      void response.body?.cancel().catch(() => {});
+      return { reason: KEENABLE_FAILURES.get(response.status) ?? 'unavailable' };
+    }
+    if (
+      response.redirected ||
+      !/^application\/json(?:;|$)/iu.test(response.headers.get('content-type') ?? '')
+    ) {
+      void response.body?.cancel().catch(() => {});
+      return { reason: 'unavailable' };
+    }
+    return { sources: keenableResults(await responseText(response, signal), accepts) };
   }
 
   async search(value, { signal, language, settings } = {}) {
@@ -260,6 +331,24 @@ export class WebSearch {
         reason: signal?.aborted ? 'cancelled' : timeout.aborted ? 'timeout' : 'unavailable',
       });
       if (combined.aborted) return unavailable();
+      if (config.engine === 'keenable') {
+        try {
+          const { sources, reason } = await this.keenable(query, accepts, combined);
+          if (sources) {
+            if (config.sort === 'title')
+              sources.sort((left, right) => left.title.localeCompare(right.title));
+            return {
+              status: sources.length ? 'ok' : 'empty',
+              query,
+              sources,
+              searchedAt: new Date().toISOString(),
+            };
+          }
+          return { ...unavailable(), reason };
+        } catch {
+          return unavailable();
+        }
+      }
       for (const provider of providers) {
         try {
           combined.throwIfAborted();

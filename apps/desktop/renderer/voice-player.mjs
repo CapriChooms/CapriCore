@@ -71,6 +71,10 @@ export class VoicePlayer {
     this.turnId = null;
     this.queue = [];
     this.source = null;
+    this.activeSources = new Set();
+    this.activeStreamGroup = null;
+    this.scheduledEndTime = 0;
+    this.scheduledMirrorEndTime = 0;
     this.mirrorSources = new Set();
     this.revision = 0;
     this.generated = false;
@@ -614,7 +618,16 @@ export class VoicePlayer {
     if (this.output !== this.speakers) this.speakers.effects?.reset();
     this.clearTurnEffects();
     this.stopMirrors();
-    if (this.source) {
+    for (const active of this.activeSources) {
+      active.onended = null;
+      try {
+        active.stop();
+      } catch {
+        /* Already ended. */
+      }
+      active.disconnect();
+    }
+    if (this.source && !this.activeSources.has(this.source)) {
       this.source.onended = null;
       try {
         this.source.stop();
@@ -622,8 +635,12 @@ export class VoicePlayer {
         /* Already ended. */
       }
       this.source.disconnect();
-      this.source = null;
     }
+    this.activeSources.clear();
+    this.source = null;
+    this.activeStreamGroup = null;
+    this.scheduledEndTime = 0;
+    this.scheduledMirrorEndTime = 0;
     this.playing = null;
     this.output = this.speakers;
     if (turnId) this.onPlayback({ type: 'stopped', turnId });
@@ -680,7 +697,7 @@ export class VoicePlayer {
         event.sampleRate !== 24000 ||
         !(event.pcm instanceof Uint8Array) ||
         event.pcm.byteLength > 24000 * 4 * 45 ||
-        this.queue.length >= 100
+        this.queue.length >= 300
       )
         throw new Error('Invalid audio');
       const raw = event.pcm;
@@ -689,11 +706,98 @@ export class VoicePlayer {
       const samples = new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4);
       for (const sample of samples)
         if (!Number.isFinite(sample)) throw new Error('Invalid PCM sample');
-      this.queue.push({ text: event.text, samples, sequence: event.sequence });
-      this.play();
+      this.queue.push({
+        text: event.text,
+        samples,
+        sequence: event.sequence,
+        streamGroup: event.streamGroup ?? null,
+        streamContinuation: Boolean(event.streamContinuation),
+      });
+      if (this.canScheduleContinuation()) this.scheduleContinuations();
+      else this.play();
     } catch (error) {
       this.stop();
       this.onError(error);
+    }
+  }
+  canScheduleContinuation() {
+    return Boolean(
+      this.turnId &&
+        this.playing &&
+        this.activeStreamGroup &&
+        this.activeSources.size > 0 &&
+        this.queue.length > 0 &&
+        this.queue[0].streamContinuation &&
+        this.queue[0].streamGroup === this.activeStreamGroup &&
+        this.output?.context &&
+        Number.isFinite(this.output.context.currentTime),
+    );
+  }
+  onSourceEnded(source, revision) {
+    source.disconnect();
+    this.activeSources.delete(source);
+    if (revision !== this.revision) return;
+    if (this.activeSources.size > 0) return;
+    const ended = this.playing;
+    this.playing = null;
+    this.source = null;
+    if (ended) this.onPlayback({ ...ended, type: 'ended' });
+    if (this.queue.length) this.play();
+    else this.endPlayback();
+  }
+  scheduleContinuations() {
+    const revision = this.revision;
+    const output = this.output;
+    const useCallOutput = output !== this.speakers;
+    const { context, analyser, effects } = output;
+    while (this.canScheduleContinuation()) {
+      const item = this.queue.shift();
+      const buffer = context.createBuffer(1, item.samples.length, 24000);
+      buffer.copyToChannel(item.samples, 0);
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(
+        effects?.input ?? analyser ?? output.voiceGain ?? output.mixer ?? context.destination,
+      );
+      const now = context.currentTime;
+      const startAt = this.scheduledEndTime > now ? this.scheduledEndTime : now;
+      const chunkDurationSec = item.samples.length / 24000;
+      this.scheduledEndTime = startAt + chunkDurationSec;
+      this.activeSources.add(source);
+      this.source = source;
+      if (
+        useCallOutput &&
+        this.speakers.context?.state === 'running' &&
+        this.speakerDevice !== output.deviceId &&
+        !this.speakerRoute &&
+        matchesAudioOutput(this.speakers.context, this.speakerDevice)
+      ) {
+        const speakers = this.speakers.context;
+        const mirror = speakers.createBufferSource();
+        this.mirrorSources.add(mirror);
+        mirror.buffer = buffer;
+        mirror.connect(
+          this.speakers.effects?.input ??
+            this.speakers.analyser ??
+            this.speakers.voiceGain ??
+            speakers.destination,
+        );
+        mirror.onended = () => {
+          mirror.disconnect();
+          this.mirrorSources.delete(mirror);
+        };
+        const mirrorNow = speakers.currentTime;
+        const mirrorStart =
+          this.scheduledMirrorEndTime > mirrorNow ? this.scheduledMirrorEndTime : mirrorNow;
+        this.scheduledMirrorEndTime = mirrorStart + chunkDurationSec;
+        mirror.start(mirrorStart);
+      }
+      source.onended = () => this.onSourceEnded(source, revision);
+      source.start(startAt);
+      const chunkDurationMs = chunkDurationSec * 1000;
+      this.playing.actualDurationMs =
+        (this.playing.actualDurationMs ?? this.playing.durationMs) + chunkDurationMs;
+      this.playing.durationMs = Math.max(this.playing.durationMs, this.playing.actualDurationMs);
     }
   }
   async play() {
@@ -729,9 +833,12 @@ export class VoicePlayer {
       source.connect(
         effects?.input ?? analyser ?? output.voiceGain ?? output.mixer ?? context.destination,
       );
+      this.activeSources.add(source);
       this.source = source;
+      this.activeStreamGroup = item.streamGroup ?? null;
       effects?.speaking(true);
       const leadTime = useCallOutput ? 0.01 : 0;
+      const chunkDurationSec = item.samples.length / 24000;
       if (
         useCallOutput &&
         this.speakers.context?.state === 'running' &&
@@ -754,34 +861,42 @@ export class VoicePlayer {
           this.mirrorSources.delete(mirror);
         };
         this.speakers.effects?.speaking(true);
-        mirror.start(speakers.currentTime + leadTime);
+        const mirrorStart = speakers.currentTime + leadTime;
+        this.scheduledMirrorEndTime = Number.isFinite(mirrorStart)
+          ? mirrorStart + chunkDurationSec
+          : 0;
+        mirror.start(mirrorStart);
       }
       if (this.firstPlayback) {
         effects?.burst(true);
         if (useCallOutput) this.speakers.effects?.burst(true);
         this.firstPlayback = false;
       }
-      source.onended = () => {
-        source.disconnect();
-        if (revision !== this.revision) return;
-        this.onPlayback({ ...this.playing, type: 'ended' });
-        this.playing = null;
-        this.source = null;
-        if (this.queue.length) this.play();
-        else this.endPlayback();
-      };
+      source.onended = () => this.onSourceEnded(source, revision);
       const audioStartedAt = context.currentTime + leadTime;
+      this.scheduledEndTime = Number.isFinite(audioStartedAt)
+        ? audioStartedAt + chunkDurationSec
+        : 0;
       source.start(audioStartedAt);
+      const chunkDurationMs = chunkDurationSec * 1000;
+      const durationMs =
+        item.streamGroup && !item.streamContinuation
+          ? Math.max(chunkDurationMs, Math.min(25000, Math.round((item.text?.length || 0) * 62)))
+          : chunkDurationMs;
       this.playing = {
         turnId: this.turnId,
         sequence: item.sequence,
         text: item.text,
-        durationMs: (item.samples.length / 24000) * 1000,
+        durationMs,
+        actualDurationMs: chunkDurationMs,
         startedAt: performance.now(),
         audioStartedAt,
       };
-      this.onPlayback({ ...this.playing, type: 'started' });
+      if (!item.streamContinuation) {
+        this.onPlayback({ ...this.playing, type: 'started' });
+      }
       this.onState({ busy: true, text: item.text, startedAt: performance.now() });
+      if (this.canScheduleContinuation()) this.scheduleContinuations();
     } catch (error) {
       if (revision === this.revision) {
         this.stop();

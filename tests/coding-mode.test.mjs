@@ -10,6 +10,7 @@ import {
   linkSync,
   unlinkSync,
   realpathSync,
+  chmodSync,
 } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -19,11 +20,15 @@ import {
   CodingService,
   editorArguments,
   editorProjectArguments,
+  commandShell,
+  launchableFile,
+  launchableName,
 } from '../apps/desktop/coding-service.mjs';
 import { CodingAgent } from '../apps/desktop/coding-agent.mjs';
 import { validateInput } from '../apps/desktop/chat-service.mjs';
 function fixture(t, options = {}) {
-  const parent = mkdtempSync(path.join(os.tmpdir(), 'capri-coding-')),
+  // macOS reports $TMPDIR through the /var -> /private/var link; private paths may not contain links.
+  const parent = mkdtempSync(path.join(realpathSync.native(os.tmpdir()), 'capri-coding-')),
     root = path.join(parent, 'app'),
     workspace = path.join(parent, 'project');
   mkdirSync(root);
@@ -255,6 +260,7 @@ test('opens the approved project as a Notepad++ workspace with a spaced path', a
   const project = path.join(workspace, 'project with spaces');
   mkdirSync(project);
   writeFileSync(executable, 'fixture');
+  if (process.platform !== 'win32') chmodSync(executable, 0o755);
   service.save({ workspace: project, editor: { kind: 'notepad++', executable }, tasks: [] });
   assert.deepEqual(await service.openProject(), { opened: true, editor: 'notepad++' });
   assert.equal(called.executable, executable);
@@ -278,6 +284,7 @@ test('live editor context is optional and never exposes a file outside the appro
   });
   const executable = path.join(parent, 'code.exe');
   writeFileSync(executable, 'fixture');
+  if (process.platform !== 'win32') chmodSync(executable, 0o755);
   mkdirSync(path.join(workspace, 'src'));
   writeFileSync(path.join(workspace, 'src/code.js'), 'code');
   service.save({
@@ -295,4 +302,95 @@ test('live editor context is optional and never exposes a file outside the appro
   assert.deepEqual(await service.activeContext(), { active: null });
   active = null;
   assert.deepEqual(await service.activeContext(), { active: null });
+});
+
+test('launch rules: Windows accepts .exe names, other platforms need an execute bit', () => {
+  assert.equal(launchableName('C:\Tools\code.exe', 'win32'), true);
+  assert.equal(launchableName('C:\Tools\CODE.EXE', 'win32'), true);
+  assert.equal(launchableName('C:\Tools\code', 'win32'), false);
+  assert.equal(launchableName('/opt/editor/code', 'linux'), true);
+  assert.equal(launchableName('/Applications/Editor.app', 'darwin'), true);
+  const regular = (mode) => ({ isFile: () => true, mode });
+  assert.equal(launchableFile(regular(0o100755), 'linux'), true);
+  assert.equal(launchableFile(regular(0o100711), 'darwin'), true);
+  assert.equal(launchableFile(regular(0o100644), 'linux'), false);
+  assert.equal(launchableFile(regular(0o100666), 'darwin'), false);
+  assert.equal(launchableFile(regular(0o100666), 'win32'), true);
+  assert.equal(launchableFile({ isFile: () => false, mode: 0o100755 }, 'linux'), false);
+});
+
+test('command shells are refused on Windows and on Unix', () => {
+  for (const name of ['cmd.exe', 'PowerShell.exe', 'pwsh.exe', 'rundll32.exe'])
+    assert.equal(commandShell(name, 'win32'), true, name);
+  assert.equal(commandShell('node.exe', 'win32'), false);
+  assert.equal(commandShell('sh', 'linux'), true);
+  assert.equal(commandShell('bash', 'darwin'), true);
+  assert.equal(commandShell('osascript', 'darwin'), true);
+  assert.equal(commandShell('node', 'linux'), false);
+  assert.equal(commandShell('cmd.exe', 'linux'), false);
+});
+
+test('Unix editors and tasks must be executable files; .app bundles are not launched', (t) => {
+  if (process.platform === 'win32') return t.skip('Unix execute bits are not used on Windows');
+  const { parent, workspace, service } = fixture(t);
+  const editor = path.join(parent, 'code-editor');
+  writeFileSync(editor, '#!/bin/sh\nexit 0\n', { mode: 0o644 });
+  assert.throws(
+    () => service.save({ workspace, editor: { kind: 'vscode', executable: editor }, tasks: [] }),
+    { message: 'Editor is not executable.' },
+  );
+  chmodSync(editor, 0o755);
+  service.save({ workspace, editor: { kind: 'vscode', executable: editor }, tasks: [] });
+  assert.equal(service.snapshot().editor.kind, 'vscode');
+  const bundle = path.join(parent, 'Editor.app');
+  mkdirSync(bundle);
+  assert.throws(
+    () => service.save({ workspace, editor: { kind: 'vscode', executable: bundle }, tasks: [] }),
+    { message: 'Editor not found.' },
+  );
+  const tool = path.join(parent, 'build-tool');
+  writeFileSync(tool, '#!/bin/sh\nexit 0\n', { mode: 0o644 });
+  assert.throws(
+    () =>
+      service.save({
+        workspace,
+        editor: null,
+        tasks: [{ id: 'Build', executable: tool, args: [] }],
+      }),
+    { message: 'Task executable is not executable.' },
+  );
+  chmodSync(tool, 0o755);
+  service.save({ workspace, editor: null, tasks: [{ id: 'Build', executable: tool, args: [] }] });
+  const shell = path.join(parent, 'sh');
+  writeFileSync(shell, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  assert.throws(
+    () =>
+      service.save({
+        workspace,
+        editor: null,
+        tasks: [{ id: 'Shell', executable: shell, args: ['-c', 'true'] }],
+      }),
+    { message: 'Choose a build/test executable instead of a command shell.' },
+  );
+});
+
+test('Windows editors and tasks must end in .exe and are refused otherwise', (t) => {
+  if (process.platform !== 'win32') return t.skip('The .exe rule applies on Windows');
+  const { parent, workspace, service } = fixture(t);
+  const noExtension = path.join(parent, 'code');
+  writeFileSync(noExtension, 'fixture');
+  assert.throws(
+    () =>
+      service.save({ workspace, editor: { kind: 'vscode', executable: noExtension }, tasks: [] }),
+    { message: 'Choose a supported editor executable.' },
+  );
+  assert.throws(
+    () =>
+      service.save({
+        workspace,
+        editor: null,
+        tasks: [{ id: 'Build', executable: noExtension, args: [] }],
+      }),
+    { message: 'Invalid approved project task.' },
+  );
 });

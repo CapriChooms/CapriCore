@@ -1,22 +1,23 @@
 # Capri documentation
 
-These guides describe **CapriCore 1.0.1**. Start with the
-[project overview and system requirements](../README.md),
-[public downloads](https://github.com/CapriChooms/CapriCore/releases/latest), or
-the [1.0.1 release notes](releases/1.0.1.md). Public downloads and update checks
-do not need a GitHub account, invitation or token.
+Start with the [project overview](../README.md) and the
+[Capri 1.3.0 release notes](https://github.com/CapriChooms/CapriCore/releases/tag/v1.3.0).
+Public downloads and update checks are available without a GitHub account.
+The platform guides below cover the stable download packages. Guides linked
+within this branch describe its source and may show earlier settings or behavior.
 
 ## Installation and models
 
-| Topic                                       | Guide                                                                                        |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Install, upgrade or repair                  | [Installation wizard](installation-wizard.md), [manual/source installation](installation.md) |
-| Public updates and recovery                 | [Updates](updates.md)                                                                        |
-| Local language models and Hugging Face GGUF | [Model selection](models.md)                                                                 |
-| OpenAI-compatible cloud and local APIs      | [External AI providers](external-api.md)                                                     |
-| RAM, VRAM and supported backends            | [Hardware](hardware.md), [AMD voice requirements](amd-voice.md)                              |
-| Languages and speech compatibility          | [Languages](languages.md), [speech language compatibility](speech-language-compatibility.md) |
-| Voice installation and optional packs       | [Voice installation](voice-installation.md), [voice distribution](voice-distribution.md)     |
+| Topic                                       | Guide                                                                                                                                                       |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install, upgrade or repair                  | [Installation wizard](installation-wizard.md), [manual/source installation](installation.md)                                                                |
+| Linux x86-64 and macOS on Apple Silicon     | [Linux](https://github.com/CapriChooms/CapriCore/blob/v1.3.0/LINUX-PREVIEW.md), [macOS](https://github.com/CapriChooms/CapriCore/blob/v1.3.0/docs/macos.md) |
+| Public updates and recovery                 | [Updates](updates.md)                                                                                                                                       |
+| Local language models and Hugging Face GGUF | [Model selection](models.md)                                                                                                                                |
+| OpenAI-compatible cloud and local APIs      | [External AI providers](external-api.md)                                                                                                                    |
+| RAM, VRAM and supported backends            | [Hardware](hardware.md), [AMD voice requirements](amd-voice.md)                                                                                             |
+| Languages and speech compatibility          | [Languages](languages.md), [speech language compatibility](speech-language-compatibility.md)                                                                |
+| Voice installation and optional packs       | [Voice installation](voice-installation.md), [voice distribution](voice-distribution.md)                                                                    |
 
 ## Everyday use
 

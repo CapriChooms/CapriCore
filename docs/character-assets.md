@@ -1,34 +1,47 @@
 # Character assets
 
-Release exports include the reviewed runtime catalog and its 68 referenced PNG
-frames, including expressions, idle activities and the approved three-level
-triangular speech mouth. Walking, generation references and previous revisions
-are excluded. The runtime loader verifies frame hashes before serving them.
+Capri uses reviewed artwork registered by the runtime manifests. The sprite
+catalog lists the selectable expressions and timed clips. Desktop poses, music
+poses and the startup intro have separate manifests.
 
-The artwork is required in source/setup releases, regardless of the selected
-voice, recognition or model components. Release validation and the installer
-check the complete catalog and every referenced frame. A missing or damaged
-pack keeps text chat available with a visible repair warning, rather than
-silently presenting the procedural fallback as Capri. Run Setup again and
-select the existing Capri installation folder to restore the bundled artwork;
-history, memory and settings are preserved. Diagnostic reports include
-`avatar.json` with the selected catalog and missing-file details, without
-including the images themselves.
+| Artwork                                    | Runtime reference                                                           |
+| ------------------------------------------ | --------------------------------------------------------------------------- |
+| Sprites, expressions and clips             | [Sprite catalog](../assets/capri/sprites/v1/runtime-sprite-set.json)        |
+| Seated, sleeping and window-edge poses     | [Desktop pose catalog](../assets/capri/sprites/poses-v2/runtime-poses.json) |
+| Music poses and notes                      | [Music artwork](../assets/default/capri-music-v1/runtime-music.json)        |
+| Startup sequence                           | [Intro manifest](../assets/capri/intro-v1/runtime-intro.json)               |
+| Registered frames for window-edge gestures | [Gesture sheets and geometry](../assets/default/hanging-cels/geometry.json) |
+| Fallback avatar                            | [Fallback catalog](../assets/default/sprite-set.json)                       |
 
-The wave animation was contributed by a member of the Capri community. Its
-transparent WebP preserves the supplied frames and timings, and plays when Capri
-wakes from sleep or is asked to wave.
+Capri 1.3.0 adds separate face and gesture atlases and an **Avatar gallery** in
+Settings for previewing poses, expressions and animations. The face plates
+animate eyes, eyelids and the speech mouth over the current pose. Some authored
+poses use their own face artwork. [Pose face atlas](https://github.com/CapriChooms/CapriCore/blob/v1.3.0/assets/default/capri-face-poses.json)
+· [Gesture face atlas](https://github.com/CapriChooms/CapriCore/blob/v1.3.0/assets/default/capri-face-gestures.json)
+· [Animation and registration guide](ANIMATION-V2.md)
 
-The same community artist contributed the pull-up, chip catch, wrist scanner,
-keytar and window interaction animations. The registered WebP sheets and their
-placement bounds are in `assets/default/hanging-cels/`. Capri plays them in the
-matching pose while detached. Performances near a search field use the active
-screen-observation grant and only read the field's location.
+The artwork is required in source and Setup packages for every voice,
+recognition and model selection. Release validation and the installer check the
+required catalog and its referenced files. If required artwork is missing or
+damaged, Capri shows a repair warning and keeps text chat available with its
+fallback avatar. On Windows, run Setup again and select the existing
+installation folder to restore the bundled artwork and preserve history, memory
+and settings. Diagnostic reports can include the catalog and missing-file
+details in `avatar.json`. [Installation wizard](installation-wizard.md)
+· [Diagnostic reports](diagnostic-reports.md)
 
-Capri is a fan character representation associated with Cyberpunk. The GPL-3.0
-license covers Capri application's original code; it does not grant ownership
-of third-party character designs, supplied artwork, trademarks or source media.
-This is an unofficial fan project, without an affiliation or endorsement claim.
-The supplied app icon is distributed as character artwork under the same notice.
-Anyone redistributing or commercializing character/voice assets must establish
-the necessary permissions separately. Keep voice-package provenance truthful.
+Community artwork includes the transparent WebP wave and registered pull-up,
+chip catch, wrist scanner, keytar and window interaction sequences. Capri can
+wave on waking or when asked. Window-edge performances use their matching
+detached poses. Performances near a search field depend on the screen-observation
+grant for the field's location. [Screen observation](screen-observation.md)
+
+## Asset terms
+
+Capri is an unofficial fan character representation associated with Cyberpunk.
+The GPL-3.0 license applies to the application's original code. Third-party
+character designs, supplied artwork, trademarks and source media have separate
+rights, including the supplied app icon. Anyone redistributing or commercializing
+character or voice assets must establish the necessary permissions separately
+and preserve accurate provenance. [Licensing](licensing.md)
+· [Third-party notices](../THIRD_PARTY_NOTICES.md)

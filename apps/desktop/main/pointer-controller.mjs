@@ -18,6 +18,7 @@ export class PointerController {
     placeDrag = (bounds) => bounds,
     applyWindowBounds = (bounds) => window.setBounds(bounds, false),
     verification = false,
+    pollingReliable = true,
     now = Date.now,
   }) {
     Object.assign(this, {
@@ -30,6 +31,7 @@ export class PointerController {
       placeDrag,
       applyWindowBounds,
       verification,
+      pollingReliable,
       now,
     });
     this.drag = null;
@@ -137,6 +139,12 @@ export class PointerController {
   }
   tick() {
     if (this.verification || this.window.isDestroyed() || !this.window.isVisible()) return;
+    // The cursor position cannot be trusted here (see pointerPollingReliable), so the
+    // window stays clickable rather than becoming click-through for a real mouse.
+    if (!this.pollingReliable) {
+      this.setInteractive(true);
+      return;
+    }
     const cursor = this.screen.getCursorScreenPoint(),
       time = this.now();
     if (this.avatarPress && time - this.avatarPress.at > gestureTimeout) this.endAvatar();

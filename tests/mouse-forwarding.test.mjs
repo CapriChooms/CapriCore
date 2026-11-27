@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import {
   FORWARD_MOUSE,
   ignoreMouseOptions,
+  pointerPollingReliable,
   setClickThrough,
 } from '../apps/desktop/main/mouse-forwarding.mjs';
 import { PointerController } from '../apps/desktop/main/pointer-controller.mjs';
@@ -62,4 +63,59 @@ test('no Capri window code asks Electron to forward mouse movement', () => {
   assert.ok(files.length > 10);
   for (const file of files)
     assert.doesNotMatch(readFileSync(file, 'utf8'), /forward\s*:\s*true/u, file.pathname);
+});
+
+test('cursor polling is trusted everywhere except a Linux Wayland session', () => {
+  assert.equal(pointerPollingReliable('win32', {}), true);
+  assert.equal(pointerPollingReliable('darwin', { WAYLAND_DISPLAY: 'wayland-0' }), true);
+  assert.equal(pointerPollingReliable('linux', { XDG_SESSION_TYPE: 'x11' }), true);
+  assert.equal(pointerPollingReliable('linux', {}), true);
+  // KDE Plasma on Wayland: Capri runs under XWayland and the pointer goes stale.
+  assert.equal(pointerPollingReliable('linux', { XDG_SESSION_TYPE: 'wayland' }), false);
+  assert.equal(pointerPollingReliable('linux', { WAYLAND_DISPLAY: 'wayland-0' }), false);
+});
+
+test('a Wayland session keeps the window clickable instead of polling the cursor', () => {
+  const calls = [];
+  let reads = 0;
+  const controller = new PointerController({
+    window: {
+      setIgnoreMouseEvents: (...args) => calls.push(args),
+      isDestroyed: () => false,
+      isVisible: () => true,
+      getContentBounds: () => ({ x: 0, y: 0, width: 10, height: 10 }),
+    },
+    screen: {
+      getCursorScreenPoint: () => {
+        reads += 1;
+        return { x: -1000, y: -1000 };
+      },
+    },
+    getRegions: () => ({ controls: [], sprite: { x: 100, y: 100, width: 10, height: 10 } }),
+    getMask: () => ({ alpha: new Uint8Array(1), imageSize: { width: 1, height: 1 } }),
+    pollingReliable: false,
+  });
+  controller.tick();
+  controller.tick();
+  assert.equal(reads, 0, 'a stale cursor position must not be read');
+  assert.deepEqual(calls, [[false, { forward: false }]]);
+  assert.equal(controller.ignored, false);
+});
+
+test('a reliable pointer still goes click-through away from the controls', () => {
+  const calls = [];
+  const controller = new PointerController({
+    window: {
+      setIgnoreMouseEvents: (...args) => calls.push(args),
+      isDestroyed: () => false,
+      isVisible: () => true,
+      getContentBounds: () => ({ x: 0, y: 0, width: 10, height: 10 }),
+    },
+    screen: { getCursorScreenPoint: () => ({ x: -1000, y: -1000 }) },
+    getRegions: () => ({ controls: [], sprite: { x: 100, y: 100, width: 10, height: 10 } }),
+    getMask: () => ({ alpha: new Uint8Array(1), imageSize: { width: 1, height: 1 } }),
+  });
+  controller.tick();
+  assert.deepEqual(calls, []);
+  assert.equal(controller.ignored, true);
 });

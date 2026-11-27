@@ -250,9 +250,9 @@ function paintLashes(context, eye, closure, lift, thickness) {
 }
 
 // Draw the socket and eyeball independently. The socket keeps gaze within its silhouette.
-function paintEye(context, eye, shape, gaze) {
+function paintEye(context, eye, shape, gaze, palette = blinkPalette) {
   context.save();
-  context.fillStyle = blinkPalette.ink;
+  context.fillStyle = palette.ink;
   context.fill(shape);
   context.clip(shape);
   context.translate(eye.center[0] + gaze[0], eye.center[1] + gaze[1]);
@@ -266,7 +266,7 @@ function paintEye(context, eye, shape, gaze) {
   ]) {
     context.beginPath();
     context.arc(0, 0, radius, 0, 2 * Math.PI);
-    context.fillStyle = blinkPalette[color];
+    context.fillStyle = palette[color];
     context.fill();
   }
   context.restore();
@@ -300,7 +300,9 @@ function paintSmile(context, smile) {
   context.fill(mouth);
 }
 
-export function prepareLayeredBlink(poseLayer, eyesLayer) {
+// The palette paints eyes that look away from the eye image (the iris ring
+// follows the Capri colors).
+export function prepareLayeredBlink(poseLayer, eyesLayer, palette = blinkPalette) {
   const { x, y, width, height } = blinkEyeArea;
   if (
     poseLayer.width !== size ||
@@ -347,7 +349,7 @@ export function prepareLayeredBlink(poseLayer, eyesLayer) {
             );
           } else {
             if (closure > 0) context.clip(aperture);
-            paintEye(context, eye, open[index], gaze);
+            paintEye(context, eye, open[index], gaze, palette);
           }
           context.restore();
         }

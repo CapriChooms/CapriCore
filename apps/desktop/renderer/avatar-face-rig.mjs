@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { faceAnimations, faceFrames, speechMouths } from './avatar-face-expressions.mjs';
 import {
+  blinkPalette,
   faceEyeCenters,
   layeredBlinkAssets,
   prepareLayeredBlink,
 } from './avatar-layered-blink.mjs';
+import { PART, artKeyColors, recolorInk } from './avatar-colors.mjs';
 
 export const faceSize = 1254;
 const standingPatch = [550, 331, 156, 120];
@@ -201,6 +203,11 @@ export function avatarFaceState(frameId, expression, clip, age, shape = 'closed'
 // the URLs and drops the loaded art so every face layer is fetched again.
 let faceArt = '';
 export const avatarFaceArt = () => faceArt;
+/** The eye palette in the Capri colors of an art key; the green ring is green-body ink. */
+export const avatarFacePalette = (key = faceArt) => ({
+  ...blinkPalette,
+  green: recolorInk(blinkPalette.green, PART.green, artKeyColors(key)),
+});
 export function setAvatarFaceArt(key) {
   if (typeof key !== 'string' || key === faceArt) return false;
   faceArt = key;
@@ -218,11 +225,15 @@ const loadImage = async (url) => {
 
 let artwork;
 export function loadAvatarFaceRig() {
-  artwork ??= Promise.all([
+  if (artwork) return artwork;
+  // Eyes that look away are painted, not drawn from the image: paint them in
+  // the colors the images are loaded in.
+  const palette = avatarFacePalette();
+  artwork = Promise.all([
     ...Object.values(layeredBlinkAssets).map(loadImage),
     loadFaceAtlas('poses').catch(() => null),
   ])
-    .then(([pose, eyes, atlas]) => prepareAvatarFaceRig(pose, eyes, atlas))
+    .then(([pose, eyes, atlas]) => prepareAvatarFaceRig(pose, eyes, atlas, palette))
     .catch((error) => {
       artwork = null;
       throw error;
@@ -258,8 +269,8 @@ export function loadAvatarGestureFaces() {
   return gestureFaces;
 }
 
-export function prepareAvatarFaceRig(standing, eyes, atlas) {
-  const draw = prepareLayeredBlink(standing, eyes);
+export function prepareAvatarFaceRig(standing, eyes, atlas, palette) {
+  const draw = prepareLayeredBlink(standing, eyes, palette);
   const prepared = new Map();
   return (image, frameId) => {
     const id = avatarFacePose(frameId);

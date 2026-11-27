@@ -248,6 +248,43 @@ export function erode(mask, width, height, rounds) {
   return current;
 }
 
+// Carries a pixel's saturation and brightness relative to its ink over to the target.
+const shade = (ink, target, r, g, b) => {
+  const { s, v } = rgbToHsv(r, g, b);
+  return hsvToRgb(
+    target.h,
+    Math.min(1, target.s * (s / ink.s)),
+    Math.min(1, target.v * (v / ink.v)),
+  );
+};
+
+const PART_COLOR = Object.freeze({
+  [PART.green]: 'greenBody',
+  [PART.redBody]: 'redBody',
+  [PART.hair]: 'hair',
+});
+
+/**
+ * One color the renderer paints itself in a part's ink (for example the iris
+ * ring drawn while the eyes look around), mapped the way recolorSprite maps
+ * that part's pixels.
+ */
+export function recolorInk(hex, part, value) {
+  if (typeof hex !== 'string' || !HEX.test(hex.toLowerCase()) || !PART_COLOR[part])
+    throw TypeError('recolorInk needs a #rrggbb color and a part.');
+  const colors = validateAvatarColors(value);
+  if (avatarColorsAreDefault(colors)) return hex;
+  const n = Number.parseInt(hex.slice(1), 16);
+  const rgb = shade(
+    INKS[part],
+    hexToHsv(colors[PART_COLOR[part]]),
+    (n >> 16) & 255,
+    (n >> 8) & 255,
+    n & 255,
+  );
+  return '#' + rgb.map((c) => c.toString(16).padStart(2, '0')).join('');
+}
+
 /** Recolors in place; returns how many pixels changed. */
 export function recolorSprite(rgba, width, height, value, { cropEdges = false } = {}) {
   const colors = validateAvatarColors(value);
@@ -262,14 +299,7 @@ export function recolorSprite(rgba, width, height, value, { cropEdges = false } 
   for (let i = 0, p = 0; i < parts.length; i++, p += 4) {
     const part = parts[i];
     if (!part) continue;
-    const ink = INKS[part],
-      target = targets[part],
-      { s, v } = rgbToHsv(rgba[p], rgba[p + 1], rgba[p + 2]);
-    const [r, g, b] = hsvToRgb(
-      target.h,
-      Math.min(1, target.s * (s / ink.s)),
-      Math.min(1, target.v * (v / ink.v)),
-    );
+    const [r, g, b] = shade(INKS[part], targets[part], rgba[p], rgba[p + 1], rgba[p + 2]);
     rgba[p] = r;
     rgba[p + 1] = g;
     rgba[p + 2] = b;
@@ -313,6 +343,16 @@ export function avatarArtKey(value) {
   return avatarColorsAreDefault(colors)
     ? ''
     : [colors.greenBody, colors.redBody, colors.hair].map((hex) => hex.slice(1)).join('');
+}
+/** The colors an avatarArtKey stands for; the defaults for '' or any other value. */
+export function artKeyColors(key) {
+  if (typeof key !== 'string' || !ART_KEY.test(key)) return { ...AVATAR_COLOR_DEFAULTS };
+  return {
+    enabled: true,
+    greenBody: '#' + key.slice(0, 6),
+    redBody: '#' + key.slice(6, 12),
+    hair: '#' + key.slice(12),
+  };
 }
 const SPRITE_URL = /^capri:\/\/desktop\/sprites\/[^?#]+\.png$/;
 export function withArtKey(url, key) {

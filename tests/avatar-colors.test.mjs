@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { PNG } from 'pngjs';
 import {
   AVATAR_COLOR_DEFAULTS,
   PART,
@@ -15,6 +17,8 @@ import {
   recolorAtlas,
   avatarArtKey,
   withArtKey,
+  recolorInk,
+  artKeyColors,
 } from '../apps/desktop/renderer/avatar-colors.mjs';
 
 const RED = [251, 0, 50, 255],
@@ -279,4 +283,121 @@ test('recolorAtlas needs entries and changes nothing for default colors', () => 
   s.rect(0, 0, 10, 10, RED);
   assert.throws(() => recolorAtlas(s.rgba, 10, 10, null, custom), TypeError);
   assert.equal(recolorAtlas(s.rgba, 10, 10, { a: [0, 0, 0, 0, 10, 10] }, AVATAR_COLOR_DEFAULTS), 0);
+});
+
+// The face rig paints the eyes itself while they look around; the iris ring it
+// paints must take the green-body color the eye images are served in.
+const handTest = { enabled: true, greenBody: '#0000ff', redBody: '#a020f0', hair: '#00ff00' };
+const RING = '#00f54c'; // the ring green the face rig paints with
+
+test('recolorInk maps one ink color the way recolorSprite maps that part', () => {
+  const blue = recolorInk(RING, PART.green, handTest);
+  assert.equal(rgbToHsv(...[1, 3, 5].map((i) => parseInt(blue.slice(i, i + 2), 16))).h, 240);
+  // A ring pixel in an image comes out the same as the painted ring.
+  const s = sprite(1, 1);
+  s.put(0, 0, [0, 245, 76, 255]);
+  recolorSprite(s.rgba, 1, 1, handTest);
+  assert.equal(
+    '#' +
+      s
+        .at(0, 0)
+        .slice(0, 3)
+        .map((c) => c.toString(16).padStart(2, '0'))
+        .join(''),
+    blue,
+  );
+  assert.equal(recolorInk('#FB0032', PART.hair, handTest), '#00ff00');
+  assert.equal(recolorInk('#fb0032', PART.redBody, handTest), '#a020f0');
+  assert.equal(recolorInk(RING, PART.green, AVATAR_COLOR_DEFAULTS), RING);
+  assert.equal(recolorInk(RING, PART.green, { ...handTest, enabled: false }), RING);
+});
+
+test('recolorInk rejects bad colors, parts and settings', () => {
+  for (const [hex, part] of [
+    ['00f54c', PART.green],
+    ['#00f54', PART.green],
+    [null, PART.green],
+    [RING, PART.none],
+    [RING, 9],
+  ])
+    assert.throws(() => recolorInk(hex, part, handTest), TypeError);
+  assert.throws(() => recolorInk(RING, PART.green, { enabled: 'yes' }), TypeError);
+});
+
+test('artKeyColors reads back the colors of an art key', () => {
+  const key = avatarArtKey(handTest);
+  assert.deepEqual(artKeyColors(key), handTest);
+  assert.equal(avatarArtKey(artKeyColors(key)), key);
+  for (const bad of ['', 'xyz', undefined, 7, key + '0'])
+    assert.deepEqual(artKeyColors(bad), AVATAR_COLOR_DEFAULTS);
+});
+
+// Shaped like the eye art: a green face, red hair above it, and black sockets
+// holding a green ring, a black band, a blue iris and a white highlight.
+test('an iris ring in the eye art follows the green body, not the hair', () => {
+  const s = sprite(120, 80);
+  s.rect(0, 0, 120, 20, RED);
+  s.rect(0, 20, 120, 60, GREEN);
+  const disc = (cx, cy, r, c) => {
+    for (let y = cy - r; y <= cy + r; y++)
+      for (let x = cx - r; x <= cx + r; x++)
+        if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) s.put(x, y, c);
+  };
+  for (const cx of [35, 85]) {
+    disc(cx, 50, 22, BLACK);
+    disc(cx, 50, 18, [0, 245, 76, 255]);
+    disc(cx, 50, 15, BLACK);
+    disc(cx, 50, 11, [6, 107, 234, 255]);
+    disc(cx, 50, 5, STAR);
+  }
+  recolorSprite(s.rgba, 120, 80, handTest);
+  const hue = (x, y) => rgbToHsv(...s.at(x, y).slice(0, 3)).h;
+  assert.equal(hue(35 + 17, 50), 240); // ring: green body
+  assert.equal(hue(85 - 17, 50), 240);
+  assert.equal(hue(5, 30), 240); // face
+  assert.equal(hue(60, 5), 120); // hair
+  assert.deepEqual(s.at(35, 50 + 8), [6, 107, 234, 255]); // iris blue stays
+});
+
+// The real eye image and gesture atlas: every green-ink pixel ends in the
+// green-body color, and the painted ring matches the drawn one.
+const readArt = (name) =>
+  PNG.sync.read(readFileSync(new URL('../assets/default/' + name, import.meta.url)));
+test('the real eye art keeps every green ring pixel in the green-body color', () => {
+  const ring = recolorInk(RING, PART.green, handTest);
+  for (const name of ['capri-blink-eyes.png', 'capri-face-gestures.png']) {
+    const image = readArt(name),
+      original = new Uint8Array(image.data),
+      pixels = new Uint8Array(image.data);
+    let entries = null;
+    if (name.includes('gestures')) {
+      entries = JSON.parse(
+        readFileSync(
+          new URL('../assets/default/capri-face-gestures.json', import.meta.url),
+          'utf8',
+        ),
+      );
+      recolorAtlas(pixels, image.width, image.height, entries, handTest);
+    } else recolorSprite(pixels, image.width, image.height, handTest);
+    const crops = new Uint8Array(image.width * image.height).fill(entries ? 0 : 1);
+    for (const [u, v, , , w, h] of Object.values(entries ?? {}))
+      for (let y = v; y < v + h; y++) crops.fill(1, y * image.width + u, y * image.width + u + w);
+    let green = 0,
+      sameAsPainted = 0;
+    for (let i = 0, p = 0; p < original.length; i++, p += 4) {
+      if (inkOf(original[p], original[p + 1], original[p + 2], original[p + 3]) !== 'green')
+        continue;
+      if (!crops[i]) continue;
+      green++;
+      assert.equal(rgbToHsv(pixels[p], pixels[p + 1], pixels[p + 2]).h, 240, name + ' pixel ' + i);
+      const hex =
+        '#' + [...pixels.subarray(p, p + 3)].map((c) => c.toString(16).padStart(2, '0')).join('');
+      if (original[p] === 0 && original[p + 1] === 245 && original[p + 2] === 76) {
+        sameAsPainted++;
+        assert.equal(hex, ring);
+      }
+    }
+    assert.ok(green > 5000, name + ' has green ink');
+    if (name === 'capri-blink-eyes.png') assert.ok(sameAsPainted > 1000);
+  }
 });

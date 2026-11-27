@@ -7,6 +7,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import { root, runtime, initialize, environment } from '../../packages/runtime/src/index.mjs';
+import { skillPreferences } from '../../packages/skills/src/settings-catalog.mjs';
 const parent = path.join(root, '.runtime/sleep-verification');
 mkdirSync(parent, { recursive: true });
 const folder = mkdtempSync(path.join(parent, 'fixture-'));
@@ -40,6 +41,15 @@ const rt = runtime({
   logPrefix: 'sleep-verification',
 });
 initialize(rt);
+// The screen button is hidden until its skill asks for it; this check needs it visible.
+mkdirSync(path.join(folder, 'desktop'), { recursive: true });
+writeFileSync(
+  path.join(folder, 'desktop/skills.json'),
+  JSON.stringify({
+    schemaVersion: 1,
+    settings: skillPreferences({ 'capri.screen': { showButton: true } }),
+  }),
+);
 const env = {
   ...environment(rt),
   CAPRI_DESKTOP_VERIFICATION_DIR: folder,
@@ -96,12 +106,14 @@ try {
   await page.screenshot({ path: path.join(folder, 'sleep.png') });
   await page.locator('#message').fill('Are you awake?');
   await page.locator('#message').press('Enter');
-  await page.waitForFunction(
-    () =>
+  // The chat panel is collapsed in this flow, so no message nodes exist; read the app state.
+  await page.waitForFunction(async () => {
+    const value = await window.capri.bootstrap();
+    return (
       document.body.dataset.phase === 'ready' &&
-      document.querySelectorAll('.message[data-role="assistant"][data-status="complete"]')
-        .length === 2,
-  );
+      value.messages.filter((m) => m.role === 'assistant' && m.status === 'complete').length === 2
+    );
+  });
   assert.equal(requests, 1);
   assert.equal(await page.locator('#sleep-indicator').isVisible(), false);
   await assert.rejects(
@@ -129,9 +141,14 @@ try {
   });
   await page.locator('#notice-report').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#notice').getAttribute('data-severity'), 'error');
-  await page.locator('#notice-report').click({ force: true });
-  await settings.locator('[data-section="bug"][aria-current="page"]').waitFor();
-  assert.equal(await settings.locator('#bug-title').isVisible(), true);
+  // The first settings window was closed above, so the report opens a new one.
+  const [report] = await Promise.all([
+    application.waitForEvent('window'),
+    page.locator('#notice-report').click({ force: true }),
+  ]);
+  await report.waitForURL('**/settings.html');
+  await report.locator('[data-section="bug"][aria-current="page"]').waitFor();
+  assert.equal(await report.locator('#bug-title').isVisible(), true);
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({

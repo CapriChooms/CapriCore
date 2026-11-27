@@ -22,3 +22,16 @@ export function setClickThrough(window, ignored, forward = FORWARD_MOUSE) {
     throw new TypeError('setClickThrough needs a window.');
   window.setIgnoreMouseEvents(ignored === true, ignoreMouseOptions(forward));
 }
+
+/**
+ * Whether the cursor position from screen.getCursorScreenPoint() can decide which
+ * parts of a click-through window are clickable. On a Linux Wayland session Capri
+ * runs under XWayland, which only sees pointer motion while the pointer is over an
+ * X window. A click-through window is never one, so the reported position goes
+ * stale and the window stays click-through for a real mouse. Polling is therefore
+ * unreliable there; the caller must keep the window clickable instead.
+ */
+export function pointerPollingReliable(platform = process.platform, env = process.env) {
+  if (platform !== 'linux') return true;
+  return env.XDG_SESSION_TYPE !== 'wayland' && !env.WAYLAND_DISPLAY;
+}

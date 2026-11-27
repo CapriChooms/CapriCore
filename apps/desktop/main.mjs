@@ -136,6 +136,7 @@ import {
 } from './screen-observation.mjs';
 import { applicationId } from '../../packages/runtime/src/host/desktop-identity.mjs';
 import { PointerController } from './main/pointer-controller.mjs';
+import { pointerPollingReliable } from './main/mouse-forwarding.mjs';
 import { createDesktopResources } from './main/resources.mjs';
 import { createIpcHandler, settingsVersion } from './main/ipc.mjs';
 import { resourceResponse } from './main/protocol.mjs';
@@ -10433,6 +10434,7 @@ async function initializeDesktop() {
     pointer = new PointerController({
       window,
       screen,
+      pollingReliable: pointerPollingReliable(),
       getRegions: () => regions,
       getMask: () => activeMask,
       onAvatarTether: (press, cursor, bounds, now) => {

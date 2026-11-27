@@ -7064,8 +7064,8 @@
     },
     {
       "path": "tests/diagnostic-report.test.mjs",
-      "bytes": 31608,
-      "sha256": "2c1615bbb9a2a9187ec2d67ad66cd07b4365ad6540e326905ca10651057e1661"
+      "bytes": 31663,
+      "sha256": "7717f6a369beaab12a7baabb7ded70b63650002583932c5743d5553eb0f32743"
     },
     {
       "path": "tests/diagnostic-resources.test.mjs",

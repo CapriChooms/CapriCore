@@ -10,6 +10,7 @@ import { createDiagnosticReport, validateReport } from '../apps/desktop/diagnost
 import { redactor } from '../apps/desktop/diagnostics/redact.mjs';
 import { diagnosticState } from '../apps/desktop/diagnostics/state.mjs';
 import { diagnosticZip } from '../apps/desktop/diagnostics/archive.mjs';
+import { venvPython } from '../apps/desktop/python-venv.mjs';
 import { VoiceService } from '../apps/desktop/voice-service.mjs';
 import { registerCompanionIpc } from '../apps/desktop/main/companion-ipc.mjs';
 import { createIpcHandler } from '../apps/desktop/main/ipc.mjs';
@@ -646,7 +647,7 @@ test('voice reports do not attribute Chatterbox files to other engines or text-o
         assert.equal(pythonProbes.length, 1);
         assert.equal(
           pythonProbes[0].runtime.python,
-          path.join(base, '.runtime/qwen-tts-venv/Scripts/python.exe'),
+          venvPython(path.join(base, '.runtime/qwen-tts-venv')),
         );
         assert.equal(pythonProbes[0].checkChatterbox, false);
         assert.match(files.get('REPORT.md'), /Qwen3-TTS Python runtime could not be verified/);

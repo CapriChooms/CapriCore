@@ -327,7 +327,10 @@ export function initialize(rt = runtime()) {
     ) {
       const backup = path.join(rt.stateDir, 'policy-backup.json');
       try {
-        writeFileSync(backup, JSON.stringify(previous, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+        writeFileSync(backup, JSON.stringify(previous, null, 2) + '\n', {
+          flag: 'wx',
+          mode: 0o600,
+        });
       } catch (error) {
         if (error.code !== 'EEXIST') throw error;
       }

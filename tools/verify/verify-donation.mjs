@@ -95,7 +95,9 @@ try {
   await settingsView(application, 'general');
   await settingsView(application, 'support');
   assert.equal(await meme.count(), 0);
-  console.log('PASS The support heart displays the bundled meme temporarily without opening a link');
+  console.log(
+    'PASS The support heart displays the bundled meme temporarily without opening a link',
+  );
 
   const views = application.windows().length;
   await open.click();
@@ -104,13 +106,17 @@ try {
   assert.equal(application.windows().length, views);
   console.log('PASS The primary Lava.top button opens the fixed URL in the system browser');
 
-  await application.evaluate(() => { globalThis.donationVerification.fail = true; });
+  await application.evaluate(() => {
+    globalThis.donationVerification.fail = true;
+  });
   await open.click();
   const notice = settings.locator('#settings-notice');
   await notice.waitFor();
   assert.match(await notice.innerText(), /could not open the donation window/i);
   assert.equal(await open.isEnabled(), true);
-  await application.evaluate(() => { globalThis.donationVerification.fail = false; });
+  await application.evaluate(() => {
+    globalThis.donationVerification.fail = false;
+  });
   await fallback.evaluate((button) => button.onclick());
   assert.deepEqual(await opened(), [donationUrl, donationUrl]);
   assert.equal(application.windows().length, views);

@@ -145,9 +145,11 @@ async function shadePixels() {
     const [metricA, metricB] = [...document.querySelectorAll('.process-graph, .memory-gauge')]
       .map((node) => node.getBoundingClientRect())
       .filter((r) => r.width > 0 && r.height > 0);
-    const metricsGap = metricB && (metricB.top >= metricA.bottom
-      ? [centerX(metricA), (metricA.bottom + metricB.top) / 2]
-      : [(metricA.right + metricB.left) / 2, centerY(metricA)]);
+    const metricsGap =
+      metricB &&
+      (metricB.top >= metricA.bottom
+        ? [centerX(metricA), (metricA.bottom + metricB.top) / 2]
+        : [(metricA.right + metricB.left) / 2, centerY(metricA)]);
     const panelGap = document.body.hasAttribute('data-horizontal-portrait')
       ? [portrait.right + 5, centerY(portrait)]
       : [portrait.left + portrait.width / 2, (portrait.top + reply.bottom) / 2];
@@ -355,7 +357,10 @@ try {
   await settings({ enabled: true, level: 85, softness: 0 });
   const horizontal = await shadePixels();
   assert.ok(Math.abs(horizontal.center - 217) <= 3, JSON.stringify(horizontal));
-  assert.ok(horizontal.panelGap < 5 && Math.abs(horizontal.buttonGap - 217) <= 3, JSON.stringify(horizontal));
+  assert.ok(
+    horizontal.panelGap < 5 && Math.abs(horizontal.buttonGap - 217) <= 3,
+    JSON.stringify(horizontal),
+  );
   assert.ok(Math.abs(horizontal.metricsGap - 217) <= 3, JSON.stringify(horizontal));
   await page.evaluate(async () => {
     const { companion } = await window.capri.bootstrap();

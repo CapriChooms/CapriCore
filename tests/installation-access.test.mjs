@@ -45,10 +45,7 @@ test('the installation is available read-only, including code and configuration 
     path.join(f.root, 'linked'),
     process.platform === 'win32' ? 'junction' : 'dir',
   );
-  assert.throws(
-    () => f.permissions.target(INSTALLATION_SCOPE_ID, 'linked/file.txt'),
-    /Linked/,
-  );
+  assert.throws(() => f.permissions.target(INSTALLATION_SCOPE_ID, 'linked/file.txt'), /Linked/);
   assert.throws(() => f.permissions.grant(path.join(f.folder, 'AppData')), /personal folder/);
 });
 

@@ -11,7 +11,12 @@ import { SpriteImages } from './animation-director.mjs';
 import { faceAnimations, faceFrames } from './avatar-face-expressions.mjs';
 import { AvatarHeadpat } from './avatar-headpat.mjs';
 import { AvatarMouthLayer } from './avatar-mouth.mjs';
-import { avatarFaceState, composeAvatarFace, loadAvatarFaceRig, loadAvatarGestureFaces } from './avatar-face-rig.mjs';
+import {
+  avatarFaceState,
+  composeAvatarFace,
+  loadAvatarFaceRig,
+  loadAvatarGestureFaces,
+} from './avatar-face-rig.mjs';
 import { layeredBlinkAssets, prepareLayeredBlink } from './avatar-layered-blink.mjs';
 import { AvatarSurfacePerformance } from './avatar-surface-performance.mjs';
 import {
@@ -115,9 +120,10 @@ export function galleryEntries({ frames = [], clips = [], defaultId = 'neutral',
     if (avatarPoseSegments(frame.id).length)
       add('sway-' + frame.id, 'Sway · ' + frame.label, 'sway', frame.id);
     if ((clips.length || isPose(frame)) && musicRig(frame.id)) {
-      const title = frame.kind === 'reviewed_music'
-        ? musicTitle(frame.id)
-        : 'Music listening · ' + still(frame).title;
+      const title =
+        frame.kind === 'reviewed_music'
+          ? musicTitle(frame.id)
+          : 'Music listening · ' + still(frame).title;
       add('dance-' + frame.id, title, 'music', frame.id);
     }
   }
@@ -380,7 +386,11 @@ export class AvatarGallery {
 
   title(value) {
     if (value.startsWith('Music listening · '))
-      return this.ui.text('Music listening') + ' · ' + this.ui.text(value.slice('Music listening · '.length));
+      return (
+        this.ui.text('Music listening') +
+        ' · ' +
+        this.ui.text(value.slice('Music listening · '.length))
+      );
     return value.startsWith('Sway · ')
       ? this.ui.text('Sway') + ' · ' + this.ui.text(value.slice(7))
       : this.ui.text(value);
@@ -606,7 +616,7 @@ export class AvatarGallery {
     }
     if (entry.kind === 'music') {
       const animation = new MusicAnimation();
-      const pose = this.musicPose ??= new MusicPoseLayer(resolution);
+      const pose = (this.musicPose ??= new MusicPoseLayer(resolution));
       const notes = await Promise.all(this.notes.map(({ url }) => loadImage(url)));
       source = await registeredGalleryPose(source, entry.poster.id);
       if (!source.src) source.avatarTextureRevision ??= 1;

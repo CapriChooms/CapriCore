@@ -235,9 +235,7 @@ export function loadAvatarCatalog(manifestFile, { poseManifest, musicRoot } = {}
   const galleryIds = new Set([...portraitIds, ...desktopPoseFrames.map(({ id }) => id)]);
   const usesFrames = (clip, ids) =>
     clip.frames.every(({ id }) => ids.has(id)) && (!clip.effect || ids.has(clip.effect.id));
-  const portraitClips = clips.filter(
-    (clip) => usesFrames(clip, portraitIds),
-  );
+  const portraitClips = clips.filter((clip) => usesFrames(clip, portraitIds));
   const portraitClipIds = new Set(portraitClips.map((clip) => clip.id));
   const portraitSprites = sprites.filter(
     (sprite) =>

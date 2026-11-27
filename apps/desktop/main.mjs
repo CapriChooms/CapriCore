@@ -866,9 +866,7 @@ async function initializeDesktop() {
     }
     const elapsed = Date.now() - (face?.startedAt ?? 0);
     const activity =
-      elapsed >= 0 && elapsed < (faceAnimations[face?.clip]?.duration ?? 0)
-        ? face.clip
-        : undefined;
+      elapsed >= 0 && elapsed < (faceAnimations[face?.clip]?.duration ?? 0) ? face.clip : undefined;
     return describeOwnAvatar({
       mode,
       frame,
@@ -2357,8 +2355,7 @@ async function initializeDesktop() {
     void startMusicListening().catch(() => {});
   }
   async function startMicrophone() {
-    if (speechInstaller.busy('recognition'))
-      return microphone.startBlocked('ASR_START_INSTALLING');
+    if (speechInstaller.busy('recognition')) return microphone.startBlocked('ASR_START_INSTALLING');
     if (
       shuttingDown ||
       sessionLocked ||
@@ -2366,8 +2363,7 @@ async function initializeDesktop() {
       !['ready', 'asleep'].includes(backendState.phase)
     )
       return microphone.startBlocked('ASR_START_CORE_NOT_READY');
-    if (!asrAllowed || !asrInstalled)
-      return microphone.startBlocked('ASR_START_PACK_MISSING');
+    if (!asrAllowed || !asrInstalled) return microphone.startBlocked('ASR_START_PACK_MISSING');
     const capture = { ...(await microphone.start()), ...liveMicrophone() };
     if (
       !verification &&
@@ -9551,8 +9547,7 @@ async function initializeDesktop() {
       if (playbackBusy && !busy) nativeMusicPlaybackTail = Date.now() + 600;
       playbackBusy = busy;
       mutedVoiceResidency.scheduleIdle();
-      for (const listener of [...reminderListeners])
-        listener({ type: 'playback.state', busy });
+      for (const listener of [...reminderListeners]) listener({ type: 'playback.state', busy });
       settingsHost?.send({
         type: 'settings.activity',
         chat: Boolean(chat.active || currentChatTask),

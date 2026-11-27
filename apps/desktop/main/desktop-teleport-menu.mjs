@@ -26,7 +26,10 @@ export async function prepareDesktopTeleport(root) {
   if (existsSync(rustHelper)) return rustHelper;
   // A source install or in-app update can use the polling C# helper without Cargo.
   const source = path.join(root, 'packages/installer/windows/desktop-teleport.cs');
-  const digest = createHash('sha256').update(await readFile(source)).digest('hex').slice(0, 16);
+  const digest = createHash('sha256')
+    .update(await readFile(source))
+    .digest('hex')
+    .slice(0, 16);
   const helper = path.join(directory, 'CapriDesktopTeleport-' + digest + '.exe');
   if (existsSync(helper)) return helper;
   await mkdir(directory, { recursive: true });

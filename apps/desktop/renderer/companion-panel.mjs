@@ -30,11 +30,7 @@ import {
   TELEPORT_LIGHTNING_RANGES,
   TELEPORT_TRAVEL_RANGE,
 } from './teleport-effects.mjs';
-import {
-  drawSandevistan,
-  prepareSandevistan,
-  sandevistanStamps,
-} from './sandevistan-motion.mjs';
+import { drawSandevistan, prepareSandevistan, sandevistanStamps } from './sandevistan-motion.mjs';
 import { playWakeChime, playWakeSample } from './wake-feedback.mjs';
 const resourceDisplays = [
   {

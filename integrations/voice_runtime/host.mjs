@@ -125,7 +125,9 @@ export async function startCompanionVoice({ language = 'en', signal, modelId } =
           ...voiceWorkerEnvironment(),
           ...runtimeEnv,
           ...device.env,
-          CAPRI_CPU_THREADS: String(Math.max(1, Math.min(settings.cpuThreads ?? 8, availableParallelism()))),
+          CAPRI_CPU_THREADS: String(
+            Math.max(1, Math.min(settings.cpuThreads ?? 8, availableParallelism())),
+          ),
         },
         deviceKey: device.key,
       },

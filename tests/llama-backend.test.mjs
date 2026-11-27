@@ -177,22 +177,30 @@ test('an Ollama v2 Capri model alias reuses local GGUF files after switching eng
 test('local model administration requires its own credential and leaves inventory available', async (t) => {
   const token = 'a'.repeat(64);
   const unloaded = [];
-  const url = await listen(t, createLlamaBridge({
-    adminToken: token,
-    version: 'test',
-    store: { list: () => [], pendingImports: new Map() },
-    workers: { unload: (model) => unloaded.push(model) },
-  }));
+  const url = await listen(
+    t,
+    createLlamaBridge({
+      adminToken: token,
+      version: 'test',
+      store: { list: () => [], pendingImports: new Map() },
+      workers: { unload: (model) => unloaded.push(model) },
+    }),
+  );
   assert.equal((await fetch(url + '/api/tags')).status, 200);
-  for (const [route, method] of [['pull', 'POST'], ['create', 'POST'], ['delete', 'DELETE']]) {
+  for (const [route, method] of [
+    ['pull', 'POST'],
+    ['create', 'POST'],
+    ['delete', 'DELETE'],
+  ]) {
     const response = await fetch(url + '/api/' + route, { method, body: '{}' });
     assert.equal(response.status, 401);
   }
-  const unload = (authorization) => fetch(url + '/api/generate', {
-    method: 'POST',
-    headers: { authorization },
-    body: JSON.stringify({ model: 'fixture', keep_alive: 0 }),
-  });
+  const unload = (authorization) =>
+    fetch(url + '/api/generate', {
+      method: 'POST',
+      headers: { authorization },
+      body: JSON.stringify({ model: 'fixture', keep_alive: 0 }),
+    });
   assert.equal((await unload('Bearer ' + 'b'.repeat(64))).status, 401);
   assert.deepEqual(unloaded, []);
   assert.equal((await unload('Bearer ' + token)).status, 200);

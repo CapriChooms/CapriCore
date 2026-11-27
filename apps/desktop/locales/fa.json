@@ -2565,9 +2565,5 @@
     "corrections": 56,
     "rejected": []
   },
-  "reviewedIdentical": [
-    "Spotify",
-    "TRANSCRIPT",
-    "Capri ·"
-  ]
+  "reviewedIdentical": ["Spotify", "TRANSCRIPT", "Capri ·"]
 }

@@ -185,10 +185,14 @@ const surface = new AvatarSurfacePerformance(stage, {
     ensureMusicAnimation();
   },
 });
-window.addEventListener('pagehide', () => {
-  surface.dispose();
-  beatBody.clear();
-}, { once: true });
+window.addEventListener(
+  'pagehide',
+  () => {
+    surface.dispose();
+    beatBody.clear();
+  },
+  { once: true },
+);
 const cameraApi = globalThis.capriAvatarCamera;
 if (cameraApi) {
   const cameraPublisher = new CameraFramePublisher({
@@ -210,10 +214,14 @@ if (cameraApi) {
     cameraPublisher.setState(state);
     cameraPublisher.setPreview(preview);
   });
-  window.addEventListener('pagehide', () => {
-    unsubscribeCamera();
-    cameraPublisher.stop();
-  }, { once: true });
+  window.addEventListener(
+    'pagehide',
+    () => {
+      unsubscribeCamera();
+      cameraPublisher.stop();
+    },
+    { once: true },
+  );
 }
 let replyTurn = '',
   replyCollapsed = false,
@@ -229,7 +237,12 @@ function paintFace(now) {
     (item) => item && now - item.start < faceAnimations[item.id].duration,
   );
   const running =
-    clip && avatarFacePose(frameId) && !sleeping && !surface.active && !wave.image && !motionPreference.matches &&
+    clip &&
+    avatarFacePose(frameId) &&
+    !sleeping &&
+    !surface.active &&
+    !wave.image &&
+    !motionPreference.matches &&
     !pat.expression;
   const expression = sleeping ? 'idle-blink_closed' : (pat.expression ?? desktopExpression);
   mouth.update(
@@ -339,9 +352,22 @@ function animateMusic(now) {
   });
   cameraMusic = allowed && music.motion ? state : null;
   let showBody = false;
-  if (pose && music.motion && state.active && !gripPose && !surface.active &&
-    !sleeping && !pat.expression && !wave.image && !flight && !musicDragging &&
-    !parked.hidden && !document.hidden && parkedImage.complete && parkedImage.naturalWidth) {
+  if (
+    pose &&
+    music.motion &&
+    state.active &&
+    !gripPose &&
+    !surface.active &&
+    !sleeping &&
+    !pat.expression &&
+    !wave.image &&
+    !flight &&
+    !musicDragging &&
+    !parked.hidden &&
+    !document.hidden &&
+    parkedImage.complete &&
+    parkedImage.naturalWidth
+  ) {
     const source = mouth.image(parkedImage);
     const body = beatBody.image(source, state);
     if (body !== source) {

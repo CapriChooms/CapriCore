@@ -204,7 +204,11 @@ export function validateRegions(value, bounds) {
     regions.replyCollapsed = value.replyCollapsed;
   }
   if (value.replySpace !== undefined) {
-    if (!Number.isInteger(value.replySpace) || value.replySpace < 1 || value.replySpace > REPLY_SPACE)
+    if (
+      !Number.isInteger(value.replySpace) ||
+      value.replySpace < 1 ||
+      value.replySpace > REPLY_SPACE
+    )
       throw new Error('Invalid reply window space');
     regions.replySpace = value.replySpace;
   }

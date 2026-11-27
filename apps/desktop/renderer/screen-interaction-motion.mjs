@@ -722,7 +722,10 @@ function flexHangingFingers(context, image, side, strength) {
   context.drawImage(image, x, y, width, height, x, -height, width, height);
   context.restore();
 }
-export function createScreenInteractionRenderer(canvas, { getAtlas, faceRig, drawGestureFace } = {}) {
+export function createScreenInteractionRenderer(
+  canvas,
+  { getAtlas, faceRig, drawGestureFace } = {},
+) {
   const drawFace = createSurfaceFacePainter(faceRig);
   canvas.width = canvas.height = 1254;
   const context = canvas.getContext('2d');
@@ -795,7 +798,11 @@ export function createScreenInteractionRenderer(canvas, { getAtlas, faceRig, dra
       const hanging = sourceFrame === 'pose-ceiling';
       if (!hanging && !rigUnavailable) {
         try {
-          renderer ??= createRenderer(mesh, {}, { grid: navigator.hardwareConcurrency <= 4 ? 64 : 112 });
+          renderer ??= createRenderer(
+            mesh,
+            {},
+            { grid: navigator.hardwareConcurrency <= 4 ? 64 : 112 },
+          );
           renderer.draw(image, channels, { bounds });
         } catch {
           renderer?.dispose();

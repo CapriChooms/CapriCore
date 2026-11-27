@@ -78,7 +78,11 @@ export class StartupIntro {
       await Promise.race([
         Promise.all([
           ...images.map((image) => image.decode()),
-          loadAvatarGestureFaces().then((draw) => { this.drawFace = draw; }).catch(() => {}),
+          loadAvatarGestureFaces()
+            .then((draw) => {
+              this.drawFace = draw;
+            })
+            .catch(() => {}),
         ]),
         new Promise((_, reject) => {
           timeout = setTimeout(() => reject(new Error('Intro artwork unavailable')), 2200);

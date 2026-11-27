@@ -74,21 +74,25 @@ function requestPublicPage(target, addresses, { signal, headers }) {
   // addresses approved for this hop, including on networks that retry IPv4/IPv6.
   const request = target.protocol === 'https:' ? httpsRequest : httpRequest;
   return new Promise((resolve, reject) => {
-    const pending = request(target, {
-      agent: false,
-      signal,
-      headers,
-      lookup: (_host, options, done) => {
-        if (options.all) done(null, addresses);
-        else done(null, addresses[0].address, addresses[0].family);
+    const pending = request(
+      target,
+      {
+        agent: false,
+        signal,
+        headers,
+        lookup: (_host, options, done) => {
+          if (options.all) done(null, addresses);
+          else done(null, addresses[0].address, addresses[0].family);
+        },
       },
-    }, (response) => {
-      resolve({
-        status: response.statusCode,
-        headers: new Headers(response.headers),
-        body: Readable.toWeb(response),
-      });
-    });
+      (response) => {
+        resolve({
+          status: response.statusCode,
+          headers: new Headers(response.headers),
+          body: Readable.toWeb(response),
+        });
+      },
+    );
     pending.once('error', reject);
     pending.end();
   });

@@ -158,8 +158,14 @@ try {
     const [before] = frames;
     const after = frames.at(-1);
     for (const frame of frames) {
-      assert.ok(Math.abs(frame.portraitWidth - before.portraitWidth) <= 1, name + ' preserves portrait width');
-      assert.ok(Math.abs(frame.portraitHeight - before.portraitHeight) <= 2, name + ' preserves portrait height');
+      assert.ok(
+        Math.abs(frame.portraitWidth - before.portraitWidth) <= 1,
+        name + ' preserves portrait width',
+      );
+      assert.ok(
+        Math.abs(frame.portraitHeight - before.portraitHeight) <= 2,
+        name + ' preserves portrait height',
+      );
     }
     report.samples.push({ name, frames, bounds });
     assert.equal(after.hidden, !open, name);
@@ -192,7 +198,10 @@ try {
   const checkInstantReply = async (vertical) => {
     for (const open of [false, true]) {
       const frames = await captureReply(open);
-      report.samples.push({ name: `instant ${vertical ? 'vertical' : 'horizontal'} ${open ? 'reveal' : 'collapse'}`, frames });
+      report.samples.push({
+        name: `instant ${vertical ? 'vertical' : 'horizontal'} ${open ? 'reveal' : 'collapse'}`,
+        frames,
+      });
       assert.equal(frames.at(-1).hidden, !open);
       assert.equal(frames.at(-1).focused, open ? 'subtitle-collapse' : 'subtitle-reveal');
       assert.equal(new Set(frames.map(({ height }) => height)).size, vertical ? 2 : 1);
@@ -214,7 +223,10 @@ try {
     await option.setChecked(enabled);
     await saveSettings(configuration);
     await configuration.locator('#settings-window-close').click();
-    assert.equal(await owner.evaluate(async () => (await window.capri.bootstrap()).companion.replyAnimation), enabled);
+    assert.equal(
+      await owner.evaluate(async () => (await window.capri.bootstrap()).companion.replyAnimation),
+      enabled,
+    );
   };
   await checkInstantReply(true);
   report.checks.push('Default vertical reply updates instantly and resizes the window');
@@ -353,7 +365,9 @@ try {
     selected: 'rgb(33, 201, 166)',
     teleport: COMPANION_DEFAULTS.teleportColor,
   });
-  report.checks.push('Drag lightning renders a saturated bolt and saves its color independently from teleport');
+  report.checks.push(
+    'Drag lightning renders a saturated bolt and saves its color independently from teleport',
+  );
 
   await owner.evaluate(() => window.capri.windowAction('hide'));
   let chip;

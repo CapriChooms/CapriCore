@@ -43,12 +43,15 @@ export class MutedVoiceResidency {
     clearTimeout(this.idleTimer);
     this.idleTimer = null;
     if (!this.enabled || !this.idleEligible()) return;
-    this.idleTimer = setTimeout(() => {
-      this.idleTimer = null;
-      if (!this.idleEligible()) return;
-      if (this.idleBusy()) this.scheduleIdle();
-      else void this.release({ idle: true }).catch(this.onIdleError);
-    }, typeof this.idleMs === 'function' ? this.idleMs() : this.idleMs);
+    this.idleTimer = setTimeout(
+      () => {
+        this.idleTimer = null;
+        if (!this.idleEligible()) return;
+        if (this.idleBusy()) this.scheduleIdle();
+        else void this.release({ idle: true }).catch(this.onIdleError);
+      },
+      typeof this.idleMs === 'function' ? this.idleMs() : this.idleMs,
+    );
     this.idleTimer.unref();
   }
   release({ idle = false } = {}) {

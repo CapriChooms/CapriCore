@@ -35,11 +35,11 @@ test('a setting that is off never uses up the launch', () => {
 
 test('startup and the settings panel are wired to the setting', () => {
   const main = source('main.mjs');
+  assert.match(main, /const resumeMicrophone = mainLaunch && consumeMicrophoneRestart\(state\);/);
   assert.match(
     main,
-    /const resumeMicrophone = mainLaunch && consumeMicrophoneRestart\(state\);/,
+    /mainLaunch && microphoneLaunch\.take\(companionPreferences\.value\.microphoneOnStart === true\)/,
   );
-  assert.match(main, /mainLaunch && microphoneLaunch\.take\(companionPreferences\.value\.microphoneOnStart === true\)/);
   assert.match(main, /\(resumeMicrophone \|\| launchMicrophone\) &&/);
   const panel = source('renderer/companion-panel.mjs');
   assert.match(panel, /<input type="checkbox" id="companion-microphone-on-start">/);

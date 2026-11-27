@@ -83,7 +83,11 @@ export class FilePermissions {
       }
       // Revocation survives every later load and restart.
       if (!migrated && !own)
-        saved.scopes.unshift({ id: INSTALLATION_SCOPE_ID, root: this.applicationRoot, write: false });
+        saved.scopes.unshift({
+          id: INSTALLATION_SCOPE_ID,
+          root: this.applicationRoot,
+          write: false,
+        });
       if (!migrated || wasWritable) this.save(saved.scopes);
     }
     return saved.scopes;
@@ -147,7 +151,8 @@ export class FilePermissions {
       scope = scopes.find((s) => s.id === id);
     if (!scope) throw new Error('Folder permission no longer exists');
     this.allowedRoot(scope.root, scope.id);
-    if (write && this.isInstallation(scope)) throw new Error('The Capri installation is read-only.');
+    if (write && this.isInstallation(scope))
+      throw new Error('The Capri installation is read-only.');
     scope.write = write;
     this.save(scopes);
     return this.snapshot();
@@ -167,7 +172,8 @@ export class FilePermissions {
   scope(id, write = false) {
     const scope = this.all().find((s) => s.id === id);
     if (!scope) throw new Error('Choose an allowed folder in Menu → File access first.');
-    if (write && this.isInstallation(scope)) throw new Error('The Capri installation is read-only.');
+    if (write && this.isInstallation(scope))
+      throw new Error('The Capri installation is read-only.');
     if (write && !scope.write)
       throw new Error('This folder is read-only. The owner can allow file changes in File access.');
     const root = this.allowedRoot(scope.root, scope.id);

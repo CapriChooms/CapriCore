@@ -1058,7 +1058,8 @@ function showCallSetup() {
   const skill = 'capri.voice-calls';
   const enabled = skillState[skill]?.enabled === true;
   const ready = callAudio.callOutputReady === true && callAudio.mixingMic === true;
-  const pending = pendingSkills.has(skill) || callAudioBusy || callSetupBusy || callSetup.busy === true;
+  const pending =
+    pendingSkills.has(skill) || callAudioBusy || callSetupBusy || callSetup.busy === true;
   const phase = ready ? 'ready' : callSetup.phase === 'ready' ? 'idle' : callSetup.phase;
   const missing = phase === 'missing';
   const statuses = {
@@ -1120,7 +1121,10 @@ async function runCallSetup(action) {
       if (callAudio.supported) callOutputs = await raw.callAudioDevices();
     }
   } catch (error) {
-    const message = error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
+    const message = error.message.replace(
+      /^Error invoking remote method '[^']+': (?:Error: )?/,
+      '',
+    );
     callSetup = { ...callSetup, phase: 'error', busy: false, error: message };
     notice(message);
   } finally {

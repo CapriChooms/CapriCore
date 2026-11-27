@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -37,19 +45,26 @@ test('a helper placed in the runtime folder is the one the menu uses', async () 
   }
 });
 
-test('without the Rust build the Windows fallback uses polling and has no global input hooks', { skip: process.platform !== 'win32' }, async () => {
-  const empty = scratch();
-  try {
-    const directory = path.join(empty, 'packages/installer/windows');
-    mkdirSync(directory, { recursive: true });
-    copyFileSync(path.join(root, 'packages/installer/windows/desktop-teleport.cs'), path.join(directory, 'desktop-teleport.cs'));
-    const binary = readFileSync(await prepareDesktopTeleport(empty)).toString('latin1');
-    assert.ok(binary.includes('GetAsyncKeyState'));
-    assert.ok(!binary.includes('SetWindowsHookEx'));
-  } finally {
-    rmSync(empty, { recursive: true, force: true });
-  }
-});
+test(
+  'without the Rust build the Windows fallback uses polling and has no global input hooks',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    const empty = scratch();
+    try {
+      const directory = path.join(empty, 'packages/installer/windows');
+      mkdirSync(directory, { recursive: true });
+      copyFileSync(
+        path.join(root, 'packages/installer/windows/desktop-teleport.cs'),
+        path.join(directory, 'desktop-teleport.cs'),
+      );
+      const binary = readFileSync(await prepareDesktopTeleport(empty)).toString('latin1');
+      assert.ok(binary.includes('GetAsyncKeyState'));
+      assert.ok(!binary.includes('SetWindowsHookEx'));
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+    }
+  },
+);
 
 test('the built helper is the one the menu uses', windows, async () => {
   assert.equal(await prepareDesktopTeleport(root), helper);

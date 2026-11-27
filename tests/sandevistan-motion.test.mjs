@@ -39,7 +39,10 @@ test('Sandevistan defaults to 650 ms with acceleration and deceleration', () => 
 
 test('Sandevistan scales the flight and keeps the configured lifetime of each trail copy', () => {
   const flight = motion({ teleportTravelMs: 1200, sandevistanCopies: 3, sandevistanHoldMs: 500 });
-  assert.deepEqual(flight.ghosts.map(({ bornMs }) => bornMs), [0, 400, 800]);
+  assert.deepEqual(
+    flight.ghosts.map(({ bornMs }) => bornMs),
+    [0, 400, 800],
+  );
   assert.equal(sandevistanPosition(flight, 600).x, 320);
   assert.deepEqual(sandevistanPosition(flight, 1200), flight.end);
   assert.equal(flight.endMs, 1300);
@@ -107,7 +110,10 @@ test('teleport settings preserve lightning defaults and validate Sandevistan bou
   assert.throws(() => validateCompanionSettings({ sandevistanTint: 101 }));
   assert.throws(() => validateCompanionSettings({ teleportStyle: 'glitch' }));
   for (const teleportTravelMs of [250, 1500])
-    assert.equal(validateCompanionSettings({ teleportTravelMs }).teleportTravelMs, teleportTravelMs);
+    assert.equal(
+      validateCompanionSettings({ teleportTravelMs }).teleportTravelMs,
+      teleportTravelMs,
+    );
   for (const teleportTravelMs of [200, 625, 1550, '650'])
     assert.throws(() => validateCompanionSettings({ teleportTravelMs }));
 });

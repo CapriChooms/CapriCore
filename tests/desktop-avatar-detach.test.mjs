@@ -27,7 +27,10 @@ import {
   teleportViewport,
   transitStart,
 } from '../apps/desktop/renderer/avatar-teleport-motion.mjs';
-import { DRAG_LIGHTNING_COLOR, TELEPORT_LIGHTNING_DEFAULTS } from '../apps/desktop/renderer/teleport-effects.mjs';
+import {
+  DRAG_LIGHTNING_COLOR,
+  TELEPORT_LIGHTNING_DEFAULTS,
+} from '../apps/desktop/renderer/teleport-effects.mjs';
 
 const area = { x: -1600, y: -180, width: 1600, height: 900 };
 const geometry = {
@@ -73,7 +76,8 @@ function fixture({
       this.webContents.executeJavaScript = (source) => {
         if (/^globalThis\.capriAvatarDetach\.play\(\d*\)$/.test(source)) return play(source);
         const tetherCall = /^globalThis\.capriAvatarTether\((.*)\)$/.exec(source);
-        if (tetherCall) return Promise.resolve(parked('setTether', JSON.parse(tetherCall[1]), this));
+        if (tetherCall)
+          return Promise.resolve(parked('setTether', JSON.parse(tetherCall[1]), this));
         if (source.startsWith('globalThis.capriAvatarDetach.headpat(')) {
           this.headpat = JSON.parse(
             source.slice('globalThis.capriAvatarDetach.headpat('.length, -1),

@@ -71,7 +71,8 @@ try {
     window.resizeHidRenderer = false;
     const root = document.documentElement;
     window.resizeOpacityObserver = new MutationObserver((changes) => {
-      window.resizeHidRenderer ||= root.style.opacity === '0' ||
+      window.resizeHidRenderer ||=
+        root.style.opacity === '0' ||
         changes.some(({ oldValue }) => /(?:^|;)\s*opacity:\s*0(?:;|$)/u.test(oldValue ?? ''));
     });
     window.resizeOpacityObserver.observe(root, {

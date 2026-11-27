@@ -111,7 +111,10 @@ test('the model request and the settings panel are wired to the mode', () => {
   const chat = source('chat-service.mjs');
   assert.match(chat, /desktopTurnContext\(interfaceState, this\.turnHistory\(fresh\)/);
   assert.match(chat, /history: directSmallTalk \? \[\] : this\.turnHistory\(fresh\)/);
-  assert.match(chat, /await this\.resetContext\?\.\(requestSignal\)[\s\S]+?const response = directDialogue/);
+  assert.match(
+    chat,
+    /await this\.resetContext\?\.\(requestSignal\)[\s\S]+?const response = directDialogue/,
+  );
   const main = source('main.mjs');
   assert.match(main, /resetContext: resetFreshContext/);
   assert.match(main, /async function submitVisualTurn[\s\S]+?await resetFreshContext\(signal\)/);

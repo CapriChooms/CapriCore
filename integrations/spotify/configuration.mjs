@@ -5,7 +5,10 @@ import { randomUUID } from 'node:crypto';
 import { writeJsonAtomic } from '../../packages/runtime/src/atomic-json.mjs';
 import { spotifySourceHash } from './native-build.mjs';
 import { configureSpotify } from '../../packages/runtime/src/config/spotify-gateway.mjs';
-export { configureSpotify, spotifyAccess } from '../../packages/runtime/src/config/spotify-gateway.mjs';
+export {
+  configureSpotify,
+  spotifyAccess,
+} from '../../packages/runtime/src/config/spotify-gateway.mjs';
 export function readSpotifyConfig(file) {
   const bytes = readFileSync(file);
   if (bytes.length > 2 * 1024 ** 2)

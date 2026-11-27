@@ -492,7 +492,11 @@ export function deformPoint(x, y, channels) {
     q = [q[0] + (leg[0] - x) * lw, q[1] + (leg[1] - y) * lw];
   }
   if (r.freeLimbs && c.legSwing) {
-    for (const { bounds: [left, top, right, bottom], pivot, amplitude } of r.freeLimbs) {
+    for (const {
+      bounds: [left, top, right, bottom],
+      pivot,
+      amplitude,
+    } of r.freeLimbs) {
       if (x < left || x > right || y < top || y > bottom) continue;
       const follow = smooth(top, top + 35, y);
       q = rot(...q, ...pivot, c.legSwing * amplitude * follow);
@@ -651,10 +655,14 @@ export function imageSupportPoints(image, size = 1254) {
     if (size !== 1254) {
       // Include the outer edge of each sampled pixel when testing the silhouette.
       const scale = 1254 / size;
-      return points.length ? points.flatMap(([x, y]) => [
-        [x * scale, y * scale], [(x + 1) * scale, (y + 1) * scale],
-        [(x + 1) * scale, y * scale], [x * scale, (y + 1) * scale],
-      ]) : null;
+      return points.length
+        ? points.flatMap(([x, y]) => [
+            [x * scale, y * scale],
+            [(x + 1) * scale, (y + 1) * scale],
+            [(x + 1) * scale, y * scale],
+            [x * scale, (y + 1) * scale],
+          ])
+        : null;
     }
     return points.length ? points : null;
   } catch {

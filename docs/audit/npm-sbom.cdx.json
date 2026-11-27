@@ -16836,32 +16836,19 @@
     },
     {
       "ref": "capri-desktop@1.2.0",
-      "dependsOn": [
-        "diff@9.0.0",
-        "ignore@7.0.12",
-        "koffi@3.3.2"
-      ]
+      "dependsOn": ["diff@9.0.0", "ignore@7.0.12", "koffi@3.3.2"]
     },
     {
       "ref": "@agentclientprotocol/sdk@1.7.0",
-      "dependsOn": [
-        "zod@4.6.6"
-      ]
+      "dependsOn": ["zod@4.6.6"]
     },
     {
       "ref": "@anthropic-ai/sdk@0.131.0",
-      "dependsOn": [
-        "zod@4.6.6",
-        "json-schema-to-ts@3.1.1",
-        "standardwebhooks@1.3.0"
-      ]
+      "dependsOn": ["zod@4.6.6", "json-schema-to-ts@3.1.1", "standardwebhooks@1.3.0"]
     },
     {
       "ref": "@babel/code-frame@8.0.6",
-      "dependsOn": [
-        "@babel/helper-validator-identifier@8.0.6",
-        "js-tokens@10.0.0"
-      ]
+      "dependsOn": ["@babel/helper-validator-identifier@8.0.6", "js-tokens@10.0.0"]
     },
     {
       "ref": "@babel/generator@8.0.6",
@@ -16888,9 +16875,7 @@
     },
     {
       "ref": "@babel/parser@8.0.6",
-      "dependsOn": [
-        "@babel/types@8.0.8"
-      ]
+      "dependsOn": ["@babel/types@8.0.8"]
     },
     {
       "ref": "@babel/runtime@7.29.10",
@@ -16898,11 +16883,7 @@
     },
     {
       "ref": "@babel/template@8.0.0",
-      "dependsOn": [
-        "@babel/code-frame@8.0.6",
-        "@babel/parser@8.0.6",
-        "@babel/types@8.0.8"
-      ]
+      "dependsOn": ["@babel/code-frame@8.0.6", "@babel/parser@8.0.6", "@babel/types@8.0.8"]
     },
     {
       "ref": "@babel/traverse@8.0.6",
@@ -16918,10 +16899,7 @@
     },
     {
       "ref": "@babel/types@8.0.8",
-      "dependsOn": [
-        "@babel/helper-string-parser@8.0.8",
-        "@babel/helper-validator-identifier@8.0.6"
-      ]
+      "dependsOn": ["@babel/helper-string-parser@8.0.8", "@babel/helper-validator-identifier@8.0.6"]
     },
     {
       "ref": "@borewit/text-codec@0.2.2",
@@ -16929,10 +16907,7 @@
     },
     {
       "ref": "@clack/core@1.5.1",
-      "dependsOn": [
-        "fast-wrap-ansi@0.2.2",
-        "sisteransi@1.0.5"
-      ]
+      "dependsOn": ["fast-wrap-ansi@0.2.2", "sisteransi@1.0.5"]
     },
     {
       "ref": "@clack/prompts@1.8.1",
@@ -16945,10 +16920,7 @@
     },
     {
       "ref": "@earendil-works/pi-tui@1.0.3",
-      "dependsOn": [
-        "get-east-asian-width@1.6.0",
-        "marked@18.0.11"
-      ]
+      "dependsOn": ["get-east-asian-width@1.6.0", "marked@18.0.11"]
     },
     {
       "ref": "@electron-internal/extract-zip@1.0.6",
@@ -17086,10 +17058,7 @@
     },
     {
       "ref": "@grammyjs/transformer-throttler@1.2.1",
-      "dependsOn": [
-        "grammy@1.46.0",
-        "bottleneck@2.19.5"
-      ]
+      "dependsOn": ["grammy@1.46.0", "bottleneck@2.19.5"]
     },
     {
       "ref": "@grammyjs/types@5.0.0",
@@ -17106,22 +17075,15 @@
     },
     {
       "ref": "@hono/node-server@2.1.11",
-      "dependsOn": [
-        "hono@4.13.21"
-      ]
+      "dependsOn": ["hono@4.13.21"]
     },
     {
       "ref": "@isaacs/fs-minipass@4.0.1",
-      "dependsOn": [
-        "minipass@7.1.3"
-      ]
+      "dependsOn": ["minipass@7.1.3"]
     },
     {
       "ref": "@jridgewell/gen-mapping@0.4.0-beta.0",
-      "dependsOn": [
-        "@jridgewell/sourcemap-codec@1.6.0",
-        "@jridgewell/trace-mapping@0.3.31"
-      ]
+      "dependsOn": ["@jridgewell/sourcemap-codec@1.6.0", "@jridgewell/trace-mapping@0.3.31"]
     },
     {
       "ref": "@jridgewell/resolve-uri@3.1.2",
@@ -17133,16 +17095,11 @@
     },
     {
       "ref": "@jridgewell/trace-mapping@0.3.31",
-      "dependsOn": [
-        "@jridgewell/resolve-uri@3.1.2",
-        "@jridgewell/sourcemap-codec@1.6.0"
-      ]
+      "dependsOn": ["@jridgewell/resolve-uri@3.1.2", "@jridgewell/sourcemap-codec@1.6.0"]
     },
     {
       "ref": "@js-temporal/polyfill@0.5.1",
-      "dependsOn": [
-        "jsbi@4.3.2"
-      ]
+      "dependsOn": ["jsbi@4.3.2"]
     },
     {
       "ref": "@koromix/koffi-android-arm64@3.3.2",
@@ -17478,9 +17435,7 @@
     },
     {
       "ref": "@openclaw/proxyline@0.4.0",
-      "dependsOn": [
-        "undici@8.12.2"
-      ]
+      "dependsOn": ["undici@8.12.2"]
     },
     {
       "ref": "@opentelemetry/semantic-conventions@1.45.0",
@@ -17504,9 +17459,7 @@
     },
     {
       "ref": "@protobufjs/fetch@1.1.1",
-      "dependsOn": [
-        "@protobufjs/aspromise@1.1.2"
-      ]
+      "dependsOn": ["@protobufjs/aspromise@1.1.2"]
     },
     {
       "ref": "@protobufjs/float@1.0.2",
@@ -17591,9 +17544,7 @@
     },
     {
       "ref": "@scoriiu/fenshot@0.1.5",
-      "dependsOn": [
-        "onnxruntime-web@1.31.1"
-      ]
+      "dependsOn": ["onnxruntime-web@1.31.1"]
     },
     {
       "ref": "@sec-ant/readable-stream@0.4.1",
@@ -17613,10 +17564,7 @@
     },
     {
       "ref": "@tokenizer/inflate@0.4.1",
-      "dependsOn": [
-        "debug@4.4.3",
-        "token-types@6.1.2"
-      ]
+      "dependsOn": ["debug@4.4.3", "token-types@6.1.2"]
     },
     {
       "ref": "@tokenizer/token@0.3.0",
@@ -17665,9 +17613,7 @@
     },
     {
       "ref": "@types/node@26.6.5",
-      "dependsOn": [
-        "undici-types@8.9.0"
-      ]
+      "dependsOn": ["undici-types@8.9.0"]
     },
     {
       "ref": "@types/retry@0.12.0",
@@ -17724,16 +17670,11 @@
     },
     {
       "ref": "abort-controller@3.0.0",
-      "dependsOn": [
-        "event-target-shim@5.0.1"
-      ]
+      "dependsOn": ["event-target-shim@5.0.1"]
     },
     {
       "ref": "accepts@2.0.0",
-      "dependsOn": [
-        "mime-types@3.0.2",
-        "negotiator@1.1.0"
-      ]
+      "dependsOn": ["mime-types@3.0.2", "negotiator@1.1.0"]
     },
     {
       "ref": "acorn@8.19.0",
@@ -17754,9 +17695,7 @@
     },
     {
       "ref": "ajv-formats@3.0.1",
-      "dependsOn": [
-        "ajv@8.20.0"
-      ]
+      "dependsOn": ["ajv@8.20.0"]
     },
     {
       "ref": "ansi-regex@5.0.1",
@@ -17764,9 +17703,7 @@
     },
     {
       "ref": "ansi-styles@4.3.0",
-      "dependsOn": [
-        "color-convert@2.0.1"
-      ]
+      "dependsOn": ["color-convert@2.0.1"]
     },
     {
       "ref": "asn1.js@5.4.1",
@@ -17821,9 +17758,7 @@
     },
     {
       "ref": "brace-expansion@5.0.12",
-      "dependsOn": [
-        "balanced-match@4.0.4"
-      ]
+      "dependsOn": ["balanced-match@4.0.4"]
     },
     {
       "ref": "buffer-equal-constant-time@1.0.1",
@@ -17839,17 +17774,11 @@
     },
     {
       "ref": "call-bind-apply-helpers@1.0.2",
-      "dependsOn": [
-        "es-errors@1.3.0",
-        "function-bind@1.1.2"
-      ]
+      "dependsOn": ["es-errors@1.3.0", "function-bind@1.1.2"]
     },
     {
       "ref": "call-bound@1.0.4",
-      "dependsOn": [
-        "call-bind-apply-helpers@1.0.2",
-        "get-intrinsic@1.3.0"
-      ]
+      "dependsOn": ["call-bind-apply-helpers@1.0.2", "get-intrinsic@1.3.0"]
     },
     {
       "ref": "camelcase@5.3.1",
@@ -17873,17 +17802,11 @@
     },
     {
       "ref": "cliui@8.0.1",
-      "dependsOn": [
-        "string-width@4.2.3",
-        "strip-ansi@6.0.1",
-        "wrap-ansi@7.0.0"
-      ]
+      "dependsOn": ["string-width@4.2.3", "strip-ansi@6.0.1", "wrap-ansi@7.0.0"]
     },
     {
       "ref": "color-convert@2.0.1",
-      "dependsOn": [
-        "color-name@1.1.4"
-      ]
+      "dependsOn": ["color-name@1.1.4"]
     },
     {
       "ref": "color-name@1.1.4",
@@ -17919,10 +17842,7 @@
     },
     {
       "ref": "cors@2.8.6",
-      "dependsOn": [
-        "object-assign@4.1.1",
-        "vary@1.1.2"
-      ]
+      "dependsOn": ["object-assign@4.1.1", "vary@1.1.2"]
     },
     {
       "ref": "croner@10.0.1",
@@ -17930,11 +17850,7 @@
     },
     {
       "ref": "cross-spawn@7.0.6",
-      "dependsOn": [
-        "path-key@3.1.1",
-        "shebang-command@2.0.0",
-        "which@2.0.2"
-      ]
+      "dependsOn": ["path-key@3.1.1", "shebang-command@2.0.0", "which@2.0.2"]
     },
     {
       "ref": "css-select@7.0.0",
@@ -17960,9 +17876,7 @@
     },
     {
       "ref": "debug@4.4.3",
-      "dependsOn": [
-        "ms@2.1.3"
-      ]
+      "dependsOn": ["ms@2.1.3"]
     },
     {
       "ref": "decamelize@1.2.0",
@@ -17986,11 +17900,7 @@
     },
     {
       "ref": "dom-serializer@3.1.1",
-      "dependsOn": [
-        "domelementtype@3.0.0",
-        "domhandler@6.0.1",
-        "entities@8.1.0"
-      ]
+      "dependsOn": ["domelementtype@3.0.0", "domhandler@6.0.1", "entities@8.1.0"]
     },
     {
       "ref": "domelementtype@3.0.0",
@@ -17998,17 +17908,11 @@
     },
     {
       "ref": "domhandler@6.0.1",
-      "dependsOn": [
-        "domelementtype@3.0.0"
-      ]
+      "dependsOn": ["domelementtype@3.0.0"]
     },
     {
       "ref": "domutils@4.0.2",
-      "dependsOn": [
-        "dom-serializer@3.1.1",
-        "domelementtype@3.0.0",
-        "domhandler@6.0.1"
-      ]
+      "dependsOn": ["dom-serializer@3.1.1", "domelementtype@3.0.0", "domhandler@6.0.1"]
     },
     {
       "ref": "dotenv@18.0.5",
@@ -18016,17 +17920,11 @@
     },
     {
       "ref": "dunder-proto@1.0.1",
-      "dependsOn": [
-        "call-bind-apply-helpers@1.0.2",
-        "es-errors@1.3.0",
-        "gopd@1.2.0"
-      ]
+      "dependsOn": ["call-bind-apply-helpers@1.0.2", "es-errors@1.3.0", "gopd@1.2.0"]
     },
     {
       "ref": "ecdsa-sig-formatter@1.0.11",
-      "dependsOn": [
-        "safe-buffer@5.2.1"
-      ]
+      "dependsOn": ["safe-buffer@5.2.1"]
     },
     {
       "ref": "ee-first@1.1.1",
@@ -18042,9 +17940,7 @@
     },
     {
       "ref": "@types/node@24.19.2",
-      "dependsOn": [
-        "undici-types@7.24.6"
-      ]
+      "dependsOn": ["undici-types@7.24.6"]
     },
     {
       "ref": "undici-types@7.24.6",
@@ -18076,9 +17972,7 @@
     },
     {
       "ref": "es-object-atoms@1.1.2",
-      "dependsOn": [
-        "es-errors@1.3.0"
-      ]
+      "dependsOn": ["es-errors@1.3.0"]
     },
     {
       "ref": "esbuild@0.28.2",
@@ -18133,9 +18027,7 @@
     },
     {
       "ref": "eventsource@3.0.7",
-      "dependsOn": [
-        "eventsource-parser@3.1.1"
-      ]
+      "dependsOn": ["eventsource-parser@3.1.1"]
     },
     {
       "ref": "eventsource-parser@3.1.1",
@@ -18193,11 +18085,7 @@
     },
     {
       "ref": "express-rate-limit@8.7.5",
-      "dependsOn": [
-        "express@5.2.1",
-        "debug@4.4.3",
-        "ip-address@10.7.6"
-      ]
+      "dependsOn": ["express@5.2.1", "debug@4.4.3", "ip-address@10.7.6"]
     },
     {
       "ref": "extend@3.0.2",
@@ -18217,9 +18105,7 @@
     },
     {
       "ref": "fast-string-width@3.0.2",
-      "dependsOn": [
-        "fast-string-truncated-width@3.0.3"
-      ]
+      "dependsOn": ["fast-string-truncated-width@3.0.3"]
     },
     {
       "ref": "fast-uri@3.1.9",
@@ -18227,22 +18113,15 @@
     },
     {
       "ref": "fast-wrap-ansi@0.2.2",
-      "dependsOn": [
-        "fast-string-width@3.0.2"
-      ]
+      "dependsOn": ["fast-string-width@3.0.2"]
     },
     {
       "ref": "fetch-blob@3.2.0",
-      "dependsOn": [
-        "node-domexception@1.0.0",
-        "web-streams-polyfill@3.3.3"
-      ]
+      "dependsOn": ["node-domexception@1.0.0", "web-streams-polyfill@3.3.3"]
     },
     {
       "ref": "figures@6.1.0",
-      "dependsOn": [
-        "is-unicode-supported@2.1.0"
-      ]
+      "dependsOn": ["is-unicode-supported@2.1.0"]
     },
     {
       "ref": "file-type@22.1.1",
@@ -18266,10 +18145,7 @@
     },
     {
       "ref": "find-up@4.1.0",
-      "dependsOn": [
-        "locate-path@5.0.0",
-        "path-exists@4.0.0"
-      ]
+      "dependsOn": ["locate-path@5.0.0", "path-exists@4.0.0"]
     },
     {
       "ref": "flatbuffers@25.9.23",
@@ -18277,9 +18153,7 @@
     },
     {
       "ref": "formdata-polyfill@4.0.10",
-      "dependsOn": [
-        "fetch-blob@3.2.0"
-      ]
+      "dependsOn": ["fetch-blob@3.2.0"]
     },
     {
       "ref": "forwarded@0.2.0",
@@ -18299,19 +18173,11 @@
     },
     {
       "ref": "gaxios@7.3.1",
-      "dependsOn": [
-        "extend@3.0.2",
-        "https-proxy-agent@7.0.6",
-        "node-fetch@3.3.2"
-      ]
+      "dependsOn": ["extend@3.0.2", "https-proxy-agent@7.0.6", "node-fetch@3.3.2"]
     },
     {
       "ref": "gcp-metadata@8.1.2",
-      "dependsOn": [
-        "gaxios@7.3.1",
-        "google-logging-utils@1.1.3",
-        "json-bigint@1.0.0"
-      ]
+      "dependsOn": ["gaxios@7.3.1", "google-logging-utils@1.1.3", "json-bigint@1.0.0"]
     },
     {
       "ref": "get-caller-file@2.0.5",
@@ -18338,17 +18204,11 @@
     },
     {
       "ref": "get-proto@1.0.1",
-      "dependsOn": [
-        "dunder-proto@1.0.1",
-        "es-object-atoms@1.1.2"
-      ]
+      "dependsOn": ["dunder-proto@1.0.1", "es-object-atoms@1.1.2"]
     },
     {
       "ref": "get-stream@9.0.1",
-      "dependsOn": [
-        "@sec-ant/readable-stream@0.4.1",
-        "is-stream@4.0.1"
-      ]
+      "dependsOn": ["@sec-ant/readable-stream@0.4.1", "is-stream@4.0.1"]
     },
     {
       "ref": "google-auth-library@10.9.1",
@@ -18384,9 +18244,7 @@
     },
     {
       "ref": "node-fetch@2.7.0",
-      "dependsOn": [
-        "whatwg-url@5.0.0"
-      ]
+      "dependsOn": ["whatwg-url@5.0.0"]
     },
     {
       "ref": "guid-typescript@1.0.9",
@@ -18398,9 +18256,7 @@
     },
     {
       "ref": "hasown@2.0.4",
-      "dependsOn": [
-        "function-bind@1.1.2"
-      ]
+      "dependsOn": ["function-bind@1.1.2"]
     },
     {
       "ref": "highlight.js@11.12.0",
@@ -18412,9 +18268,7 @@
     },
     {
       "ref": "hosted-git-info@10.1.1",
-      "dependsOn": [
-        "lru-cache@11.5.3"
-      ]
+      "dependsOn": ["lru-cache@11.5.3"]
     },
     {
       "ref": "html-escaper@3.0.3",
@@ -18422,12 +18276,7 @@
     },
     {
       "ref": "htmlparser2@12.0.0",
-      "dependsOn": [
-        "domelementtype@3.0.0",
-        "domhandler@6.0.1",
-        "domutils@4.0.2",
-        "entities@8.1.0"
-      ]
+      "dependsOn": ["domelementtype@3.0.0", "domhandler@6.0.1", "domutils@4.0.2", "entities@8.1.0"]
     },
     {
       "ref": "http_ece@1.2.0",
@@ -18445,10 +18294,7 @@
     },
     {
       "ref": "https-proxy-agent@7.0.6",
-      "dependsOn": [
-        "agent-base@7.1.4",
-        "debug@4.4.3"
-      ]
+      "dependsOn": ["agent-base@7.1.4", "debug@4.4.3"]
     },
     {
       "ref": "human-signals@8.0.1",
@@ -18456,9 +18302,7 @@
     },
     {
       "ref": "iconv-lite@0.7.3",
-      "dependsOn": [
-        "safer-buffer@2.1.2"
-      ]
+      "dependsOn": ["safer-buffer@2.1.2"]
     },
     {
       "ref": "ieee754@1.2.1",
@@ -18542,16 +18386,11 @@
     },
     {
       "ref": "json-bigint@1.0.0",
-      "dependsOn": [
-        "bignumber.js@9.3.1"
-      ]
+      "dependsOn": ["bignumber.js@9.3.1"]
     },
     {
       "ref": "json-schema-to-ts@3.1.1",
-      "dependsOn": [
-        "@babel/runtime@7.29.10",
-        "ts-algebra@2.0.0"
-      ]
+      "dependsOn": ["@babel/runtime@7.29.10", "ts-algebra@2.0.0"]
     },
     {
       "ref": "json-schema-traverse@1.0.0",
@@ -18567,12 +18406,7 @@
     },
     {
       "ref": "jszip@3.10.2",
-      "dependsOn": [
-        "lie@3.3.0",
-        "pako@1.0.11",
-        "readable-stream@2.3.8",
-        "setimmediate@1.0.5"
-      ]
+      "dependsOn": ["lie@3.3.0", "pako@1.0.11", "readable-stream@2.3.8", "setimmediate@1.0.5"]
     },
     {
       "ref": "jwa@2.0.1",
@@ -18584,10 +18418,7 @@
     },
     {
       "ref": "jws@4.0.1",
-      "dependsOn": [
-        "jwa@2.0.1",
-        "safe-buffer@5.2.1"
-      ]
+      "dependsOn": ["jwa@2.0.1", "safe-buffer@5.2.1"]
     },
     {
       "ref": "koffi@3.3.2",
@@ -18620,9 +18451,7 @@
     },
     {
       "ref": "lie@3.3.0",
-      "dependsOn": [
-        "immediate@3.0.6"
-      ]
+      "dependsOn": ["immediate@3.0.6"]
     },
     {
       "ref": "linkedom@0.18.13",
@@ -18636,11 +18465,7 @@
     },
     {
       "ref": "dom-serializer@2.0.0",
-      "dependsOn": [
-        "domelementtype@2.3.0",
-        "domhandler@5.0.3",
-        "entities@4.5.0"
-      ]
+      "dependsOn": ["domelementtype@2.3.0", "domhandler@5.0.3", "entities@4.5.0"]
     },
     {
       "ref": "entities@4.5.0",
@@ -18652,17 +18477,11 @@
     },
     {
       "ref": "domhandler@5.0.3",
-      "dependsOn": [
-        "domelementtype@2.3.0"
-      ]
+      "dependsOn": ["domelementtype@2.3.0"]
     },
     {
       "ref": "domutils@3.2.2",
-      "dependsOn": [
-        "dom-serializer@2.0.0",
-        "domelementtype@2.3.0",
-        "domhandler@5.0.3"
-      ]
+      "dependsOn": ["dom-serializer@2.0.0", "domelementtype@2.3.0", "domhandler@5.0.3"]
     },
     {
       "ref": "entities@7.0.1",
@@ -18670,18 +18489,11 @@
     },
     {
       "ref": "htmlparser2@10.1.0",
-      "dependsOn": [
-        "domelementtype@2.3.0",
-        "domhandler@5.0.3",
-        "domutils@3.2.2",
-        "entities@7.0.1"
-      ]
+      "dependsOn": ["domelementtype@2.3.0", "domhandler@5.0.3", "domutils@3.2.2", "entities@7.0.1"]
     },
     {
       "ref": "locate-path@5.0.0",
-      "dependsOn": [
-        "p-locate@4.1.0"
-      ]
+      "dependsOn": ["p-locate@4.1.0"]
     },
     {
       "ref": "long@5.3.2",
@@ -18727,9 +18539,7 @@
     },
     {
       "ref": "mime-types@3.0.2",
-      "dependsOn": [
-        "mime-db@1.54.0"
-      ]
+      "dependsOn": ["mime-db@1.54.0"]
     },
     {
       "ref": "minimalistic-assert@1.0.1",
@@ -18737,9 +18547,7 @@
     },
     {
       "ref": "minimatch@10.2.6",
-      "dependsOn": [
-        "brace-expansion@5.0.12"
-      ]
+      "dependsOn": ["brace-expansion@5.0.12"]
     },
     {
       "ref": "minimist@1.2.8",
@@ -18751,9 +18559,7 @@
     },
     {
       "ref": "minizlib@3.1.0",
-      "dependsOn": [
-        "minipass@7.1.3"
-      ]
+      "dependsOn": ["minipass@7.1.3"]
     },
     {
       "ref": "ms@2.1.3",
@@ -18761,9 +18567,7 @@
     },
     {
       "ref": "negotiator@1.1.0",
-      "dependsOn": [
-        "content-type@2.1.0"
-      ]
+      "dependsOn": ["content-type@2.1.0"]
     },
     {
       "ref": "node-domexception@1.0.0",
@@ -18771,19 +18575,11 @@
     },
     {
       "ref": "node-edge-tts@1.2.10",
-      "dependsOn": [
-        "https-proxy-agent@7.0.6",
-        "ws@8.22.0",
-        "yargs@17.7.3"
-      ]
+      "dependsOn": ["https-proxy-agent@7.0.6", "ws@8.22.0", "yargs@17.7.3"]
     },
     {
       "ref": "node-fetch@3.3.2",
-      "dependsOn": [
-        "data-uri-to-buffer@4.0.1",
-        "fetch-blob@3.2.0",
-        "formdata-polyfill@4.0.10"
-      ]
+      "dependsOn": ["data-uri-to-buffer@4.0.1", "fetch-blob@3.2.0", "formdata-polyfill@4.0.10"]
     },
     {
       "ref": "npm@12.2.2",
@@ -18860,10 +18656,7 @@
     },
     {
       "ref": "npm-run-path@6.0.0",
-      "dependsOn": [
-        "path-key@4.0.0",
-        "unicorn-magic@0.3.0"
-      ]
+      "dependsOn": ["path-key@4.0.0", "unicorn-magic@0.3.0"]
     },
     {
       "ref": "path-key@4.0.0",
@@ -18893,19 +18686,11 @@
     },
     {
       "ref": "http-proxy-agent@9.1.0",
-      "dependsOn": [
-        "agent-base@9.0.0",
-        "debug@4.4.3",
-        "proxy-agent-negotiate@1.1.0"
-      ]
+      "dependsOn": ["agent-base@9.0.0", "debug@4.4.3", "proxy-agent-negotiate@1.1.0"]
     },
     {
       "ref": "https-proxy-agent@9.1.0",
-      "dependsOn": [
-        "agent-base@9.0.0",
-        "debug@4.4.3",
-        "proxy-agent-negotiate@1.1.0"
-      ]
+      "dependsOn": ["agent-base@9.0.0", "debug@4.4.3", "proxy-agent-negotiate@1.1.0"]
     },
     {
       "ref": "@npmcli/arborist@10.0.4",
@@ -18963,9 +18748,7 @@
     },
     {
       "ref": "@npmcli/fs@6.0.0",
-      "dependsOn": [
-        "semver@7.8.6"
-      ]
+      "dependsOn": ["semver@7.8.6"]
     },
     {
       "ref": "@npmcli/git@8.0.0",
@@ -18982,16 +18765,11 @@
     },
     {
       "ref": "@npmcli/installed-package-contents@5.0.0",
-      "dependsOn": [
-        "npm-bundled@6.0.0",
-        "npm-normalize-package-bin@6.0.0"
-      ]
+      "dependsOn": ["npm-bundled@6.0.0", "npm-normalize-package-bin@6.0.0"]
     },
     {
       "ref": "npm-bundled@6.0.0",
-      "dependsOn": [
-        "npm-normalize-package-bin@6.0.0"
-      ]
+      "dependsOn": ["npm-normalize-package-bin@6.0.0"]
     },
     {
       "ref": "npm-normalize-package-bin@6.0.0",
@@ -19038,15 +18816,11 @@
     },
     {
       "ref": "@npmcli/promise-spawn@10.0.1",
-      "dependsOn": [
-        "which@7.0.0"
-      ]
+      "dependsOn": ["which@7.0.0"]
     },
     {
       "ref": "@npmcli/query@5.0.0",
-      "dependsOn": [
-        "postcss-selector-parser@7.1.6"
-      ]
+      "dependsOn": ["postcss-selector-parser@7.1.6"]
     },
     {
       "ref": "@npmcli/redact@5.0.0",
@@ -19064,9 +18838,7 @@
     },
     {
       "ref": "@sigstore/bundle@5.0.0",
-      "dependsOn": [
-        "@sigstore/protobuf-specs@0.5.1"
-      ]
+      "dependsOn": ["@sigstore/protobuf-specs@0.5.1"]
     },
     {
       "ref": "@sigstore/core@4.0.1",
@@ -19089,10 +18861,7 @@
     },
     {
       "ref": "@sigstore/tuf@5.0.0",
-      "dependsOn": [
-        "@sigstore/protobuf-specs@0.5.1",
-        "tuf-js@6.0.0"
-      ]
+      "dependsOn": ["@sigstore/protobuf-specs@0.5.1", "tuf-js@6.0.0"]
     },
     {
       "ref": "@sigstore/verify@4.1.0",
@@ -19108,10 +18877,7 @@
     },
     {
       "ref": "@tufjs/models@5.0.0",
-      "dependsOn": [
-        "@tufjs/canonical-json@2.0.0",
-        "minimatch@10.2.5"
-      ]
+      "dependsOn": ["@tufjs/canonical-json@2.0.0", "minimatch@10.2.5"]
     },
     {
       "ref": "abbrev@5.0.0",
@@ -19200,17 +18966,11 @@
     },
     {
       "ref": "fs-minipass@3.0.3",
-      "dependsOn": [
-        "minipass@7.1.3"
-      ]
+      "dependsOn": ["minipass@7.1.3"]
     },
     {
       "ref": "glob@13.0.6",
-      "dependsOn": [
-        "minimatch@10.2.5",
-        "minipass@7.1.3",
-        "path-scurry@2.0.2"
-      ]
+      "dependsOn": ["minimatch@10.2.5", "minipass@7.1.3", "path-scurry@2.0.2"]
     },
     {
       "ref": "http-cache-semantics@4.3.0",
@@ -19237,9 +18997,7 @@
     },
     {
       "ref": "is-cidr@7.0.0",
-      "dependsOn": [
-        "cidr-regex@6.0.0"
-      ]
+      "dependsOn": ["cidr-regex@6.0.0"]
     },
     {
       "ref": "isexe@4.0.0",
@@ -19267,10 +19025,7 @@
     },
     {
       "ref": "libnpmaccess@11.0.0",
-      "dependsOn": [
-        "npm-package-arg@14.0.0",
-        "npm-registry-fetch@20.0.1"
-      ]
+      "dependsOn": ["npm-package-arg@14.0.0", "npm-registry-fetch@20.0.1"]
     },
     {
       "ref": "libnpmdiff@9.0.4",
@@ -19304,16 +19059,11 @@
     },
     {
       "ref": "libnpmfund@8.0.4",
-      "dependsOn": [
-        "@npmcli/arborist@10.0.4"
-      ]
+      "dependsOn": ["@npmcli/arborist@10.0.4"]
     },
     {
       "ref": "libnpmorg@9.0.0",
-      "dependsOn": [
-        "aproba@2.1.0",
-        "npm-registry-fetch@20.0.1"
-      ]
+      "dependsOn": ["aproba@2.1.0", "npm-registry-fetch@20.0.1"]
     },
     {
       "ref": "libnpmpack@10.0.4",
@@ -19339,16 +19089,11 @@
     },
     {
       "ref": "libnpmsearch@10.0.0",
-      "dependsOn": [
-        "npm-registry-fetch@20.0.1"
-      ]
+      "dependsOn": ["npm-registry-fetch@20.0.1"]
     },
     {
       "ref": "libnpmteam@9.0.0",
-      "dependsOn": [
-        "aproba@2.1.0",
-        "npm-registry-fetch@20.0.1"
-      ]
+      "dependsOn": ["aproba@2.1.0", "npm-registry-fetch@20.0.1"]
     },
     {
       "ref": "libnpmversion@9.0.0",
@@ -19383,42 +19128,27 @@
     },
     {
       "ref": "minimatch@10.2.5",
-      "dependsOn": [
-        "brace-expansion@5.0.12"
-      ]
+      "dependsOn": ["brace-expansion@5.0.12"]
     },
     {
       "ref": "minipass-collect@2.0.1",
-      "dependsOn": [
-        "minipass@7.1.3"
-      ]
+      "dependsOn": ["minipass@7.1.3"]
     },
     {
       "ref": "minipass-fetch@6.0.0",
-      "dependsOn": [
-        "minipass@7.1.3",
-        "minipass-sized@2.0.0",
-        "minizlib@3.1.0",
-        "iconv-lite@0.7.3"
-      ]
+      "dependsOn": ["minipass@7.1.3", "minipass-sized@2.0.0", "minizlib@3.1.0", "iconv-lite@0.7.3"]
     },
     {
       "ref": "minipass-flush@1.0.6",
-      "dependsOn": [
-        "minipass@7.1.3"
-      ]
+      "dependsOn": ["minipass@7.1.3"]
     },
     {
       "ref": "minipass-pipeline@1.2.4",
-      "dependsOn": [
-        "minipass@3.3.6"
-      ]
+      "dependsOn": ["minipass@3.3.6"]
     },
     {
       "ref": "minipass@3.3.6",
-      "dependsOn": [
-        "yallist@4.0.0"
-      ]
+      "dependsOn": ["yallist@4.0.0"]
     },
     {
       "ref": "yallist@4.0.0",
@@ -19426,9 +19156,7 @@
     },
     {
       "ref": "minipass-sized@2.0.0",
-      "dependsOn": [
-        "minipass@7.1.3"
-      ]
+      "dependsOn": ["minipass@7.1.3"]
     },
     {
       "ref": "mute-stream@4.0.0",
@@ -19455,9 +19183,7 @@
     },
     {
       "ref": "nopt@10.0.1",
-      "dependsOn": [
-        "abbrev@5.0.0"
-      ]
+      "dependsOn": ["abbrev@5.0.0"]
     },
     {
       "ref": "npm-audit-report@8.0.0",
@@ -19465,9 +19191,7 @@
     },
     {
       "ref": "npm-install-checks@9.0.0",
-      "dependsOn": [
-        "semver@7.8.6"
-      ]
+      "dependsOn": ["semver@7.8.6"]
     },
     {
       "ref": "npm-package-arg@14.0.0",
@@ -19480,17 +19204,11 @@
     },
     {
       "ref": "npm-packlist@11.3.0",
-      "dependsOn": [
-        "glob@13.0.6",
-        "ignore-walk@9.0.0",
-        "proc-log@7.0.0"
-      ]
+      "dependsOn": ["glob@13.0.6", "ignore-walk@9.0.0", "proc-log@7.0.0"]
     },
     {
       "ref": "ignore-walk@9.0.0",
-      "dependsOn": [
-        "minimatch@10.2.5"
-      ]
+      "dependsOn": ["minimatch@10.2.5"]
     },
     {
       "ref": "npm-pick-manifest@12.0.0",
@@ -19503,10 +19221,7 @@
     },
     {
       "ref": "npm-profile@13.0.1",
-      "dependsOn": [
-        "npm-registry-fetch@20.0.1",
-        "proc-log@7.0.0"
-      ]
+      "dependsOn": ["npm-registry-fetch@20.0.1", "proc-log@7.0.0"]
     },
     {
       "ref": "npm-registry-fetch@20.0.1",
@@ -19561,17 +19276,11 @@
     },
     {
       "ref": "path-scurry@2.0.2",
-      "dependsOn": [
-        "lru-cache@11.5.2",
-        "minipass@7.1.3"
-      ]
+      "dependsOn": ["lru-cache@11.5.2", "minipass@7.1.3"]
     },
     {
       "ref": "postcss-selector-parser@7.1.6",
-      "dependsOn": [
-        "cssesc@3.0.0",
-        "util-deprecate@1.0.2"
-      ]
+      "dependsOn": ["cssesc@3.0.0", "util-deprecate@1.0.2"]
     },
     {
       "ref": "proc-log@7.0.0",
@@ -19591,9 +19300,7 @@
     },
     {
       "ref": "promzard@4.0.0",
-      "dependsOn": [
-        "read@6.0.0"
-      ]
+      "dependsOn": ["read@6.0.0"]
     },
     {
       "ref": "proxy-agent-negotiate@1.1.0",
@@ -19605,9 +19312,7 @@
     },
     {
       "ref": "read@6.0.0",
-      "dependsOn": [
-        "mute-stream@4.0.0"
-      ]
+      "dependsOn": ["mute-stream@4.0.0"]
     },
     {
       "ref": "safer-buffer@2.1.2",
@@ -19638,18 +19343,11 @@
     },
     {
       "ref": "socks@2.8.9",
-      "dependsOn": [
-        "ip-address@10.7.5",
-        "smart-buffer@4.2.0"
-      ]
+      "dependsOn": ["ip-address@10.7.5", "smart-buffer@4.2.0"]
     },
     {
       "ref": "socks-proxy-agent@10.1.0",
-      "dependsOn": [
-        "agent-base@9.0.0",
-        "debug@4.4.3",
-        "socks@2.8.9"
-      ]
+      "dependsOn": ["agent-base@9.0.0", "debug@4.4.3", "socks@2.8.9"]
     },
     {
       "ref": "spdx-exceptions@2.5.0",
@@ -19657,10 +19355,7 @@
     },
     {
       "ref": "spdx-expression-parse@4.0.0",
-      "dependsOn": [
-        "spdx-exceptions@2.5.0",
-        "spdx-license-ids@3.0.23"
-      ]
+      "dependsOn": ["spdx-exceptions@2.5.0", "spdx-license-ids@3.0.23"]
     },
     {
       "ref": "spdx-license-ids@3.0.23",
@@ -19668,9 +19363,7 @@
     },
     {
       "ref": "ssri@14.0.0",
-      "dependsOn": [
-        "minipass@7.1.3"
-      ]
+      "dependsOn": ["minipass@7.1.3"]
     },
     {
       "ref": "supports-color@10.2.2",
@@ -19696,16 +19389,11 @@
     },
     {
       "ref": "tinyglobby@0.2.17",
-      "dependsOn": [
-        "fdir@6.5.0",
-        "picomatch@4.0.5"
-      ]
+      "dependsOn": ["fdir@6.5.0", "picomatch@4.0.5"]
     },
     {
       "ref": "fdir@6.5.0",
-      "dependsOn": [
-        "picomatch@4.0.5"
-      ]
+      "dependsOn": ["picomatch@4.0.5"]
     },
     {
       "ref": "picomatch@4.0.5",
@@ -19717,11 +19405,7 @@
     },
     {
       "ref": "tuf-js@6.0.0",
-      "dependsOn": [
-        "@gar/promise-retry@1.0.3",
-        "@tufjs/models@5.0.0",
-        "debug@4.4.3"
-      ]
+      "dependsOn": ["@gar/promise-retry@1.0.3", "@tufjs/models@5.0.0", "debug@4.4.3"]
     },
     {
       "ref": "undici@6.29.1",
@@ -19741,15 +19425,11 @@
     },
     {
       "ref": "which@7.0.0",
-      "dependsOn": [
-        "isexe@4.0.0"
-      ]
+      "dependsOn": ["isexe@4.0.0"]
     },
     {
       "ref": "write-file-atomic@8.0.0",
-      "dependsOn": [
-        "signal-exit@4.1.0"
-      ]
+      "dependsOn": ["signal-exit@4.1.0"]
     },
     {
       "ref": "yallist@5.0.0",
@@ -19757,9 +19437,7 @@
     },
     {
       "ref": "nth-check@3.0.1",
-      "dependsOn": [
-        "boolbase@2.0.0"
-      ]
+      "dependsOn": ["boolbase@2.0.0"]
     },
     {
       "ref": "object-assign@4.1.1",
@@ -19775,15 +19453,11 @@
     },
     {
       "ref": "on-finished@2.4.2",
-      "dependsOn": [
-        "ee-first@1.1.1"
-      ]
+      "dependsOn": ["ee-first@1.1.1"]
     },
     {
       "ref": "once@1.4.0",
-      "dependsOn": [
-        "wrappy@1.0.2"
-      ]
+      "dependsOn": ["wrappy@1.0.2"]
     },
     {
       "ref": "onnxruntime-common@1.31.1",
@@ -19802,11 +19476,7 @@
     },
     {
       "ref": "openai@7.28.0",
-      "dependsOn": [
-        "undici@8.12.2",
-        "ws@8.22.0",
-        "zod@4.6.6"
-      ]
+      "dependsOn": ["undici@8.12.2", "ws@8.22.0", "zod@4.6.6"]
     },
     {
       "ref": "openclaw@2026.10.33",
@@ -19971,21 +19641,15 @@
     },
     {
       "ref": "p-limit@7.3.3",
-      "dependsOn": [
-        "yocto-queue@1.2.2"
-      ]
+      "dependsOn": ["yocto-queue@1.2.2"]
     },
     {
       "ref": "p-locate@4.1.0",
-      "dependsOn": [
-        "p-limit@2.3.0"
-      ]
+      "dependsOn": ["p-limit@2.3.0"]
     },
     {
       "ref": "p-limit@2.3.0",
-      "dependsOn": [
-        "p-try@2.2.0"
-      ]
+      "dependsOn": ["p-try@2.2.0"]
     },
     {
       "ref": "p-map@7.0.8",
@@ -19993,10 +19657,7 @@
     },
     {
       "ref": "p-retry@4.6.2",
-      "dependsOn": [
-        "@types/retry@0.12.0",
-        "retry@0.13.1"
-      ]
+      "dependsOn": ["@types/retry@0.12.0", "retry@0.13.1"]
     },
     {
       "ref": "p-try@2.2.0",
@@ -20032,9 +19693,7 @@
     },
     {
       "ref": "pdfjs-dist@6.5.438",
-      "dependsOn": [
-        "@napi-rs/canvas@1.1.0"
-      ]
+      "dependsOn": ["@napi-rs/canvas@1.1.0"]
     },
     {
       "ref": "pg@8.23.1",
@@ -20061,9 +19720,7 @@
     },
     {
       "ref": "pg-pool@3.14.0",
-      "dependsOn": [
-        "pg@8.23.1"
-      ]
+      "dependsOn": ["pg@8.23.1"]
     },
     {
       "ref": "pg-protocol@1.16.1",
@@ -20081,9 +19738,7 @@
     },
     {
       "ref": "pgpass@1.0.5",
-      "dependsOn": [
-        "split2@4.2.0"
-      ]
+      "dependsOn": ["split2@4.2.0"]
     },
     {
       "ref": "pkce-challenge@5.0.2",
@@ -20115,9 +19770,7 @@
     },
     {
       "ref": "postgres-interval@1.2.0",
-      "dependsOn": [
-        "xtend@4.0.2"
-      ]
+      "dependsOn": ["xtend@4.0.2"]
     },
     {
       "ref": "prettier@3.6.2",
@@ -20125,9 +19778,7 @@
     },
     {
       "ref": "pretty-ms@9.3.1",
-      "dependsOn": [
-        "parse-ms@4.0.0"
-      ]
+      "dependsOn": ["parse-ms@4.0.0"]
     },
     {
       "ref": "process-nextick-args@2.0.1",
@@ -20155,34 +19806,19 @@
     },
     {
       "ref": "proxy-addr@2.0.8",
-      "dependsOn": [
-        "forwarded@0.2.0",
-        "ipaddr.js@1.9.1"
-      ]
+      "dependsOn": ["forwarded@0.2.0", "ipaddr.js@1.9.1"]
     },
     {
       "ref": "qrcode@1.5.4",
-      "dependsOn": [
-        "dijkstrajs@1.0.3",
-        "pngjs@5.0.0",
-        "yargs@15.4.1"
-      ]
+      "dependsOn": ["dijkstrajs@1.0.3", "pngjs@5.0.0", "yargs@15.4.1"]
     },
     {
       "ref": "cliui@6.0.0",
-      "dependsOn": [
-        "string-width@4.2.3",
-        "strip-ansi@6.0.1",
-        "wrap-ansi@6.2.0"
-      ]
+      "dependsOn": ["string-width@4.2.3", "strip-ansi@6.0.1", "wrap-ansi@6.2.0"]
     },
     {
       "ref": "wrap-ansi@6.2.0",
-      "dependsOn": [
-        "ansi-styles@4.3.0",
-        "string-width@4.2.3",
-        "strip-ansi@6.0.1"
-      ]
+      "dependsOn": ["ansi-styles@4.3.0", "string-width@4.2.3", "strip-ansi@6.0.1"]
     },
     {
       "ref": "y18n@4.0.3",
@@ -20206,17 +19842,11 @@
     },
     {
       "ref": "yargs-parser@18.1.3",
-      "dependsOn": [
-        "camelcase@5.3.1",
-        "decamelize@1.2.0"
-      ]
+      "dependsOn": ["camelcase@5.3.1", "decamelize@1.2.0"]
     },
     {
       "ref": "qs@6.17.1",
-      "dependsOn": [
-        "es-define-property@1.0.1",
-        "side-channel@1.1.1"
-      ]
+      "dependsOn": ["es-define-property@1.0.1", "side-channel@1.1.1"]
     },
     {
       "ref": "range-parser@1.3.0",
@@ -20224,18 +19854,11 @@
     },
     {
       "ref": "rastermill@0.4.0",
-      "dependsOn": [
-        "@silvia-odwyer/photon-node@0.3.4"
-      ]
+      "dependsOn": ["@silvia-odwyer/photon-node@0.3.4"]
     },
     {
       "ref": "raw-body@3.0.2",
-      "dependsOn": [
-        "bytes@3.1.2",
-        "http-errors@2.0.1",
-        "iconv-lite@0.7.3",
-        "unpipe@1.0.0"
-      ]
+      "dependsOn": ["bytes@3.1.2", "http-errors@2.0.1", "iconv-lite@0.7.3", "unpipe@1.0.0"]
     },
     {
       "ref": "readable-stream@2.3.8",
@@ -20309,12 +19932,7 @@
     },
     {
       "ref": "serve-static@2.2.1",
-      "dependsOn": [
-        "encodeurl@2.0.3",
-        "escape-html@1.0.3",
-        "parseurl@1.3.3",
-        "send@1.2.1"
-      ]
+      "dependsOn": ["encodeurl@2.0.3", "escape-html@1.0.3", "parseurl@1.3.3", "send@1.2.1"]
     },
     {
       "ref": "set-blocking@2.0.0",
@@ -20330,9 +19948,7 @@
     },
     {
       "ref": "shebang-command@2.0.0",
-      "dependsOn": [
-        "shebang-regex@3.0.0"
-      ]
+      "dependsOn": ["shebang-regex@3.0.0"]
     },
     {
       "ref": "shebang-regex@3.0.0",
@@ -20350,10 +19966,7 @@
     },
     {
       "ref": "side-channel-list@1.0.1",
-      "dependsOn": [
-        "es-errors@1.3.0",
-        "object-inspect@1.14.0"
-      ]
+      "dependsOn": ["es-errors@1.3.0", "object-inspect@1.14.0"]
     },
     {
       "ref": "side-channel-map@1.0.1",
@@ -20384,10 +19997,7 @@
     },
     {
       "ref": "source-map-support@0.5.21",
-      "dependsOn": [
-        "buffer-from@1.1.2",
-        "source-map@0.6.1"
-      ]
+      "dependsOn": ["buffer-from@1.1.2", "source-map@0.6.1"]
     },
     {
       "ref": "split2@4.2.0",
@@ -20425,10 +20035,7 @@
     },
     {
       "ref": "standardwebhooks@1.3.0",
-      "dependsOn": [
-        "@stablelib/base64@1.0.1",
-        "fast-sha256@1.3.0"
-      ]
+      "dependsOn": ["@stablelib/base64@1.0.1", "fast-sha256@1.3.0"]
     },
     {
       "ref": "statuses@2.0.2",
@@ -20436,23 +20043,15 @@
     },
     {
       "ref": "string_decoder@1.1.1",
-      "dependsOn": [
-        "safe-buffer@5.1.2"
-      ]
+      "dependsOn": ["safe-buffer@5.1.2"]
     },
     {
       "ref": "string-width@4.2.3",
-      "dependsOn": [
-        "emoji-regex@8.0.0",
-        "is-fullwidth-code-point@3.0.0",
-        "strip-ansi@6.0.1"
-      ]
+      "dependsOn": ["emoji-regex@8.0.0", "is-fullwidth-code-point@3.0.0", "strip-ansi@6.0.1"]
     },
     {
       "ref": "strip-ansi@6.0.1",
-      "dependsOn": [
-        "ansi-regex@5.0.1"
-      ]
+      "dependsOn": ["ansi-regex@5.0.1"]
     },
     {
       "ref": "strip-final-newline@4.0.0",
@@ -20460,15 +20059,11 @@
     },
     {
       "ref": "strtok3@10.6.2",
-      "dependsOn": [
-        "@tokenizer/token@0.3.0"
-      ]
+      "dependsOn": ["@tokenizer/token@0.3.0"]
     },
     {
       "ref": "sumchecker@3.0.1",
-      "dependsOn": [
-        "debug@4.4.3"
-      ]
+      "dependsOn": ["debug@4.4.3"]
     },
     {
       "ref": "tiny-emitter@2.1.0",
@@ -20480,11 +20075,7 @@
     },
     {
       "ref": "token-types@6.1.2",
-      "dependsOn": [
-        "@borewit/text-codec@0.2.2",
-        "@tokenizer/token@0.3.0",
-        "ieee754@1.2.1"
-      ]
+      "dependsOn": ["@borewit/text-codec@0.2.2", "@tokenizer/token@0.3.0", "ieee754@1.2.1"]
     },
     {
       "ref": "tr46@0.0.3",
@@ -20504,11 +20095,7 @@
     },
     {
       "ref": "type-is@2.1.0",
-      "dependsOn": [
-        "content-type@2.1.0",
-        "media-typer@1.1.1",
-        "mime-types@3.0.2"
-      ]
+      "dependsOn": ["content-type@2.1.0", "media-typer@1.1.1", "mime-types@3.0.2"]
     },
     {
       "ref": "typebox@1.3.35",
@@ -20570,16 +20157,11 @@
     },
     {
       "ref": "whatwg-url@5.0.0",
-      "dependsOn": [
-        "tr46@0.0.3",
-        "webidl-conversions@3.0.1"
-      ]
+      "dependsOn": ["tr46@0.0.3", "webidl-conversions@3.0.1"]
     },
     {
       "ref": "which@2.0.2",
-      "dependsOn": [
-        "isexe@2.0.0"
-      ]
+      "dependsOn": ["isexe@2.0.0"]
     },
     {
       "ref": "which-command@0.1.0",
@@ -20591,11 +20173,7 @@
     },
     {
       "ref": "wrap-ansi@7.0.0",
-      "dependsOn": [
-        "ansi-styles@4.3.0",
-        "string-width@4.2.3",
-        "strip-ansi@6.0.1"
-      ]
+      "dependsOn": ["ansi-styles@4.3.0", "string-width@4.2.3", "strip-ansi@6.0.1"]
     },
     {
       "ref": "wrappy@1.0.2",
@@ -20647,9 +20225,7 @@
     },
     {
       "ref": "zod-to-json-schema@3.25.2",
-      "dependsOn": [
-        "zod@4.6.6"
-      ]
+      "dependsOn": ["zod@4.6.6"]
     },
     {
       "ref": "@capri/core@1.2.0",

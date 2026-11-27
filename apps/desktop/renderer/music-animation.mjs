@@ -272,12 +272,20 @@ export function musicNoteParticles(
   { amount = 1, strength = 0.5, birthsUntil = time, births } = {},
 ) {
   const poseId = musicRig(frameId);
-  if (!poseId || poseId === 'sleep' || !Number.isFinite(time) || time < 0 || !Number.isFinite(amount) || amount <= 0)
+  if (
+    !poseId ||
+    poseId === 'sleep' ||
+    !Number.isFinite(time) ||
+    time < 0 ||
+    !Number.isFinite(amount) ||
+    amount <= 0
+  )
     return [];
   const [headX, headY] = POSE_RIGS[poseId].neck;
   const above = POSE_RIGS[poseId].inverted ? 1 : -1;
   const emitters = MUSIC_POSES[frameId]?.emitters ?? [
-    [headX - 104, headY + above * 67], [headX + 108, headY + above * 101],
+    [headX - 104, headY + above * 67],
+    [headX + 108, headY + above * 101],
   ];
   const interval = 0.48,
     last = Math.floor(Math.min(time, birthsUntil) / interval),

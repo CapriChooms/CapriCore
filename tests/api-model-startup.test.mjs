@@ -86,7 +86,10 @@ async function fixture(options, verify) {
     ['../context.mjs', 'export const runtime = () => f.rt; export const headers = () => ({});'],
     ['./services.mjs', functions('startLlama', 'startGateway', 'stopManaged')],
     ['../http.mjs', functions('request')],
-    ['./llama-admin.mjs', 'export const llamaAdminHeaders = () => ({ authorization: "Bearer fixture" });'],
+    [
+      './llama-admin.mjs',
+      'export const llamaAdminHeaders = () => ({ authorization: "Bearer fixture" });',
+    ],
     ['../host/processes.mjs', functions('managedProcess')],
     ['../client.mjs', functions('runCli')],
     ['../host/paths.mjs', 'export const root = "C:/capri-isolated-no-files";'],

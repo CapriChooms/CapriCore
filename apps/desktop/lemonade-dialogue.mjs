@@ -110,7 +110,14 @@ export async function handsFreeReply({
   styleChangedAt,
   avatarSelf,
 }) {
-  const payload = lemonadeDialogue({ input, history, persona, languages, styleChangedAt, avatarSelf });
+  const payload = lemonadeDialogue({
+    input,
+    history,
+    persona,
+    languages,
+    styleChangedAt,
+    avatarSelf,
+  });
   payload.messages[0].content += '\n\n' + handsFreeInstruction;
   const response = await request(
     {

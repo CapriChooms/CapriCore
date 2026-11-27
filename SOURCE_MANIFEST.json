@@ -34,8 +34,8 @@
     },
     {
       "path": ".github/dependabot.yml",
-      "bytes": 393,
-      "sha256": "2e0a6d900baff59ad95d156b399ff0c76834ceea42acc34fa884280feb5e9307"
+      "bytes": 376,
+      "sha256": "46e401729ad7ca0a2402459e9bb95944ba07d10608e7cc1a178f19d0a7bba90d"
     },
     {
       "path": ".github/pull_request_template.md",
@@ -64,8 +64,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 3327,
-      "sha256": "15918c885d7a200bb19968ccddf69d6988c43b96086564e7ab333d641285e807"
+      "bytes": 3271,
+      "sha256": "995766b19970ab6efe358cd2a5b74a7bd57a49614027e695e0c55af30aab1825"
     },
     {
       "path": ".github/workflows/dependency-audit.yml",
@@ -149,8 +149,8 @@
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
-      "bytes": 11034,
-      "sha256": "d39da6960a17b16b6b1cd1921a8a1617304eab0762430c5e30d0c62e0356c7bb"
+      "bytes": 11334,
+      "sha256": "95f491f1d33027eee8dfc69f3fc03a14fc1569e8e9c290b61bbbbb2280d43a04"
     },
     {
       "path": "apps/desktop/action-broker.mjs",
@@ -219,8 +219,8 @@
     },
     {
       "path": "apps/desktop/avatar-catalog.mjs",
-      "bytes": 16459,
-      "sha256": "8c217aab44dbba51ae489b40277492a58f811af844f5c49598362746cacd54b7"
+      "bytes": 16450,
+      "sha256": "324c7362590f12a62abca244cec7fcd4cee543048de082973c3f7989d80290d3"
     },
     {
       "path": "apps/desktop/avatar-click-reactions.mjs",
@@ -649,8 +649,8 @@
     },
     {
       "path": "apps/desktop/geometry.mjs",
-      "bytes": 8819,
-      "sha256": "f644aba10e9f66e5f71d8beb9cd66ca9696f8de916632b8e676b851a7d5c1c0b"
+      "bytes": 8843,
+      "sha256": "4e8de4781b994c82c3d2fe58518dffef3e0bc47b4980cb3abf8262819a2a8b5a"
     },
     {
       "path": "apps/desktop/github-access.mjs",
@@ -974,8 +974,8 @@
     },
     {
       "path": "apps/desktop/lemonade-dialogue.mjs",
-      "bytes": 5746,
-      "sha256": "56018b231af06b4b5f48359b9afd1f691a167882479811fd7487ea643f49ef46"
+      "bytes": 5773,
+      "sha256": "2247ea1e1c1fe3447083691b527202d6a14c5b2330e500c32afb59ca80215c9c"
     },
     {
       "path": "apps/desktop/local-model-folder.mjs",
@@ -1009,18 +1009,18 @@
     },
     {
       "path": "apps/desktop/locales/ar.json",
-      "bytes": 286430,
-      "sha256": "8b9a120ab8e9b6f2ca1927f62b0884f918b4c1802d18cdfe912c0284fe2fbc9b"
+      "bytes": 286414,
+      "sha256": "3970624893dcd863d6462095f6d0261dcb03af0b1deadbe6bc883b13eb228f55"
     },
     {
       "path": "apps/desktop/locales/bg.json",
-      "bytes": 333557,
-      "sha256": "3a0759c7571c1ce44c67e4bbddabd110f43cebd2bc1bd6a7b2fcfe65c3a390b2"
+      "bytes": 333537,
+      "sha256": "5e037c2f1ffdcdee94856cff358a6dbd797b2d1a846cfc607ed868a613a0628d"
     },
     {
       "path": "apps/desktop/locales/bn.json",
-      "bytes": 400027,
-      "sha256": "7cb745aacbae9de0ffc844350eca4ef17b3f076420fae1f4b8da37cfc4932831"
+      "bytes": 400015,
+      "sha256": "4538fa79e4db68703a7c51a0a64ed7ba8d456dbddfa38b1dc797f855c0f1271d"
     },
     {
       "path": "apps/desktop/locales/ca.json",
@@ -1044,8 +1044,8 @@
     },
     {
       "path": "apps/desktop/locales/el.json",
-      "bytes": 349360,
-      "sha256": "9ecf2f44fc2b22e97a3cdc8bfe011c1fccf972c941720edf0de6f286fef0e405"
+      "bytes": 349340,
+      "sha256": "9cb6e9c3f61415a9e4fc008d1aa111c4e6ea0e7e48ea5520598dccf8c83ca245"
     },
     {
       "path": "apps/desktop/locales/en.json",
@@ -1064,8 +1064,8 @@
     },
     {
       "path": "apps/desktop/locales/fa.json",
-      "bytes": 302069,
-      "sha256": "809712462efa52ca14261548a415a701aa329afd45e2ae7b4c38f6c1b4e9b3c3"
+      "bytes": 302053,
+      "sha256": "d3b7736a5df29ae896bc92190d0aaebcf53d21300abfa600d080077b2a154029"
     },
     {
       "path": "apps/desktop/locales/fi.json",
@@ -1079,13 +1079,13 @@
     },
     {
       "path": "apps/desktop/locales/gu.json",
-      "bytes": 380660,
-      "sha256": "349016d85ae154374744b96d1e55036eaee4fc23e71ec16e4a66157455d69d9c"
+      "bytes": 380648,
+      "sha256": "79025c84561221bb9cd1e6c23a95aa3a228741f76e61ffa88a159a12c1f074b8"
     },
     {
       "path": "apps/desktop/locales/he.json",
-      "bytes": 266610,
-      "sha256": "cb777454a7912db4f7ae37c32bbbdd4b5368f3bdd8deb66a7980b5feb3a57724"
+      "bytes": 266594,
+      "sha256": "91120b0f7a7394f80c47d1a270123e72e6ec83e228e0cf8bda692769f3155ff2"
     },
     {
       "path": "apps/desktop/locales/hi.json",
@@ -1109,8 +1109,8 @@
     },
     {
       "path": "apps/desktop/locales/is.json",
-      "bytes": 236328,
-      "sha256": "6f21f479d3ee3b049f5e389341175fc1809920a23c83ef093e9533706a0ba164"
+      "bytes": 236304,
+      "sha256": "d695e92bca32aeaa6218fe0054a2c71c8aeabe00fc1e17c6d4a09974ef009901"
     },
     {
       "path": "apps/desktop/locales/it.json",
@@ -1124,8 +1124,8 @@
     },
     {
       "path": "apps/desktop/locales/ko.json",
-      "bytes": 256188,
-      "sha256": "3cc55e24e04dae6d7f38c4c96be52746b7810557b90e8767368973d686b59c71"
+      "bytes": 256156,
+      "sha256": "1c971b67bdb68d12a10a34c638c5a505d8f36a812ad7a92e469e5d313498770a"
     },
     {
       "path": "apps/desktop/locales/lt.json",
@@ -1159,8 +1159,8 @@
     },
     {
       "path": "apps/desktop/locales/pa.json",
-      "bytes": 384322,
-      "sha256": "e5f7f93e9e522f9d2b41eed41c06c7a70924c0e6f70e40ca371c1957b277fa3f"
+      "bytes": 384310,
+      "sha256": "bb2f92ab32d5318283616992d5be02571e7ef65a5d57a8d3d8fc27c01767a083"
     },
     {
       "path": "apps/desktop/locales/pl.json",
@@ -1214,18 +1214,18 @@
     },
     {
       "path": "apps/desktop/locales/ta.json",
-      "bytes": 454353,
-      "sha256": "a2e77b76781cca1a80b2cc9fcf859e38be2c705f3aa407a14747a30032101acd"
+      "bytes": 454341,
+      "sha256": "6d6565db55a3d4e10c41488b2dd2b507ad9b79470701a0512d7ba37588c7a8f5"
     },
     {
       "path": "apps/desktop/locales/te.json",
-      "bytes": 426822,
-      "sha256": "e4ea611268ef7188bda9155d2e61b238280f80530458887d6f8245e950a07372"
+      "bytes": 426810,
+      "sha256": "e430271611f13c0907d027b3a3878e7f60135e1ab0420f34034375ebe8a29ebe"
     },
     {
       "path": "apps/desktop/locales/th.json",
-      "bytes": 388371,
-      "sha256": "bbc7c2f6946e5566db907837c62255773fff90904421f3e79940fe67f944d159"
+      "bytes": 388339,
+      "sha256": "281fe9b36040ace0b0d8c25a3b724ae8ba0c2bf1e33fb5ec07c0ea7b6a64dad9"
     },
     {
       "path": "apps/desktop/locales/tl.json",
@@ -1254,13 +1254,13 @@
     },
     {
       "path": "apps/desktop/locales/zh.json",
-      "bytes": 216561,
-      "sha256": "21a165b70b858cc3ac2e95dd722ee0a058b0e5297b0e94e920175b0c88aa2537"
+      "bytes": 216541,
+      "sha256": "3e5e96f40a591842087bdc80c55a0299cd8f2490e17c3b237c82938f6beff21e"
     },
     {
       "path": "apps/desktop/main.mjs",
-      "bytes": 423485,
-      "sha256": "e3e36c44cf4ac1ef54951934b4bbbad5cc053a3cb78e71dbb2a50dc9d33619ba"
+      "bytes": 423449,
+      "sha256": "f3309461e92699f7a781bda92d04e361e33f0ba8825162bb7c1401767b9bb581"
     },
     {
       "path": "apps/desktop/main/access-ipc.mjs",
@@ -1359,8 +1359,8 @@
     },
     {
       "path": "apps/desktop/main/desktop-teleport-menu.mjs",
-      "bytes": 7337,
-      "sha256": "1b40431385381c24b941fd2959a469de3aa02b8a871e4138a18a7508df5f559c"
+      "bytes": 7352,
+      "sha256": "44331e4a3232a084b24858fa5fd1c4c82ce1dd8c4375f60469bdc089e55c32d4"
     },
     {
       "path": "apps/desktop/main/donation-window.mjs",
@@ -1744,8 +1744,8 @@
     },
     {
       "path": "apps/desktop/renderer/avatar-detach.mjs",
-      "bytes": 49756,
-      "sha256": "7c6a83d2d943696026987c9a12281fe8d307557906166fb6452d4edb307fd0a4"
+      "bytes": 48372,
+      "sha256": "10adcc198876471ef91bf30cc5bd8d23f30da719a691ade1aaed9ecbf8389b2d"
     },
     {
       "path": "apps/desktop/renderer/avatar-drag-tether.mjs",
@@ -1769,8 +1769,8 @@
     },
     {
       "path": "apps/desktop/renderer/avatar-gallery.mjs",
-      "bytes": 25782,
-      "sha256": "a19d9876277b02c2ecb3f55ea70ad03fe7de8ba8c3c8fc063baa5e4232e07b2f"
+      "bytes": 25839,
+      "sha256": "fa1fee701bd6e7f81bc7da292d4cdb454df8cf642cba6f945f2622ded7beb593"
     },
     {
       "path": "apps/desktop/renderer/avatar-headpat.css",
@@ -1954,8 +1954,8 @@
     },
     {
       "path": "apps/desktop/renderer/companion-panel.mjs",
-      "bytes": 72095,
-      "sha256": "b9de7b4c71d91bfaaf09e128f6bd613bdf0f8f7a20b47568f91ef187f312f265"
+      "bytes": 72088,
+      "sha256": "6eb73b683860a890cf291492559c545e74580130fb308aaf87c24fe39ff05226"
     },
     {
       "path": "apps/desktop/renderer/computer-appearance-panel.mjs",
@@ -2109,8 +2109,8 @@
     },
     {
       "path": "apps/desktop/renderer/idle-gesture-rig.mjs",
-      "bytes": 27838,
-      "sha256": "1704edac3f1c39fa555f33575172ef000ae519b6e9338d55fdab41977bff0bda"
+      "bytes": 27913,
+      "sha256": "78850fa101d8555b3915ad90697640547eb1373c5524e91221fee158fba7e614"
     },
     {
       "path": "apps/desktop/renderer/index.html",
@@ -2234,8 +2234,8 @@
     },
     {
       "path": "apps/desktop/renderer/music-animation.mjs",
-      "bytes": 17463,
-      "sha256": "93260d11cf1973b433d33990aeb355e8eee9c309c6e4952822ca0ce39f3b1376"
+      "bytes": 17495,
+      "sha256": "901148d6ffbe9b84ea32e654cdef7a958017b6d794f2e59ac523756b2992a73a"
     },
     {
       "path": "apps/desktop/renderer/music-beat-motion.mjs",
@@ -2349,8 +2349,8 @@
     },
     {
       "path": "apps/desktop/renderer/screen-interaction-motion.mjs",
-      "bytes": 31744,
-      "sha256": "e4930e181f106078108c7709fb14f63abe2e7e940f3de1fbad01c4f03965fbd3"
+      "bytes": 30903,
+      "sha256": "fb963bb786ff45d3d803317b829ad1e2aa5d5a6c3757b0d8e1614a3859b67b86"
     },
     {
       "path": "apps/desktop/renderer/screen-mosaic.mjs",
@@ -2374,8 +2374,8 @@
     },
     {
       "path": "apps/desktop/renderer/settings-app.mjs",
-      "bytes": 101613,
-      "sha256": "fdc03e69688d2633d1390aa488046a7da74142d1cee99542bc0ca50fe130dad6"
+      "bytes": 101636,
+      "sha256": "c75b0adb8dad2db398c18993ccd6719c0677a0ae8ec8f997df8bd8c0dab9e9d4"
     },
     {
       "path": "apps/desktop/renderer/settings-divider.mjs",
@@ -2444,8 +2444,8 @@
     },
     {
       "path": "apps/desktop/renderer/settings.html",
-      "bytes": 18102,
-      "sha256": "1e1c7dd6c0a3cb192cc72249faaabc45c20fd2fb12a43a3cc6b530313c0ff403"
+      "bytes": 18300,
+      "sha256": "ee0300622ffe18ad7c1140ae832df1c872ae3efbd8188664368184fac5f0a0f0"
     },
     {
       "path": "apps/desktop/renderer/signal-fx.mjs",
@@ -2484,8 +2484,8 @@
     },
     {
       "path": "apps/desktop/renderer/startup-intro.mjs",
-      "bytes": 6826,
-      "sha256": "75749f2671d2d5fd603856fdf7ca25456c879ade597a1c6b59154e451d4989fa"
+      "bytes": 6878,
+      "sha256": "3a5dc84d3bd324996c9ff23856e9172439a526c94b140968837fccda4a4fc473"
     },
     {
       "path": "apps/desktop/renderer/startup-panel.mjs",
@@ -2819,8 +2819,8 @@
     },
     {
       "path": "apps/desktop/voice-residency.mjs",
-      "bytes": 2393,
-      "sha256": "fd7911bd70b0a3f17522e0f956e9f5c9477be50636d386e329c72bdb06ab8774"
+      "bytes": 2422,
+      "sha256": "086a38cc4204845bf54759ee2a5404f89ab9d3cac4393e866904d54708820b98"
     },
     {
       "path": "apps/desktop/voice-service.mjs",
@@ -2839,8 +2839,8 @@
     },
     {
       "path": "apps/desktop/web-page-reader.mjs",
-      "bytes": 7001,
-      "sha256": "4d603f37415d5c537d5550a7cc57b8f3612842e15eedc822a13c97c278f5bec9"
+      "bytes": 7054,
+      "sha256": "6bfbd9ea815947cb2959f15e1dc2b1a1be5b5d7d8600357a95dbe33f285db270"
     },
     {
       "path": "apps/desktop/web-search.mjs",
@@ -3169,8 +3169,8 @@
     },
     {
       "path": "assets/default/capri-face-gestures.json",
-      "bytes": 9921,
-      "sha256": "d04af40069e8878076d08f9d05818dc12bb27284860e655cb65a3d07c249cfd6"
+      "bytes": 6337,
+      "sha256": "ec50da4b21087f5d25026f8aeecb1299e42d66b1d9981d99bc2887bb5024051b"
     },
     {
       "path": "assets/default/capri-face-gestures.png",
@@ -3179,8 +3179,8 @@
     },
     {
       "path": "assets/default/capri-face-poses.json",
-      "bytes": 553,
-      "sha256": "bf97a31f30c872982b81c0c98530a7a5d86649ef969cc6b5d80f37e5cdd25739"
+      "bytes": 357,
+      "sha256": "e4d9ba98766ef6efe6c5f6b8f1bd55c64d47b48d10dd04803a443bbc2b90c46c"
     },
     {
       "path": "assets/default/capri-face-poses.png",
@@ -3249,8 +3249,8 @@
     },
     {
       "path": "assets/default/hanging-cels/geometry.json",
-      "bytes": 386,
-      "sha256": "1e9b5d88b021f5ba709175f978eea27bef95695a3f25276fc4be902809e379c9"
+      "bytes": 360,
+      "sha256": "21d03900183561f9db0ea5bf422b460697204e91093db37784f9b14ca328d9c3"
     },
     {
       "path": "assets/default/hanging-cels/hang-catch-breakdowns.webp",
@@ -3459,8 +3459,8 @@
     },
     {
       "path": "config/installer-text.json",
-      "bytes": 1225591,
-      "sha256": "d8b1f2c1a07dddb76f33d65b9c66b98b5fa946c604e2d7fdfb67325fbdc98ce1"
+      "bytes": 1225375,
+      "sha256": "512361a3a58328adf536890e39ad7cb4bdd288d66c24840f950a939f427069b4"
     },
     {
       "path": "config/installer.json",
@@ -3494,8 +3494,8 @@
     },
     {
       "path": "config/memory-estimates.json",
-      "bytes": 1837,
-      "sha256": "7d58bcbdc7c3db3d8d00539c2f23fe4fbc47511e5f29f691c9f1d4116d3680cd"
+      "bytes": 1789,
+      "sha256": "7e48f9d83d69d5c1e9d6a5ccf8a87f9f2cfe6af56f70dff0bc3c7a24743bd14e"
     },
     {
       "path": "config/multilingual-candidates.json",
@@ -3724,8 +3724,8 @@
     },
     {
       "path": "docs/audit/npm-sbom.cdx.json",
-      "bytes": 520728,
-      "sha256": "0d183779f09f8c23a67130b905d6abc8aabcc6a0ee1131b5b8bf56c8e455aa79"
+      "bytes": 517336,
+      "sha256": "276f68b4c02b39fcc3368ea5e13bf593c088d3447df3dc46dc40c8a9b698af1b"
     },
     {
       "path": "docs/branding.md",
@@ -3929,8 +3929,8 @@
     },
     {
       "path": "docs/installation-wizard.md",
-      "bytes": 35300,
-      "sha256": "bd395bd79ff7cdbc1fe8e49f6d4de07cbfd06bc76ab76483031bb1afce1ae2ee"
+      "bytes": 35317,
+      "sha256": "a33a1b8ed71cf32228ae050e2346bcb15da0d242ca7c4ce1dce8c902a39f2e81"
     },
     {
       "path": "docs/installation.md",
@@ -4309,8 +4309,8 @@
     },
     {
       "path": "docs/releases/v1.3.0.md",
-      "bytes": 1721,
-      "sha256": "b199a3c811e782276e1a6ddcc1b394f24228bead7b96cecaeadd1a4a1c349bab"
+      "bytes": 1851,
+      "sha256": "5d4c953ea344f458ed7f4a17030e9b360ebac2f005282bc89518f1d0cb471337"
     },
     {
       "path": "docs/request-router.md",
@@ -4559,8 +4559,8 @@
     },
     {
       "path": "integrations/desktop-actions/service.mjs",
-      "bytes": 13780,
-      "sha256": "10efdc876285d5e4d9b27d87d687de1b94a808c090531685cd2382c7ee6818fd"
+      "bytes": 13820,
+      "sha256": "9503eb6495da6c24f5ff611c72908f8f7356175517621eb8b5356d6a365c088f"
     },
     {
       "path": "integrations/desktop-actions/settings.mjs",
@@ -4584,8 +4584,8 @@
     },
     {
       "path": "integrations/filesystem/permissions.mjs",
-      "bytes": 8517,
-      "sha256": "ceda32d6ceaafeca1a07d5fde2257e51a8074b0e0e9a92f7524abed96dbcd24d"
+      "bytes": 8568,
+      "sha256": "23dc08ce44285ef76d5708f3ee090b57d6996a4dd1a828dbe18c82b579e7f2ba"
     },
     {
       "path": "integrations/filesystem/service.mjs",
@@ -4719,8 +4719,8 @@
     },
     {
       "path": "integrations/spotify/configuration.mjs",
-      "bytes": 1706,
-      "sha256": "56e48f4687d2ebf9a3069668f3ed9e6ac1bf46bf8b802c6301b086d7eccb3f2b"
+      "bytes": 1711,
+      "sha256": "5820a43146e5e0e26417f2c2cee83cff32b211bc59359eeafd7014dee1b5c794"
     },
     {
       "path": "integrations/spotify/index.mjs",
@@ -4819,8 +4819,8 @@
     },
     {
       "path": "integrations/voice_runtime/host.mjs",
-      "bytes": 6363,
-      "sha256": "8d87afae2aec23194044c23039d7a1da8f2eeadab03f9fe50203e6f961457b74"
+      "bytes": 6388,
+      "sha256": "a1334e0759105359654922bc376d369dd47cbb2ac0c45fc9dd5618a259842e91"
     },
     {
       "path": "integrations/voice_runtime/inference.py",
@@ -5079,8 +5079,8 @@
     },
     {
       "path": "packages/installer/src/engine.mjs",
-      "bytes": 35963,
-      "sha256": "ba5048f782b2c75a41e3a8d3b99bcd1f1c1d7c14fe3b39dce3f4ce0c0996e28d"
+      "bytes": 36032,
+      "sha256": "7a35bce6912b8055d7eefc268d5fd7403244e940dcb2e88032c9bf1874b24960"
     },
     {
       "path": "packages/installer/src/lock.mjs",
@@ -5459,8 +5459,8 @@
     },
     {
       "path": "packages/runtime/src/context.mjs",
-      "bytes": 13771,
-      "sha256": "7fcd3608fc0d28580e8d86913c49eb47e47a0097148c4bdc24ccabf5c376df05"
+      "bytes": 13800,
+      "sha256": "22ec7bc0ade2575f308acfc29e9cdd2d2ed34c858ae134d05e2a81457f619596"
     },
     {
       "path": "packages/runtime/src/default-avatar.mjs",
@@ -5529,8 +5529,8 @@
     },
     {
       "path": "packages/runtime/src/hardware/model-profile.mjs",
-      "bytes": 4049,
-      "sha256": "8cc5457b93feeae4a264a73452e1373fa18ab569d1a51d6f1e92b62ffad0b5a6"
+      "bytes": 4060,
+      "sha256": "4c6067cb72e1051837e2dfbfefb610b5c88ed58467c476ffb0edb852f44fba3d"
     },
     {
       "path": "packages/runtime/src/hardware/model-recommendations.mjs",
@@ -5719,8 +5719,8 @@
     },
     {
       "path": "packages/runtime/src/providers/llama-bridge.mjs",
-      "bytes": 18136,
-      "sha256": "0a3f8fa9e1f7979455f1126bda2a2d65600775f98d54c910a33de7626285440a"
+      "bytes": 18350,
+      "sha256": "b18afac94ace01b8db590cf3b516e06ad03e985a92ccd2939b342c77c4a00fec"
     },
     {
       "path": "packages/runtime/src/providers/llama-model-store.mjs",
@@ -6019,8 +6019,8 @@
     },
     {
       "path": "packages/updater/src/transaction.mjs",
-      "bytes": 18689,
-      "sha256": "ca2d0c84af536d2953077250a64ca8ddea0f22d2edbf9aa1eb8c8606dab968bf"
+      "bytes": 18199,
+      "sha256": "cda04ce4152385896b5c4def95e4b118dd7556b6195decf3256da209e0321e35"
     },
     {
       "path": "packages/updater/windows/update-host.cs",
@@ -6539,8 +6539,8 @@
     },
     {
       "path": "tests/api-model-startup.test.mjs",
-      "bytes": 16599,
-      "sha256": "6130561bfae760449b5ac15367feb6a3f8bb70d8adf865db7afbc941032b6bb0"
+      "bytes": 16618,
+      "sha256": "6c75c628ec19b0a417ed5340d1c48c2a1a2471fdf9ffc14cf1676189fb7b6c1d"
     },
     {
       "path": "tests/application-access.test.mjs",
@@ -6794,8 +6794,8 @@
     },
     {
       "path": "tests/community-links.test.mjs",
-      "bytes": 7315,
-      "sha256": "34153395632b7e9a7194abd3c9781882c00075a0a731e674cdd70c9ba423980b"
+      "bytes": 7336,
+      "sha256": "22b6888b10fde2b804e4a151de7dfde0abb10359c4a4b1f202e9cc013f615bc6"
     },
     {
       "path": "tests/compact-motion.test.mjs",
@@ -6869,8 +6869,8 @@
     },
     {
       "path": "tests/context-policy.test.mjs",
-      "bytes": 7603,
-      "sha256": "b79b1e5ff34252aa1beb35615176c055e6e31753b9db06a8094c9c961931b31c"
+      "bytes": 7610,
+      "sha256": "f6021c96900484ed309bf130cea4342ec9835f9d3d8eb47b6e73dcaa4f10d4c0"
     },
     {
       "path": "tests/control-overlay.test.mjs",
@@ -6934,8 +6934,8 @@
     },
     {
       "path": "tests/desktop-avatar-detach.test.mjs",
-      "bytes": 83904,
-      "sha256": "67bf76732a747cdbebf4beaded0836697f12e8f07b42a24c0b106457bad92da5"
+      "bytes": 83919,
+      "sha256": "cece20d1da2b4f2ed340fdf598eecb062837eb04c4d118a51a9ebd8ce11c51ab"
     },
     {
       "path": "tests/desktop-avatar-layout.test.mjs",
@@ -7004,8 +7004,8 @@
     },
     {
       "path": "tests/desktop-teleport-rust.test.mjs",
-      "bytes": 4276,
-      "sha256": "b4287da1cc643647133ceef8fa32b3944c6d625a6139ad3cc82b7128fb926bc4"
+      "bytes": 4349,
+      "sha256": "970bbafb0961bbaf0cad0fd06e2f782159dcd63f4ea730bd1d58303eb9aec674"
     },
     {
       "path": "tests/desktop-teleport-watch.test.mjs",
@@ -7119,8 +7119,8 @@
     },
     {
       "path": "tests/filesystem.test.mjs",
-      "bytes": 12684,
-      "sha256": "be4a507d46074b19d42a6fcfca52f729b2bf14d1316443639dd207abc6df84ff"
+      "bytes": 12744,
+      "sha256": "5c419c43d4da88d2b2a8220a5287a9c3bf3bd4e894f3b9313044fa4fd88d7c0c"
     },
     {
       "path": "tests/fixtures/DesktopEditor.cs",
@@ -7159,8 +7159,8 @@
     },
     {
       "path": "tests/fresh-context.test.mjs",
-      "bytes": 4825,
-      "sha256": "73de89203f69c493024448bd7b3bd9c34c8c1fe8746891c41f155661d1418fd3"
+      "bytes": 4838,
+      "sha256": "a06f32aa68bbfbd910833869d9a93db6da8fedf2477121fc2952d9f58f390f13"
     },
     {
       "path": "tests/full-computer-access.test.mjs",
@@ -7244,8 +7244,8 @@
     },
     {
       "path": "tests/installation-access.test.mjs",
-      "bytes": 6246,
-      "sha256": "95145d65c82210591ce43a7032509a94f2ccbfa70b053246ed746915a42980eb"
+      "bytes": 6233,
+      "sha256": "4ce6360f2944ee32f102fa81f141540d773f213fc7aa69b4bc823e530b69167e"
     },
     {
       "path": "tests/installed-app-picker.test.mjs",
@@ -7329,8 +7329,8 @@
     },
     {
       "path": "tests/installer.test.mjs",
-      "bytes": 59450,
-      "sha256": "abf66d51056d07e83b80a63bd0115e00acfac2497718d344dac07e3af35117e8"
+      "bytes": 59475,
+      "sha256": "6712d78d67c57d3818011f629344386ffa3d623f8faba66391ead704081b3bdf"
     },
     {
       "path": "tests/interface-locales.test.mjs",
@@ -7364,8 +7364,8 @@
     },
     {
       "path": "tests/llama-backend.test.mjs",
-      "bytes": 20250,
-      "sha256": "6e182a091d09959471d31f121f8da9661719c741eb981dda43a9cb2871d24c11"
+      "bytes": 20302,
+      "sha256": "3ec387045ffc5fbfdc75e061edafcfd10d94a8da32d6632b62e7953c5db82963"
     },
     {
       "path": "tests/local-model-folder.test.mjs",
@@ -7425,7 +7425,7 @@
     {
       "path": "tests/microphone-on-start.test.mjs",
       "bytes": 2243,
-      "sha256": "cc34619929343347d63fe3900e2ade53b801429fb6c6d9abde48ff5b739323de"
+      "sha256": "043d8fab6de4827b585afc254140e770506fb5de58904ca9f9b2678891c2e66e"
     },
     {
       "path": "tests/microphone.test.mjs",
@@ -7609,8 +7609,8 @@
     },
     {
       "path": "tests/platform-updates.test.mjs",
-      "bytes": 3238,
-      "sha256": "633cd79c990ea46386ce39ffc624f432fba44507565939b73f85473927b56346"
+      "bytes": 3249,
+      "sha256": "2de4b304ba739edd203adbe6000ff33a1c6270b27995be256a7c2df1da94787b"
     },
     {
       "path": "tests/polish14.test.mjs",
@@ -7709,8 +7709,8 @@
     },
     {
       "path": "tests/sandevistan-motion.test.mjs",
-      "bytes": 4330,
-      "sha256": "203c673f3da6e590cda11d6705211416591c61b0d554aa35a089a2369e787f79"
+      "bytes": 4362,
+      "sha256": "aef886710ebe111259160bd781dc9f0de1b2af07898315964ef060dcb77e7942"
     },
     {
       "path": "tests/saved-memory.test.mjs",
@@ -7854,8 +7854,8 @@
     },
     {
       "path": "tests/stable-bounds.test.mjs",
-      "bytes": 8022,
-      "sha256": "2bc44385ae1ca980b9318edddb7c12dbef8384bc5ea0693dcf4491aa6af79234"
+      "bytes": 8220,
+      "sha256": "cb070cfac628641a6d2f731ef3f5764367e28c4e31773dcdd6ac0360417be9a5"
     },
     {
       "path": "tests/startup-intro-assets.test.mjs",
@@ -8014,8 +8014,8 @@
     },
     {
       "path": "tests/uv-bootstrap.test.mjs",
-      "bytes": 8397,
-      "sha256": "49d9a01139e293874d666fd64d2ebf731d738803fcbc82579d11f784c22d8a4b"
+      "bytes": 8386,
+      "sha256": "22af28e58a63192ee34efb6681dd4ef1407113c9377376c5f548143176a6afb4"
     },
     {
       "path": "tests/uv-runtime.test.mjs",
@@ -8094,8 +8094,8 @@
     },
     {
       "path": "tests/voice-runtime-environment.test.mjs",
-      "bytes": 2328,
-      "sha256": "150c291e9a3f6eaca3511939294310d860f3a5bb08cc251adfcd7a720038b2dd"
+      "bytes": 2376,
+      "sha256": "cf7eef791f381d5d3cbd3a464a5da07951da8ff28c2dc26b6401037d50b61634"
     },
     {
       "path": "tests/voice-startup.test.mjs",
@@ -8469,8 +8469,8 @@
     },
     {
       "path": "tools/preview/music-beat-poses.html",
-      "bytes": 8465,
-      "sha256": "80be7e2509ee00680db8c6bfa5fc54eaeca0a0d60ad3f59095a9f97f7a2b23c2"
+      "bytes": 11169,
+      "sha256": "9cbab8dda43f86305311a52303926e45896013939a2b65b065e5dc6c8e1715a0"
     },
     {
       "path": "tools/preview/music-beat-poses.mjs",
@@ -8744,13 +8744,13 @@
     },
     {
       "path": "tools/verify/verify-063-ui.mjs",
-      "bytes": 19528,
-      "sha256": "432bf99cd3fd9b8ca90b71de8e1c9ddef38f9dbca4a92c4e017666236989334f"
+      "bytes": 19629,
+      "sha256": "00cce9e5a12832edfe077b02d47ec8ace2407ce2e16b3c39f789d81ee5450b2b"
     },
     {
       "path": "tools/verify/verify-all-monitor-capture.mjs",
-      "bytes": 14705,
-      "sha256": "f17d12d5fda8b2b82fed7b40118481c5b7f3b6b09db9c83636c8cd7b57084899"
+      "bytes": 14771,
+      "sha256": "5c847ba61cac713bf20ae6e7c3a55843c0c56c1df1091d06ba83d0b3ec242aca"
     },
     {
       "path": "tools/verify/verify-amd-installer.mjs",
@@ -9034,8 +9034,8 @@
     },
     {
       "path": "tools/verify/verify-credits.mjs",
-      "bytes": 16443,
-      "sha256": "db0d8d7c779dee7247d4c03340dc044a2f3183cfa5c70cda3cdefbf59579b3b6"
+      "bytes": 16472,
+      "sha256": "8d9cd7d57cfb4ff0a7007f1860a8c79c07ce953350f186a65c132b0c6c44be6d"
     },
     {
       "path": "tools/verify/verify-desktop-ai-providers.mjs",
@@ -9049,8 +9049,8 @@
     },
     {
       "path": "tools/verify/verify-desktop.mjs",
-      "bytes": 40121,
-      "sha256": "1a98aca779f3ff45c3ce4a9512d947755547171f203f93be05e4d69e8b85caa3"
+      "bytes": 40159,
+      "sha256": "d8f76c8dfc810ed3fb1b8af175eecb2e4228f902ca27b898eb3def046ededd83"
     },
     {
       "path": "tools/verify/verify-developer-settings.mjs",
@@ -9069,8 +9069,8 @@
     },
     {
       "path": "tools/verify/verify-donation.mjs",
-      "bytes": 5134,
-      "sha256": "365f3f18c635a95cd470532334dee974bbcd0b8bdf1111f0e63b50edb688fd57"
+      "bytes": 5155,
+      "sha256": "70681cb399eeada488365c356fbcd9a46fae16a71fc27e8129bbdc4bc3f0fc9f"
     },
     {
       "path": "tools/verify/verify-duplicate-launch.mjs",
@@ -9094,8 +9094,8 @@
     },
     {
       "path": "tools/verify/verify-file-access.mjs",
-      "bytes": 7683,
-      "sha256": "527826dcea4aea5730f29530ee6686e4f2c963152db4e5421de771cb04c4d6b4"
+      "bytes": 7698,
+      "sha256": "321aa86644c6b9cef265be8d18b79a6e0e41426cbb740cc296988d96fb84d776"
     },
     {
       "path": "tools/verify/verify-filesystem-model.mjs",
@@ -9404,8 +9404,8 @@
     },
     {
       "path": "tools/verify/verify-settings.mjs",
-      "bytes": 50076,
-      "sha256": "778bfc8003d54c7bab35d25711026e2b477221cb80b5e10f944250feed420a1d"
+      "bytes": 50103,
+      "sha256": "b01eaeee7831d0215b5ead9eb3c6512d868e49b21618be64152d753e969aac90"
     },
     {
       "path": "tools/verify/verify-sleep-clicks.mjs",
@@ -9449,8 +9449,8 @@
     },
     {
       "path": "tools/verify/verify-startup-updates.mjs",
-      "bytes": 16302,
-      "sha256": "4781c9252977e6803281dd99fad66898fe08a02e6cdc70bfa76e6818f8bc0178"
+      "bytes": 16311,
+      "sha256": "6693bbec094b76ee0a0b26fc220239e543bd76071966054ca46675efc97fbe6c"
     },
     {
       "path": "tools/verify/verify-system-audio.mjs",
@@ -9524,13 +9524,13 @@
     },
     {
       "path": "tools/verify/verify-window-dimming.mjs",
-      "bytes": 18151,
-      "sha256": "30cca024c5411c9e7b941591b4de2cc0308df6413315b9028c12cfa3ca9e1e30"
+      "bytes": 18180,
+      "sha256": "df35e23e29589aece3712f9f5f9bef0bbd83913ac51cd3627666a5747ab2649a"
     },
     {
       "path": "tools/verify/verify-window-resize.mjs",
-      "bytes": 9437,
-      "sha256": "9be4c78a02561b623df86fdfcb1718bcd3a87a9c2aee89cb8f2598ec3a8d0fde"
+      "bytes": 9445,
+      "sha256": "ad66210a9355e3e25eb52f9c4f2d0a424b61344e6168faae089ec118c7a3e8a4"
     },
     {
       "path": "tools/verify/verify-workflow-lifecycle.mjs",

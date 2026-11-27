@@ -737,7 +737,12 @@ export async function install(
           download,
           execute,
           onReferenceDownload: (progress) =>
-            emit({ type: 'download', step: 'voice-runtime', file: 'Capri voice pack', ...progress }),
+            emit({
+              type: 'download',
+              step: 'voice-runtime',
+              file: 'Capri voice pack',
+              ...progress,
+            }),
         });
         await ps('tools/setup/setup-qwen-tts.ps1', ['-DependenciesOnly']);
       });

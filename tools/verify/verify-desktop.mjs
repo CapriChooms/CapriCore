@@ -372,7 +372,11 @@ try {
     await page.mouse.down();
     await page.mouse.move(gap.x - 25, gap.y - 50, { steps: 8 });
     await page.mouse.up();
-    assert.deepEqual(await placement(), originalPlacement, 'Clicks outside the grab area do not start a drag.');
+    assert.deepEqual(
+      await placement(),
+      originalPlacement,
+      'Clicks outside the grab area do not start a drag.',
+    );
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(start.x - 25, start.y - 50, { steps: 8 });
@@ -392,7 +396,9 @@ try {
     );
     await page.mouse.move(moved.x + moved.width / 2, moved.y + moved.height / 2);
     await page.mouse.wheel(0, -100);
-    await page.waitForFunction(async () => (await window.capri.bootstrap()).avatarLayout.zoom > 1.15);
+    await page.waitForFunction(
+      async () => (await window.capri.bootstrap()).avatarLayout.zoom > 1.15,
+    );
     await page.evaluate(() => window.capri.windowAction('reset-avatar'));
     await page.waitForFunction(
       () => Number(document.querySelector('#sprite-region').dataset.zoom) === 1.15,

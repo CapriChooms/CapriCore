@@ -218,7 +218,10 @@ try {
       for (const card of list.children) {
         const { left, right } = card.getBoundingClientRect();
         const row = rows.get(card.offsetTop) ?? { left, right };
-        rows.set(card.offsetTop, { left: Math.min(row.left, left), right: Math.max(row.right, right) });
+        rows.set(card.offsetTop, {
+          left: Math.min(row.left, left),
+          right: Math.max(row.right, right),
+        });
       }
       return [...rows.values()].map(({ left, right }) => Math.round((left + right) / 2 - center));
     }),

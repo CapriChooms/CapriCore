@@ -73,8 +73,11 @@ try {
     readFileSync(path.join(folder, 'desktop/file-permissions.json'), 'utf8'),
   );
   assert.equal(saved.scopes[1].root, selected);
-  await page.locator('.file-scope').filter({ has: page.locator('input:not(:disabled)') })
-    .locator('button').click({ force: true });
+  await page
+    .locator('.file-scope')
+    .filter({ has: page.locator('input:not(:disabled)') })
+    .locator('button')
+    .click({ force: true });
   await page.waitForFunction(
     async () => (await window.capri.bootstrap()).fileAccess.scopes.length === 1,
   );

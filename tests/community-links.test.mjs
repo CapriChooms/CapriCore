@@ -174,5 +174,10 @@ test('donations use the pinned creator in Settings and in the system browser', a
   await open('lava-donate');
   await open('boosty-donate');
   await open('boosty');
-  assert.deepEqual(opened, [LAVA_DONATION_URL, LAVA_DONATION_URL, BOOSTY_DONATION_URL, links.boosty]);
+  assert.deepEqual(opened, [
+    LAVA_DONATION_URL,
+    LAVA_DONATION_URL,
+    BOOSTY_DONATION_URL,
+    links.boosty,
+  ]);
 });

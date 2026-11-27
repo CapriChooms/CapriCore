@@ -778,7 +778,10 @@ async function transactionFixture({
     assert.equal(speechSetupCalls[0], 'router');
     if (previousVoice) {
       const active = json(path.join(target, 'config/companion-voice.json')).profileDir;
-      assert.deepEqual(json(path.join(target, BUNDLED_VOICE_PROFILE, 'adapter.json')), oldVoiceConfig);
+      assert.deepEqual(
+        json(path.join(target, BUNDLED_VOICE_PROFILE, 'adapter.json')),
+        oldVoiceConfig,
+      );
       if (previousVoice === 'different') {
         assert.match(active, /^data\/speech\/voice-pack-revisions\/capri-en-v1-/);
         assert.equal(json(path.join(target, active, 'adapter.json')).adapter.alpha, 16);

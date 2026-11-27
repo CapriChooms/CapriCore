@@ -131,67 +131,81 @@ test('getBounds passes through a native rectangle with no usable size', () => {
   assert.deepEqual(window.getBounds(), { x: 3, y: 4, width: 0, height: Number.NaN });
 });
 
-test('createSecureWindow stabilizes the Windows host without changing its content bounds', { skip: process.platform !== 'win32' }, () => {
-  class InflatingView extends EventEmitter {
-    constructor(options) {
-      super();
-      this.options = options;
-      this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {} });
-      this.contentView = { addChildView() {} };
-      const { width, height, x, y } = options;
-      this.native = { x, y, width: width + 1, height: height + 1 };
+test(
+  'createSecureWindow stabilizes the Windows host without changing its content bounds',
+  { skip: process.platform !== 'win32' },
+  () => {
+    class InflatingView extends EventEmitter {
+      constructor(options) {
+        super();
+        this.options = options;
+        this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {} });
+        this.contentView = { addChildView() {} };
+        const { width, height, x, y } = options;
+        this.native = { x, y, width: width + 1, height: height + 1 };
+      }
+      setAlwaysOnTop() {}
+      setMenu() {}
+      setIgnoreMouseEvents() {}
+      getBounds() {
+        return { ...this.native };
+      }
+      getContentBounds() {
+        return { ...this.native };
+      }
+      setBounds(bounds) {
+        this.native = { ...bounds, width: bounds.width + 1, height: bounds.height + 1 };
+      }
+      setContentBounds(bounds) {
+        this.setBounds(bounds);
+      }
     }
-    setAlwaysOnTop() {}
-    setMenu() {}
-    setIgnoreMouseEvents() {}
-    getBounds() {
-      return { ...this.native };
+    class ContentView {
+      webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {} });
+      setBackgroundColor() {}
+      setBounds() {}
     }
-    getContentBounds() {
-      return { ...this.native };
-    }
-    setBounds(bounds) {
-      this.native = { ...bounds, width: bounds.width + 1, height: bounds.height + 1 };
-    }
-    setContentBounds(bounds) {
-      this.setBounds(bounds);
-    }
-  }
-  class ContentView {
-    webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {} });
-    setBackgroundColor() {}
-    setBounds() {}
-  }
-  const { window } = createSecureWindow({ BaseWindow: InflatingView, WebContentsView: ContentView }, {
-    bounds: { x: 0, y: 0, width: 480, height: 660 },
-    directory: '.',
-    verification: false,
-    alwaysOnTop: false,
-  });
-  for (let i = 0; i < 50; i++) window.setBounds({ ...window.getBounds(), x: i });
-  assert.deepEqual(window.getBounds(), { x: 49, y: 0, width: 480, height: 660 });
-  assert.equal(window.getContentBounds().width, 481);
-  window.setContentBounds({ x: 49, y: 0, width: 484, height: 660 });
-  assert.equal(window.getBounds().width, 484);
-  assert.equal(window.getContentBounds().width, 485);
-});
+    const { window } = createSecureWindow(
+      { BaseWindow: InflatingView, WebContentsView: ContentView },
+      {
+        bounds: { x: 0, y: 0, width: 480, height: 660 },
+        directory: '.',
+        verification: false,
+        alwaysOnTop: false,
+      },
+    );
+    for (let i = 0; i < 50; i++) window.setBounds({ ...window.getBounds(), x: i });
+    assert.deepEqual(window.getBounds(), { x: 49, y: 0, width: 480, height: 660 });
+    assert.equal(window.getContentBounds().width, 481);
+    window.setContentBounds({ x: 49, y: 0, width: 484, height: 660 });
+    assert.equal(window.getBounds().width, 484);
+    assert.equal(window.getContentBounds().width, 485);
+  },
+);
 
-test('createSecureWindow leaves non-Windows windows without bounds methods alone', { skip: process.platform === 'win32' }, () => {
-  class PlainView {
-    constructor(options) {
-      this.options = options;
-      this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {} });
+test(
+  'createSecureWindow leaves non-Windows windows without bounds methods alone',
+  { skip: process.platform === 'win32' },
+  () => {
+    class PlainView {
+      constructor(options) {
+        this.options = options;
+        this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {} });
+      }
+      setAlwaysOnTop() {}
+      setMenu() {}
+      setIgnoreMouseEvents() {}
     }
-    setAlwaysOnTop() {}
-    setMenu() {}
-    setIgnoreMouseEvents() {}
-  }
-  const { window } = createSecureWindow({ BrowserWindow: PlainView }, {
-    bounds: { x: 1, y: 2, width: 3, height: 4 },
-    directory: '.',
-    verification: false,
-    alwaysOnTop: false,
-  });
-  assert.equal(window.getBounds, undefined);
-  assert.equal(window.setBounds, undefined);
-});
+    const { window } = createSecureWindow(
+      { BrowserWindow: PlainView },
+      {
+        bounds: { x: 1, y: 2, width: 3, height: 4 },
+        directory: '.',
+        verification: false,
+        alwaysOnTop: false,
+      },
+    );
+    assert.equal(window.getBounds, undefined);
+    assert.equal(window.setBounds, undefined);
+  },
+);

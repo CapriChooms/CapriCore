@@ -1259,8 +1259,8 @@
     },
     {
       "path": "apps/desktop/main.mjs",
-      "bytes": 423840,
-      "sha256": "58e3a68931408f4f6f3a4ebc5ee0567dbb9d0e1cbd40a782c00eca9b8c77bda6"
+      "bytes": 424142,
+      "sha256": "0bb390cd7461b4cf8de0f0dc657e42200623ad2728966ab225ed517167f2c3de"
     },
     {
       "path": "apps/desktop/main/access-ipc.mjs",
@@ -1289,8 +1289,8 @@
     },
     {
       "path": "apps/desktop/main/avatar-recolor.mjs",
-      "bytes": 2671,
-      "sha256": "9e2897f0884835062d590084764e9c2c51bbaaf41c3285c4911a2f70402f645f"
+      "bytes": 3525,
+      "sha256": "e0d0c6696476632633e65971be00d420c91bbbfe1a3b524fec63917278c10db4"
     },
     {
       "path": "apps/desktop/main/avatar-screen-targets.mjs",
@@ -1689,8 +1689,8 @@
     },
     {
       "path": "apps/desktop/renderer/app.js",
-      "bytes": 144347,
-      "sha256": "26157c366195e8e73f4a7804c9f127148492a03cc6007aacc7f4b3674980dab5"
+      "bytes": 144430,
+      "sha256": "4bfc7eb139166d882cdbb615ec0279cbcd224daa7bea58645a27f9a8091a14a9"
     },
     {
       "path": "apps/desktop/renderer/applications-panel.mjs",
@@ -1724,8 +1724,8 @@
     },
     {
       "path": "apps/desktop/renderer/avatar-colors.mjs",
-      "bytes": 10330,
-      "sha256": "6f3f9ad65a7c296fe1f0d5d07eb72902ff5056e02109abeef98dce9eb345d8ce"
+      "bytes": 11763,
+      "sha256": "545b250139b90a1b0245b770194131bab2054b969091fe23ad378a4d8ab9ed01"
     },
     {
       "path": "apps/desktop/renderer/avatar-composer.css",
@@ -1769,8 +1769,8 @@
     },
     {
       "path": "apps/desktop/renderer/avatar-face-rig.mjs",
-      "bytes": 29801,
-      "sha256": "7da0731800389f1114f248053c3e7a927d570af9fd02f4be2b98bdbfa335da99"
+      "bytes": 30227,
+      "sha256": "49a89ff17f06e00a0caa7bf9073397d26b1ce19271a4a01241f766b8aa98c668"
     },
     {
       "path": "apps/desktop/renderer/avatar-gallery.css",
@@ -1799,8 +1799,8 @@
     },
     {
       "path": "apps/desktop/renderer/avatar-mouth.mjs",
-      "bytes": 6284,
-      "sha256": "2a2135832caaabf4acefea83fe70ad51ae3b9e7933a14e3a6cd76b20392fa786"
+      "bytes": 6576,
+      "sha256": "15e246693303d6bad22fb89d09166c827469282c3c0e7880de6c303f648eb5d4"
     },
     {
       "path": "apps/desktop/renderer/avatar-observation.css",
@@ -1819,8 +1819,8 @@
     },
     {
       "path": "apps/desktop/renderer/avatar-surface-performance.mjs",
-      "bytes": 3391,
-      "sha256": "44db7ffe65870610b92bb015423bd5a44ebd22e25699853d48eb8017e3028ead"
+      "bytes": 3642,
+      "sha256": "a2cf9273b26beead5e637feb4180809be827e1067eb78dac01503c4e4ecec6b6"
     },
     {
       "path": "apps/desktop/renderer/avatar-tap-effect.mjs",
@@ -6639,8 +6639,8 @@
     },
     {
       "path": "tests/avatar-colors.test.mjs",
-      "bytes": 8417,
-      "sha256": "ea16766beca97b93b466b3894557b9e2df4fd02af03f4314972ee8b1bdf1db9d"
+      "bytes": 10323,
+      "sha256": "3a4bc06c8d12682a773bf57edf9cbc3d31f37001bc49583aa73849ed64e4f860"
     },
     {
       "path": "tests/avatar-composer-bridge.test.mjs",
@@ -6658,6 +6658,11 @@
       "sha256": "f0a28c538f56a0c772604251ee0fb739b390914fe8c33e185f707c4effd211a5"
     },
     {
+      "path": "tests/avatar-face-art.test.mjs",
+      "bytes": 3549,
+      "sha256": "ec3c793bf1728fd50aec414894920261f8f5c5b208094bf2318ffc0cb604060d"
+    },
+    {
       "path": "tests/avatar-installation.test.mjs",
       "bytes": 7682,
       "sha256": "cdcc2c16edab56289c947c1ed23debb77493be596c6eb7383309441a1ff5979b"
@@ -6669,8 +6674,8 @@
     },
     {
       "path": "tests/avatar-recolor.test.mjs",
-      "bytes": 7628,
-      "sha256": "c43885d06d9e51358efa9a632607f45c89731316eae97435d4c4d5642c1bb45f"
+      "bytes": 9806,
+      "sha256": "648b6e214784c35017fca75258f66cebc8a362b626025d2c24e3cca9b82bd298"
     },
     {
       "path": "tests/avatar-roaming.test.mjs",

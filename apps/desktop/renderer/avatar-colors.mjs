@@ -122,7 +122,7 @@ const isStar = (r, g, b, a) => a >= 16 && r > 200 && g > 200 && b > 200;
  * Red and star-white pixels are grouped into areas (4-connected); black
  * outlines and transparency separate them.
  */
-export function segmentSprite(rgba, width, height) {
+export function segmentSprite(rgba, width, height, { cropEdges = false } = {}) {
   if (
     !(rgba instanceof Uint8Array || rgba instanceof Uint8ClampedArray) ||
     rgba.length !== width * height * 4
@@ -184,6 +184,7 @@ export function segmentSprite(rgba, width, height) {
       ((area[i + width] = label), (queue[tail++] = i + width));
   }
   const size = new Int32Array(areas + 1),
+    edge = new Uint8Array(areas + 1),
     red = new Int32Array(areas + 1),
     stars = new Int32Array(areas + 1),
     deep = new Int32Array(areas + 1);
@@ -191,6 +192,11 @@ export function segmentSprite(rgba, width, height) {
     const a = area[i];
     if (!a) continue;
     size[a]++;
+    // A face crop cuts the hair at its top and sides; the collar meets the bottom.
+    if (cropEdges) {
+      const x = i % width;
+      if (x === 0 || x === width - 1 || i < width) edge[a] = 1;
+    }
     if (fill[i] === 2) stars[a]++;
     else {
       red[a]++;
@@ -203,7 +209,10 @@ export function segmentSprite(rgba, width, height) {
   for (let a = 1; a <= areas; a++)
     hair[a] = Number(
       red[a] > 0 &&
-        (size[a] >= hairArea || stars[a] >= HAIR_MIN_STARS || deep[a] >= red[a] * HAIR_DEEP_SHARE),
+        (edge[a] === 1 ||
+          size[a] >= hairArea ||
+          stars[a] >= HAIR_MIN_STARS ||
+          deep[a] >= red[a] * HAIR_DEEP_SHARE),
     );
   for (let i = 0; i < count; i++)
     if (fill[i] === 1) parts[i] = area[i] && hair[area[i]] ? PART.hair : PART.redBody;
@@ -240,10 +249,10 @@ export function erode(mask, width, height, rounds) {
 }
 
 /** Recolors in place; returns how many pixels changed. */
-export function recolorSprite(rgba, width, height, value) {
+export function recolorSprite(rgba, width, height, value, { cropEdges = false } = {}) {
   const colors = validateAvatarColors(value);
   if (avatarColorsAreDefault(colors)) return 0;
-  const parts = segmentSprite(rgba, width, height);
+  const parts = segmentSprite(rgba, width, height, { cropEdges });
   const targets = {
     [PART.green]: hexToHsv(colors.greenBody),
     [PART.redBody]: hexToHsv(colors.redBody),
@@ -265,6 +274,28 @@ export function recolorSprite(rgba, width, height, value) {
     rgba[p + 1] = g;
     rgba[p + 2] = b;
     changed++;
+  }
+  return changed;
+}
+
+/**
+ * Recolors a face atlas in place. Each entry [u, v, x, y, w, h] is a face crop
+ * at (u, v); crops are segmented one at a time, because a crop holds a small
+ * part of the hair that the whole-sprite size rule cannot see.
+ */
+export function recolorAtlas(rgba, width, height, entries, value) {
+  if (!entries || typeof entries !== 'object') throw TypeError('recolorAtlas needs atlas entries.');
+  let changed = 0;
+  for (const entry of Object.values(entries)) {
+    if (!Array.isArray(entry) || entry.length !== 6 || !entry.every(Number.isInteger)) continue;
+    const [u, v, , , w, h] = entry;
+    if (u < 0 || v < 0 || w < 1 || h < 1 || u + w > width || v + h > height) continue;
+    const crop = new Uint8Array(w * h * 4);
+    for (let y = 0; y < h; y++)
+      crop.set(rgba.subarray(((v + y) * width + u) * 4, ((v + y) * width + u + w) * 4), y * w * 4);
+    changed += recolorSprite(crop, w, h, value, { cropEdges: true });
+    for (let y = 0; y < h; y++)
+      rgba.set(crop.subarray(y * w * 4, (y + 1) * w * 4), ((v + y) * width + u) * 4);
   }
   return changed;
 }

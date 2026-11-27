@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   AvatarRecolor,
+  FACE_ATLASES,
+  FACE_IMAGES,
   MAX_CACHED,
   SPRITE_PATH,
   swapRedBlue,
@@ -182,4 +184,51 @@ test('companion settings carry and validate avatarColors', async () => {
   assert.throws(() =>
     validateCompanionSettings({ ...COMPANION_DEFAULTS, avatarColors: { hair: 'pink' } }),
   );
+});
+
+test('face images and atlases (Capri 1.3.0 face rig) are avatar art too', () => {
+  for (const pathname of [...FACE_IMAGES, ...FACE_ATLASES])
+    assert.equal(taggedSpriteRequest(pathname, '?c=' + KEY), true, pathname);
+  assert.equal(taggedSpriteRequest('/avatar-face-poses.json', '?c=' + KEY), false);
+  assert.equal(taggedSpriteRequest('/capri-wave.webp', '?c=' + KEY), false);
+});
+
+test('blink images go through the sprite recolor, atlases through the atlas recolor with their entries', () => {
+  const seen = [];
+  const recolor = new AvatarRecolor({
+    getColors: () => custom,
+    image: fakeImage(),
+    recolor: () => seen.push('sprite'),
+    atlas: (_p, _w, _h, entries) => seen.push(['atlas', entries]),
+    atlasEntries: (pathname) =>
+      pathname === '/avatar-face-poses.png' ? { a: [0, 0, 0, 0, 1, 1] } : null,
+  });
+  recolor.transform('/avatar-blink-pose.png', Buffer.from('x'));
+  recolor.transform('/avatar-face-poses.png', Buffer.from('x'));
+  assert.deepEqual(seen, ['sprite', ['atlas', { a: [0, 0, 0, 0, 1, 1] }]]);
+  // An atlas without registrations is served unchanged.
+  const bytes = Buffer.from('raw');
+  assert.equal(recolor.transform('/avatar-face-gestures.png', bytes), bytes);
+});
+
+test('without a registration source an atlas is served unchanged', () => {
+  const image = fakeImage();
+  const recolor = new AvatarRecolor({ getColors: () => custom, image });
+  const bytes = Buffer.from('raw');
+  assert.equal(recolor.transform('/avatar-face-poses.png', bytes), bytes);
+  assert.equal(image.calls.encode.length, 0);
+  assert.equal(recolor.cache.size, 0);
+});
+
+test('an atlas crop is recolored by the real atlas recolor', () => {
+  // One body-red pixel (BGRA) in a 1x1 crop; too small to survive the
+  // erosion, so it takes the chosen red-body color (yellow, BGRA 0,255,255).
+  const image = fakeImage({ bgra: [50, 0, 251, 255] });
+  const recolor = new AvatarRecolor({
+    getColors: () => custom,
+    image,
+    atlasEntries: () => ({ a: [0, 0, 0, 0, 1, 1] }),
+  });
+  recolor.transform('/avatar-face-gestures.png', Buffer.from('x'));
+  assert.deepEqual(image.calls.encode[0].bytes, [0, 255, 255, 255]);
 });

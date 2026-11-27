@@ -4,14 +4,20 @@
 // protocol handler passes every response body through transform(); only
 // avatar art under /sprites/ is touched, and nothing changes while the colors
 // are the defaults. Recolored sprites are kept in memory per color choice.
-import { ART_KEY, avatarArtKey, recolorSprite } from '../renderer/avatar-colors.mjs';
+import { ART_KEY, avatarArtKey, recolorAtlas, recolorSprite } from '../renderer/avatar-colors.mjs';
 
 export const SPRITE_PATH = /^\/sprites\/[a-z0-9][a-z0-9_.-]{0,80}\.png$/;
 export const MAX_CACHED = 120;
+// Capri 1.3.0 draws the face (blinks, expressions, gesture faces) from these
+// images over the sprite. The atlases hold many small face crops.
+export const FACE_IMAGES = Object.freeze(['/avatar-blink-pose.png', '/avatar-blink-eyes.png']);
+export const FACE_ATLASES = Object.freeze(['/avatar-face-poses.png', '/avatar-face-gestures.png']);
+const isAvatarArt = (pathname) =>
+  SPRITE_PATH.test(pathname) || FACE_IMAGES.includes(pathname) || FACE_ATLASES.includes(pathname);
 
 /** True for a capri:// request the protocol should accept with a ?c= tag. */
 export const taggedSpriteRequest = (pathname, search) =>
-  SPRITE_PATH.test(pathname) && search.startsWith('?c=') && ART_KEY.test(search.slice(3));
+  isAvatarArt(pathname) && search.startsWith('?c=') && ART_KEY.test(search.slice(3));
 
 /** Swaps the first and third byte of every pixel (BGRA <-> RGBA), in place. */
 export function swapRedBlue(bytes) {
@@ -27,11 +33,18 @@ export class AvatarRecolor {
   /**
    * getColors: () => the saved avatarColors setting.
    * image: Electron's nativeImage (createFromBuffer / createFromBitmap).
+   * atlasEntries: (pathname) => the face atlas registrations, or null.
    */
-  constructor({ getColors, image, recolor = recolorSprite }) {
+  constructor({
+    getColors,
+    image,
+    recolor = recolorSprite,
+    atlas = recolorAtlas,
+    atlasEntries = () => null,
+  }) {
     if (typeof getColors !== 'function' || !image)
       throw TypeError('AvatarRecolor needs getColors and image.');
-    Object.assign(this, { getColors, image, recolor });
+    Object.assign(this, { getColors, image, recolor, atlas, atlasEntries });
     this.cache = new Map();
   }
 
@@ -41,7 +54,7 @@ export class AvatarRecolor {
   }
 
   transform(pathname, bytes) {
-    if (!SPRITE_PATH.test(pathname)) return bytes;
+    if (!isAvatarArt(pathname)) return bytes;
     const key = this.key();
     if (!key) return bytes;
     const id = key + pathname;
@@ -54,7 +67,11 @@ export class AvatarRecolor {
       if (!width || !height) return bytes;
       // nativeImage bitmaps are BGRA on Windows.
       const pixels = swapRedBlue(new Uint8Array(source.toBitmap()));
-      this.recolor(pixels, width, height, this.getColors());
+      if (FACE_ATLASES.includes(pathname)) {
+        const entries = this.atlasEntries(pathname);
+        if (!entries) return bytes;
+        this.atlas(pixels, width, height, entries, this.getColors());
+      } else this.recolor(pixels, width, height, this.getColors());
       const result = this.image.createFromBitmap(Buffer.from(swapRedBlue(pixels).buffer), {
         width,
         height,

@@ -10804,6 +10804,14 @@ async function initializeDesktop() {
         const avatarRecolor = new AvatarRecolor({
           getColors: () => liveCompanionSettings().avatarColors,
           image: nativeImage,
+          atlasEntries: (pathname) => {
+            const entry = allowedResources.get(pathname.replace(/\.png$/u, '.json'));
+            try {
+              return entry ? JSON.parse(readFileSync(entry.file, 'utf8')) : null;
+            } catch {
+              return null;
+            }
+          },
         });
         protocol.handle('capri', (req) =>
           resourceResponse(req, allowedResources, {

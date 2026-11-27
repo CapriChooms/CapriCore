@@ -54,6 +54,7 @@ import { StopwatchHUD } from './stopwatch-hud.mjs';
 import { MemoryHUD } from './memory-hud.mjs';
 import { AnimationDirector, SpriteImages } from './animation-director.mjs';
 import { avatarArtKey, withArtKey } from './avatar-colors.mjs';
+import { setAvatarFaceArt } from './avatar-face-rig.mjs';
 import { AvatarWave } from './avatar-wave.mjs';
 import { AvatarHeadpat } from './avatar-headpat.mjs';
 import { playAvatarObservation } from './avatar-observation.mjs';
@@ -491,6 +492,7 @@ let avatarArt = '',
   avatarArtTimer = 0;
 function applyAvatarArt(key) {
   avatarArt = key;
+  setAvatarFaceArt(key);
   for (const item of [...avatars.values(), ...frameCatalog.values()])
     item.url = withArtKey(item.url, key);
   if (frameImages) frameImages = new SpriteImages([...frameCatalog.values()]);

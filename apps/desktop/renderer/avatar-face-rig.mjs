@@ -197,9 +197,21 @@ export function avatarFaceState(frameId, expression, clip, age, shape = 'closed'
   return state;
 }
 
+// The face art is served in the owner's Capri colors; a color change tags
+// the URLs and drops the loaded art so every face layer is fetched again.
+let faceArt = '';
+export const avatarFaceArt = () => faceArt;
+export function setAvatarFaceArt(key) {
+  if (typeof key !== 'string' || key === faceArt) return false;
+  faceArt = key;
+  artwork = null;
+  gestureFaces = null;
+  return true;
+}
+
 const loadImage = async (url) => {
   const image = new Image();
-  image.src = url;
+  image.src = faceArt ? url + '?c=' + faceArt : url;
   await image.decode();
   return image;
 };

@@ -12,6 +12,7 @@ import {
   erode,
   segmentSprite,
   recolorSprite,
+  recolorAtlas,
   avatarArtKey,
   withArtKey,
 } from '../apps/desktop/renderer/avatar-colors.mjs';
@@ -233,4 +234,49 @@ test('withArtKey tags only capri sprite URLs', () => {
     'https://example.com/sprites/a.png',
   );
   assert.equal(withArtKey(undefined, key), undefined);
+});
+
+// A small red panel cut by the crop's top or side edge is hair in a face crop;
+// the same panel inside the crop, or touching only the bottom, stays body red.
+test('segmentSprite with cropEdges treats red areas cut by the top or sides as hair', () => {
+  // 80x80: the 2% hair-size rule needs 128 pixels, so 6x6 panels stay small.
+  const s = sprite(80, 80);
+  s.rect(0, 0, 80, 80, BLACK);
+  s.rect(0, 10, 6, 6, RED); // left edge
+  s.rect(15, 15, 6, 6, RED); // inside
+  s.rect(30, 74, 6, 6, RED); // bottom edge (collar)
+  const whole = segmentSprite(s.rgba, 80, 80);
+  const crop = segmentSprite(s.rgba, 80, 80, { cropEdges: true });
+  const at = (parts, x, y) => parts[y * 80 + x];
+  assert.equal(at(whole, 2, 12), PART.redBody);
+  assert.equal(at(crop, 2, 12), PART.hair);
+  assert.equal(at(crop, 17, 17), PART.redBody);
+  assert.equal(at(crop, 32, 76), PART.redBody);
+});
+
+test('recolorAtlas recolors each registered crop on its own and leaves the rest', () => {
+  const s = sprite(140, 70);
+  s.rect(0, 0, 140, 70, BLACK);
+  s.rect(0, 5, 6, 6, RED); // crop A, left edge: hair
+  s.rect(25, 25, 6, 6, RED); // crop A, inside: body
+  s.rect(100, 25, 6, 6, RED); // outside every crop: untouched
+  const before = s.at(102, 27);
+  const n = recolorAtlas(
+    s.rgba,
+    140,
+    70,
+    { a: [0, 0, 0, 0, 70, 70], bad: [100, 50, 0, 0, 70, 70], junk: 'x' },
+    custom,
+  );
+  assert.ok(n > 0);
+  assert.deepEqual(s.at(2, 7).slice(0, 3), [0, 255, 255]);
+  assert.deepEqual(s.at(27, 27).slice(0, 3), [255, 255, 0]);
+  assert.deepEqual(s.at(102, 27), before);
+});
+
+test('recolorAtlas needs entries and changes nothing for default colors', () => {
+  const s = sprite(10, 10);
+  s.rect(0, 0, 10, 10, RED);
+  assert.throws(() => recolorAtlas(s.rgba, 10, 10, null, custom), TypeError);
+  assert.equal(recolorAtlas(s.rgba, 10, 10, { a: [0, 0, 0, 0, 10, 10] }, AVATAR_COLOR_DEFAULTS), 0);
 });

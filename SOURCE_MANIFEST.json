@@ -659,248 +659,248 @@
     },
     {
       "path": "apps/desktop/guide-locales/af.json",
-      "bytes": 113141,
-      "sha256": "5d9002e5a33feb903ba2983b60ea44c5b238e3d58ce863dec2b89be6e132ee0a"
+      "bytes": 112274,
+      "sha256": "fdbd717dff05fdf52114464f894dbdd1e1a3bbac520d9ee29bacd7a55db17590"
     },
     {
       "path": "apps/desktop/guide-locales/ar.json",
-      "bytes": 138504,
-      "sha256": "ff15a9401ca35e507233f914cb8bc0217f891a5cdfa1aff32c0cadc3f39af52e"
+      "bytes": 137427,
+      "sha256": "6020ae13aaa7db2dee518b39bd31b7557da409ef6f59791fbe39e2e2b4237e86"
     },
     {
       "path": "apps/desktop/guide-locales/bg.json",
-      "bytes": 164854,
-      "sha256": "3362d2eeb12042d2c7a78100cf36bb3ea963dc6ba2fe71ae11a3a33d451093d2"
+      "bytes": 163671,
+      "sha256": "93a9f94dd0695c422dbf95477267198560c8ad4f9e0a72f83194bedeb9ec4c05"
     },
     {
       "path": "apps/desktop/guide-locales/bn.json",
-      "bytes": 205367,
-      "sha256": "ba9dbe460c2b62af8803690d84d1dcdd4399e7344daa862fb6c3ce575a608261"
+      "bytes": 203926,
+      "sha256": "cb0295de6a76a9bd5a95c6d7f34209ae0b4c491662dbb04f0dbd4ba5d19e8eca"
     },
     {
       "path": "apps/desktop/guide-locales/ca.json",
-      "bytes": 119213,
-      "sha256": "9fbb2def7768bc9c5314f8d409100dddc3d1067bb904f1e69c07be37257aab7a"
+      "bytes": 118321,
+      "sha256": "505382413cb0a50b1d061ede512b7573fd20848c187d25b13727d00bb7061645"
     },
     {
       "path": "apps/desktop/guide-locales/cs.json",
-      "bytes": 116328,
-      "sha256": "21a2354393fc66070dd56451f33c993e21c16623b46b4cbfedd5142ca4f96a50"
+      "bytes": 115461,
+      "sha256": "bac98a07ea7f704ef17fc0915ee0629c134627fdefd4e96498a0d228f15c7b36"
     },
     {
       "path": "apps/desktop/guide-locales/da.json",
-      "bytes": 112836,
-      "sha256": "3ac7646896f951d4ad432f88ea914a64e732121046fad5ac62fa8cc734329db5"
+      "bytes": 111944,
+      "sha256": "ca565d3339e5afcf008e1ce78d82838f19678b8dd7fa138ce836310deee89fea"
     },
     {
       "path": "apps/desktop/guide-locales/de.json",
-      "bytes": 124277,
-      "sha256": "c1a7cda90e2cf4dc17516bb4365d49d273e2bfe3501fdb945d253f0674ebbb90"
+      "bytes": 123371,
+      "sha256": "bd71054f62012d242b9b1b14877db84c41911e3beccbbfd6d09d0fcef791984b"
     },
     {
       "path": "apps/desktop/guide-locales/el.json",
-      "bytes": 177781,
-      "sha256": "26597edf6bb9e389c2422d4e3e2c153d86a7d30a82f56c42db09045aa3a78881"
+      "bytes": 176423,
+      "sha256": "41b09b89e64b2d937429e9303285ec1010703b25a57ae5d74e8760e728cda6af"
     },
     {
       "path": "apps/desktop/guide-locales/es.json",
-      "bytes": 119729,
-      "sha256": "da7c23705c5ff95525fe820b7feaa9405ce8ec9c97d812a318e6db92472b9b34"
+      "bytes": 118842,
+      "sha256": "4af1a1f6c474a614259a35ad72c07aa53a212455ec5f27ed6cb1fad908fb75a9"
     },
     {
       "path": "apps/desktop/guide-locales/et.json",
-      "bytes": 112431,
-      "sha256": "a1ca891b8b49fc4e891cd7eedc0b7a442e39ff0ac21a6b6d0cdf25b990e64cb5"
+      "bytes": 111592,
+      "sha256": "18b04caa4a54258d1bee196cb2b3ebb740a3616672275cac18a5f79aab177bca"
     },
     {
       "path": "apps/desktop/guide-locales/fa.json",
-      "bytes": 155895,
-      "sha256": "986d254f88f6086890d87fa41563c779637d6219d6b15765bb2a0a167ebc35ad"
+      "bytes": 154746,
+      "sha256": "6ad1a149869ec10712eae1aee609bcc73cb07581a94f1518c23e2175f5025e74"
     },
     {
       "path": "apps/desktop/guide-locales/fi.json",
-      "bytes": 116501,
-      "sha256": "0425dff67ef123b0f5a6f55a4ff3135788059447c2f9381d5724405fcb12d0f2"
+      "bytes": 115626,
+      "sha256": "97f4aefa81f542b5d59bcf8b769ce594d259538a0b4d9780dfcb90c1fa5fbb0c"
     },
     {
       "path": "apps/desktop/guide-locales/fr.json",
-      "bytes": 124006,
-      "sha256": "5fb50e3fce62cb263d1a37223af5f174064b39c52d3a806a48b100eaafbbf468"
+      "bytes": 123093,
+      "sha256": "315ccdcb3e63446b5988933688dde47bec5d9742c036f4c1bb986748a707cf86"
     },
     {
       "path": "apps/desktop/guide-locales/gu.json",
-      "bytes": 192855,
-      "sha256": "d7f753f8b079a31220b39dde6deffa9ee563ba4d9c4118fecced15cf5c92ec33"
+      "bytes": 191386,
+      "sha256": "fde992a4d6ad506adf4e7bd0dce292d008356c14baa23d8e07e40f40578c3c8d"
     },
     {
       "path": "apps/desktop/guide-locales/he.json",
-      "bytes": 131132,
-      "sha256": "cb814c4df8a58c3b6e6c18ada832443e955f1672bbf18c9f4c28fd9a67597cd7"
+      "bytes": 130141,
+      "sha256": "dd454d99637cee6b11c030d2ec3b8e75270ff4a4b34ab8d3149a96cd3e6863b9"
     },
     {
       "path": "apps/desktop/guide-locales/hi.json",
-      "bytes": 197918,
-      "sha256": "19fd2324dd891a48b1bd7851e4ecd03b65b1fdf0ab64f18b23e96f34d58ac195"
+      "bytes": 196499,
+      "sha256": "88700b726063223ad71e055130086fde64b59bf5232b6aba94d0c7e8a841a6fa"
     },
     {
       "path": "apps/desktop/guide-locales/hr.json",
-      "bytes": 113533,
-      "sha256": "618375728c4e8153e55cff3fb6b7371e053f80255742f91b44278ed6cacbd5bd"
+      "bytes": 112702,
+      "sha256": "a4ebe4fb4402569d57265523d6df0c48ff9cd8806a93316f868746ec62a40461"
     },
     {
       "path": "apps/desktop/guide-locales/hu.json",
-      "bytes": 126121,
-      "sha256": "405ff76573cbe3ee03fea9f93aa4c77c48286fe2fa322e9b228fcdd8dc673737"
+      "bytes": 125192,
+      "sha256": "88ab8da76308533a667138b4586901b60af446922fd933d7d853f0026f860480"
     },
     {
       "path": "apps/desktop/guide-locales/id.json",
-      "bytes": 113742,
-      "sha256": "adbf29ffaf997347cf8bc3772795615435ffb80a9cc984dbc367722789c1793c"
+      "bytes": 112882,
+      "sha256": "4ddac442c75417c2348f4088386a91717e6297742c42455d88a850edc0cae8b0"
     },
     {
       "path": "apps/desktop/guide-locales/is.json",
-      "bytes": 115727,
-      "sha256": "355f090e00fa9cabd6df794d8eb44ff2145e69b7bd76efd213edc03e9b3a5ecc"
+      "bytes": 114801,
+      "sha256": "b0e9fb39ad4608972cfad29ca1974147b34016173ecb3c5798aca0107ab5b467"
     },
     {
       "path": "apps/desktop/guide-locales/it.json",
-      "bytes": 119022,
-      "sha256": "fc4f9711260a7d4531a2de8462d37d3256a4cdffcaa1f7da7c0d971d99180a98"
+      "bytes": 118131,
+      "sha256": "0937b5bd4647641e1464de8923aa990a4a78db272c074dc54358e8ab897cd108"
     },
     {
       "path": "apps/desktop/guide-locales/ja.json",
-      "bytes": 136292,
-      "sha256": "ad44cf0e1cdaf63521787e48215a685c27de6fbadc4817fba001a4fa0970eb09"
+      "bytes": 135316,
+      "sha256": "cd82cf459f9b65fd68c452bb77dca32f9439f012abf19bbfc4bd26a05db97281"
     },
     {
       "path": "apps/desktop/guide-locales/ko.json",
-      "bytes": 124770,
-      "sha256": "ce4d26f439fc545cad72dadd7a01c3ec999439d9ec24048445d054108246a34b"
+      "bytes": 123859,
+      "sha256": "df287675e3fe82fa1e1ed9806adfcab34b4a62d4c8096ce86bbfbcb97a82ce77"
     },
     {
       "path": "apps/desktop/guide-locales/lt.json",
-      "bytes": 119014,
-      "sha256": "3402bb421a41478bcd3a221b6c7be29a58757e133325cce5f5a84f328f8cfcda"
+      "bytes": 118127,
+      "sha256": "a2ada83341b00f1d0683e13d7224f6caa2de1e6eb35cb5820626601adee45834"
     },
     {
       "path": "apps/desktop/guide-locales/lv.json",
-      "bytes": 118348,
-      "sha256": "b5f7ff0b22c02707bd0913da52f0237f826b4eefa7103b66841da2a204d82832"
+      "bytes": 117492,
+      "sha256": "8159286bbabaa752d5c889a16016296259a54952c9ba5b15747c247aced4b158"
     },
     {
       "path": "apps/desktop/guide-locales/mr.json",
-      "bytes": 194070,
-      "sha256": "af8ba51dfb32189326835a810850dcf7cc4f59d1cfc6a873ad1f5ad23d21ddd4"
+      "bytes": 192738,
+      "sha256": "9058fa8649b88dd4c5f42aaa078061ab90f4f2beee9f33a387393460a3fd9bc9"
     },
     {
       "path": "apps/desktop/guide-locales/ms.json",
-      "bytes": 114705,
-      "sha256": "c948c797d4ba37a35890559d7c12d5f5b0095041d6f3423bc4a6cf6d385202b5"
+      "bytes": 113841,
+      "sha256": "c67ab0d1bde9cfe5dbe65e9146c5591d9cbb1a0b7792c1ee4b481451b5788366"
     },
     {
       "path": "apps/desktop/guide-locales/nl.json",
-      "bytes": 116885,
-      "sha256": "aac6ed232e96c19263591197f03990e5af754d2e23f90a40c646ba7f62d6f946"
+      "bytes": 116024,
+      "sha256": "4b258e2b7841344eb7eaf8f7307a7ffd9a94d571ee07a9f93e68ce3af392dfcd"
     },
     {
       "path": "apps/desktop/guide-locales/no.json",
-      "bytes": 112473,
-      "sha256": "bcd4c3b98b037ada2bd38d9c873aa1c3268bbe8c8867312bea4befd503ef216b"
+      "bytes": 111622,
+      "sha256": "e7f01c99a6b468b2f4d7c26fe1f888f758d96c8cf549ac5bb599d792987c527e"
     },
     {
       "path": "apps/desktop/guide-locales/pa.json",
-      "bytes": 193848,
-      "sha256": "21d3d16db914eaf8591705a04ef1cd25444cf8cea053ed5283dcf163baf83fc5"
+      "bytes": 192479,
+      "sha256": "3d4e4e13f3c82feb40259621979939304ce8f9183adfbf3732f10641c5dd3ea9"
     },
     {
       "path": "apps/desktop/guide-locales/pl.json",
-      "bytes": 116778,
-      "sha256": "79174d733a56ea040994a7ca77b38c482df203e07366bbf8028cb4d7c2ef01e2"
+      "bytes": 115928,
+      "sha256": "6dccd1eeaa96b1f0c4fc44fe0b7035b9051db94271082c0fc01bab2e70676bfc"
     },
     {
       "path": "apps/desktop/guide-locales/pt-BR.json",
-      "bytes": 117162,
-      "sha256": "b3f53b62425dd5edbe58495017912bd2b602d5f7c490a0cda8e9690067db9216"
+      "bytes": 116289,
+      "sha256": "1e8723ef0d5fac48de53b06359608e45067123e992aef1449b693fb02642645c"
     },
     {
       "path": "apps/desktop/guide-locales/pt.json",
-      "bytes": 117831,
-      "sha256": "85556046a7df1f8e1204770088daf611e1e05c3d703f0685e921b851d82642a3"
+      "bytes": 116929,
+      "sha256": "23f9f476c1abe3fdf070cf5cca45bf52b77dc516dfbc55b7a0f0d0f077e5337c"
     },
     {
       "path": "apps/desktop/guide-locales/ro.json",
-      "bytes": 120541,
-      "sha256": "dbb29279e006cbd81b17ce8cfe845812849cb73a9dce4d65415439de759c3317"
+      "bytes": 119645,
+      "sha256": "45147e7bcd0437b818b005fcd2556cbff240828c12d24a71c457a5445765e41b"
     },
     {
       "path": "apps/desktop/guide-locales/sk.json",
-      "bytes": 116439,
-      "sha256": "53da002f6859c9c72eee1101ac32edb357f58e427d935f4c6f36acd3d35fd82a"
+      "bytes": 115584,
+      "sha256": "18ddd5cd4b24b8e99fa657f404d102d3c880036271ad27fb8cce9f928ba9cb0c"
     },
     {
       "path": "apps/desktop/guide-locales/sl.json",
-      "bytes": 112615,
-      "sha256": "2a79dbfc2c5d2c5c94718b3372f298061aad83b7f80ecefb4977aa7e78c05884"
+      "bytes": 111755,
+      "sha256": "75123f0d74033a6e665d2b598fd817236a36bd7163f915adf7e987d4907d9aea"
     },
     {
       "path": "apps/desktop/guide-locales/sr.json",
-      "bytes": 145815,
-      "sha256": "64ee40aaf3ef2f709118e46db93e3c19b64d23ff4f4c35d9ebc1fb5b5f6c55f9"
+      "bytes": 144833,
+      "sha256": "1cab2dcf8d763a90affe8d9161429fa3b0a14544d4f4bdf29fcc8c814d00ba45"
     },
     {
       "path": "apps/desktop/guide-locales/sv.json",
-      "bytes": 114279,
-      "sha256": "8d6cc04f66e71b76d92b618e35158c701bfb31e1f27d50a2046b984cc7e1ed93"
+      "bytes": 113436,
+      "sha256": "bcefb7272496ed337703ef3c74d6a29dba0118131c97f1525dd7e20105621ae4"
     },
     {
       "path": "apps/desktop/guide-locales/sw.json",
-      "bytes": 114476,
-      "sha256": "6c62d95ac3d8bf5fd76f932b308ee11e519501f0381e854ed8d177c3f2b59038"
+      "bytes": 113585,
+      "sha256": "002cff40a26c73826cf6d6f885265f9243ee24a609a228d712bb8f57521315eb"
     },
     {
       "path": "apps/desktop/guide-locales/ta.json",
-      "bytes": 237923,
-      "sha256": "48829f18939c5d96686b4e4690d12789a8e12a88d19606d739f376b50c1511d3"
+      "bytes": 236171,
+      "sha256": "38c493aef4fc204dc18a004f356173d683a4c1bde6099063ad0ff9a47cdd5158"
     },
     {
       "path": "apps/desktop/guide-locales/te.json",
-      "bytes": 219831,
-      "sha256": "07677b2bcbb6229bb7a8422d67171ff82e0e94da87e3e204f536b40d8f5de74e"
+      "bytes": 218208,
+      "sha256": "7fa6aa84aaddff8a61d0aca38319367be89318b39ba3a5f391f93e39b50add80"
     },
     {
       "path": "apps/desktop/guide-locales/th.json",
-      "bytes": 190403,
-      "sha256": "bfbd9699029e53912fa2a7dfb29352d18c137e3b7b44bb820765ad787830c68b"
+      "bytes": 188931,
+      "sha256": "2fa0c88264bc33b693e74388f0b531f79a443c0bafb720f78d6f9dad0c5bfc36"
     },
     {
       "path": "apps/desktop/guide-locales/tl.json",
-      "bytes": 124056,
-      "sha256": "a5aad489c759c27841fdf5d0f05ab79dd5fd6d6dfc97533712f7c45ec9412e33"
+      "bytes": 123116,
+      "sha256": "173af0101ba77d801815ec73d738de58777e973afff019178b39e2ae7909ef5f"
     },
     {
       "path": "apps/desktop/guide-locales/tr.json",
-      "bytes": 119309,
-      "sha256": "521500f5c6e8e5a9cbf27b46f7f1aa2b90020c2cae1745ab8cd109e1805d2b50"
+      "bytes": 118442,
+      "sha256": "5486c25f2188c95ef7d0b99112131a5fe7b25e9f6c41b76fa2a9200d74fbc1c1"
     },
     {
       "path": "apps/desktop/guide-locales/uk.json",
-      "bytes": 162135,
-      "sha256": "14ae6561ba304d36944f0b994eefa1b9c67e3b131f6560989cce40d4d0cc983f"
+      "bytes": 160956,
+      "sha256": "4f4bd93b9960a3114e9a0052e0b0549db7252fdd072f025569145dbb86bc6011"
     },
     {
       "path": "apps/desktop/guide-locales/ur.json",
-      "bytes": 154180,
-      "sha256": "57be376242a3764ffec984af2db1abc4f8430d68214305e5b95584c1662b0c68"
+      "bytes": 152992,
+      "sha256": "e224cb24b6c0969c066f072518a8d57366c7783a2bea29316fba60200ca72ce3"
     },
     {
       "path": "apps/desktop/guide-locales/vi.json",
-      "bytes": 131173,
-      "sha256": "ecf47da49b975c4b1ec1df46eba4f33b8556cd67a5b94dab00ef2ae34a9e99cc"
+      "bytes": 130159,
+      "sha256": "5da00a3837717bca62dc5445839aa22a2f71b6389e2966e7dbbe1435e9bc9da3"
     },
     {
       "path": "apps/desktop/guide-locales/zh.json",
-      "bytes": 105262,
-      "sha256": "31b21c6263acb736750a49a31b7204e001423f25a8275acc1d9812bdc6a1ca87"
+      "bytes": 104454,
+      "sha256": "ea617e998254719fe8b0a8c3643f37bcdc5fef1b7921769bf94bb0f94dc4367b"
     },
     {
       "path": "apps/desktop/huggingface-credentials.mjs",
@@ -9524,8 +9524,8 @@
     },
     {
       "path": "tools/verify/verify-window-dimming.mjs",
-      "bytes": 18180,
-      "sha256": "df35e23e29589aece3712f9f5f9bef0bbd83913ac51cd3627666a5747ab2649a"
+      "bytes": 19081,
+      "sha256": "79b067607cbcb081515d6f4dc3a1c993035b7f58cdb796de27c822f7d499e91b"
     },
     {
       "path": "tools/verify/verify-window-resize.mjs",

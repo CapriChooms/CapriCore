@@ -115,6 +115,44 @@ async function layer() {
     };
   });
 }
+async function resizePortraitTo({ width, height }) {
+  // Commit through Capri's resize path so the reply layout adopts the new portrait size.
+  // The Electron fixture supplies the cursor position without moving the desktop pointer.
+  const initial = await application.evaluate(({ BrowserWindow, screen }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    const bounds = win.getContentBounds();
+    const cursor = { x: bounds.x + bounds.width - 1, y: bounds.y + bounds.height - 1 };
+    const fixture = { cursor, previous: screen.getCursorScreenPoint };
+    globalThis.dimmingResize = fixture;
+    screen.getCursorScreenPoint = () => fixture.cursor;
+    return bounds;
+  });
+  try {
+    assert.equal(await page.evaluate(() => window.capri.startDrag('se')), true);
+    await application.evaluate(
+      (_electron, delta) => {
+        const fixture = globalThis.dimmingResize;
+        fixture.cursor = { x: fixture.cursor.x + delta.x, y: fixture.cursor.y + delta.y };
+      },
+      { x: width - initial.width, y: height - initial.height },
+    );
+    assert.equal(await page.evaluate(() => window.capri.dragFrame()), true);
+    assert.equal(await page.evaluate(() => window.capri.endDrag(true)), true);
+  } finally {
+    await application.evaluate(({ screen }) => {
+      screen.getCursorScreenPoint = globalThis.dimmingResize.previous;
+      delete globalThis.dimmingResize;
+    });
+  }
+  const bounds = await application.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].getContentBounds(),
+  );
+  await page.waitForFunction(
+    (size) => Math.abs(innerWidth - size.width) <= 1 && Math.abs(innerHeight - size.height) <= 1,
+    bounds,
+  );
+  return bounds;
+}
 function assertGeometry(shade, compact) {
   const [width, height] = shade.viewport;
   if (!compact) {
@@ -295,38 +333,19 @@ try {
   checks.push('Repeated native pointer movement preserves window size');
   await presence('portrait');
   const originalBounds = await application.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()[0].getBounds(),
+    BrowserWindow.getAllWindows()[0].getContentBounds(),
   );
-  const smallContent = await application.evaluate(({ BrowserWindow }) => {
-    const win = BrowserWindow.getAllWindows()[0];
-    win.setResizable(true);
-    win.setIgnoreMouseEvents(true, { forward: true });
-    win.setBounds({ ...win.getBounds(), width: 320, height: 480 });
-    return win.getContentBounds();
+  await resizePortraitTo({
+    width: originalBounds.width - 80,
+    height: originalBounds.height - 80,
   });
-  await page.waitForFunction(
-    (bounds) =>
-      Math.abs(innerWidth - bounds.width) <= 1 && Math.abs(innerHeight - bounds.height) <= 1,
-    smallContent,
-  );
   await settings({ enabled: true, level: 65, softness: 320 });
   const resized = await layer();
   assert.deepEqual([resized.width, resized.height], resized.viewport);
   assert.ok(resized.width < originalBounds.width && resized.height < originalBounds.height);
   const limited = await shadePixels();
   assert.ok(Math.abs(limited.composer - 166) <= 3 && limited.cut < 5, JSON.stringify(limited));
-  const restoredContent = await application.evaluate(({ BrowserWindow }, bounds) => {
-    const win = BrowserWindow.getAllWindows()[0];
-    win.setBounds(bounds);
-    win.setResizable(false);
-    win.setIgnoreMouseEvents(true, { forward: true });
-    return win.getContentBounds();
-  }, originalBounds);
-  await page.waitForFunction(
-    (bounds) =>
-      Math.abs(innerWidth - bounds.width) <= 1 && Math.abs(innerHeight - bounds.height) <= 1,
-    restoredContent,
-  );
+  await resizePortraitTo(originalBounds);
   await settings({ enabled: true, level: 65, softness: 140 });
   checks.push('Resizing and maximum feather width preserve the composer contour');
   const soft = await shadePixels();

@@ -12,6 +12,7 @@ import { llamaPath } from '../src/host/executables.mjs';
 import { createLlamaRuntimeView, llamaBundleReady } from '../src/host/llama-bundle.mjs';
 import { settings } from '../src/config/settings.mjs';
 import { modelIdlePolicyFile, readModelIdlePolicy } from '../src/providers/model-idle-policy.mjs';
+import { watchParentLifeline } from '../src/host/lifeline.mjs';
 
 const executable = requireExecutable(llamaPath, 'llama.cpp');
 const port = Number(process.env.CAPRI_OLLAMA_PORT);
@@ -133,3 +134,5 @@ const stopTimer = setInterval(() => {
 }, 200);
 process.on('SIGTERM', close);
 process.on('SIGINT', close);
+// If Capri dies without signalling, stdin closes and the native workers stop with us.
+watchParentLifeline(() => void close());

@@ -15,6 +15,7 @@ import {
   readTrainingSettings,
 } from '../../packages/runtime/src/voice-settings.mjs';
 import { writeJsonAtomic } from './storage.mjs';
+import { venvPython } from './python-venv.mjs';
 import builtinCatalog from '../../config/tts-catalog.json' with { type: 'json' };
 import languages from '../shared/languages.json' with { type: 'json' };
 import { privateLogRecord } from '../../packages/runtime/src/privacy-log.mjs';
@@ -47,7 +48,7 @@ function qwenGpuRuntime(root, backend) {
   try {
     const folder = `.runtime/qwen-tts-${backend}-venv`;
     const receipt = readJson(voiceDataPath(root, `${folder}/${backend}-ready.json`));
-    const python = voiceDataPath(root, `${folder}/Scripts/python.exe`);
+    const python = voiceDataPath(root, venvPython(folder));
     if (
       receipt.schemaVersion === 1 &&
       receipt.backend === qwenGpuVersions[backend] &&
@@ -162,7 +163,7 @@ export function voiceRuntimes(root, model) {
   if (model.backend !== 'qwen3-tts')
     return [
       {
-        python: path.join(root, '.runtime/voice-training-venv/Scripts/python.exe'),
+        python: venvPython(path.join(root, '.runtime/voice-training-venv')),
         env: voiceRuntimeEnvironment(root),
       },
     ];
@@ -171,7 +172,7 @@ export function voiceRuntimes(root, model) {
     qwenGpuRuntime(root, 'rocm'),
     {
       backend: 'cpu',
-      python: path.join(root, '.runtime/qwen-tts-venv/Scripts/python.exe'),
+      python: venvPython(path.join(root, '.runtime/qwen-tts-venv')),
       env: {},
     },
   ].filter(Boolean);

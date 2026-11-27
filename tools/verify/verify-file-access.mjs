@@ -76,7 +76,7 @@ try {
   await page
     .locator('.file-scope')
     .filter({ has: page.locator('input:not(:disabled)') })
-    .locator('button')
+    .locator('button.danger-action')
     .click({ force: true });
   await page.waitForFunction(
     async () => (await window.capri.bootstrap()).fileAccess.scopes.length === 1,
@@ -96,14 +96,15 @@ try {
   );
   await page.waitForSelector('#applications-panel:not([hidden])');
   assert.equal(await page.locator('#file-access-panel').isHidden(), true);
-  await page.locator('#application-calculator').check({ force: true });
-  await page.waitForFunction(async () => (await window.capri.bootstrap()).applications.calculator);
+  // The calculator grant now lives on its skill card (settings-app.mjs hides this checkbox), so use notepad.
+  await page.locator('#application-notepad').check({ force: true });
+  await page.waitForFunction(async () => (await window.capri.bootstrap()).applications.notepad);
   assert.deepEqual(
     JSON.parse(readFileSync(path.join(folder, 'desktop/applications.json'), 'utf8')).settings,
-    { notepad: false, calculator: true },
+    { notepad: true, calculator: false },
   );
-  await page.locator('#application-calculator').uncheck({ force: true });
-  await page.waitForFunction(async () => !(await window.capri.bootstrap()).applications.calculator);
+  await page.locator('#application-notepad').uncheck({ force: true });
+  await page.waitForFunction(async () => !(await window.capri.bootstrap()).applications.notepad);
   await assert.rejects(
     page.evaluate(() =>
       window.capri.setApplications({ notepad: true, calculator: true, other: true }),

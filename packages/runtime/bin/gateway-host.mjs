@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root, resourceRoot } from '../src/host/paths.mjs';
+import { watchParentLifeline } from '../src/host/lifeline.mjs';
 
 // Closing the supported stdin host lifeline asks OpenClaw to drain and release
 // SQLite ownership cleanly. SIGTERM alone force-kills Node on Windows.
@@ -53,6 +54,8 @@ const timer = setInterval(() => {
 }, 250);
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
+// If Capri dies without signalling, its stdin closes and the gateway drains too.
+watchParentLifeline(stop);
 child.on('error', (error) => {
   clearInterval(timer);
   console.error(error.message);

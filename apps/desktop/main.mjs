@@ -15,6 +15,7 @@ import { installCodingBridge } from './main/coding-bridge.mjs';
 import { faceAnimations, faceFrames } from './renderer/avatar-face-expressions.mjs';
 import { describeOwnAvatar } from './avatar-awareness.mjs';
 import { prepareMacModels } from './main/macos-models.mjs';
+import { createSignalExit } from './main/signal-exit.mjs';
 import { createMediaSkills } from './main/media-skills.mjs';
 import { createConversationSkills, createOwnerMemory } from './main/conversation-skills.mjs';
 import { createVoiceSkills } from './main/voice-skills.mjs';
@@ -135,6 +136,7 @@ import {
 } from './screen-observation.mjs';
 import { applicationId } from '../../packages/runtime/src/host/desktop-identity.mjs';
 import { PointerController } from './main/pointer-controller.mjs';
+import { pointerPollingReliable } from './main/mouse-forwarding.mjs';
 import { createDesktopResources } from './main/resources.mjs';
 import { createIpcHandler, settingsVersion } from './main/ipc.mjs';
 import { resourceResponse } from './main/protocol.mjs';
@@ -5977,6 +5979,7 @@ async function initializeDesktop() {
       return;
     }
     if (choice === 'restart') {
+      if (!(await settingsHost.confirmDrafts())) return;
       try {
         await shutdownForRestart('Preparing to restart Capri...');
         queueDesktopRelaunch();
@@ -5988,6 +5991,10 @@ async function initializeDesktop() {
       }
       return;
     }
+    await unloadModelsAndQuit();
+  }
+
+  async function unloadModelsAndQuit() {
     shuttingDown = true;
     modelWarmupController?.abort();
     // Keep a parked avatar visible long enough to show DISCONNECTING.
@@ -7305,6 +7312,11 @@ async function initializeDesktop() {
     handle('capri:settings-rendered', (_value, { role }) => {
       if (role !== 'settings') throw new Error('Settings frame required');
       settingsHost.rendered();
+      return true;
+    });
+    handle('capri:settings-drafts-settled', (proceed, { role }) => {
+      if (role !== 'settings') throw new Error('Settings frame required');
+      settingsHost?.settleDrafts(proceed === true);
       return true;
     });
     handle('capri:window-action', async ({ action, value } = {}, { role }) => {
@@ -10422,6 +10434,7 @@ async function initializeDesktop() {
     pointer = new PointerController({
       window,
       screen,
+      pollingReliable: pointerPollingReliable(),
       getRegions: () => regions,
       getMask: () => activeMask,
       onAvatarTether: (press, cursor, bounds, now) => {
@@ -10593,6 +10606,21 @@ async function initializeDesktop() {
         if (focusMode || avatarOnly || !window.isVisible() || window.isMinimized())
           restoreCompanion();
       });
+    }
+    // SIGTERM and SIGINT (macOS and Linux) run the same unload as the Quit dialog.
+    // The timeout and a second signal guarantee exit; children stop via their stdin lifeline.
+    if (process.platform !== 'win32') {
+      const onSignal = createSignalExit({
+        shutdown: async () => {
+          if (cableInstaller.snapshot().busy) await cableInstaller.whenSettled();
+          if (shuttingDown) return;
+          await computerControl.stop();
+          await unloadModelsAndQuit();
+        },
+        exit: () => app.exit(0),
+        onError: (error) => console.error('Shutdown after a signal failed:', error.message),
+      });
+      for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, onSignal);
     }
     app.on('before-quit', (event) => {
       if (quitting) return;

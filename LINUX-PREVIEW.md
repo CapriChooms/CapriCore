@@ -11,6 +11,8 @@ npm ci
 
 The launcher accepts the Node executable from PATH or the absolute path in `CAPRI_NODE_PATH`. Re-running the launcher shows a running Capri instance. Install a compatible Linux build of `llama-server` and put it on PATH or set `CAPRI_LLAMA_PATH` to its absolute path. Run `npm run models:pull` to prepare the local model and memory model. If you use a remote chat API, prepare the local memory model with `npm run models:pull -- --embedding-only`, then configure the provider in **Settings → API connections**.
 
+The prebuilt arm64 `llama-server` from llama.cpp b12317 needs glibc 2.38 or newer. On a system with glibc 2.36, such as Debian 12 or Raspberry Pi OS, it stops at startup with `version GLIBC_2.38 not found`. The x86-64 build needs glibc 2.34 or newer. On an older system, build `llama-server` from a llama.cpp source tree on that machine and point `CAPRI_LLAMA_PATH` at it.
+
 On Ubuntu 24.04, Chromium's sandbox may require an [AppArmor profile](https://discourse.ubuntu.com/t/ubuntu-24-04-lts-noble-numbat-release-notes/39890) with `userns` for the exact path to this installation's Electron binary. Keep the Chromium sandbox enabled.
 
 Capri checks for Linux x86-64 releases on startup and every 30 minutes. In **Settings → Updates**, choose **Open on GitHub** to download the archive. Public Linux archives are available without a GitHub account. Enable experimental updates in Settings to see previews as well as stable releases.

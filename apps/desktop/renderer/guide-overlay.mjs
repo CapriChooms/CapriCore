@@ -166,7 +166,7 @@ export class GuideOverlay {
     this.next.onclick = () => this.advance();
     this.skip.onclick = () => this.go(this.index + 1);
     this.back.onclick = () => this.go(this.index - 1);
-    this.closeButton.onclick = () => this.close();
+    this.closeButton.onclick = () => this.dismiss();
     this.action.onclick = () => void this.openSection();
     this.faqButton.onclick = () => this.showFaq(true);
     this.faqBack.onclick = () => this.showFaq(false);
@@ -265,6 +265,13 @@ export class GuideOverlay {
     if (!this.active || !this.step) return;
     if (this.index < this.content.steps.length - 1) return this.go(this.index + 1);
     setGuideFlag('localStorage');
+    this.close();
+  }
+
+  // X ends the tour the same way Finish does, so it is not shown again on the next launch.
+  // The patch-notes view is not the tour, so closing it leaves the flag alone.
+  dismiss() {
+    if (this.active && !this.notesShowing) setGuideFlag('localStorage');
     this.close();
   }
 

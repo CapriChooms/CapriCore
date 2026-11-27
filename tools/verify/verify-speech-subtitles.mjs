@@ -25,6 +25,8 @@ const env = {
   CAPRI_DESKTOP_VERIFICATION_DIR: folder,
   CAPRI_DESKTOP_VERIFICATION_PORT: String(port),
   CAPRI_DESKTOP_VERIFICATION_SKIP_START: '1',
+  // Voice needs the verification voice switch, or the toggle cannot turn it on.
+  CAPRI_DESKTOP_VERIFICATION_VOICE: '1',
 };
 delete env.ELECTRON_RUN_AS_NODE;
 const require = createRequire(import.meta.url),
@@ -242,6 +244,8 @@ try {
         { cause: error },
       );
     });
+  // The flag flips before the fade ends; the stage leaves the layout once the fade settles.
+  await page.locator('#subtitle-stage').waitFor({ state: 'hidden', timeout: 5000 });
   assert.equal(await page.locator('#subtitle-stage').isVisible(), false);
   assert.equal(await page.locator('#subtitle-text').textContent(), hideReply.text);
   await page.locator('#history-toggle').click({ force: true });

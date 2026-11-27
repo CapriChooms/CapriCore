@@ -124,6 +124,7 @@ async function startLocalLlama(
       CAPRI_LLAMA_RESERVE_MIB: String(budget.overheadBytes / 1024 ** 2),
     },
     deviceKey: id,
+    lifeline: true,
   });
   return waitForOwnedService(health, { name: 'llama', label: 'llama.cpp', signal, timeout: 15000 });
 }
@@ -183,7 +184,10 @@ export async function startGateway(rt = runtime(), { signal } = {}) {
       nodePath,
       [path.join(root, 'packages/runtime/bin/gateway-host.mjs'), rt.logPrefix, gatewayPolicy],
       rt,
-      rt.remote?.enabled ? { env: { CAPRI_REMOTE_PROXY_TOKEN: rt.remoteProxyToken } } : {},
+      {
+        lifeline: true,
+        ...(rt.remote?.enabled ? { env: { CAPRI_REMOTE_PROXY_TOKEN: rt.remoteProxyToken } } : {}),
+      },
     );
   }
   const readiness = { name: rt.logPrefix, expected: owner, signal };

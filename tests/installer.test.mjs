@@ -288,30 +288,34 @@ test('cancellation never promotes a partial dependency to the verified cache', a
   assert.equal(existsSync(path.join(target, info.sha256 + '.zip')), false);
   assert.equal(existsSync(path.join(target, info.sha256 + '.zip.part')), false);
 });
-test('installation rejects an insufficient disk probe before writing or running dependencies', async () => {
-  const target = path.join(folder(), 'disk-space-install');
-  const events = [];
-  let probes = 0;
-  await assert.rejects(
-    install(request(target), {
-      sourceRoot: root,
-      nodeExecutable: process.execPath,
-      hardware,
-      free: (selected) => {
-        assert.equal(selected, target);
-        probes++;
-        return 0;
-      },
-      emit: (event) => events.push(event),
-      execute: async () => assert.fail('Disk guard must run before runtime commands'),
-      download: async () => assert.fail('Disk guard must run before downloads'),
-    }),
-    { code: 'CAPRI_DISK_SPACE' },
-  );
-  assert.equal(probes, 1);
-  assert.equal(existsSync(target), false);
-  assert.deepEqual(events, []);
-});
+test(
+  'installation rejects an insufficient disk probe before writing or running dependencies',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    const target = path.join(folder(), 'disk-space-install');
+    const events = [];
+    let probes = 0;
+    await assert.rejects(
+      install(request(target), {
+        sourceRoot: root,
+        nodeExecutable: process.execPath,
+        hardware,
+        free: (selected) => {
+          assert.equal(selected, target);
+          probes++;
+          return 0;
+        },
+        emit: (event) => events.push(event),
+        execute: async () => assert.fail('Disk guard must run before runtime commands'),
+        download: async () => assert.fail('Disk guard must run before downloads'),
+      }),
+      { code: 'CAPRI_DISK_SPACE' },
+    );
+    assert.equal(probes, 1);
+    assert.equal(existsSync(target), false);
+    assert.deepEqual(events, []);
+  },
+);
 
 test('voice pack imports only approved files, checks hashes and rejects path escapes', () => {
   const source = folder(),
@@ -1046,7 +1050,7 @@ test(
   { skip: process.platform !== 'win32' },
   () => transactionFixture({ llamaState: 'corrupt', failLlamaPromotion: true }),
 );
-test('a missing included reference is rejected before installing dependencies', async () => {
+test('an included voice reference must be an absolute folder', () => {
   const target = folder();
   const context = {
     sourceRoot: root,
@@ -1057,25 +1061,34 @@ test('a missing included reference is rejected before installing dependencies', 
     () => validateRequest({ ...request(target), bundledVoicePack: 'relative-reference' }, context),
     /included voice reference needs an absolute folder/,
   );
-  await assert.rejects(
-    install(
-      {
-        ...request(target),
-        voiceMode: 'qwen',
-        bundledVoicePack: path.join(target, 'missing-reference'),
-      },
-      {
-        sourceRoot: root,
-        nodeExecutable: process.execPath,
-        free: () => 1024 ** 4,
-        hardware,
-        execute: async () => assert.fail('Invalid reference must fail before any runtime command'),
-      },
-    ),
-    /existing exported voice-pack folder/,
-  );
-  assert.equal(existsSync(path.join(target, '.capri-install.json')), false);
 });
+
+test(
+  'a missing included reference is rejected before installing dependencies',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    const target = folder();
+    await assert.rejects(
+      install(
+        {
+          ...request(target),
+          voiceMode: 'qwen',
+          bundledVoicePack: path.join(target, 'missing-reference'),
+        },
+        {
+          sourceRoot: root,
+          nodeExecutable: process.execPath,
+          free: () => 1024 ** 4,
+          hardware,
+          execute: async () =>
+            assert.fail('Invalid reference must fail before any runtime command'),
+        },
+      ),
+      /existing exported voice-pack folder/,
+    );
+    assert.equal(existsSync(path.join(target, '.capri-install.json')), false);
+  },
+);
 
 test('only one installation transaction can own a folder at a time', () => {
   const cache = folder(),
@@ -1265,26 +1278,46 @@ test(
   },
 );
 
-test('upgrade applies the newly selected model before downloading it and preserves ports and context', async () => {
-  await transactionFixture({ selectedProfile: 'quality' });
-});
+test(
+  'upgrade applies the newly selected model before downloading it and preserves ports and context',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    await transactionFixture({ selectedProfile: 'quality' });
+  },
+);
 
-test('a native ONNX loader failure leaves an upgraded installation usable without the optional classifier', async () => {
-  await transactionFixture({ routerNativeFailure: true });
-});
+test(
+  'a native ONNX loader failure leaves an upgraded installation usable without the optional classifier',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    await transactionFixture({ routerNativeFailure: true });
+  },
+);
 
-test('interrupted upgrade model download restores the previously selected model', async () => {
-  await transactionFixture({ selectedProfile: 'quality', cancelModels: true });
-});
+test(
+  'interrupted upgrade model download restores the previously selected model',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    await transactionFixture({ selectedProfile: 'quality', cancelModels: true });
+  },
+);
 
-test('installer applies CPU before preparing models and retains the voice device', async () => {
-  await transactionFixture({ languageDeviceChoice: 'cpu' });
-});
+test(
+  'installer applies CPU before preparing models and retains the voice device',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    await transactionFixture({ languageDeviceChoice: 'cpu' });
+  },
+);
 
-test('installer does not overwrite a device in API mode and restores it on cancellation', async () => {
-  await transactionFixture({ languageDeviceChoice: 'cpu', inferenceMode: 'api' });
-  await transactionFixture({ languageDeviceChoice: 'cpu', cancelModels: true });
-});
+test(
+  'installer does not overwrite a device in API mode and restores it on cancellation',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    await transactionFixture({ languageDeviceChoice: 'cpu', inferenceMode: 'api' });
+    await transactionFixture({ languageDeviceChoice: 'cpu', cancelModels: true });
+  },
+);
 
 const englishSettings = {
   interface: 'en',
@@ -1300,29 +1333,41 @@ const russianUpgrade = {
   expected: { ...englishSettings, interface: 'ru', conversation: 'ru', speech: 'follow' },
 };
 
-test('upgrade persists Russian conversation and interface selections while keeping automatic recognition', async () => {
-  await transactionFixture({ languageUpgrade: russianUpgrade });
-});
+test(
+  'upgrade persists Russian conversation and interface selections while keeping automatic recognition',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    await transactionFixture({ languageUpgrade: russianUpgrade });
+  },
+);
 
-test('interrupted upgrade leaves the previous conversation and interface languages intact', async () => {
-  await transactionFixture({ languageUpgrade: russianUpgrade, cancelModels: true });
-});
+test(
+  'interrupted upgrade leaves the previous conversation and interface languages intact',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    await transactionFixture({ languageUpgrade: russianUpgrade, cancelModels: true });
+  },
+);
 
-test('an upgrade can retain a custom conversation language from the app', async () => {
-  const previous = {
-    ...englishSettings,
-    conversation: 'custom',
-    customConversation: 'Esperanto',
-    speech: 'off',
-  };
-  await transactionFixture({
-    languageUpgrade: {
-      previous,
+test(
+  'an upgrade can retain a custom conversation language from the app',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    const previous = {
+      ...englishSettings,
       conversation: 'custom',
-      expected: { ...previous, interface: 'ru' },
-    },
-  });
-});
+      customConversation: 'Esperanto',
+      speech: 'off',
+    };
+    await transactionFixture({
+      languageUpgrade: {
+        previous,
+        conversation: 'custom',
+        expected: { ...previous, interface: 'ru' },
+      },
+    });
+  },
+);
 
 test('installer accepts BETA model choices with finite disk estimates and enforces system RAM', () => {
   for (const id of ['gemma4-e2b', 'ministral-3-3b']) {

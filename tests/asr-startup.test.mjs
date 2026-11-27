@@ -51,6 +51,24 @@ function fixture(t) {
   return { root, file, worker, child, children, environments, argumentsBySpawn };
 }
 
+test('macOS ASR uses bin/python and the matching site-packages version', (t) => {
+  t.mock.property(process, 'platform', 'darwin');
+  const { root, file } = fixture(t);
+  file('.runtime/asr-venv/pyvenv.cfg', 'home = /usr/bin\nversion = 3.12.7\n');
+  assert.equal(asrPython(root), path.join(root, '.runtime/asr-venv/bin/python'));
+  assert.equal(
+    asrSitePackages(root),
+    path.join(root, '.runtime/asr-venv/lib/python3.12/site-packages'),
+  );
+  assert.throws(
+    () => {
+      file('.runtime/asr-venv/pyvenv.cfg', 'home = /usr/bin\n');
+      asrSitePackages(root);
+    },
+    { message: 'The ASR virtual environment has no Python version' },
+  );
+});
+
 test('Linux ASR uses the managed Python and the matching site-packages version', async (t) => {
   t.mock.property(process, 'platform', 'linux');
   const { root, file, worker, child } = fixture(t);

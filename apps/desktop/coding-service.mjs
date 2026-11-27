@@ -83,6 +83,22 @@ export const IDE_KINDS = [
   'neovim',
   'emacs',
 ];
+// Windows launches only .exe files. Other platforms run any regular file that has an execute bit.
+export function launchableName(file, platform = process.platform) {
+  return platform !== 'win32' || /\.exe$/i.test(file);
+}
+
+export function launchableFile(stat, platform = process.platform) {
+  return stat.isFile() && (platform === 'win32' || (stat.mode & 0o111) !== 0);
+}
+
+// Shells are refused as approved tasks. The Windows list is unchanged; Unix gets the equivalent.
+export function commandShell(name, platform = process.platform) {
+  return platform === 'win32'
+    ? /^(?:cmd|powershell|pwsh|wscript|cscript|mshta|rundll32|regsvr32)\.exe$/i.test(name)
+    : /^(?:sh|bash|dash|zsh|ksh|fish|csh|tcsh|pwsh|osascript)$/.test(name);
+}
+
 export function editorArguments(kind, file, line = 1, column = 1) {
   if (!IDE_KINDS.includes(kind) || !positive(line, 10000000) || !positive(column, 100000))
     fail('Invalid editor location.');
@@ -156,12 +172,14 @@ export class CodingService {
       value.editor &&
       (!IDE_KINDS.includes(value.editor.kind) ||
         !path.isAbsolute(value.editor.executable) ||
-        !/\.exe$/i.test(value.editor.executable))
+        !launchableName(value.editor.executable))
     )
       fail('Choose a supported editor executable.');
     if (value.editor) {
       assertPrivatePath(value.editor.executable);
-      if (!lstatSync(value.editor.executable).isFile()) fail('Editor not found.');
+      const stat = lstatSync(value.editor.executable);
+      if (!stat.isFile()) fail('Editor not found.');
+      if (!launchableFile(stat)) fail('Editor is not executable.');
     }
     if (!Array.isArray(value.tasks) || value.tasks.length > 12) fail('Too many project tasks.');
     const ids = new Set();
@@ -172,7 +190,7 @@ export class CodingService {
         !/^[\w -]{1,60}$/.test(task.id) ||
         ids.has(task.id) ||
         !path.isAbsolute(task.executable) ||
-        !/\.exe$/i.test(task.executable) ||
+        !launchableName(task.executable) ||
         !Array.isArray(task.args) ||
         task.args.length > 30 ||
         task.args.some(
@@ -184,12 +202,10 @@ export class CodingService {
       )
         fail('Invalid approved project task.');
       assertPrivatePath(task.executable);
-      if (!lstatSync(task.executable).isFile()) fail('Task executable not found.');
-      if (
-        /^(?:cmd|powershell|pwsh|wscript|cscript|mshta|rundll32|regsvr32)\.exe$/i.test(
-          path.basename(task.executable),
-        )
-      )
+      const stat = lstatSync(task.executable);
+      if (!stat.isFile()) fail('Task executable not found.');
+      if (!launchableFile(stat)) fail('Task executable is not executable.');
+      if (commandShell(path.basename(task.executable)))
         fail('Choose a build/test executable instead of a command shell.');
       ids.add(task.id);
     }

@@ -264,6 +264,8 @@ contextBridge.exposeInMainWorld(
     settingsReady: () => ipcRenderer.invoke('capri:settings-ready'),
     settingsLoading: () => ipcRenderer.invoke('capri:settings-loading'),
     settingsRendered: () => ipcRenderer.invoke('capri:settings-rendered'),
+    settingsDraftsSettled: (proceed) =>
+      ipcRenderer.invoke('capri:settings-drafts-settled', proceed === true),
     settingsHelp: (value) => ipcRenderer.invoke('capri:settings-help', value),
     settingsVersions: () => ipcRenderer.invoke('capri:settings-versions'),
     screenFormCommand: (value) => ipcRenderer.invoke('capri:screen-form-command', value),

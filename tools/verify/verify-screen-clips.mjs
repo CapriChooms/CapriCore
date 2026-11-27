@@ -123,27 +123,36 @@ try {
     main.webContents.setAudioMuted(true);
     main.webContents.setBackgroundThrottling(false);
     main.showInactive();
-    return fixture.getNativeWindowHandle().readBigUInt64LE().toString();
+    // Windows gives an HWND (pointer-sized). Linux gives an X11 XID in a 4-byte buffer.
+    const handle = fixture.getNativeWindowHandle();
+    return (
+      process.platform === 'linux' ? handle.readUInt32LE(0) : handle.readBigUInt64LE(0)
+    ).toString();
   });
   writeFileSync(path.join(folder, 'clip-owned-window.txt'), handle);
   // Probe only native display geometry; the production monitor path never reads pixels here.
-  const probe = JSON.parse(
-    execFileSync(
-      'powershell.exe',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        path.join(root, 'scripts/capture-display.ps1'),
-        '-Probe',
-      ],
-      { windowsHide: true, encoding: 'utf8', timeout: 15000 },
-    ),
-  );
-  assert.ok(probe.width > 0 && probe.height > 0);
-  report.displayGeometry = probe;
+  // The probe is a Windows PowerShell script, so other platforms record that it was skipped.
+  if (process.platform === 'win32') {
+    const probe = JSON.parse(
+      execFileSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-File',
+          path.join(root, 'scripts/capture-display.ps1'),
+          '-Probe',
+        ],
+        { windowsHide: true, encoding: 'utf8', timeout: 15000 },
+      ),
+    );
+    assert.ok(probe.width > 0 && probe.height > 0);
+    report.displayGeometry = probe;
+  } else {
+    report.displayGeometry = { skipped: `display probe is Windows-only (${process.platform})` };
+  }
   const waitState = async (predicate, timeout = 20000) => {
     const until = Date.now() + timeout;
     while (Date.now() < until) {

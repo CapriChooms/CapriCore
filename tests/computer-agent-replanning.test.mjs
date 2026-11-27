@@ -681,74 +681,84 @@ test('a scoped chain rejects invented web steps, restores the bound window and s
   assert.equal(f.calls.filter(({ action }) => action === 'enter_text').length, 1);
 });
 
-test('a requested taskbar switch rebinds to the verified foreground before the next click', async () => {
-  let foreground = '1',
-    clicked = false;
-  const app = { id: 'paint', name: 'Paint' };
-  const f = fixture({
-    view: () => ({
-      window: {
-        windowId: foreground,
-        untrustedTitle: { 1: 'Desktop', 11: 'Paint', 22: 'Notepad' }[foreground],
+test(
+  'a requested taskbar switch rebinds to the verified foreground before the next click',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    let foreground = '1',
+      clicked = false;
+    const app = { id: 'paint', name: 'Paint' };
+    const f = fixture({
+      view: () => ({
+        window: {
+          windowId: foreground,
+          untrustedTitle: { 1: 'Desktop', 11: 'Paint', 22: 'Notepad' }[foreground],
+        },
+        targets:
+          foreground === '11'
+            ? [button('notepad', 'Notepad', { surface: 'taskbar' })]
+            : foreground === '22'
+              ? [button('help', clicked ? 'Help opened' : 'Help')]
+              : [],
+      }),
+      application: async () => {
+        foreground = '11';
+        return {
+          ok: true,
+          focused: true,
+          windowId: '11',
+          processId: '101',
+          startedAtTicks: '1000',
+        };
       },
-      targets:
-        foreground === '11'
-          ? [button('notepad', 'Notepad', { surface: 'taskbar' })]
-          : foreground === '22'
-            ? [button('help', clicked ? 'Help opened' : 'Help')]
-            : [],
-    }),
-    application: async () => {
-      foreground = '11';
-      return { ok: true, focused: true, windowId: '11', processId: '101', startedAtTicks: '1000' };
-    },
-    input: async (args, view) => {
-      assert.equal(args.action, 'click');
-      if (foreground === '11') {
-        assert.equal(view.targets[0].surface, 'taskbar');
-        foreground = '22';
-      } else {
-        assert.equal(view.targets[0].untrustedLabel, 'Help');
-        clicked = true;
+      input: async (args, view) => {
+        assert.equal(args.action, 'click');
+        if (foreground === '11') {
+          assert.equal(view.targets[0].surface, 'taskbar');
+          foreground = '22';
+        } else {
+          assert.equal(view.targets[0].untrustedLabel, 'Help');
+          clicked = true;
+        }
+        return { ok: true };
+      },
+      plan: async ({ currentObservation }, { review }) => {
+        if (foreground === '1') return { action: 'launch', query: 'Paint' };
+        if (foreground === '22')
+          assert.equal(currentObservation.scene, 'Notepad on the newly active monitor.');
+        if (review || clicked)
+          return { action: 'finish', evidence: 'Help opened', summary: 'Opened Help in Notepad.' };
+        return { action: 'click', targetId: currentObservation.targets[0].targetId };
+      },
+    });
+    f.agent.applications.findApplications = async () => [app];
+    const execute = f.control.execute.bind(f.control);
+    f.control.execute = async (args, signal) => {
+      const result = await execute(args, signal);
+      if (args.action === 'observe') {
+        f.control.session.target = {
+          processId: foreground === '11' ? '101' : '202',
+          startedAtTicks: foreground === '11' ? '1000' : '2000',
+          executable: foreground === '11' ? 'C:\\Windows\\Paint.exe' : 'C:\\Windows\\Notepad.exe',
+        };
+        if (foreground === '22') {
+          const matched = args.vision && args.visualWindow?.windowId === '22';
+          result.screenAvailable = matched;
+          result.visionStatus = matched ? 'ready' : 'window_mismatch';
+          if (matched) result.scene = 'Notepad on the newly active monitor.';
+        }
       }
-      return { ok: true };
-    },
-    plan: async ({ currentObservation }, { review }) => {
-      if (foreground === '1') return { action: 'launch', query: 'Paint' };
-      if (foreground === '22')
-        assert.equal(currentObservation.scene, 'Notepad on the newly active monitor.');
-      if (review || clicked)
-        return { action: 'finish', evidence: 'Help opened', summary: 'Opened Help in Notepad.' };
-      return { action: 'click', targetId: currentObservation.targets[0].targetId };
-    },
-  });
-  f.agent.applications.findApplications = async () => [app];
-  const execute = f.control.execute.bind(f.control);
-  f.control.execute = async (args, signal) => {
-    const result = await execute(args, signal);
-    if (args.action === 'observe') {
-      f.control.session.target = {
-        processId: foreground === '11' ? '101' : '202',
-        startedAtTicks: foreground === '11' ? '1000' : '2000',
-        executable: foreground === '11' ? 'C:\\Windows\\Paint.exe' : 'C:\\Windows\\Notepad.exe',
-      };
-      if (foreground === '22') {
-        const matched = args.vision && args.visualWindow?.windowId === '22';
-        result.screenAvailable = matched;
-        result.visionStatus = matched ? 'ready' : 'window_mismatch';
-        if (matched) result.scene = 'Notepad on the newly active monitor.';
-      }
-    }
-    return result;
-  };
-  const result = await f.agent.run(
-    'Open Paint then switch to Notepad from the taskbar and click Help.',
-  );
-  assert.equal(result.ok, true, JSON.stringify(f.agent.diagnostics()));
-  assert.equal(f.calls.filter(({ action }) => action === 'click').length, 2);
-  assert.equal(f.applicationCalls.length, 1);
-  assert(f.calls.some(({ vision, visualWindow }) => vision && visualWindow?.windowId === '22'));
-});
+      return result;
+    };
+    const result = await f.agent.run(
+      'Open Paint then switch to Notepad from the taskbar and click Help.',
+    );
+    assert.equal(result.ok, true, JSON.stringify(f.agent.diagnostics()));
+    assert.equal(f.calls.filter(({ action }) => action === 'click').length, 2);
+    assert.equal(f.applicationCalls.length, 1);
+    assert(f.calls.some(({ vision, visualWindow }) => vision && visualWindow?.windowId === '22'));
+  },
+);
 
 test('an explicit quoted click uses a unique observed control and reports only the input receipt', async () => {
   const f = fixture({

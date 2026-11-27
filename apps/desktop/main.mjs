@@ -1259,7 +1259,7 @@ async function initializeDesktop() {
   });
   const responseTiming = responsiveness({ ...settings, availableRamBytes: freemem() });
   const emulatedX64 = windowsX64Emulation();
-  const internetSearch = new WebSearch();
+  const internetSearch = new WebSearch({ keenableKey: process.env.KEENABLE_API_KEY });
   const coding = new CodingService({
     root: verification ? verificationFolder : root,
     onProjectChange: (monitor) => emit({ type: 'coding.project', monitor }),

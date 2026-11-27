@@ -345,7 +345,8 @@ skillPanel('reasoning', reasoningSettings);
 const webSearchOptions = document.createElement('div');
 webSearchOptions.className = 'settings-card';
 webSearchOptions.innerHTML = `<label for="web-search-engine">Search engine</label>
-  <select id="web-search-engine"><option value="duckduckgo">DuckDuckGo</option><option value="wikipedia">Wikipedia</option></select>
+  <select id="web-search-engine" aria-describedby="web-search-engine-help"><option value="duckduckgo">DuckDuckGo</option><option value="wikipedia">Wikipedia</option><option value="keenable">Keenable</option></select>
+  <p id="web-search-engine-help" class="settings-help">Keenable is optional. It uses the KEENABLE_API_KEY environment variable when set, and Keenable’s keyless public endpoint otherwise. Keenable logs search requests under its default data policy with or without a key; only an Enterprise zero-data-retention agreement differs.</p>
   <label for="web-search-sort">Result order</label>
   <select id="web-search-sort"><option value="relevance">Relevance</option><option value="title">Title (A–Z)</option></select>`;
 const webSearchFilter = document.createElement('div');

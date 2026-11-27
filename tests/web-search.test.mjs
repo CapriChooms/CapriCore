@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WebSearch, formatWebSearchContext } from '../apps/desktop/web-search.mjs';
+import { prepareInternetSearch } from '../packages/skills/src/web-search/index.mjs';
 
 const response = (html, options = {}) =>
   new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' }, ...options });
@@ -453,6 +454,154 @@ test('search context preserves literal angle-bracket text, source order and disp
     data.sources,
     sources.map((source, index) => ({ number: index + 1, ...source })),
   );
+});
+
+const json = (value, options = {}) =>
+  new Response(JSON.stringify(value), {
+    headers: { 'content-type': 'application/json' },
+    ...options,
+  });
+const keenableBody = {
+  query: 'q',
+  mode: 'pro',
+  results: [
+    {
+      title: 'Keenable result',
+      url: 'https://example.com/a#frag',
+      description: '',
+      snippet: 'Page text.',
+    },
+    { title: 'Private host', url: 'http://localhost/secret', snippet: 'ignored' },
+    { title: 'Other site', url: 'https://example.org/b', snippet: 'More text.' },
+  ],
+};
+
+test('DuckDuckGo stays the default engine and never contacts Keenable', async () => {
+  const calls = [];
+  const search = new WebSearch({
+    keenableKey: 'test-key-123',
+    fetchImpl: async (url) => {
+      calls.push(url);
+      return response(link('https://example.com/x'));
+    },
+  });
+  await search.search('default engine');
+  assert.deepEqual(
+    calls.map((url) => new URL(url).origin),
+    ['https://html.duckduckgo.com'],
+  );
+});
+
+test('Keenable engine sends a keyed POST with only the app name and the query', async () => {
+  const calls = [];
+  const search = new WebSearch({
+    keenableKey: ' test-key-123 ',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return json(keenableBody);
+    },
+  });
+  const result = await search.search('  keenable\nquery ', {
+    settings: { engine: 'keenable' },
+    history: 'PRIVATE OWNER HISTORY',
+  });
+  assert.equal(result.status, 'ok');
+  assert.deepEqual(result.sources, [
+    { title: 'Keenable result', url: 'https://example.com/a', snippet: 'Page text.' },
+    { title: 'Other site', url: 'https://example.org/b', snippet: 'More text.' },
+  ]);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://api.keenable.ai/v1/search');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(calls[0].options.redirect, 'error');
+  assert.equal(calls[0].options.credentials, 'omit');
+  assert.deepEqual(calls[0].options.headers, {
+    accept: 'application/json',
+    'content-type': 'application/json',
+    'x-keenable-title': 'CapriCore',
+    'x-api-key': 'test-key-123',
+  });
+  assert.deepEqual(JSON.parse(calls[0].options.body), {
+    query: 'keenable query',
+    max_results: 20,
+    snippet_max_length: 600,
+  });
+  assert.equal(JSON.stringify(calls).includes('PRIVATE OWNER HISTORY'), false);
+});
+
+test('Keenable engine without a key uses the public endpoint and sends no key header', async () => {
+  const calls = [];
+  const search = new WebSearch({
+    keenableKey: '   ',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return json({ results: [] });
+    },
+  });
+  const result = await search.search('no key', { settings: { engine: 'keenable' } });
+  assert.equal(result.status, 'empty');
+  assert.equal(calls[0].url, 'https://api.keenable.ai/v1/search/public');
+  assert.equal(calls[0].options.headers['x-keenable-title'], 'CapriCore');
+  assert.equal('x-api-key' in calls[0].options.headers, false);
+});
+
+test('Keenable engine honours the domain filter and title sort', async () => {
+  const search = new WebSearch({ fetchImpl: async () => json(keenableBody) });
+  const result = await search.search('filtered', {
+    settings: { engine: 'keenable', sort: 'title', domains: 'example.org' },
+  });
+  assert.deepEqual(
+    result.sources.map(({ url }) => url),
+    ['https://example.org/b'],
+  );
+});
+
+test('Keenable rate limits and key problems are reported with a reason, never as no results', async () => {
+  for (const [status, reason] of [
+    [429, 'rate_limited'],
+    [401, 'key_rejected'],
+    [403, 'key_rejected'],
+    [402, 'credits_exhausted'],
+    [500, 'unavailable'],
+  ]) {
+    const result = await new WebSearch({
+      keenableKey: 'test-key-123',
+      fetchImpl: async () => json({ error: 'x' }, { status }),
+    }).search('failing', { settings: { engine: 'keenable' } });
+    assert.equal(result.status, 'unavailable', String(status));
+    assert.equal(result.reason, reason, String(status));
+    assert.deepEqual(result.sources, []);
+  }
+});
+
+test('Keenable errors, bad bodies and network failures are unavailable', async () => {
+  const run = (fetchImpl) =>
+    new WebSearch({ fetchImpl }).search('broken', { settings: { engine: 'keenable' } });
+  for (const fetchImpl of [
+    async () => response('<html>not json</html>'),
+    async () => new Response('{', { headers: { 'content-type': 'application/json' } }),
+    async () => json({ results: 'nope' }),
+    async () => {
+      throw new TypeError('fetch failed');
+    },
+  ])
+    assert.equal((await run(fetchImpl)).status, 'unavailable');
+});
+
+test('a malformed Keenable key is rejected before any request', () => {
+  assert.throws(() => new WebSearch({ keenableKey: 'bad key\n' }), /Invalid web search/u);
+  assert.throws(() => new WebSearch({ keenableKey: 42 }), /Invalid web search/u);
+});
+
+test('Keenable failure reasons give the owner something to do in the progress message', async () => {
+  const messages = [];
+  await prepareInternetSearch({
+    query: 'q',
+    signal: new AbortController().signal,
+    search: async () => ({ status: 'unavailable', reason: 'rate_limited', sources: [] }),
+    emit: (event) => messages.push(event.message),
+  });
+  assert.match(messages.at(-1), /rate limit.*another search engine/u);
 });
 
 test(

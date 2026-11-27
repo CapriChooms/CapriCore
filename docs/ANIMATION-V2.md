@@ -1,95 +1,56 @@
-# Capri animation direction, version 2
+# Capri animation
 
-The current implementation proposal, storyboard and acceptance criteria are in the
-[Capri animation rework plan](plans/capri-animation-rework.md).
+This guide describes the artwork and registration used by the desktop
+companion. See the catalog and distribution notes for the reviewed files.
+[Character assets](character-assets.md)
 
-## Visual intent
+## Runtime in Capri 1.3.0
 
-An anime performance built from deliberately drawn poses, with restrained secondary
-motion. Listening, thinking and speaking should read through posture and eye line,
-even with glitch disabled. Glitch is a short transition accent, not a way to hide
-misregistered drawings. Keep the existing sprite pack working until a new pack is
-reviewed as a complete set.
+The **Avatar gallery** in Settings previews poses, expressions and animations.
+Animation previews can play once or loop. Music reactions keep Capri in her
+current pose, and the sleeping pose has slow breathing. The standing pose,
+desktop poses and gestures use registered face artwork where applicable.
+[Release notes](https://github.com/CapriChooms/CapriCore/releases/tag/v1.3.0)
 
-## Existing pack and constraints
+The face rig positions each eye and its contour in source pixels. Blinking
+animates eyelids over the eye artwork, and speech uses a separate mouth layer.
+The registration accounts for changes in scale and orientation between standing,
+seated and inverted poses. Sleeping and the authored music poses have drawn
+closed eyes and mouths. [Face rig](https://github.com/CapriChooms/CapriCore/blob/v1.3.0/apps/desktop/renderer/avatar-face-rig.mjs)
+· [Layered blink](https://github.com/CapriChooms/CapriCore/blob/v1.3.0/apps/desktop/renderer/avatar-layered-blink.mjs)
 
-The current runtime pack is `assets/capri/sprites/v1/runtime-sprite-set.json`:
-68 frames on a 1254 × 1254 canvas, anchor (627, 1166). `AnimationDirector` already
-selects state clips and `SpriteImages` keeps a bounded 20-frame decoded cache.
-There is no evidence that an unlimited image cache caused issue #41. Preserve the
-current reference pack and its provenance; the linked design chat is reference
-material, not permission to overwrite unrelated assets.
+Full-size sprite frames use a 1254 × 1254 canvas. The animation director selects
+clips from the catalog and keeps a bounded decoded-frame cache through
+`SpriteImages`. The window-edge gesture sheets have their own visible bounds
+and placement registration. [Animation director](../apps/desktop/renderer/animation-director.mjs)
+· [Window-edge geometry](../assets/default/hanging-cels/geometry.json)
 
-## Drawing contract
+## Authoring and registration
 
-Create front/three-quarter model sheets, neutral expression sheet, silhouette
-sheet and a contact sheet before final frames. Every frame uses the same canvas,
-camera, character scale, floor and optical head center. Record planted contacts
-(feet, seat, desk, elbow) explicitly. Do not recenter each PNG by its bounding box.
+- Keep the camera, character scale and optical head center consistent across
+  a sequence. Record planted contacts such as feet, hands or a seat in source
+  coordinates. Keep the canvas origin fixed when exporting frames.
+- Check posture and eye line with glitch effects disabled. Draw silhouettes,
+  poses and breakdowns first. Add secondary motion after checking registration.
+- Use transparent source artwork with clean alpha edges. Align the base face,
+  sockets, eyes, eyelids and mouth to the pose. Check the full blink and the
+  mouth shapes over the complete expression.
+- Store frame holds in the timing data. Use authored bridge poses for transitions
+  between different silhouettes. Keep motion above a planted contact when adding
+  breathing, sway or bounce.
+- Tie spoken mouth shapes to audio playback. Return the mouth to rest when
+  playback pauses, ends or is cancelled. Keep sleeping eyes closed.
 
-Export body, eyes/brows and mouth as registered layers when feasible. Mouth shapes:
-rest, closed M/B/P, open A, narrow E/I, round O/U, teeth F/V. Preserve the existing
-mouth as a fallback for a pack without layers. Alpha should be straight and edges
-free of a baked background. Ship authored images; never synthesize missing body
-poses by stretching a face or interpolating a whole character with optical flow.
+## Review checklist
 
-Each clip manifest records: id, state, tags, canvas, anchor, contacts, entryPose,
-exitPose, frames with durationMs, loop range, interrupt markers, transition IDs,
-mouth/eye attachment anchors, reducedMotionFrame and optional gesture intensity.
-Durations are milliseconds, independent of renderer refresh rate. Validate missing
-frames, duplicate IDs, registration, finite holds and transition reachability when
-building the catalog. A bad optional clip falls back to a validated neutral pose.
+Review the gallery and the home and detached presentations. Compare the body,
+eyes and mouth at frame boundaries and verify the anchors for held and inverted
+poses. Test entry, exit and interruption during speech, wake and sleep. Check
+reduced motion, compact mode and visibility changes. Measure frame time and
+decoded memory during longer runs when a change adds images or rendering work.
 
-## Storyboard and timing
-
-| Clip            | Acting and key poses                                              | Timing                                            | Interrupt/exit                        |
-| --------------- | ----------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------- |
-| Neutral idle    | settled shoulders → small inhale → exhale; asymmetric blink       | 4–7 s loop, 12 authored poses/s only where moving | settled/contact key every 0.5 s       |
-| Attention entry | eyes lead → chin lift → shoulders follow → small settle           | 250–400 ms, 5–8 drawings                          | enter listening pose                  |
-| Listening       | slight forward lean, relaxed mouth; one restrained nod variant    | 3–5 s, varied holds                               | eye-line key, at most 120 ms wait     |
-| Thinking        | eyes shift → chin touch/side glance → hold → return               | 450 ms entry, 2–4 s hold variants                 | hand-contact breakdown before leaving |
-| Speaking        | held readable silhouette with small head beats, independent mouth | 2–4 s body loop                                   | speech ends → 180–300 ms settle       |
-| Gesture         | anticipation → accent → overshoot → recovery                      | 0.7–1.3 s, 8–16 drawings                          | explicit safe return to speaking      |
-| Sleep entry     | gaze lowers → eyelids close → shoulders release                   | 650–1000 ms                                       | closed-eye sleep pose                 |
-| Sleep loop      | slow breath, tiny secondary hair movement; Zzz in UI layer        | 5–8 s                                             | wake priority, eyes lead              |
-| Wake            | eyes open → focus → lift → settle                                 | 350–600 ms                                        | attention or speaking                 |
-
-Use animation on twos (12 drawings/s in a 24 fps timeline), with selected ones
-for a fast accent. Holds belong in the timeline, not duplicate files. Show pose,
-breakdown and in-between contact sheets for review; fix silhouette and registration
-before adding effects. Keep acting small enough for the corner companion.
-
-## Runtime graph
-
-Priority: explicit sleep/shutdown → wake/owner address → live speaking/listening →
-thinking → initiative gesture → ambient idle. A new state cancels queued low-priority
-clips. Route incompatible body poses through an authored bridge; choose the next
-safe interrupt marker within 120 ms, otherwise use the source clip's short recovery.
-Keep at most one pending state and one bridge. Never enqueue every ASR partial or
-audio packet. Audio completion, cancellation and sleep each have explicit exits.
-
-Do not crossfade unrelated silhouettes for 500 ms: it produces two heads and hands.
-Allow a 50–100 ms dissolve only for equivalent registered poses or eye layers.
-Optional procedural breathing moves torso attachment points, not planted feet;
-hair/cloth lag is bounded and separate. Seed idle variants per session, avoid the
-same gesture twice, and keep a 10–25 s gap between incidental gestures.
-
-Mouth timing follows the actual playing audio clock, not network chunk arrival.
-Use RMS/phoneme information when available, with attack/release smoothing, hysteresis
-and a 60–100 ms minimum shape hold. Freeze at rest on pause, mute, cancellation or
-missing audio. Blinks have a separate 3–7 s scheduler and never reopen sleeping eyes.
-
-## Rendering and qualification
-
-Keep the existing bounded decoded cache. Preload only current/next bridge and a
-small idle set; budget decoded pixels, not compressed PNG bytes. Stop rendering
-hidden/minimized windows, suspend idle timers and release obsolete image handles.
-Keep 60 Hz presentation for effects while authored frames use their own holds.
-Reduced motion uses held poses and minimal transitions; controls include body
-motion, gesture frequency and independent glitch intensity.
-
-Required review: neutral/listening/speaking/sleep storyboards; anchor/contact
-overlays; body + mouth + blink combinations; interruption at every marker; delayed
-audio, cancellation, rapid wake/sleep, compact mode and hidden/tray resume. Measure
-frame time and decoded memory over 30 minutes. New animation assets are not part
-of 0.4.4: that release preserves the current art and provides this production plan.
+Early production plans remain available in the repository history.
+[Animation storyboard](https://github.com/CapriChooms/CapriCore/blob/c50c6463637f31ee9109669be2dbee27e972e45d/docs/ANIMATION-V2.md)
+· [Stage-one prototype](https://github.com/CapriChooms/CapriCore/blob/c50c6463637f31ee9109669be2dbee27e972e45d/docs/plans/capri-animation-stage1.md)
+· [Rework proposal](https://github.com/CapriChooms/CapriCore/blob/c50c6463637f31ee9109669be2dbee27e972e45d/docs/plans/capri-animation-rework.md)
+· [Sprite generation plan](https://github.com/CapriChooms/CapriCore/blob/c50c6463637f31ee9109669be2dbee27e972e45d/docs/capri-sprite-generation-plan.md)

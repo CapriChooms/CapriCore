@@ -1,21 +1,22 @@
 <img src="assets/default/icon-source.png" alt="CapriCore lightning logo" width="72" align="right">
 
-# CapriCore · Capri 1.2.2
+# CapriCore · Capri 1.3.0
 
-Capri is a Windows AI desktop companion powered by OpenClaw. Run a bundled local model, import a compatible Hugging Face GGUF model, or connect to an OpenAI-compatible API. Capri supports text and voice chat, persistent memory, an animated desktop avatar, and optional tools for working with apps and files.
+Capri is an AI desktop companion powered by OpenClaw. Run a bundled local model, import a compatible Hugging Face GGUF model, or connect to an OpenAI-compatible API. Capri supports text and voice chat, persistent memory, an animated desktop avatar, and optional tools for working with apps and files.
 
 [Website](https://capri-core.com/) · [Discord](https://discord.gg/capricore) · [Documentation](docs/README.md) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
-**[Download the latest Capri for Windows](https://github.com/CapriChooms/CapriCore/releases/latest)** · [1.2.2 release notes](https://github.com/CapriChooms/CapriCore/releases/tag/v1.2.2) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
+**[Download Capri for Windows, Linux or macOS](https://github.com/CapriChooms/CapriCore/releases/latest)** · [1.3.0 release notes](https://github.com/CapriChooms/CapriCore/releases/tag/v1.3.0) · [Report a bug](https://github.com/CapriChooms/CapriCore/issues/new/choose)
 
 The public repository and releases are **CapriChooms/CapriCore**. Downloads and update checks do not require a GitHub account, invitation or token.
 
-## What's new in 1.2.2
+## What's new in 1.3.0
 
-- Adjust voice output gain up to 200% in Audio settings or the voice volume menu.
-- Trigger more avatar animations in conversation, including pull-ups and seated gestures. Capri also picks animations that fit her current pose when idle.
-- Fit toolbar controls into two rows, with long model names scrolling inside the model selector.
-- Recover the portrait after a WebGL or GPU renderer failure. After a crash, Capri opens its logs and lets you save a diagnostic ZIP.
+- Preview poses, layered facial expressions and gestures in the Avatar Gallery. Music reactions use Capri's current pose.
+- Adjust voice pitch and teleport duration. Load local models on demand and configure idle unloading.
+- Add components or repair an installation from Setup. Patch notes appear after updating and can be reopened from Help.
+
+Use the [v1.3.0 tag](https://github.com/CapriChooms/CapriCore/tree/v1.3.0) for the source corresponding to the stable download. The source walkthrough below applies to this branch.
 
 ## What Capri can do
 
@@ -27,11 +28,13 @@ The public repository and releases are **CapriChooms/CapriCore**. Downloads and 
 - **Use tools with permission.** Scoped app/file actions, Spotify, Discord desktop control, web search, deep-thinking mode, recorded workflows and approved user tools. Computer control is BETA and uses a visible indicator with Escape cancellation.
 - **React to music and calls.** Optional local system-audio music detection with BPM animation, and microphone/system-audio call features with a separately configured virtual cable.
 
-Capabilities depend on the selected model, its tool/image support and your permissions. Complex workflows, individual GPU backends and additional voices still need configuration and can require your help; see [current limits](docs/releases/1.0.0.md#limits-to-know).
+Capabilities depend on the platform, selected model, tool and image support, and the permissions you grant. See the [documentation index](docs/README.md) for platform guides and hardware requirements.
 
 [Set up native NPU and editor integration, follow desktop task progress, and check experimental Windows 10 compatibility](docs/native-npu-and-coding.md).
 
 ## Quick installation
+
+For Capri 1.3.0 on other platforms, see the [Linux x86-64 guide](https://github.com/CapriChooms/CapriCore/blob/v1.3.0/LINUX-PREVIEW.md) or the [macOS Apple Silicon guide](https://github.com/CapriChooms/CapriCore/blob/v1.3.0/docs/macos.md). Some desktop integrations require Windows.
 
 On Windows 10 22H2/11 x64, run the **CapriSetup** executable for your release, or extract the source package and double-click **Install Capri.cmd**. The wizard installs private runtimes, selected models and optional speech components. The CPU request classifier is included. Choose local LLMs, Hugging Face model selection, or API mode (BETA). API mode skips local conversation-model downloads and, by default, startup loading. No global Python/Node installation or terminal is required.
 
@@ -44,7 +47,7 @@ For voice replies on a supported GPU, choose your **Conversation language** and 
 
 Capri starts with the microphone and voice replies **off** on every launch. Their models stay unloaded until you enable the microphone or speaker button. Installing a speech pack does not turn it on automatically at startup; your selected languages and downloaded models are kept.
 
-License/download consent, hardware profiles, language choices, progress, cancellation, repair and selective uninstall are explained in the [wizard guide](docs/installation-wizard.md). The installer is unsigned; publisher signing and broader clean-machine qualification remain release work. Capri has read/write access to its own installation folder by default, including code and configuration; revoke it in **Settings → File access**. Other folders, microphone and screen access require separate grants.
+See the [wizard guide](docs/installation-wizard.md) for licenses, downloads, hardware profiles, language choices, cancellation, repair and selective uninstall. The Windows installer is unsigned. In 1.3.0 Capri has read-only File access to its installation folder by default. Check permissions in **Settings → File access**. Other folders, microphone and screen access require separate grants.
 
 ## Start from source
 

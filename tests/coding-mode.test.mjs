@@ -213,6 +213,9 @@ test('monitor reports saved paths, skips ignores and stops on revoking the proje
   const { workspace, service } = fixture(t, { onProjectChange: (state) => updates.push(state) });
   mkdirSync(path.join(workspace, 'dist'));
   writeFileSync(path.join(workspace, '.gitignore'), '*.tmp\n');
+  // macOS FSEvents replays writes made in the moments just before a watch starts, which would
+  // report the fixture .gitignore as a change. Let those writes settle before monitoring.
+  await delay(300);
   assert.equal(service.setMonitoring(true).watching, true);
   const waitFor = async (kind) => {
     for (let attempt = 0; attempt < 60; attempt++) {

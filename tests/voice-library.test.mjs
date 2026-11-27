@@ -19,6 +19,7 @@ import {
   voiceRuntimeKind,
 } from '../apps/desktop/voice-catalog-service.mjs';
 import { VoiceTrainingService } from '../apps/desktop/voice-training-service.mjs';
+import { venvPython } from '../apps/desktop/python-venv.mjs';
 import { speechModelsInstalled } from '../apps/desktop/language-models.mjs';
 import {
   readVoiceSettings,
@@ -57,7 +58,7 @@ function fixture(t) {
     },
   });
   write('data/voices/capri/en/exports/original/voice-profile.json', { id: 'original' });
-  write('.runtime/voice-training-venv/Scripts/python.exe', 'fixture');
+  write(venvPython('.runtime/voice-training-venv'), 'fixture');
   write('data/speech/turbo/model-receipt.json', {});
   write('data/speech/multilingual/weights.safetensors', 'abc');
   write('data/voices/capri/en/metadata.csv', 'fixture,'.repeat(30));
@@ -147,7 +148,7 @@ test('Qwen installs in its own runtime and selected CPU voices do not require th
       assert.ok(args.includes('qwen'));
       assert.ok(args.includes('-OwnerStamp'));
       assert.equal(options.env.HF_TOKEN, undefined);
-      write('.runtime/qwen-tts-venv/Scripts/python.exe', 'fixture');
+      write(venvPython('.runtime/qwen-tts-venv'), 'fixture');
       write('data/speech/qwen/model.safetensors', 'abc');
       options.output('{"stage":"models","progress":50}');
     },
@@ -224,7 +225,7 @@ test('Russian LoRA requires its reference and accent files and keeps an independ
         output('{"stage":"cuda-download","received":2,"total":4}');
         output('{"stage":"dependencies"}');
         output('{"stage":"verify"}');
-        write('.runtime/qwen-tts-cuda-venv/Scripts/python.exe', 'fixture');
+        write(venvPython('.runtime/qwen-tts-cuda-venv'), 'fixture');
         write('.runtime/qwen-tts-cuda-venv/cuda-ready.json', {
           schemaVersion: 1,
           backend: 'cu128',
@@ -232,7 +233,7 @@ test('Russian LoRA requires its reference and accent files and keeps an independ
         return;
       }
       assert.deepEqual(switches, ['-Russian']);
-      write('.runtime/qwen-tts-venv/Scripts/python.exe', 'fixture');
+      write(venvPython('.runtime/qwen-tts-venv'), 'fixture');
       write('data/speech/russian/fixture', 'abc');
       write('data/speech/accent/fixture', 'abc');
     },
@@ -283,8 +284,8 @@ test('Qwen ROCm installs as a shared runtime without replacing CPU or CUDA', asy
     files: [{ file: 'fixture', bytes: 3 }],
   });
   write('data/speech/qwen/fixture', 'abc');
-  write('.runtime/qwen-tts-venv/Scripts/python.exe', 'CPU');
-  write('.runtime/qwen-tts-cuda-venv/Scripts/python.exe', 'CUDA');
+  write(venvPython('.runtime/qwen-tts-venv'), 'CPU');
+  write(venvPython('.runtime/qwen-tts-cuda-venv'), 'CUDA');
   write('.runtime/qwen-tts-cuda-venv/cuda-ready.json', { schemaVersion: 1, backend: 'cu128' });
   const options = {
     root,
@@ -297,7 +298,7 @@ test('Qwen ROCm installs as a shared runtime without replacing CPU or CUDA', asy
       const encoded = args[args.indexOf('-ArgumentsBase64') + 1];
       assert.deepEqual(JSON.parse(Buffer.from(encoded, 'base64')), ['-Rocm']);
       output('{"stage":"rocm-download","received":1,"total":2}');
-      write('.runtime/qwen-tts-rocm-venv/Scripts/python.exe', 'ROCm');
+      write(venvPython('.runtime/qwen-tts-rocm-venv'), 'ROCm');
       write('.runtime/qwen-tts-rocm-venv/rocm-ready.json', {
         schemaVersion: 1,
         backend: 'rocm7.2.1',
@@ -373,7 +374,7 @@ test(
           options,
         );
         verified = true;
-        write('.runtime/qwen-tts-venv/Scripts/python.exe', 'fixture');
+        write(venvPython('.runtime/qwen-tts-venv'), 'fixture');
         write('data/speech/qwen/model.safetensors', 'abc');
       },
     });

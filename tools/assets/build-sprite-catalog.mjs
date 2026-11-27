@@ -1,10 +1,18 @@
 /** Compile reviewed authoring assets into an explicit runtime allowlist. */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { root } from '../../packages/runtime/src/index.mjs';
+import { readSpriteSource } from './sprite-source.mjs';
 
 const folder = path.join(root, 'assets/capri/sprites/v1');
-const source = JSON.parse(readFileSync(path.join(folder, 'complete-sprite-set.json'), 'utf8'));
+let source;
+try {
+  source = readSpriteSource(folder);
+} catch (error) {
+  if (error.code !== 'SPRITE_SOURCE_MISSING') throw error;
+  console.error(error.message);
+  process.exit(1);
+}
 const alias = (id) =>
   id.startsWith('idle-') && source.sprites.find((s) => s.id === id)?.canPersist ? id.slice(5) : id;
 const expressions = {

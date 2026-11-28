@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Povleči se do roba",
     "Catch from a hanging grip": "Ujami rob med visečim",
     "Check the wrist scanner": "Preveri skener na zapestju",
-    "Play the keytar": "Igraj na keytar"
+    "Play the keytar": "Igraj na keytar",
+    "Wild mouse and keyboard takeovers": "Divji prevzemi miške in tipkovnice",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "V divjem načinu Capri občasno na kratko prevzame nadzor nad miško in tipkovnico glede na dogajanje na zaslonu. Zahteva polni dostop do računalnika. Pritisnite Esc za zaustavitev.",
+    "Minimum time between takeovers": "Najmanjši čas med prevzemi",
+    "Test takeover (3 s)": "Preizkusi prevzem (3 s)",
+    "Switch to a window or game… {seconds} s": "Preklopite na okno ali igro… {seconds} s",
+    "Running Wild takeover…": "Izvajanje divjega prevzema…",
+    "Wild takeover finished.": "Divji prevzem je končan.",
+    "Select the Wild communication style first.": "Najprej izberite divji slog komunikacije.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Divji prevzemi zahtevajo polni dostop do računalnika. Pritisnite Esc za zaustavitev.",
+    "Open a non-sensitive application or game before testing.": "Pred preizkusom odprite neobčutljivo aplikacijo ali igro.",
+    "Wild takeover stopped.": "Divji prevzem je ustavljen.",
+    "Wild takeover is unavailable right now.": "Divji prevzem trenutno ni na voljo.",
+    "Wild prank active — press Escape to stop": "Divja potegavščina je aktivna — pritisnite Escape za zaustavitev"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

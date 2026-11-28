@@ -2656,6 +2656,19 @@
     "Preparing native NPU runtime. This can take several minutes…": "Preparando o ambiente nativo da NPU. Isso pode levar alguns minutos…",
     "Compiling and checking the native NPU model…": "Compilando e verificando o modelo nativo da NPU…",
     "Native NPU model is ready. You can use it and restart Capri.": "O modelo nativo da NPU está pronto. Você pode selecioná-lo e reiniciar a Capri.",
-    "Runtime prepared. Choose a converted model and test it.": "Ambiente de execução pronto. Escolha um modelo convertido e faça um teste."
+    "Runtime prepared. Choose a converted model and test it.": "Ambiente de execução pronto. Escolha um modelo convertido e faça um teste.",
+    "Wild mouse and keyboard takeovers": "Tomadas de controle selvagens do mouse e teclado",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "No modo Selvagem, a Capri ocasionalmente assume um breve controle do mouse e do teclado com base no que está na tela. Requer acesso total ao computador. Pressione Esc para parar.",
+    "Minimum time between takeovers": "Tempo mínimo entre tomadas de controle",
+    "Test takeover (3 s)": "Testar tomada de controle (3 s)",
+    "Switch to a window or game… {seconds} s": "Alterne para uma janela ou jogo… {seconds} s",
+    "Running Wild takeover…": "Executando tomada de controle selvagem…",
+    "Wild takeover finished.": "Tomada de controle selvagem concluída.",
+    "Select the Wild communication style first.": "Selecione primeiro o estilo de comunicação Selvagem.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "As tomadas de controle selvagens requerem acesso total ao computador. Pressione Esc para parar.",
+    "Open a non-sensitive application or game before testing.": "Abra um aplicativo não sensível ou um jogo antes de testar.",
+    "Wild takeover stopped.": "Tomada de controle selvagem interrompida.",
+    "Wild takeover is unavailable right now.": "A tomada de controle selvagem está indisponível no momento.",
+    "Wild prank active — press Escape to stop": "Pegadinha selvagem ativa — pressione Escape para parar"
   }
 }

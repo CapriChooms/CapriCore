@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "抓住边缘向上撑起",
     "Catch from a hanging grip": "悬挂时抓住边缘",
     "Check the wrist scanner": "检查手腕扫描器",
-    "Play the keytar": "弹奏键盘吉他"
+    "Play the keytar": "弹奏键盘吉他",
+    "Wild mouse and keyboard takeovers": "狂野鼠标和键盘接管",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "在狂野模式下，Capri 会根据屏幕内容偶尔短暂接管你的鼠标和键盘。需要完整电脑访问权限。按 Esc 停止。",
+    "Minimum time between takeovers": "两次接管之间的最短间隔",
+    "Test takeover (3 s)": "测试接管（3 秒）",
+    "Switch to a window or game… {seconds} s": "请切换到窗口或游戏… {seconds} 秒",
+    "Running Wild takeover…": "正在运行狂野接管…",
+    "Wild takeover finished.": "狂野接管已结束。",
+    "Select the Wild communication style first.": "请先选择狂野交流风格。",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "狂野接管需要完整电脑访问权限。按 Esc 停止。",
+    "Open a non-sensitive application or game before testing.": "测试前请打开非敏感应用或游戏。",
+    "Wild takeover stopped.": "狂野接管已停止。",
+    "Wild takeover is unavailable right now.": "狂野接管当前不可用。",
+    "Wild prank active — press Escape to stop": "狂野恶作剧进行中 — 按 Escape 停止"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -1638,6 +1638,8 @@ class DesktopActions {
         if(action=="catalog_drives")return D("ok",true,"drives",DriveInfo.GetDrives().Where(d=>d.DriveType==DriveType.Fixed&&d.IsReady).Select(d=>d.RootDirectory.FullName.ToUpperInvariant()).ToArray());
         if(action=="file_replace")return ReplaceTextFile(q);
         if(action=="wild_tab_inspect"||action=="wild_tab_close")return WildBrowserTab(q,action=="wild_tab_close");
+        if(action=="wild_prank_state")return WildPrankState(q);
+        if(action=="wild_prank_run")return WildPrankRun(q);
         if(action=="chess_view"||action=="chess_move"){
             var previous=DpiContext(new IntPtr(-4));
             try{return WildBrowserTab(q,false,true,action=="chess_move");}
@@ -1884,6 +1886,7 @@ class DesktopActions {
         return GetCursorPos(out current)&&Math.Abs(current.x-expected.x)<=1&&Math.Abs(current.y-expected.y)<=1;
     }
     static volatile bool ChessCancelled;
+    static volatile bool WildPrankCancelled;
     [DllImport("user32.dll")] static extern IntPtr GetDesktopWindow();
     [DllImport("user32.dll")] static extern bool ScreenToClient(IntPtr window,ref PointerPoint point);
     [DllImport("user32.dll")] static extern IntPtr ChildWindowFromPointEx(IntPtr window,PointerPoint point,uint flags);
@@ -2136,6 +2139,304 @@ class DesktopActions {
             return WildTabRemoved(window,pid,strip,id)?D("ok",true,"closed",true):none;
         }catch(ElementNotAvailableException){return none;}catch(InvalidOperationException){return none;}catch(ArgumentException){return none;}catch(System.ComponentModel.Win32Exception){return none;}
     }
+    static bool WildPrankEditableFocus(uint pid){
+        try{
+            var focused=AutomationElement.FocusedElement;
+            if(focused==null)return false;
+            var current=focused.Current;
+            if(current.ProcessId!=(int)pid)return false;
+            return Editable(focused)||current.IsPassword;
+        }catch{return false;}
+    }
+    static object WildPrankState(Dictionary<string,object> q){
+        IntPtr previous=DpiContext(new IntPtr(-4));
+        try{
+            var window=ComputerObservationWindow(q);
+            uint pid;GetWindowThreadProcessId(window,out pid);
+            using(var process=Process.GetProcessById((int)pid)){
+                InputRect rect;
+                if(!GetWindowRect(window,out rect))throw new InvalidOperationException("Window geometry is unavailable.");
+                bool modal=false;
+                try{
+                    var tree=AutomationElement.FromHandle(window);
+                    object windowPattern;
+                    if(tree!=null&&tree.TryGetCurrentPattern(WindowPattern.Pattern,out windowPattern))
+                        modal=((WindowPattern)windowPattern).Current.IsModal;
+                }catch(InvalidOperationException){}catch(ElementNotAvailableException){}
+                var className=new StringBuilder(128);
+                GetClassName(window,className,className.Capacity);
+                modal=modal||className.ToString()=="#32770";
+                PointerPoint cursor;
+                GetCursorPos(out cursor);
+                bool editableFocus=WildPrankEditableFocus(pid);
+                string executable="";
+                try{executable=process.MainModule.FileName;}
+                catch(System.ComponentModel.Win32Exception){executable=ComputerProcessImage(pid)??"";}
+                return D("ok",true,"windowId",window.ToInt64().ToString(),"processId",pid.ToString(),"startedAtTicks",process.StartTime.ToUniversalTime().Ticks.ToString(),"executable",Clean(executable,512),"processName",Clean(process.ProcessName,100),"untrustedTitle",WindowLabel(window),"fullscreen",Fullscreen(window,rect),"modal",modal,"x",rect.left,"y",rect.top,"width",rect.right-rect.left,"height",rect.bottom-rect.top,"displayBounds",DisplayBounds(window),"cursor",D("x",cursor.x,"y",cursor.y),"editableFocus",editableFocus);
+            }
+        }finally{if(previous!=IntPtr.Zero)DpiContext(previous);}
+    }
+    static bool WildPrankKeyAllowed(string name,int chordLength){
+        if(String.IsNullOrEmpty(name))return false;
+        if(name.Length==1)return (name[0]>='A'&&name[0]<='Z')||(name[0]>='0'&&name[0]<='9');
+        if(name=="SPACE"||name=="TAB"||name=="SHIFT"||name=="LEFT"||name=="UP"||name=="RIGHT"||name=="DOWN")return true;
+        if(name=="CTRL")return chordLength==1;
+        return false;
+    }
+    static string WildPrankAbortReason(IntPtr target,long deadlineTicks){
+        if((GetAsyncKeyState(27)&0x8000)!=0)return "escape";
+        if(WildPrankCancelled)return "cancelled";
+        if(DateTime.UtcNow.Ticks>=deadlineTicks)return "timeout";
+        if(GetForegroundWindow()!=target)return "foreground_changed";
+        return null;
+    }
+    static string WildPrankSleep(IntPtr target,long deadlineTicks,int ms,int sliceMs){
+        var timer=Stopwatch.StartNew();
+        while(timer.ElapsedMilliseconds<ms){
+            string reason=WildPrankAbortReason(target,deadlineTicks);
+            if(reason!=null)return reason;
+            int remaining=ms-(int)timer.ElapsedMilliseconds;
+            if(remaining<=0)break;
+            Thread.Sleep(Math.Min(sliceMs,remaining));
+        }
+        return WildPrankAbortReason(target,deadlineTicks);
+    }
+    static bool TryWildInt(Dictionary<string,object> obj,string key,int min,int max,out int value){
+        value=0;
+        object raw;
+        if(obj==null||!obj.TryGetValue(key,out raw)||!(raw is int))return false;
+        int n=(int)raw;
+        if(n<min||n>max)return false;
+        value=n;
+        return true;
+    }
+    sealed class WildPrankStep {
+        public string Type;
+        public int Dx,Dy,DurationMs,X,Y,HoldMs,Count,Amount,Ms;
+        public bool Pull;
+        public string Button;
+        public int[] KeyCodes;
+    }
+    static object WildPrankRun(Dictionary<string,object> q){
+        IntPtr previous=DpiContext(new IntPtr(-4));
+        try{
+            IntPtr target=InputTarget(q,true);
+            uint targetPid;GetWindowThreadProcessId(target,out targetPid);
+            bool allowButtons=q.ContainsKey("allowButtons")&&q["allowButtons"] is bool&&(bool)q["allowButtons"];
+            bool allowKeys=q.ContainsKey("allowKeys")&&q["allowKeys"] is bool&&(bool)q["allowKeys"];
+            object rawSteps;
+            var stepItems=q.TryGetValue("steps",out rawSteps)&&!(rawSteps is string)?rawSteps as System.Collections.IList:null;
+            if(stepItems==null||stepItems.Count<1||stepItems.Count>16)
+                throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Wild prank requires between 1 and 16 steps.");
+            var steps=new List<WildPrankStep>(stepItems.Count);
+            int totalDurationMs=0;
+            for(int s=0;s<stepItems.Count;s++){
+                var item=stepItems[s] as Dictionary<string,object>;
+                if(item==null)throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid wild prank step.");
+                object rawType;
+                string type=item.TryGetValue("type",out rawType)?rawType as string:null;
+                if(String.IsNullOrEmpty(type))throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Missing wild prank step type.");
+                var parsed=new WildPrankStep{Type=type};
+                if(type=="mouse_flick"){
+                    int dx,dy,durationMs;
+                    if(!TryWildInt(item,"dx",-2400,2400,out dx)||!TryWildInt(item,"dy",-1600,1600,out dy)||!TryWildInt(item,"durationMs",40,1200,out durationMs))
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid mouse_flick parameters.");
+                    parsed.Dx=dx;parsed.Dy=dy;parsed.DurationMs=durationMs;
+                    totalDurationMs+=durationMs;
+                }else if(type=="mouse_move"){
+                    int x,y,durationMs;
+                    if(!TryWildInt(item,"x",Int32.MinValue,Int32.MaxValue,out x)||!TryWildInt(item,"y",Int32.MinValue,Int32.MaxValue,out y)||!TryWildInt(item,"durationMs",60,1400,out durationMs))
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid mouse_move parameters.");
+                    bool pull=false;
+                    if(item.ContainsKey("pull")){
+                        if(!(item["pull"] is bool))throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid mouse_move pull flag.");
+                        pull=(bool)item["pull"];
+                    }
+                    parsed.X=x;parsed.Y=y;parsed.DurationMs=durationMs;parsed.Pull=pull;
+                    totalDurationMs+=durationMs;
+                }else if(type=="mouse_button"){
+                    if(!allowButtons)throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Mouse buttons are not allowed for this wild prank.");
+                    object rawButton;
+                    string button=item.TryGetValue("button",out rawButton)?rawButton as string:null;
+                    if(button!="left"&&button!="right"&&button!="middle")
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid mouse_button name.");
+                    int holdMs=0;
+                    if(item.ContainsKey("holdMs")&&!TryWildInt(item,"holdMs",0,1500,out holdMs))
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid mouse_button holdMs.");
+                    int count=1;
+                    if(item.ContainsKey("count")&&!TryWildInt(item,"count",1,3,out count))
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid mouse_button count.");
+                    parsed.Button=button;parsed.HoldMs=holdMs;parsed.Count=count;
+                    totalDurationMs+=count*(holdMs>0?holdMs:25)+(count-1)*35;
+                }else if(type=="key_press"){
+                    if(!allowKeys)throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Keyboard input is not allowed for this wild prank.");
+                    object rawKeys;
+                    var keyItems=item.TryGetValue("keys",out rawKeys)&&!(rawKeys is string)?rawKeys as System.Collections.IList:null;
+                    if(keyItems==null||keyItems.Count<1||keyItems.Count>3)
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","key_press requires 1 to 3 keys.");
+                    var seenNames=new HashSet<string>(StringComparer.Ordinal);
+                    var seenCodes=new HashSet<int>();
+                    var codes=new int[keyItems.Count];
+                    for(int k=0;k<keyItems.Count;k++){
+                        string name=keyItems[k] as string;
+                        if(name==null||!seenNames.Add(name)||!WildPrankKeyAllowed(name,keyItems.Count))
+                            throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Disallowed or duplicate wild prank key.");
+                        int code;
+                        try{code=KeyCode(name);}
+                        catch(InvalidOperationException){throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Unsupported wild prank key.");}
+                        if(!seenCodes.Add(code))
+                            throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Duplicate wild prank key.");
+                        codes[k]=code;
+                    }
+                    int holdMs=0;
+                    if(item.ContainsKey("holdMs")&&!TryWildInt(item,"holdMs",0,1800,out holdMs))
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid key_press holdMs.");
+                    parsed.KeyCodes=codes;parsed.HoldMs=holdMs;
+                    totalDurationMs+=holdMs>0?holdMs:35;
+                }else if(type=="mouse_scroll"){
+                    int amount;
+                    if(!TryWildInt(item,"amount",-8,8,out amount)||amount==0)
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid mouse_scroll amount.");
+                    parsed.Amount=amount;
+                    totalDurationMs+=Math.Abs(amount)*35;
+                }else if(type=="wait"){
+                    int ms;
+                    if(!TryWildInt(item,"ms",20,800,out ms))
+                        throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Invalid wait duration.");
+                    parsed.Ms=ms;
+                    totalDurationMs+=ms;
+                }else{
+                    throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Unsupported wild prank step type.");
+                }
+                if(totalDurationMs>10500)
+                    throw new InputPreflightException("COMPUTER_WILD_PRANK_INVALID","Wild prank total duration exceeds 10500ms.");
+                steps.Add(parsed);
+            }
+            long deadlineTicks=DateTime.UtcNow.Ticks+12500L*TimeSpan.TicksPerMillisecond;
+            var heldKeys=new List<int>();
+            var heldButtons=new List<uint>();
+            int stepsExecuted=0;
+            string abortReason=null;
+            try{
+                for(int s=0;s<steps.Count;s++){
+                    abortReason=WildPrankAbortReason(target,deadlineTicks);
+                    if(abortReason!=null)break;
+                    var step=steps[s];
+                    if(step.Type=="mouse_flick"){
+                        double accX=0.0,accY=0.0,prevX=0.0,prevY=0.0;
+                        var timer=Stopwatch.StartNew();
+                        while(true){
+                            abortReason=WildPrankAbortReason(target,deadlineTicks);
+                            if(abortReason!=null)break;
+                            double t=Math.Min(1.0,timer.Elapsed.TotalMilliseconds/step.DurationMs);
+                            double ease=t*t*(3.0-2.0*t);
+                            double nextX=step.Dx*ease,nextY=step.Dy*ease;
+                            accX+=nextX-prevX;accY+=nextY-prevY;
+                            prevX=nextX;prevY=nextY;
+                            int ix=t>=1.0?(int)Math.Round(accX):(int)Math.Truncate(accX);
+                            int iy=t>=1.0?(int)Math.Round(accY):(int)Math.Truncate(accY);
+                            accX-=ix;accY-=iy;
+                            if(ix!=0||iy!=0)
+                                Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{x=ix,y=iy,flags=1}}});
+                            if(t>=1.0)break;
+                            int remaining=step.DurationMs-(int)timer.ElapsedMilliseconds;
+                            if(remaining>0)Thread.Sleep(Math.Min(12,remaining));
+                        }
+                    }else if(step.Type=="mouse_move"){
+                        InputRect clampBounds;
+                        var monitorInfo=new MonitorInfo();monitorInfo.size=Marshal.SizeOf(monitorInfo);
+                        if(GetMonitorInfo(MonitorFromWindow(target,2),ref monitorInfo))clampBounds=monitorInfo.monitor;
+                        else{
+                            int vx=GetSystemMetrics(76),vy=GetSystemMetrics(77),vw=GetSystemMetrics(78),vh=GetSystemMetrics(79);
+                            clampBounds=new InputRect{left=vx,top=vy,right=vx+vw,bottom=vy+vh};
+                        }
+                        int maxX=Math.Max(clampBounds.left,clampBounds.right-1);
+                        int maxY=Math.Max(clampBounds.top,clampBounds.bottom-1);
+                        int destX=Math.Max(clampBounds.left,Math.Min(maxX,step.X));
+                        int destY=Math.Max(clampBounds.top,Math.Min(maxY,step.Y));
+                        PointerPoint start;
+                        if(!GetCursorPos(out start))throw new InvalidOperationException("Pointer position unavailable.");
+                        var timer=Stopwatch.StartNew();
+                        while(true){
+                            abortReason=WildPrankAbortReason(target,deadlineTicks);
+                            if(abortReason!=null)break;
+                            double t=Math.Min(1.0,timer.Elapsed.TotalMilliseconds/step.DurationMs);
+                            double ease=t*t*(3.0-2.0*t);
+                            int nx=(int)Math.Round(start.x+(destX-start.x)*ease);
+                            int ny=(int)Math.Round(start.y+(destY-start.y)*ease);
+                            nx=Math.Max(clampBounds.left,Math.Min(maxX,nx));
+                            ny=Math.Max(clampBounds.top,Math.Min(maxY,ny));
+                            SetCursorPos(nx,ny);
+                            if(t>=1.0)break;
+                            int remaining=step.DurationMs-(int)timer.ElapsedMilliseconds;
+                            if(remaining>0)Thread.Sleep(Math.Min(12,remaining));
+                        }
+                    }else if(step.Type=="mouse_button"){
+                        uint downFlag=step.Button=="right"?8u:step.Button=="middle"?32u:2u;
+                        uint upFlag=step.Button=="right"?16u:step.Button=="middle"?64u:4u;
+                        int holdDuration=step.HoldMs>0?step.HoldMs:25;
+                        for(int c=0;c<step.Count;c++){
+                            if(c>0){
+                                abortReason=WildPrankSleep(target,deadlineTicks,35,15);
+                                if(abortReason!=null)break;
+                            }
+                            abortReason=WildPrankAbortReason(target,deadlineTicks);
+                            if(abortReason!=null)break;
+                            Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=downFlag}}});
+                            heldButtons.Add(upFlag);
+                            abortReason=WildPrankSleep(target,deadlineTicks,holdDuration,15);
+                            if(abortReason!=null)break;
+                            Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=upFlag}}});
+                            heldButtons.RemoveAt(heldButtons.Count-1);
+                        }
+                    }else if(step.Type=="key_press"){
+                        if(!allowButtons&&WildPrankEditableFocus(targetPid)){
+                            abortReason="editable_focus";
+                            break;
+                        }
+                        int keyStartIndex=heldKeys.Count;
+                        for(int k=0;k<step.KeyCodes.Length;k++){
+                            abortReason=WildPrankAbortReason(target,deadlineTicks);
+                            if(abortReason!=null)break;
+                            SendKey(step.KeyCodes[k],false);
+                            heldKeys.Add(step.KeyCodes[k]);
+                        }
+                        if(abortReason!=null)break;
+                        int holdDuration=step.HoldMs>0?step.HoldMs:35;
+                        abortReason=WildPrankSleep(target,deadlineTicks,holdDuration,15);
+                        if(abortReason!=null)break;
+                        for(int k=heldKeys.Count-1;k>=keyStartIndex;k--){
+                            SendKey(heldKeys[k],true);
+                            heldKeys.RemoveAt(k);
+                        }
+                    }else if(step.Type=="mouse_scroll"){
+                        int sign=step.Amount>0?1:-1;
+                        int count=Math.Abs(step.Amount);
+                        uint wheelData=unchecked((uint)(sign*120));
+                        for(int i=0;i<count;i++){
+                            if(i>0){
+                                abortReason=WildPrankSleep(target,deadlineTicks,35,15);
+                                if(abortReason!=null)break;
+                            }
+                            abortReason=WildPrankAbortReason(target,deadlineTicks);
+                            if(abortReason!=null)break;
+                            Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=2048,data=wheelData}}});
+                        }
+                    }else if(step.Type=="wait"){
+                        abortReason=WildPrankSleep(target,deadlineTicks,step.Ms,15);
+                    }
+                    if(abortReason!=null)break;
+                    stepsExecuted++;
+                }
+            }finally{
+                for(int i=heldButtons.Count-1;i>=0;i--)
+                    try{Inject(new Input{type=0,value=new InputUnion{mouse=new MouseInput{flags=heldButtons[i]}}});}catch{}
+                for(int i=heldKeys.Count-1;i>=0;i--)
+                    try{SendKey(heldKeys[i],true);}catch{}
+            }
+            return D("ok",true,"completed",abortReason==null,"aborted",abortReason!=null,"reason",abortReason,"stepsExecuted",stepsExecuted);
+        }finally{if(previous!=IntPtr.Zero)DpiContext(previous);}
+    }
     static object Catalog(Dictionary<string,object> q,string action){
         string packageId=Text(q,"packageId");
         if(packageId.Length>0&&(action!="catalog_launch"||!IsPackagedAppId(packageId)))throw new InvalidOperationException("Invalid installed application identity.");
@@ -2293,8 +2594,15 @@ class DesktopActions {
             string line=Console.ReadLine();if(line==null||line.Length>16384)throw new InvalidOperationException("Invalid request.");
             var command=json.Deserialize<Dictionary<string,object>>(line);string action=Text(command,"action");
             if(action=="computer_watch_escape"){WatchEscape(command,json);return;}
-            if(action=="chess_move"){
-                var cancellation=new Thread(()=>{try{Console.ReadLine();}catch(IOException){}finally{ChessCancelled=true;}});
+            if(action=="chess_move"||action=="wild_prank_run"){
+                var cancellation=new Thread(()=>{
+                    try{Console.ReadLine();}
+                    catch(IOException){}
+                    finally{
+                        if(action=="chess_move")ChessCancelled=true;
+                        if(action=="wild_prank_run")WildPrankCancelled=true;
+                    }
+                });
                 cancellation.IsBackground=true;cancellation.Start();
             }
             Console.WriteLine(json.Serialize(Execute(command)));

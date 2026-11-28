@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "கருவுக்கு மேலே இழுக்கவும்",
     "Catch from a hanging grip": "பிடித்து தாங்கும் போது எல்லையை பிடிக",
     "Check the wrist scanner": "மூட்டை ஸ்கானரை சரிபார்க்க",
-    "Play the keytar": "கீட்டார் வாசிக்க"
+    "Play the keytar": "கீட்டார் வாசிக்க",
+    "Wild mouse and keyboard takeovers": "வைல்ட் மவுஸ் மற்றும் கீபோர்டு கட்டுப்பாடுகள்",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "வைல்ட் பயன்முறையில், திரையில் உள்ளதை அடிப்படையாகக் கொண்டு Capri அவ்வப்போது உங்கள் மவுஸ் மற்றும் கீபோர்டின் கட்டுப்பாட்டைச் சிறிது நேரம் எடுக்கும். இதற்கு முழு கணினி அணுகல் தேவை. நிறுத்த Esc அழுத்தவும்.",
+    "Minimum time between takeovers": "கட்டுப்பாடுகளுக்கு இடையிலான குறைந்தபட்ச நேரம்",
+    "Test takeover (3 s)": "கட்டுப்பாட்டைச் சோதிக்கவும் (3 வி)",
+    "Switch to a window or game… {seconds} s": "ஒரு சாளரம் அல்லது விளையாட்டுக்கு மாறவும்… {seconds} வி",
+    "Running Wild takeover…": "வைல்ட் கட்டுப்பாடு இயங்குகிறது…",
+    "Wild takeover finished.": "வைல்ட் கட்டுப்பாடு முடிந்தது.",
+    "Select the Wild communication style first.": "முதலில் வைல்ட் தொடர்பு பாணியைத் தேர்ந்தெடுக்கவும்.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "வைல்ட் கட்டுப்பாடுகளுக்கு முழு கணினி அணுகல் தேவை. நிறுத்த Esc அழுத்தவும்.",
+    "Open a non-sensitive application or game before testing.": "சோதிக்கும் முன் முக்கியமில்லாத செயலி அல்லது விளையாட்டைத் திறக்கவும்.",
+    "Wild takeover stopped.": "வைல்ட் கட்டுப்பாடு நிறுத்தப்பட்டது.",
+    "Wild takeover is unavailable right now.": "வைல்ட் கட்டுப்பாடு தற்போது கிடைக்கவில்லை.",
+    "Wild prank active — press Escape to stop": "வைல்ட் குறும்பு செயல்பாட்டில் உள்ளது — நிறுத்த Escape அழுத்தவும்"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

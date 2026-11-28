@@ -1349,6 +1349,7 @@ addDraft(
   () => companion.saveCommunicationStyle(),
   () => {
     companion.get('communication-style').value = companion.communicationStyle ?? 'neutral';
+    companion.wildInputPrankControls();
   },
   () => ({ style: companion.get('communication-style').value }),
 );
@@ -1666,6 +1667,7 @@ for (const selector of [
   '#companion-conversation-mode-label',
   '#wild-close-ai-tabs-label',
   '#wild-desktop-pranks-label',
+  '#wild-input-pranks-label',
   '#call-camera-card .skill-display-control > span',
 ])
   appendBetaBadge(document.querySelector(selector));
@@ -2397,6 +2399,10 @@ function event(value) {
   if (value.type === 'voice-training.status') models.voices.trainingStatus(value);
   if (value.type === 'chess.engine') chess.showEngine(value.engine);
   if (value.type === 'chess.watch') chess.updateTracking(value);
+  if (value.type === 'wild-prank.preview-status') {
+    companion.showWildPrankPreviewStatus(value);
+    return;
+  }
   if (value.type === 'initiative.status') {
     initiative.status(value.settings);
     return;

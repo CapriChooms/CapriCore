@@ -163,6 +163,12 @@ import { ChessPageAccess } from './chess/source.mjs';
 import { registerAccessIpc } from './main/access-ipc.mjs';
 import { registerCompanionIpc } from './main/companion-ipc.mjs';
 import { WildPranks } from './main/wild-pranks.mjs';
+import {
+  WildInputPranks,
+  classifyWildTarget,
+  fallbackWildPrank,
+  wildPrankPlanner,
+} from './wild-input-pranks.mjs';
 import { UpdateService } from './update-service.mjs';
 import { GitHubAccess, githubTokenUrl, credentialStorage } from './github-access.mjs';
 import { installSpeechComponents } from '../../packages/installer/src/speech-components.mjs';
@@ -1218,6 +1224,7 @@ async function initializeDesktop() {
     APPLICATION_DEFAULTS,
     validateApplications,
   );
+  const wildInputPranks = new WildInputPranks();
   const applicationAccess = new ApplicationAccess({
     file: path.join(state, 'application-access.json'),
     changed: (settings) => emit({ type: 'application.access', settings }),
@@ -1225,6 +1232,7 @@ async function initializeDesktop() {
       workflows?.cancel();
       companionActions.approvals.cancel();
       await spotifyService?.close();
+      wildInputPranks.pause();
       if (computerAgent.running || computerControl.session) await emergencyComputerStop();
     },
   });
@@ -1255,7 +1263,10 @@ async function initializeDesktop() {
     discover: async () => (await callApplicationBridge(root, { action: 'catalog_drives' })).drives,
     confirm: (options) => confirmations.request(options),
     onChange: (value) => {
-      if (!value.enabled) void computerControl.stop();
+      if (!value.enabled) {
+        wildInputPranks.pause();
+        void computerControl.stop();
+      }
       chat.computerApproval(value.enabling);
       emit({ type: 'computer-access', settings: value });
     },
@@ -3333,6 +3344,7 @@ async function initializeDesktop() {
 
   function recordAvatarClick(kind = 'body') {
     initiative.activity();
+    wildInputPranks.noteAttention();
     chessReactions?.cancel();
     if (!skillEnabled('capri.avatar-interaction')) return false;
     callSkill('capri.avatar-interaction', 'react', kind);
@@ -3354,6 +3366,16 @@ async function initializeDesktop() {
     );
   }
   const wildPranks = new WildPranks({ BrowserWindow, screen });
+  const planWildPrank = wildPrankPlanner({
+    url: rt.inferenceUrl,
+    model: settings.model,
+    modelCapabilities: settings.modelCapabilities,
+    ...inferenceOptions,
+    params: { ...auxiliaryRunnerParams, ...settings.generation },
+    persona: livePersona,
+    style: () => settingsPreview.style ?? readCommunicationStyle(rt.workspace),
+    languages: liveLanguages,
+  });
   let prankStyle;
   function prankEnvironment() {
     return (
@@ -3393,6 +3415,239 @@ async function initializeDesktop() {
         !avatarDetach?.operation &&
         !avatarDetach?.press,
     );
+  }
+  function wildInputPrankStyle(preview = false) {
+    const style = preview
+      ? (settingsPreview.style ?? (prankStyle ??= readCommunicationStyle(rt.workspace)))
+      : (prankStyle ??= readCommunicationStyle(rt.workspace));
+    return style === 'wild';
+  }
+  function wildInputPrankEligible(preview = false, { allowActiveSession = false } = {}) {
+    const environmentOk = allowActiveSession
+      ? !shuttingDown && !quitting && !sessionLocked && !musicSuspended
+      : prankEnvironment();
+    if (
+      process.platform !== 'win32' ||
+      verification ||
+      !wildInputPrankStyle(preview) ||
+      !idleCursorAccess() ||
+      !environmentOk ||
+      sleepService.phase !== 'awake' ||
+      workflowTurn ||
+      chat.active ||
+      currentChatTask ||
+      callMicrophoneArmed ||
+      recordingShown ||
+      chess?.watchRun ||
+      avatarDesktopUpdate ||
+      idleCursorMoving ||
+      maintenance ||
+      chatgpt.signingIn
+    )
+      return false;
+    if (preview) return true;
+    return Boolean(
+      companionPreferences.value.wildInputPranks === true &&
+        companionPresent() &&
+        window.isVisible() &&
+        !window.isMinimized() &&
+        !window.isFocused() &&
+        !focusMode &&
+        !settingsHost?.window?.isVisible() &&
+        !interfaceBusy &&
+        !draftBusy &&
+        !playbackBusy &&
+        !voice.generating &&
+        !pointer?.drag &&
+        !pointer?.avatarPress &&
+        !resizeSurface?.active &&
+        !avatarDetach?.operation &&
+        !avatarDetach?.press &&
+        !initiative.active &&
+        !avatarClickReactions?.active &&
+        !screenObservation.session?.controller &&
+        Date.now() >= lastSpeechUntil &&
+        !quietHour(initiativeSettings.value, new Date().getHours()),
+    );
+  }
+  async function executeWildInputPrank({ preview, neglectSeconds, signal }) {
+    if (!wildInputPrankEligible(preview))
+      return {
+        ok: false,
+        code: !wildInputPrankStyle(preview)
+          ? 'CAPRI_WILD_PRANK_STYLE_REQUIRED'
+          : !idleCursorAccess()
+            ? 'CAPRI_WILD_PRANK_ACCESS_REQUIRED'
+            : 'CAPRI_WILD_PRANK_ABORTED',
+      };
+    let state;
+    try {
+      state = await callApplicationBridge(
+        root,
+        { action: 'wild_prank_state', ignoreProcessId: String(process.pid) },
+        { signal },
+      );
+    } catch (error) {
+      if (signal?.aborted) return { ok: false, aborted: true, code: 'CAPRI_WILD_PRANK_ABORTED' };
+      return { ok: false, code: 'CAPRI_WILD_PRANK_BLOCKED', reason: error?.code ?? 'no_target' };
+    }
+    const excludedApps = initiativeSettings.value.appExclusionsEnabled
+      ? initiativeSettings.value.excludedApps
+      : [];
+    const classification = classifyWildTarget(state, { excludedApps });
+    if (classification.blocked)
+      return { ok: false, code: 'CAPRI_WILD_PRANK_BLOCKED', reason: classification.reason };
+
+    const capriBounds =
+      window && !window.isDestroyed() && window.isVisible() && !window.isMinimized()
+        ? screen.dipToScreenRect(window, window.getBounds())
+        : undefined;
+
+    let png = null;
+    if (screenVisionAvailable && backendState.phase === 'ready') {
+      try {
+        const frame = await screenFrames.frame({
+          signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]),
+          displayWindow: state.windowId,
+          limit: { width: 960, height: 540 },
+        });
+        png = frame?.png ?? null;
+      } catch {
+        if (signal?.aborted) return { ok: false, aborted: true, code: 'CAPRI_WILD_PRANK_ABORTED' };
+      }
+    }
+
+    let plan = null;
+    if (backendState.phase === 'ready') {
+      localInferenceTasks++;
+      const planSignal = AbortSignal.any([signal, AbortSignal.timeout(png ? 10_000 : 6_000)]);
+      try {
+        plan = await planWildPrank({
+          state,
+          classification,
+          png,
+          capriBounds,
+          neglectSeconds,
+          recent: wildInputPranks.recent,
+          signal: planSignal,
+        });
+      } catch {
+        if (signal?.aborted) return { ok: false, aborted: true, code: 'CAPRI_WILD_PRANK_ABORTED' };
+        plan = null;
+      } finally {
+        localInferenceTasks--;
+      }
+    }
+    if (!plan)
+      plan = fallbackWildPrank({
+        mode: classification.mode,
+        displayBounds: state.displayBounds,
+        capriBounds,
+        cursor: state.cursor,
+        editableFocus: state.editableFocus,
+      });
+    if (!plan) return { ok: false, code: 'CAPRI_WILD_PRANK_BLOCKED', reason: 'no_plan' };
+
+    if (signal?.aborted || !wildInputPrankEligible(preview))
+      return { ok: false, aborted: true, code: 'CAPRI_WILD_PRANK_ABORTED' };
+
+    const canFinish = () =>
+      wildInputPrankStyle(preview) &&
+      idleCursorAccess() &&
+      !shuttingDown &&
+      !quitting &&
+      !sessionLocked &&
+      !musicSuspended &&
+      !workflowTurn &&
+      !chat.active &&
+      (preview ||
+        (companionPreferences.value.wildInputPranks === true &&
+          !focusMode &&
+          sleepService.phase === 'awake'));
+
+    let result;
+    try {
+      result = await computerControl.runWildPrank({
+        permitted: () => wildInputPrankEligible(preview, { allowActiveSession: true }),
+        canFinish,
+        preview,
+        signal,
+        releaseKeys: () => plan.releaseKeys,
+        releaseButtons: () => plan.releaseButtons,
+        run: async ({ signal: sessionSignal, stillAllowed }) => {
+          if (plan.quip) {
+            emit({ type: 'wild-pranks.reaction', text: plan.quip, expression: plan.expression });
+            const language = liveLanguages().conversation;
+            if (
+              voice.enabled &&
+              voice.ready &&
+              voice.language === language &&
+              !playbackBusy &&
+              !voice.generating &&
+              !voicePreviewRequest &&
+              !currentCallAudio.shareReplies
+            ) {
+              const turnId = randomUUID();
+              emit({ type: 'voice.preview-started', turnId });
+              voice.preview(turnId, plan.quip);
+            }
+          }
+          return callApplicationBridge(
+            root,
+            {
+              action: 'wild_prank_run',
+              windowId: state.windowId,
+              processId: state.processId,
+              startedAtTicks: state.startedAtTicks,
+              allowButtons: classification.allowButtons,
+              allowKeys: classification.allowKeys,
+              steps: plan.steps,
+            },
+            { signal: sessionSignal, stillAllowed },
+          );
+        },
+      });
+    } catch (error) {
+      console.warn('Wild input prank failed:', error?.code ?? error?.message ?? error);
+      return { ok: false, aborted: true, code: 'CAPRI_WILD_PRANK_ABORTED' };
+    }
+    if (!result || result.ok !== true)
+      return { ok: false, aborted: true, code: result?.code ?? 'CAPRI_WILD_PRANK_ABORTED' };
+    wildInputPranks.record(plan);
+    if (result.aborted)
+      return {
+        ok: false,
+        aborted: true,
+        code: 'CAPRI_WILD_PRANK_ABORTED',
+        reason: result.reason,
+        quip: plan.quip,
+      };
+    return {
+      ok: true,
+      mode: classification.mode,
+      idea: plan.idea,
+      quip: plan.quip,
+      stepsExecuted: result.stepsExecuted,
+    };
+  }
+  function updateWildInputPranks() {
+    const enabled =
+      process.platform === 'win32' &&
+      !verification &&
+      companionPreferences.value.wildInputPranks === true &&
+      wildInputPrankStyle(false) &&
+      idleCursorAccess() &&
+      companionPresent() &&
+      window.isVisible() &&
+      !window.isMinimized() &&
+      !focusMode &&
+      sleepService.phase === 'awake';
+    wildInputPranks.tick({
+      enabled,
+      intervalSeconds: companionPreferences.value.wildInputPrankIntervalSeconds ?? 300,
+      eligible: () => wildInputPrankEligible(false),
+      run: executeWildInputPrank,
+    });
   }
   function wildTabsAllowed() {
     return (
@@ -3514,6 +3769,10 @@ async function initializeDesktop() {
       process.platform === 'win32' &&
       initiativeSettings.value.appExclusionsEnabled &&
       (roaming.avatarRoaming || roaming.avatarRoamCursorPranks);
+    const observeForWildInput =
+      process.platform === 'win32' &&
+      initiativeSettings.value.appExclusionsEnabled &&
+      roaming.wildInputPranks === true;
     if (wildEnabled) wildTabs.refresh();
     else wildTabs.reset();
     return syncAwareness({
@@ -3522,12 +3781,13 @@ async function initializeDesktop() {
       enabled: Boolean(
         process.platform === 'win32' &&
           (observeForRoaming ||
+            observeForWildInput ||
             wildEnabled ||
             (skillEnabled('capri.initiative') && settings.level !== 'off')) &&
           companionPresent() &&
           !shuttingDown &&
           !verification &&
-          (observeForRoaming || backendState.phase === 'ready'),
+          (observeForRoaming || observeForWildInput || backendState.phase === 'ready'),
       ),
     });
   }
@@ -3728,7 +3988,10 @@ async function initializeDesktop() {
         break;
       case 'capri.computer':
         if (enabled) await applicationAccess.set(true);
-        else if (computerAgent.running || computerControl.session) await emergencyComputerStop();
+        else {
+          wildInputPranks.pause();
+          if (computerAgent.running || computerControl.session) await emergencyComputerStop();
+        }
         break;
       case 'capri.workflows':
         if (!enabled) workflows.cancel();
@@ -3832,6 +4095,7 @@ async function initializeDesktop() {
     if (event.type === 'confirmation.request' && settingsHost?.window?.isVisible()) return;
     if (event.type === 'companion.settings') {
       if (!event.preview && !companionPreferences.value.wildDesktopPranks) wildPranks.tick(false);
+      if (!event.preview && !companionPreferences.value.wildInputPranks) wildInputPranks.pause();
       if (
         !event.preview &&
         microphone.setConversationMode(companionPreferences.value.conversationMode)
@@ -3895,6 +4159,7 @@ async function initializeDesktop() {
       wildTabs?.reset();
       lastSpeechUntil = Date.now() + 5000;
       initiative.activity();
+      wildInputPranks.noteAttention();
       screenObservation?.activity();
     }
     if (['microphone.settings', 'initiative.status', 'languages'].includes(event.type) && tray)
@@ -4040,7 +4305,13 @@ async function initializeDesktop() {
   function emitChat(event) {
     if (event.type === 'turn.started' && speechInstaller.busy('speech'))
       event = { ...event, silent: true };
-    if (event.type === 'turn.started') chessReactions?.cancel();
+    if (event.type === 'turn.started') {
+      chessReactions?.cancel();
+      if (!event.silent && event.source !== 'initiative') {
+        wildInputPranks.noteAttention();
+        wildInputPranks.stop();
+      }
+    }
     considerMemory(event);
     if (
       ['turn.completed', 'turn.cancelled', 'turn.failed'].includes(event.type) &&
@@ -4145,6 +4416,7 @@ async function initializeDesktop() {
     },
     unload: async () => {
       workflows?.cancel();
+      wildInputPranks.pause();
       privateMemory.lock();
       avatarClickReactions?.cancel();
       resetCallAudio();
@@ -4414,6 +4686,7 @@ async function initializeDesktop() {
 
   function stopHiddenCompanion() {
     wildPranks.pause();
+    wildInputPranks.pause();
     if (avatarOnly) return;
     clearPerch();
     avatarClickReactions?.cancel();
@@ -5580,6 +5853,7 @@ async function initializeDesktop() {
     minimizedChip?.hide();
     if (focusMode) return;
     focusMode = true;
+    wildInputPranks.pause();
     settingsHost.hide();
     hideCompanionToTray();
     emit({ type: 'window.focus-mode', active: true });
@@ -6419,8 +6693,8 @@ async function initializeDesktop() {
       ...inferenceOptions,
       params: { ...auxiliaryRunnerParams, ...settings.generation },
     }),
-    registerEscape: async (stop, { idleCursor } = {}) => {
-      const interrupt = idleCursor ? stop : emergencyComputerStop;
+    registerEscape: async (stop, { idleCursor, wildPrank } = {}) => {
+      const interrupt = idleCursor || wildPrank ? stop : emergencyComputerStop;
       let shortcut = false;
       try {
         shortcut = globalShortcut.register('Escape', () => void interrupt());
@@ -6447,18 +6721,22 @@ async function initializeDesktop() {
         globalShortcut.unregister('Escape');
       }
     },
-    showBorder: async ({ idleCursor, preview } = {}) => {
+    showBorder: async ({ idleCursor, wildPrank, preview } = {}) => {
       if (controlBorder) throw new Error('Computer control indicator is already open.');
       if (!idleCursor) avatarDetach?.reset();
+      const visibleCompanion =
+        window && !window.isDestroyed() && window.isVisible() && !window.isMinimized()
+          ? window
+          : undefined;
       const overlay = new ControlOverlay({
         BrowserWindow,
         screen,
-        owner: preview ? settingsHost?.window : window,
+        owner: wildPrank ? visibleCompanion : preview ? settingsHost?.window : window,
         idlePoint: idleCursor ? screen.getCursorScreenPoint() : undefined,
         onLost: (reason) => {
           if (controlBorder !== overlay) return;
           console.warn('Computer control indicator lost:', reason);
-          return idleCursor ? computerControl.stop() : emergencyComputerStop();
+          return idleCursor || wildPrank ? computerControl.stop() : emergencyComputerStop();
         },
       });
       controlBorder = overlay;
@@ -6466,9 +6744,11 @@ async function initializeDesktop() {
       overlay.configure(settingsPreview.computerAppearance ?? computerAppearance.snapshot());
       await overlay.show(
         uiText(
-          idleCursor
-            ? 'Cursor teleport — press Escape to stop'
-            : 'Computer control active — press Escape to stop',
+          wildPrank
+            ? 'Wild prank active — press Escape to stop'
+            : idleCursor
+              ? 'Cursor teleport — press Escape to stop'
+              : 'Computer control active — press Escape to stop',
           languages.value.interface,
         ),
       );
@@ -6576,7 +6856,9 @@ async function initializeDesktop() {
         (computerControl.session || controlBorder)
       ) {
         event.preventDefault();
-        void emergencyComputerStop();
+        if (computerControl.session?.idleCursor || computerControl.session?.wildPrank)
+          void computerControl.stop();
+        else void emergencyComputerStop();
       }
     });
   });
@@ -7352,6 +7634,27 @@ async function initializeDesktop() {
     handle('capri:cursor-prank-preview', (_value, { role }) => {
       if (role !== 'settings') throw new Error('Settings window required.');
       return previewCursorPrank(settingsHost?.window);
+    });
+    handle('capri:wild-prank-preview', async (_value, { role }) => {
+      if (role !== 'settings') throw new Error('Settings window required.');
+      if (process.platform !== 'win32' || verification)
+        return { ok: false, code: 'CAPRI_WILD_PRANK_UNAVAILABLE' };
+      if (!wildInputPrankStyle(true)) return { ok: false, code: 'CAPRI_WILD_PRANK_STYLE_REQUIRED' };
+      if (!idleCursorAccess()) return { ok: false, code: 'CAPRI_WILD_PRANK_ACCESS_REQUIRED' };
+      return wildInputPranks.preview({
+        countdownMs: 3000,
+        allowed: () =>
+          wildInputPrankStyle(true) &&
+          idleCursorAccess() &&
+          prankEnvironment() &&
+          sleepService.phase === 'awake' &&
+          !workflowTurn &&
+          !chat.active &&
+          !currentChatTask,
+        onCountdown: (seconds) =>
+          settingsHost?.send({ type: 'wild-prank.preview-status', seconds }),
+        run: executeWildInputPrank,
+      });
     });
     handle('capri:glitch-preview', (value = {}) => {
       if (
@@ -8805,7 +9108,10 @@ async function initializeDesktop() {
       currentSettings: liveCompanionSettings,
       onStyleChanged: (style) => {
         prankStyle = style;
-        if (style !== 'wild') wildPranks.tick(false);
+        if (style !== 'wild') {
+          wildPranks.tick(false);
+          wildInputPranks.pause();
+        }
         void syncInitiative().catch(() => observer.publish('failed'));
       },
       dialog: localizedDialog(dialog, (text) => uiText(text, languages.value.interface)),
@@ -10566,6 +10872,7 @@ async function initializeDesktop() {
       });
     screen.on('display-removed', () => {
       wildPranks.pause();
+      wildInputPranks.pause();
       capturePolicy.displayTopologyChanged();
       pointer.cancel();
       resizeSurface?.cancel();
@@ -10576,6 +10883,7 @@ async function initializeDesktop() {
     screen.on('display-metrics-changed', (_event, _display, metrics) => {
       if (metrics?.some((metric) => ['bounds', 'scaleFactor', 'rotation'].includes(metric))) {
         wildPranks.pause();
+        wildInputPranks.pause();
         capturePolicy.displayTopologyChanged();
         pointer.cancel();
         resizeSurface?.cancel();
@@ -10597,6 +10905,7 @@ async function initializeDesktop() {
     app.on('before-quit', (event) => {
       if (quitting) return;
       wildPranks.pause();
+      wildInputPranks.pause();
       void callCamera.stop();
       chess?.close();
       void chessDiagnostics.flush();
@@ -10829,6 +11138,7 @@ async function initializeDesktop() {
         });
         powerMonitor.on('lock-screen', () => {
           wildPranks.pause();
+          wildInputPranks.pause();
           pendingMemoryDecision?.abort();
           recordingIndicator?.hide();
           userTools.cancel();
@@ -10849,6 +11159,7 @@ async function initializeDesktop() {
         });
         powerMonitor.on('suspend', () => {
           wildPranks.pause();
+          wildInputPranks.pause();
           musicSuspended = true;
           void callCamera.stop();
           chess?.stop();
@@ -10883,6 +11194,7 @@ async function initializeDesktop() {
               !rt.remote.enabled &&
               Boolean(
                 localInferenceTasks ||
+                  wildInputPranks.running ||
                   chat.active ||
                   initiative.active ||
                   avatarClickReactions?.active ||
@@ -10904,6 +11216,7 @@ async function initializeDesktop() {
           void updateIdleCursor().catch(() => {});
           void updateDesktopAvatar().catch(() => {});
           updateWildPranks();
+          updateWildInputPranks();
           syncAvatarComposer();
           if (!verification && existsSync(showFile)) {
             let launchNonce;

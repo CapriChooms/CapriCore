@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "रिम तक खींचें",
     "Catch from a hanging grip": "लटकते समय किनारा पकड़ो",
     "Check the wrist scanner": "कलाई स्कैनर की जाँच करो",
-    "Play the keytar": "कीटार बजाओ"
+    "Play the keytar": "कीटार बजाओ",
+    "Wild mouse and keyboard takeovers": "वाइल्ड माउस और कीबोर्ड टेकओवर",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "वाइल्ड मोड में, Capri स्क्रीन पर दिख रही चीज़ों के आधार पर कभी-कभी थोड़े समय के लिए आपके माउस और कीबोर्ड का नियंत्रण ले लेती है। इसके लिए कंप्यूटर की पूरी पहुँच आवश्यक है। रोकने के लिए Esc दबाएँ।",
+    "Minimum time between takeovers": "टेकओवर के बीच न्यूनतम समय",
+    "Test takeover (3 s)": "टेकओवर आज़माएँ (3 सेकंड)",
+    "Switch to a window or game… {seconds} s": "किसी विंडो या गेम पर स्विच करें… {seconds} सेकंड",
+    "Running Wild takeover…": "वाइल्ड टेकओवर चल रहा है…",
+    "Wild takeover finished.": "वाइल्ड टेकओवर पूरा हुआ।",
+    "Select the Wild communication style first.": "पहले वाइल्ड संवाद शैली चुनें।",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "वाइल्ड टेकओवर के लिए कंप्यूटर की पूरी पहुँच आवश्यक है। रोकने के लिए Esc दबाएँ।",
+    "Open a non-sensitive application or game before testing.": "परीक्षण से पहले कोई गैर-संवेदनशील ऐप या गेम खोलें।",
+    "Wild takeover stopped.": "वाइल्ड टेकओवर रोक दिया गया।",
+    "Wild takeover is unavailable right now.": "वाइल्ड टेकओवर अभी उपलब्ध नहीं है।",
+    "Wild prank active — press Escape to stop": "वाइल्ड शरारत सक्रिय है — रोकने के लिए Escape दबाएँ"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "రిమ్ వరకు తీయండి",
     "Catch from a hanging grip": "లోపల తాకుతూ అంచున పట్టు",
     "Check the wrist scanner": "కలుపుని తనిఖీ చేయండి",
-    "Play the keytar": "కీటార్ వాయించండి"
+    "Play the keytar": "కీటార్ వాయించండి",
+    "Wild mouse and keyboard takeovers": "వైల్డ్ మౌస్ మరియు కీబోర్డ్ నియంత్రణలు",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "వైల్డ్ మోడ్‌లో, స్క్రీన్‌పై ఉన్నదాని ఆధారంగా Capri అప్పుడప్పుడు మీ మౌస్ మరియు కీబోర్డ్‌పై కొద్దిసేపు నియంత్రణ తీసుకుంటుంది. దీనికి పూర్తి కంప్యూటర్ యాక్సెస్ అవసరం. ఆపడానికి Esc నొక్కండి.",
+    "Minimum time between takeovers": "నియంత్రణల మధ్య కనీస సమయం",
+    "Test takeover (3 s)": "నియంత్రణను పరీక్షించండి (3 సె.)",
+    "Switch to a window or game… {seconds} s": "ఒక విండో లేదా గేమ్‌కు మారండి… {seconds} సె.",
+    "Running Wild takeover…": "వైల్డ్ నియంత్రణ నడుస్తోంది…",
+    "Wild takeover finished.": "వైల్డ్ నియంత్రణ పూర్తయింది.",
+    "Select the Wild communication style first.": "ముందుగా వైల్డ్ సంభాషణ శైలిని ఎంచుకోండి.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "వైల్డ్ నియంత్రణలకు పూర్తి కంప్యూటర్ యాక్సెస్ అవసరం. ఆపడానికి Esc నొక్కండి.",
+    "Open a non-sensitive application or game before testing.": "పరీక్షించే ముందు సున్నితమైనది కాని యాప్ లేదా గేమ్ తెరవండి.",
+    "Wild takeover stopped.": "వైల్డ్ నియంత్రణ ఆపివేయబడింది.",
+    "Wild takeover is unavailable right now.": "వైల్డ్ నియంత్రణ ప్రస్తుతం అందుబాటులో లేదు.",
+    "Wild prank active — press Escape to stop": "వైల్డ్ చిలిపి పని సక్రియంగా ఉంది — ఆపడానికి Escape నొక్కండి"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -2107,7 +2107,9 @@ const wildTabMessage = document.getElementById('wild-tab-message');
 const wildTabReaction = document.getElementById('wild-tab-reaction');
 const wildTabKeep = document.getElementById('wild-tab-keep');
 const wildTabCountdown = document.getElementById('wild-tab-countdown');
-let wildPrompt, wildCountdownAnimation;
+const wildPrankNotice = document.getElementById('wild-prank-notice');
+const wildPrankReaction = document.getElementById('wild-prank-reaction');
+let wildPrompt, wildCountdownAnimation, wildPrankTimer;
 wildTabKeep.onclick = () => {
   if (wildPrompt) void api.keepWildTab(wildPrompt).catch((error) => notice(error.message));
 };
@@ -2958,6 +2960,21 @@ function onEvent(event) {
     wildTabReaction.hidden = false;
     if (!presence.sleeping) director?.react(event.expression, performance.now(), 2200);
     scheduleRegions();
+    return;
+  }
+  if (event.type === 'wild-pranks.reaction') {
+    if (wildPrankNotice && wildPrankReaction && event.text) {
+      clearTimeout(wildPrankTimer);
+      wildPrankReaction.textContent = event.text;
+      wildPrankNotice.hidden = false;
+      wildPrankTimer = setTimeout(() => {
+        wildPrankNotice.hidden = true;
+        wildPrankReaction.textContent = '';
+        scheduleRegions();
+      }, 10500);
+      scheduleRegions();
+    }
+    if (!presence.sleeping) director?.react(event.expression || 'smirk', performance.now(), 3200);
     return;
   }
   if (event.type === 'screen.clip-request') {

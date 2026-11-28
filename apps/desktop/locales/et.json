@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Tõmba üles ääre juurde",
     "Catch from a hanging grip": "Haara servast riputades",
     "Check the wrist scanner": "Kontrolli randmeskannerit",
-    "Play the keytar": "Mängi keytari"
+    "Play the keytar": "Mängi keytari",
+    "Wild mouse and keyboard takeovers": "Metsikud hiire ja klaviatuuri ülevõtmised",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Metsikus režiimis võtab Capri aeg-ajalt ekraanil toimuva põhjal korraks hiire ja klaviatuuri juhtimise üle. Nõuab täielikku juurdepääsu arvutile. Peatamiseks vajuta Esc.",
+    "Minimum time between takeovers": "Minimaalne aeg ülevõtmiste vahel",
+    "Test takeover (3 s)": "Testi ülevõtmist (3 s)",
+    "Switch to a window or game… {seconds} s": "Lülitu aknale või mängule… {seconds} s",
+    "Running Wild takeover…": "Metsik ülevõtmine töötab…",
+    "Wild takeover finished.": "Metsik ülevõtmine lõppes.",
+    "Select the Wild communication style first.": "Vali esmalt metsik suhtlusstiil.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Metsikud ülevõtmised nõuavad täielikku juurdepääsu arvutile. Peatamiseks vajuta Esc.",
+    "Open a non-sensitive application or game before testing.": "Ava enne testimist mittetundlik rakendus või mäng.",
+    "Wild takeover stopped.": "Metsik ülevõtmine peatati.",
+    "Wild takeover is unavailable right now.": "Metsik ülevõtmine pole praegu saadaval.",
+    "Wild prank active — press Escape to stop": "Metsik vemp on aktiivne — peatamiseks vajuta Escape"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

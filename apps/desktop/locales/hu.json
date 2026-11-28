@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Felhúzás a peremre",
     "Catch from a hanging grip": "Fogd meg az élét, miközben lóg",
     "Check the wrist scanner": "Ellenőrizd a csukló szkennert",
-    "Play the keytar": "Játssz a keytaron"
+    "Play the keytar": "Játssz a keytaron",
+    "Wild mouse and keyboard takeovers": "Vad egér- és billentyűzet-átvételek",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Vad módban a Capri időnként rövid időre átveszi az egér és a billentyűzet irányítását a képernyőn látottak alapján. Teljes számítógép-hozzáférést igényel. A leállításhoz nyomd meg az Esc billentyűt.",
+    "Minimum time between takeovers": "Minimális idő az átvételek között",
+    "Test takeover (3 s)": "Átvétel tesztelése (3 mp)",
+    "Switch to a window or game… {seconds} s": "Válts át egy ablakra vagy játékra… {seconds} mp",
+    "Running Wild takeover…": "Vad átvétel folyamatban…",
+    "Wild takeover finished.": "A vad átvétel befejeződött.",
+    "Select the Wild communication style first.": "Először válaszd ki a Vad kommunikációs stílust.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "A vad átvételek teljes számítógép-hozzáférést igényelnek. A leállításhoz nyomd meg az Esc billentyűt.",
+    "Open a non-sensitive application or game before testing.": "Tesztelés előtt nyiss meg egy nem érzékeny alkalmazást vagy játékot.",
+    "Wild takeover stopped.": "A vad átvétel leállítva.",
+    "Wild takeover is unavailable right now.": "A vad átvétel jelenleg nem érhető el.",
+    "Wild prank active — press Escape to stop": "Vad tréfa aktív — nyomd meg az Escape billentyűt a leállításhoz"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

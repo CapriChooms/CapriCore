@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Hilahin pataas sa gilid",
     "Catch from a hanging grip": "Hawakan ang gilid habang nakabitin",
     "Check the wrist scanner": "Suriin ang wrist scanner",
-    "Play the keytar": "Tumugtog ng keytar"
+    "Play the keytar": "Tumugtog ng keytar",
+    "Wild mouse and keyboard takeovers": "Mga ligaw na pagkontrol sa mouse at keyboard",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Sa Wild mode, paminsan-minsang kinukuha ng Capri ang maikling kontrol sa iyong mouse at keyboard batay sa nakikita sa screen. Nangangailangan ng ganap na access sa computer. Pindutin ang Esc upang huminto.",
+    "Minimum time between takeovers": "Pinakamababang oras sa pagitan ng mga pagkontrol",
+    "Test takeover (3 s)": "Subukan ang pagkontrol (3 s)",
+    "Switch to a window or game… {seconds} s": "Lumipat sa isang window o laro… {seconds} s",
+    "Running Wild takeover…": "Pinatatakbo ang ligaw na pagkontrol…",
+    "Wild takeover finished.": "Tapos na ang ligaw na pagkontrol.",
+    "Select the Wild communication style first.": "Piliin muna ang Wild na istilo ng pakikipag-usap.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Ang mga ligaw na pagkontrol ay nangangailangan ng ganap na access sa computer. Pindutin ang Esc upang huminto.",
+    "Open a non-sensitive application or game before testing.": "Magbukas ng hindi sensitibong app o laro bago magsubok.",
+    "Wild takeover stopped.": "Inihinto ang ligaw na pagkontrol.",
+    "Wild takeover is unavailable right now.": "Hindi magagamit ang ligaw na pagkontrol ngayon.",
+    "Wild prank active — press Escape to stop": "Aktibo ang ligaw na biro — pindutin ang Escape upang huminto"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

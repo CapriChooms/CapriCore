@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Pakelti iki krašto",
     "Catch from a hanging grip": "Pagauk kraštą pakabintas",
     "Check the wrist scanner": "Patikrink riešo skaitytuvą",
-    "Play the keytar": "Grok ant keytaro"
+    "Play the keytar": "Grok ant keytaro",
+    "Wild mouse and keyboard takeovers": "Laukiniai pelės ir klaviatūros perėmimai",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Laukiniame režime Capri retkarčiais trumpam perima pelės ir klaviatūros valdymą pagal tai, kas vyksta ekrane. Reikalinga visiška prieiga prie kompiuterio. Paspauskite Esc, kad sustabdytumėte.",
+    "Minimum time between takeovers": "Minimalus laikas tarp perėmimų",
+    "Test takeover (3 s)": "Išbandyti perėmimą (3 s)",
+    "Switch to a window or game… {seconds} s": "Perjunkite į langą arba žaidimą… {seconds} s",
+    "Running Wild takeover…": "Vykdomas laukinis perėmimas…",
+    "Wild takeover finished.": "Laukinis perėmimas baigtas.",
+    "Select the Wild communication style first.": "Pirmiausia pasirinkite laukinį bendravimo stilių.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Laukiniams perėmimams reikalinga visiška prieiga prie kompiuterio. Paspauskite Esc, kad sustabdytumėte.",
+    "Open a non-sensitive application or game before testing.": "Prieš bandydami atidarykite nejautrią programą arba žaidimą.",
+    "Wild takeover stopped.": "Laukinis perėmimas sustabdytas.",
+    "Wild takeover is unavailable right now.": "Laukinis perėmimas šiuo metu nepasiekiamas.",
+    "Wild prank active — press Escape to stop": "Aktyvus laukinis pokštas — paspauskite Escape, kad sustabdytumėte"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

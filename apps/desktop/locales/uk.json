@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Потягнутися до обідка",
     "Catch from a hanging grip": "Ловіть край, тримаючись",
     "Check the wrist scanner": "Перевірте сканер на зап’ясті",
-    "Play the keytar": "Грайте на кейтарі"
+    "Play the keytar": "Грайте на кейтарі",
+    "Wild mouse and keyboard takeovers": "Дикі перехоплення миші та клавіатури",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "У дикому режимі Capri іноді ненадовго перехоплює керування мишею та клавіатурою залежно від того, що на екрані. Потрібен повний доступ до комп’ютера. Натисніть Esc, щоб зупинити.",
+    "Minimum time between takeovers": "Мінімальний час між перехопленнями",
+    "Test takeover (3 s)": "Перевірити перехоплення (3 с)",
+    "Switch to a window or game… {seconds} s": "Перейдіть до вікна або гри… {seconds} с",
+    "Running Wild takeover…": "Виконується дике перехоплення…",
+    "Wild takeover finished.": "Дике перехоплення завершено.",
+    "Select the Wild communication style first.": "Спочатку виберіть дикий стиль спілкування.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Дикі перехоплення потребують повного доступу до комп’ютера. Натисніть Esc, щоб зупинити.",
+    "Open a non-sensitive application or game before testing.": "Перед тестуванням відкрийте неконфіденційну програму або гру.",
+    "Wild takeover stopped.": "Дике перехоплення зупинено.",
+    "Wild takeover is unavailable right now.": "Дике перехоплення зараз недоступне.",
+    "Wild prank active — press Escape to stop": "Активний дикий розіграш — натисніть Escape, щоб зупинити"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

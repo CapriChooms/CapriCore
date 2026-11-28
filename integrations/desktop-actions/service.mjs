@@ -112,7 +112,8 @@ export function callApplicationBridge(
   if (!stillAllowed()) throw new Error('Application permission is disabled');
   const executable = applicationBridgeExecutable(root);
   return new Promise((resolve, reject) => {
-    const cancellableChessMove = command.action === 'chess_move';
+    const isChessMove = command.action === 'chess_move';
+    const cancellableRun = isChessMove || command.action === 'wild_prank_run';
     const windows = process.env.SystemRoot ?? 'C:\\Windows';
     const child = spawn(executable, [], {
       windowsHide: true,
@@ -152,11 +153,11 @@ export function callApplicationBridge(
         };
         child.once('close', terminated);
         terminationTimer = setTimeout(() => {
-          if (cancellableChessMove) child.kill();
+          if (cancellableRun) child.kill();
           terminated();
         }, 2000);
         terminationTimer.unref?.();
-        if (cancellableChessMove) child.stdin.end('stop\n');
+        if (cancellableRun) child.stdin.end('stop\n');
         else child.kill();
         if (child.exitCode !== null || child.signalCode !== null) terminated();
       } else resolve(value);
@@ -169,7 +170,7 @@ export function callApplicationBridge(
             'The application did not respond in time; its current state must be checked before retrying.',
           ),
         ),
-      command.action === 'calculate' ? 20000 : 12000,
+      command.action === 'calculate' || command.action === 'wild_prank_run' ? 20000 : 12000,
     );
     const permissionCheck = setInterval(() => {
       try {
@@ -194,7 +195,7 @@ export function callApplicationBridge(
       if (
         !settled &&
         !movePressed &&
-        cancellableChessMove &&
+        isChessMove &&
         /^chess_move_pressed\r?\n/m.test(errorOutput)
       ) {
         movePressed = true;
@@ -228,7 +229,7 @@ export function callApplicationBridge(
       return;
     }
     const request = JSON.stringify(command) + '\n';
-    if (cancellableChessMove) child.stdin.write(request);
+    if (cancellableRun) child.stdin.write(request);
     else child.stdin.end(request);
   });
 }

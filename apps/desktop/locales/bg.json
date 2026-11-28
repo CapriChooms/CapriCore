@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Дръпни се до ръба",
     "Catch from a hanging grip": "Хвани ръба, докато се висиш",
     "Check the wrist scanner": "Провери скенера за китката",
-    "Play the keytar": "Свири на кейтар"
+    "Play the keytar": "Свири на кейтар",
+    "Wild mouse and keyboard takeovers": "Диви превземания на мишката и клавиатурата",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "В див режим Capri понякога поема за кратко контрола над мишката и клавиатурата според това, което е на екрана. Изисква пълен достъп до компютъра. Натиснете Esc за спиране.",
+    "Minimum time between takeovers": "Минимално време между превземанията",
+    "Test takeover (3 s)": "Тествай превземане (3 с)",
+    "Switch to a window or game… {seconds} s": "Превключете към прозорец или игра… {seconds} с",
+    "Running Wild takeover…": "Изпълнява се диво превземане…",
+    "Wild takeover finished.": "Дивото превземане завърши.",
+    "Select the Wild communication style first.": "Първо изберете див стил на общуване.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Дивите превземания изискват пълен достъп до компютъра. Натиснете Esc за спиране.",
+    "Open a non-sensitive application or game before testing.": "Отворете нечувствително приложение или игра преди тестване.",
+    "Wild takeover stopped.": "Дивото превземане е спряно.",
+    "Wild takeover is unavailable right now.": "Дивото превземане не е налично в момента.",
+    "Wild prank active — press Escape to stop": "Активна дива шега — натиснете Escape за спиране"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

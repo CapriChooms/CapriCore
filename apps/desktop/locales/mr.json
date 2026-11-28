@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "रिमकडे ओढा",
     "Catch from a hanging grip": "अडचणीत असताना कडा पकडा",
     "Check the wrist scanner": "मनगटाचे स्कॅनर तपासा",
-    "Play the keytar": "कीटार वाजवा"
+    "Play the keytar": "कीटार वाजवा",
+    "Wild mouse and keyboard takeovers": "वाइल्ड माउस आणि कीबोर्ड ताबा",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "वाइल्ड मोडमध्ये, स्क्रीनवर जे दिसते त्यानुसार Capri अधूनमधून थोड्या काळासाठी तुमच्या माउस आणि कीबोर्डचा ताबा घेते. यासाठी संगणकाचा पूर्ण प्रवेश आवश्यक आहे. थांबवण्यासाठी Esc दाबा.",
+    "Minimum time between takeovers": "ताब्यांमधील किमान वेळ",
+    "Test takeover (3 s)": "ताबा तपासा (3 से.)",
+    "Switch to a window or game… {seconds} s": "एखाद्या विंडो किंवा गेमवर जा… {seconds} से.",
+    "Running Wild takeover…": "वाइल्ड ताबा सुरू आहे…",
+    "Wild takeover finished.": "वाइल्ड ताबा पूर्ण झाला.",
+    "Select the Wild communication style first.": "आधी वाइल्ड संवाद शैली निवडा.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "वाइल्ड ताब्यांसाठी संगणकाचा पूर्ण प्रवेश आवश्यक आहे. थांबवण्यासाठी Esc दाबा.",
+    "Open a non-sensitive application or game before testing.": "तपासणीपूर्वी संवेदनशील नसलेले अ‍ॅप किंवा गेम उघडा.",
+    "Wild takeover stopped.": "वाइल्ड ताबा थांबवला गेला.",
+    "Wild takeover is unavailable right now.": "वाइल्ड ताबा सध्या उपलब्ध नाही.",
+    "Wild prank active — press Escape to stop": "वाइल्ड खोडी सक्रिय आहे — थांबवण्यासाठी Escape दाबा"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

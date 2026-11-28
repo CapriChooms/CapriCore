@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Kéo lên đến mép",
     "Catch from a hanging grip": "Bắt lấy cạnh khi đang treo",
     "Check the wrist scanner": "Kiểm tra máy quét cổ tay",
-    "Play the keytar": "Chơi đàn keytar"
+    "Play the keytar": "Chơi đàn keytar",
+    "Wild mouse and keyboard takeovers": "Chiếm quyền chuột và bàn phím kiểu Hoang dã",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Ở chế độ Hoang dã, Capri thỉnh thoảng sẽ tạm thời điều khiển chuột và bàn phím của bạn dựa trên nội dung trên màn hình. Cần quyền truy cập máy tính đầy đủ. Nhấn Esc để dừng.",
+    "Minimum time between takeovers": "Thời gian tối thiểu giữa các lần chiếm quyền",
+    "Test takeover (3 s)": "Thử chiếm quyền (3 giây)",
+    "Switch to a window or game… {seconds} s": "Chuyển sang một cửa sổ hoặc trò chơi… {seconds} giây",
+    "Running Wild takeover…": "Đang chạy chiếm quyền Hoang dã…",
+    "Wild takeover finished.": "Đã hoàn tất chiếm quyền Hoang dã.",
+    "Select the Wild communication style first.": "Hãy chọn phong cách giao tiếp Hoang dã trước.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Chiếm quyền Hoang dã cần quyền truy cập máy tính đầy đủ. Nhấn Esc để dừng.",
+    "Open a non-sensitive application or game before testing.": "Hãy mở một ứng dụng không nhạy cảm hoặc trò chơi trước khi thử.",
+    "Wild takeover stopped.": "Đã dừng chiếm quyền Hoang dã.",
+    "Wild takeover is unavailable right now.": "Chiếm quyền Hoang dã hiện không khả dụng.",
+    "Wild prank active — press Escape to stop": "Trò đùa Hoang dã đang hoạt động — nhấn Escape để dừng"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

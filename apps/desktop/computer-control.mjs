@@ -148,6 +148,7 @@ export class ComputerControl {
       type: 'computer.control',
       ...this.snapshot(),
       ...(this.session?.idleCursor && { idleCursor: true }),
+      ...(this.session?.wildPrank && { wildPrank: true }),
     });
   }
   #authorized(session) {
@@ -155,7 +156,9 @@ export class ComputerControl {
       this.allowed() &&
       (session.idleCursor
         ? session.idleCursor()
-        : this.canStart() && session.turn === this.currentTurn())
+        : session.wildPrank
+          ? session.wildPrank()
+          : this.canStart() && session.turn === this.currentTurn())
     );
   }
   /** The same owner callbacks cover chat turns and explicitly started workflows. */
@@ -175,7 +178,7 @@ export class ComputerControl {
   }
   requireSession() {
     const current = this.session;
-    if (current?.idleCursor)
+    if (current?.idleCursor || current?.wildPrank)
       throw new Error('Start a new owner-requested session before sending computer actions.');
     if (current && !current.ready)
       throw new Error('Computer control is not ready. Wait for its indicator.');
@@ -197,7 +200,7 @@ export class ComputerControl {
       throw new Error('Computer control was stopped for this turn. Wait for a new owner request.');
     if (typeof goal !== 'string' || !goal.trim() || goal.length > 8000)
       throw new Error('Describe the owner task.');
-    if (this.session?.idleCursor || this.stopping) {
+    if (this.session?.idleCursor || this.session?.wildPrank || this.stopping) {
       await this.stop({ blockTurn: false });
       return this.begin(goal, { maxSteps, signal });
     }
@@ -262,15 +265,91 @@ export class ComputerControl {
       if (this.session === session) await this.stop({ blockTurn: false });
     }
   }
-  async #begin(goal, { maxSteps, signal, idleCursor, preview = false }) {
+  async runWildPrank({
+    permitted,
+    canFinish = permitted,
+    run,
+    releaseKeys = () => [],
+    releaseButtons = () => [],
+    signal,
+    preview = false,
+  } = {}) {
+    const cancelled = { ok: false, code: 'CAPRI_WILD_PRANK_CANCELLED' };
+    const mayStart = () =>
+      !this.session && !this.stopping && !signal?.aborted && this.allowed() && permitted();
+    if (!mayStart()) return cancelled;
+    let dispatched = false;
+    const starting = this.#begin('Wild prank', {
+      maxSteps: 1,
+      signal,
+      wildPrank: () => (dispatched ? canFinish() : permitted()),
+      preview,
+    });
+    const session = this.session;
+    try {
+      await starting;
+      const stillAllowed = () =>
+        this.session === session && this.#authorized(session) && this.now() < session.deadline;
+      if (!stillAllowed()) return cancelled;
+      dispatched = true;
+      session.pending = Promise.resolve().then(() =>
+        run({ signal: session.controller.signal, stillAllowed }),
+      );
+      return await session.pending;
+    } finally {
+      if (dispatched) {
+        let keys = [];
+        let buttons = [];
+        try {
+          keys = [
+            ...new Set((releaseKeys?.() ?? []).filter((key) => typeof key === 'string' && key)),
+          ];
+        } catch {}
+        try {
+          buttons = [
+            ...new Set(
+              (releaseButtons?.() ?? []).filter((button) =>
+                ['left', 'right', 'middle'].includes(button),
+              ),
+            ),
+          ];
+        } catch {}
+        const releaseCommands = [];
+        for (let i = 0; i < keys.length; i += 4)
+          releaseCommands.push({ action: 'computer_release', keys: keys.slice(i, i + 4) });
+        for (const button of buttons)
+          releaseCommands.push({ action: 'computer_release', keys: [], button });
+        if (releaseCommands.length) {
+          await Promise.all(
+            releaseCommands.map(async (command) => {
+              try {
+                const task = this.bridge(command, {
+                  signal: AbortSignal.timeout(this.cleanupTimeoutMs),
+                });
+                return await settleWithin(task, this.cleanupTimeoutMs);
+              } catch {
+                return false;
+              }
+            }),
+          );
+        }
+      }
+      if (this.session === session) await this.stop({ blockTurn: false });
+      else if (this.stopping) await this.stopping;
+    }
+  }
+  async #begin(goal, { maxSteps, signal, idleCursor, wildPrank, preview = false }) {
     const session = {
       id: randomUUID(),
       turn: this.currentTurn(),
       goal,
       idleCursor,
+      wildPrank,
       maxSteps,
       steps: 0,
-      deadline: this.now() + (idleCursor ? IDLE_CURSOR_SESSION_MS : this.timeoutMs),
+      deadline:
+        this.now() +
+        (idleCursor ? IDLE_CURSOR_SESSION_MS : wildPrank ? WILD_PRANK_SESSION_MS : this.timeoutMs),
       controller: new AbortController(),
       target: null,
       ready: false,
@@ -285,7 +364,12 @@ export class ComputerControl {
     if (signal?.aborted) cancelOwner();
     try {
       try {
-        if (!(await this.registerEscape(cancelOwner, { idleCursor: Boolean(idleCursor) })))
+        if (
+          !(await this.registerEscape(cancelOwner, {
+            idleCursor: Boolean(idleCursor),
+            wildPrank: Boolean(wildPrank),
+          }))
+        )
           throw new Error();
       } catch (cause) {
         throw Object.assign(
@@ -315,7 +399,11 @@ export class ComputerControl {
             boundary.throwIfAborted();
             if (this.session !== session || !this.#authorized(session))
               throw new Error('Computer control cancelled.');
-            return this.showBorder({ idleCursor: Boolean(idleCursor), preview });
+            return this.showBorder({
+              idleCursor: Boolean(idleCursor),
+              wildPrank: Boolean(wildPrank),
+              preview,
+            });
           })
           .then((value) => {
             if (this.session !== session && !this.session) {
@@ -358,7 +446,7 @@ export class ComputerControl {
     if (session) {
       session.stopped = true;
       session.detachOwner?.();
-      if (blockTurn && !session.idleCursor) this.blockedTurn = session.turn;
+      if (blockTurn && !session.idleCursor && !session.wildPrank) this.blockedTurn = session.turn;
       clearTimeout(session.timer);
     }
     const hide = () => {
@@ -1129,3 +1217,4 @@ export class ComputerControl {
   }
 }
 const IDLE_CURSOR_SESSION_MS = 6000;
+const WILD_PRANK_SESSION_MS = 20_000;

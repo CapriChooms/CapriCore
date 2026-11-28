@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "التشبّث بالحافة والصعود إليها",
     "Catch from a hanging grip": "أمسك الحافة أثناء التعليق",
     "Check the wrist scanner": "افحص ماسح المعصم",
-    "Play the keytar": "اعزف على الكيتار"
+    "Play the keytar": "اعزف على الكيتار",
+    "Wild mouse and keyboard takeovers": "استيلاء جامح على الفأرة ولوحة المفاتيح",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "في الوضع الجامح، تتولى Capri أحيانًا التحكم لفترة وجيزة في الفأرة ولوحة المفاتيح بناءً على ما يظهر على الشاشة. يتطلب الوصول الكامل إلى الكمبيوتر. اضغط على Esc للإيقاف.",
+    "Minimum time between takeovers": "الحد الأدنى للوقت بين عمليات الاستيلاء",
+    "Test takeover (3 s)": "اختبار الاستيلاء (3 ث)",
+    "Switch to a window or game… {seconds} s": "انتقل إلى نافذة أو لعبة… {seconds} ث",
+    "Running Wild takeover…": "جارٍ تنفيذ الاستيلاء الجامح…",
+    "Wild takeover finished.": "انتهى الاستيلاء الجامح.",
+    "Select the Wild communication style first.": "اختر أسلوب التواصل الجامح أولًا.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "تتطلب عمليات الاستيلاء الجامح الوصول الكامل إلى الكمبيوتر. اضغط على Esc للإيقاف.",
+    "Open a non-sensitive application or game before testing.": "افتح تطبيقًا غير حساس أو لعبة قبل الاختبار.",
+    "Wild takeover stopped.": "تم إيقاف الاستيلاء الجامح.",
+    "Wild takeover is unavailable right now.": "الاستيلاء الجامح غير متاح حاليًا.",
+    "Wild prank active — press Escape to stop": "المقلب الجامح نشط — اضغط على Escape للإيقاف"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -353,6 +353,18 @@ export const coreGuides = {
       { interfaceCopy: true },
     ],
     [
+      '#wild-input-pranks',
+      [
+        'Wild mouse and keyboard takeovers',
+        'In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.',
+      ],
+      [
+        'Перехваты мыши и клавиатуры в диком стиле',
+        'В диком стиле Капри иногда ненадолго перехватывает мышь и клавиатуру с учётом того, что происходит на экране. Требуется полный доступ к компьютеру. Нажмите Esc, чтобы остановить.',
+      ],
+      { interfaceCopy: true },
+    ],
+    [
       '#companion-fresh-context',
       [
         'Start each question with fresh context',

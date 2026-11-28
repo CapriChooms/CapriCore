@@ -459,8 +459,8 @@
     },
     {
       "path": "apps/desktop/companion-settings.mjs",
-      "bytes": 6107,
-      "sha256": "fb9b698359214ff15234475e47e0b169ed74d8f7e43b18c0bbe6e7dfe175692c"
+      "bytes": 6377,
+      "sha256": "b1630db550899ae065e86e1d7f23c8238928faf607e9af7eec8708b27f321c76"
     },
     {
       "path": "apps/desktop/computer-agent.mjs",
@@ -474,8 +474,8 @@
     },
     {
       "path": "apps/desktop/computer-control.mjs",
-      "bytes": 46169,
-      "sha256": "b047f87d96243aa84370ad914462d2020cb07b0c7e7d36cceae4e29abfc7632a"
+      "bytes": 49088,
+      "sha256": "9b14beb376626b1c8a040f005b330c2dda3d39c4d8beacb02554fb2837328533"
     },
     {
       "path": "apps/desktop/computer-mode-request.mjs",
@@ -1004,263 +1004,263 @@
     },
     {
       "path": "apps/desktop/locales/af.json",
-      "bytes": 233832,
-      "sha256": "38807e5f00b2552d3fa84dd11c6f9cb4ede9c4713613a4f9c6b14d43bc9fe868"
+      "bytes": 235203,
+      "sha256": "702e262d025c53a6f7d4e4c357497c49603f057aa92ab3d63c8873ed56e231e3"
     },
     {
       "path": "apps/desktop/locales/ar.json",
-      "bytes": 286414,
-      "sha256": "3970624893dcd863d6462095f6d0261dcb03af0b1deadbe6bc883b13eb228f55"
+      "bytes": 288256,
+      "sha256": "afac5f367ca22eac0fe822c24f66c1c99159050ceef9441436234157a1498d12"
     },
     {
       "path": "apps/desktop/locales/bg.json",
-      "bytes": 333537,
-      "sha256": "5e037c2f1ffdcdee94856cff358a6dbd797b2d1a846cfc607ed868a613a0628d"
+      "bytes": 335487,
+      "sha256": "6b08ae309fe92861602fdf100376417a29a1364fa463a752aac38237b487eca2"
     },
     {
       "path": "apps/desktop/locales/bn.json",
-      "bytes": 400015,
-      "sha256": "4538fa79e4db68703a7c51a0a64ed7ba8d456dbddfa38b1dc797f855c0f1271d"
+      "bytes": 402408,
+      "sha256": "a3fcc171fbdb4951b6f163df0b02d86fdbe5a7dd1a021cfd6a8301ba8ef665d6"
     },
     {
       "path": "apps/desktop/locales/ca.json",
-      "bytes": 248079,
-      "sha256": "3b1723b66098d507cd512db33dad85dc350b1894b1155d0c6ef6d204ad34b502"
+      "bytes": 249606,
+      "sha256": "d727f71b69c32fca2d21408e3a6a11aa1b820b01644c244163758c3d45d8c375"
     },
     {
       "path": "apps/desktop/locales/cs.json",
-      "bytes": 240549,
-      "sha256": "089edd6520cd9b131b7486b5b7b810a95b769d52efefefd0c9ae28e5993f1d8a"
+      "bytes": 242009,
+      "sha256": "6d2e936fc5905e0646ef85025c07117a31a23680ff72d8d60bcde247806fde40"
     },
     {
       "path": "apps/desktop/locales/da.json",
-      "bytes": 231414,
-      "sha256": "813678cfd2b63e89bbd34a14f3bbd7ab04d2196ccd2b367d81d62b7508ac68c2"
+      "bytes": 232818,
+      "sha256": "e07b6fcb9a8de95995f9d44be06c7f222a1d01dec243d7a41358258e29ed1642"
     },
     {
       "path": "apps/desktop/locales/de.json",
-      "bytes": 251088,
-      "sha256": "56110d0bf6ffe3928dd3b16a575276ac9c8fd8c7b2f543efe99f176f441396e5"
+      "bytes": 252531,
+      "sha256": "4c07f623c61f4288d339e155f2130a9b9f9c3b1c8cd251ab6a53d41502ae4ef1"
     },
     {
       "path": "apps/desktop/locales/el.json",
-      "bytes": 349340,
-      "sha256": "9cb6e9c3f61415a9e4fc008d1aa111c4e6ea0e7e48ea5520598dccf8c83ca245"
+      "bytes": 351535,
+      "sha256": "0b618acd748039c287828987d51e4609df2bf36e7bb7f8c84439ad8148c6afbf"
     },
     {
       "path": "apps/desktop/locales/en.json",
-      "bytes": 222086,
-      "sha256": "e07e67d5408cb6397cbd14dcd3f737bea42511596dde7f41f9df8dfbcd8b57ac"
+      "bytes": 223424,
+      "sha256": "ab843f0bab3239a8a14759d8743d0bd6866f7c14d6fdb457785fa034385957b4"
     },
     {
       "path": "apps/desktop/locales/es.json",
-      "bytes": 249069,
-      "sha256": "2df442084d452e6288856c13f0fa53dc965af2e735ad30a3b27798e45a312cba"
+      "bytes": 250577,
+      "sha256": "224076d2a64db771877cd70353fc8f3ded3662ec57817c69b15829703dcb4cca"
     },
     {
       "path": "apps/desktop/locales/et.json",
-      "bytes": 232925,
-      "sha256": "e50a6560aa8c6d4be675d927a91265cfd34ece0d780da8ca2376cdfbd120c6fd"
+      "bytes": 234348,
+      "sha256": "b800036a07f99388ab01d8c84736cda993f0897618b6fe1d14c2ad7d74f354af"
     },
     {
       "path": "apps/desktop/locales/fa.json",
-      "bytes": 302053,
-      "sha256": "d3b7736a5df29ae896bc92190d0aaebcf53d21300abfa600d080077b2a154029"
+      "bytes": 303889,
+      "sha256": "c4ce4fd3e49cd12cd4d385d2f6e59c86fdb9d77e0e15cffc04341439d39a94bd"
     },
     {
       "path": "apps/desktop/locales/fi.json",
-      "bytes": 240079,
-      "sha256": "3750975869b6eeb5dfd7ed59069ce1c468ba7052990abc2ff1e37ba568885481"
+      "bytes": 241554,
+      "sha256": "b61ede4b79aacf75249a9a677095832a8f43f50452288cbc5a4b6798e3979700"
     },
     {
       "path": "apps/desktop/locales/fr.json",
-      "bytes": 256790,
-      "sha256": "948130c04dcefda266d5634e8e8fff07ab86b49205743a44ad6bb9fa4d48b567"
+      "bytes": 258404,
+      "sha256": "c7bb3b6da57d0540856d4a22ff9a6369b5005cf7ff9e88831679fb8a98718e28"
     },
     {
       "path": "apps/desktop/locales/gu.json",
-      "bytes": 380648,
-      "sha256": "79025c84561221bb9cd1e6c23a95aa3a228741f76e61ffa88a159a12c1f074b8"
+      "bytes": 383034,
+      "sha256": "af34a2f5081742d1a7e374db3be3da957b5b4b781cf0aaba713f9db17dd0ac2d"
     },
     {
       "path": "apps/desktop/locales/he.json",
-      "bytes": 266594,
-      "sha256": "91120b0f7a7394f80c47d1a270123e72e6ec83e228e0cf8bda692769f3155ff2"
+      "bytes": 268240,
+      "sha256": "ff07bf8f59c16287d9a8fd44a13aa4b1ababfbfe14a17b3c6fbda2bfab935285"
     },
     {
       "path": "apps/desktop/locales/hi.json",
-      "bytes": 390107,
-      "sha256": "691b663df5f56c953eb83e1dc176eb17954bbadc597c0d059770e297a1ec36ac"
+      "bytes": 392479,
+      "sha256": "848d6124f282c02b6182f2877b3c458a68a504b803aeb8bce5fa8f0fca07d3f6"
     },
     {
       "path": "apps/desktop/locales/hr.json",
-      "bytes": 235714,
-      "sha256": "b1e898c8216042bbb37d39d026d3bc461d604fd933b4bfba883f2b6950b4dac4"
+      "bytes": 237191,
+      "sha256": "08643cfe1aeff95a8807f54a79d17d01bed019d7451f5031d021ab818747f46a"
     },
     {
       "path": "apps/desktop/locales/hu.json",
-      "bytes": 252385,
-      "sha256": "c1e9115ce3eb12e6999c43aec507060e1c0dea1213b0526bd6db6ce1c24c1f78"
+      "bytes": 253961,
+      "sha256": "e9b3764a7bf2f7bf38be91a1d968b6260d678b48345766a153c92e1bb0952a6a"
     },
     {
       "path": "apps/desktop/locales/id.json",
-      "bytes": 233118,
-      "sha256": "c8bb0d6069fa7aecbae1f447f6f34f4871f4178adfc36bbc4c80ac675701c172"
+      "bytes": 234572,
+      "sha256": "32038fa5dca3216adb2b063db74cc9c51658ec8b5d00fbf24dc6eb8851442f6a"
     },
     {
       "path": "apps/desktop/locales/is.json",
-      "bytes": 236304,
-      "sha256": "d695e92bca32aeaa6218fe0054a2c71c8aeabe00fc1e17c6d4a09974ef009901"
+      "bytes": 237725,
+      "sha256": "4933908cebde48a360e9eac0e285775b53539ca414ef830d477c59d5cdc8bb39"
     },
     {
       "path": "apps/desktop/locales/it.json",
-      "bytes": 247154,
-      "sha256": "4ee7f6445fdb4066c2ca6aea9e2f19d959dd53c139258835edc0d7fb0be3104e"
+      "bytes": 248736,
+      "sha256": "3ef75d1e8dbad9d211ee8c463994ee63e5c3fbd4cecc75b4c907f2914f793dfb"
     },
     {
       "path": "apps/desktop/locales/ja.json",
-      "bytes": 280306,
-      "sha256": "13cb80011800bbb3c2041983c7d2fb3348e16dee531b9e9bfb53b01da8697ea7"
+      "bytes": 282099,
+      "sha256": "b9292403819fe29d5964487499f73c4b2f7740168bdf11c80a35af8b1e40dee2"
     },
     {
       "path": "apps/desktop/locales/ko.json",
-      "bytes": 256156,
-      "sha256": "1c971b67bdb68d12a10a34c638c5a505d8f36a812ad7a92e469e5d313498770a"
+      "bytes": 257812,
+      "sha256": "315a6c9f284921f3b1c00fb017268056306f0d6eecefc297b8f302aac5f916af"
     },
     {
       "path": "apps/desktop/locales/lt.json",
-      "bytes": 242527,
-      "sha256": "45babd61278a82148263a628139cd9d2521b0dd4cc11c0ba6b91fd004019ba08"
+      "bytes": 244051,
+      "sha256": "efeb346a749afae2ce0badb3de27389d7c4db43a87f9c74f1e2af526014520f5"
     },
     {
       "path": "apps/desktop/locales/lv.json",
-      "bytes": 243800,
-      "sha256": "cdcfa0349ddef6dbfd8f016548d31b30f7f138a12fdc3ab37cc5b476fad62d99"
+      "bytes": 245319,
+      "sha256": "8d2ad1d7e5bbade5012a338b6acbe18124a8eb761f3eb1f9bee99031f3005684"
     },
     {
       "path": "apps/desktop/locales/mr.json",
-      "bytes": 383684,
-      "sha256": "5b38ac7b6abe7da05c7219b5e9bfd5dd25e3ac7fada9621d2cb925ffd7b010e6"
+      "bytes": 385967,
+      "sha256": "e3b75020a13fad9d56fb95be8446acb43aa38c1f7d6c1e03f2925effb838a14f"
     },
     {
       "path": "apps/desktop/locales/ms.json",
-      "bytes": 234619,
-      "sha256": "02a50b8a0f98410265ae7fd676932fe9755ed2187c7f3a46a382a69341e6b80a"
+      "bytes": 236092,
+      "sha256": "4ab3f5acfa29ea3c52f658818130dc9d0a8282a869b4f1be33b9f15251818326"
     },
     {
       "path": "apps/desktop/locales/nl.json",
-      "bytes": 240371,
-      "sha256": "09abc943c1b7b57859d1536fd5ac055b1319e4b650e674237606f0f28af66ec8"
+      "bytes": 241786,
+      "sha256": "cf93051ea932a39e7bf73aa5e35232de15487c7b1896037d7ead30db88e68103"
     },
     {
       "path": "apps/desktop/locales/no.json",
-      "bytes": 230582,
-      "sha256": "49c18d9341591c65cc01e43b9fdab0f844e7f7732df14f0406b138cd03747ce6"
+      "bytes": 231975,
+      "sha256": "c9e6e347835fec5186845ec415bb5cfc2f92dac0167e4656ff8ff19059e9b3cd"
     },
     {
       "path": "apps/desktop/locales/pa.json",
-      "bytes": 384310,
-      "sha256": "bb2f92ab32d5318283616992d5be02571e7ef65a5d57a8d3d8fc27c01767a083"
+      "bytes": 386621,
+      "sha256": "4a2fa7751e9c3c39e71b1bdd8b7a42871d65fc3a930d01009f7e35df70cfa92b"
     },
     {
       "path": "apps/desktop/locales/pl.json",
-      "bytes": 243914,
-      "sha256": "5d734cc66d7cbf930ea12c8291858b8baec0f95daddfedb3a654266f9045f07e"
+      "bytes": 245394,
+      "sha256": "81a40a00b7a4c44a5beaac4e716b8e19b3101f3374031eb5a54055adb55cb910"
     },
     {
       "path": "apps/desktop/locales/pt-BR.json",
-      "bytes": 254866,
-      "sha256": "92bbf25adffb917dd56d2daa3b482366f1bab670347e7a1c2d68ddec955de8f7"
+      "bytes": 256404,
+      "sha256": "9fb8fde3bffea10ba7c619ef98d7f38fe95ba0329742a8969fa790bee9065839"
     },
     {
       "path": "apps/desktop/locales/pt.json",
-      "bytes": 244482,
-      "sha256": "6edf8fddf00b1fa89573979319521e36ba6b1b344179a7a887c6db7b24f04729"
+      "bytes": 245927,
+      "sha256": "4cbdc37d6db44e4af837d55f8ab69c89f1d886cb19bcd133618821cfb9480196"
     },
     {
       "path": "apps/desktop/locales/ro.json",
-      "bytes": 247175,
-      "sha256": "755a3315a3b14ee083d48416fd5a9cdf5caeec98adb04368198754debe8df70f"
+      "bytes": 248685,
+      "sha256": "884e2d2fd6bd861c1f7760db3e26638d461abf94a1f14a0282182b4edd906c72"
     },
     {
       "path": "apps/desktop/locales/ru.json",
-      "bytes": 325071,
-      "sha256": "45f9fb47e38769550295a125967228602957f1ae5cb980b65739ddfd30a3b123"
+      "bytes": 327085,
+      "sha256": "51f1f751021768b8f3a769d1337c12160537d5c69b4a0cb861ce3a512091e611"
     },
     {
       "path": "apps/desktop/locales/sk.json",
-      "bytes": 241056,
-      "sha256": "a36b20025da5130267ba4de60876fe820b481e6ca9e0130868231810fde2ee50"
+      "bytes": 242504,
+      "sha256": "8affd53b220b30f724e784ce7445473f62002769906b7e381268edbc0a529192"
     },
     {
       "path": "apps/desktop/locales/sl.json",
-      "bytes": 234683,
-      "sha256": "0017f5779cb55074a1acf6c218ab544c3430856b188e70a560fd449b4867db5e"
+      "bytes": 236108,
+      "sha256": "cee10e0cf3d7d4a423abdb627e7d9cdfea7d878617d07ac084b986166999b082"
     },
     {
       "path": "apps/desktop/locales/sr.json",
-      "bytes": 274363,
-      "sha256": "686af1c8b12933c342c437574e1a47931a0416556b72c60ec7007d0dff815158"
+      "bytes": 276328,
+      "sha256": "f41298e4d4f49e01df5f21929bd70947a13c68710f2e4e4459c77be4a1247410"
     },
     {
       "path": "apps/desktop/locales/sv.json",
-      "bytes": 234592,
-      "sha256": "2bf599905c7cb2b5a3e06d30c6bdb8afc22fa681474e41cef20cd1594e171fac"
+      "bytes": 236016,
+      "sha256": "1cb339f3c8a23bb94599eaeb200dd2d23e735de189ba61dd3b0f0cd211660499"
     },
     {
       "path": "apps/desktop/locales/sw.json",
-      "bytes": 238285,
-      "sha256": "d090374adbc5b4f88ac9a5f889bbb1c7fc63608fbd06581ab7f330d94ecd2445"
+      "bytes": 239727,
+      "sha256": "d1ecea3b9555ce37155588338c895116aeca1ee8f395aabb03d1c6e08b415c55"
     },
     {
       "path": "apps/desktop/locales/ta.json",
-      "bytes": 454341,
-      "sha256": "6d6565db55a3d4e10c41488b2dd2b507ad9b79470701a0512d7ba37588c7a8f5"
+      "bytes": 457169,
+      "sha256": "80a6e6fe21f531eaa0bd169708492207ee0aabaf9a62a4e264ca354f9407c503"
     },
     {
       "path": "apps/desktop/locales/te.json",
-      "bytes": 426810,
-      "sha256": "e430271611f13c0907d027b3a3878e7f60135e1ab0420f34034375ebe8a29ebe"
+      "bytes": 429353,
+      "sha256": "362ba342b40003aa30a3440412ecd095b652640938150ff67c87228d14cd4731"
     },
     {
       "path": "apps/desktop/locales/th.json",
-      "bytes": 388339,
-      "sha256": "281fe9b36040ace0b0d8c25a3b724ae8ba0c2bf1e33fb5ec07c0ea7b6a64dad9"
+      "bytes": 391055,
+      "sha256": "6f72f32552b379b4221724d2ab499825953d448cbf4e64784d218b463de985bd"
     },
     {
       "path": "apps/desktop/locales/tl.json",
-      "bytes": 253015,
-      "sha256": "da96fc3e3d5ab564681af3befcd964802ed894335643b66226d0251ad3bd3c20"
+      "bytes": 254559,
+      "sha256": "442680e90f57a15517dcc226b1c02166fabb4151462e821bcbceb1da253c77e5"
     },
     {
       "path": "apps/desktop/locales/tr.json",
-      "bytes": 240088,
-      "sha256": "9fcf387c5661782525ae283a0b6687cc8cac6cc3ebb0c83a0b4a30566fc3524e"
+      "bytes": 241583,
+      "sha256": "ff04af351d2bf91b9a1e1a7b71434276c8e08ab84d064c31cd02c3929aebcf16"
     },
     {
       "path": "apps/desktop/locales/uk.json",
-      "bytes": 325729,
-      "sha256": "7065ebe620e112fb6e886b46adb28b30365fc2c33165baa50e1f64b1cb08aace"
+      "bytes": 327727,
+      "sha256": "cbeb170418932e35c15909535e86b7a7946950be42756ccc1d75570d7596874d"
     },
     {
       "path": "apps/desktop/locales/ur.json",
-      "bytes": 306705,
-      "sha256": "e4faa8b90adc0f907d42821818a61bcb3f44281bffd977275e3c425f8d31fd88"
+      "bytes": 308569,
+      "sha256": "08ed881a99ed041744c7ef0f5805f1cea2878beaeebcf748c34f2d2491ff352c"
     },
     {
       "path": "apps/desktop/locales/vi.json",
-      "bytes": 269426,
-      "sha256": "2b0f2fc6438b961f75067f003a8da91561ae23470e781a887536bcaf3ebb440c"
+      "bytes": 271107,
+      "sha256": "ecd0cd6303b08beee9a1a21302301dcad8e90cf01346b270d18c63758a8f3bcd"
     },
     {
       "path": "apps/desktop/locales/zh.json",
-      "bytes": 216541,
-      "sha256": "3e5e96f40a591842087bdc80c55a0299cd8f2490e17c3b237c82938f6beff21e"
+      "bytes": 217846,
+      "sha256": "d046818d5f9e158ee87676b5e9283a07f54f42aa2820277f219d3a2936573c15"
     },
     {
       "path": "apps/desktop/main.mjs",
-      "bytes": 423449,
-      "sha256": "f3309461e92699f7a781bda92d04e361e33f0ba8825162bb7c1401767b9bb581"
+      "bytes": 434376,
+      "sha256": "1fadb3782593728ad496d274b0092e96c235db1852dc003b0e746c29eb4f58f6"
     },
     {
       "path": "apps/desktop/main/access-ipc.mjs",
@@ -1429,8 +1429,8 @@
     },
     {
       "path": "apps/desktop/main/settings-channels.mjs",
-      "bytes": 3823,
-      "sha256": "9c7ca3018eb53a06b4f8556f209466dcc2378b94a01f065782f56d879f698499"
+      "bytes": 3847,
+      "sha256": "ca2c4709b0ca4b39b4fc3fa6dedc1b44a292e84a8d0d46c36b2b533dec3495dc"
     },
     {
       "path": "apps/desktop/main/settings-window.mjs",
@@ -1639,8 +1639,8 @@
     },
     {
       "path": "apps/desktop/preload.cjs",
-      "bytes": 21341,
-      "sha256": "b8b41e1056e863c93d70598aba994e65dcd7833eca9843dd812b811836a27f6c"
+      "bytes": 21422,
+      "sha256": "aa023fe3cced8640f8e023a8dabd98e7d837d60020ed55bc10612ad7325f8bf1"
     },
     {
       "path": "apps/desktop/private-dialogue.mjs",
@@ -1684,8 +1684,8 @@
     },
     {
       "path": "apps/desktop/renderer/app.js",
-      "bytes": 143010,
-      "sha256": "5d5fa0c01e16a1bab71439711d863d2f2b345d4f1f58fc0c22064f083f1c4c15"
+      "bytes": 143718,
+      "sha256": "f5a88b3ba0feb2b147aae9bb00707f76f3839f62136e3d21961a6b93c5bea2a7"
     },
     {
       "path": "apps/desktop/renderer/applications-panel.mjs",
@@ -1954,8 +1954,8 @@
     },
     {
       "path": "apps/desktop/renderer/companion-panel.mjs",
-      "bytes": 72088,
-      "sha256": "6eb73b683860a890cf291492559c545e74580130fb308aaf87c24fe39ff05226"
+      "bytes": 75851,
+      "sha256": "1642e25a515051d20d95c9d3181ee8b5703430a4cc3f1d9b3496552f0bc281b1"
     },
     {
       "path": "apps/desktop/renderer/computer-appearance-panel.mjs",
@@ -2014,8 +2014,8 @@
     },
     {
       "path": "apps/desktop/renderer/cyberpunk.css",
-      "bytes": 98665,
-      "sha256": "760e8a0f6fd8fd01c0d1a2b94f8ad27f7a112aa8dae24f4c784dd252e1bbed91"
+      "bytes": 99108,
+      "sha256": "411139c7fc941d6035bf21558d2df6b93ec0fdf426de9e97b6ccffcb3ae0f56e"
     },
     {
       "path": "apps/desktop/renderer/desktop-ai-panel.mjs",
@@ -2114,8 +2114,8 @@
     },
     {
       "path": "apps/desktop/renderer/index.html",
-      "bytes": 57862,
-      "sha256": "83aaecc7af20e5378417f03a7e5437b42d152c185de757cbc95df5f46864b6ad"
+      "bytes": 58035,
+      "sha256": "f7f84b4d1375c9131d2dce0ae5dc229902eb9ef3dbbef545f4e1d55c563f2df4"
     },
     {
       "path": "apps/desktop/renderer/inference-endpoint.mjs",
@@ -2374,8 +2374,8 @@
     },
     {
       "path": "apps/desktop/renderer/settings-app.mjs",
-      "bytes": 101636,
-      "sha256": "c75b0adb8dad2db398c18993ccd6719c0677a0ae8ec8f997df8bd8c0dab9e9d4"
+      "bytes": 101823,
+      "sha256": "7890aef130b948ce335993b705a5525178266cf0b2f5b6d07a9aa869997086e3"
     },
     {
       "path": "apps/desktop/renderer/settings-divider.mjs",
@@ -2389,8 +2389,8 @@
     },
     {
       "path": "apps/desktop/renderer/settings-guide-core.mjs",
-      "bytes": 84349,
-      "sha256": "844d3b2be35fed1967dd4d2809265d7b51df07227726b7bb657bf3df986357a6"
+      "bytes": 85092,
+      "sha256": "f4316a0b1895fa28abe089d7e8b851ab1e9a40e2b9903052eaa60179971f7dee"
     },
     {
       "path": "apps/desktop/renderer/settings-guide-skills.mjs",
@@ -2851,6 +2851,11 @@
       "path": "apps/desktop/web-sources.mjs",
       "bytes": 140,
       "sha256": "709c01d4c7030fe7cc60fcbdbd7012dca5ad750eb4d8728e76f6a75a579c7451"
+    },
+    {
+      "path": "apps/desktop/wild-input-pranks.mjs",
+      "bytes": 30307,
+      "sha256": "8f28541716d9032e0ec4262ecbce9b4ad0a297e0a5362619e99d9aa1f3677b47"
     },
     {
       "path": "apps/desktop/wild-tabs.mjs",
@@ -3824,8 +3829,8 @@
     },
     {
       "path": "docs/communication-styles.md",
-      "bytes": 1628,
-      "sha256": "17be9a120a1a9263b6341c040f9c82f3551c3920bc093fec2b3af29667c74bae"
+      "bytes": 2271,
+      "sha256": "161f132b22653f211b779031e7898b5a8cd915f98efa0210ce52d331aa84c80e"
     },
     {
       "path": "docs/companion-controls.md",
@@ -3834,8 +3839,8 @@
     },
     {
       "path": "docs/computer-control.md",
-      "bytes": 12856,
-      "sha256": "d5914099f8bf932cc187a33323d6086e5ef24fce6cfe734e4c8b52f2d7b5f14b"
+      "bytes": 13392,
+      "sha256": "85c90089fe0463527fed9a665ffe4cc26950e53619424c16e3babf49b56df98c"
     },
     {
       "path": "docs/context-management.md",
@@ -4539,8 +4544,8 @@
     },
     {
       "path": "integrations/desktop-actions/native/DesktopActions.cs",
-      "bytes": 179294,
-      "sha256": "d66b883013195e8767ed251e40a64e2962f5263b83d57e42af9d4c3fa6a36b59"
+      "bytes": 198850,
+      "sha256": "3155c27643755ac8005a465de8e7a8d8d2770e7583ac4f73a9d173964b491340"
     },
     {
       "path": "integrations/desktop-actions/openclaw.plugin.json",
@@ -4559,8 +4564,8 @@
     },
     {
       "path": "integrations/desktop-actions/service.mjs",
-      "bytes": 13820,
-      "sha256": "9503eb6495da6c24f5ff611c72908f8f7356175517621eb8b5356d6a365c088f"
+      "bytes": 13902,
+      "sha256": "9f07f16a5a127cc9f4cc7f6ced1a409bd55a29f1716d856810ab95146b2a7a14"
     },
     {
       "path": "integrations/desktop-actions/settings.mjs",
@@ -5249,8 +5254,8 @@
     },
     {
       "path": "packages/installer/windows/installed-models.ps1",
-      "bytes": 3742,
-      "sha256": "193631244eee1beb5294d25c681aedbbe0d82590edec0b2d69847de16f96a6be"
+      "bytes": 3800,
+      "sha256": "329a1d3a25da99b88c38f55c50b47e03955d79c7427c19ea5c7c86cb018d299a"
     },
     {
       "path": "packages/installer/windows/launcher.cs",
@@ -6839,8 +6844,8 @@
     },
     {
       "path": "tests/computer-control.test.mjs",
-      "bytes": 49538,
-      "sha256": "201156e5bb880bc020a3ce86fdfecaae7bc1cd246f99580faf819d43f0ed47e6"
+      "bytes": 55936,
+      "sha256": "98df6465fc20035ce0fc6e10c2eae314b3f955b221f42a84c2ca973c8b59c8f5"
     },
     {
       "path": "tests/computer-steam-task.test.mjs",
@@ -8193,9 +8198,14 @@
       "sha256": "414636400eef584ddc596b147dac2e413b5197758f1674055b1e4a9041c57780"
     },
     {
+      "path": "tests/wild-input-pranks.test.mjs",
+      "bytes": 27740,
+      "sha256": "0c0cc427099d641638bd6b60e1a89cb3a24aace6a3688a5bb122a6ca0fc0bf0b"
+    },
+    {
       "path": "tests/wild-pranks.test.mjs",
-      "bytes": 4166,
-      "sha256": "c074be08aa28cc149609caa57b84dded6a7cc249cffcfea45189a17cd1fcd30b"
+      "bytes": 4910,
+      "sha256": "67e4ef7e73a3e5e6fffc8248222a668ad4d1d8f267be17b0bd21784612a28c98"
     },
     {
       "path": "tests/wild-tabs.test.mjs",
@@ -8329,8 +8339,8 @@
     },
     {
       "path": "tools/build/build-coding-bridge.ps1",
-      "bytes": 2508,
-      "sha256": "7b8ca3d66e62cf96bcab517ed98b31e7d922221b77f66ebb660bd363e7419879"
+      "bytes": 2530,
+      "sha256": "7e6357b3755025b281f338d309ce934adc3a3da3957b153de923cd1278ca4b53"
     },
     {
       "path": "tools/checks/dependencies.mjs",
@@ -9521,6 +9531,11 @@
       "path": "tools/verify/verify-wake-phrase.mjs",
       "bytes": 17873,
       "sha256": "b560543cdbb96db31b5fbc5bc490da02f71dfe4131390d21abe4199f22080e54"
+    },
+    {
+      "path": "tools/verify/verify-wild-input-pranks.mjs",
+      "bytes": 8631,
+      "sha256": "84ce88d5df3cc733789fe6be5160932fa8ad7c25e7b85c4f71dcd1a639c81b3b"
     },
     {
       "path": "tools/verify/verify-window-dimming.mjs",

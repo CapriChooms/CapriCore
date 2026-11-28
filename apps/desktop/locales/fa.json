@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "بالا کشیدن تا لبه",
     "Catch from a hanging grip": "لبه را هنگام آویزان بودن بگیر",
     "Check the wrist scanner": "اسکنر مچ را بررسی کن",
-    "Play the keytar": "کی‌تار را بنواز"
+    "Play the keytar": "کی‌تار را بنواز",
+    "Wild mouse and keyboard takeovers": "تصرف‌های وحشیانه ماوس و صفحه‌کلید",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "در حالت وحشی، Capri گاهی بر اساس آنچه روی صفحه است برای لحظه‌ای کنترل ماوس و صفحه‌کلید شما را در دست می‌گیرد. به دسترسی کامل به رایانه نیاز دارد. برای توقف Esc را بزنید.",
+    "Minimum time between takeovers": "حداقل زمان بین تصرف‌ها",
+    "Test takeover (3 s)": "آزمایش تصرف (3 ثانیه)",
+    "Switch to a window or game… {seconds} s": "به یک پنجره یا بازی بروید… {seconds} ثانیه",
+    "Running Wild takeover…": "در حال اجرای تصرف وحشیانه…",
+    "Wild takeover finished.": "تصرف وحشیانه پایان یافت.",
+    "Select the Wild communication style first.": "ابتدا سبک گفت‌وگوی وحشی را انتخاب کنید.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "تصرف‌های وحشیانه به دسترسی کامل به رایانه نیاز دارند. برای توقف Esc را بزنید.",
+    "Open a non-sensitive application or game before testing.": "پیش از آزمایش یک برنامه غیرحساس یا بازی باز کنید.",
+    "Wild takeover stopped.": "تصرف وحشیانه متوقف شد.",
+    "Wild takeover is unavailable right now.": "تصرف وحشیانه هم‌اکنون در دسترس نیست.",
+    "Wild prank active — press Escape to stop": "شوخی وحشیانه فعال است — برای توقف Escape را بزنید"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

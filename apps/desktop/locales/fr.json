@@ -2566,7 +2566,20 @@
     "Check the pieces and confirm the side to move": "Vérifie les pièces et confirme le trait",
     "Switch to the window with the chessboard": "Passe à la fenêtre contenant l’échiquier",
     "Confirm the diagram or import a complete FEN": "Confirme le diagramme ou importe un FEN complet",
-    "Drag a square around the chessboard. Esc cancels.": "Trace un carré autour de l’échiquier. Échap annule."
+    "Drag a square around the chessboard. Esc cancels.": "Trace un carré autour de l’échiquier. Échap annule.",
+    "Wild mouse and keyboard takeovers": "Prises de contrôle sauvages de la souris et du clavier",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "En mode Sauvage, Capri prend parfois brièvement le contrôle de votre souris et de votre clavier selon ce qui s’affiche à l’écran. Nécessite l’accès complet à l’ordinateur. Appuyez sur Esc pour arrêter.",
+    "Minimum time between takeovers": "Délai minimal entre les prises de contrôle",
+    "Test takeover (3 s)": "Tester une prise de contrôle (3 s)",
+    "Switch to a window or game… {seconds} s": "Basculez vers une fenêtre ou un jeu… {seconds} s",
+    "Running Wild takeover…": "Prise de contrôle sauvage en cours…",
+    "Wild takeover finished.": "Prise de contrôle sauvage terminée.",
+    "Select the Wild communication style first.": "Sélectionnez d’abord le style de communication Sauvage.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Les prises de contrôle sauvages nécessitent l’accès complet à l’ordinateur. Appuyez sur Esc pour arrêter.",
+    "Open a non-sensitive application or game before testing.": "Ouvrez une application non sensible ou un jeu avant de tester.",
+    "Wild takeover stopped.": "Prise de contrôle sauvage arrêtée.",
+    "Wild takeover is unavailable right now.": "La prise de contrôle sauvage est indisponible pour le moment.",
+    "Wild prank active — press Escape to stop": "Farce sauvage active — appuyez sur Escape pour arrêter"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

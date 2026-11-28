@@ -128,6 +128,7 @@ contextBridge.exposeInMainWorld(
         expectedRevision ? { payload: value, expectedRevision } : value,
       ),
     previewCursorPrank: () => ipcRenderer.invoke('capri:cursor-prank-preview'),
+    previewWildInputPrank: () => ipcRenderer.invoke('capri:wild-prank-preview'),
     communityLink: (id) => ipcRenderer.invoke('capri:community-link', id),
     openDonation: () => ipcRenderer.invoke('capri:donation-open'),
     getPersonality: () => ipcRenderer.invoke('capri:personality-get'),

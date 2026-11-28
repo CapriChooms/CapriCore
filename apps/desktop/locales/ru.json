@@ -2570,7 +2570,20 @@
     "Check the pieces and confirm the side to move": "Проверь фигуры и выбери сторону хода",
     "Switch to the window with the chessboard": "Переключись на окно с шахматной доской",
     "Confirm the diagram or import a complete FEN": "Подтверди учебную позицию или импортируй полный FEN",
-    "Drag a square around the chessboard. Esc cancels.": "Обведи доску квадратом. Esc отменяет выделение."
+    "Drag a square around the chessboard. Esc cancels.": "Обведи доску квадратом. Esc отменяет выделение.",
+    "Wild mouse and keyboard takeovers": "Перехваты мыши и клавиатуры в диком стиле",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "В диком стиле Capri иногда ненадолго перехватывает мышь и клавиатуру с учётом того, что происходит на экране. Требуется полный доступ к компьютеру. Нажмите Esc, чтобы остановить.",
+    "Minimum time between takeovers": "Минимальное время между перехватами",
+    "Test takeover (3 s)": "Проверить перехват (3 с)",
+    "Switch to a window or game… {seconds} s": "Переключитесь на окно или игру… {seconds} с",
+    "Running Wild takeover…": "Выполняется дикий перехват…",
+    "Wild takeover finished.": "Дикий перехват завершён.",
+    "Select the Wild communication style first.": "Сначала выберите дикий стиль общения.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Для диких перехватов требуется полный доступ к компьютеру. Нажмите Esc, чтобы остановить.",
+    "Open a non-sensitive application or game before testing.": "Перед проверкой откройте обычное приложение или игру без конфиденциальных данных.",
+    "Wild takeover stopped.": "Дикий перехват остановлен.",
+    "Wild takeover is unavailable right now.": "Сейчас дикий перехват недоступен.",
+    "Wild prank active — press Escape to stop": "Активен дикий розыгрыш — нажмите Escape, чтобы остановить"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

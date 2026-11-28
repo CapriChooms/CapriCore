@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Подићи се до ивице",
     "Catch from a hanging grip": "Захвати ивицу док висиš",
     "Check the wrist scanner": "Провери скенер на зглобу",
-    "Play the keytar": "Играј на кичару"
+    "Play the keytar": "Играј на кичару",
+    "Wild mouse and keyboard takeovers": "Дивља преузимања миша и тастатуре",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "У дивљем режиму Capri повремено накратко преузима контролу над мишем и тастатуром на основу онога што је на екрану. Захтева пун приступ рачунару. Притисните Esc за заустављање.",
+    "Minimum time between takeovers": "Минимално време између преузимања",
+    "Test takeover (3 s)": "Тестирај преузимање (3 с)",
+    "Switch to a window or game… {seconds} s": "Пребаците се на прозор или игру… {seconds} с",
+    "Running Wild takeover…": "Покретање дивљег преузимања…",
+    "Wild takeover finished.": "Дивље преузимање је завршено.",
+    "Select the Wild communication style first.": "Прво изаберите дивљи стил комуникације.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Дивља преузимања захтевају пун приступ рачунару. Притисните Esc за заустављање.",
+    "Open a non-sensitive application or game before testing.": "Отворите неосетљиву апликацију или игру пре тестирања.",
+    "Wild takeover stopped.": "Дивље преузимање је заустављено.",
+    "Wild takeover is unavailable right now.": "Дивље преузимање тренутно није доступно.",
+    "Wild prank active — press Escape to stop": "Дивља шала је активна — притисните Escape за заустављање"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

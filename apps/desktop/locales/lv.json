@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Vilkt uz augšu līdz malai",
     "Catch from a hanging grip": "Noķer malu, kamēr piekārties",
     "Check the wrist scanner": "Pārbaudi rokas skeneri",
-    "Play the keytar": "Spēlē keytar"
+    "Play the keytar": "Spēlē keytar",
+    "Wild mouse and keyboard takeovers": "Mežonīgas peles un tastatūras pārņemšanas",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Mežonīgajā režīmā Capri reizēm uz brīdi pārņem peles un tastatūras vadību atkarībā no ekrānā redzamā. Nepieciešama pilna piekļuve datoram. Nospiediet Esc, lai apturētu.",
+    "Minimum time between takeovers": "Minimālais laiks starp pārņemšanām",
+    "Test takeover (3 s)": "Pārbaudīt pārņemšanu (3 s)",
+    "Switch to a window or game… {seconds} s": "Pārslēdzieties uz logu vai spēli… {seconds} s",
+    "Running Wild takeover…": "Notiek mežonīga pārņemšana…",
+    "Wild takeover finished.": "Mežonīgā pārņemšana pabeigta.",
+    "Select the Wild communication style first.": "Vispirms izvēlieties mežonīgo saziņas stilu.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Mežonīgajām pārņemšanām nepieciešama pilna piekļuve datoram. Nospiediet Esc, lai apturētu.",
+    "Open a non-sensitive application or game before testing.": "Pirms pārbaudes atveriet nejutīgu lietotni vai spēli.",
+    "Wild takeover stopped.": "Mežonīgā pārņemšana apturēta.",
+    "Wild takeover is unavailable right now.": "Mežonīgā pārņemšana pašlaik nav pieejama.",
+    "Wild prank active — press Escape to stop": "Aktīvs mežonīgs joks — nospiediet Escape, lai apturētu"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

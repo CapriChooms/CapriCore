@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Menarik ke tepi",
     "Catch from a hanging grip": "Tangkap tepi sambil menggantung",
     "Check the wrist scanner": "Periksa pemindai pergelangan tangan",
-    "Play the keytar": "Mainkan keytar"
+    "Play the keytar": "Mainkan keytar",
+    "Wild mouse and keyboard takeovers": "Pengambilalihan mouse dan keyboard liar",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Dalam mode Liar, Capri sesekali mengambil alih kendali mouse dan keyboard Anda secara singkat berdasarkan apa yang ada di layar. Memerlukan akses komputer penuh. Tekan Esc untuk berhenti.",
+    "Minimum time between takeovers": "Waktu minimum antar pengambilalihan",
+    "Test takeover (3 s)": "Uji pengambilalihan (3 dtk)",
+    "Switch to a window or game… {seconds} s": "Beralih ke jendela atau game… {seconds} dtk",
+    "Running Wild takeover…": "Menjalankan pengambilalihan liar…",
+    "Wild takeover finished.": "Pengambilalihan liar selesai.",
+    "Select the Wild communication style first.": "Pilih gaya komunikasi Liar terlebih dahulu.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Pengambilalihan liar memerlukan akses komputer penuh. Tekan Esc untuk berhenti.",
+    "Open a non-sensitive application or game before testing.": "Buka aplikasi non-sensitif atau game sebelum menguji.",
+    "Wild takeover stopped.": "Pengambilalihan liar dihentikan.",
+    "Wild takeover is unavailable right now.": "Pengambilalihan liar sedang tidak tersedia saat ini.",
+    "Wild prank active — press Escape to stop": "Keusilan liar aktif — tekan Escape untuk berhenti"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

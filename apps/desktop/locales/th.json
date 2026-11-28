@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "ดึงขึ้นไปที่ขอบ",
     "Catch from a hanging grip": "จับขอบขณะห้อย",
     "Check the wrist scanner": "ตรวจสอบเครื่องสแกนข้อมือ",
-    "Play the keytar": "เล่นคีย์ทาร์"
+    "Play the keytar": "เล่นคีย์ทาร์",
+    "Wild mouse and keyboard takeovers": "การเข้าควบคุมเมาส์และคีย์บอร์ดแบบสุดเหวี่ยง",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "ในโหมดสุดเหวี่ยง Capri อาจเข้าควบคุมเมาส์และคีย์บอร์ดของคุณชั่วครู่เป็นบางครั้งตามสิ่งที่อยู่บนหน้าจอ ต้องเปิดสิทธิ์เข้าถึงคอมพิวเตอร์แบบเต็ม กด Esc เพื่อหยุด",
+    "Minimum time between takeovers": "เวลาน้อยที่สุดระหว่างการเข้าควบคุม",
+    "Test takeover (3 s)": "ทดสอบการเข้าควบคุม (3 วินาที)",
+    "Switch to a window or game… {seconds} s": "สลับไปยังหน้าต่างหรือเกม… {seconds} วินาที",
+    "Running Wild takeover…": "กำลังเรียกใช้การเข้าควบคุมแบบสุดเหวี่ยง…",
+    "Wild takeover finished.": "การเข้าควบคุมแบบสุดเหวี่ยงเสร็จสิ้นแล้ว",
+    "Select the Wild communication style first.": "โปรดเลือกสไตล์การสื่อสารแบบสุดเหวี่ยงก่อน",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "การเข้าควบคุมแบบสุดเหวี่ยงต้องใช้สิทธิ์เข้าถึงคอมพิวเตอร์แบบเต็ม กด Esc เพื่อหยุด",
+    "Open a non-sensitive application or game before testing.": "เปิดแอปที่ไม่ใช่ข้อมูลอ่อนไหวหรือเกมก่อนทดสอบ",
+    "Wild takeover stopped.": "หยุดการเข้าควบคุมแบบสุดเหวี่ยงแล้ว",
+    "Wild takeover is unavailable right now.": "การเข้าควบคุมแบบสุดเหวี่ยงไม่พร้อมใช้งานในขณะนี้",
+    "Wild prank active — press Escape to stop": "การแกล้งแบบสุดเหวี่ยงกำลังทำงาน — กด Escape เพื่อหยุด"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

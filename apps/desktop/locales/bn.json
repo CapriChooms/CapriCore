@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "ধার পর্যন্ত ওঠা",
     "Catch from a hanging grip": "হ্যাং করার সময় ধারটি ধরো",
     "Check the wrist scanner": "ক্লকের স্ক্যানার পরীক্ষা করো",
-    "Play the keytar": "কীটার বাজাও"
+    "Play the keytar": "কীটার বাজাও",
+    "Wild mouse and keyboard takeovers": "ওয়াইল্ড মাউস ও কীবোর্ড দখল",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "ওয়াইল্ড মোডে, Capri স্ক্রিনে যা চলছে তার ওপর ভিত্তি করে মাঝে মাঝে অল্প সময়ের জন্য আপনার মাউস ও কীবোর্ডের নিয়ন্ত্রণ নেয়। এর জন্য কম্পিউটারের সম্পূর্ণ অ্যাক্সেস প্রয়োজন। থামাতে Esc চাপুন।",
+    "Minimum time between takeovers": "দখলের মধ্যবর্তী ন্যূনতম সময়",
+    "Test takeover (3 s)": "দখল পরীক্ষা করুন (3 সে.)",
+    "Switch to a window or game… {seconds} s": "কোনো উইন্ডো বা গেমে যান… {seconds} সে.",
+    "Running Wild takeover…": "ওয়াইল্ড দখল চলছে…",
+    "Wild takeover finished.": "ওয়াইল্ড দখল শেষ হয়েছে।",
+    "Select the Wild communication style first.": "প্রথমে ওয়াইল্ড কথোপকথনের ধরন নির্বাচন করুন।",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "ওয়াইল্ড দখলের জন্য কম্পিউটারের সম্পূর্ণ অ্যাক্সেস প্রয়োজন। থামাতে Esc চাপুন।",
+    "Open a non-sensitive application or game before testing.": "পরীক্ষা করার আগে একটি অসংবেদনশীল অ্যাপ বা গেম খুলুন।",
+    "Wild takeover stopped.": "ওয়াইল্ড দখল থামানো হয়েছে।",
+    "Wild takeover is unavailable right now.": "ওয়াইল্ড দখল এই মুহূর্তে উপলব্ধ নয়।",
+    "Wild prank active — press Escape to stop": "ওয়াইল্ড মজা সক্রিয় — থামাতে Escape চাপুন"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

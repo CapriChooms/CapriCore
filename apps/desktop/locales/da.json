@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Træk op til kanten",
     "Catch from a hanging grip": "Grib kanten mens du hænger",
     "Check the wrist scanner": "Tjek håndledsscanneren",
-    "Play the keytar": "Spil keytaren"
+    "Play the keytar": "Spil keytaren",
+    "Wild mouse and keyboard takeovers": "Vilde overtagelser af mus og tastatur",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "I vild tilstand overtager Capri af og til kortvarigt styringen af din mus og dit tastatur ud fra, hvad der er på skærmen. Kræver fuld computeradgang. Tryk på Esc for at stoppe.",
+    "Minimum time between takeovers": "Minimumstid mellem overtagelser",
+    "Test takeover (3 s)": "Test overtagelse (3 s)",
+    "Switch to a window or game… {seconds} s": "Skift til et vindue eller spil… {seconds} s",
+    "Running Wild takeover…": "Kører vild overtagelse…",
+    "Wild takeover finished.": "Vild overtagelse afsluttet.",
+    "Select the Wild communication style first.": "Vælg først den vilde kommunikationsstil.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Vilde overtagelser kræver fuld computeradgang. Tryk på Esc for at stoppe.",
+    "Open a non-sensitive application or game before testing.": "Åbn en ikke-følsom app eller et spil før testen.",
+    "Wild takeover stopped.": "Vild overtagelse stoppet.",
+    "Wild takeover is unavailable right now.": "Vild overtagelse er ikke tilgængelig lige nu.",
+    "Wild prank active — press Escape to stop": "Vild spøg aktiv — tryk på Escape for at stoppe"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

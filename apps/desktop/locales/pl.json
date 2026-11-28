@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Podciąganie się do krawędzi",
     "Catch from a hanging grip": "Złap krawędź podczas wiszenia",
     "Check the wrist scanner": "Sprawdź skaner nadgarstka",
-    "Play the keytar": "Zagraj na keytarze"
+    "Play the keytar": "Zagraj na keytarze",
+    "Wild mouse and keyboard takeovers": "Dzikie przejęcia myszy i klawiatury",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "W trybie Dzikim Capri od czasu do czasu na chwilę przejmuje kontrolę nad myszą i klawiaturą w zależności od zawartości ekranu. Wymaga pełnego dostępu do komputera. Naciśnij Esc, aby zatrzymać.",
+    "Minimum time between takeovers": "Minimalny czas między przejęciami",
+    "Test takeover (3 s)": "Przetestuj przejęcie (3 s)",
+    "Switch to a window or game… {seconds} s": "Przełącz się na okno lub grę… {seconds} s",
+    "Running Wild takeover…": "Wykonywanie dzikiego przejęcia…",
+    "Wild takeover finished.": "Dzikie przejęcie zakończone.",
+    "Select the Wild communication style first.": "Najpierw wybierz dziki styl komunikacji.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Dzikie przejęcia wymagają pełnego dostępu do komputera. Naciśnij Esc, aby zatrzymać.",
+    "Open a non-sensitive application or game before testing.": "Przed testem otwórz aplikację bez wrażliwych danych lub grę.",
+    "Wild takeover stopped.": "Dzikie przejęcie zatrzymane.",
+    "Wild takeover is unavailable right now.": "Dzikie przejęcie jest teraz niedostępne.",
+    "Wild prank active — press Escape to stop": "Dziki żart aktywny — naciśnij Escape, aby zatrzymać"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

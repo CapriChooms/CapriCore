@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "למשוך למעלה אל החישוק",
     "Catch from a hanging grip": "תפוס את הקצה בזמן שאתה תלוי",
     "Check the wrist scanner": "בדוק את סורק השעון",
-    "Play the keytar": "שחק ב'קי-טאר'"
+    "Play the keytar": "שחק ב'קי-טאר'",
+    "Wild mouse and keyboard takeovers": "השתלטויות פרועות על העכבר והמקלדת",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "במצב פרוע, Capri לוקחת מדי פעם שליטה קצרה על העכבר והמקלדת לפי מה שמופיע על המסך. נדרשת גישה מלאה למחשב. לחץ על Esc כדי לעצור.",
+    "Minimum time between takeovers": "זמן מינימלי בין השתלטויות",
+    "Test takeover (3 s)": "בדוק השתלטות (3 שנ׳)",
+    "Switch to a window or game… {seconds} s": "עבור לחלון או למשחק… {seconds} שנ׳",
+    "Running Wild takeover…": "מריץ השתלטות פרועה…",
+    "Wild takeover finished.": "ההשתלטות הפרועה הסתיימה.",
+    "Select the Wild communication style first.": "בחר תחילה בסגנון התקשורת הפרוע.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "השתלטויות פרועות דורשות גישה מלאה למחשב. לחץ על Esc כדי לעצור.",
+    "Open a non-sensitive application or game before testing.": "פתח יישום לא רגיש או משחק לפני הבדיקה.",
+    "Wild takeover stopped.": "ההשתלטות הפרועה נעצרה.",
+    "Wild takeover is unavailable right now.": "השתלטות פרועה אינה זמינה כרגע.",
+    "Wild prank active — press Escape to stop": "מתיחה פרועה פעילה — לחץ על Escape כדי לעצור"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

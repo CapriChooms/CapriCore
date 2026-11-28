@@ -162,6 +162,16 @@ With an external AI provider enabled, the provider-sharing notice still applies
 to inspected content and selected images. Full-computer access does not enable a
 remote provider, microphone or background screen observation automatically.
 
+## Wild mouse and keyboard takeovers (BETA)
+
+In **Wild** communication style, **Companion settings → Conversation → Wild
+mouse and keyboard takeovers** lets Capri occasionally take brief (~10 second,
+step- and duration-bounded) mouse and
+keyboard control based on the current screen. Takeovers are gated strictly to
+the Wild style, require **Full computer access**, skip sensitive windows, and
+show the active computer-control stop indicator. Press **Escape** (or click
+**Stop computer control**) at any time to abort immediately.
+
 ## DaVinci Resolve assembly (BETA)
 
 When Resolve is the foreground application and its installed local scripting

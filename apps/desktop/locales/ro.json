@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Trageți până la margine",
     "Catch from a hanging grip": "Prinde marginea în timp ce stai atârnat",
     "Check the wrist scanner": "Verifică scanerul de încheietură",
-    "Play the keytar": "Cântă la keytar"
+    "Play the keytar": "Cântă la keytar",
+    "Wild mouse and keyboard takeovers": "Preluri sălbatice ale mouse-ului și tastaturii",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "În modul Sălbatic, Capri preia ocazional pentru scurt timp controlul mouse-ului și tastaturii în funcție de ce este pe ecran. Necesită acces complet la computer. Apasă Esc pentru a opri.",
+    "Minimum time between takeovers": "Timp minim între preluări",
+    "Test takeover (3 s)": "Testează preluarea (3 s)",
+    "Switch to a window or game… {seconds} s": "Comută la o fereastră sau un joc… {seconds} s",
+    "Running Wild takeover…": "Se rulează preluarea sălbatică…",
+    "Wild takeover finished.": "Preluarea sălbatică s-a încheiat.",
+    "Select the Wild communication style first.": "Selectează mai întâi stilul de comunicare Sălbatic.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Preluările sălbatice necesită acces complet la computer. Apasă Esc pentru a opri.",
+    "Open a non-sensitive application or game before testing.": "Deschide o aplicație nesensibilă sau un joc înainte de testare.",
+    "Wild takeover stopped.": "Preluarea sălbatică a fost oprită.",
+    "Wild takeover is unavailable right now.": "Preluarea sălbatică nu este disponibilă acum.",
+    "Wild prank active — press Escape to stop": "Farsă sălbatică activă — apasă Escape pentru a opri"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

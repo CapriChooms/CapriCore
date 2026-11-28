@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Tirarsi su fino al bordo",
     "Catch from a hanging grip": "Si riaggancia al bordo mentre è appesa",
     "Check the wrist scanner": "Controlla lo scanner da polso",
-    "Play the keytar": "Suona la keytar"
+    "Play the keytar": "Suona la keytar",
+    "Wild mouse and keyboard takeovers": "Prese di controllo selvagge di mouse e tastiera",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "In modalità Selvaggia, Capri prende occasionalmente un breve controllo del mouse e della tastiera in base a ciò che è sullo schermo. Richiede l’accesso completo al computer. Premi Esc per interrompere.",
+    "Minimum time between takeovers": "Tempo minimo tra le prese di controllo",
+    "Test takeover (3 s)": "Prova presa di controllo (3 s)",
+    "Switch to a window or game… {seconds} s": "Passa a una finestra o a un gioco… {seconds} s",
+    "Running Wild takeover…": "Presa di controllo selvaggia in corso…",
+    "Wild takeover finished.": "Presa di controllo selvaggia terminata.",
+    "Select the Wild communication style first.": "Seleziona prima lo stile di comunicazione Selvaggio.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Le prese di controllo selvagge richiedono l’accesso completo al computer. Premi Esc per interrompere.",
+    "Open a non-sensitive application or game before testing.": "Apri un’applicazione non sensibile o un gioco prima di provare.",
+    "Wild takeover stopped.": "Presa di controllo selvaggia interrotta.",
+    "Wild takeover is unavailable right now.": "La presa di controllo selvaggia non è disponibile in questo momento.",
+    "Wild prank active — press Escape to stop": "Scherzo selvaggio attivo — premi Escape per interrompere"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

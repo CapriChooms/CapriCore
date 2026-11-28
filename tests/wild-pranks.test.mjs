@@ -56,6 +56,21 @@ test('older profiles keep pranks off and settings admit only an explicit boolean
   assert.equal(validateCompanionSettings({}).wildDesktopPranks, false);
   assert.equal(validateCompanionSettings({ wildDesktopPranks: true }).wildDesktopPranks, true);
   assert.throws(() => validateCompanionSettings({ wildDesktopPranks: 'true' }));
+  assert.equal(validateCompanionSettings({}).wildInputPranks, false);
+  assert.equal(validateCompanionSettings({ wildInputPranks: true }).wildInputPranks, true);
+  assert.throws(() => validateCompanionSettings({ wildInputPranks: 'true' }));
+  assert.equal(validateCompanionSettings({}).wildInputPrankIntervalSeconds, 300);
+  assert.equal(
+    validateCompanionSettings({ wildInputPrankIntervalSeconds: 60 }).wildInputPrankIntervalSeconds,
+    60,
+  );
+  assert.equal(
+    validateCompanionSettings({ wildInputPrankIntervalSeconds: 1800 })
+      .wildInputPrankIntervalSeconds,
+    1800,
+  );
+  for (const invalid of [59, 1801, 120.5, '300', null])
+    assert.throws(() => validateCompanionSettings({ wildInputPrankIntervalSeconds: invalid }));
 });
 
 test('the decoy stays on the pointer display and travels inward at opposite corners', () => {

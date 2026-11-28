@@ -37,6 +37,8 @@ export const COMPANION_DEFAULTS = Object.freeze({
   unrestrictedConversation: false,
   wildCloseAiTabs: false,
   wildDesktopPranks: false,
+  wildInputPranks: false,
+  wildInputPrankIntervalSeconds: 300,
   wakeOnReminder: true,
   memoryMonitor: true,
   processGraphs: true,
@@ -94,6 +96,10 @@ export function validateCompanionSettings(value) {
     typeof next.unrestrictedConversation !== 'boolean' ||
     typeof next.wildCloseAiTabs !== 'boolean' ||
     typeof next.wildDesktopPranks !== 'boolean' ||
+    typeof next.wildInputPranks !== 'boolean' ||
+    !Number.isInteger(next.wildInputPrankIntervalSeconds) ||
+    next.wildInputPrankIntervalSeconds < 60 ||
+    next.wildInputPrankIntervalSeconds > 1800 ||
     typeof next.wakeOnReminder !== 'boolean' ||
     typeof next.expandOnReply !== 'boolean' ||
     typeof next.replyAnimation !== 'boolean' ||

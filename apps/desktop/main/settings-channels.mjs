@@ -102,6 +102,7 @@ export const SETTINGS_CHANNELS = [
   'github-token-page',
   'companion-settings',
   'cursor-prank-preview',
+  'wild-prank-preview',
   'community-link',
   'donation-open',
   'personality-get',

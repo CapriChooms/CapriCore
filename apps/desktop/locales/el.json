@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Σήκω στο χείλος",
     "Catch from a hanging grip": "Πιάσε την άκρη ενώ κρέμεσαι",
     "Check the wrist scanner": "Έλεγξε τον σαρωτή καρπού",
-    "Play the keytar": "Παίξε το κιθαροσύνολο"
+    "Play the keytar": "Παίξε το κιθαροσύνολο",
+    "Wild mouse and keyboard takeovers": "Άγριες αναλήψεις ελέγχου ποντικιού και πληκτρολογίου",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Στην Άγρια λειτουργία, η Capri αναλαμβάνει περιστασιακά για λίγο τον έλεγχο του ποντικιού και του πληκτρολογίου με βάση όσα φαίνονται στην οθόνη. Απαιτεί πλήρη πρόσβαση στον υπολογιστή. Πατήστε Esc για διακοπή.",
+    "Minimum time between takeovers": "Ελάχιστος χρόνος μεταξύ αναλήψεων ελέγχου",
+    "Test takeover (3 s)": "Δοκιμή ανάληψης ελέγχου (3 δ.)",
+    "Switch to a window or game… {seconds} s": "Μεταβείτε σε ένα παράθυρο ή παιχνίδι… {seconds} δ.",
+    "Running Wild takeover…": "Εκτέλεση άγριας ανάληψης ελέγχου…",
+    "Wild takeover finished.": "Η άγρια ανάληψη ελέγχου ολοκληρώθηκε.",
+    "Select the Wild communication style first.": "Επιλέξτε πρώτα το Άγριο στυλ επικοινωνίας.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Οι άγριες αναλήψεις ελέγχου απαιτούν πλήρη πρόσβαση στον υπολογιστή. Πατήστε Esc για διακοπή.",
+    "Open a non-sensitive application or game before testing.": "Ανοίξτε μια μη ευαίσθητη εφαρμογή ή ένα παιχνίδι πριν από τη δοκιμή.",
+    "Wild takeover stopped.": "Η άγρια ανάληψη ελέγχου σταμάτησε.",
+    "Wild takeover is unavailable right now.": "Η άγρια ανάληψη ελέγχου δεν είναι διαθέσιμη αυτή τη στιγμή.",
+    "Wild prank active — press Escape to stop": "Ενεργή άγρια φάρσα — πατήστε Escape για διακοπή"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

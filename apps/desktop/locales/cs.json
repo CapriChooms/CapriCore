@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Táhnout nahoru k okraji",
     "Catch from a hanging grip": "Chyť hranu při visení",
     "Check the wrist scanner": "Zkontroluj skener zápěstí",
-    "Play the keytar": "Hraj na keytar"
+    "Play the keytar": "Hraj na keytar",
+    "Wild mouse and keyboard takeovers": "Divoká převzetí myši a klávesnice",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "V divokém režimu Capri občas krátce převezme kontrolu nad myší a klávesnicí podle toho, co je na obrazovce. Vyžaduje plný přístup k počítači. Stiskněte Esc pro zastavení.",
+    "Minimum time between takeovers": "Minimální doba mezi převzetími",
+    "Test takeover (3 s)": "Otestovat převzetí (3 s)",
+    "Switch to a window or game… {seconds} s": "Přepněte na okno nebo hru… {seconds} s",
+    "Running Wild takeover…": "Probíhá divoké převzetí…",
+    "Wild takeover finished.": "Divoké převzetí dokončeno.",
+    "Select the Wild communication style first.": "Nejprve vyberte divoký styl komunikace.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Divoká převzetí vyžadují plný přístup k počítači. Stiskněte Esc pro zastavení.",
+    "Open a non-sensitive application or game before testing.": "Před testováním otevřete necitlivou aplikaci nebo hru.",
+    "Wild takeover stopped.": "Divoké převzetí zastaveno.",
+    "Wild takeover is unavailable right now.": "Divoké převzetí je momentálně nedostupné.",
+    "Wild prank active — press Escape to stop": "Divoký žert aktivní — stiskněte Escape pro zastavení"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

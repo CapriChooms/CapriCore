@@ -417,6 +417,14 @@ export class CompanionPanel {
           <button type="button" id="wild-pranks-preview" aria-describedby="wild-pranks-preview-help">Preview a prank</button>
           <p class="settings-help" id="wild-pranks-preview-help">Cursor pranks require Full computer access. Press Esc to stop.</p>
           <p class="settings-help" id="wild-pranks-preview-status" role="status"></p>
+          <div id="wild-input-pranks-group" hidden>
+            <label id="wild-input-pranks-label"><input type="checkbox" id="wild-input-pranks">Wild mouse and keyboard takeovers</label>
+            <p class="settings-help" data-help-for="wild-input-pranks-label">In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.</p>
+            <label class="drag-lightning-control" for="wild-input-prank-interval"><span>Minimum time between takeovers</span><output id="wild-input-prank-interval-value" data-untranslated></output></label>
+            <input id="wild-input-prank-interval" type="range" min="60" max="1800" step="30" value="300">
+            <button type="button" id="wild-input-prank-preview" aria-describedby="wild-input-prank-status">Test takeover (3 s)</button>
+            <p class="settings-help" id="wild-input-prank-status" role="status"></p>
+          </div>
           </section>
           <section class="settings-card" data-companion-group="Hands-free conversation">
           <label><input type="checkbox" id="companion-microphone-on-start">Turn on the microphone at launch</label>
@@ -562,6 +570,20 @@ export class CompanionPanel {
     };
     for (const id of ['avatar-roaming', 'avatar-roam-cursor-pranks', 'avatar-roam-interval'])
       this.get(id).addEventListener('input', this.roamingControls);
+    this.wildInputPrankControls = () => {
+      this.get('wild-input-pranks-group').hidden = this.get('communication-style').value !== 'wild';
+      const control = this.get('wild-input-prank-interval');
+      control.disabled = !this.get('wild-input-pranks').checked;
+      const seconds = control.valueAsNumber;
+      this.get('wild-input-prank-interval-value').textContent =
+        seconds < 60
+          ? `${seconds} s`
+          : `${Math.floor(seconds / 60)} min${seconds % 60 ? ' 30 s' : ''}`;
+    };
+    for (const id of ['wild-input-pranks', 'wild-input-prank-interval'])
+      this.get(id).addEventListener('input', this.wildInputPrankControls);
+    this.get('communication-style').addEventListener('input', this.wildInputPrankControls);
+    this.get('communication-style').addEventListener('change', this.wildInputPrankControls);
     this.resourceMetricInputs = Object.fromEntries(
       resourceDisplays.map(({ field }) => [
         field,
@@ -863,6 +885,8 @@ export class CompanionPanel {
       followUpSeconds: Number(this.get('companion-follow-up-seconds').value),
       wildCloseAiTabs: this.get('wild-close-ai-tabs').checked,
       wildDesktopPranks: this.get('wild-desktop-pranks').checked,
+      wildInputPranks: this.get('wild-input-pranks').checked,
+      wildInputPrankIntervalSeconds: this.get('wild-input-prank-interval').valueAsNumber,
       wakeOnReminder: this.get('companion-reminder-wake').checked,
       expandOnReply: this.get('companion-expand-reply').checked,
       replyAnimation: this.get('reply-animation').checked,
@@ -944,6 +968,31 @@ export class CompanionPanel {
               ? 'Cursor pranks require Full computer access. Press Esc to stop.'
               : unavailable,
           );
+      } catch {
+        status.textContent = this.ui.text(unavailable);
+      } finally {
+        button.disabled = false;
+      }
+    };
+    this.get('wild-input-prank-preview').onclick = async (event) => {
+      if (!event.isTrusted) return;
+      const button = event.currentTarget;
+      const status = this.get('wild-input-prank-status');
+      button.disabled = true;
+      status.textContent = '';
+      const unavailable = 'Wild takeover is unavailable right now.';
+      const errorMessages = {
+        CAPRI_WILD_PRANK_STYLE_REQUIRED: 'Select the Wild communication style first.',
+        CAPRI_WILD_PRANK_ACCESS_REQUIRED:
+          'Wild takeovers require Full computer access. Press Esc to stop.',
+        CAPRI_WILD_PRANK_BLOCKED: 'Open a non-sensitive application or game before testing.',
+        CAPRI_WILD_PRANK_ABORTED: 'Wild takeover stopped.',
+      };
+      try {
+        const { ok, quip, code } = await api.previewWildInputPrank();
+        status.textContent = ok
+          ? quip || this.ui.text('Wild takeover finished.')
+          : this.ui.text(errorMessages[code] ?? unavailable);
       } catch {
         status.textContent = this.ui.text(unavailable);
       } finally {
@@ -1120,6 +1169,9 @@ export class CompanionPanel {
     this.get('companion-follow-up-seconds').value = value.followUpSeconds;
     this.get('wild-close-ai-tabs').checked = value.wildCloseAiTabs === true;
     this.get('wild-desktop-pranks').checked = value.wildDesktopPranks === true;
+    this.get('wild-input-pranks').checked = value.wildInputPranks === true;
+    this.get('wild-input-prank-interval').value = value.wildInputPrankIntervalSeconds ?? 300;
+    this.wildInputPrankControls();
     this.get('companion-reminder-wake').checked = value.wakeOnReminder !== false;
     this.get('companion-expand-reply').checked = value.expandOnReply !== false;
     this.get('reply-auto-hide').checked = value.replyAutoHide !== false;
@@ -1224,6 +1276,8 @@ export class CompanionPanel {
         'companion-follow-up-seconds',
         'wild-close-ai-tabs',
         'wild-desktop-pranks',
+        'wild-input-pranks',
+        'wild-input-prank-interval',
         'companion-reminder-wake',
         'companion-expand-reply',
         'reply-animation',
@@ -1307,10 +1361,20 @@ export class CompanionPanel {
     }
     return true;
   }
+  showWildPrankPreviewStatus(value) {
+    const status = this.get('wild-input-prank-status');
+    if (!status) return;
+    if (value.seconds > 0)
+      status.textContent = this.ui.text('Switch to a window or game… {seconds} s', {
+        seconds: value.seconds,
+      });
+    else if (value.seconds === 0) status.textContent = this.ui.text('Running Wild takeover…');
+  }
   async loadPersonality() {
     const value = await this.api.getPersonality();
     this.communicationStyle = value.communicationStyle ?? 'neutral';
     this.get('communication-style').value = this.communicationStyle;
+    this.wildInputPrankControls();
     this.get('personality-text').value = value.text;
     this.savedPersonality = this.get('personality-text').value;
     this.get('personality-text').placeholder = '';

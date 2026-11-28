@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Potaya çek",
     "Catch from a hanging grip": "Asılıyken kenarı yakala",
     "Check the wrist scanner": "Bilek tarayıcısını kontrol et",
-    "Play the keytar": "Keytar çal"
+    "Play the keytar": "Keytar çal",
+    "Wild mouse and keyboard takeovers": "Çılgın fare ve klavye devralmaları",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Çılgın modda Capri, ekranda olanlara göre ara sıra farenin ve klavyenin kontrolünü kısa süreliğine devralır. Tam bilgisayar erişimi gerektirir. Durdurmak için Esc tuşuna basın.",
+    "Minimum time between takeovers": "Devralmalar arasındaki en az süre",
+    "Test takeover (3 s)": "Devralmayı test et (3 sn)",
+    "Switch to a window or game… {seconds} s": "Bir pencereye veya oyuna geçin… {seconds} sn",
+    "Running Wild takeover…": "Çılgın devralma çalıştırılıyor…",
+    "Wild takeover finished.": "Çılgın devralma tamamlandı.",
+    "Select the Wild communication style first.": "Önce Çılgın iletişim tarzını seçin.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Çılgın devralmalar tam bilgisayar erişimi gerektirir. Durdurmak için Esc tuşuna basın.",
+    "Open a non-sensitive application or game before testing.": "Test etmeden önce hassas olmayan bir uygulama veya oyun açın.",
+    "Wild takeover stopped.": "Çılgın devralma durduruldu.",
+    "Wild takeover is unavailable right now.": "Çılgın devralma şu anda kullanılamıyor.",
+    "Wild prank active — press Escape to stop": "Çılgın şaka etkin — durdurmak için Escape tuşuna basın"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

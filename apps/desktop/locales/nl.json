@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Tot de rand optrekken",
     "Catch from a hanging grip": "Pak de rand terwijl je hangt",
     "Check the wrist scanner": "Controleer de polsscanner",
-    "Play the keytar": "Speel de keytar"
+    "Play the keytar": "Speel de keytar",
+    "Wild mouse and keyboard takeovers": "Wilde muis- en toetsenbordovernames",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "In de Wilde modus neemt Capri af en toe kort de controle over je muis en toetsenbord op basis van wat er op het scherm staat. Vereist volledige computertoegang. Druk op Esc om te stoppen.",
+    "Minimum time between takeovers": "Minimale tijd tussen overnames",
+    "Test takeover (3 s)": "Overname testen (3 s)",
+    "Switch to a window or game… {seconds} s": "Schakel naar een venster of game… {seconds} s",
+    "Running Wild takeover…": "Wilde overname wordt uitgevoerd…",
+    "Wild takeover finished.": "Wilde overname voltooid.",
+    "Select the Wild communication style first.": "Selecteer eerst de communicatiestijl Wild.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Wilde overnames vereisen volledige computertoegang. Druk op Esc om te stoppen.",
+    "Open a non-sensitive application or game before testing.": "Open een niet-gevoelige app of game voordat je test.",
+    "Wild takeover stopped.": "Wilde overname gestopt.",
+    "Wild takeover is unavailable right now.": "Wilde overname is momenteel niet beschikbaar.",
+    "Wild prank active — press Escape to stop": "Wilde grap actief — druk op Escape om te stoppen"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

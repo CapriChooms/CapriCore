@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "کنارے تک کھینچنا",
     "Catch from a hanging grip": "لٹکتے ہوئے کنارے کو پکڑیں",
     "Check the wrist scanner": "کلائی اسکینر کو چیک کریں",
-    "Play the keytar": "کیٹار بجائیں"
+    "Play the keytar": "کیٹار بجائیں",
+    "Wild mouse and keyboard takeovers": "ماؤس اور کی بورڈ پر بے قابو قبضے",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "وائلد موڈ میں Capri اسکرین پر موجود چیزوں کے مطابق کبھی کبھار مختصر وقت کے لیے آپ کے ماؤس اور کی بورڈ کا کنٹرول سنبھال لیتی ہے۔ اس کے لیے کمپیوٹر تک مکمل رسائی درکار ہے۔ روکنے کے لیے Esc دبائیں۔",
+    "Minimum time between takeovers": "قبضوں کے درمیان کم از کم وقت",
+    "Test takeover (3 s)": "قبضے کا تجربہ کریں (3 سیکنڈ)",
+    "Switch to a window or game… {seconds} s": "کسی ونڈو یا گیم پر جائیں… {seconds} سیکنڈ",
+    "Running Wild takeover…": "وائلد قبضہ جاری ہے…",
+    "Wild takeover finished.": "وائلد قبضہ مکمل ہو گیا۔",
+    "Select the Wild communication style first.": "پہلے وائلد گفتگو کا انداز منتخب کریں۔",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "وائلد قبضوں کے لیے کمپیوٹر تک مکمل رسائی درکار ہے۔ روکنے کے لیے Esc دبائیں۔",
+    "Open a non-sensitive application or game before testing.": "تجربہ کرنے سے پہلے کوئی غیر حساس ایپ یا گیم کھولیں۔",
+    "Wild takeover stopped.": "وائلد قبضہ روک دیا گیا۔",
+    "Wild takeover is unavailable right now.": "وائلد قبضہ اس وقت دستیاب نہیں ہے۔",
+    "Wild prank active — press Escape to stop": "وائلد شرارت فعال ہے — روکنے کے لیے Escape دبائیں"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

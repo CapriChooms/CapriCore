@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Vuta juu hadi kingo",
     "Catch from a hanging grip": "Shika ukingo wakati unasimama",
     "Check the wrist scanner": "Angalia skana ya kisigino",
-    "Play the keytar": "Cheza keytar"
+    "Play the keytar": "Cheza keytar",
+    "Wild mouse and keyboard takeovers": "Uchukuzi wa ghafla wa kipanya na kibodi",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Katika hali ya Pori, Capri wakati mwingine huchukua udhibiti mfupi wa kipanya na kibodi yako kulingana na kilicho kwenye skrini. Inahitaji ufikiaji kamili wa kompyuta. Bonyeza Esc kusimamisha.",
+    "Minimum time between takeovers": "Muda wa chini kati ya uchukuzi",
+    "Test takeover (3 s)": "Jaribu uchukuzi (sek 3)",
+    "Switch to a window or game… {seconds} s": "Badili kwenda dirisha au mchezo… sek {seconds}",
+    "Running Wild takeover…": "Inaendesha uchukuzi wa Pori…",
+    "Wild takeover finished.": "Uchukuzi wa Pori umekamilika.",
+    "Select the Wild communication style first.": "Chagua mtindo wa mawasiliano wa Pori kwanza.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Uchukuzi wa Pori unahitaji ufikiaji kamili wa kompyuta. Bonyeza Esc kusimamisha.",
+    "Open a non-sensitive application or game before testing.": "Fungua programu isiyo nyeti au mchezo kabla ya kujaribu.",
+    "Wild takeover stopped.": "Uchukuzi wa Pori umesimamishwa.",
+    "Wild takeover is unavailable right now.": "Uchukuzi wa Pori haupatikani kwa sasa.",
+    "Wild prank active — press Escape to stop": "Mzaha wa Pori unaendelea — bonyeza Escape kusimamisha"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

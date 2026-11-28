@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Draga sig upp að brún",
     "Catch from a hanging grip": "Gríptu brúnina meðan þú hangir",
     "Check the wrist scanner": "Skoðaðu úlfatölvuskannann",
-    "Play the keytar": "Spilaðu á lyklatónlistartækið"
+    "Play the keytar": "Spilaðu á lyklatónlistartækið",
+    "Wild mouse and keyboard takeovers": "Villtar yfirtökur á mús og lyklaborði",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Í villtum ham tekur Capri af og til stutta stjórn á músinni og lyklaborðinu út frá því sem er á skjánum. Krefst fulls tölvuaðgangs. Ýttu á Esc til að stöðva.",
+    "Minimum time between takeovers": "Lágmarkstími á milli yfirtaka",
+    "Test takeover (3 s)": "Prófa yfirtöku (3 s)",
+    "Switch to a window or game… {seconds} s": "Skiptu yfir í glugga eða leik… {seconds} s",
+    "Running Wild takeover…": "Keyri villta yfirtöku…",
+    "Wild takeover finished.": "Villtri yfirtöku lokið.",
+    "Select the Wild communication style first.": "Veldu fyrst villtan samskiptastíl.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Villtar yfirtökur krefjast fulls tölvuaðgangs. Ýttu á Esc til að stöðva.",
+    "Open a non-sensitive application or game before testing.": "Opnaðu óviðkvæmt forrit eða leik áður en þú prófar.",
+    "Wild takeover stopped.": "Villt yfirtaka stöðvuð.",
+    "Wild takeover is unavailable right now.": "Villt yfirtaka er ekki í boði akkúrat núna.",
+    "Wild prank active — press Escape to stop": "Villtur hrekkur virkur — ýttu á Escape til að stöðva"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

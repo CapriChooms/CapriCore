@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Vedä ylös reunalle",
     "Catch from a hanging grip": "Ota kiinni reunasta roikkuessasi",
     "Check the wrist scanner": "Tarkista rannekkeen skanneri",
-    "Play the keytar": "Soita keytaria"
+    "Play the keytar": "Soita keytaria",
+    "Wild mouse and keyboard takeovers": "Villit hiiren ja näppäimistön haltuunotot",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "Villissä tilassa Capri ottaa ajoittain hetkeksi hiiren ja näppäimistön hallintaansa ruudulla näkyvän sisällön perusteella. Vaatii täyden tietokoneen käyttöoikeuden. Lopeta painamalla Esc.",
+    "Minimum time between takeovers": "Vähimmäisaika haltuunottojen välillä",
+    "Test takeover (3 s)": "Testaa haltuunottoa (3 s)",
+    "Switch to a window or game… {seconds} s": "Vaihda ikkunaan tai peliin… {seconds} s",
+    "Running Wild takeover…": "Suoritetaan villiä haltuunottoa…",
+    "Wild takeover finished.": "Villi haltuunotto valmis.",
+    "Select the Wild communication style first.": "Valitse ensin Villi viestintätyyli.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Villit haltuunotot vaativat täyden tietokoneen käyttöoikeuden. Lopeta painamalla Esc.",
+    "Open a non-sensitive application or game before testing.": "Avaa ei-arkaluontoinen sovellus tai peli ennen testaamista.",
+    "Wild takeover stopped.": "Villi haltuunotto pysäytetty.",
+    "Wild takeover is unavailable right now.": "Villi haltuunotto ei ole juuri nyt käytettävissä.",
+    "Wild prank active — press Escape to stop": "Villi kepponen käynnissä — lopeta painamalla Escape"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

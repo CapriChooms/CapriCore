@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "縁につかまって体を引き上げる",
     "Catch from a hanging grip": "ぶら下がりながらエッジをつかむ",
     "Check the wrist scanner": "手首のスキャナーを確認する",
-    "Play the keytar": "キータールを演奏する"
+    "Play the keytar": "キータールを演奏する",
+    "Wild mouse and keyboard takeovers": "ワイルドなマウス・キーボード乗っ取り",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "ワイルドモードでは、Capri が画面の内容に応じてときどき短時間だけマウスとキーボードを操作します。完全なコンピューターアクセスが必要です。停止するには Esc を押してください。",
+    "Minimum time between takeovers": "乗っ取りの最小間隔",
+    "Test takeover (3 s)": "乗っ取りをテスト (3 秒)",
+    "Switch to a window or game… {seconds} s": "ウィンドウまたはゲームに切り替えてください… {seconds} 秒",
+    "Running Wild takeover…": "ワイルドな乗っ取りを実行中…",
+    "Wild takeover finished.": "ワイルドな乗っ取りが完了しました。",
+    "Select the Wild communication style first.": "先にコミュニケーションスタイルで「ワイルド」を選択してください。",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "ワイルドな乗っ取りには完全なコンピューターアクセスが必要です。停止するには Esc を押してください。",
+    "Open a non-sensitive application or game before testing.": "テストする前に機密性のないアプリまたはゲームを開いてください。",
+    "Wild takeover stopped.": "ワイルドな乗っ取りを停止しました。",
+    "Wild takeover is unavailable right now.": "ワイルドな乗っ取りは現在利用できません。",
+    "Wild prank active — press Escape to stop": "ワイルドないたずら実行中 — Escape を押して停止"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

@@ -2555,6 +2555,19 @@
     "Pull up to the rim": "Pull up to the rim",
     "Catch from a hanging grip": "Catch from a hanging grip",
     "Check the wrist scanner": "Check the wrist scanner",
-    "Play the keytar": "Play the keytar"
+    "Play the keytar": "Play the keytar",
+    "Wild mouse and keyboard takeovers": "Wild mouse and keyboard takeovers",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.",
+    "Minimum time between takeovers": "Minimum time between takeovers",
+    "Test takeover (3 s)": "Test takeover (3 s)",
+    "Switch to a window or game… {seconds} s": "Switch to a window or game… {seconds} s",
+    "Running Wild takeover…": "Running Wild takeover…",
+    "Wild takeover finished.": "Wild takeover finished.",
+    "Select the Wild communication style first.": "Select the Wild communication style first.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Wild takeovers require Full computer access. Press Esc to stop.",
+    "Open a non-sensitive application or game before testing.": "Open a non-sensitive application or game before testing.",
+    "Wild takeover stopped.": "Wild takeover stopped.",
+    "Wild takeover is unavailable right now.": "Wild takeover is unavailable right now.",
+    "Wild prank active — press Escape to stop": "Wild prank active — press Escape to stop"
   }
 }

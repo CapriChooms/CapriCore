@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "રિમ સુધી ખેંચો",
     "Catch from a hanging grip": "લટકતી વખતે કાંઠો પકડો",
     "Check the wrist scanner": "કળાંઝિયું સ્કેનર તપાસો",
-    "Play the keytar": "કીટર વગાડો"
+    "Play the keytar": "કીટર વગાડો",
+    "Wild mouse and keyboard takeovers": "વાઇલ્ડ માઉસ અને કીબોર્ડ નિયંત્રણો",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "વાઇલ્ડ મોડમાં, સ્ક્રીન પર શું છે તેના આધારે Capri ક્યારેક થોડા સમય માટે તમારા માઉસ અને કીબોર્ડનું નિયંત્રણ લે છે. તેના માટે કમ્પ્યુટરની સંપૂર્ણ ઍક્સેસ જરૂરી છે. રોકવા માટે Esc દબાવો.",
+    "Minimum time between takeovers": "નિયંત્રણો વચ્ચેનો લઘુત્તમ સમય",
+    "Test takeover (3 s)": "નિયંત્રણ ચકાસો (3 સે.)",
+    "Switch to a window or game… {seconds} s": "કોઈ વિન્ડો અથવા ગેમ પર જાઓ… {seconds} સે.",
+    "Running Wild takeover…": "વાઇલ્ડ નિયંત્રણ ચાલી રહ્યું છે…",
+    "Wild takeover finished.": "વાઇલ્ડ નિયંત્રણ પૂર્ણ થયું.",
+    "Select the Wild communication style first.": "પહેલા વાઇલ્ડ સંવાદ શૈલી પસંદ કરો.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "વાઇલ્ડ નિયંત્રણો માટે કમ્પ્યુટરની સંપૂર્ણ ઍક્સેસ જરૂરી છે. રોકવા માટે Esc દબાવો.",
+    "Open a non-sensitive application or game before testing.": "ચકાસણી પહેલાં બિન-સંવેદનશીલ એપ્લિકેશન અથવા ગેમ ખોલો.",
+    "Wild takeover stopped.": "વાઇલ્ડ નિયંત્રણ રોકાયું.",
+    "Wild takeover is unavailable right now.": "વાઇલ્ડ નિયંત્રણ હાલમાં ઉપલબ્ધ નથી.",
+    "Wild prank active — press Escape to stop": "વાઇલ્ડ મજાક સક્રિય છે — રોકવા માટે Escape દબાવો"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",

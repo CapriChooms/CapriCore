@@ -3249,6 +3249,27 @@ body[data-presence='core'] :is(#inference-label, #context-hud) {
   margin-block-start: 3px;
   color: var(--ui-accent, #8ef5ed);
 }
+#wild-prank-notice {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border: 1px solid var(--pink);
+  background: var(--theme-panel, #101923);
+  color: var(--theme-text, #e6e8ec);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+#wild-prank-notice[hidden] {
+  display: none;
+}
+#wild-prank-reaction {
+  display: block;
+  color: var(--ui-accent, #8ef5ed);
+}
 body[data-presence='core'] .dock-notifications {
   display: flex;
   flex-direction: column;

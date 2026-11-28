@@ -1381,3 +1381,183 @@ test('key input carries the observed native focus identity so a changed field ca
     await f.control.stop();
   }
 });
+
+test('runWildPrank enforces permission, isolates session metadata, and releases keys and buttons on exit', async () => {
+  const { state, control } = fixture();
+  const events = [];
+  const escapeOptions = [];
+  const borderOptions = [];
+  let now = 10_000;
+  control.now = () => now;
+  control.emit = (event) => events.push(event);
+  const baseEscape = control.registerEscape;
+  control.registerEscape = (stop, options) => {
+    escapeOptions.push(options);
+    return baseEscape(stop, options);
+  };
+  const baseBorder = control.showBorder;
+  control.showBorder = async (options) => {
+    borderOptions.push(options);
+    return baseBorder(options);
+  };
+
+  state.allowed = false;
+  assert.deepEqual(
+    await control.runWildPrank({ permitted: () => true, run: async () => ({ ok: true }) }),
+    { ok: false, code: 'CAPRI_WILD_PRANK_CANCELLED' },
+  );
+  state.allowed = true;
+  assert.deepEqual(
+    await control.runWildPrank({ permitted: () => false, run: async () => ({ ok: true }) }),
+    { ok: false, code: 'CAPRI_WILD_PRANK_CANCELLED' },
+  );
+
+  let permitted = true;
+  const result = await control.runWildPrank({
+    permitted: () => permitted,
+    canFinish: () => true,
+    preview: true,
+    releaseKeys: () => ['W', 'A', 'S', 'D', 'SHIFT', 'W'],
+    releaseButtons: () => ['left', 'right', 'left'],
+    run: async ({ signal, stillAllowed }) => {
+      assert.equal(signal.aborted, false);
+      assert.equal(stillAllowed(), true);
+      assert.equal(control.snapshot().deadline, now + 20_000);
+      // Permitted may drop after dispatch while canFinish remains true.
+      permitted = false;
+      assert.equal(stillAllowed(), true);
+      await assert.rejects(control.execute({ action: 'observe' }), /owner-requested session/i);
+      return { ok: true, executed: 3 };
+    },
+  });
+
+  assert.deepEqual(result, { ok: true, executed: 3 });
+  assert.deepEqual(escapeOptions, [{ idleCursor: false, wildPrank: true }]);
+  assert.deepEqual(borderOptions, [{ idleCursor: false, wildPrank: true, preview: true }]);
+  assert.equal(
+    events.some((event) => event.active && event.wildPrank === true),
+    true,
+  );
+  assert.equal(state.visible || state.registered || control.snapshot().active, false);
+
+  const releases = state.calls.filter((call) => call.action === 'computer_release');
+  assert.equal(
+    releases.every((call) => call.keys.length <= 4),
+    true,
+  );
+  for (const key of ['W', 'A', 'S', 'D', 'SHIFT'])
+    assert.equal(
+      releases.some((call) => call.keys.includes(key)),
+      true,
+    );
+  for (const button of ['left', 'right'])
+    assert.equal(
+      releases.some((call) => call.button === button),
+      true,
+    );
+});
+
+test('begin preempts an active wild prank cleanly and Escape interrupts a wild prank without blocking the turn', async () => {
+  const { state, control } = fixture();
+  const entered = Promise.withResolvers();
+  let prankSignal;
+  const prankPromise = control.runWildPrank({
+    permitted: () => true,
+    releaseKeys: () => ['R'],
+    releaseButtons: () => ['left'],
+    run: ({ signal }) => {
+      prankSignal = signal;
+      entered.resolve();
+      return new Promise((_, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
+      );
+    },
+  });
+  const prankRejected = assert.rejects(prankPromise, /stopped/);
+  await entered.promise;
+
+  // Owner-requested begin() cleanly stops the wild prank and starts a normal session
+  await control.begin('Take over for real owner task');
+  assert.equal(prankSignal.aborted, true);
+  assert.equal(control.snapshot().active, true);
+  await prankRejected;
+  assert.equal(
+    state.calls.some((call) => call.action === 'computer_release' && call.keys.includes('R')),
+    true,
+  );
+  assert.equal(
+    state.calls.some((call) => call.action === 'computer_release' && call.button === 'left'),
+    true,
+  );
+  await control.stop({ blockTurn: false });
+
+  // Escape interrupts a wild prank without blocking the current turn
+  const startedSecond = Promise.withResolvers();
+  const secondPrank = control.runWildPrank({
+    permitted: () => true,
+    releaseKeys: () => ['SPACE'],
+    run: ({ signal }) => {
+      startedSecond.resolve();
+      return new Promise((_, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
+      );
+    },
+  });
+  const secondRejected = assert.rejects(secondPrank, /stopped/);
+  await startedSecond.promise;
+  state.escape();
+  await secondRejected;
+  assert.equal(
+    state.calls.some((call) => call.action === 'computer_release' && call.keys.includes('SPACE')),
+    true,
+  );
+  await control.begin('Same turn still works after wild prank Escape');
+  assert.equal(control.snapshot().active, true);
+  await control.stop();
+});
+
+test('wild prank supervision enforces canFinish and cancels before dispatch without releasing unpressed input', async () => {
+  const { state, control } = fixture();
+  const shown = Promise.withResolvers();
+  control.showBorder = async () => shown.resolve();
+  const preDispatch = control.runWildPrank({
+    permitted: () => true,
+    releaseKeys: () => ['W'],
+    releaseButtons: () => ['left'],
+    run: async () => assert.fail('cancelled prank must not run'),
+  });
+  const cancelled = assert.rejects(preDispatch, /cancelled|aborted/i);
+  await shown.promise;
+  state.escape();
+  await cancelled;
+  assert.deepEqual(state.calls, []);
+
+  // Revoking canFinish during execution fails supervise() and aborts the prank
+  const active = fixture();
+  let canFinish = true;
+  const started = Promise.withResolvers();
+  const running = active.control.runWildPrank({
+    permitted: () => true,
+    canFinish: () => canFinish,
+    releaseKeys: () => ['D'],
+    run: ({ signal }) => {
+      started.resolve();
+      return new Promise((_, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
+      );
+    },
+  });
+  const aborted = assert.rejects(running, /stopped/);
+  await started.promise;
+  assert.equal(active.control.supervise({ indicatorVisible: true }), true);
+  canFinish = false;
+  assert.equal(active.control.supervise({ indicatorVisible: true }), false);
+  await aborted;
+  assert.equal(
+    active.state.calls.some(
+      (call) => call.action === 'computer_release' && call.keys.includes('D'),
+    ),
+    true,
+  );
+  assert.equal(active.state.visible || active.state.registered, false);
+});

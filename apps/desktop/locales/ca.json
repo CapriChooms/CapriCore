@@ -2557,7 +2557,20 @@
     "Pull up to the rim": "Estirar-se fins al rebord",
     "Catch from a hanging grip": "Agafa la vora mentre penges",
     "Check the wrist scanner": "Revisa l'escàner de canell",
-    "Play the keytar": "Toca el keytar"
+    "Play the keytar": "Toca el keytar",
+    "Wild mouse and keyboard takeovers": "Preses de control salvatges del ratolí i del teclat",
+    "In Wild mode, Capri occasionally takes brief control of your mouse and keyboard based on what is on screen. Requires Full computer access. Press Esc to stop.": "En mode Salvatge, Capri pren de tant en tant un breu control del ratolí i del teclat segons el que hi ha a la pantalla. Requereix accés complet a l’ordinador. Prem Esc per aturar-ho.",
+    "Minimum time between takeovers": "Temps mínim entre preses de control",
+    "Test takeover (3 s)": "Prova la presa de control (3 s)",
+    "Switch to a window or game… {seconds} s": "Canvia a una finestra o joc… {seconds} s",
+    "Running Wild takeover…": "Executant la presa de control salvatge…",
+    "Wild takeover finished.": "Presa de control salvatge finalitzada.",
+    "Select the Wild communication style first.": "Selecciona primer l’estil de comunicació Salvatge.",
+    "Wild takeovers require Full computer access. Press Esc to stop.": "Les preses de control salvatges requereixen accés complet a l’ordinador. Prem Esc per aturar-ho.",
+    "Open a non-sensitive application or game before testing.": "Obre una aplicació no sensible o un joc abans de provar.",
+    "Wild takeover stopped.": "Presa de control salvatge aturada.",
+    "Wild takeover is unavailable right now.": "La presa de control salvatge no està disponible ara mateix.",
+    "Wild prank active — press Escape to stop": "Broma salvatge activa — prem Escape per aturar-ho"
   },
   "audit": {
     "sourceRevision": "d80aa25032f8f3882663423f7a4ae90fffdf5f26c0c834b6dace1bf6a7fb6ce3",
